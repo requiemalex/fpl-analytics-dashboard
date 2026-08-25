@@ -225,7 +225,7 @@ export function UnderlyingNumbers() {
 
       <AnalysisModeToggle />
 
-      <FiltersBar compact />
+      <FiltersBar />
 
       <h2 className="section-heading">Expected vs Actual</h2>
       <div className="card-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>

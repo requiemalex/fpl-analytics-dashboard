@@ -27,9 +27,6 @@ export function filterPlayers(
 ): NormalizedPlayer[] {
   const search = filters.search.trim().toLowerCase();
   const minMinutes = effectiveMinMinutes(filters, mode);
-  // Same reasoning as minMinutes above — a minimum-starts bar is another
-  // track-record filter that doesn't mean anything yet in live mode.
-  const applyMinStarts = mode !== "live";
 
   return players.filter((p) => {
     if (search && !p.name.toLowerCase().includes(search) && !`${p.firstName} ${p.lastName}`.toLowerCase().includes(search)) return false;
@@ -41,15 +38,12 @@ export function filterPlayers(
     // resolvePlayerStats.ts: excluding them here would just reintroduce
     // the same vanishing-player problem through a different code path.
     if (p.minutes !== null && p.minutes < minMinutes) return false;
-    // Same reasoning as the minutes check above: a null starts value (no
-    // data for this mode) means the bar doesn't apply, not "treat as 0
-    // and fail it" — the old `?? 0` here had the same silent-exclusion
-    // bug the minutes check just had fixed.
-    if (applyMinStarts && filters.minStarts > 0 && p.starts !== null && p.starts < filters.minStarts) return false;
-    if (filters.minOwnership !== null && (p.ownership ?? -Infinity) < filters.minOwnership) return false;
-    if (filters.maxOwnership !== null && (p.ownership ?? Infinity) > filters.maxOwnership) return false;
-    if (filters.minPrice !== null && p.price < filters.minPrice) return false;
-    if (filters.maxPrice !== null && p.price > filters.maxPrice) return false;
+    // Starts/ownership/price row-filtering moved to each column's own
+    // Excel-style filter (▾ icon) — this global bar only keeps the
+    // fields that either can't be replicated at the column level
+    // (Archetypes has no filterable column) or drive more than row
+    // filtering (Min Minutes — see effectiveMinMinutes/percentile use
+    // app-wide).
     if (filters.archetypes.length > 0) {
       const playerLabels = archetypeMap?.get(p.id) ?? [];
       if (!filters.archetypes.some((a) => playerLabels.includes(a))) return false;

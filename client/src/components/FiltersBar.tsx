@@ -4,7 +4,7 @@ import { ARCHETYPE_LABELS, type ArchetypeLabel } from "../metrics/archetypes";
 
 const MINUTES_STEP = 90;
 
-export function FiltersBar({ compact = false }: { compact?: boolean }) {
+export function FiltersBar() {
   const { filters, setFilters, resetFilters, teams, analysisMode } = useAppState();
   const [showArchetypePopover, setShowArchetypePopover] = useState(false);
 
@@ -97,71 +97,6 @@ export function FiltersBar({ compact = false }: { compact?: boolean }) {
           onChange={(e) => update("minMinutes", Math.max(0, Math.round(Number(e.target.value) / MINUTES_STEP) * MINUTES_STEP))}
         />
       </div>
-
-      {!compact && (
-        <>
-          <div className="field">
-            <label htmlFor="f-min-starts">Min starts {analysisMode === "live" && <span style={{ color: "var(--text-muted)" }}>(bypassed)</span>}</label>
-            <input
-              id="f-min-starts"
-              type="number"
-              min={0}
-              value={filters.minStarts}
-              disabled={analysisMode === "live"}
-              title={analysisMode === "live" ? "Not applied in Current Season mode — everyone has low or zero starts until real gameweeks accumulate" : undefined}
-              onChange={(e) => update("minStarts", Math.max(0, Number(e.target.value)))}
-            />
-          </div>
-
-          <div className="field">
-            <label htmlFor="f-min-own">Min own%</label>
-            <input
-              id="f-min-own"
-              type="number"
-              min={0}
-              max={100}
-              value={filters.minOwnership ?? ""}
-              onChange={(e) => update("minOwnership", e.target.value === "" ? null : Number(e.target.value))}
-            />
-          </div>
-
-          <div className="field">
-            <label htmlFor="f-max-own">Max own%</label>
-            <input
-              id="f-max-own"
-              type="number"
-              min={0}
-              max={100}
-              value={filters.maxOwnership ?? ""}
-              onChange={(e) => update("maxOwnership", e.target.value === "" ? null : Number(e.target.value))}
-            />
-          </div>
-
-          <div className="field">
-            <label htmlFor="f-min-price">Min £m</label>
-            <input
-              id="f-min-price"
-              type="number"
-              step={0.5}
-              min={0}
-              value={filters.minPrice ?? ""}
-              onChange={(e) => update("minPrice", e.target.value === "" ? null : Number(e.target.value))}
-            />
-          </div>
-
-          <div className="field">
-            <label htmlFor="f-max-price">Max £m</label>
-            <input
-              id="f-max-price"
-              type="number"
-              step={0.5}
-              min={0}
-              value={filters.maxPrice ?? ""}
-              onChange={(e) => update("maxPrice", e.target.value === "" ? null : Number(e.target.value))}
-            />
-          </div>
-        </>
-      )}
 
       <button className="btn" onClick={resetFilters} type="button">
         Reset Criteria

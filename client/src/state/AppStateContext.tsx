@@ -22,11 +22,6 @@ export interface GlobalScoutingFilters {
   position: "ALL" | "GKP" | "DEF" | "MID" | "FWD";
   teamId: number | "ALL";
   minMinutes: number;
-  minStarts: number;
-  minOwnership: number | null;
-  maxOwnership: number | null;
-  minPrice: number | null;
-  maxPrice: number | null;
   /** Empty array = no archetype filter applied. Any-of match when non-empty. */
   archetypes: ArchetypeLabel[];
 }
@@ -38,11 +33,6 @@ const DEFAULT_FILTERS: GlobalScoutingFilters = {
   position: "ALL",
   teamId: "ALL",
   minMinutes: DEFAULT_MIN_MINUTES,
-  minStarts: 0,
-  minOwnership: null,
-  maxOwnership: null,
-  minPrice: null,
-  maxPrice: null,
   archetypes: [],
 };
 

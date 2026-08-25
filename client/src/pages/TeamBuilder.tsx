@@ -170,10 +170,6 @@ export function TeamBuilder() {
   const [pickerSearch, setPickerSearch] = useState("");
   const [pickerPosition, setPickerPosition] = useState<"ALL" | Position>("ALL");
   const [pickerTeamId, setPickerTeamId] = useState<"ALL" | number>("ALL");
-  const [pickerMinPrice, setPickerMinPrice] = useState<number | null>(null);
-  const [pickerMaxPrice, setPickerMaxPrice] = useState<number | null>(null);
-  const [pickerMinOwnership, setPickerMinOwnership] = useState<number | null>(null);
-  const [pickerMaxOwnership, setPickerMaxOwnership] = useState<number | null>(null);
   const [pickerMinMinutes, setPickerMinMinutes] = useState<number | null>(null);
   const [pickerArchetypes, setPickerArchetypes] = useState<ArchetypeLabel[]>([]);
   const [showPickerArchetypePopover, setShowPickerArchetypePopover] = useState(false);
@@ -483,10 +479,6 @@ export function TeamBuilder() {
     setPickerSearch("");
     setPickerPosition("ALL");
     setPickerTeamId("ALL");
-    setPickerMinPrice(null);
-    setPickerMaxPrice(null);
-    setPickerMinOwnership(null);
-    setPickerMaxOwnership(null);
     setPickerMinMinutes(null);
     setPickerArchetypes([]);
     columnFiltersState.resetAllFilters();
@@ -636,10 +628,6 @@ export function TeamBuilder() {
       .filter((p) => !squadPlayerIdSet.has(p.id))
       .filter((p) => pickerPosition === "ALL" || p.position === pickerPosition)
       .filter((p) => pickerTeamId === "ALL" || p.teamId === pickerTeamId)
-      .filter((p) => pickerMinPrice === null || p.price >= pickerMinPrice)
-      .filter((p) => pickerMaxPrice === null || p.price <= pickerMaxPrice)
-      .filter((p) => pickerMinOwnership === null || (p.ownership ?? -Infinity) >= pickerMinOwnership)
-      .filter((p) => pickerMaxOwnership === null || (p.ownership ?? Infinity) <= pickerMaxOwnership)
       .filter((p) => pickerArchetypes.length === 0 || pickerArchetypes.some((a) => (archetypeMap.get(p.id) ?? []).includes(a)))
       .filter((p) => !search || p.name.toLowerCase().includes(search))
       .map((p): PickerRowData => {
@@ -674,10 +662,6 @@ export function TeamBuilder() {
     pickerSearch,
     pickerPosition,
     pickerTeamId,
-    pickerMinPrice,
-    pickerMaxPrice,
-    pickerMinOwnership,
-    pickerMaxOwnership,
     pickerArchetypes,
     archetypeMap,
     fixturesByTeamId,
@@ -948,54 +932,6 @@ export function TeamBuilder() {
                 </option>
               ))}
             </select>
-          </div>
-          <div className="field">
-            <label htmlFor="picker-min-price">Min £m</label>
-            <input
-              id="picker-min-price"
-              type="number"
-              step={0.5}
-              min={0}
-              value={pickerMinPrice ?? ""}
-              placeholder="Any"
-              onChange={(e) => setPickerMinPrice(e.target.value === "" ? null : Number(e.target.value))}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="picker-max-price">Max £m</label>
-            <input
-              id="picker-max-price"
-              type="number"
-              step={0.5}
-              min={0}
-              value={pickerMaxPrice ?? ""}
-              placeholder="Any"
-              onChange={(e) => setPickerMaxPrice(e.target.value === "" ? null : Number(e.target.value))}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="picker-min-own">Min own%</label>
-            <input
-              id="picker-min-own"
-              type="number"
-              min={0}
-              max={100}
-              value={pickerMinOwnership ?? ""}
-              placeholder="Any"
-              onChange={(e) => setPickerMinOwnership(e.target.value === "" ? null : Number(e.target.value))}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="picker-max-own">Max own%</label>
-            <input
-              id="picker-max-own"
-              type="number"
-              min={0}
-              max={100}
-              value={pickerMaxOwnership ?? ""}
-              placeholder="Any"
-              onChange={(e) => setPickerMaxOwnership(e.target.value === "" ? null : Number(e.target.value))}
-            />
           </div>
           <div className="field">
             <label htmlFor="picker-min-minutes">Min minutes</label>
