@@ -1,0 +1,111 @@
+:root {
+  /* Palette — dark pitch-at-night, not a generic near-black. A faint green
+     cast in the background and surfaces ties the whole app back to grass,
+     without ever using green decoratively. */
+  --bg: #0a0f0c;
+  --surface: #101713;
+  --surface-raised: #161f1a;
+  --surface-hover: #1c2620;
+  --border: #24312a;
+  --border-strong: #35473c;
+
+  --text-primary: #e8ede9;
+  --text-secondary: #9fb0a6;
+  --text-muted: #647167;
+
+  --accent-positive: #3fbf7f;
+  --accent-positive-dim: #2a5c42;
+  --accent-negative: #e0654a;
+  --accent-negative-dim: #5c3129;
+  --accent-value: #d8b34a;
+  --accent-focus: #6fb8ff;
+
+  --band-excellent: #3fbf7f;
+  --band-good: #7fbf5a;
+  --band-average: #9fb0a6;
+  --band-poor: #e0654a;
+
+  --font-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Roboto Mono", monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  background-image: radial-gradient(ellipse 1200px 600px at 50% -10%, rgba(63, 191, 127, 0.05), transparent);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font-family: inherit;
+}
+
+.mono,
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--accent-positive-dim);
+}
+
+/* visible keyboard focus everywhere */
+:focus-visible {
+  outline: 2px solid var(--accent-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 6px;
+}

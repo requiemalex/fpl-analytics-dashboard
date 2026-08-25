@@ -1,0 +1,55 @@
+{
+  "name": "fpl-analytics-dashboard",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Production-quality Fantasy Premier League analytics dashboard (2026/27 live season)",
+  "main": "electron/main.js",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -n SERVER,CLIENT -c blue,green \"npm run dev -w server\" \"npm run dev -w client\"",
+    "build": "npm run build -w server && npm run build -w client",
+    "start": "node server/dist/index.js",
+    "server": "npm run dev -w server",
+    "client": "npm run dev -w client",
+    "build:electron-server": "esbuild server/src/app.ts --bundle --platform=node --format=esm --outfile=server/dist/app.bundle.js",
+    "electron:build": "npm run build -w client && npm run build:electron-server && electron-builder",
+    "electron:start": "npm run build -w client && npm run build:electron-server && electron ."
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1",
+    "electron": "^32.0.0",
+    "electron-builder": "^25.1.8",
+    "esbuild": "^0.24.0"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "build": {
+    "appId": "com.fpldashboard.app",
+    "productName": "FPL Analytics Dashboard",
+    "asar": false,
+    "files": [
+      "electron/**/*",
+      "server/dist/app.bundle.js",
+      "client/dist/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.sports"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Sports"
+    }
+  }
+}
