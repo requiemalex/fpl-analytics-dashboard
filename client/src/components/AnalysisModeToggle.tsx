@@ -19,6 +19,7 @@ export function AnalysisModeToggle() {
     historicSkippedPlayerIds,
     refreshHistoricData,
     historicRefreshing,
+    currentSeasonHasStarted,
   } = useAppState();
 
   return (
@@ -39,10 +40,15 @@ export function AnalysisModeToggle() {
           ))}
         </div>
 
-        {analysisMode === "live" && (
+        {analysisMode === "live" && !currentSeasonHasStarted && (
           <span className="page-subtitle" style={{ margin: 0 }}>
             Live 2026/27 season data. Price, ownership, and availability are always today's real figures; every other field is a genuine
             zero until gameweek 1 is played — not blank, an actual zero, since no games have happened yet this season.
+          </span>
+        )}
+        {analysisMode === "live" && currentSeasonHasStarted && (
+          <span className="page-subtitle" style={{ margin: 0 }}>
+            Live 2026/27 season data — updates as each gameweek's results come in from the official FPL API.
           </span>
         )}
         {analysisMode !== "live" && historicStatus === "loading" && (

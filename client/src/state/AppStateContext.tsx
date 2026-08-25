@@ -3,6 +3,7 @@ import { fetchBootstrap, fetchFixtures, fetchHistoricBulk, ApiRequestError } fro
 import { normalizePlayers } from "../normalize/normalizePlayers";
 import { normalizeTeams } from "../normalize/normalizeTeams";
 import { normalizeFixtures } from "../normalize/normalizeFixtures";
+import { applyRealTeamStandings } from "../normalize/deriveTeamStandings";
 import { normalizeBulkHistoricData } from "../normalize/normalizeElementSummary";
 import { deriveGameweekState, normalizeEvents } from "../normalize/gameweek";
 import { normalizeChips } from "../normalize/normalizeChips";
@@ -278,7 +279,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const teamsById = useMemo(() => new Map(teams.map((t) => [t.id, t])), [teams]);
+  // bootstrap-static's own team.played/wins/draws/losses are confirmed
+  // unreliable this season (see deriveTeamStandings.ts) — every consumer
+  // of `teams`/`teamsById` gets the fixture-derived, real values instead,
+  // computed once here rather than patched at each call site.
+  const teamsWithRealStandings = useMemo(() => applyRealTeamStandings(teams, fixtures), [teams, fixtures]);
+  const teamsById = useMemo(() => new Map(teamsWithRealStandings.map((t) => [t.id, t])), [teamsWithRealStandings]);
 
   const value: AppState = {
     status,
@@ -286,9 +292,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     isStale,
     lastUpdated,
     players,
-    teams,
+    teams: teamsWithRealStandings,
     teamsById,
-    currentSeasonHasStarted: teams.some((t) => t.played > 0),
+    // Real fixture results, not bootstrap-static's own (unreliable, see
+    // above) team.played — true the moment any fixture has actually been
+    // played and finished, current-season carryover-zeroing switches off.
+    currentSeasonHasStarted: fixtures.some((f) => f.finished),
     fixtures,
     gameweekState,
     events,
