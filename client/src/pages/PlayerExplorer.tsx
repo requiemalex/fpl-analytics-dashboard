@@ -18,17 +18,16 @@ import { relativeCellTint } from "../utils/colorScale";
 import type { NormalizedPlayer } from "../types/normalized";
 
 const GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE", "ADVANCED"];
-/** Archetypes isn't a PLAYER_COLUMNS entry (it renders badges, not a number), but it shares the reorder/resize/Fit-to-Box engine as a special key — scoped to this page's own default list, not the shared DEFAULT_VISIBLE_COLUMNS Team Building also uses. */
+/** Archetypes isn't a PLAYER_COLUMNS entry (it renders badges, not a number), but it shares the reorder/resize/Fit-to-Box engine as a special key — scoped to this page's own default list, not the shared DEFAULT_VISIBLE_COLUMNS Team Building also uses. Deselected by default (still toggleable via the Columns picker) — Own% takes the "right after Player" slot instead. */
 const ARCHETYPES_COLUMN_KEY = "archetypes";
 /** Below this width, badges switch to short-form codes rather than full labels — narrower still, they simply overflow-hide, which is an acceptable outcome by request. */
 const ARCHETYPES_COMPACT_WIDTH = 110;
-const DEFAULT_VISIBLE_COLUMNS_WITH_ARCHETYPES = [ARCHETYPES_COLUMN_KEY, ...DEFAULT_VISIBLE_COLUMNS];
 
 export function PlayerExplorer() {
   const { players, teamsById, advancedFieldAvailability, filters, resetFilters, analysisMode, historicProfiles, historicStatus, currentSeasonHasStarted } =
     useAppState();
 
-  const { resolved: resolvedPlayers, omittedCount } = useMemo(
+  const { resolved: resolvedPlayers, noDataCount } = useMemo(
     () => resolvePlayerStatsList(players, analysisMode, historicProfiles, currentSeasonHasStarted),
     [players, analysisMode, historicProfiles, currentSeasonHasStarted],
   );
@@ -65,7 +64,7 @@ export function PlayerExplorer() {
     reorderColumn,
     startResize,
     fitToBox,
-  } = useColumnCustomization(DEFAULT_VISIBLE_COLUMNS_WITH_ARCHETYPES);
+  } = useColumnCustomization(DEFAULT_VISIBLE_COLUMNS);
   const tableWrapRef = useRef<HTMLDivElement>(null);
   const stickyColRef = useRef<HTMLTableCellElement>(null);
 
@@ -373,9 +372,11 @@ export function PlayerExplorer() {
         </div>
       )}
       <p className="page-subtitle" style={{ marginTop: 10 }}>
-        Showing {sortedRows.length.toLocaleString("en-GB")} of {resolvedPlayers.length.toLocaleString("en-GB")} players with data for this
-        view. {fmtDecimal(null)} indicates the metric is unavailable for that player, never a substituted value.
-        {analysisMode !== "live" && omittedCount > 0 && ` ${omittedCount.toLocaleString("en-GB")} player(s) have no data for this mode and aren't shown at all.`}
+        Showing {sortedRows.length.toLocaleString("en-GB")} of {resolvedPlayers.length.toLocaleString("en-GB")} tracked players.{" "}
+        {fmtDecimal(null)} indicates the metric is unavailable for that player, never a substituted value.
+        {analysisMode !== "live" &&
+          noDataCount > 0 &&
+          ` ${noDataCount.toLocaleString("en-GB")} player(s) have no data for this mode — their rows still show, with ${fmtDecimal(null)} for the fields this mode can't fill in.`}
       </p>
     </div>
   );

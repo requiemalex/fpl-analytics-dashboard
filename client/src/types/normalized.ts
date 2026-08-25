@@ -31,17 +31,27 @@ export interface NormalizedPlayer {
   price: number; // £ millions
   ownership: number | null; // percent
 
-  totalPoints: number;
+  /**
+   * These seven fields are `number` for the live/raw player (fetched
+   * straight from bootstrap-static, always a real number) but become
+   * `null` on a RESOLVED player (see resolvePlayerStats.ts) when there's
+   * nothing to show for the selected analysis mode — e.g. no qualifying
+   * historic seasons. A resolved player is still a full NormalizedPlayer
+   * (same type, never a separate one, and never dropped from a list),
+   * just with these specific fields null where that mode has no answer;
+   * every display already renders null as "—" via utils/format.ts.
+   */
+  totalPoints: number | null;
   pointsPerGame: number | null;
   /** FPL's own official expected-points prediction for the next gameweek — not derived by this app. See metrics/expectedPoints.ts. */
   epNext: number | null;
-  minutes: number;
+  minutes: number | null;
   starts: number | null;
-  goals: number;
-  assists: number;
-  cleanSheets: number;
-  bonus: number;
-  bps: number;
+  goals: number | null;
+  assists: number | null;
+  cleanSheets: number | null;
+  bonus: number | null;
+  bps: number | null;
   ictIndex: number | null;
 
   // Expected-stats totals. API-supplied where the field exists on the live response.

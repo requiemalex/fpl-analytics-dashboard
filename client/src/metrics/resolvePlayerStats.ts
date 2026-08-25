@@ -17,9 +17,22 @@ export const ANALYSIS_MODE_LABELS: Record<AnalysisMode, string> = {
  * and metric function that already operates on NormalizedPlayer works
  * on the result without modification.
  *
- * Returns null when there's nothing to show for the selected mode (no
- * "last completed season" entry, or zero qualifying seasons) — callers
- * filter these out rather than display a misleadingly all-zero player.
+ * <retained_not_omitted>: every player is always returned — never
+ * dropped from a list, never excluded from a page's row count. When
+ * there's nothing to show for the selected mode (no "last completed
+ * season" entry, or zero qualifying seasons), every performance field
+ * (totalPoints, minutes, goals, assists, cleanSheets, bonus, bps, and
+ * everything already-nullable like xG/starts/ictIndex) comes back
+ * `null` — identity (name, team, position), price, and ownership stay
+ * live either way. `hasDataForMode(resolved)` is the canonical way to
+ * check whether a resolved player actually has something to show;
+ * every display already renders a null field as "—" via
+ * utils/format.ts, so most callers don't need to check at all. This
+ * replaced an earlier design that returned `null` for the whole player
+ * and had callers filter those out of their lists — changed directly at
+ * the user's request: they wanted every view to keep showing the full
+ * player count, with per-field "—" for whichever players don't qualify,
+ * rather than shrinking lists silently.
  *
  * <historic_price_choice>: price becomes that season's (or the
  * qualifying average's) end-of-season price rather than today's live
@@ -57,12 +70,44 @@ export const ANALYSIS_MODE_LABELS: Record<AnalysisMode, string> = {
  * on; seasons before that contribute null, not a diluting zero, to a
  * historic average (see historicAnalysis.ts / README).
  */
+/** A resolved player with nothing to show for the selected mode has every performance field nulled — this is the one canonical check for that, rather than each caller picking a different field to test. */
+export function hasDataForMode(resolved: NormalizedPlayer): boolean {
+  return resolved.totalPoints !== null;
+}
+
+/** Every performance field set to null — identity, price, and ownership are the caller's job to keep live, same as every other branch. */
+function nullPerformanceFields(player: NormalizedPlayer): NormalizedPlayer {
+  return {
+    ...player,
+    totalPoints: null,
+    pointsPerGame: null,
+    minutes: null,
+    starts: null,
+    goals: null,
+    assists: null,
+    cleanSheets: null,
+    bonus: null,
+    bps: null,
+    ictIndex: null,
+    xG: null,
+    xA: null,
+    xGI: null,
+    xGC: null,
+    xGPer90: null,
+    xAPer90: null,
+    xGIPer90: null,
+    xGCPer90: null,
+    defensiveContributions: null,
+    defensiveContributionsPer90: null,
+  };
+}
+
 export function resolvePlayerStats(
   player: NormalizedPlayer,
   mode: AnalysisMode,
   historicProfile: HistoricPlayerProfile | undefined,
   currentSeasonHasStarted: boolean,
-): NormalizedPlayer | null {
+): NormalizedPlayer {
   if (mode === "live") {
     if (currentSeasonHasStarted) return player;
     return {
@@ -92,7 +137,7 @@ export function resolvePlayerStats(
 
   if (mode === "lastSeason") {
     const s = historicProfile?.lastCompletedSeason;
-    if (!s) return null;
+    if (!s) return nullPerformanceFields(player);
     return {
       ...player,
       price: s.endCost ?? s.startCost ?? player.price,
@@ -121,7 +166,7 @@ export function resolvePlayerStats(
 
   // historicAverage
   const avg = historicProfile?.qualifyingAverage;
-  if (!avg) return null;
+  if (!avg) return nullPerformanceFields(player);
   return {
     ...player,
     price: avg.avgPrice ?? player.price,
@@ -149,26 +194,25 @@ export function resolvePlayerStats(
 }
 
 /**
- * Resolves a whole player list at once, dropping anyone with nothing to
- * show for the selected mode rather than rendering all-zero rows. Returns
- * the count dropped too, so a page can show "N players have no data in
- * this view" instead of silently shrinking a list.
+ * Resolves a whole player list at once. Every player is always included —
+ * nobody is dropped for lacking data in the selected mode, per
+ * <retained_not_omitted> above. `noDataCount` is still returned (renamed
+ * from the old `omittedCount`, since nothing is actually omitted any
+ * more) purely so a page can still caption "N players have no data in
+ * this view" if it wants to — it no longer affects which rows appear.
  */
 export function resolvePlayerStatsList(
   players: NormalizedPlayer[],
   mode: AnalysisMode,
   historicProfiles: Map<number, HistoricPlayerProfile>,
   currentSeasonHasStarted: boolean,
-): { resolved: NormalizedPlayer[]; omittedCount: number } {
+): { resolved: NormalizedPlayer[]; noDataCount: number } {
   const resolved: NormalizedPlayer[] = [];
-  let omittedCount = 0;
+  let noDataCount = 0;
   for (const p of players) {
     const r = resolvePlayerStats(p, mode, historicProfiles.get(p.id), currentSeasonHasStarted);
-    if (r === null) {
-      omittedCount += 1;
-    } else {
-      resolved.push(r);
-    }
+    if (!hasDataForMode(r)) noDataCount += 1;
+    resolved.push(r);
   }
-  return { resolved, omittedCount };
+  return { resolved, noDataCount };
 }

@@ -1,7 +1,7 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
-import { fmtTimeAgo } from "../utils/format";
+import { fmtTimeAgo, fmtDate } from "../utils/format";
 
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard" },
@@ -16,9 +16,22 @@ const NAV_ITEMS = [
 ];
 
 function GameweekLabel() {
-  const { gameweekState } = useAppState();
+  const { gameweekState, events } = useAppState();
   if (!gameweekState) return <span>Loading gameweek…</span>;
-  if (gameweekState.kind === "current") return <span>Gameweek {gameweekState.event.id} · in progress</span>;
+  if (gameweekState.kind === "current") {
+    // FPL keeps an event marked "current" until the NEXT one's deadline
+    // passes — even once this one's own matches have all finished — so
+    // "in progress" alone goes stale for however long that gap lasts.
+    if (gameweekState.event.finished) {
+      const next = events.find((e) => e.isNext);
+      return (
+        <span>
+          Gameweek {gameweekState.event.id} finished{next && ` · Gameweek ${next.id} deadline ${fmtDate(next.deadlineTime)}`}
+        </span>
+      );
+    }
+    return <span>Gameweek {gameweekState.event.id} · in progress</span>;
+  }
   if (gameweekState.kind === "last-completed") return <span>Last completed: GW {gameweekState.event.id}</span>;
   return <span>Pre-season / No active gameweek</span>;
 }

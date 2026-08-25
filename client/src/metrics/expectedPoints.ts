@@ -113,12 +113,12 @@ export function computeExpPointsBreakdown(
   const fplPredicted = computeExpectedPointsForWindow(player, upcomingFixtures, window);
 
   const lastSeasonPlayer = resolvePlayerStats(player, "lastSeason", historicProfile, currentSeasonHasStarted);
-  const lastSeasonQualifies = lastSeasonPlayer !== null && lastSeasonPlayer.minutes >= MIN_QUALIFYING_SEASON_MINUTES;
+  const lastSeasonQualifies = lastSeasonPlayer.minutes !== null && lastSeasonPlayer.minutes >= MIN_QUALIFYING_SEASON_MINUTES;
   const lastSeasonRate = lastSeasonQualifies ? lastSeasonPlayer.pointsPerGame : null;
   const lastSeason = lastSeasonRate !== null ? lastSeasonRate * window : null;
 
   const historicAvgPlayer = resolvePlayerStats(player, "historicAverage", historicProfile, currentSeasonHasStarted);
-  const historicAvgQualifies = historicAvgPlayer !== null && historicAvgPlayer.minutes >= MIN_QUALIFYING_SEASON_MINUTES;
+  const historicAvgQualifies = historicAvgPlayer.minutes !== null && historicAvgPlayer.minutes >= MIN_QUALIFYING_SEASON_MINUTES;
   const historicAvgRate = historicAvgQualifies ? historicAvgPlayer.pointsPerGame : null;
   const historicAverage = historicAvgRate !== null ? historicAvgRate * window : null;
 

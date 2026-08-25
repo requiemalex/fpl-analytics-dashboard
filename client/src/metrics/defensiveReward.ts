@@ -16,16 +16,16 @@ export const CLEAN_SHEET_POINTS_BY_POSITION: Record<Position, number> = {
   FWD: 0,
 };
 
-/** Clean-sheet points earned per 90 minutes, using the position table above. Null if the player hasn't played. */
+/** Clean-sheet points earned per 90 minutes, using the position table above. Null if the player hasn't played, or has no data for the selected mode. */
 export function cleanSheetPointsPer90(player: NormalizedPlayer): number | null {
-  if (player.minutes <= 0) return null;
+  if (player.minutes === null || player.cleanSheets === null || player.minutes <= 0) return null;
   const pointsPerCleanSheet = CLEAN_SHEET_POINTS_BY_POSITION[player.position];
   return ((player.cleanSheets * pointsPerCleanSheet) / player.minutes) * 90;
 }
 
-/** Total bonus points per 90. Null if the player hasn't played. */
+/** Total bonus points per 90. Null if the player hasn't played, or has no data for the selected mode. */
 export function bonusPer90(player: NormalizedPlayer): number | null {
-  if (player.minutes <= 0) return null;
+  if (player.minutes === null || player.bonus === null || player.minutes <= 0) return null;
   return (player.bonus / player.minutes) * 90;
 }
 

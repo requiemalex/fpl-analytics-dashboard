@@ -2,14 +2,16 @@ import React, { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
-import { resolvePlayerStats, resolvePlayerStatsList } from "../metrics/resolvePlayerStats";
+import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode } from "../metrics/resolvePlayerStats";
 import { computeRadarData } from "../metrics/radarStats";
 import { effectiveMinMinutes } from "../state/useFilteredPlayers";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { PlayerRadarChart } from "../components/PlayerRadarChart";
+import { PlayerSearch } from "../components/PlayerSearch";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass } from "../components/primitives";
 import { PLAYER_COLUMNS, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { relativeCellTextColor } from "../utils/colorScale";
+import { DASH } from "../utils/format";
 import type { NormalizedPlayer } from "../types/normalized";
 
 const MAX_COMPARE = 5;
@@ -116,54 +118,6 @@ function useComparisonIds(): [number[], (ids: number[]) => void] {
   return [ids, setIds];
 }
 
-function PlayerSearch({ excludeIds, onPick, disabled }: { excludeIds: number[]; onPick: (id: number) => void; disabled: boolean }) {
-  const { players } = useAppState();
-  const [query, setQuery] = useState("");
-
-  const matches = useMemo(() => {
-    if (query.trim().length < 2) return [];
-    const q = query.toLowerCase();
-    return players.filter((p) => !excludeIds.includes(p.id) && p.name.toLowerCase().includes(q)).slice(0, 8);
-  }, [players, query, excludeIds]);
-
-  return (
-    <div style={{ position: "relative" }}>
-      <div className="field">
-        <label htmlFor="compare-search">{disabled ? "Add a player (max reached)" : "Add a player"}</label>
-        <input
-          id="compare-search"
-          type="text"
-          placeholder={disabled ? "Remove someone to add another" : "Search a player…"}
-          value={query}
-          disabled={disabled}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-      </div>
-      {!disabled && matches.length > 0 && (
-        <div className="popover" style={{ left: 0, right: "auto", minWidth: 260 }}>
-          {matches.map((m) => (
-            <div
-              key={m.id}
-              className="stat-row"
-              style={{ cursor: "pointer" }}
-              onClick={() => {
-                onPick(m.id);
-                setQuery("");
-              }}
-            >
-              <span className="stat-row-name">
-                <PositionBadge position={m.position} />
-                {m.name}
-                <span className="team">{m.teamShortName}</span>
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function PlayerComparison() {
   const { players, filters, analysisMode, historicProfiles, currentSeasonHasStarted } = useAppState();
   const [ids, setIds] = useComparisonIds();
@@ -189,8 +143,12 @@ export function PlayerComparison() {
     [ids, playersById, analysisMode, historicProfiles, currentSeasonHasStarted],
   );
 
-  const comparedPlayers = comparisonResults.filter((r) => r.resolved !== null).map((r) => r.resolved as NormalizedPlayer);
-  const omittedNames = comparisonResults.filter((r) => r.resolved === null).map((r) => r.live.name);
+  // Every selected player stays in the comparison — even one with nothing
+  // to show for the current mode is still a column, just with "—" for the
+  // fields this mode can't fill in, rather than vanishing from a
+  // comparison the user explicitly built.
+  const comparedPlayers = comparisonResults.map((r) => r.resolved);
+  const noDataNames = comparisonResults.filter((r) => !hasDataForMode(r.resolved)).map((r) => r.live.name);
   const derivedById = useMemo(() => new Map(comparedPlayers.map((p) => [p.id, getPlayerDerivedMetrics(p)])), [comparedPlayers]);
   const minMinutesThreshold = effectiveMinMinutes(filters, analysisMode);
 
@@ -248,10 +206,10 @@ export function PlayerComparison() {
           </div>
         )}
         <PlayerSearch excludeIds={ids} onPick={addPlayer} disabled={ids.length >= MAX_COMPARE} />
-        {omittedNames.length > 0 && (
+        {noDataNames.length > 0 && (
           <p className="page-subtitle" style={{ marginTop: 8 }}>
-            {omittedNames.join(", ")} {omittedNames.length === 1 ? "has" : "have"} no data in this mode and{" "}
-            {omittedNames.length === 1 ? "isn't" : "aren't"} included in the table below.
+            {noDataNames.join(", ")} {noDataNames.length === 1 ? "has" : "have"} no data in this mode — still shown below, with{" "}
+            {DASH} for the fields this mode can't fill in.
           </p>
         )}
       </div>
@@ -345,7 +303,7 @@ export function PlayerComparison() {
             </p>
             <div className="card-grid">
               {comparedPlayers.map((p) => {
-                const isSmallSample = analysisMode !== "live" && p.minutes < filters.minMinutes;
+                const isSmallSample = analysisMode !== "live" && (p.minutes === null || p.minutes < filters.minMinutes);
                 const radarData = computeRadarData(p, resolvedPlayers, minMinutesThreshold);
                 return (
                   <div className="card" key={p.id}>

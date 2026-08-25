@@ -44,7 +44,7 @@ export function runMetricValidation(players: NormalizedPlayer[]): ValidationRepo
   const discrepancies: ValidationDiscrepancy[] = [];
 
   for (const p of players) {
-    if (p.minutes <= 0) continue; // per90 is undefined at 0 minutes; nothing to cross-check
+    if (p.minutes === null || p.minutes <= 0) continue; // per90 is undefined at 0 minutes; nothing to cross-check
 
     compare(p, "xG/90", p.xGPer90, per90(p.xG, p.minutes), discrepancies);
     compare(p, "xA/90", p.xAPer90, per90(p.xA, p.minutes), discrepancies);

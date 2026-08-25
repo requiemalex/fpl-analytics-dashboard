@@ -35,8 +35,17 @@ export function filterPlayers(
     if (search && !p.name.toLowerCase().includes(search) && !`${p.firstName} ${p.lastName}`.toLowerCase().includes(search)) return false;
     if (filters.position !== "ALL" && p.position !== filters.position) return false;
     if (filters.teamId !== "ALL" && p.teamId !== filters.teamId) return false;
-    if (p.minutes < minMinutes) return false;
-    if (applyMinStarts && filters.minStarts > 0 && (p.starts ?? 0) < filters.minStarts) return false;
+    // A player with no data for this mode (minutes null) isn't "a noisy
+    // small sample" — they're not applicable to this bar at all. Retained,
+    // not filtered out, matching <retained_not_omitted> in
+    // resolvePlayerStats.ts: excluding them here would just reintroduce
+    // the same vanishing-player problem through a different code path.
+    if (p.minutes !== null && p.minutes < minMinutes) return false;
+    // Same reasoning as the minutes check above: a null starts value (no
+    // data for this mode) means the bar doesn't apply, not "treat as 0
+    // and fail it" — the old `?? 0` here had the same silent-exclusion
+    // bug the minutes check just had fixed.
+    if (applyMinStarts && filters.minStarts > 0 && p.starts !== null && p.starts < filters.minStarts) return false;
     if (filters.minOwnership !== null && (p.ownership ?? -Infinity) < filters.minOwnership) return false;
     if (filters.maxOwnership !== null && (p.ownership ?? Infinity) > filters.maxOwnership) return false;
     if (filters.minPrice !== null && p.price < filters.minPrice) return false;

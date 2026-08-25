@@ -11,13 +11,13 @@ interface TeamAggregate {
   teamId: number;
   name: string;
   shortName: string;
-  points: number;
-  goals: number;
-  assists: number;
+  points: number | null;
+  goals: number | null;
+  assists: number | null;
   xG: number | null;
   xA: number | null;
   xGI: number | null;
-  cleanSheets: number;
+  cleanSheets: number | null;
 }
 
 /** Every column here is "higher is better" — team point/goal/xG/clean-sheet totals, no direction flipping needed. */
@@ -42,7 +42,7 @@ export function Teams() {
   const [comparativeColouring, setComparativeColouring] = useState(true);
   const { sort, handleHeaderClick } = useSortSpec([{ key: "points", direction: "desc" }]);
 
-  const { resolved: resolvedPlayers, omittedCount } = useMemo(
+  const { resolved: resolvedPlayers, noDataCount } = useMemo(
     () => resolvePlayerStatsList(players, analysisMode, historicProfiles, currentSeasonHasStarted),
     [players, analysisMode, historicProfiles, currentSeasonHasStarted],
   );
@@ -59,13 +59,13 @@ export function Teams() {
         teamId: team.id,
         name: team.name,
         shortName: team.shortName,
-        points: squad.reduce((a, p) => a + p.totalPoints, 0),
-        goals: squad.reduce((a, p) => a + p.goals, 0),
-        assists: squad.reduce((a, p) => a + p.assists, 0),
+        points: sum(squad.map((p) => p.totalPoints)),
+        goals: sum(squad.map((p) => p.goals)),
+        assists: sum(squad.map((p) => p.assists)),
         xG: sum(squad.map((p) => p.xG)),
         xA: sum(squad.map((p) => p.xA)),
         xGI: sum(squad.map((p) => p.xGI)),
-        cleanSheets: squad.reduce((a, p) => a + p.cleanSheets, 0),
+        cleanSheets: sum(squad.map((p) => p.cleanSheets)),
       };
     });
     built.sort((a, b) => {
@@ -177,9 +177,11 @@ export function Teams() {
           </tbody>
         </table>
       </div>
-      {analysisMode !== "live" && omittedCount > 0 && (
+      {analysisMode !== "live" && noDataCount > 0 && (
         <p className="page-subtitle" style={{ marginTop: 10 }}>
-          {omittedCount.toLocaleString("en-GB")} player(s) have no data for this mode and aren't included in these totals.
+          {noDataCount.toLocaleString("en-GB")} player(s) have no data for this mode — excluded from these club totals specifically (a
+          missing figure would otherwise silently understate a club's sum), though they still appear everywhere players are listed
+          individually.
         </p>
       )}
     </div>

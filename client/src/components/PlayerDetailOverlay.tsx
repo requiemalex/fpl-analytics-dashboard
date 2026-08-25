@@ -10,7 +10,7 @@ import { PlayerRadarChart } from "./PlayerRadarChart";
 import { computePlayingTimeIndicators } from "../metrics/rotationIndicators";
 import { computeSeasonTrend } from "../metrics/careerMetrics";
 import { buildHistoricPlayerProfile, HISTORIC_WINDOW_SEASONS, MIN_QUALIFYING_SEASON_MINUTES } from "../metrics/historicAnalysis";
-import { resolvePlayerStats, resolvePlayerStatsList } from "../metrics/resolvePlayerStats";
+import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode } from "../metrics/resolvePlayerStats";
 import { effectiveMinMinutes } from "../state/useFilteredPlayers";
 import { AnalysisModeToggle } from "./AnalysisModeToggle";
 import { PositionBadge, SignedNum, PercentileBar, ArchetypeBadges } from "./primitives";
@@ -78,7 +78,7 @@ export function PlayerDetailOverlay() {
   // matching how every other page keeps identity live and only resolves
   // the performance figures.
   const resolvedPlayer = resolvePlayerStats(player, analysisMode, historicProfiles.get(player.id), currentSeasonHasStarted);
-  const derived = resolvedPlayer ? getPlayerDerivedMetrics(resolvedPlayer) : null;
+  const derived = getPlayerDerivedMetrics(resolvedPlayer);
   const archetypes = archetypeMap.get(player.id) ?? [];
   const percentile = xGIPercentiles.get(player.id) ?? null;
   // <live_vs_resolved_bug>: this used to check `player.minutes` (the
@@ -88,9 +88,14 @@ export function PlayerDetailOverlay() {
   // of nearly everyone pre-season or early in a new season) was wrongly
   // flagged as a small sample for modes where their data was actually
   // robust. Now checks the RESOLVED player's minutes — whichever the
-  // active mode actually resolved to — against the same threshold.
-  const smallSample = analysisMode !== "live" && resolvedPlayer !== null && resolvedPlayer.minutes < effectiveMinMinutes(filters, analysisMode);
-  const radarData = resolvedPlayer ? computeRadarData(resolvedPlayer, resolvedPlayers, effectiveMinMinutes(filters, analysisMode)) : [];
+  // active mode actually resolved to — against the same threshold. Null
+  // minutes (no data at all for this mode, see resolvePlayerStats.ts)
+  // counts as small-sample too — there's nothing to build a reliable
+  // radar/percentile from either way.
+  const smallSample =
+    analysisMode !== "live" &&
+    (resolvedPlayer.minutes === null || resolvedPlayer.minutes < effectiveMinMinutes(filters, analysisMode));
+  const radarData = computeRadarData(resolvedPlayer, resolvedPlayers, effectiveMinMinutes(filters, analysisMode));
 
   function close() {
     setPlayerId(null);
@@ -111,13 +116,13 @@ export function PlayerDetailOverlay() {
 
         <AnalysisModeToggle />
 
-        {!resolvedPlayer ? (
-          <div className="empty-state">
-            <h3>No data for {player.name} in this mode</h3>
-            <p>Try Last Completed Season or Historic Average — Career History and Playing-Time Indicators below are unaffected.</p>
+        {smallSample && !hasDataForMode(resolvedPlayer) && (
+          <div className="banner info" style={{ marginTop: 16 }}>
+            No data for {player.name} in this mode — every field below shows {DASH}. Try Last Completed Season or Historic Average.
+            Career History and Playing-Time Indicators below are unaffected.
           </div>
-        ) : (
-          <div className="card-grid" style={{ marginTop: 16 }}>
+        )}
+        <div className="card-grid" style={{ marginTop: 16 }}>
             <div className="card">
               <div className="card-title">Actual Output</div>
               <StatBlock label="Total Points" value={fmtDecimal(resolvedPlayer.totalPoints)} />
@@ -148,11 +153,11 @@ export function PlayerDetailOverlay() {
 
             <div className="card">
               <div className="card-title">Value</div>
-              <StatBlock label="Points/£m" value={fmtDecimal(derived!.pointsPerMillion, 1)} />
-              <StatBlock label="Points/90" value={fmtDecimal(derived!.pointsPer90, 1)} />
-              <StatBlock label="Minutes/Point" value={fmtDecimal(derived!.minutesPerPoint, 0)} />
-              <StatBlock label="Minutes/Goal" value={fmtDecimal(derived!.minutesPerGoal, 0)} />
-              <StatBlock label="Minutes/Assist" value={fmtDecimal(derived!.minutesPerAssist, 0)} />
+              <StatBlock label="Points/£m" value={fmtDecimal(derived.pointsPerMillion, 1)} />
+              <StatBlock label="Points/90" value={fmtDecimal(derived.pointsPer90, 1)} />
+              <StatBlock label="Minutes/Point" value={fmtDecimal(derived.minutesPerPoint, 0)} />
+              <StatBlock label="Minutes/Goal" value={fmtDecimal(derived.minutesPerGoal, 0)} />
+              <StatBlock label="Minutes/Assist" value={fmtDecimal(derived.minutesPerAssist, 0)} />
             </div>
 
             <div className="card">
@@ -164,21 +169,17 @@ export function PlayerDetailOverlay() {
                 <ArchetypeBadges labels={archetypes} />
               </div>
             </div>
-          </div>
-        )}
+        </div>
 
-        {resolvedPlayer && derived && (
-          <div className="card" style={{ marginTop: 16 }}>
+        <div className="card" style={{ marginTop: 16 }}>
             <div className="card-title">Actual vs Expected</div>
             {smallSample && <div className="banner info">Small sample — below the current minutes eligibility threshold ({filters.minMinutes} min). Read with caution.</div>}
             <StatBlock label="Goals − xG" value={<SignedNum value={derived.goalsMinusXG} />} />
             <StatBlock label="Assists − xA" value={<SignedNum value={derived.assistsMinusXA} />} />
             <StatBlock label="Goal Involvements − xGI" value={<SignedNum value={derived.goalInvolvementsMinusXGI} />} />
-          </div>
-        )}
+        </div>
 
-        {resolvedPlayer && (
-          <div className="card" style={{ marginTop: 16 }}>
+        <div className="card" style={{ marginTop: 16 }}>
             <div className="card-title">
               Percentile Radar — {player.position}
               {smallSample && <span style={{ color: "var(--accent-value)" }}> (below eligibility threshold)</span>}
@@ -189,8 +190,7 @@ export function PlayerDetailOverlay() {
               the position (a goalkeeper's chart has nothing in common with a forward's). Descriptive, not predictive: this shows where
               they already rank on these stats, not where they're heading.
             </p>
-          </div>
-        )}
+        </div>
 
         <div className="card" style={{ marginTop: 16 }}>
           <div className="card-title">Playing-Time Indicators (descriptive, not predictive)</div>

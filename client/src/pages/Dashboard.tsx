@@ -7,7 +7,7 @@ import { effectiveMinMinutes } from "../state/useFilteredPlayers";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { TopList, type TopListRow } from "../components/TopList";
 import { TeamTopList, type TeamTopListRow } from "../components/TeamTopList";
-import { fmtDate, fmtDecimal, fmtTimeAgo } from "../utils/format";
+import { fmtDate, fmtDecimal, fmtTimeAgo, DASH } from "../utils/format";
 import type { NormalizedTeam } from "../types/normalized";
 
 function topN(rows: TopListRow[], n: number, ascending = false): TopListRow[] {
@@ -21,9 +21,14 @@ interface TeamAggregate {
   teamId: number;
   name: string;
   shortName: string;
-  points: number;
+  points: number | null;
   xGI: number | null;
-  cleanSheets: number;
+  cleanSheets: number | null;
+}
+
+function nullSafeSum(values: (number | null)[]): number | null {
+  const nonNull = values.filter((v): v is number => v !== null);
+  return nonNull.length > 0 ? nonNull.reduce((a, b) => a + b, 0) : null;
 }
 
 function topTeamsBy(aggregates: TeamAggregate[], selector: (t: TeamAggregate) => number | null, n = 5): TeamTopListRow[] {
@@ -35,17 +40,22 @@ function topTeamsBy(aggregates: TeamAggregate[], selector: (t: TeamAggregate) =>
 }
 
 export function Dashboard() {
-  const { players, teams, gameweekState, lastUpdated, filters, analysisMode, historicProfiles, historicStatus, currentSeasonHasStarted } = useAppState();
+  const { players, teams, gameweekState, events, lastUpdated, filters, analysisMode, historicProfiles, historicStatus, currentSeasonHasStarted } =
+    useAppState();
   const [, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const { resolved: resolvedPlayers, omittedCount } = useMemo(
+  const { resolved: resolvedPlayers, noDataCount } = useMemo(
     () => resolvePlayerStatsList(players, analysisMode, historicProfiles, currentSeasonHasStarted),
     [players, analysisMode, historicProfiles, currentSeasonHasStarted],
   );
 
+  // A player with no data for this mode (minutes null) can't clear any
+  // minutes bar, so they're correctly excluded from these Top-5
+  // leaderboards specifically — same as before, just via a null check
+  // instead of the whole player having already been dropped upstream.
   const eligible = useMemo(
-    () => resolvedPlayers.filter((p) => p.minutes >= effectiveMinMinutes(filters, analysisMode)),
+    () => resolvedPlayers.filter((p) => p.minutes !== null && p.minutes >= effectiveMinMinutes(filters, analysisMode)),
     [resolvedPlayers, filters, analysisMode],
   );
 
@@ -87,14 +97,13 @@ export function Dashboard() {
   const teamAggregates: TeamAggregate[] = useMemo(() => {
     return teams.map((team: NormalizedTeam) => {
       const squad = resolvedPlayers.filter((p) => p.teamId === team.id);
-      const xGIValues = squad.map((p) => p.xGI).filter((v): v is number => v !== null);
       return {
         teamId: team.id,
         name: team.name,
         shortName: team.shortName,
-        points: squad.reduce((a, p) => a + p.totalPoints, 0),
-        xGI: xGIValues.length > 0 ? xGIValues.reduce((a, b) => a + b, 0) : null,
-        cleanSheets: squad.reduce((a, p) => a + p.cleanSheets, 0),
+        points: nullSafeSum(squad.map((p) => p.totalPoints)),
+        xGI: nullSafeSum(squad.map((p) => p.xGI)),
+        cleanSheets: nullSafeSum(squad.map((p) => p.cleanSheets)),
       };
     });
   }, [resolvedPlayers, teams]);
@@ -111,9 +120,18 @@ export function Dashboard() {
     navigate(`/teams/${teamId}`);
   }
 
+  // Same reasoning as AppShell's GameweekLabel: FPL keeps an event marked
+  // "current" until the NEXT one's deadline passes, even after this one's
+  // own matches have all finished — so once finished, show that plus the
+  // next deadline rather than repeating this one's now-past deadline.
   const gwLabel =
     gameweekState?.kind === "current"
-      ? `${gameweekState.event.name} · deadline ${fmtDate(gameweekState.event.deadlineTime)}`
+      ? gameweekState.event.finished
+        ? (() => {
+            const next = events.find((e) => e.isNext);
+            return `${gameweekState.event.name} finished${next ? ` · ${next.name} deadline ${fmtDate(next.deadlineTime)}` : ""}`;
+          })()
+        : `${gameweekState.event.name} · deadline ${fmtDate(gameweekState.event.deadlineTime)}`
       : gameweekState?.kind === "last-completed"
         ? `Last completed: ${gameweekState.event.name}`
         : "Pre-season / No active gameweek";
@@ -139,7 +157,7 @@ export function Dashboard() {
           <div style={{ fontSize: 22, fontFamily: "var(--font-mono)" }}>{resolvedPlayers.length.toLocaleString("en-GB")}</div>
           <div className="page-subtitle" style={{ margin: 0 }}>
             across {teams.length} clubs
-            {analysisMode !== "live" && omittedCount > 0 && ` · ${omittedCount.toLocaleString("en-GB")} without data for this mode`}
+            {analysisMode !== "live" && noDataCount > 0 && ` · ${noDataCount.toLocaleString("en-GB")} have no data for this mode (shown as ${DASH})`}
           </div>
         </div>
         <div className="card">

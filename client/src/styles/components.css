@@ -105,10 +105,12 @@ table.data-table th .sort-indicator {
   color: var(--accent-positive);
 }
 
-/* Team Building picker: two pinned-left columns stacked with fixed
-   widths, since reliably stacking sticky columns needs known widths
-   rather than JS-measured natural ones. The Add button lives inside the
-   Player cell itself now, not a separate pinned column. */
+/* Team Building picker's one pinned-left column (Player — the Add button
+   lives inside this cell). Own% used to be pinned here too, with a fixed
+   width so the two sticky columns could reliably stack; it's now a
+   normal customisable Historic/Raw column like every other metric
+   (resizable, comparative-coloured, orderable), matching how Player
+   Explorer already treats it, so only one sticky column remains. */
 table.data-table th.picker-sticky-player,
 table.data-table td.picker-sticky-player {
   position: sticky;
@@ -120,20 +122,6 @@ table.data-table td.picker-sticky-player {
   text-align: left;
 }
 table.data-table td.picker-sticky-player {
-  background: var(--surface);
-  z-index: 1;
-}
-table.data-table th.picker-sticky-own,
-table.data-table td.picker-sticky-own {
-  position: sticky;
-  left: 210px;
-  z-index: 3;
-  width: 70px;
-  max-width: 70px;
-  background: var(--surface-raised);
-  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.25);
-}
-table.data-table td.picker-sticky-own {
   background: var(--surface);
   z-index: 1;
 }

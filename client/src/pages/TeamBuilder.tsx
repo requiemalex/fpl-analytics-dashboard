@@ -37,18 +37,18 @@ const PICKER_HISTORIC_MODE_OPTIONS: { mode: AnalysisMode; label: string }[] = [
   { mode: "historicAverage", label: "Historic Average" },
   { mode: "live", label: "Current Season" },
 ];
-/** Own% is pinned separately, so it's excluded from the customizable Historic/Raw list to avoid showing it twice. */
-const HISTORIC_RAW_COLUMNS = PLAYER_COLUMNS.filter((c) => c.key !== "ownership");
-/** Own% is pinned separately (excluded to avoid showing it twice); price defaults off since squad budget always uses live price regardless of this toggle, so a historic price here could read as more relevant to squad-building than it actually is — still selectable manually if wanted. */
-const DEFAULT_HISTORIC_RAW_COLUMN_KEYS = DEFAULT_VISIBLE_COLUMNS.filter((k) => k !== "ownership" && k !== "price");
-/** Fixed widths of the two pinned-left columns — see the .picker-sticky-* CSS. */
-const PICKER_PINNED_WIDTH = 210 + 70;
+/** Own% is a normal Historic/Raw column now (resizable, comparative-coloured), matching Player Explorer — it used to be excluded and pinned separately. */
+const HISTORIC_RAW_COLUMNS = PLAYER_COLUMNS;
+/** Price defaults off since squad budget always uses live price regardless of this toggle, so a historic price here could read as more relevant to squad-building than it actually is — still selectable manually if wanted. Ownership defaults ON, matching Player Explorer. */
+const DEFAULT_HISTORIC_RAW_COLUMN_KEYS = DEFAULT_VISIBLE_COLUMNS.filter((k) => k !== "price");
+/** Fixed width of the one remaining pinned-left column — see the .picker-sticky-player CSS. */
+const PICKER_PINNED_WIDTH = 210;
 
 /** One row of the Add Players table — bundles live identity/budget data, the historic/raw resolution for the selected mode, and every predictive figure, computed once per candidate rather than per cell. */
 interface PickerRowData {
   live: NormalizedPlayer;
   /** Resolved per the picker's own Historic/Raw toggle — null if the player has no data for that mode. */
-  historicRaw: NormalizedPlayer | null;
+  historicRaw: NormalizedPlayer;
   fixtures: UpcomingFixture[];
   expBreakdown: ExpPointsBreakdown;
   reliability: number | null;
@@ -595,14 +595,13 @@ export function TeamBuilder() {
     [predictiveCols.visibleColumns],
   );
   const historicRawColumnsInOrder = useMemo(
-    () => historicRawCols.visibleColumns.map((key) => columnByKey(key)).filter((c): c is PlayerColumn => !!c && c.key !== "ownership"),
+    () => historicRawCols.visibleColumns.map((key) => columnByKey(key)).filter((c): c is PlayerColumn => !!c),
     [historicRawCols.visibleColumns],
   );
 
   /** Resolves a sortable value for ANY column in the table — pinned identity columns, predictive columns, or historic/raw columns — so one comparator can drive header clicks anywhere. */
   function getPickerSortValue(row: PickerRowData, key: string): number | string | null {
     if (key === "name") return row.live.name;
-    if (key === "ownership") return row.live.ownership;
     const predictiveCol = PREDICTIVE_COLUMNS.find((c) => c.key === key);
     if (predictiveCol) return predictiveCol.getValue(row);
     const historicCol = columnByKey(key);
@@ -654,11 +653,13 @@ export function TeamBuilder() {
           reliability: computeBlendedMinutesReliability(p, teamsById.get(p.teamId), historicProfile).value,
         };
       })
-      // Depends on `historicRaw`, which only exists once the row above is
-      // built — a player with no data at all for the selected Historic/Raw
-      // mode is excluded whenever a minimum is set, same as "doesn't meet
-      // the bar" would be.
-      .filter((row) => pickerMinMinutes === null || (row.historicRaw !== null && row.historicRaw.minutes >= pickerMinMinutes))
+      // A player with no data at all for the selected Historic/Raw mode is
+      // excluded whenever the user has explicitly set a minimum, same as
+      // "doesn't meet the bar" would be — this is a deliberate, opt-in
+      // narrowing filter for finding squad-building candidates (only
+      // applies once pickerMinMinutes is actually set), not the kind of
+      // always-on default exclusion resolvePlayerStats.ts moved away from.
+      .filter((row) => pickerMinMinutes === null || (row.historicRaw.minutes !== null && row.historicRaw.minutes >= pickerMinMinutes))
       .filter(passesColumnFilters)
       .sort((a, b) => {
         for (const s of pickerSort) {
@@ -1162,16 +1163,6 @@ export function TeamBuilder() {
                     <span className="sort-indicator">{pickerSort.find((s) => s.key === "name")!.direction === "asc" ? "\u2191" : "\u2193"}</span>
                   )}
                 </th>
-                <th
-                  className="picker-sticky-own"
-                  onClick={(e) => handlePickerHeaderClick("ownership", e.shiftKey)}
-                  title="Click to sort · Shift-click to add secondary sort"
-                >
-                  Own%
-                  {pickerSort.find((s) => s.key === "ownership") && (
-                    <span className="sort-indicator">{pickerSort.find((s) => s.key === "ownership")!.direction === "asc" ? "\u2191" : "\u2193"}</span>
-                  )}
-                </th>
                 {predictiveColumnsInOrder.map((c) => {
                   const width = predictiveCols.columnWidths[c.key];
                   const sortEntry = pickerSort.find((s) => s.key === c.key);
@@ -1319,7 +1310,6 @@ export function TeamBuilder() {
                         </span>
                       </div>
                     </td>
-                    <td className="picker-sticky-own">{fmtPercent(row.live.ownership, 1)}</td>
                     {predictiveColumnsInOrder.map((c) => {
                       const width = predictiveCols.columnWidths[c.key];
                       return (
@@ -1360,7 +1350,7 @@ export function TeamBuilder() {
               })}
               {pickerRows.length === 0 && (
                 <tr>
-                  <td colSpan={2 + predictiveColumnsInOrder.length + historicRawColumnsInOrder.length} style={{ textAlign: "center", color: "var(--text-muted)" }}>
+                  <td colSpan={1 + predictiveColumnsInOrder.length + historicRawColumnsInOrder.length} style={{ textAlign: "center", color: "var(--text-muted)" }}>
                     No players match your search.
                   </td>
                 </tr>

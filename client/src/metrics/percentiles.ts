@@ -24,7 +24,7 @@ export function computePositionPercentiles(
 ): Map<number, number | null> {
   const byPosition = new Map<Position, NormalizedPlayer[]>();
   for (const p of allPlayers) {
-    if (p.minutes < minMinutesThreshold) continue;
+    if (p.minutes === null || p.minutes < minMinutesThreshold) continue;
     if (metricFn(p) === null) continue;
     const arr = byPosition.get(p.position) ?? [];
     arr.push(p);

@@ -112,7 +112,10 @@ interface ArchetypeContext {
 function computeArchetypesForPlayer(player: NormalizedPlayer, ctx: ArchetypeContext): ArchetypeLabel[] {
   const labels: ArchetypeLabel[] = [];
   const t = ARCHETYPE_THRESHOLDS;
-  const meetsMinutes = player.minutes >= ctx.minMinutesThreshold;
+  // A player with no data for this mode (minutes null) can't meet any
+  // minutes bar — they simply get no performance-based archetype labels
+  // (price-tier labels below are unaffected, since price is always live).
+  const meetsMinutes = player.minutes !== null && player.minutes >= ctx.minMinutesThreshold;
   const price = ctx.livePrice;
 
   if (price >= t.premiumPriceMin) labels.push("Premium Player");
@@ -186,7 +189,11 @@ export function computeArchetypesForAllPlayers(
   livePlayers: NormalizedPlayer[] = allPlayers,
 ): Map<number, ArchetypeLabel[]> {
   const xGIPer90Percentiles = computePositionPercentiles(allPlayers, (p) => p.xGIPer90, minMinutesThreshold);
-  const goalsPlusAssistsPercentiles = computePositionPercentiles(allPlayers, (p) => p.goals + p.assists, minMinutesThreshold);
+  const goalsPlusAssistsPercentiles = computePositionPercentiles(
+    allPlayers,
+    (p) => (p.goals !== null && p.assists !== null ? p.goals + p.assists : null),
+    minMinutesThreshold,
+  );
   const tightDefencePercentiles = computePositionPercentiles(allPlayers, (p) => (p.xGCPer90 !== null ? -p.xGCPer90 : null), minMinutesThreshold);
   const defensiveContributionsPer90Percentiles = computePositionPercentiles(allPlayers, (p) => p.defensiveContributionsPer90, minMinutesThreshold);
   const ictIndexPercentiles = computePositionPercentiles(allPlayers, (p) => p.ictIndex, minMinutesThreshold);

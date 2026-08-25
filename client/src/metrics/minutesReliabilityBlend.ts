@@ -66,7 +66,7 @@ function historicMinutesReliability(seasonsOldestFirst: PlayerSeasonHistory[]): 
 
 function currentSeasonMinutesReliability(player: NormalizedPlayer, team: NormalizedTeam | undefined): number | null {
   const possible = (team?.played ?? 0) * 90;
-  if (possible <= 0) return null;
+  if (possible <= 0 || player.minutes === null) return null;
   return Math.min(1, Math.max(0, player.minutes / possible));
 }
 

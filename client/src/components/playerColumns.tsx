@@ -68,6 +68,7 @@ export const PLAYER_COLUMNS: PlayerColumn[] = [
 ];
 
 export const DEFAULT_VISIBLE_COLUMNS = [
+  "ownership",
   "totalPoints",
   "pointsPerGame",
   "goals",

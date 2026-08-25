@@ -8,14 +8,15 @@ import { resolvePlayerStatsList } from "../metrics/resolvePlayerStats";
 import { defensiveRewardPer90 } from "../metrics/defensiveReward";
 import { ARCHETYPE_THRESHOLDS } from "../metrics/archetypes";
 import { buildThematicTrends } from "../metrics/thematicTrends";
-import { buildPlayerTrend, type PlayerTrendPoint } from "../metrics/careerTrends";
+import { buildMultiPlayerTrend, playerTrendDataKey } from "../metrics/careerTrends";
 import { MIN_QUALIFYING_SEASON_MINUTES } from "../metrics/historicAnalysis";
 import { FiltersBar } from "../components/FiltersBar";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { TopList, type TopListRow } from "../components/TopList";
 import { ScatterWithReference, type ScatterPoint } from "../components/charts/ScatterWithReference";
+import { PlayerSearch } from "../components/PlayerSearch";
 import { PLAYER_COLUMNS, columnByKey } from "../components/playerColumns";
-import { fmtDecimal } from "../utils/format";
+import { fmtDecimal, DASH } from "../utils/format";
 import type { Position } from "../types/normalized";
 
 function topN(rows: TopListRow[], n: number): TopListRow[] {
@@ -36,7 +37,7 @@ function bandFor(price: number): Band {
 
 export function UnderlyingNumbers() {
   const { players, teamsById, filters, analysisMode, historicProfiles, currentSeasonHasStarted, allTimeSeasonsByPlayerId } = useAppState();
-  const { resolved: resolvedPlayers, omittedCount } = useMemo(
+  const { resolved: resolvedPlayers, noDataCount } = useMemo(
     () => resolvePlayerStatsList(players, analysisMode, historicProfiles, currentSeasonHasStarted),
     [players, analysisMode, historicProfiles, currentSeasonHasStarted],
   );
@@ -58,12 +59,27 @@ export function UnderlyingNumbers() {
     () => players.filter((p) => (allTimeSeasonsByPlayerId.get(p.id)?.length ?? 0) > 0).sort((a, b) => a.name.localeCompare(b.name)),
     [players, allTimeSeasonsByPlayerId],
   );
-  const [trendPlayerId, setTrendPlayerId] = useState<number | null>(null);
+  const MAX_TREND_PLAYERS = 5;
+  const TREND_LINE_COLORS = ["#5aa9e6", "#e6a15a", "#8bd17c", "#e0708a", "#d8b34a"];
+  const [trendPlayerIds, setTrendPlayerIds] = useState<number[]>([]);
   const [trendMetric, setTrendMetric] = useState<"totalPoints" | "pointsPer90" | "xG" | "xA" | "xGI" | "minutes">("totalPoints");
-  const activeTrendPlayerId = trendPlayerId ?? playersWithHistory[0]?.id ?? null;
-  const playerTrend: PlayerTrendPoint[] = useMemo(
-    () => (activeTrendPlayerId !== null ? buildPlayerTrend(allTimeSeasonsByPlayerId.get(activeTrendPlayerId) ?? []) : []),
-    [activeTrendPlayerId, allTimeSeasonsByPlayerId],
+  const activeTrendPlayerIds = trendPlayerIds.length > 0 ? trendPlayerIds : playersWithHistory[0] ? [playersWithHistory[0].id] : [];
+  const trendPlayersById = useMemo(() => new Map(playersWithHistory.map((p) => [p.id, p])), [playersWithHistory]);
+
+  function addTrendPlayer(id: number) {
+    if (trendPlayerIds.length >= MAX_TREND_PLAYERS || activeTrendPlayerIds.includes(id)) return;
+    setTrendPlayerIds([...activeTrendPlayerIds, id]);
+  }
+  function removeTrendPlayer(id: number) {
+    // At least one player stays shown, matching this chart's original
+    // single-player behaviour — there was never an empty state for it.
+    if (activeTrendPlayerIds.length <= 1) return;
+    setTrendPlayerIds(activeTrendPlayerIds.filter((x) => x !== id));
+  }
+
+  const multiPlayerTrend = useMemo(
+    () => buildMultiPlayerTrend(activeTrendPlayerIds, allTimeSeasonsByPlayerId, trendMetric),
+    [activeTrendPlayerIds, allTimeSeasonsByPlayerId, trendMetric],
   );
   const TREND_METRIC_LABELS: Record<typeof trendMetric, string> = {
     totalPoints: "Total Points",
@@ -77,11 +93,17 @@ export function UnderlyingNumbers() {
   // ---------- Expected vs Actual ----------
 
   const xgVsGoals: ScatterPoint[] = useMemo(
-    () => filtered.filter((p) => p.xG !== null).map((p) => ({ id: p.id, label: p.name, x: p.xG as number, y: p.goals })),
+    () =>
+      filtered
+        .filter((p) => p.xG !== null && p.goals !== null)
+        .map((p) => ({ id: p.id, label: p.name, x: p.xG as number, y: p.goals as number })),
     [filtered],
   );
   const xaVsAssists: ScatterPoint[] = useMemo(
-    () => filtered.filter((p) => p.xA !== null).map((p) => ({ id: p.id, label: p.name, x: p.xA as number, y: p.assists })),
+    () =>
+      filtered
+        .filter((p) => p.xA !== null && p.assists !== null)
+        .map((p) => ({ id: p.id, label: p.name, x: p.xA as number, y: p.assists as number })),
     [filtered],
   );
 
@@ -89,7 +111,10 @@ export function UnderlyingNumbers() {
   // actual goal involvements), so a 45° reference line is meaningful here
   // exactly as it is for the xG/xA charts above.
   const xgiVsGA: ScatterPoint[] = useMemo(
-    () => filtered.filter((p) => p.xGI !== null).map((p) => ({ id: p.id, label: p.name, x: p.xGI as number, y: p.goals + p.assists })),
+    () =>
+      filtered
+        .filter((p) => p.xGI !== null && p.goals !== null && p.assists !== null)
+        .map((p) => ({ id: p.id, label: p.name, x: p.xGI as number, y: (p.goals as number) + (p.assists as number) })),
     [filtered],
   );
 
@@ -98,7 +123,10 @@ export function UnderlyingNumbers() {
   // correlation/pattern only. No reference line: a 45° "expected output"
   // line would be meaningless when the axes aren't commensurate.
   const ictVsGA: ScatterPoint[] = useMemo(
-    () => filtered.filter((p) => p.ictIndex !== null).map((p) => ({ id: p.id, label: p.name, x: p.ictIndex as number, y: p.goals + p.assists })),
+    () =>
+      filtered
+        .filter((p) => p.ictIndex !== null && p.goals !== null && p.assists !== null)
+        .map((p) => ({ id: p.id, label: p.name, x: p.ictIndex as number, y: (p.goals as number) + (p.assists as number) })),
     [filtered],
   );
 
@@ -140,7 +168,8 @@ export function UnderlyingNumbers() {
   // ---------- Value (merged in from the old Value page) ----------
 
   const priceVsPoints: ScatterPoint[] = useMemo(
-    () => filtered.map((p) => ({ id: p.id, label: p.name, x: p.price, y: p.totalPoints })),
+    () =>
+      filtered.filter((p) => p.totalPoints !== null).map((p) => ({ id: p.id, label: p.name, x: p.price, y: p.totalPoints as number })),
     [filtered],
   );
 
@@ -337,9 +366,10 @@ export function UnderlyingNumbers() {
         </p>
       </div>
 
-      {analysisMode !== "live" && omittedCount > 0 && (
+      {analysisMode !== "live" && noDataCount > 0 && (
         <p className="page-subtitle" style={{ marginTop: 10 }}>
-          {omittedCount.toLocaleString("en-GB")} player(s) have no data for this mode and aren't included above.
+          {noDataCount.toLocaleString("en-GB")} player(s) have no data for this mode — still shown above, with {DASH} for the metrics this
+          mode can't fill in.
         </p>
       )}
 
@@ -390,17 +420,37 @@ export function UnderlyingNumbers() {
 
       <h2 className="section-heading">Player Trends</h2>
       <div className="card">
+        <div className="card-title">
+          Players ({activeTrendPlayerIds.length}/{MAX_TREND_PLAYERS})
+        </div>
+        <div className="chip-row" style={{ marginBottom: 12 }}>
+          {activeTrendPlayerIds.map((id) => {
+            const p = trendPlayersById.get(id);
+            if (!p) return null;
+            return (
+              <span key={id} className="chip" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                {p.name}
+                <button
+                  type="button"
+                  onClick={() => removeTrendPlayer(id)}
+                  disabled={activeTrendPlayerIds.length <= 1}
+                  style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0, fontSize: 13, lineHeight: 1 }}
+                  title={activeTrendPlayerIds.length <= 1 ? "At least one player stays shown" : "Remove"}
+                >
+                  ×
+                </button>
+              </span>
+            );
+          })}
+        </div>
         <div className="filters-bar" style={{ marginBottom: 12 }}>
-          <div className="field">
-            <label htmlFor="trend-player">Player</label>
-            <select id="trend-player" value={activeTrendPlayerId ?? ""} onChange={(e) => setTrendPlayerId(Number(e.target.value))}>
-              {playersWithHistory.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <PlayerSearch
+            excludeIds={activeTrendPlayerIds}
+            onPick={addTrendPlayer}
+            disabled={activeTrendPlayerIds.length >= MAX_TREND_PLAYERS}
+            candidates={playersWithHistory}
+            label="Add a player to compare"
+          />
           <div className="field">
             <label htmlFor="trend-metric">Metric</label>
             <select id="trend-metric" value={trendMetric} onChange={(e) => setTrendMetric(e.target.value as typeof trendMetric)}>
@@ -412,26 +462,38 @@ export function UnderlyingNumbers() {
             </select>
           </div>
         </div>
-        {playerTrend.length === 0 ? (
+        {multiPlayerTrend.length === 0 ? (
           <div className="empty-state">
-            <h3>No season history for this player</h3>
-            <p>Either historic data hasn't loaded yet, or this player has no completed FPL seasons on record.</p>
+            <h3>No season history to show</h3>
+            <p>Either historic data hasn't loaded yet, or the selected player(s) have no completed FPL seasons on record.</p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={playerTrend}>
+            <LineChart data={multiPlayerTrend}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
               <XAxis dataKey="seasonName" stroke="var(--text-muted)" fontSize={12} />
               <YAxis stroke="var(--text-muted)" fontSize={12} />
               <Tooltip contentStyle={{ background: "var(--surface-raised)", border: "1px solid var(--border-strong)", fontSize: 12 }} />
-              <Line type="monotone" dataKey={trendMetric} name={TREND_METRIC_LABELS[trendMetric]} stroke="var(--accent-focus)" strokeWidth={2} dot={{ r: 4 }} connectNulls />
+              {activeTrendPlayerIds.length > 1 && <Legend wrapperStyle={{ fontSize: 12 }} />}
+              {activeTrendPlayerIds.map((id, i) => (
+                <Line
+                  key={id}
+                  type="monotone"
+                  dataKey={playerTrendDataKey(id)}
+                  name={trendPlayersById.get(id)?.name ?? String(id)}
+                  stroke={TREND_LINE_COLORS[i % TREND_LINE_COLORS.length]}
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                  connectNulls
+                />
+              ))}
             </LineChart>
           </ResponsiveContainer>
         )}
         <p className="page-subtitle" style={{ marginTop: 8 }}>
-          Every season on record for this player, oldest first — no minutes threshold here, unlike Thematic Analysis above: a quiet or
-          injury-hit season is real data worth seeing, not noise to filter out. xG/xA/xGI show as a gap for seasons before FPL tracked
-          expected stats, not as zero.
+          Every season on record, oldest first — no minutes threshold here, unlike Thematic Analysis above: a quiet or injury-hit season
+          is real data worth seeing, not noise to filter out. xG/xA/xGI show as a gap for seasons before FPL tracked expected stats, not
+          as zero. Compare up to {MAX_TREND_PLAYERS} players at once.
         </p>
       </div>
     </div>
