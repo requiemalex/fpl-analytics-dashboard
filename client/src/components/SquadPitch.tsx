@@ -343,12 +343,6 @@ export function SquadPitch({
           )}
         </div>
       </div>
-      <p className="page-subtitle" style={{ marginTop: 8 }}>
-        Drag a player from the Add Players list straight onto the pitch or bench to add them. Drag a card onto another to swap it between
-        bench and starting XI. The × on a card removes that player from the squad entirely. Click a player's name to view their profile.
-        Clear (next to the C/V tiles) empties the whole squad and bench in one click.
-        Fixture chips show the next five opponents, coloured by FPL's own difficulty rating (green = easier, red = harder).
-      </p>
     </div>
   );
 }

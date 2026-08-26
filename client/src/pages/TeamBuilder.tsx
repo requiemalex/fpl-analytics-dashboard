@@ -839,11 +839,8 @@ export function TeamBuilder() {
         <div>
           <h1>Team Building</h1>
           <p className="page-subtitle">
-            Build a squad from scratch under standard rules — £{SQUAD_RULES.budget.toFixed(1)}m budget, {SQUAD_RULES.composition.GKP}-
-            {SQUAD_RULES.composition.DEF}-{SQUAD_RULES.composition.MID}-{SQUAD_RULES.composition.FWD} (GKP-DEF-MID-FWD), max{" "}
-            {SQUAD_RULES.maxPerClub} per club. Saved to this browser only — no login, no account. You can load a real FPL team by its
-            team ID below — that's a read-only, unauthenticated request to FPL's own public data for that team, the same kind of request
-            every other page in this app already makes; nothing is ever written back to FPL.
+            £{SQUAD_RULES.budget.toFixed(1)}m budget, {SQUAD_RULES.composition.GKP}-{SQUAD_RULES.composition.DEF}-
+            {SQUAD_RULES.composition.MID}-{SQUAD_RULES.composition.FWD} (GKP-DEF-MID-FWD), max {SQUAD_RULES.maxPerClub} per club.
           </p>
         </div>
       </div>
@@ -899,11 +896,6 @@ export function TeamBuilder() {
         )}
       </div>
       {importStatus === "error" && importError && <div className="banner error">{importError}</div>}
-      <p className="page-subtitle" style={{ marginTop: -4, marginBottom: 12 }}>
-        Your team ID is the number in your team's own FPL web address (Pick Team → Gameweek History shows it in the URL). Importing
-        creates a new saved squad here — it won't overwrite anything, and re-loading the same ID later creates another new squad rather
-        than syncing in place.
-      </p>
 
       <div className="card" style={{ marginBottom: 22 }}>
         <div className="card-title">Add Players</div>
@@ -1294,13 +1286,6 @@ export function TeamBuilder() {
             </tbody>
           </table>
         </div>
-        <p className="page-subtitle" style={{ marginTop: 8 }}>
-          Showing every player matching your filters, sorted by Exp. Pts (FPL Predicted) by default — click any header to sort by it
-          instead, shift-click to add a secondary sort. Drag a row straight onto the pitch or bench below to add them, or use the Add
-          button next to their name. Price and eligibility always use today's real price and budget, regardless of the Historic/Raw
-          toggle above — building a squad is a live-money decision. The vertical line marks where predictive columns end and historic/raw
-          columns begin; columns can be dragged to reorder within their own side of that line, not across it.
-        </p>
       </div>
 
       <div className="card" style={{ marginBottom: 22 }}>
@@ -1370,11 +1355,6 @@ export function TeamBuilder() {
         <div className="card">
           <div className="card-title">Minutes Reliability</div>
           <ReliabilityBar value={reliability.average} />
-          <p className="page-subtitle">
-            Blends historic and live-season playing time, shifting trust toward live data as real gameweeks accumulate this season, then
-            adjusted for current injury/doubt status. Pre-season this leans entirely on history; it becomes fully live-driven by
-            gameweek 8.
-          </p>
         </div>
         <div className="card">
           <div className="card-title">Good Differentials ({differentials.length})</div>
@@ -1389,9 +1369,6 @@ export function TeamBuilder() {
               ))}
             </div>
           )}
-          <p className="page-subtitle" style={{ marginTop: 8 }}>
-            Ownership is always today's real figure; "statistically strong" is judged from historic underlying numbers.
-          </p>
         </div>
         <div className="card">
           <div className="card-title">Archetype Mix</div>
@@ -1406,9 +1383,6 @@ export function TeamBuilder() {
               ))}
             </div>
           )}
-          <p className="page-subtitle" style={{ marginTop: 8 }}>
-            Archetypes are computed from historic underlying numbers, the same basis used across this squad's analysis.
-          </p>
         </div>
         <div className="card">
           <div className="card-title">Chips Used This Season</div>
@@ -1440,27 +1414,10 @@ export function TeamBuilder() {
               </tbody>
             </table>
           </div>
-          <p className="page-subtitle" style={{ marginTop: 8 }}>
-            Drives which windows Chip Planner still recommends for this squad — a half with no box ticked here is treated as fully
-            available there.
-          </p>
         </div>
       </div>
 
       <div className="section-heading">Transfer Solver</div>
-      <p className="page-subtitle" style={{ marginTop: 0 }}>
-        Searches for same-position swaps that improve your Expected Points total over the {expectedPointsWindow}-GW window selected
-        above, within budget, the 2-5-5-3 composition, and the {SQUAD_RULES.maxPerClub}-per-club limit. Every suggestion here is one
-        canAddPlayer — the same rule-check the Add Players table itself uses — would also accept if applied by hand.
-      </p>
-      <div className="banner info">
-        Scoped to <strong>same-position</strong> swaps only (a DEF replaced by a DEF, etc.) — a transfer that also reshapes your formation
-        isn't considered. The 2-transfer search is a heuristic, not an exhaustive one: an exact search would be tens of millions of
-        combinations, so this instead pairs up the strongest single-swap options found and checks whether any pair still fits your rules
-        together — a genuinely strong pair built from two only-mediocre-alone moves wouldn't surface here. Scoring reuses the exact same
-        Expected Points method as the card above (FPL's own ep_next, fixture-difficulty-extended) — not a second model — so it inherits
-        the same limits: it can't see price changes, injuries, or team news between now and a gameweek that's still some way off.
-      </div>
 
       <div className="filters-bar">
         <div className="field">

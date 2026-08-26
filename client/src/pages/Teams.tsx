@@ -106,7 +106,6 @@ export function Teams() {
       <div className="page-header">
         <div>
           <h1>Teams</h1>
-          <p className="page-subtitle">Current FPL clubs, aggregated from their present squad.</p>
         </div>
       </div>
 

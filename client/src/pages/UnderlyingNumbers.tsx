@@ -9,7 +9,6 @@ import { defensiveRewardPer90 } from "../metrics/defensiveReward";
 import { ARCHETYPE_THRESHOLDS } from "../metrics/archetypes";
 import { buildThematicTrends } from "../metrics/thematicTrends";
 import { buildMultiPlayerTrend, playerTrendDataKey } from "../metrics/careerTrends";
-import { MIN_QUALIFYING_SEASON_MINUTES } from "../metrics/historicAnalysis";
 import { FiltersBar } from "../components/FiltersBar";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { TopList, type TopListRow } from "../components/TopList";
@@ -216,10 +215,6 @@ export function UnderlyingNumbers() {
       <div className="page-header">
         <div>
           <h1>Underlying Numbers</h1>
-          <p className="page-subtitle">
-            Expected-stats leaderboards, price efficiency, and actual-vs-expected output — all in one place. Small samples should be read
-            with caution.
-          </p>
         </div>
       </div>
 
@@ -244,10 +239,6 @@ export function UnderlyingNumbers() {
         <div className="card">
           <div className="card-title">ICT Index vs Goals + Assists</div>
           <ScatterWithReference data={ictVsGA} xLabel="ICT Index" yLabel="Goals + Assists" onPointClick={select} />
-          <p className="page-subtitle" style={{ marginTop: 8 }}>
-            ICT Index is a composite influence/creativity/threat score, not the same unit as Goals + Assists — this shows pattern and
-            correlation, not an expected-vs-actual relationship (no reference line).
-          </p>
         </div>
         <div className="card">
           <div className="card-title">Defensive Contribution/90 vs Defensive Reward/90</div>
@@ -264,17 +255,6 @@ export function UnderlyingNumbers() {
             }}
             onPointClick={select}
           />
-          <p className="page-subtitle" style={{ marginTop: 8 }}>
-            The defensive equivalent of the xG/xA charts above: x-axis is the qualifying-action rate that earns Defensive Contribution
-            points (CBIT for defenders, CBIRT for midfielders/forwards — capped at 2 points per match, so this rate doesn't convert to
-            points linearly); y-axis is clean-sheet points/90 plus <em>total</em> bonus/90 — bonus isn't isolated to defensive actions
-            specifically, since goals, assists, clean sheets and saves feed the same Bonus Points System, so treat it as a proxy, not an
-            attribution. Dot colour is Expected Goals Conceded/90 — green means a tighter expected defence, red means leakier — scaled
-            against the range actually present in this view, not a fixed absolute scale. Goalkeepers are excluded; the Defensive
-            Contribution mechanic doesn't apply to them.
-            {analysisMode !== "live" &&
-              " Defensive Contribution is only tracked from the 2024/25 season on — seasons before that are excluded from the average rather than diluting it with an untracked zero."}
-          </p>
         </div>
       </div>
 
@@ -306,10 +286,7 @@ export function UnderlyingNumbers() {
         <div className="card-title">Points/£m by Position &amp; Price Band</div>
         <p className="page-subtitle">
           Bands: Budget &lt; £{ARCHETYPE_THRESHOLDS.midPriceMin}m · Mid-priced £{ARCHETYPE_THRESHOLDS.midPriceMin}m–£
-          {ARCHETYPE_THRESHOLDS.midPriceMax}m · Premium ≥ £{ARCHETYPE_THRESHOLDS.premiumPriceMin}m. Thresholds are centrally configurable
-          (see README).
-          {analysisMode !== "live" &&
-            " These are today's price bands applied to historic prices — a player's older-season price may sit in a different band than it would have at the time."}
+          {ARCHETYPE_THRESHOLDS.midPriceMax}m · Premium ≥ £{ARCHETYPE_THRESHOLDS.premiumPriceMin}m.
         </p>
         <div className="table-wrap">
           <table className="data-table">
@@ -360,10 +337,6 @@ export function UnderlyingNumbers() {
           </div>
         </div>
         <ScatterWithReference data={customGraphData} xLabel={xColumn.label} yLabel={yColumn.label} onPointClick={select} />
-        <p className="page-subtitle" style={{ marginTop: 8 }}>
-          Pick any two metrics from Player Explorer's full list. No reference line here — an arbitrary pair of metrics usually isn't an
-          expected-vs-actual relationship, so one isn't drawn unless the axes genuinely represent that (like the charts above).
-        </p>
       </div>
 
       {analysisMode !== "live" && noDataCount > 0 && (
@@ -374,16 +347,6 @@ export function UnderlyingNumbers() {
       )}
 
       <h2 className="section-heading">Thematic Analysis</h2>
-      <div className="banner info">
-        Uses full multi-season career history directly — unaffected by the Last Completed Season / Historic Average / Current Season
-        toggle above, and by Team Building's own 4-season recency window. A season only counts for a player if they played at least{" "}
-        {MIN_QUALIFYING_SEASON_MINUTES} minutes that season, same bar as everywhere else historic averages are computed. Price
-        tier uses each season's OWN price (not today's), consistent with how price tiers work elsewhere in this app. Position uses each
-        player's CURRENT position — this app has no record of historical position changes, so a position-switcher's older seasons are
-        grouped under where they play now. This intentionally doesn't re-run the full percentile-based archetype system (High-upside
-        Attacker, Strong Underlying Attacker, etc.) against every past season — see metrics/thematicTrends.ts for why that's a
-        materially bigger undertaking than this chart.
-      </div>
       <div className="card-grid">
         <div className="card">
           <div className="card-title">Average Points by Position</div>
@@ -490,11 +453,6 @@ export function UnderlyingNumbers() {
             </LineChart>
           </ResponsiveContainer>
         )}
-        <p className="page-subtitle" style={{ marginTop: 8 }}>
-          Every season on record, oldest first — no minutes threshold here, unlike Thematic Analysis above: a quiet or injury-hit season
-          is real data worth seeing, not noise to filter out. xG/xA/xGI show as a gap for seasons before FPL tracked expected stats, not
-          as zero. Compare up to {MAX_TREND_PLAYERS} players at once.
-        </p>
       </div>
     </div>
   );

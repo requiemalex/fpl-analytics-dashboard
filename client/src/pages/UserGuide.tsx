@@ -1,6 +1,7 @@
 import React from "react";
 import { useAppState } from "../state/AppStateContext";
 import { METRIC_LIST } from "../metrics/dictionary";
+import { MIN_QUALIFYING_SEASON_MINUTES } from "../metrics/historicAnalysis";
 
 const FIELD_LABELS: Record<string, string> = {
   expected_goals: "xG (expected_goals)",
@@ -218,7 +219,11 @@ export function UserGuide() {
           <li><strong>Fit to Box</strong> compresses every visible column to the available width — runs automatically on first load, too.</li>
           <li><strong>Reset Columns</strong> restores the packaged defaults — order, visibility, and width.</li>
           <li><strong>Comparative Colouring</strong> (top right) tints each cell green/red relative to what's currently on screen — turn it off if it's too busy.</li>
-          <li>The filter bar above the table (search, position, team, min minutes/starts, ownership/price range, archetypes) narrows the whole table at once.</li>
+          <li>
+            The filter bar above the table (search, position, team, min minutes, archetypes) narrows the whole table at once. Every
+            other column — Starts, Own%, Price, and the rest — has its own filter (click the ▾ icon on that column's header) with
+            ≤/≥/= fields, so narrowing by ownership or price range happens at the column, not up here.
+          </li>
         </ul>
         <Try>
           Looking for undervalued midfielders? Set Position to MID, add the "Points/£m" column, click its header to sort descending, and
@@ -237,9 +242,37 @@ export function UserGuide() {
           <strong>Thematic Analysis</strong> and <strong>Player Trends</strong>, further down the page, are deliberately built outside
           the Last Completed Season / Historic Average / Current Season toggle everything above uses — both need a genuine multi-season
           time series, which that single-season toggle can't represent. Thematic Analysis shows average points by position and by price
-          tier (using each season's own price, not today's) across every season on record; Player Trends plots one player's own
-          points/xG/xA/minutes across their whole career. Neither re-runs the full percentile-based archetype system against past
-          seasons — that's a materially bigger undertaking than these two charts, so it isn't attempted here.
+          tier across every season where a player cleared the same {MIN_QUALIFYING_SEASON_MINUTES}-minute bar used everywhere else historic
+          averages are computed; price tier uses each season's own price (not today's), and position uses each player's current
+          position, since this app has no record of historical position changes — a position-switcher's older seasons are grouped under
+          where they play now. Player Trends plots up to 5 players' own
+          points/xG/xA/minutes across their whole career, with no minutes threshold — a quiet or injury-hit season is real data worth
+          seeing, not noise to filter out, and xG/xA/xGI show as a gap for seasons before FPL tracked expected stats, not as zero.
+          Neither re-runs the full percentile-based archetype system against past seasons — that's a materially bigger undertaking than
+          these two charts, so it isn't attempted here.
+        </p>
+        <p className="page-subtitle">
+          Two of the six expected-vs-actual charts intentionally have no dashed reference line, for different reasons. <strong>ICT Index
+          vs Goals + Assists</strong>: ICT is a composite influence/creativity/threat score on its own scale, not the same unit as
+          Goals + Assists, so a 45° "expected output" line would be meaningless — it shows pattern and correlation only. <strong>Build
+          Your Own Graph</strong>: an arbitrary pair of metrics usually isn't an expected-vs-actual relationship either, so no line is
+          drawn unless the axes genuinely represent that.
+        </p>
+        <p className="page-subtitle">
+          <strong>Defensive Contribution/90 vs Defensive Reward/90</strong> is the hardest of the six to read honestly, so it's spelled
+          out here: the x-axis is the qualifying-action rate that earns Defensive Contribution points (CBIT for defenders, CBIRT for
+          midfielders/forwards) — capped at 2 points per match, so the rate doesn't convert to points linearly. The y-axis is
+          clean-sheet points/90 plus <em>total</em> bonus/90 — bonus isn't isolated to defensive actions specifically, since goals,
+          assists, clean sheets and saves all feed the same Bonus Points System, so treat it as a proxy, not an attribution. Dot colour
+          is Expected Goals Conceded/90 (green = tighter expected defence, red = leakier), scaled to the range actually present in the
+          current view. Goalkeepers are excluded, since the Defensive Contribution mechanic doesn't apply to them, and in historic
+          modes, seasons before 2024/25 (when the FPL API started tracking it) are excluded from the average rather than diluting it
+          with an untracked zero.
+        </p>
+        <p className="page-subtitle">
+          <strong>Points/£m by Position &amp; Price Band</strong> always buckets players by today's real live price (Budget/Mid-priced/
+          Premium — same thresholds as the Archetypes price tier below), regardless of which analysis mode is selected, matching how
+          price behaves everywhere else in this app.
         </p>
         <Try>Click any dot on a chart to open that player's profile directly — the charts aren't just for looking, they're a navigation shortcut too.</Try>
       </Section>
@@ -281,9 +314,10 @@ export function UserGuide() {
           </li>
           <li>Budget, price, and club-limit rules always use today's real price, regardless of any toggle — building a squad is a live-money decision.</li>
           <li>
-            <strong>Load from FPL</strong> pulls in a real team by its team ID — a read-only, unauthenticated request to FPL's own public
-            data for that team (no login, nothing written back), creating a new saved squad rather than overwriting anything. Chip usage
-            history comes along with it automatically.
+            <strong>Load from FPL</strong> pulls in a real team by its team ID (the number in your team's own FPL web address — Pick
+            Team → Gameweek History shows it in the URL) — a read-only, unauthenticated request to FPL's own public data for that team
+            (no login, nothing written back), creating a new saved squad rather than overwriting anything; re-loading the same ID later
+            creates another new squad rather than syncing in place. Chip usage history comes along with it automatically.
           </li>
           <li>
             <strong>Chips Used This Season</strong> tracks which of the two Wildcard/Free Hit/Bench Boost/Triple Captain windows have
@@ -297,10 +331,18 @@ export function UserGuide() {
             a chip is played for exactly one gameweek.
           </li>
           <li>
-            The <strong>Transfer Solver</strong> searches for same-position swaps that improve your Expected Points total, within
-            budget, composition, and club-limit rules — 1 transfer is an exhaustive search; 2 transfers is explicitly a heuristic (pairs
-            up the strongest single-swap options rather than searching every combination, which would be computationally impractical).
-            Set how many free transfers you have so the hit cost gets weighed in correctly. Apply a suggestion with one click.
+            The <strong>Transfer Solver</strong> searches for same-position swaps (a DEF replaced by a DEF, etc. — a transfer that
+            reshapes your formation isn't considered) that improve your Expected Points total, within budget, composition, and
+            club-limit rules — 1 transfer is an exhaustive search; 2 transfers is explicitly a heuristic (pairs up the strongest
+            single-swap options rather than searching every combination, which would be computationally impractical). Scoring reuses
+            the same Expected Points method as the card above, so it inherits the same limits — no visibility into price changes,
+            injuries, or team news between now and a gameweek that's still some way off. Set how many free transfers you have so the hit
+            cost gets weighed in correctly. Apply a suggestion with one click.
+          </li>
+          <li>
+            <strong>Good Differentials</strong> and <strong>Archetype Mix</strong> use a fixed historic-average basis for their
+            archetype labels, unaffected by any toggle elsewhere on the page — this section isn't about choosing a description basis,
+            it's about the squad you're building. Ownership shown alongside a differential is always today's real figure.
           </li>
         </ul>
         <Try>Sort the Add Players table by "Exp. Pts (Overall Average)" for a blended view, or by "Minutes Reliability" if durability matters more to you than ceiling.</Try>

@@ -9,7 +9,7 @@ import { computeRadarData } from "../metrics/radarStats";
 import { PlayerRadarChart } from "./PlayerRadarChart";
 import { computePlayingTimeIndicators } from "../metrics/rotationIndicators";
 import { computeSeasonTrend } from "../metrics/careerMetrics";
-import { buildHistoricPlayerProfile, HISTORIC_WINDOW_SEASONS, MIN_QUALIFYING_SEASON_MINUTES } from "../metrics/historicAnalysis";
+import { buildHistoricPlayerProfile } from "../metrics/historicAnalysis";
 import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode } from "../metrics/resolvePlayerStats";
 import { effectiveMinMinutes } from "../state/useFilteredPlayers";
 import { AnalysisModeToggle } from "./AnalysisModeToggle";
@@ -185,11 +185,6 @@ export function PlayerDetailOverlay() {
               {smallSample && <span style={{ color: "var(--accent-value)" }}> (below eligibility threshold)</span>}
             </div>
             <PlayerRadarChart data={smallSample ? radarData.map((d) => ({ ...d, percentile: null })) : radarData} />
-            <p className="page-subtitle" style={{ marginTop: 8 }}>
-              Each axis is {player.name}'s percentile against other {player.position}s in the selected mode — the stat set is tailored to
-              the position (a goalkeeper's chart has nothing in common with a forward's). Descriptive, not predictive: this shows where
-              they already rank on these stats, not where they're heading.
-            </p>
         </div>
 
         <div className="card" style={{ marginTop: 16 }}>
@@ -312,13 +307,8 @@ export function PlayerDetailOverlay() {
                   )}
 
                   <p className="page-subtitle" style={{ marginTop: 8 }}>
-                    Season totals, not per-90 rates. Expected-stats figures of exactly 0.00 in older seasons may reflect the stat not yet
-                    being tracked rather than a true zero — treat pre-2022/23 xG figures with caution. The qualifying average uses the
-                    same rule as the rest of the app: the last {HISTORIC_WINDOW_SEASONS} completed seasons, with at least{" "}
-                    {MIN_QUALIFYING_SEASON_MINUTES} minutes played each — seasons marked * above fall outside that window or under the
-                    threshold and aren't counted in it (the table itself still shows every season on record). Trend compares the two most
-                    recent seasons regardless of the threshold — a form dip from an injury-hit season is real trend information, not
-                    noise.
+                    Seasons marked * fall outside the qualifying window or minutes bar and aren't counted in the average above (the
+                    table itself still shows every season on record).
                   </p>
                 </>
               );
@@ -327,7 +317,6 @@ export function PlayerDetailOverlay() {
 
         <div className="card" style={{ marginTop: 16 }}>
           <div className="card-title">Compare</div>
-          <p className="page-subtitle">Player comparison now has its own section, supporting up to 5 players at once.</p>
           <Link className="btn" to={`/player-comparison?players=${player.id}`}>
             Compare {player.name}
           </Link>

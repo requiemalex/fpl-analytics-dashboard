@@ -141,7 +141,6 @@ export function Dashboard() {
       <div className="page-header">
         <div>
           <h1>Dashboard</h1>
-          <p className="page-subtitle">Scouting overview — pick a season view below.</p>
         </div>
       </div>
 
@@ -193,9 +192,6 @@ export function Dashboard() {
       </div>
 
       <div className="stat-group-title team">Team Summary Statistics</div>
-      <p className="page-subtitle" style={{ marginTop: -6, marginBottom: 8 }}>
-        Same current-squad attribution as the Teams page.
-      </p>
       <div className="card-grid">
         <TeamTopList title="Top 5 — Team Points" rows={topTeamPoints} format={(v) => fmtDecimal(v, 0)} onSelect={selectTeam} />
         <TeamTopList title="Top 5 — Team xGI" rows={topTeamXGI} format={(v) => fmtDecimal(v, 2)} onSelect={selectTeam} />

@@ -143,19 +143,7 @@ export function PriceWatch() {
       <div className="page-header">
         <div>
           <h1>Price Watch</h1>
-          <p className="page-subtitle">
-            Who's closest to a price rise or fall, and what the transfer market is doing right now — built on FPL's own official Price
-            Change Predictor, new for 2026/27.
-          </p>
         </div>
-      </div>
-
-      <div className="banner info">
-        <strong>FPL's own data, FPL's own caveat:</strong> the Predictor figures below (Today/Tomorrow/Day After, and the Signal column)
-        come straight from FPL's Price Change Predictor, not this app's guesswork. FPL itself describes a reading over 100% as "expected
-        to cross the threshold at the next 00:00 UK update" — but explicitly not a guarantee: late transfer activity before the deadline
-        can still pull a player back. The "Net Ratio" column is this app's own supporting figure (net transfers this event ÷ estimated
-        current owners), shown alongside for extra context, not as a competing prediction.
       </div>
 
       {!predictorAvailable && (

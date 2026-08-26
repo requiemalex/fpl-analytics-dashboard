@@ -18,8 +18,6 @@ export interface CareerAverages {
   avgXGCPerSeason: number | null;
   /** Averaged only over seasons where DC was tracked (2024/25+) — see PlayerSeasonHistory.defensiveContribution. */
   avgDefensiveContributionPerSeason: number | null;
-  /** Average of each qualifying season's end-of-season price — see <historic_price_choice> in metrics/resolvePlayerStats.ts. */
-  avgPrice: number | null;
 }
 
 /**
@@ -49,7 +47,6 @@ export function computeCareerAverages(seasons: PlayerSeasonHistory[]): CareerAve
       avgXGIPerSeason: null,
       avgXGCPerSeason: null,
       avgDefensiveContributionPerSeason: null,
-      avgPrice: null,
     };
   }
 
@@ -75,7 +72,6 @@ export function computeCareerAverages(seasons: PlayerSeasonHistory[]): CareerAve
     avgXGIPerSeason: avgOrNull((s) => s.xGI),
     avgXGCPerSeason: avgOrNull((s) => s.xGC),
     avgDefensiveContributionPerSeason: avgOrNull((s) => s.defensiveContribution),
-    avgPrice: avgOrNull((s) => s.endCost),
   };
 }
 

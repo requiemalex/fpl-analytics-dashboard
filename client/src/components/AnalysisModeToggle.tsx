@@ -1,7 +1,6 @@
 import React from "react";
 import { useAppState } from "../state/AppStateContext";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
-import { HISTORIC_WINDOW_SEASONS, MIN_QUALIFYING_SEASON_MINUTES } from "../metrics/historicAnalysis";
 
 const OPTIONS: { mode: AnalysisMode; label: string }[] = [
   { mode: "lastSeason", label: "Last Completed Season" },
@@ -14,12 +13,10 @@ export function AnalysisModeToggle() {
     analysisMode,
     setAnalysisMode,
     historicStatus,
-    historicReferenceSeason,
     historicErrorMessage,
     historicSkippedPlayerIds,
     refreshHistoricData,
     historicRefreshing,
-    currentSeasonHasStarted,
   } = useAppState();
 
   return (
@@ -40,26 +37,9 @@ export function AnalysisModeToggle() {
           ))}
         </div>
 
-        {analysisMode === "live" && !currentSeasonHasStarted && (
-          <span className="page-subtitle" style={{ margin: 0 }}>
-            Live 2026/27 season data. Price, ownership, and availability are always today's real figures; every other field is a genuine
-            zero until gameweek 1 is played — not blank, an actual zero, since no games have happened yet this season.
-          </span>
-        )}
-        {analysisMode === "live" && currentSeasonHasStarted && (
-          <span className="page-subtitle" style={{ margin: 0 }}>
-            Live 2026/27 season data — updates as each gameweek's results come in from the official FPL API.
-          </span>
-        )}
         {analysisMode !== "live" && historicStatus === "loading" && (
           <span className="page-subtitle" style={{ margin: 0 }}>
             Building the historic dataset — this can take up to a minute the first time, then it's cached.
-          </span>
-        )}
-        {analysisMode === "historicAverage" && historicStatus === "ready" && historicReferenceSeason && (
-          <span className="page-subtitle" style={{ margin: 0 }}>
-            Averaged over qualifying seasons within the last {HISTORIC_WINDOW_SEASONS} completed seasons (≥{MIN_QUALIFYING_SEASON_MINUTES}{" "}
-            mins played each).
           </span>
         )}
         {analysisMode !== "live" && historicStatus === "error" && (
@@ -75,12 +55,6 @@ export function AnalysisModeToggle() {
         <p className="page-subtitle" style={{ marginTop: 6, marginBottom: 0 }}>
           {historicSkippedPlayerIds.length} player(s) had no historic data available this session (a transient fetch issue) — everyone else
           is unaffected.
-        </p>
-      )}
-      {analysisMode !== "live" && (
-        <p className="page-subtitle" style={{ marginTop: 6, marginBottom: 0 }}>
-          Ownership always shows today's live figure in every mode — the FPL API has no historic per-season ownership at all (confirmed
-          directly against the raw data), so this is "who's popular right now", not "who was popular that season".
         </p>
       )}
     </div>

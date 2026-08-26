@@ -88,10 +88,6 @@ function ComparisonSummary({ comparedPlayers, derivedById }: { comparedPlayers: 
             } there${outputLeaders.length === overallLeaders.length && outputLeaders.every((p) => overallLeaders.includes(p)) ? " too" : ""}.`}
         </p>
       )}
-      <p className="page-subtitle" style={{ margin: 0 }}>
-        This is a plain count of which metrics each player leads on — not a weighted verdict. It treats Points and Starts as equally
-        significant, which they aren't; check the full table below for what matters most to you.
-      </p>
     </div>
   );
 }
@@ -168,7 +164,6 @@ export function PlayerComparison() {
       <div className="page-header">
         <div>
           <h1>Player Comparison</h1>
-          <p className="page-subtitle">Compare up to {MAX_COMPARE} players side by side across every metric in Player Explorer.</p>
         </div>
       </div>
 
@@ -288,19 +283,10 @@ export function PlayerComparison() {
                 </tbody>
               </table>
             </div>
-            <p className="page-subtitle" style={{ marginTop: 8 }}>
-              Colour reflects the better/worse value within this comparison only — greener is better, redder is worse, more intense the
-              further a value sits from the middle of that row's range. Price, ownership, and xGC are inverted (lower is better) since
-              higher is worse for those three specifically; every other metric treats higher as better.
-            </p>
           </div>
 
           <div className="card" style={{ marginTop: 22 }}>
             <div className="card-title">Percentile Radar Comparison</div>
-            <p className="page-subtitle" style={{ marginTop: 0 }}>
-              Same radar chart as each player's own profile — the stat set is tailored to position, so players in different positions
-              show different axes rather than being forced onto a shared, less relevant set.
-            </p>
             <div className="card-grid">
               {comparedPlayers.map((p) => {
                 const isSmallSample = analysisMode !== "live" && (p.minutes === null || p.minutes < filters.minMinutes);

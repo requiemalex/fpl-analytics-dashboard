@@ -163,7 +163,6 @@ export function PlayerExplorer() {
       <div className="page-header">
         <div>
           <h1>Player Explorer</h1>
-          <p className="page-subtitle">Search, filter, sort and compare every eligible Premier League player.</p>
         </div>
       </div>
 

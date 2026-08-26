@@ -34,12 +34,19 @@ export const ANALYSIS_MODE_LABELS: Record<AnalysisMode, string> = {
  * player count, with per-field "—" for whichever players don't qualify,
  * rather than shrinking lists silently.
  *
- * <historic_price_choice>: price becomes that season's (or the
- * qualifying average's) end-of-season price rather than today's live
- * price — comparing a past season's points against today's price would
- * be a mismatched, misleading ratio for anything like Points/£m. Falls
- * back to the live price only in the unexpected case where the historic
- * price itself is missing.
+ * <price_always_live>: price is always today's real live price, in every
+ * mode, including every metric derived from it (Points/£m and friends) —
+ * changed directly at the user's request, to match how ownership already
+ * behaves and stay consistent across every view: what a player costs
+ * right now is the number that matters for squad-building, even when
+ * looking at a past season's output. This replaced an earlier design
+ * that used that season's end-of-season price instead, on the reasoning
+ * that comparing historic points against today's price is a mismatched
+ * ratio — a real tradeoff, just not the one wanted here. The Career
+ * History season-by-season table is a deliberate, separate exception:
+ * it's specifically showing what a player cost *at the time*, for each
+ * season, so it keeps reading historic price directly from
+ * HistoricPlayerProfile rather than through this function.
  *
  * <live_mode_preseason_fix>: "live" mode is NOT simply "return the
  * player unchanged". Confirmed directly against the raw API: FPL does
@@ -140,7 +147,6 @@ export function resolvePlayerStats(
     if (!s) return nullPerformanceFields(player);
     return {
       ...player,
-      price: s.endCost ?? s.startCost ?? player.price,
       totalPoints: s.totalPoints,
       pointsPerGame: per90(s.totalPoints, s.minutes),
       minutes: s.minutes,
@@ -169,7 +175,6 @@ export function resolvePlayerStats(
   if (!avg) return nullPerformanceFields(player);
   return {
     ...player,
-    price: avg.avgPrice ?? player.price,
     totalPoints: avg.avgPointsPerSeason ?? 0,
     pointsPerGame: per90(avg.avgPointsPerSeason, avg.avgMinutesPerSeason),
     minutes: avg.avgMinutesPerSeason ?? 0,
