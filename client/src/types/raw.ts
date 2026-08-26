@@ -57,8 +57,8 @@ export interface RawElement {
   selected_by_percent: string;
   total_points: number;
   points_per_game: string;
-  /** FPL's own official expected-points prediction for the next gameweek. Confirmed real and populated even pre-season. */
-  ep_next: string;
+  /** FPL's own official expected-points prediction for the next gameweek. Usually populated even pre-season, but null for at least some players who currently have no upcoming fixture prediction (e.g. long-term unavailable) — never assume non-null. */
+  ep_next: string | null;
   minutes: number;
   starts: number | null;
   starts_per_90: number | null;

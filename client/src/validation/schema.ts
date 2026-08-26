@@ -61,7 +61,7 @@ export const elementSchema = z
     selected_by_percent: z.string(),
     total_points: z.number(),
     points_per_game: z.string(),
-    ep_next: z.string().optional().default("0.0"),
+    ep_next: z.string().nullable().optional().default("0.0"),
     minutes: z.number(),
     starts: z.number().nullable().optional(),
     starts_per_90: z.number().nullable().optional(),

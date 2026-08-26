@@ -781,18 +781,24 @@ export function TeamBuilder() {
   // looking at" hint, matching how Player Comparison's colour scale is
   // also scoped to what's visible (with no cap, "visible" now means
   // everyone who matches the current filters, not a fixed subset).
-  const predictiveColumnRanges = new Map<string, { min: number; max: number }>();
-  for (const c of predictiveColumnsInOrder) {
-    const values = pickerRows.map((r) => c.getValue(r)).filter((v): v is number => v !== null);
-    if (values.length > 0) predictiveColumnRanges.set(c.key, { min: Math.min(...values), max: Math.max(...values) });
-  }
-  const historicRawColumnRanges = new Map<string, { min: number; max: number }>();
-  for (const c of historicRawColumnsInOrder) {
-    const values = pickerRows
-      .map((r) => (r.historicRaw ? c.getValue(r.historicRaw, getPlayerDerivedMetrics(r.historicRaw)) : null))
-      .filter((v): v is number => v !== null);
-    if (values.length > 0) historicRawColumnRanges.set(c.key, { min: Math.min(...values), max: Math.max(...values) });
-  }
+  const predictiveColumnRanges = useMemo(() => {
+    const ranges = new Map<string, { min: number; max: number }>();
+    for (const c of predictiveColumnsInOrder) {
+      const values = pickerRows.map((r) => c.getValue(r)).filter((v): v is number => v !== null);
+      if (values.length > 0) ranges.set(c.key, { min: Math.min(...values), max: Math.max(...values) });
+    }
+    return ranges;
+  }, [predictiveColumnsInOrder, pickerRows]);
+  const historicRawColumnRanges = useMemo(() => {
+    const ranges = new Map<string, { min: number; max: number }>();
+    for (const c of historicRawColumnsInOrder) {
+      const values = pickerRows
+        .map((r) => (r.historicRaw ? c.getValue(r.historicRaw, getPlayerDerivedMetrics(r.historicRaw)) : null))
+        .filter((v): v is number => v !== null);
+      if (values.length > 0) ranges.set(c.key, { min: Math.min(...values), max: Math.max(...values) });
+    }
+    return ranges;
+  }, [historicRawColumnsInOrder, pickerRows]);
 
   function predictiveTint(row: PickerRowData, c: PredictiveColumnDef): string | undefined {
     if (!comparativeColouring) return undefined;
