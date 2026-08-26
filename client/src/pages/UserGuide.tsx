@@ -432,10 +432,11 @@ export function UserGuide() {
       <Section id="player-profile" title="Player Profile">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
           Click a player's name almost anywhere in the app to open it. Actual Output, Underlying Performance, and Value cards resolve
-          per the active analysis mode; Career History and Playing-Time Indicators are always genuinely historic/live respectively and
-          don't change with the toggle. The Percentile Radar chart is position-specific — a goalkeeper's axes share almost nothing with
-          a forward's — and also resolves per mode. Archetype badges and the "Compare" link (into Player Comparison, pre-filled) sit
-          alongside.
+          per the active analysis mode; Career History and Playing-Time Indicators are unaffected by that toggle — Career History
+          always shows every prior season on record plus this season in progress (marked "(live)", sourced from live data rather than
+          a completed season's record), and Playing-Time Indicators are always live. The Percentile Radar chart is position-specific —
+          a goalkeeper's axes share almost nothing with a forward's — and also resolves per mode. Archetype badges and the "Compare"
+          link (into Player Comparison, pre-filled) sit alongside.
         </p>
       </Section>
 

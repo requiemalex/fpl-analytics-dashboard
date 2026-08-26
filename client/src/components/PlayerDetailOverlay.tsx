@@ -9,13 +9,13 @@ import { computeRadarData } from "../metrics/radarStats";
 import { PlayerRadarChart } from "./PlayerRadarChart";
 import { computePlayingTimeIndicators } from "../metrics/rotationIndicators";
 import { computeSeasonTrend } from "../metrics/careerMetrics";
-import { buildHistoricPlayerProfile } from "../metrics/historicAnalysis";
+import { buildHistoricPlayerProfile, nextSeasonName } from "../metrics/historicAnalysis";
 import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode } from "../metrics/resolvePlayerStats";
 import { effectiveMinMinutes } from "../state/useFilteredPlayers";
 import { AnalysisModeToggle } from "./AnalysisModeToggle";
 import { PositionBadge, SignedNum, PercentileBar, ArchetypeBadges } from "./primitives";
 import { fmtDecimal, fmtPrice, fmtPercent, fmtSigned, DASH } from "../utils/format";
-import type { NormalizedPlayer } from "../types/normalized";
+import type { NormalizedPlayer, PlayerSeasonHistory } from "../types/normalized";
 
 function useSelectedPlayer(): [NormalizedPlayer | null, (id: number | null) => void] {
   const { players } = useAppState();
@@ -50,6 +50,37 @@ export function PlayerDetailOverlay() {
   const [player, setPlayerId] = useSelectedPlayer();
 
   const history = usePlayerHistory(player?.id ?? null);
+
+  // The live season, shaped like a PlayerSeasonHistory entry so it can slot
+  // straight into the same career-history table/average/qualifying logic
+  // as prior seasons — sourced from the raw live player (never null in
+  // practice), matching how the rest of the app treats live data. Needs
+  // historicReferenceSeason (the last COMPLETED season) to name itself, so
+  // it's absent until that's loaded at least once.
+  const currentSeasonEntry: PlayerSeasonHistory | null = useMemo(() => {
+    if (!player || !historicReferenceSeason) return null;
+    return {
+      seasonName: nextSeasonName(historicReferenceSeason),
+      totalPoints: player.totalPoints ?? 0,
+      minutes: player.minutes ?? 0,
+      starts: player.starts,
+      goals: player.goals ?? 0,
+      assists: player.assists ?? 0,
+      cleanSheets: player.cleanSheets ?? 0,
+      bonus: player.bonus ?? 0,
+      bps: player.bps ?? 0,
+      ictIndex: player.ictIndex,
+      startCost: player.price,
+      endCost: player.price,
+      xG: player.xG,
+      xA: player.xA,
+      xGI: player.xGI,
+      xGC: player.xGC,
+      defensiveContribution: player.defensiveContributions,
+    };
+  }, [player, historicReferenceSeason]);
+
+  const combinedSeasonHistory = currentSeasonEntry ? [...history.seasonHistory, currentSeasonEntry] : history.seasonHistory;
 
   // Archetypes/percentiles are computed against the same resolved-mode
   // population every other page uses, not the raw live list — otherwise
@@ -209,7 +240,7 @@ export function PlayerDetailOverlay() {
         </div>
 
         <div className="card" style={{ marginTop: 16 }}>
-          <div className="card-title">Career History (prior seasons)</div>
+          <div className="card-title">Career History</div>
           {history.status === "loading" && <p className="page-subtitle">Loading career history…</p>}
           {history.status === "error" && (
             <p className="page-subtitle">
@@ -219,17 +250,17 @@ export function PlayerDetailOverlay() {
               </button>
             </p>
           )}
-          {history.status === "ready" && history.seasonHistory.length === 0 && (
-            <p className="page-subtitle">No prior-season data — {player.name} doesn't appear in the FPL API before this season.</p>
+          {history.status === "ready" && combinedSeasonHistory.length === 0 && (
+            <p className="page-subtitle">No season data — {player.name} doesn't appear in the FPL API before this season.</p>
           )}
-          {history.status === "ready" && history.seasonHistory.length > 0 && historicStatus === "loading" && (
+          {history.status === "ready" && combinedSeasonHistory.length > 0 && historicStatus === "loading" && (
             <p className="page-subtitle">Determining the qualifying-average window (uses the same historic dataset as the rest of the app)…</p>
           )}
           {history.status === "ready" &&
-            history.seasonHistory.length > 0 &&
+            combinedSeasonHistory.length > 0 &&
             historicStatus !== "loading" &&
             (() => {
-              const { qualifyingSeasons, qualifyingAverage } = buildHistoricPlayerProfile(history.seasonHistory, historicReferenceSeason);
+              const { qualifyingSeasons, qualifyingAverage } = buildHistoricPlayerProfile(combinedSeasonHistory, historicReferenceSeason);
               const qualifyingSeasonNames = new Set(qualifyingSeasons.map((s) => s.seasonName));
               const trend = computeSeasonTrend(history.seasonHistory);
               return (
@@ -252,15 +283,22 @@ export function PlayerDetailOverlay() {
                         </tr>
                       </thead>
                       <tbody>
-                        {history.seasonHistory.map((s) => {
+                        {combinedSeasonHistory.map((s) => {
                           const qualifies = qualifyingSeasonNames.has(s.seasonName);
+                          const isCurrentSeason = s.seasonName === currentSeasonEntry?.seasonName;
                           return (
                             <tr key={s.seasonName} style={qualifies ? undefined : { color: "var(--text-muted)" }} title={qualifies ? undefined : "Outside the qualifying window or below the minutes threshold — excluded from the career average below"}>
                               <td style={{ textAlign: "left", fontFamily: "var(--font-body)" }}>
                                 {s.seasonName}
-                                {!qualifies && " *"}
+                                {isCurrentSeason ? " (live)" : !qualifies && " *"}
                               </td>
-                              <td>{s.startCost !== null && s.endCost !== null ? `${fmtPrice(s.startCost)}–${fmtPrice(s.endCost)}` : DASH}</td>
+                              <td>
+                                {isCurrentSeason
+                                  ? fmtPrice(s.endCost)
+                                  : s.startCost !== null && s.endCost !== null
+                                    ? `${fmtPrice(s.startCost)}–${fmtPrice(s.endCost)}`
+                                    : DASH}
+                              </td>
                               <td>{fmtDecimal(s.minutes)}</td>
                               <td>{s.starts !== null ? fmtDecimal(s.starts) : DASH}</td>
                               <td>{fmtDecimal(s.totalPoints)}</td>
@@ -307,8 +345,8 @@ export function PlayerDetailOverlay() {
                   )}
 
                   <p className="page-subtitle" style={{ marginTop: 8 }}>
-                    Seasons marked * fall outside the qualifying window or minutes bar and aren't counted in the average above (the
-                    table itself still shows every season on record).
+                    Seasons marked * (or (live), for the season in progress) fall outside the qualifying window or minutes bar and
+                    aren't counted in the average above — the table itself still shows every season on record.
                   </p>
                 </>
               );

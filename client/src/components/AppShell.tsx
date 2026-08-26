@@ -24,11 +24,7 @@ function GameweekLabel() {
     // "in progress" alone goes stale for however long that gap lasts.
     if (gameweekState.event.finished) {
       const next = events.find((e) => e.isNext);
-      return (
-        <span>
-          Gameweek {gameweekState.event.id} finished{next && ` · Gameweek ${next.id} deadline ${fmtDate(next.deadlineTime)}`}
-        </span>
-      );
+      return <span>{next ? `Gameweek ${next.id} deadline ${fmtDate(next.deadlineTime)}` : `Gameweek ${gameweekState.event.id} finished`}</span>;
     }
     return <span>Gameweek {gameweekState.event.id} · in progress</span>;
   }

@@ -21,6 +21,12 @@ function seasonStartYear(seasonName: string): number {
   return parseInt(seasonName.split("/")[0], 10);
 }
 
+/** "2025/26" -> "2026/27". Seasons always run consecutively, so the live season is exactly one year after the reference (last completed) season. */
+export function nextSeasonName(seasonName: string): string {
+  const nextStart = seasonStartYear(seasonName) + 1;
+  return `${nextStart}/${((nextStart + 1) % 100).toString().padStart(2, "0")}`;
+}
+
 /**
  * The most recent season_name across the whole player pool's history —
  * i.e. the most recently COMPLETED FPL season, derived from the data

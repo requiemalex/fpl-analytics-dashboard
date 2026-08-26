@@ -7,7 +7,7 @@ import { effectiveMinMinutes } from "../state/useFilteredPlayers";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { TopList, type TopListRow } from "../components/TopList";
 import { TeamTopList, type TeamTopListRow } from "../components/TeamTopList";
-import { fmtDate, fmtDecimal, fmtTimeAgo, DASH } from "../utils/format";
+import { fmtDate, fmtDecimal, fmtTimeAgo } from "../utils/format";
 import type { NormalizedTeam } from "../types/normalized";
 
 function topN(rows: TopListRow[], n: number, ascending = false): TopListRow[] {
@@ -45,7 +45,7 @@ export function Dashboard() {
   const [, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const { resolved: resolvedPlayers, noDataCount } = useMemo(
+  const { resolved: resolvedPlayers } = useMemo(
     () => resolvePlayerStatsList(players, analysisMode, historicProfiles, currentSeasonHasStarted),
     [players, analysisMode, historicProfiles, currentSeasonHasStarted],
   );
@@ -122,16 +122,16 @@ export function Dashboard() {
 
   // Same reasoning as AppShell's GameweekLabel: FPL keeps an event marked
   // "current" until the NEXT one's deadline passes, even after this one's
-  // own matches have all finished — so once finished, show that plus the
-  // next deadline rather than repeating this one's now-past deadline.
+  // own matches have all finished — so once finished, switch to showing
+  // the next gameweek's deadline instead (never the one that just ended).
   const gwLabel =
     gameweekState?.kind === "current"
       ? gameweekState.event.finished
         ? (() => {
             const next = events.find((e) => e.isNext);
-            return `${gameweekState.event.name} finished${next ? ` · ${next.name} deadline ${fmtDate(next.deadlineTime)}` : ""}`;
+            return next ? `${next.name} deadline ${fmtDate(next.deadlineTime)}` : `${gameweekState.event.name} finished`;
           })()
-        : `${gameweekState.event.name} · deadline ${fmtDate(gameweekState.event.deadlineTime)}`
+        : `${gameweekState.event.name} deadline ${fmtDate(gameweekState.event.deadlineTime)}`
       : gameweekState?.kind === "last-completed"
         ? `Last completed: ${gameweekState.event.name}`
         : "Pre-season / No active gameweek";
@@ -154,17 +154,10 @@ export function Dashboard() {
         <div className="card">
           <div className="card-title">Players Tracked</div>
           <div style={{ fontSize: 22, fontFamily: "var(--font-mono)" }}>{resolvedPlayers.length.toLocaleString("en-GB")}</div>
-          <div className="page-subtitle" style={{ margin: 0 }}>
-            across {teams.length} clubs
-            {analysisMode !== "live" && noDataCount > 0 && ` · ${noDataCount.toLocaleString("en-GB")} have no data for this mode (shown as ${DASH})`}
-          </div>
         </div>
         <div className="card">
           <div className="card-title">Data Last Updated</div>
           <div style={{ fontSize: 15, fontWeight: 600 }}>{fmtTimeAgo(lastUpdated)}</div>
-          <div className="page-subtitle" style={{ margin: 0 }}>
-            Eligibility threshold: {analysisMode === "live" ? "none (bypassed for Current Season)" : `${filters.minMinutes} min`}
-          </div>
         </div>
       </div>
 
