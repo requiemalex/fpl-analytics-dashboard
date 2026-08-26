@@ -56,38 +56,46 @@ export function Dashboard() {
   // instead of the whole player having already been dropped upstream.
   const eligible = useMemo(
     () => resolvedPlayers.filter((p) => p.minutes !== null && p.minutes >= effectiveMinMinutes(filters, analysisMode)),
-    [resolvedPlayers, filters, analysisMode],
+    [resolvedPlayers, filters.minMinutes, analysisMode],
   );
 
   const rows = useMemo(() => eligible.map((p) => ({ player: p, derived: getPlayerDerivedMetrics(p) })), [eligible]);
 
-  const topPoints = topN(
-    rows.map((r) => ({ player: r.player, value: r.player.totalPoints })),
-    5,
-  );
-  const topXGI = topN(
-    rows.map((r) => ({ player: r.player, value: r.player.xGI })),
-    5,
-  );
-  const topValue = topN(
-    rows.map((r) => ({ player: r.player, value: r.derived.pointsPerMillion })),
-    5,
-  );
-  const topGoalsAboveXG = topN(
-    rows.map((r) => ({ player: r.player, value: r.derived.goalsMinusXG })),
-    5,
-  );
-  const topXGAboveGoals = topN(
-    rows.map((r) => ({ player: r.player, value: r.derived.goalsMinusXG !== null ? -r.derived.goalsMinusXG : null })),
-    5,
-  );
-  const topXGIPerMillion = topN(
-    rows.map((r) => ({ player: r.player, value: r.derived.xGIPerMillion })),
-    5,
-  );
-  const topGAAboveXGI = topN(
-    rows.map((r) => ({ player: r.player, value: r.derived.goalInvolvementsMinusXGI })),
-    5,
+  // Each topN call is a filter + sort + slice over the full eligible-player
+  // list — bundled into one memo so these 7 leaderboards are only rebuilt
+  // when `rows` itself changes, not on every unrelated render.
+  const { topPoints, topXGI, topValue, topGoalsAboveXG, topXGAboveGoals, topXGIPerMillion, topGAAboveXGI } = useMemo(
+    () => ({
+      topPoints: topN(
+        rows.map((r) => ({ player: r.player, value: r.player.totalPoints })),
+        5,
+      ),
+      topXGI: topN(
+        rows.map((r) => ({ player: r.player, value: r.player.xGI })),
+        5,
+      ),
+      topValue: topN(
+        rows.map((r) => ({ player: r.player, value: r.derived.pointsPerMillion })),
+        5,
+      ),
+      topGoalsAboveXG: topN(
+        rows.map((r) => ({ player: r.player, value: r.derived.goalsMinusXG })),
+        5,
+      ),
+      topXGAboveGoals: topN(
+        rows.map((r) => ({ player: r.player, value: r.derived.goalsMinusXG !== null ? -r.derived.goalsMinusXG : null })),
+        5,
+      ),
+      topXGIPerMillion: topN(
+        rows.map((r) => ({ player: r.player, value: r.derived.xGIPerMillion })),
+        5,
+      ),
+      topGAAboveXGI: topN(
+        rows.map((r) => ({ player: r.player, value: r.derived.goalInvolvementsMinusXGI })),
+        5,
+      ),
+    }),
+    [rows],
   );
 
   // Team snapshot — same aggregation basis as the Teams page (every

@@ -148,6 +148,15 @@ export function PlayerComparison() {
   const derivedById = useMemo(() => new Map(comparedPlayers.map((p) => [p.id, getPlayerDerivedMetrics(p)])), [comparedPlayers]);
   const minMinutesThreshold = effectiveMinMinutes(filters, analysisMode);
 
+  // Each computeRadarData call is 6 full-population percentile scans — was
+  // previously recomputed inline inside the render-time .map() below, i.e.
+  // on every render (up to MAX_COMPARE times each) rather than only when a
+  // compared player, the population, or the threshold actually changes.
+  const radarDataByPlayerId = useMemo(
+    () => new Map(comparedPlayers.map((p) => [p.id, computeRadarData(p, resolvedPlayers, minMinutesThreshold)])),
+    [comparedPlayers, resolvedPlayers, minMinutesThreshold],
+  );
+
   function addPlayer(id: number) {
     if (ids.length >= MAX_COMPARE || ids.includes(id)) return;
     setIds([...ids, id]);
@@ -290,7 +299,7 @@ export function PlayerComparison() {
             <div className="card-grid">
               {comparedPlayers.map((p) => {
                 const isSmallSample = analysisMode !== "live" && (p.minutes === null || p.minutes < filters.minMinutes);
-                const radarData = computeRadarData(p, resolvedPlayers, minMinutesThreshold);
+                const radarData = radarDataByPlayerId.get(p.id) ?? [];
                 return (
                   <div className="card" key={p.id}>
                     <div className="card-title">

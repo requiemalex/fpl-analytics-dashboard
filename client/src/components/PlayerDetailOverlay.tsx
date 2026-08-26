@@ -91,15 +91,31 @@ export function PlayerDetailOverlay() {
     [players, analysisMode, historicProfiles, currentSeasonHasStarted],
   );
 
+  // Deliberately keyed on filters.minMinutes, not the whole filters object —
+  // it's the only field effectiveMinMinutes actually reads, and filters gets
+  // a new reference on every keystroke elsewhere (e.g. the underlying page's
+  // FiltersBar), which would otherwise bust these memos and rerun a full
+  // population percentile/archetype scan on every unrelated keystroke while
+  // this overlay happens to be open.
   const xGIPercentiles = useMemo(
     () => computePositionPercentiles(resolvedPlayers, (p) => p.xGIPer90, effectiveMinMinutes(filters, analysisMode)),
-    [resolvedPlayers, filters, analysisMode],
+    [resolvedPlayers, filters.minMinutes, analysisMode],
   );
 
   const archetypeMap = useMemo(
     () => computeArchetypesForAllPlayers(resolvedPlayers, effectiveMinMinutes(filters, analysisMode), teamsById, historicProfiles, players),
-    [resolvedPlayers, filters, analysisMode, teamsById, historicProfiles, players],
+    [resolvedPlayers, filters.minMinutes, analysisMode, teamsById, historicProfiles, players],
   );
+
+  // Hooks must run before the early return below, so this recomputes its own
+  // resolved player rather than reusing the `resolvedPlayer` const further
+  // down (cheap — a single-player transform) to memoize the genuinely
+  // expensive part: computeRadarData's 6 full-population percentile scans.
+  const radarData = useMemo(() => {
+    if (!player) return [];
+    const resolved = resolvePlayerStats(player, analysisMode, historicProfiles.get(player.id), currentSeasonHasStarted);
+    return computeRadarData(resolved, resolvedPlayers, effectiveMinMinutes(filters, analysisMode));
+  }, [player, analysisMode, historicProfiles, currentSeasonHasStarted, resolvedPlayers, filters.minMinutes]);
 
   if (!player) return null;
 
@@ -126,7 +142,6 @@ export function PlayerDetailOverlay() {
   const smallSample =
     analysisMode !== "live" &&
     (resolvedPlayer.minutes === null || resolvedPlayer.minutes < effectiveMinMinutes(filters, analysisMode));
-  const radarData = computeRadarData(resolvedPlayer, resolvedPlayers, effectiveMinMinutes(filters, analysisMode));
 
   function close() {
     setPlayerId(null);

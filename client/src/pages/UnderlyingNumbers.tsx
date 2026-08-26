@@ -149,19 +149,27 @@ export function UnderlyingNumbers() {
     return points;
   }, [filtered]);
 
-  const topXG = topN(rows.map((r) => ({ player: r.player, value: r.player.xG })), 5);
-  const topXA = topN(rows.map((r) => ({ player: r.player, value: r.player.xA })), 5);
-  const topXGI = topN(rows.map((r) => ({ player: r.player, value: r.player.xGI })), 5);
-  const topXGIPer90 = topN(rows.map((r) => ({ player: r.player, value: r.player.xGIPer90 })), 5);
-  const goalsAboveXG = topN(rows.map((r) => ({ player: r.player, value: r.derived.goalsMinusXG })), 5);
-  const goalsBelowXG = topN(
-    rows.map((r) => ({ player: r.player, value: r.derived.goalsMinusXG !== null ? -r.derived.goalsMinusXG : null })),
-    5,
-  );
-  const assistsAboveXA = topN(rows.map((r) => ({ player: r.player, value: r.derived.assistsMinusXA })), 5);
-  const assistsBelowXA = topN(
-    rows.map((r) => ({ player: r.player, value: r.derived.assistsMinusXA !== null ? -r.derived.assistsMinusXA : null })),
-    5,
+  // Bundled into one memo, keyed on `rows`, so these 8 leaderboards aren't
+  // rebuilt (each a filter+sort+slice over the full row list) on every
+  // unrelated render.
+  const { topXG, topXA, topXGI, topXGIPer90, goalsAboveXG, goalsBelowXG, assistsAboveXA, assistsBelowXA } = useMemo(
+    () => ({
+      topXG: topN(rows.map((r) => ({ player: r.player, value: r.player.xG })), 5),
+      topXA: topN(rows.map((r) => ({ player: r.player, value: r.player.xA })), 5),
+      topXGI: topN(rows.map((r) => ({ player: r.player, value: r.player.xGI })), 5),
+      topXGIPer90: topN(rows.map((r) => ({ player: r.player, value: r.player.xGIPer90 })), 5),
+      goalsAboveXG: topN(rows.map((r) => ({ player: r.player, value: r.derived.goalsMinusXG })), 5),
+      goalsBelowXG: topN(
+        rows.map((r) => ({ player: r.player, value: r.derived.goalsMinusXG !== null ? -r.derived.goalsMinusXG : null })),
+        5,
+      ),
+      assistsAboveXA: topN(rows.map((r) => ({ player: r.player, value: r.derived.assistsMinusXA })), 5),
+      assistsBelowXA: topN(
+        rows.map((r) => ({ player: r.player, value: r.derived.assistsMinusXA !== null ? -r.derived.assistsMinusXA : null })),
+        5,
+      ),
+    }),
+    [rows],
   );
 
   // ---------- Value (merged in from the old Value page) ----------
@@ -172,10 +180,15 @@ export function UnderlyingNumbers() {
     [filtered],
   );
 
-  const topPointsPerM = topN(rows.map((r) => ({ player: r.player, value: r.derived.pointsPerMillion })), 5);
-  const topXGPerM = topN(rows.map((r) => ({ player: r.player, value: r.derived.xGPerMillion })), 5);
-  const topXAPerM = topN(rows.map((r) => ({ player: r.player, value: r.derived.xAPerMillion })), 5);
-  const topXGIPerM = topN(rows.map((r) => ({ player: r.player, value: r.derived.xGIPerMillion })), 5);
+  const { topPointsPerM, topXGPerM, topXAPerM, topXGIPerM } = useMemo(
+    () => ({
+      topPointsPerM: topN(rows.map((r) => ({ player: r.player, value: r.derived.pointsPerMillion })), 5),
+      topXGPerM: topN(rows.map((r) => ({ player: r.player, value: r.derived.xGPerMillion })), 5),
+      topXAPerM: topN(rows.map((r) => ({ player: r.player, value: r.derived.xAPerMillion })), 5),
+      topXGIPerM: topN(rows.map((r) => ({ player: r.player, value: r.derived.xGIPerMillion })), 5),
+    }),
+    [rows],
+  );
 
   const bandTable = useMemo(() => {
     const bands: Band[] = ["Budget", "Mid-priced", "Premium"];

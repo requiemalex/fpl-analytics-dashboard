@@ -129,10 +129,19 @@ export function PriceWatch() {
     [allRows],
   );
 
-  const risingCount = allRows.filter((r) => r.signal?.direction === "rising" && (r.signal.confidence === "high" || r.signal.confidence === "medium")).length;
-  const fallingCount = allRows.filter((r) => r.signal?.direction === "falling" && (r.signal.confidence === "high" || r.signal.confidence === "medium")).length;
-  const changedTodayCount = allRows.filter((r) => r.player.costChangeEvent !== null && r.player.costChangeEvent !== 0).length;
-  const calibratingCount = allRows.filter((r) => r.player.priceChange?.calibrating).length;
+  // Bundled into one memo, keyed on allRows — this page's own search box
+  // (below) changes state on every keystroke, which would otherwise rerun
+  // all 4 full-list scans on every character typed despite none of them
+  // depending on the search term at all.
+  const { risingCount, fallingCount, changedTodayCount, calibratingCount } = useMemo(
+    () => ({
+      risingCount: allRows.filter((r) => r.signal?.direction === "rising" && (r.signal.confidence === "high" || r.signal.confidence === "medium")).length,
+      fallingCount: allRows.filter((r) => r.signal?.direction === "falling" && (r.signal.confidence === "high" || r.signal.confidence === "medium")).length,
+      changedTodayCount: allRows.filter((r) => r.player.costChangeEvent !== null && r.player.costChangeEvent !== 0).length,
+      calibratingCount: allRows.filter((r) => r.player.priceChange?.calibrating).length,
+    }),
+    [allRows],
+  );
 
   function select(id: number) {
     setSearchParams((prev) => ({ ...Object.fromEntries(prev), player: String(id) }));

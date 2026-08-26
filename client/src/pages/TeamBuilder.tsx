@@ -538,7 +538,14 @@ export function TeamBuilder() {
   // possibly-null `active` directly. Values that AREN'T hooks and aren't a
   // hook's dependency (epResult, reliability, differentials, mix) stay
   // below the guard as before — only real hooks have this constraint.
-  const squadPlayers = active ? active.playerIds.map((id) => playersById.get(id)).filter((p): p is NormalizedPlayer => !!p) : [];
+  // Memoized (on active — stable per useSavedSquads' state, not active's
+  // own contents — and playersById) so it doesn't get a fresh array
+  // identity every render; expectedPointsByPlayerId/reliabilityByPlayerId
+  // below key off this and would otherwise never actually skip recompute.
+  const squadPlayers = useMemo(
+    () => (active ? active.playerIds.map((id) => playersById.get(id)).filter((p): p is NormalizedPlayer => !!p) : []),
+    [active, playersById],
+  );
   const startingXIPlayers = active ? active.startingXI.map((id) => playersById.get(id)).filter((p): p is NormalizedPlayer => !!p) : [];
   const squadPlayerIdSet = new Set(squadPlayers.map((p) => p.id));
   const benchPlayers = squadPlayers.filter((p) => !(active?.startingXI.includes(p.id) ?? false));
@@ -571,17 +578,23 @@ export function TeamBuilder() {
   // ep_next for the immediate fixture, fixture-difficulty-extended for
   // the rest (see metrics/expectedPoints.ts). Not yet captain-doubled;
   // SquadPitch doubles it for display when rendering the captain's card.
-  const expectedPointsByPlayerId = new Map<number, number | null>();
-  for (const p of squadPlayers) {
-    expectedPointsByPlayerId.set(p.id, computeExpectedPointsForWindow(p, fixturesByTeamId.get(p.teamId) ?? [], expectedPointsWindow));
-  }
+  const expectedPointsByPlayerId = useMemo(() => {
+    const map = new Map<number, number | null>();
+    for (const p of squadPlayers) {
+      map.set(p.id, computeExpectedPointsForWindow(p, fixturesByTeamId.get(p.teamId) ?? [], expectedPointsWindow));
+    }
+    return map;
+  }, [squadPlayers, fixturesByTeamId, expectedPointsWindow]);
 
   // Blended (historic + live, availability-adjusted) minutes reliability,
   // keyed by id — see metrics/minutesReliabilityBlend.ts.
-  const reliabilityByPlayerId = new Map<number, number | null>();
-  for (const p of squadPlayers) {
-    reliabilityByPlayerId.set(p.id, computeBlendedMinutesReliability(p, teamsById.get(p.teamId), historicProfiles.get(p.id)).value);
-  }
+  const reliabilityByPlayerId = useMemo(() => {
+    const map = new Map<number, number | null>();
+    for (const p of squadPlayers) {
+      map.set(p.id, computeBlendedMinutesReliability(p, teamsById.get(p.teamId), historicProfiles.get(p.id)).value);
+    }
+    return map;
+  }, [squadPlayers, teamsById, historicProfiles]);
 
   const predictiveColumnsInOrder = useMemo(
     () => predictiveCols.visibleColumns.map((key) => PREDICTIVE_COLUMNS.find((c) => c.key === key)).filter((c): c is PredictiveColumnDef => !!c),

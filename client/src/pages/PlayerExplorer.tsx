@@ -46,7 +46,12 @@ export function PlayerExplorer() {
 
   const archetypeMap = useMemo(
     () => computeArchetypesForAllPlayers(resolvedPlayers, effectiveMinMinutes(filters, analysisMode), teamsById, historicProfiles, players),
-    [resolvedPlayers, filters, analysisMode, teamsById, historicProfiles, players],
+    // Deliberately keyed on filters.minMinutes, not the whole filters object —
+    // this is the only field of it effectiveMinMinutes actually reads, and
+    // filters gets a new reference on every keystroke elsewhere in the
+    // FiltersBar (search, position, team, archetypes), which would otherwise
+    // bust this memo and rerun the full archetype/percentile scan needlessly.
+    [resolvedPlayers, filters.minMinutes, analysisMode, teamsById, historicProfiles, players],
   );
 
   const [showColumnPopover, setShowColumnPopover] = useState(false);
