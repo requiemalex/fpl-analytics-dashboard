@@ -224,6 +224,7 @@ export function UserGuide() {
             other column — Starts, Own%, Price, and the rest — has its own filter (click the ▾ icon on that column's header) with
             ≤/≥/= fields, so narrowing by ownership or price range happens at the column, not up here.
           </li>
+          <li><strong>Export CSV</strong> downloads exactly what's on screen — the same rows and visible columns, in the same order, with the same formatted values.</li>
         </ul>
         <Try>
           Looking for undervalued midfielders? Set Position to MID, add the "Points/£m" column, click its header to sort descending, and
@@ -307,8 +308,8 @@ export function UserGuide() {
             the draft to exactly that pool.
           </li>
           <li>
-            The <strong>Add Players table</strong> has the same reorder/resize/sort/filter/Fit-to-Box toolkit as Player Explorer, split
-            into two independently-toggled groups: <strong>Predictive</strong> (governed by the Next 1/3/5 GW toggle) and{" "}
+            The <strong>Add Players table</strong> has the same reorder/resize/sort/filter/Fit-to-Box/Export-CSV toolkit as Player
+            Explorer, split into two independently-toggled groups: <strong>Predictive</strong> (governed by the Next 1/3/5 GW toggle) and{" "}
             <strong>Historic/Raw</strong> (its own Last Completed Season / Historic Average / Current Season toggle) — the two can't be
             reordered into each other, marked by the vertical divider line.
           </li>

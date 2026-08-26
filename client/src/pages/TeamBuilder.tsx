@@ -24,8 +24,9 @@ import { getUpcomingFixtures, fdrColor, type UpcomingFixture } from "../metrics/
 import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, columnByKey, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { SquadPitch } from "../components/SquadPitch";
 import { PositionBadge, AvailabilityFlag, SignedNum, availabilityTextClass } from "../components/primitives";
-import { fmtPrice, fmtDecimal, fmtPercent, DASH } from "../utils/format";
+import { fmtPrice, fmtDecimal, fmtPercent, fmtSigned, DASH } from "../utils/format";
 import { relativeCellTint } from "../utils/colorScale";
+import { downloadCsv } from "../utils/csvExport";
 import type { NormalizedPlayer, Position, ChipWindow } from "../types/normalized";
 
 /** How long a rejected drag's warning message stays visible before clearing itself. */
@@ -810,6 +811,41 @@ export function TeamBuilder() {
     return relativeCellTint(v, range.min, range.max, c.higherIsBetter !== false);
   }
 
+  function formatPredictiveCellForCsv(row: PickerRowData, c: PredictiveColumnDef): string {
+    if (c.key === "reliability") return row.reliability !== null ? fmtPercent(row.reliability * 100, 0) : DASH;
+    if (c.key === "fixtures") {
+      if (row.fixtures.length === 0) return DASH;
+      const codes = row.fixtures.map((f) => `${f.opponentShortName}(${f.isHome ? "H" : "A"})`).join(" ");
+      const avg = averageFixtureDifficulty(row.fixtures);
+      return avg !== null ? `${codes} avg FDR ${avg.toFixed(1)}` : codes;
+    }
+    return fmtDecimal(c.getValue(row), 1);
+  }
+
+  // Matches exactly what's on screen — same candidate rows (filtered/
+  // sorted, squad members already excluded), same visible Predictive and
+  // Historic/Raw columns in the same order, same formatted values.
+  function handleExportPickerCsv() {
+    const headers = [
+      "Player",
+      "Position",
+      "Team",
+      "Price",
+      ...predictiveColumnsInOrder.map((c) => c.label),
+      ...historicRawColumnsInOrder.map((c) => c.label),
+    ];
+    const rows = pickerRows.map((row) => {
+      const predictiveCells = predictiveColumnsInOrder.map((c) => formatPredictiveCellForCsv(row, c));
+      const historicRawCells = historicRawColumnsInOrder.map((c) => {
+        const value = row.historicRaw ? c.getValue(row.historicRaw, getPlayerDerivedMetrics(row.historicRaw)) : null;
+        if (c.key === "goalsMinusXG" || c.key === "assistsMinusXA") return value !== null ? fmtSigned(value, 2) : DASH;
+        return c.format(value);
+      });
+      return [row.live.name, row.live.position, row.live.teamShortName, fmtPrice(row.live.price), ...predictiveCells, ...historicRawCells];
+    });
+    downloadCsv(`team-building-add-players-${pickerHistoricMode}-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+  }
+
   /**
    * Whether the active squad's records show this chip already used within
    * this specific half of the season — see isChipUsedForWindow in
@@ -1028,6 +1064,9 @@ export function TeamBuilder() {
             title="Clear every picker filter — search, position, team, price, minutes, archetypes, and any per-column filters"
           >
             Clear Filters
+          </button>
+          <button type="button" className="chip" onClick={handleExportPickerCsv} title="Export the visible columns and current rows to a CSV file">
+            Export CSV
           </button>
           <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "var(--text-secondary)" }}>
             <input type="checkbox" checked={comparativeColouring} onChange={(e) => setComparativeColouring(e.target.checked)} />

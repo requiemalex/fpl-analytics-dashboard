@@ -846,6 +846,18 @@ table.data-table tbody tr:hover td {
   cursor: pointer;
 }
 
+.count-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
 .chip-row {
   display: flex;
   gap: 6px;

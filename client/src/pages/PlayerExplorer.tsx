@@ -13,8 +13,9 @@ import { FiltersBar } from "../components/FiltersBar";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { PositionBadge, SignedNum, ArchetypeBadges, AvailabilityFlag, availabilityTextClass } from "../components/primitives";
 import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, columnByKey, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
-import { fmtDecimal, fmtPrice } from "../utils/format";
+import { fmtPrice, fmtSigned, DASH } from "../utils/format";
 import { relativeCellTint } from "../utils/colorScale";
+import { downloadCsv } from "../utils/csvExport";
 import type { NormalizedPlayer } from "../types/normalized";
 
 const GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE", "ADVANCED"];
@@ -27,7 +28,7 @@ export function PlayerExplorer() {
   const { players, teamsById, advancedFieldAvailability, filters, resetFilters, analysisMode, historicProfiles, historicStatus, currentSeasonHasStarted } =
     useAppState();
 
-  const { resolved: resolvedPlayers, noDataCount } = useMemo(
+  const { resolved: resolvedPlayers } = useMemo(
     () => resolvePlayerStatsList(players, analysisMode, historicProfiles, currentSeasonHasStarted),
     [players, analysisMode, historicProfiles, currentSeasonHasStarted],
   );
@@ -158,6 +159,25 @@ export function PlayerExplorer() {
     return relativeCellTint(v, range.min, range.max, c.higherIsBetter !== false);
   }
 
+  // Matches exactly what's on screen — same rows (filtered/sorted), same
+  // visible columns in the same order, same formatted values (— for
+  // unavailable) — so the export is never a surprise relative to the table
+  // it was taken from.
+  function handleExportCsv() {
+    const headers = ["Player", "Position", "Team", "Price", ...columnsInOrder.map((c) => (c === ARCHETYPES_COLUMN_KEY ? "Archetypes" : c.label))];
+    const rows = sortedRows.map(({ player, derived }) => {
+      const price = fmtPrice(livePlayersById.get(player.id)?.price ?? player.price);
+      const cells = columnsInOrder.map((c) => {
+        if (c === ARCHETYPES_COLUMN_KEY) return (archetypeMap.get(player.id) ?? []).join("; ");
+        const value = c.getValue(player, derived);
+        if (c.key === "goalsMinusXG" || c.key === "assistsMinusXA") return value !== null ? fmtSigned(value, 2) : DASH;
+        return c.format(value);
+      });
+      return [player.name, player.position, player.teamShortName, price, ...cells];
+    });
+    downloadCsv(`player-explorer-${analysisMode}-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+  }
+
   return (
     <div>
       <div className="page-header">
@@ -225,6 +245,9 @@ export function PlayerExplorer() {
           title="Clear every filter — the filter bar above and any per-column filters"
         >
           Clear Filters
+        </button>
+        <button type="button" className="chip" onClick={handleExportCsv} title="Export the visible columns and current rows to a CSV file">
+          Export CSV
         </button>
         <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "var(--text-secondary)" }}>
           <input type="checkbox" checked={comparativeColouring} onChange={(e) => setComparativeColouring(e.target.checked)} />
@@ -370,13 +393,9 @@ export function PlayerExplorer() {
           </table>
         </div>
       )}
-      <p className="page-subtitle" style={{ marginTop: 10 }}>
-        Showing {sortedRows.length.toLocaleString("en-GB")} of {resolvedPlayers.length.toLocaleString("en-GB")} tracked players.{" "}
-        {fmtDecimal(null)} indicates the metric is unavailable for that player, never a substituted value.
-        {analysisMode !== "live" &&
-          noDataCount > 0 &&
-          ` ${noDataCount.toLocaleString("en-GB")} player(s) have no data for this mode — their rows still show, with ${fmtDecimal(null)} for the fields this mode can't fill in.`}
-      </p>
+      <div className="count-pill" style={{ marginTop: 10 }}>
+        {sortedRows.length.toLocaleString("en-GB")}/{resolvedPlayers.length.toLocaleString("en-GB")} Players
+      </div>
     </div>
   );
 }
