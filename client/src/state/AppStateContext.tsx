@@ -26,7 +26,7 @@ export interface GlobalScoutingFilters {
   archetypes: ArchetypeLabel[];
 }
 
-const DEFAULT_MIN_MINUTES = 450;
+const DEFAULT_MIN_MINUTES = 0;
 
 const DEFAULT_FILTERS: GlobalScoutingFilters = {
   search: "",
