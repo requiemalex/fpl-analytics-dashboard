@@ -1962,6 +1962,54 @@ npm run electron:build         # same build steps, then electron-builder package
   default icon. Easy to add later; didn't want to block a first
   working build on it.
 
+## Championship data (promoted teams)
+
+A `/championship` section covering the 2025/26 EFL Championship's three
+promoted clubs — Coventry City (champions), Ipswich Town (runner-up),
+and Hull City (play-off winner) — with the full 24-team table for
+context, plus each promoted team's final-weeks form, home/away splits,
+and discipline totals.
+
+**This is a deliberately separate, static, non-live data source — not a
+smaller version of the FPL pipeline.** A future session should not
+assume it needs the same live-fetch/caching/refresh treatment as the
+rest of this app, and should not try to wire it into `AppStateContext`.
+Specifically:
+
+- **Source**: `football-data.co.uk`'s free E1 (Championship) match-by-
+  match CSV for 2025/26 — a completed season, so the numbers never
+  change. Fetched and transformed exactly once, offline; the raw CSV
+  and any CSV-parsing code were deliberately NOT kept in the shipped
+  client (parsing ~140 columns of betting-market odds neither this app
+  nor the browser needs no purpose at runtime).
+- **Storage**: the transform's output is a single committed JSON asset,
+  `client/src/data/championship-2025-26.json` — the league table (all
+  24 teams, sorted, with goal difference and points computed from raw
+  match results) plus a `promotedTeams` array carrying each of the
+  three clubs' final position, points, goal difference, last-6-match
+  form, home/away split, and card/foul totals. Typed by
+  `client/src/types/championship.ts`; imported and lightly re-exported
+  (plus two tiny display helpers — ordinal formatting, a promotion-route
+  label) by `client/src/normalize/normalizeChampionship.ts`.
+- **No live fetch, no server route, no cache.** `client/src/pages/Championship.tsx`
+  imports the JSON directly and renders it — there's nothing to
+  request, retry, or go stale. To cover a different season later,
+  regenerate the JSON from that season's CSV; don't try to make this
+  page fetch anything at runtime.
+- **Deliberately outside `LoadStateGate`.** Every other route sits
+  behind a gate that shows a loading/error screen until the live FPL
+  `bootstrap-static` fetch resolves — appropriate for pages that need
+  that data, wrong for one that doesn't. `App.tsx` gives `/championship`
+  its own top-level `<Route>`, sibling to (not nested inside) the
+  gated route tree, so this page keeps working even during an FPL API
+  outage. (This was written the same day a real one happened — see the
+  `ep_next`-nullability fix elsewhere in this changelog.)
+- **No relation to `NormalizedPlayer` or FPL scoring.** Championship
+  concepts (league position, goal difference, discipline) don't map
+  onto FPL ownership%/price/points at all, and no attempt was made to
+  force them into the shared player model — this page has its own small
+  type, not a repurposed one.
+
 ## Project structure
 
 ```
@@ -1976,12 +2024,13 @@ fpl-dashboard/
       index.ts              Express app entry point
   client/                  React + Vite + TypeScript SPA
     src/
-      types/                Raw API types vs. normalised UI types
+      types/                Raw API types vs. normalised UI types (+ championship.ts, unrelated to the FPL types)
       validation/            Zod schemas — validated before normalisation
       normalize/             Raw -> normalised mapping, gameweek logic, field-availability detection
       metrics/               Calculations, dictionary, percentiles, archetypes, validation, rotation indicators
+      data/                 Static, non-live JSON assets (currently just the Championship dataset above)
       api/                  Frontend fetch client
-      state/                 App-wide React Context (data + global filters)
+      state/                 App-wide React Context (data + global filters) — FPL data only, not Championship
       components/            Reusable UI pieces (table, filters, charts, overlay)
       pages/                 One file per navigation section
       styles/                Design tokens + component CSS

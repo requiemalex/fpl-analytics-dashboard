@@ -49,6 +49,7 @@ const SECTION_META = [
   { id: "teams", label: "Teams", accent: "var(--accent-value)" },
   { id: "player-profile", label: "Player Profile", accent: "var(--accent-positive)" },
   { id: "archetypes", label: "Archetypes", accent: "var(--accent-focus)" },
+  { id: "championship", label: "Championship", accent: "var(--accent-value)" },
   { id: "limitations", label: "Data sourcing & known limitations", accent: "var(--accent-negative)" },
   { id: "metric-reference", label: "Metric reference", accent: "var(--accent-value)" },
 ];
@@ -462,6 +463,22 @@ export function UserGuide() {
         <p className="page-subtitle" style={{ margin: 0 }}>
           Exact price/percentile cutoffs are in the metric reference below. Filter by archetype in Player Explorer's filter bar or Team
           Building's picker.
+        </p>
+      </Section>
+
+      <Section id="championship" title="Championship">
+        <p className="page-subtitle" style={{ marginTop: 0 }}>
+          A different data source from everywhere else in this app, on purpose: the 2025/26 EFL Championship's full 24-team season
+          (football-data.co.uk), computed once into a league table plus final-weeks form, home/away splits, and discipline totals for the
+          three clubs promoted to the Premier League — Coventry City (champions), Ipswich Town (runner-up), and Hull City (play-off
+          winner). It's a fixed historical snapshot, not live data: it won't update through the season, doesn't share anything with the
+          FPL-driven pages, and isn't affected by the analysis-mode toggle, Refresh Data, or an FPL API outage — it'll keep working even
+          if the rest of the app can't reach FPL's servers.
+        </p>
+        <p className="page-subtitle">
+          The point of showing the full table alongside the three promoted teams, rather than just their raw numbers, is context: Coventry's
+          95 points only means something next to "highest in the division," same as Hull's 4th-best goal difference among the promoted
+          three only means something next to their actual final position — 6th, promoted via the play-offs rather than automatically.
         </p>
       </Section>
 

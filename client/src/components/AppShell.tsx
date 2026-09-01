@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { to: "/price-watch", label: "Price Watch" },
   { to: "/chip-planner", label: "Chip Planner" },
   { to: "/player-comparison", label: "Player Comparison" },
+  { to: "/championship", label: "Championship" },
   { to: "/guide", label: "User Guide" },
 ];
 
