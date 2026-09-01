@@ -34,30 +34,39 @@ export function buildPlayerTrend(seasons: PlayerSeasonHistory[]): PlayerTrendPoi
   }));
 }
 
-/** Recharts dataKey for one player's line within a multi-player trend chart — collision-free since it's keyed by id, not name. */
-export function playerTrendDataKey(playerId: number): string {
-  return `player_${playerId}`;
+export type TrendMetricKey = keyof Omit<PlayerTrendPoint, "seasonName">;
+
+/** Recharts dataKey for one player+metric line within a multi-metric trend chart. */
+export function playerMetricTrendDataKey(playerId: number, metric: TrendMetricKey): string {
+  return `pm_${playerId}_${metric}`;
 }
 
-export interface MultiPlayerTrendPoint {
+export interface MultiSeriesTrendPoint {
   seasonName: string;
-  [playerDataKey: string]: string | number | null;
+  [dataKey: string]: string | number | null;
 }
 
 /**
- * Same shape of data as buildPlayerTrend, but merged across up to several
- * players into one Recharts-ready dataset: one row per season that ANY of
- * them played, each player's value for the chosen metric under their own
- * key (playerTrendDataKey) so Recharts can draw one Line per player.
- * Season names are already zero-padded four-digit-year strings ("2018/19"),
- * so a plain string sort puts them in chronological order without needing
- * to parse them.
+ * Like buildMultiPlayerTrend, but for one or more METRICS at once (each
+ * player × metric pair becomes its own line) rather than a single metric
+ * across players. When `normalize` is on, each metric is independently
+ * min-max scaled to 0-100 across every value actually present for it (in
+ * this selection, not some fixed absolute scale) — the same "relative to
+ * what's currently shown" approach the rest of this app uses for
+ * comparative colouring and percentiles. This is what makes overlaying,
+ * say, Minutes (hundreds-to-thousands) against xG (low single digits) on
+ * one axis mean anything: without it the smaller-scale metric would just
+ * read as a flat line near zero. Normalizing is opt-in (not automatic)
+ * because a single metric plotted in its own real units is the more
+ * useful default when there's nothing else on the chart to reconcile it
+ * against.
  */
-export function buildMultiPlayerTrend(
+export function buildMultiSeriesTrend(
   playerIds: number[],
+  metrics: TrendMetricKey[],
   allTimeSeasonsByPlayerId: Map<number, PlayerSeasonHistory[]>,
-  metric: keyof Omit<PlayerTrendPoint, "seasonName">,
-): MultiPlayerTrendPoint[] {
+  normalize: boolean,
+): MultiSeriesTrendPoint[] {
   const trendsByPlayerId = new Map<number, PlayerTrendPoint[]>();
   const seasonNames = new Set<string>();
   for (const id of playerIds) {
@@ -66,13 +75,35 @@ export function buildMultiPlayerTrend(
     for (const point of trend) seasonNames.add(point.seasonName);
   }
 
+  const rangeByMetric = new Map<TrendMetricKey, { min: number; max: number }>();
+  if (normalize) {
+    for (const metric of metrics) {
+      const values: number[] = [];
+      for (const id of playerIds) {
+        for (const point of trendsByPlayerId.get(id) ?? []) {
+          const v = point[metric];
+          if (v !== null) values.push(v);
+        }
+      }
+      if (values.length > 0) rangeByMetric.set(metric, { min: Math.min(...values), max: Math.max(...values) });
+    }
+  }
+
   return Array.from(seasonNames)
     .sort()
     .map((seasonName) => {
-      const row: MultiPlayerTrendPoint = { seasonName };
+      const row: MultiSeriesTrendPoint = { seasonName };
       for (const id of playerIds) {
         const point = trendsByPlayerId.get(id)?.find((p) => p.seasonName === seasonName);
-        row[playerTrendDataKey(id)] = point ? point[metric] : null;
+        for (const metric of metrics) {
+          const raw = point ? point[metric] : null;
+          if (!normalize || raw === null) {
+            row[playerMetricTrendDataKey(id, metric)] = raw;
+            continue;
+          }
+          const range = rangeByMetric.get(metric);
+          row[playerMetricTrendDataKey(id, metric)] = range && range.max > range.min ? ((raw - range.min) / (range.max - range.min)) * 100 : 50;
+        }
       }
       return row;
     });

@@ -58,6 +58,8 @@ export function ScatterWithReference({
   showReferenceLine,
   onPointClick,
   height = 360,
+  xTickStep,
+  xTickFormatter,
 }: {
   data: ScatterPoint[];
   xLabel: string;
@@ -69,9 +71,23 @@ export function ScatterWithReference({
   showReferenceLine?: boolean;
   onPointClick?: (id: number) => void;
   height?: number;
+  /** When set, the x-axis gets explicit ticks (and matching gridlines) at this interval, spanning the data's own min/max, instead of Recharts' auto-picked ticks — e.g. 0.5 for clear £0.5m price markers. */
+  xTickStep?: number;
+  /** How to render each x-axis tick's label — e.g. (v) => v.toFixed(1). Only used together with xTickStep. */
+  xTickFormatter?: (v: number) => string;
 }) {
   const hasZ = useMemo(() => data.some((d) => d.z !== undefined && d.z !== null), [data]);
   const useBubbleSize = hasZ && !colorScale;
+
+  const xTicks = useMemo(() => {
+    if (!xTickStep || data.length === 0) return undefined;
+    const xs = data.map((d) => d.x);
+    const min = Math.floor(Math.min(...xs) / xTickStep) * xTickStep;
+    const max = Math.ceil(Math.max(...xs) / xTickStep) * xTickStep;
+    const ticks: number[] = [];
+    for (let v = min; v <= max + xTickStep / 2; v += xTickStep) ticks.push(Math.round(v * 1000) / 1000);
+    return ticks;
+  }, [data, xTickStep]);
 
   // Colour domain is the min/max of z actually present in the current
   // (filtered) data, not a fixed absolute scale — consistent with how
@@ -107,7 +123,15 @@ export function ScatterWithReference({
       <ResponsiveContainer width="100%" height={height}>
         <ComposedChart margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
           <CartesianGrid stroke="var(--border)" />
-          <XAxis type="number" dataKey="x" name={xLabel} stroke="var(--text-muted)" tick={{ fontSize: 11, fill: "var(--text-secondary)" }}>
+          <XAxis
+            type="number"
+            dataKey="x"
+            name={xLabel}
+            stroke="var(--text-muted)"
+            tick={{ fontSize: 11, fill: "var(--text-secondary)" }}
+            {...(xTicks ? { ticks: xTicks, domain: [xTicks[0], xTicks[xTicks.length - 1]] } : {})}
+            tickFormatter={xTickFormatter}
+          >
             <label />
           </XAxis>
           <YAxis type="number" dataKey="y" name={yLabel} stroke="var(--text-muted)" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} />

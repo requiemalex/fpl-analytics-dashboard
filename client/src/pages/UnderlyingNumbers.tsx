@@ -6,9 +6,12 @@ import { useFilteredPlayers } from "../state/useFilteredPlayers";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList } from "../metrics/resolvePlayerStats";
 import { defensiveRewardPer90 } from "../metrics/defensiveReward";
-import { ARCHETYPE_THRESHOLDS } from "../metrics/archetypes";
 import { buildThematicTrends } from "../metrics/thematicTrends";
-import { buildMultiPlayerTrend, playerTrendDataKey } from "../metrics/careerTrends";
+import {
+  buildMultiSeriesTrend,
+  playerMetricTrendDataKey,
+  type TrendMetricKey,
+} from "../metrics/careerTrends";
 import { FiltersBar } from "../components/FiltersBar";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { TopList, type TopListRow } from "../components/TopList";
@@ -16,22 +19,11 @@ import { ScatterWithReference, type ScatterPoint } from "../components/charts/Sc
 import { PlayerSearch } from "../components/PlayerSearch";
 import { PLAYER_COLUMNS, columnByKey } from "../components/playerColumns";
 import { fmtDecimal, DASH } from "../utils/format";
-import type { Position } from "../types/normalized";
 
 function topN(rows: TopListRow[], n: number): TopListRow[] {
   const eligible = rows.filter((r) => r.value !== null);
   eligible.sort((a, b) => ((a.value as number) < (b.value as number) ? 1 : -1));
   return eligible.slice(0, n);
-}
-
-const POSITIONS: Position[] = ["GKP", "DEF", "MID", "FWD"];
-
-type Band = "Budget" | "Mid-priced" | "Premium";
-
-function bandFor(price: number): Band {
-  if (price >= ARCHETYPE_THRESHOLDS.premiumPriceMin) return "Premium";
-  if (price >= ARCHETYPE_THRESHOLDS.midPriceMin) return "Mid-priced";
-  return "Budget";
 }
 
 export function UnderlyingNumbers() {
@@ -59,11 +51,27 @@ export function UnderlyingNumbers() {
     [players, allTimeSeasonsByPlayerId],
   );
   const MAX_TREND_PLAYERS = 5;
+  const MAX_TREND_METRICS = 3;
   const TREND_LINE_COLORS = ["#5aa9e6", "#e6a15a", "#8bd17c", "#e0708a", "#d8b34a"];
+  /** One dash pattern per metric slot — solid for the first metric selected, then increasingly broken. Combined with colour-per-player below, a line's identity (which player, which metric) is fully readable from its style alone, not just the legend. */
+  const TREND_METRIC_DASH_PATTERNS = ["0", "6 4", "2 3"];
+  const TREND_METRIC_LABELS: Record<TrendMetricKey, string> = {
+    totalPoints: "Total Points",
+    pointsPer90: "Points per 90",
+    goals: "Goals",
+    assists: "Assists",
+    xG: "xG",
+    xA: "xA",
+    xGI: "xGI",
+    minutes: "Minutes",
+  };
   const [trendPlayerIds, setTrendPlayerIds] = useState<number[]>([]);
-  const [trendMetric, setTrendMetric] = useState<"totalPoints" | "pointsPer90" | "xG" | "xA" | "xGI" | "minutes">("totalPoints");
+  const [trendMetrics, setTrendMetrics] = useState<TrendMetricKey[]>(["totalPoints"]);
+  const [normalizeTrend, setNormalizeTrend] = useState(false);
   const activeTrendPlayerIds = trendPlayerIds.length > 0 ? trendPlayerIds : playersWithHistory[0] ? [playersWithHistory[0].id] : [];
+  const activeTrendMetrics = trendMetrics.length > 0 ? trendMetrics : (["totalPoints"] as TrendMetricKey[]);
   const trendPlayersById = useMemo(() => new Map(playersWithHistory.map((p) => [p.id, p])), [playersWithHistory]);
+  const trendLineCount = activeTrendPlayerIds.length * activeTrendMetrics.length;
 
   function addTrendPlayer(id: number) {
     if (trendPlayerIds.length >= MAX_TREND_PLAYERS || activeTrendPlayerIds.includes(id)) return;
@@ -75,19 +83,22 @@ export function UnderlyingNumbers() {
     if (activeTrendPlayerIds.length <= 1) return;
     setTrendPlayerIds(activeTrendPlayerIds.filter((x) => x !== id));
   }
+  function toggleTrendMetric(metric: TrendMetricKey) {
+    setTrendMetrics((prev) => {
+      if (prev.includes(metric)) {
+        // At least one metric stays selected, same reasoning as removeTrendPlayer.
+        if (prev.length <= 1) return prev;
+        return prev.filter((m) => m !== metric);
+      }
+      if (prev.length >= MAX_TREND_METRICS) return prev;
+      return [...prev, metric];
+    });
+  }
 
-  const multiPlayerTrend = useMemo(
-    () => buildMultiPlayerTrend(activeTrendPlayerIds, allTimeSeasonsByPlayerId, trendMetric),
-    [activeTrendPlayerIds, allTimeSeasonsByPlayerId, trendMetric],
+  const multiSeriesTrend = useMemo(
+    () => buildMultiSeriesTrend(activeTrendPlayerIds, activeTrendMetrics, allTimeSeasonsByPlayerId, normalizeTrend),
+    [activeTrendPlayerIds, activeTrendMetrics, allTimeSeasonsByPlayerId, normalizeTrend],
   );
-  const TREND_METRIC_LABELS: Record<typeof trendMetric, string> = {
-    totalPoints: "Total Points",
-    pointsPer90: "Points per 90",
-    xG: "xG",
-    xA: "xA",
-    xGI: "xGI",
-    minutes: "Minutes",
-  };
 
   // ---------- Expected vs Actual ----------
 
@@ -149,20 +160,18 @@ export function UnderlyingNumbers() {
     return points;
   }, [filtered]);
 
-  // Bundled into one memo, keyed on `rows`, so these 8 leaderboards aren't
+  // Bundled into one memo, keyed on `rows`, so these leaderboards aren't
   // rebuilt (each a filter+sort+slice over the full row list) on every
-  // unrelated render.
-  const { topXG, topXA, topXGI, topXGIPer90, goalsAboveXG, goalsBelowXG, assistsAboveXA, assistsBelowXA } = useMemo(
+  // unrelated render. xGI, Goals Above xG, and Goals Below xG are
+  // deliberately NOT duplicated here — they're already on the Dashboard
+  // (Top 5 — xGI / Goals Above xG / xG Above Goals), and repeating the
+  // same leaderboard in two places just to see it again isn't the point
+  // of this page.
+  const { topXG, topXA, topXGIPer90, assistsAboveXA, assistsBelowXA } = useMemo(
     () => ({
       topXG: topN(rows.map((r) => ({ player: r.player, value: r.player.xG })), 5),
       topXA: topN(rows.map((r) => ({ player: r.player, value: r.player.xA })), 5),
-      topXGI: topN(rows.map((r) => ({ player: r.player, value: r.player.xGI })), 5),
       topXGIPer90: topN(rows.map((r) => ({ player: r.player, value: r.player.xGIPer90 })), 5),
-      goalsAboveXG: topN(rows.map((r) => ({ player: r.player, value: r.derived.goalsMinusXG })), 5),
-      goalsBelowXG: topN(
-        rows.map((r) => ({ player: r.player, value: r.derived.goalsMinusXG !== null ? -r.derived.goalsMinusXG : null })),
-        5,
-      ),
       assistsAboveXA: topN(rows.map((r) => ({ player: r.player, value: r.derived.assistsMinusXA })), 5),
       assistsBelowXA: topN(
         rows.map((r) => ({ player: r.player, value: r.derived.assistsMinusXA !== null ? -r.derived.assistsMinusXA : null })),
@@ -180,31 +189,17 @@ export function UnderlyingNumbers() {
     [filtered],
   );
 
-  const { topPointsPerM, topXGPerM, topXAPerM, topXGIPerM } = useMemo(
+  // Points/£m and xGI/£m are already on the Dashboard (Top 5 — Value and
+  // Top 5 — xGI/£m) — same reasoning as above, not repeated here.
+  const { topXGPerM, topXAPerM } = useMemo(
     () => ({
-      topPointsPerM: topN(rows.map((r) => ({ player: r.player, value: r.derived.pointsPerMillion })), 5),
       topXGPerM: topN(rows.map((r) => ({ player: r.player, value: r.derived.xGPerMillion })), 5),
       topXAPerM: topN(rows.map((r) => ({ player: r.player, value: r.derived.xAPerMillion })), 5),
-      topXGIPerM: topN(rows.map((r) => ({ player: r.player, value: r.derived.xGIPerMillion })), 5),
     }),
     [rows],
   );
 
-  const bandTable = useMemo(() => {
-    const bands: Band[] = ["Budget", "Mid-priced", "Premium"];
-    return POSITIONS.map((position) => {
-      const cells = bands.map((band) => {
-        const group = filtered.filter((p) => p.position === position && bandFor(p.price) === band);
-        if (group.length === 0) return { band, avg: null, n: 0 };
-        const values = group.map((p) => getPlayerDerivedMetrics(p).pointsPerMillion).filter((v): v is number => v !== null);
-        const avg = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
-        return { band, avg, n: group.length };
-      });
-      return { position, cells };
-    });
-  }, [filtered]);
-
-  // ---------- Build Your Own Graph ----------
+  // ---------- User Analysis ----------
 
   const [xMetricKey, setXMetricKey] = useState("xGI");
   const [yMetricKey, setYMetricKey] = useState("totalPoints");
@@ -236,7 +231,7 @@ export function UnderlyingNumbers() {
       <FiltersBar />
 
       <h2 className="section-heading">Expected vs Actual</h2>
-      <div className="card-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
+      <div className="card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))" }}>
         <div className="card">
           <div className="card-title">xG vs Goals (dashed line = expected output)</div>
           <ScatterWithReference data={xgVsGoals} xLabel="xG" yLabel="Goals" showReferenceLine onPointClick={select} />
@@ -274,58 +269,30 @@ export function UnderlyingNumbers() {
       <div className="card-grid">
         <TopList title="Top xG" rows={topXG} format={(v) => fmtDecimal(v, 2)} onSelect={select} />
         <TopList title="Top xA" rows={topXA} format={(v) => fmtDecimal(v, 2)} onSelect={select} />
-        <TopList title="Top xGI" rows={topXGI} format={(v) => fmtDecimal(v, 2)} onSelect={select} />
         <TopList title="Top xGI/90" rows={topXGIPer90} format={(v) => fmtDecimal(v, 2)} onSelect={select} />
-        <TopList title="Goals Above xG" rows={goalsAboveXG} format={(v) => (v !== null ? `+${v.toFixed(2)}` : "\u2014")} onSelect={select} />
-        <TopList title="Goals Below xG" rows={goalsBelowXG} format={(v) => (v !== null ? `\u2212${v.toFixed(2)}` : "\u2014")} onSelect={select} />
-        <TopList title="Assists Above xA" rows={assistsAboveXA} format={(v) => (v !== null ? `+${v.toFixed(2)}` : "\u2014")} onSelect={select} />
-        <TopList title="Assists Below xA" rows={assistsBelowXA} format={(v) => (v !== null ? `\u2212${v.toFixed(2)}` : "\u2014")} onSelect={select} />
+        <TopList title="Assists Above xA" rows={assistsAboveXA} format={(v) => (v !== null ? `+${v.toFixed(2)}` : DASH)} onSelect={select} />
+        <TopList title="Assists Below xA" rows={assistsBelowXA} format={(v) => (v !== null ? `−${v.toFixed(2)}` : DASH)} onSelect={select} />
       </div>
 
       <h2 className="section-heading">Value</h2>
       <div className="card" style={{ marginBottom: 22 }}>
         <div className="card-title">Price vs Points</div>
-        <ScatterWithReference data={priceVsPoints} xLabel="Price (£m)" yLabel="Points" onPointClick={select} />
+        <ScatterWithReference
+          data={priceVsPoints}
+          xLabel="Price (£m)"
+          yLabel="Points"
+          onPointClick={select}
+          xTickStep={0.5}
+          xTickFormatter={(v) => v.toFixed(1)}
+        />
       </div>
 
       <div className="card-grid">
-        <TopList title="Top Points/£m" rows={topPointsPerM} format={(v) => fmtDecimal(v, 1)} onSelect={select} />
         <TopList title="Top xG/£m" rows={topXGPerM} format={(v) => fmtDecimal(v, 2)} onSelect={select} />
         <TopList title="Top xA/£m" rows={topXAPerM} format={(v) => fmtDecimal(v, 2)} onSelect={select} />
-        <TopList title="Top xGI/£m" rows={topXGIPerM} format={(v) => fmtDecimal(v, 2)} onSelect={select} />
       </div>
 
-      <div className="card">
-        <div className="card-title">Points/£m by Position &amp; Price Band</div>
-        <p className="page-subtitle">
-          Bands: Budget &lt; £{ARCHETYPE_THRESHOLDS.midPriceMin}m · Mid-priced £{ARCHETYPE_THRESHOLDS.midPriceMin}m–£
-          {ARCHETYPE_THRESHOLDS.midPriceMax}m · Premium ≥ £{ARCHETYPE_THRESHOLDS.premiumPriceMin}m.
-        </p>
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th style={{ textAlign: "left" }}>Position</th>
-                <th>Budget</th>
-                <th>Mid-priced</th>
-                <th>Premium</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bandTable.map((row) => (
-                <tr key={row.position}>
-                  <td style={{ textAlign: "left", fontFamily: "var(--font-body)" }}>{row.position}</td>
-                  {row.cells.map((c) => (
-                    <td key={c.band}>{c.avg !== null ? `${fmtDecimal(c.avg, 1)} (n=${c.n})` : "\u2014"}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <h2 className="section-heading">Build Your Own Graph</h2>
+      <h2 className="section-heading">User Analysis</h2>
       <div className="card">
         <div className="filters-bar" style={{ marginBottom: 12 }}>
           <div className="field">
@@ -427,42 +394,71 @@ export function UnderlyingNumbers() {
             candidates={playersWithHistory}
             label="Add a player to compare"
           />
-          <div className="field">
-            <label htmlFor="trend-metric">Metric</label>
-            <select id="trend-metric" value={trendMetric} onChange={(e) => setTrendMetric(e.target.value as typeof trendMetric)}>
-              {Object.entries(TREND_METRIC_LABELS).map(([key, label]) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
-        {multiPlayerTrend.length === 0 ? (
+
+        <div className="card-title" style={{ marginTop: 4 }}>
+          Metrics ({activeTrendMetrics.length}/{MAX_TREND_METRICS})
+        </div>
+        <div className="chip-row" style={{ marginBottom: 12 }}>
+          {(Object.keys(TREND_METRIC_LABELS) as TrendMetricKey[]).map((metric) => (
+            <button
+              key={metric}
+              type="button"
+              className={`chip${activeTrendMetrics.includes(metric) ? " active" : ""}`}
+              onClick={() => toggleTrendMetric(metric)}
+              disabled={!activeTrendMetrics.includes(metric) && activeTrendMetrics.length >= MAX_TREND_METRICS}
+              title={activeTrendMetrics.length <= 1 && activeTrendMetrics.includes(metric) ? "At least one metric stays selected" : undefined}
+            >
+              {TREND_METRIC_LABELS[metric]}
+            </button>
+          ))}
+          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "var(--text-secondary)", marginLeft: 8 }}>
+            <input type="checkbox" checked={normalizeTrend} onChange={(e) => setNormalizeTrend(e.target.checked)} />
+            Normalise (0–100)
+          </label>
+        </div>
+        {activeTrendMetrics.length > 1 && (
+          <p className="page-subtitle" style={{ marginTop: 0, marginBottom: 12 }}>
+            Comparing metrics on different scales (e.g. Minutes against xG) reads as flat lines near zero unless Normalise is on — each
+            metric is then independently scaled to 0–100 across the values shown, so shape and timing are comparable even though the
+            numbers are no longer the real stat.
+          </p>
+        )}
+
+        {multiSeriesTrend.length === 0 ? (
           <div className="empty-state">
             <h3>No season history to show</h3>
             <p>Either historic data hasn't loaded yet, or the selected player(s) have no completed FPL seasons on record.</p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={multiPlayerTrend}>
+            <LineChart data={multiSeriesTrend}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
               <XAxis dataKey="seasonName" stroke="var(--text-muted)" fontSize={12} />
-              <YAxis stroke="var(--text-muted)" fontSize={12} />
+              <YAxis stroke="var(--text-muted)" fontSize={12} domain={normalizeTrend ? [0, 100] : ["auto", "auto"]} />
               <Tooltip contentStyle={{ background: "var(--surface-raised)", border: "1px solid var(--border-strong)", fontSize: 12 }} />
-              {activeTrendPlayerIds.length > 1 && <Legend wrapperStyle={{ fontSize: 12 }} />}
-              {activeTrendPlayerIds.map((id, i) => (
-                <Line
-                  key={id}
-                  type="monotone"
-                  dataKey={playerTrendDataKey(id)}
-                  name={trendPlayersById.get(id)?.name ?? String(id)}
-                  stroke={TREND_LINE_COLORS[i % TREND_LINE_COLORS.length]}
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  connectNulls
-                />
-              ))}
+              {trendLineCount > 1 && <Legend wrapperStyle={{ fontSize: 12 }} />}
+              {activeTrendPlayerIds.map((id, pi) =>
+                activeTrendMetrics.map((metric, mi) => (
+                  <Line
+                    key={playerMetricTrendDataKey(id, metric)}
+                    type="monotone"
+                    dataKey={playerMetricTrendDataKey(id, metric)}
+                    name={
+                      activeTrendPlayerIds.length > 1 && activeTrendMetrics.length > 1
+                        ? `${trendPlayersById.get(id)?.name ?? id} — ${TREND_METRIC_LABELS[metric]}`
+                        : activeTrendMetrics.length > 1
+                          ? TREND_METRIC_LABELS[metric]
+                          : (trendPlayersById.get(id)?.name ?? String(id))
+                    }
+                    stroke={TREND_LINE_COLORS[pi % TREND_LINE_COLORS.length]}
+                    strokeDasharray={TREND_METRIC_DASH_PATTERNS[mi % TREND_METRIC_DASH_PATTERNS.length]}
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                    connectNulls
+                  />
+                )),
+              )}
             </LineChart>
           </ResponsiveContainer>
         )}

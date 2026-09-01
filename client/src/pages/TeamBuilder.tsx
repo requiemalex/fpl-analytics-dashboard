@@ -20,7 +20,7 @@ import { normalizeEntryImport } from "../normalize/normalizeEntryImport";
 import { buildOptimalDraft, isDraftFailure } from "../metrics/optimalDraft";
 import { computeBlendedMinutesReliability } from "../metrics/minutesReliabilityBlend";
 import { bandForPercentile } from "../metrics/percentiles";
-import { getUpcomingFixtures, fdrColor, type UpcomingFixture } from "../metrics/fixtureTicker";
+import { getUpcomingFixtures, fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, columnByKey, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { SquadPitch } from "../components/SquadPitch";
 import { PositionBadge, AvailabilityFlag, SignedNum, availabilityTextClass } from "../components/primitives";
@@ -142,11 +142,6 @@ const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
   },
 ];
 const DEFAULT_PREDICTIVE_COLUMN_KEYS = PREDICTIVE_COLUMNS.map((c) => c.key);
-
-function averageFixtureDifficulty(fixtures: UpcomingFixture[]): number | null {
-  if (fixtures.length === 0) return null;
-  return fixtures.reduce((sum, f) => sum + f.difficulty, 0) / fixtures.length;
-}
 
 /** Same visual language as the percentile bar, but for a 0-1 reliability share rather than a rank — labelled as a %, never "Nth". */
 function ReliabilityBar({ value }: { value: number | null }) {

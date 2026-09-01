@@ -1,4 +1,5 @@
 import type { NormalizedFixture, NormalizedTeam } from "../types/normalized";
+import { DASH } from "../utils/format";
 
 export interface UpcomingFixture {
   fixtureId: number;
@@ -32,6 +33,20 @@ export function getUpcomingFixtures(teamId: number, fixtures: NormalizedFixture[
         difficulty: isHome ? f.homeDifficulty : f.awayDifficulty,
       };
     });
+}
+
+/** Mean difficulty across a fixture set — null (not 0) when there are none to average, since a fixture-less team isn't "easy," it's unscheduled. */
+export function averageFixtureDifficulty(fixtures: UpcomingFixture[]): number | null {
+  if (fixtures.length === 0) return null;
+  return fixtures.reduce((sum, f) => sum + f.difficulty, 0) / fixtures.length;
+}
+
+/** Plain-text form for CSV export — e.g. "AVL(A) CHE(H) SUN(A) BHA(A) LEE(H) avg FDR 3.2". Shared by every table that offers a fixtures column, so an export always matches what that table showed on screen. */
+export function formatFixturesForCsv(fixtures: UpcomingFixture[]): string {
+  if (fixtures.length === 0) return DASH;
+  const codes = fixtures.map((f) => `${f.opponentShortName}(${f.isHome ? "H" : "A"})`).join(" ");
+  const avg = averageFixtureDifficulty(fixtures);
+  return avg !== null ? `${codes} avg FDR ${avg.toFixed(1)}` : codes;
 }
 
 /** FPL's own 1 (easiest, green) to 5 (hardest, red) difficulty colours. */

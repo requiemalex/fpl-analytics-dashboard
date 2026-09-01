@@ -226,6 +226,12 @@ export function UserGuide() {
             ≤/≥/= fields, so narrowing by ownership or price range happens at the column, not up here.
           </li>
           <li><strong>Export CSV</strong> downloads exactly what's on screen — the same rows and visible columns, in the same order, with the same formatted values.</li>
+          <li>
+            <strong>Next 5 Fixtures</strong> (off by default — enable it in the Columns picker) is the same fixture-ticker column Team
+            Building's Add Players table has, copied over here for the same at-a-glance planning use. Always the player's live team's
+            actual upcoming fixtures, regardless of the analysis-mode toggle above — moving fixtures between seasons wouldn't mean
+            anything, same reasoning as price and ownership staying live everywhere.
+          </li>
         </ul>
         <Try>
           Looking for undervalued midfielders? Set Position to MID, add the "Points/£m" column, click its header to sort descending, and
@@ -236,9 +242,10 @@ export function UserGuide() {
       <Section id="underlying-numbers" title="Underlying Numbers">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
           Charts, not tables — expected-vs-actual scatter plots (xG vs Goals, xA vs Assists, xGI vs Goals+Assists, ICT vs Goals+Assists,
-          and a defensive equivalent with a colour-coded third dimension for xGC/90), a Value section (Price vs Points, Points/£m
-          leaderboards, a Position × Price Band table), and a Build Your Own Graph tool — pick any two metrics from Player Explorer's
-          full list and plot them against each other.
+          and a defensive equivalent with a colour-coded third dimension for xGC/90), a Value section (Price vs Points — with gridlines
+          at every £0.5m — plus xG/£m and xA/£m leaderboards), and a User Analysis tool — pick any two metrics from Player Explorer's
+          full list and plot them against each other. Leaderboards that already exist on the Dashboard (Points, xGI, Points/£m, xGI/£m,
+          Goals Above/Below xG) aren't repeated here — see the Dashboard for those.
         </p>
         <p className="page-subtitle">
           <strong>Thematic Analysis</strong> and <strong>Player Trends</strong>, further down the page, are deliberately built outside
@@ -247,17 +254,21 @@ export function UserGuide() {
           tier across every season where a player cleared the same {MIN_QUALIFYING_SEASON_MINUTES}-minute bar used everywhere else historic
           averages are computed; price tier uses each season's own price (not today's), and position uses each player's current
           position, since this app has no record of historical position changes — a position-switcher's older seasons are grouped under
-          where they play now. Player Trends plots up to 5 players' own
-          points/xG/xA/minutes across their whole career, with no minutes threshold — a quiet or injury-hit season is real data worth
-          seeing, not noise to filter out, and xG/xA/xGI show as a gap for seasons before FPL tracked expected stats, not as zero.
-          Neither re-runs the full percentile-based archetype system against past seasons — that's a materially bigger undertaking than
-          these two charts, so it isn't attempted here.
+          where they play now. Player Trends plots up to 5 players against up to 3 metrics at once (Points, Points/90, Goals, Assists,
+          xG, xA, xGI, Minutes) — every player×metric combination gets its own line, coloured by player and dashed by metric, labelled
+          in the legend as "Player — Metric" once there's more than one of each. A Normalise toggle independently scales each metric to
+          0–100 across the values on screen, which is what makes overlaying metrics on very different scales (Minutes vs xG, say)
+          actually readable — off by default, since a single metric in its own real units needs no adjusting. No minutes threshold on
+          any of this — a quiet or injury-hit season is real data worth seeing, not noise to filter out — and xG/xA/xGI show as a gap
+          for seasons before FPL tracked expected stats, not as zero. Neither this nor Thematic Analysis re-runs the full
+          percentile-based archetype system against past seasons — that's a materially bigger undertaking than these two charts, so it
+          isn't attempted here.
         </p>
         <p className="page-subtitle">
           Two of the six expected-vs-actual charts intentionally have no dashed reference line, for different reasons. <strong>ICT Index
           vs Goals + Assists</strong>: ICT is a composite influence/creativity/threat score on its own scale, not the same unit as
-          Goals + Assists, so a 45° "expected output" line would be meaningless — it shows pattern and correlation only. <strong>Build
-          Your Own Graph</strong>: an arbitrary pair of metrics usually isn't an expected-vs-actual relationship either, so no line is
+          Goals + Assists, so a 45° "expected output" line would be meaningless — it shows pattern and correlation only. <strong>User
+          Analysis</strong>: an arbitrary pair of metrics usually isn't an expected-vs-actual relationship either, so no line is
           drawn unless the axes genuinely represent that.
         </p>
         <p className="page-subtitle">
@@ -270,11 +281,6 @@ export function UserGuide() {
           current view. Goalkeepers are excluded, since the Defensive Contribution mechanic doesn't apply to them, and in historic
           modes, seasons before 2024/25 (when the FPL API started tracking it) are excluded from the average rather than diluting it
           with an untracked zero.
-        </p>
-        <p className="page-subtitle">
-          <strong>Points/£m by Position &amp; Price Band</strong> always buckets players by today's real live price (Budget/Mid-priced/
-          Premium — same thresholds as the Archetypes price tier below), regardless of which analysis mode is selected, matching how
-          price behaves everywhere else in this app.
         </p>
         <Try>Click any dot on a chart to open that player's profile directly — the charts aren't just for looking, they're a navigation shortcut too.</Try>
       </Section>

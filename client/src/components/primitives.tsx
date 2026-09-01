@@ -3,6 +3,7 @@ import { fmtDecimal, fmtSigned, DASH } from "../utils/format";
 import { bandForPercentile, type PercentileBand } from "../metrics/percentiles";
 import { getMetricDefinition } from "../metrics/dictionary";
 import { ARCHETYPE_SHORT_LABELS, type ArchetypeLabel } from "../metrics/archetypes";
+import { fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
 import type { Position } from "../types/normalized";
 
 export function PositionBadge({ position }: { position: Position }) {
@@ -64,6 +65,34 @@ export function SignedNum({ value, decimals = 2 }: { value: number | null | unde
   }
   const cls = value > 0 ? "value-positive" : value < 0 ? "value-negative" : "value-muted";
   return <span className={`num ${cls}`}>{fmtSigned(value, decimals)}</span>;
+}
+
+/** A team's upcoming fixtures as coloured FDR chips plus the average difficulty — shared by every table that offers a fixtures column (Team Building's picker, Player Explorer), so the visual reads identically wherever it appears. */
+export function FixtureChips({ fixtures }: { fixtures: UpcomingFixture[] }) {
+  const avgFdr = averageFixtureDifficulty(fixtures);
+  if (fixtures.length === 0 || avgFdr === null) return <span className="value-muted">{DASH}</span>;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <div className="table-fixtures">
+        {fixtures.map((f) => (
+          <span
+            key={f.fixtureId}
+            className="table-fixture-chip"
+            style={{ background: fdrColor(f.difficulty) }}
+            title={`${f.opponentShortName} (${f.isHome ? "H" : "A"}) — FDR ${f.difficulty}`}
+          >
+            {f.opponentShortName.slice(0, 3)}
+          </span>
+        ))}
+      </div>
+      <span
+        style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}
+        title="Average fixture difficulty across the fixtures shown (1 = easiest, 5 = hardest)"
+      >
+        {avgFdr.toFixed(1)}
+      </span>
+    </div>
+  );
 }
 
 export function Tooltip({ label, children }: { label: string; children: React.ReactNode }) {

@@ -9,9 +9,10 @@ import { ColumnFilterControl } from "../components/ColumnFilterControl";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { computeArchetypesForAllPlayers } from "../metrics/archetypes";
 import { resolvePlayerStatsList } from "../metrics/resolvePlayerStats";
+import { getUpcomingFixtures, formatFixturesForCsv, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { FiltersBar } from "../components/FiltersBar";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
-import { PositionBadge, SignedNum, ArchetypeBadges, AvailabilityFlag, availabilityTextClass } from "../components/primitives";
+import { PositionBadge, SignedNum, ArchetypeBadges, AvailabilityFlag, availabilityTextClass, FixtureChips } from "../components/primitives";
 import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, columnByKey, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { fmtPrice, fmtSigned, DASH } from "../utils/format";
 import { relativeCellTint } from "../utils/colorScale";
@@ -23,9 +24,11 @@ const GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE
 const ARCHETYPES_COLUMN_KEY = "archetypes";
 /** Below this width, badges switch to short-form codes rather than full labels — narrower still, they simply overflow-hide, which is an acceptable outcome by request. */
 const ARCHETYPES_COMPACT_WIDTH = 110;
+/** Same special-key treatment as Archetypes: not a PLAYER_COLUMNS entry (renders fixture chips, not a number), copied over from Team Building's picker table. Deselected by default. Always the player's live team's upcoming fixtures, regardless of analysis mode — moving between seasons' fixtures wouldn't mean anything, same reasoning as price/ownership staying live. */
+const FIXTURES_COLUMN_KEY = "fixtures";
 
 export function PlayerExplorer() {
-  const { players, teamsById, advancedFieldAvailability, filters, resetFilters, analysisMode, historicProfiles, historicStatus, currentSeasonHasStarted } =
+  const { players, teamsById, fixtures, advancedFieldAvailability, filters, resetFilters, analysisMode, historicProfiles, historicStatus, currentSeasonHasStarted } =
     useAppState();
 
   const { resolved: resolvedPlayers } = useMemo(
@@ -40,6 +43,17 @@ export function PlayerExplorer() {
   // different thing and correctly still resolves per mode — this is
   // specifically about the identity line, not that explicit column.
   const livePlayersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
+
+  // Same reasoning as Team Building's own fixturesByTeamId — cheap (20
+  // clubs) but still memoized so it doesn't get a fresh Map identity (and
+  // silently defeat comparisons/CSV export downstream) on every render.
+  const fixturesByTeamId = useMemo(() => {
+    const map = new Map<number, UpcomingFixture[]>();
+    for (const team of teamsById.values()) {
+      map.set(team.id, getUpcomingFixtures(team.id, fixtures, teamsById));
+    }
+    return map;
+  }, [teamsById, fixtures]);
 
   const filtered = useFilteredPlayers(resolvedPlayers, filters, analysisMode, teamsById, historicProfiles);
   const [, setSearchParams] = useSearchParams();
@@ -134,22 +148,29 @@ export function PlayerExplorer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortedRows.length > 0]);
 
+  // A column is either a real PLAYER_COLUMNS entry or one of the special
+  // string keys above (Archetypes, Fixtures) — neither renders a plain
+  // number, so `typeof c === "string"` is used throughout as the generic
+  // "is this a special column" check rather than comparing against both
+  // keys individually everywhere.
   const columnsInOrder = useMemo(
     () =>
       visibleColumns
-        .map((key) => (key === ARCHETYPES_COLUMN_KEY ? ARCHETYPES_COLUMN_KEY : columnByKey(key)))
-        .filter((c): c is PlayerColumn | typeof ARCHETYPES_COLUMN_KEY => !!c),
+        .map((key) => (key === ARCHETYPES_COLUMN_KEY || key === FIXTURES_COLUMN_KEY ? key : columnByKey(key)))
+        .filter((c): c is PlayerColumn | typeof ARCHETYPES_COLUMN_KEY | typeof FIXTURES_COLUMN_KEY => !!c),
     [visibleColumns],
   );
 
   // Per-column min/max across the rows currently shown (post-filter,
   // post-sort) — same scoping as Team Building's tint: "how does this
   // compare to what you're looking at right now", not an absolute scale.
-  // Archetypes isn't numeric, so it's skipped here entirely.
+  // Neither special column is numeric, so both are skipped here entirely
+  // — Fixtures already has its own per-chip FDR colour, a second tint
+  // layered on top would just be noise.
   const columnRanges = useMemo(() => {
     const ranges = new Map<string, { min: number; max: number }>();
     for (const c of columnsInOrder) {
-      if (c === ARCHETYPES_COLUMN_KEY) continue;
+      if (typeof c === "string") continue;
       const values = sortedRows.map((r) => c.getValue(r.player, r.derived)).filter((v): v is number => v !== null);
       if (values.length > 0) ranges.set(c.key, { min: Math.min(...values), max: Math.max(...values) });
     }
@@ -169,11 +190,18 @@ export function PlayerExplorer() {
   // unavailable) — so the export is never a surprise relative to the table
   // it was taken from.
   function handleExportCsv() {
-    const headers = ["Player", "Position", "Team", "Price", ...columnsInOrder.map((c) => (c === ARCHETYPES_COLUMN_KEY ? "Archetypes" : c.label))];
+    const headers = [
+      "Player",
+      "Position",
+      "Team",
+      "Price",
+      ...columnsInOrder.map((c) => (c === ARCHETYPES_COLUMN_KEY ? "Archetypes" : c === FIXTURES_COLUMN_KEY ? "Next 5 Fixtures" : c.label)),
+    ];
     const rows = sortedRows.map(({ player, derived }) => {
       const price = fmtPrice(livePlayersById.get(player.id)?.price ?? player.price);
       const cells = columnsInOrder.map((c) => {
         if (c === ARCHETYPES_COLUMN_KEY) return (archetypeMap.get(player.id) ?? []).join("; ");
+        if (c === FIXTURES_COLUMN_KEY) return formatFixturesForCsv(fixturesByTeamId.get(player.teamId) ?? []);
         const value = c.getValue(player, derived);
         if (c.key === "goalsMinusXG" || c.key === "assistsMinusXA") return value !== null ? fmtSigned(value, 2) : DASH;
         return c.format(value);
@@ -222,6 +250,14 @@ export function PlayerExplorer() {
                     onChange={() => toggleColumn(ARCHETYPES_COLUMN_KEY)}
                   />
                   Archetypes
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={visibleColumns.includes(FIXTURES_COLUMN_KEY)}
+                    onChange={() => toggleColumn(FIXTURES_COLUMN_KEY)}
+                  />
+                  Next 5 Fixtures
                 </label>
               </div>
               {GROUPS.map((group) => (
@@ -286,9 +322,10 @@ export function PlayerExplorer() {
                   Player
                 </th>
                 {columnsInOrder.map((c) => {
-                  const key = c === ARCHETYPES_COLUMN_KEY ? ARCHETYPES_COLUMN_KEY : c.key;
-                  const label = c === ARCHETYPES_COLUMN_KEY ? "Archetypes" : c.label;
-                  const sortEntry = c === ARCHETYPES_COLUMN_KEY ? undefined : sort.find((s) => s.key === key);
+                  const isSpecial = typeof c === "string";
+                  const key = isSpecial ? c : c.key;
+                  const label = c === ARCHETYPES_COLUMN_KEY ? "Archetypes" : c === FIXTURES_COLUMN_KEY ? "Next 5 Fixtures" : (c as PlayerColumn).label;
+                  const sortEntry = isSpecial ? undefined : sort.find((s) => s.key === key);
                   const width = columnWidths[key];
                   return (
                     <th
@@ -306,15 +343,17 @@ export function PlayerExplorer() {
                         const draggedKey = e.dataTransfer.getData("text/plain");
                         if (draggedKey && draggedKey !== key) reorderColumn(draggedKey, key);
                       }}
-                      onClick={c === ARCHETYPES_COLUMN_KEY ? undefined : (e) => handleHeaderClick(key, e.shiftKey)}
+                      onClick={isSpecial ? undefined : (e) => handleHeaderClick(key, e.shiftKey)}
                       title={
                         c === ARCHETYPES_COLUMN_KEY
                           ? "Drag to reorder · Drag the right edge to resize — badges shrink to short codes, or disappear, as this column narrows"
-                          : "Click to sort · Shift-click to add secondary sort · Drag to reorder · Drag the right edge to resize"
+                          : c === FIXTURES_COLUMN_KEY
+                            ? "Always the player's live team's upcoming fixtures, regardless of analysis mode · Drag to reorder · Drag the right edge to resize"
+                            : "Click to sort · Shift-click to add secondary sort · Drag to reorder · Drag the right edge to resize"
                       }
                       style={{
                         position: "relative",
-                        textAlign: c === ARCHETYPES_COLUMN_KEY ? "left" : undefined,
+                        textAlign: isSpecial ? "left" : undefined,
                         width: width ? `${width}px` : undefined,
                         maxWidth: width ? `${width}px` : undefined,
                         cursor: "grab",
@@ -324,7 +363,7 @@ export function PlayerExplorer() {
                     >
                       {label}
                       {sortEntry && <span className="sort-indicator">{sortEntry.direction === "asc" ? "\u2191" : "\u2193"}</span>}
-                      {c !== ARCHETYPES_COLUMN_KEY && (
+                      {!isSpecial && (
                         <ColumnFilterControl
                           isOpen={columnFiltersState.openFilterKey === key}
                           isActive={isColumnFilterActive(columnFiltersState.columnFilters[key])}
@@ -372,6 +411,20 @@ export function PlayerExplorer() {
                           }}
                         >
                           <ArchetypeBadges labels={archetypeMap.get(player.id) ?? []} compact={width !== undefined && width < ARCHETYPES_COMPACT_WIDTH} />
+                        </td>
+                      );
+                    }
+                    if (c === FIXTURES_COLUMN_KEY) {
+                      const width = columnWidths[FIXTURES_COLUMN_KEY];
+                      return (
+                        <td
+                          key={FIXTURES_COLUMN_KEY}
+                          style={{
+                            textAlign: "left",
+                            ...(width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden" } : {}),
+                          }}
+                        >
+                          <FixtureChips fixtures={fixturesByTeamId.get(player.teamId) ?? []} />
                         </td>
                       );
                     }
