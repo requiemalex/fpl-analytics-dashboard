@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { useAppState } from "../state/AppStateContext";
-import { useFilteredPlayers } from "../state/useFilteredPlayers";
+import { useFilteredPlayers, effectiveMinMinutes } from "../state/useFilteredPlayers";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList } from "../metrics/resolvePlayerStats";
 import { defensiveRewardPer90 } from "../metrics/defensiveReward";
@@ -68,7 +68,10 @@ export function UnderlyingNumbers() {
   const [trendPlayerIds, setTrendPlayerIds] = useState<number[]>([]);
   const [trendMetrics, setTrendMetrics] = useState<TrendMetricKey[]>(["totalPoints"]);
   const [normalizeTrend, setNormalizeTrend] = useState(true);
-  const activeTrendPlayerIds = trendPlayerIds.length > 0 ? trendPlayerIds : playersWithHistory[0] ? [playersWithHistory[0].id] : [];
+  // No default player — starts empty, unlike the metric selection below
+  // (which always needs at least one, since a chart with zero metrics has
+  // nothing to plot). Add a player explicitly via the search below.
+  const activeTrendPlayerIds = trendPlayerIds;
   const activeTrendMetrics = trendMetrics.length > 0 ? trendMetrics : (["totalPoints"] as TrendMetricKey[]);
   const trendPlayersById = useMemo(() => new Map(playersWithHistory.map((p) => [p.id, p])), [playersWithHistory]);
   const trendLineCount = activeTrendPlayerIds.length * activeTrendMetrics.length;
@@ -78,9 +81,6 @@ export function UnderlyingNumbers() {
     setTrendPlayerIds([...activeTrendPlayerIds, id]);
   }
   function removeTrendPlayer(id: number) {
-    // At least one player stays shown, matching this chart's original
-    // single-player behaviour — there was never an empty state for it.
-    if (activeTrendPlayerIds.length <= 1) return;
     setTrendPlayerIds(activeTrendPlayerIds.filter((x) => x !== id));
   }
   function toggleTrendMetric(metric: TrendMetricKey) {
@@ -148,17 +148,29 @@ export function UnderlyingNumbers() {
   // high/leaky defence) as a third, deliberately-not-merged dimension —
   // see the card's own caption below. Goalkeepers are excluded: the
   // DefCon mechanic doesn't apply to them.
+  // Per-90 rates explode for tiny samples (one substitute appearance with a
+  // single defensive action reads as an absurd DC/90) — a handful of these
+  // outliers were stretching the x-axis so far that the genuine data (the
+  // vast majority of players) got squashed into a sliver on the left. The
+  // Min Minutes filter above defaults to 0 now (deliberately, for the table
+  // views), so this chart specifically enforces its own floor — reusing
+  // the ~5-games'-worth reasoning behind this app's old sitewide default —
+  // regardless of what Min Minutes is set to, same idea as the qualifying-
+  // minutes bar historic averages already use elsewhere in this app.
+  const MIN_MINUTES_FOR_DEFENSIVE_CHART = 450;
   const defensiveReward: ScatterPoint[] = useMemo(() => {
+    const minMinutes = Math.max(effectiveMinMinutes(filters, analysisMode), MIN_MINUTES_FOR_DEFENSIVE_CHART);
     const points: ScatterPoint[] = [];
     for (const p of filtered) {
       if (p.position === "GKP") continue;
       if (p.defensiveContributionsPer90 === null) continue;
+      if ((p.minutes ?? 0) < minMinutes) continue;
       const y = defensiveRewardPer90(p);
       if (y === null) continue;
       points.push({ id: p.id, label: p.name, x: p.defensiveContributionsPer90, y, z: p.xGCPer90 ?? undefined });
     }
     return points;
-  }, [filtered]);
+  }, [filtered, filters, analysisMode]);
 
   // Bundled into one memo, keyed on `rows`, so these leaderboards aren't
   // rebuilt (each a filter+sort+slice over the full row list) on every
@@ -263,6 +275,10 @@ export function UnderlyingNumbers() {
             }}
             onPointClick={select}
           />
+          <p className="page-subtitle" style={{ marginTop: 6, marginBottom: 0 }}>
+            Shows players with at least {MIN_MINUTES_FOR_DEFENSIVE_CHART} minutes regardless of the Min Minutes filter above — a per-90
+            rate from a handful of minutes reads as an extreme, meaningless outlier and was dominating the chart's scale.
+          </p>
         </div>
       </div>
 
@@ -376,9 +392,8 @@ export function UnderlyingNumbers() {
                 <button
                   type="button"
                   onClick={() => removeTrendPlayer(id)}
-                  disabled={activeTrendPlayerIds.length <= 1}
                   style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0, fontSize: 13, lineHeight: 1 }}
-                  title={activeTrendPlayerIds.length <= 1 ? "At least one player stays shown" : "Remove"}
+                  title="Remove"
                 >
                   ×
                 </button>
@@ -425,7 +440,12 @@ export function UnderlyingNumbers() {
           </p>
         )}
 
-        {multiSeriesTrend.length === 0 ? (
+        {activeTrendPlayerIds.length === 0 ? (
+          <div className="empty-state">
+            <h3>No players selected</h3>
+            <p>Search for a player above to add them to the chart.</p>
+          </div>
+        ) : multiSeriesTrend.length === 0 ? (
           <div className="empty-state">
             <h3>No season history to show</h3>
             <p>Either historic data hasn't loaded yet, or the selected player(s) have no completed FPL seasons on record.</p>

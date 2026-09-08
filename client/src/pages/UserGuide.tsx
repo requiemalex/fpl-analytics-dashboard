@@ -254,10 +254,11 @@ export function UserGuide() {
           tier across every season where a player cleared the same {MIN_QUALIFYING_SEASON_MINUTES}-minute bar used everywhere else historic
           averages are computed; price tier uses each season's own price (not today's), and position uses each player's current
           position, since this app has no record of historical position changes — a position-switcher's older seasons are grouped under
-          where they play now. Player Trends plots up to 5 players against up to 3 metrics at once (Points, Points/90, Goals, Assists,
-          xG, xA, xGI, Minutes) — every player×metric combination gets its own line, coloured by player and dashed by metric, labelled
-          in the legend as "Player — Metric" once there's more than one of each. A Normalise toggle independently scales each metric to
-          0–100 across the values on screen, which is what makes overlaying metrics on very different scales (Minutes vs xG, say)
+          where they play now. Player Trends starts empty — add up to 5 players via the search box — and plots them against up to 3
+          metrics at once (Points, Points/90, Goals, Assists, xG, xA, xGI, Minutes) — every player×metric combination gets its own
+          line, coloured by player and dashed by metric, labelled in the legend as "Player — Metric" once there's more than one of
+          each. A Normalise toggle (on by default) independently scales each metric to 0–100 across the values on screen, which is
+          what makes overlaying metrics on very different scales (Minutes vs xG, say)
           actually readable — off by default, since a single metric in its own real units needs no adjusting. No minutes threshold on
           any of this — a quiet or injury-hit season is real data worth seeing, not noise to filter out — and xG/xA/xGI show as a gap
           for seasons before FPL tracked expected stats, not as zero. Neither this nor Thematic Analysis re-runs the full

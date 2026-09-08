@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { ResponsiveContainer, ComposedChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Line, ZAxis, Cell } from "recharts";
+import { ResponsiveContainer, ComposedChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Line, ZAxis, Cell, Label } from "recharts";
 
 export interface ScatterPoint {
   id: number;
@@ -121,7 +121,7 @@ export function ScatterWithReference({
   return (
     <div>
       <ResponsiveContainer width="100%" height={height}>
-        <ComposedChart margin={{ top: 10, right: 20, bottom: 10, left: 0 }}>
+        <ComposedChart margin={{ top: 10, right: 20, bottom: 26, left: 16 }}>
           <CartesianGrid stroke="var(--border)" />
           <XAxis
             type="number"
@@ -132,9 +132,11 @@ export function ScatterWithReference({
             {...(xTicks ? { ticks: xTicks, domain: [xTicks[0], xTicks[xTicks.length - 1]] } : {})}
             tickFormatter={xTickFormatter}
           >
-            <label />
+            <Label value={xLabel} position="bottom" offset={0} style={{ fill: "var(--text-muted)", fontSize: 11 }} />
           </XAxis>
-          <YAxis type="number" dataKey="y" name={yLabel} stroke="var(--text-muted)" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} />
+          <YAxis type="number" dataKey="y" name={yLabel} stroke="var(--text-muted)" tick={{ fontSize: 11, fill: "var(--text-secondary)" }}>
+            <Label value={yLabel} angle={-90} position="left" style={{ fill: "var(--text-muted)", fontSize: 11, textAnchor: "middle" }} />
+          </YAxis>
           <ZAxis dataKey={useBubbleSize ? "z" : undefined} range={useBubbleSize ? [30, 160] : [40, 40]} name={zLabel} />
           <Tooltip content={<CustomTooltip zLabel={zLabel} />} cursor={{ stroke: "var(--border-strong)" }} />
           {showReferenceLine && (
