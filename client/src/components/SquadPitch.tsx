@@ -121,39 +121,47 @@ function PlayerCard({
       >
         ×
       </button>
-      {isCaptain && (
-        <span className="pitch-card-armband" title="Captain">
-          C
+      <div className="pitch-card-jersey">
+        {isCaptain && (
+          <span className="pitch-card-armband" title="Captain">
+            C
+          </span>
+        )}
+        {isViceCaptain && (
+          <span className="pitch-card-armband vc" title="Vice-Captain">
+            V
+          </span>
+        )}
+        <span className="pitch-card-jersey-position">
+          <PositionBadge position={player.position} />
         </span>
-      )}
-      {isViceCaptain && (
-        <span className="pitch-card-armband vc" title="Vice-Captain">
-          V
-        </span>
-      )}
-      <PositionBadge position={player.position} />
-      <div
-        className="pitch-card-name"
-        onClick={(e) => {
-          // A distinct reference point: viewing a profile shouldn't also
-          // trigger the card's own click (captain-assign) behaviour.
-          e.stopPropagation();
-          onViewProfile(player.id);
-        }}
-        title="View profile"
-      >
-        <span className={availabilityTextClass(player.status)}>{player.name}</span>
-        <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />
       </div>
-      <div className="pitch-card-team">{player.teamShortName}</div>
-      <div className="pitch-card-price">{fmtPrice(player.price)}</div>
-      <div className="pitch-card-stats">
+      <div className="pitch-card-plate">
+        <div
+          className="pitch-card-name"
+          onClick={(e) => {
+            // A distinct reference point: viewing a profile shouldn't also
+            // trigger the card's own click (captain-assign) behaviour.
+            e.stopPropagation();
+            onViewProfile(player.id);
+          }}
+          title="View profile"
+        >
+          <span className={availabilityTextClass(player.status)}>{player.name}</span>
+          <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />
+        </div>
+        <div className="pitch-card-team">{player.teamShortName}</div>
+      </div>
+      <div className="pitch-card-points" title="Expected points for the selected window (captain doubled)">
+        {displayPoints !== null ? fmtDecimal(displayPoints, 1) : DASH} <span className="pitch-card-points-label">pts</span>
+      </div>
+      <div className="pitch-card-meta">
+        <span title="Price">{fmtPrice(player.price)}</span>
         <span title="Ownership">{fmtPercent(player.ownership, 1)}</span>
-        <span title="Expected points for the selected window (captain doubled)">{displayPoints !== null ? fmtDecimal(displayPoints, 1) : DASH} pts</span>
-      </div>
-      <div className="pitch-card-reliability" title="Minutes reliability — blended historic and live playing time, adjusted for current availability">
-        <span className={`reliability-dot ${reliabilityBand ?? ""}`} />
-        Mins {reliability !== null ? fmtPercent(reliability * 100, 0) : DASH}
+        <span className="pitch-card-reliability" title="Minutes reliability — blended historic and live playing time, adjusted for current availability">
+          <span className={`reliability-dot ${reliabilityBand ?? ""}`} />
+          {reliability !== null ? fmtPercent(reliability * 100, 0) : DASH}
+        </span>
       </div>
       <FixtureTicker fixtures={fixtures} />
     </div>
@@ -179,7 +187,6 @@ export function SquadPitch({
   onBench,
   onRemove,
   onClearSquad,
-  onOptimalDraft,
   warning,
 }: {
   squadName: string;
@@ -200,13 +207,11 @@ export function SquadPitch({
   onBench: (draggedId: number) => void;
   onRemove: (id: number) => void;
   onClearSquad: () => void;
-  onOptimalDraft: () => void;
   /** A rejected drag/drop shows its reason here briefly (e.g. a club-limit breach). */
   warning: string | null;
 }) {
   const [pitchDragOver, setPitchDragOver] = useState(false);
   const [benchDragOver, setBenchDragOver] = useState(false);
-  const totalStarting = PITCH_ROW_ORDER.reduce((sum, pos) => sum + positionGroups[pos].length, 0);
 
   return (
     <div>
@@ -222,7 +227,7 @@ export function SquadPitch({
             onClick={() => onCaptainTileClick("captain")}
             title="Click, then click a starting player to make them captain"
           >
-            C
+            Captain
           </button>
           <button
             type="button"
@@ -230,18 +235,10 @@ export function SquadPitch({
             onClick={() => onCaptainTileClick("viceCaptain")}
             title="Click, then click a starting player to make them vice-captain"
           >
-            V
+            Vice-Captain
           </button>
           <button type="button" className="chip" onClick={onClearSquad} title="Remove every player from the squad and bench">
-            Clear
-          </button>
-          <button
-            type="button"
-            className="chip"
-            onClick={onOptimalDraft}
-            title="Draft the best squad it can find to maximise Exp. Pts (Overall Average) — keeps any players already in your squad and only draws new ones from what's currently showing in the Add Players table below"
-          >
-            Optimal Draft
+            Clear Draft
           </button>
         </div>
       </div>
@@ -275,7 +272,6 @@ export function SquadPitch({
           <div className="pitch-penalty-box bottom" />
           <div className="pitch-goal bottom" />
         </div>
-        {totalStarting === 0 && <p className="pitch-empty-hint">Drag players here from the Add Players list, or from the bench.</p>}
         {PITCH_ROW_ORDER.map((pos) => {
           const players = positionGroups[pos];
           if (players.length === 0) return null;
@@ -338,7 +334,7 @@ export function SquadPitch({
           ))}
           {benchPlayers.length === 0 && (
             <p className="page-subtitle" style={{ margin: 0 }}>
-              No bench players. Drag one here, or from the Add Players list above.
+              No bench players.
             </p>
           )}
         </div>

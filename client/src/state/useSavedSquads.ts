@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { createBlankSquad, type SavedSquad } from "../types/team";
+import type { SavedSquad } from "../types/team";
 
 const STORAGE_KEY = "fpl-dashboard:saved-squads:v1";
 
@@ -33,6 +33,9 @@ function saveToStorage(squads: SavedSquad[]) {
   }
 }
 
+/** Hard cap on saved squads — purely a UI/localStorage-hygiene limit, not an FPL rule. */
+export const MAX_SAVED_SQUADS = 5;
+
 export interface UseSavedSquads {
   squads: SavedSquad[];
   upsert: (squad: SavedSquad) => void;
@@ -44,12 +47,14 @@ export interface UseSavedSquads {
  * or account behind this, matching the rest of the app's no-auth,
  * no-server-storage design. Squads are tied to this browser; they won't
  * follow the user to a different device or browser profile.
+ *
+ * No squad is auto-created: an empty list is a legitimate, expected
+ * starting state (first visit, or every squad deleted) — Team Building
+ * shows a blank pitch and prompts the user to create or import one via
+ * "New Squad" rather than silently seeding a squad nobody asked for.
  */
 export function useSavedSquads(): UseSavedSquads {
-  const [squads, setSquads] = useState<SavedSquad[]>(() => {
-    const loaded = loadFromStorage();
-    return loaded.length > 0 ? loaded : [createBlankSquad("My Squad 1")];
-  });
+  const [squads, setSquads] = useState<SavedSquad[]>(loadFromStorage);
 
   useEffect(() => {
     saveToStorage(squads);

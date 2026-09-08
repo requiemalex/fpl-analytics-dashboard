@@ -284,70 +284,38 @@ export function UserGuide() {
 
       <Section id="team-building" title="Team Building — the one predictive section">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Everywhere else in this app describes what's already happened. Team Building is different on purpose: it's about picking the
-          best squad for the season ahead, so its two headline numbers — <strong>Expected Points</strong> and{" "}
-          <strong>Minutes Reliability</strong> — are genuinely predictive, and clearly labelled as such rather than dressed up as fact.
+          Everywhere else in this app describes what's already happened. Team Building is different on purpose: it's about picking a
+          squad for the season ahead. No squad is loaded by default — use <strong>New Squad</strong> to either create a blank template
+          (just give it a name) or import a real squad by its FPL team ID (the number in your team's own FPL web address — Pick Team →
+          Gameweek History shows it in the URL); importing is a read-only, unauthenticated request to FPL's own public data for that
+          team (no login, nothing written back), and chip usage history comes along with it automatically. The <strong>Add Players</strong>{" "}
+          table and everything else on the page stays hidden until a squad is loaded or created. You can have up to 5 saved squads at
+          once — New Squad tells you if you're at that limit, so delete one first if you need another.
         </p>
         <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
           <li>
-            <strong>Expected Points</strong> is anchored on FPL's own published prediction for the next fixture (<code>ep_next</code>) —
-            not reinvented from scratch — extended to the 3/5-gameweek toggle using real fixture-difficulty data. Last Completed
-            Season and Historic Average rates are shown alongside it, plus an Overall Average of whichever of the three actually exist
-            for a player (never diluted by a missing one — a summer signing with no last-season figure isn't punished for lacking one).
-          </li>
-          <li>
-            <strong>Minutes Reliability</strong> blends historic and live playing-time data, automatically shifting trust toward live
-            data as real gameweeks accumulate this season, then adjusted for actual current injury/doubt status.
+            <strong>Delete</strong> asks you to confirm the squad's name before removing it — there's no undo, so make sure it's the
+            right one.
           </li>
           <li>
             The <strong>pitch view</strong> is drag-and-drop: drag a player from the Add Players list onto the pitch or bench, drag a
-            card onto another to swap it, click a player's name for their profile, click the C/V tiles then a player to set
-            captain/vice-captain, and Clear (next to those tiles) empties the whole squad in one click.
+            card onto another to swap it, click a player's name for their profile, click <strong>Captain</strong>/<strong>Vice-Captain</strong>{" "}
+            then a starting player to assign that role, and <strong>Clear Draft</strong> empties the whole squad in one click. Each
+            player's card shows their live price, ownership, minutes reliability, next-fixture ticker, and Expected Points for the
+            window selected in the Add Players table below (captain's points shown doubled).
           </li>
           <li>
-            <strong>Optimal Draft</strong> (next to Clear) builds the best squad it can find to maximise Exp. Pts (Overall Average) for
-            the selected GW window — a backtracking search, not a guaranteed mathematical optimum, but a genuinely strong one in
-            practice. Any players already in your squad are kept and drafted around, not replaced; new candidates are drawn only from
-            whatever the Add Players table is currently showing, so filtering it down first (by team, price, archetype, anything) scopes
-            the draft to exactly that pool.
+            The squad status line above the pitch shows size, budget, composition, and any club-limit breach — budget only ever turns
+            red as a warning when you've gone over £100m, it never stops you adding a player. Nothing here is a hard money constraint;
+            trim the squad back down whenever you're ready.
           </li>
           <li>
             The <strong>Add Players table</strong> has the same reorder/resize/sort/filter/Fit-to-Box/Export-CSV toolkit as Player
-            Explorer, split into two independently-toggled groups: <strong>Predictive</strong> (governed by the Next 1/3/5 GW toggle) and{" "}
-            <strong>Historic/Raw</strong> (its own Last Completed Season / Historic Average / Current Season toggle) — the two can't be
-            reordered into each other, marked by the vertical divider line.
-          </li>
-          <li>Budget, price, and club-limit rules always use today's real price, regardless of any toggle — building a squad is a live-money decision.</li>
-          <li>
-            <strong>Load from FPL</strong> pulls in a real team by its team ID (the number in your team's own FPL web address — Pick
-            Team → Gameweek History shows it in the URL) — a read-only, unauthenticated request to FPL's own public data for that team
-            (no login, nothing written back), creating a new saved squad rather than overwriting anything; re-loading the same ID later
-            creates another new squad rather than syncing in place. Chip usage history comes along with it automatically.
-          </li>
-          <li>
-            <strong>Chips Used This Season</strong> tracks which of the two Wildcard/Free Hit/Bench Boost/Triple Captain windows have
-            already been played — auto-filled by an FPL import, or tick the boxes yourself for a from-scratch squad. This is what Chip
-            Planner reads to know which windows are still worth recommending.
-          </li>
-          <li>
-            The Expected Points card has a <strong>No chip / Bench Boost / Triple Captain</strong> toggle to preview either chip's
-            effect on this squad — Free Hit and Wildcard aren't included, since neither has a well-defined effect on a squad you're not
-            changing. In a 3- or 5-GW window, the chip's effect only applies to the first upcoming fixture, never the whole window, since
-            a chip is played for exactly one gameweek.
-          </li>
-          <li>
-            The <strong>Transfer Solver</strong> searches for same-position swaps (a DEF replaced by a DEF, etc. — a transfer that
-            reshapes your formation isn't considered) that improve your Expected Points total, within budget, composition, and
-            club-limit rules — 1 transfer is an exhaustive search; 2 transfers is explicitly a heuristic (pairs up the strongest
-            single-swap options rather than searching every combination, which would be computationally impractical). Scoring reuses
-            the same Expected Points method as the card above, so it inherits the same limits — no visibility into price changes,
-            injuries, or team news between now and a gameweek that's still some way off. Set how many free transfers you have so the hit
-            cost gets weighed in correctly. Apply a suggestion with one click.
-          </li>
-          <li>
-            <strong>Good Differentials</strong> and <strong>Archetype Mix</strong> use a fixed historic-average basis for their
-            archetype labels, unaffected by any toggle elsewhere on the page — this section isn't about choosing a description basis,
-            it's about the squad you're building. Ownership shown alongside a differential is always today's real figure.
+            Explorer, split into two independently-toggled groups: <strong>Predictive</strong> (Exp. Points for the Next 1/3/5 GW
+            toggle, plus Minutes Reliability and a fixture ticker — governed by that same window) and <strong>Historic/Raw</strong>{" "}
+            (its own Last Completed Season / Historic Average / Current Season toggle) — the two can't be reordered into each other,
+            marked by the vertical divider line. Price and club-limit rules always use today's real price and current club, regardless
+            of any toggle.
           </li>
         </ul>
         <Try>Sort the Add Players table by "Exp. Pts (Overall Average)" for a blended view, or by "Minutes Reliability" if durability matters more to you than ceiling.</Try>

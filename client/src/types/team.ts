@@ -2,8 +2,8 @@ import type { Position, ChipWindow } from "./normalized";
 
 /**
  * Standard official-FPL squad-building rules for a squad built from
- * scratch, or a real FPL team loaded in via its team ID (see
- * pages/TeamBuilder.tsx "Load from FPL" and normalize/normalizeEntryImport.ts).
+ * scratch, or a real FPL team loaded in via its team ID (see the "New
+ * Squad" dialog in pages/TeamBuilder.tsx and normalize/normalizeEntryImport.ts).
  * Loading a real team is a read-only, unauthenticated fetch of that
  * team's PUBLIC entry data — the FPL API's entry/{id}/ endpoints require
  * no login — so it doesn't need or add any authentication to this app;

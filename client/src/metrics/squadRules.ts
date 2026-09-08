@@ -114,11 +114,12 @@ export function canAddPlayer(squadPlayers: NormalizedPlayer[], candidate: Normal
     return { ok: false, reason: `${candidate.position} slots full (${SQUAD_RULES.composition[candidate.position]}/${SQUAD_RULES.composition[candidate.position]})` };
   }
 
-  const budgetUsed = squadBudgetUsed(squadPlayers);
-  if (budgetUsed + candidate.price > SQUAD_RULES.budget + 1e-9) {
-    return { ok: false, reason: `Would exceed £${SQUAD_RULES.budget.toFixed(1)}m budget` };
-  }
-
+  // No budget check here by design — the £100m figure is only ever shown
+  // as a tracker (red once over, via SquadStatusLine's budgetOk), never a
+  // hard block on adding a player. A user building a squad they intend to
+  // trim down, or just exploring "what if" combinations, shouldn't be
+  // stopped mid-build by a rule that isn't actually enforced anywhere else
+  // in this app (there's no real-money transaction to protect).
   const clubCount = squadPlayers.filter((p) => p.teamId === candidate.teamId).length;
   if (clubCount >= SQUAD_RULES.maxPerClub) {
     return { ok: false, reason: `Max ${SQUAD_RULES.maxPerClub} players per club reached` };

@@ -436,14 +436,6 @@ table.data-table tbody tr:hover td {
   bottom: -1px;
   border-bottom: none;
 }
-.pitch-empty-hint {
-  position: relative;
-  z-index: 1;
-  margin: auto;
-  color: rgba(232, 237, 233, 0.7);
-  font-size: 13px;
-  text-align: center;
-}
 .pitch-row {
   display: flex;
   justify-content: center;
@@ -458,62 +450,88 @@ table.data-table tbody tr:hover td {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 98px;
-  padding: 9px 4px 6px;
-  background: rgba(10, 15, 12, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
+  width: 104px;
+  padding: 2px 2px 6px;
   cursor: grab;
-  transition:
-    transform 0.1s ease,
-    border-color 0.1s ease;
+  transition: transform 0.1s ease;
 }
 .pitch-card:active {
   cursor: grabbing;
 }
 .pitch-card.drag-over {
-  border-color: var(--accent-focus);
   transform: scale(1.06);
+}
+.pitch-card.drag-over .pitch-card-jersey {
+  filter: brightness(1.25);
 }
 .pitch-card-remove {
   position: absolute;
-  top: 2px;
-  right: 2px;
+  top: 0;
+  right: 6px;
   width: 16px;
   height: 16px;
   line-height: 14px;
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: rgba(224, 101, 74, 0.85);
+  background: rgba(224, 101, 74, 0.9);
   color: #fff;
   font-size: 11px;
   cursor: pointer;
+  z-index: 2;
+}
+/* A plain, generic kit shape (body + two sleeve wedges + a V-neck notch) —
+   deliberately not modelled on any real club's actual kit template, just a
+   simple silhouette in the app's own brand colour, styled after official
+   FPL's shirt-plus-nameplate pitch view without reproducing its art. */
+.pitch-card-jersey {
+  position: relative;
+  width: 52px;
+  height: 48px;
+  background: var(--accent-positive);
+  clip-path: polygon(30% 0%, 70% 0%, 84% 14%, 100% 30%, 86% 40%, 76% 32%, 76% 100%, 24% 100%, 24% 32%, 14% 40%, 0% 30%, 16% 14%);
+}
+.pitch-card-jersey-position {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
 }
 .pitch-card-armband {
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  line-height: 16px;
+  top: -3px;
+  right: -3px;
+  width: 15px;
+  height: 15px;
+  line-height: 15px;
   text-align: center;
   border-radius: 50%;
   background: var(--accent-value);
   color: #14140a;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
+  border: 1.5px solid var(--bg);
+  z-index: 1;
 }
 .pitch-card-armband.vc {
+  top: auto;
+  bottom: -3px;
+  right: -3px;
   background: var(--text-secondary);
   color: #0a0f0c;
 }
-.pitch-card-name {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-primary);
+.pitch-card-plate {
+  width: 100%;
+  margin-top: 3px;
+  padding: 3px 4px;
+  background: rgba(244, 246, 244, 0.96);
+  border-radius: var(--radius-sm);
   text-align: center;
-  margin-top: 5px;
+}
+.pitch-card-name {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #12261a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -522,20 +540,39 @@ table.data-table tbody tr:hover td {
 }
 .pitch-card-name:hover {
   text-decoration: underline;
-  color: var(--accent-focus);
-}
-.pitch-card-price {
-  font-size: 10px;
-  color: rgba(232, 237, 233, 0.7);
-  font-family: var(--font-mono);
-  margin-top: 1px;
 }
 .pitch-card-team {
-  font-size: 9px;
-  color: rgba(232, 237, 233, 0.6);
+  font-size: 8.5px;
+  color: #4c5d52;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  margin-top: 1px;
+}
+.pitch-card-points {
+  width: 100%;
+  margin-top: 2px;
+  padding: 2px 4px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.pitch-card-points-label {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 9px;
+  color: var(--text-muted);
+}
+.pitch-card-meta {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 4px;
+  font-size: 9px;
+  color: rgba(232, 237, 233, 0.75);
+  font-family: var(--font-mono);
 }
 .pitch-card-fixtures {
   display: flex;
@@ -572,11 +609,7 @@ table.data-table tbody tr:hover td {
 .pitch-card-reliability {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-top: 4px;
-  font-size: 9.5px;
-  color: rgba(232, 237, 233, 0.75);
-  font-family: var(--font-mono);
+  gap: 3px;
 }
 .reliability-dot {
   display: inline-block;
@@ -624,10 +657,6 @@ table.data-table tbody tr:hover td {
   flex-wrap: wrap;
   min-height: 90px;
 }
-.bench-row .pitch-card {
-  background: var(--surface);
-  border-color: var(--border-strong);
-}
 
 .pitch-view-header {
   display: flex;
@@ -657,15 +686,16 @@ table.data-table tbody tr:hover td {
   margin-top: 2px;
 }
 .captain-tile {
-  width: 30px;
   height: 30px;
-  border-radius: 50%;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-strong);
   background: var(--surface-raised);
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
   transition:
     border-color 0.1s ease,
     color 0.1s ease,
@@ -820,6 +850,47 @@ table.data-table tbody tr:hover td {
 }
 .drawer-close {
   float: right;
+}
+
+/* ---------- Centered confirm/prompt dialog (New Squad, Delete Squad) ---------- */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 7, 5, 0.6);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.dialog {
+  width: min(440px, 100%);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 22px 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+.dialog-title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--text-primary);
+}
+.dialog-divider {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 12px 0;
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
 }
 
 /* ---------- Column visibility popover ---------- */

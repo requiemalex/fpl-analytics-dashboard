@@ -1,26 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
-import { useSavedSquads } from "../state/useSavedSquads";
+import { useSavedSquads, MAX_SAVED_SQUADS } from "../state/useSavedSquads";
 import { useColumnCustomization, MIN_COLUMN_WIDTH } from "../state/useColumnCustomization";
 import { useColumnFilters, isColumnFilterActive } from "../state/useColumnFilters";
 import { ColumnFilterControl } from "../components/ColumnFilterControl";
 import { useSortSpec, compareSortValues } from "../state/useSortSpec";
 import { SQUAD_RULES, createBlankSquad, type SavedSquad } from "../types/team";
 import { validateSquad, validateStartingXI, canAddPlayer } from "../metrics/squadRules";
-import { expectedGameweekPoints, minutesReliability, findDifferentials, archetypeMix, computeChipAdjustedExpectedPoints, type ExpectedPointsChip } from "../metrics/squadRating";
 import { computeArchetypesForAllPlayers, ARCHETYPE_LABELS, type ArchetypeLabel } from "../metrics/archetypes";
 import { resolvePlayerStats, resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { computeExpectedPointsForWindow, computeExpPointsBreakdown, type ExpectedPointsWindow, type ExpPointsBreakdown } from "../metrics/expectedPoints";
-import { findSingleTransferSuggestions, findDoubleTransferSuggestions, type TransferSuggestion } from "../metrics/transferSolver";
-import { isChipUsedForWindow } from "../metrics/chipPlanner";
 import { fetchEntryTeam, fetchEntryHistory, fetchEntryPicks, ApiRequestError } from "../api/client";
 import { normalizeEntryImport } from "../normalize/normalizeEntryImport";
-import { buildOptimalDraft, isDraftFailure } from "../metrics/optimalDraft";
 import { matchesPlayerSearch } from "../utils/playerSearch";
 import { computeBlendedMinutesReliability } from "../metrics/minutesReliabilityBlend";
-import { bandForPercentile } from "../metrics/percentiles";
 import { getUpcomingFixtures, fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, columnByKey, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { SquadPitch } from "../components/SquadPitch";
@@ -28,7 +23,7 @@ import { PositionBadge, AvailabilityFlag, SignedNum, availabilityTextClass } fro
 import { fmtPrice, fmtDecimal, fmtPercent, fmtSigned, DASH } from "../utils/format";
 import { relativeCellTint } from "../utils/colorScale";
 import { downloadCsv } from "../utils/csvExport";
-import type { NormalizedPlayer, Position, ChipWindow } from "../types/normalized";
+import type { NormalizedPlayer, Position } from "../types/normalized";
 
 /** How long a rejected drag's warning message stays visible before clearing itself. */
 const WARNING_DISPLAY_MS = 4000;
@@ -144,23 +139,8 @@ const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
 ];
 const DEFAULT_PREDICTIVE_COLUMN_KEYS = PREDICTIVE_COLUMNS.map((c) => c.key);
 
-/** Same visual language as the percentile bar, but for a 0-1 reliability share rather than a rank — labelled as a %, never "Nth". */
-function ReliabilityBar({ value }: { value: number | null }) {
-  if (value === null) return <span className="value-muted">{DASH}</span>;
-  const pct = value * 100;
-  const band = bandForPercentile(pct);
-  return (
-    <span className="percentile-row">
-      <span className="percentile-track">
-        <span className={`percentile-fill ${band}`} style={{ width: `${Math.max(4, pct)}%` }} />
-      </span>
-      <span className="percentile-label">{fmtPercent(pct, 0)}</span>
-    </span>
-  );
-}
-
 export function TeamBuilder() {
-  const { players, teams, teamsById, fixtures, filters, historicProfiles, historicStatus, currentSeasonHasStarted, chips, gameweekState } = useAppState();
+  const { players, teams, teamsById, fixtures, filters, historicProfiles, historicStatus, currentSeasonHasStarted, gameweekState } = useAppState();
   const { squads, upsert, remove } = useSavedSquads();
   const [, setSearchParams] = useSearchParams();
   const [activeId, setActiveId] = useState<string | null>(squads[0]?.id ?? null);
@@ -173,9 +153,9 @@ export function TeamBuilder() {
   const [captainPickMode, setCaptainPickMode] = useState<"captain" | "viceCaptain" | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [expectedPointsWindow, setExpectedPointsWindow] = useState<ExpectedPointsWindow>(1);
-  const [solverTransferCount, setSolverTransferCount] = useState<1 | 2>(1);
-  const [solverFreeTransfers, setSolverFreeTransfers] = useState(1);
-  const [epChip, setEpChip] = useState<ExpectedPointsChip>("none");
+  const [showNewSquadModal, setShowNewSquadModal] = useState(false);
+  const [newSquadName, setNewSquadName] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [importTeamIdInput, setImportTeamIdInput] = useState("");
   const [importStatus, setImportStatus] = useState<"idle" | "loading" | "error">("idle");
   const [importError, setImportError] = useState<string | null>(null);
@@ -205,12 +185,12 @@ export function TeamBuilder() {
 
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
 
-  // Squad membership, budget, composition, and club-limit rules ALWAYS use
-  // live players — real prices for a real £100m budget. Archetypes (which
-  // feed Differentials/Mix below) use a fixed historic-average basis —
-  // not user-toggleable in this section, since Team Building is now about
-  // modelled predictions for the current season rather than a choice of
-  // description basis (see README).
+  // Squad membership and composition/club-limit rules ALWAYS use live
+  // players — real prices and real teams, regardless of any toggle.
+  // Archetypes (which feed the Add Players archetype filter) use a fixed
+  // historic-average basis — not user-toggleable in this section, since
+  // Team Building is now about modelled predictions for the current
+  // season rather than a choice of description basis (see README).
   const { resolved: historicAverageStats } = useMemo(
     () => resolvePlayerStatsList(players, "historicAverage", historicProfiles, currentSeasonHasStarted),
     [players, historicProfiles, currentSeasonHasStarted],
@@ -225,36 +205,86 @@ export function TeamBuilder() {
     upsert(mutator(active));
   }
 
-  function handleNewSquad() {
-    const blank = createBlankSquad(`My Squad ${squads.length + 1}`);
-    upsert(blank);
-    setActiveId(blank.id);
+/** Opens the New Squad dialog, clearing any state left over from a previous open/attempt. */
+  function openNewSquadModal() {
+    setNewSquadName("");
+    setImportTeamIdInput("");
+    setImportStatus("idle");
+    setImportError(null);
+    setShowNewSquadModal(true);
   }
 
-  function handleDuplicate() {
-    if (!active) return;
-    const copy = createBlankSquad(`${active.name} copy`);
-    copy.playerIds = [...active.playerIds];
-    copy.startingXI = [...active.startingXI];
-    copy.captainId = active.captainId;
-    copy.viceCaptainId = active.viceCaptainId;
-    // Chip usage is a season-wide fact, not a squad-composition detail —
-    // still true of a duplicate. importedFrom deliberately isn't carried
-    // over: once duplicated, this is a locally-edited fork, not literally
-    // the imported team anymore.
-    copy.usedChips = [...active.usedChips];
-    upsert(copy);
-    setActiveId(copy.id);
+  function closeNewSquadModal() {
+    setShowNewSquadModal(false);
+  }
+
+  /**
+   * The New Squad dialog's single action: an FPL team ID (if entered) always
+   * wins over a blank-template name, since a non-empty ID unambiguously
+   * means "import this real team" — a name typed into the other field first
+   * and left in place shouldn't silently block that.
+   */
+  async function handleCreateOrImportSquad() {
+    if (squads.length >= MAX_SAVED_SQUADS) {
+      setImportError(`You already have ${MAX_SAVED_SQUADS} saved squads — the maximum allowed. Delete one first.`);
+      setImportStatus("error");
+      return;
+    }
+    const trimmedTeamId = importTeamIdInput.trim();
+    if (trimmedTeamId) {
+      const teamId = Number(trimmedTeamId);
+      if (!Number.isFinite(teamId) || teamId <= 0) {
+        setImportError("Enter a valid FPL team ID — the number in your team's URL (fantasy.premierleague.com/entry/1234567/...).");
+        setImportStatus("error");
+        return;
+      }
+      setImportStatus("loading");
+      setImportError(null);
+      try {
+        const teamResult = await fetchEntryTeam(teamId);
+        const fallbackEvent = gameweekState?.kind === "current" || gameweekState?.kind === "last-completed" ? gameweekState.event.id : 1;
+        const eventId = teamResult.data.current_event ?? fallbackEvent;
+        const [historyResult, picksResult] = await Promise.all([fetchEntryHistory(teamId), fetchEntryPicks(teamId, eventId)]);
+        const { squad, warnings } = normalizeEntryImport(teamResult.data, historyResult.data, picksResult.data, eventId, playersById);
+        upsert(squad);
+        setActiveId(squad.id);
+        setShowNewSquadModal(false);
+        if (warnings.length > 0) {
+          setWarning(`Imported with ${warnings.length} note(s): ${warnings[0]}${warnings.length > 1 ? ` (+${warnings.length - 1} more — check the browser console)` : ""}`);
+          // eslint-disable-next-line no-console
+          console.warn("FPL team import warnings:", warnings);
+        }
+      } catch (err) {
+        setImportStatus("error");
+        if (err instanceof ApiRequestError) {
+          setImportError(err.status === 404 ? "No FPL team found with that ID." : `Couldn't load that team (${err.message}).`);
+        } else {
+          setImportError("Couldn't reach the FPL API — check your connection and try again.");
+        }
+      }
+      return;
+    }
+    const trimmedName = newSquadName.trim();
+    if (!trimmedName) {
+      setImportError("Enter a squad name, or an FPL team ID to import.");
+      setImportStatus("error");
+      return;
+    }
+    const blank = createBlankSquad(trimmedName);
+    upsert(blank);
+    setActiveId(blank.id);
+    setShowNewSquadModal(false);
   }
 
   function handleDelete() {
     if (!active) return;
-    if (squads.length <= 1) {
-      setWarning("Can't delete this squad — at least one saved squad must always exist. Create another squad first if you want to replace this one.");
-      return;
-    }
-    if (!window.confirm(`Delete "${active.name}"? This can't be undone.`)) return;
-    remove(active.id);
+    setConfirmDeleteId(active.id);
+  }
+
+  function handleConfirmDelete() {
+    if (!confirmDeleteId) return;
+    remove(confirmDeleteId);
+    setConfirmDeleteId(null);
   }
 
   function handleAdd(player: NormalizedPlayer) {
@@ -280,57 +310,6 @@ export function TeamBuilder() {
       captainId: null,
       viceCaptainId: null,
     }));
-  }
-
-  /**
-   * Replaces the squad with a freshly drafted one — see
-   * metrics/optimalDraft.ts for the algorithm and its honestly-stated
-   * limits. Optimises for whichever GW window is currently selected, so
-   * the draft matches what the rest of the page is already showing.
-   *
-   * Two things worth being explicit about: players already in the squad
-   * are passed through as "locked" — the algorithm keeps them and drafts
-   * the rest around them, rather than wiping the squad and starting over
-   * — and new candidates are drawn only from `pickerRows`, i.e. whatever
-   * the Add Players table is CURRENTLY showing after the user's own
-   * search/position/team/price/archetype/minutes/column filters. If
-   * you've filtered the table down to a handful of players, the draft
-   * works with exactly that handful, not the full player base.
-   */
-  function handleOptimalDraft() {
-    if (!active) return;
-    const lockedPlayerIds = new Set(active.playerIds);
-    const lockedPlayers = players.filter((p) => lockedPlayerIds.has(p.id));
-    const filteredCandidates = pickerRows.map((row) => row.live); // pickerRows already excludes active.playerIds
-    const draftPool = [...lockedPlayers, ...filteredCandidates];
-    // Captured before the draft runs — historicProfiles could finish
-    // loading and update between now and the warning below otherwise,
-    // which would make the warning describe data that's since changed.
-    const historicWasLoading = historicStatus === "loading";
-
-    const result = buildOptimalDraft(
-      draftPool,
-      lockedPlayerIds,
-      fixturesByTeamId,
-      expectedPointsWindow,
-      historicProfiles,
-      teamsById,
-      currentSeasonHasStarted,
-    );
-    if (isDraftFailure(result)) {
-      setWarning(result.reason);
-      return;
-    }
-    updateActive((s) => ({
-      ...s,
-      playerIds: result.squadPlayerIds,
-      startingXI: result.startingXI,
-      captainId: result.captainId,
-      viceCaptainId: result.viceCaptainId,
-    }));
-    if (historicWasLoading) {
-      setWarning("Historic data was still loading when this draft ran — Minutes Reliability and historic Exp Pts figures may be incomplete. Consider re-running once it finishes.");
-    }
   }
 
   /**
@@ -685,106 +664,6 @@ export function TeamBuilder() {
     pickerSort,
   ]);
 
-  // Transfer Solver — searches within the FULL live player pool (not
-  // whatever pickerRows' own filters currently show; those are for
-  // browsing, not meant to silently narrow the solver too). Cheap enough
-  // to run on every relevant change without a manual "search" button: at
-  // most 15 × pool-size for one transfer, and the 2-transfer search only
-  // ever explores a small fixed beam of the 1-transfer results (see
-  // metrics/transferSolver.ts for why that's a heuristic, not exhaustive).
-  const transferSuggestions: TransferSuggestion[] = useMemo(() => {
-    if (squadPlayers.length === 0) return [];
-    return solverTransferCount === 1
-      ? findSingleTransferSuggestions(squadPlayers, players, fixturesByTeamId, expectedPointsWindow, solverFreeTransfers)
-      : findDoubleTransferSuggestions(squadPlayers, players, fixturesByTeamId, expectedPointsWindow, solverFreeTransfers);
-  }, [squadPlayers, players, fixturesByTeamId, expectedPointsWindow, solverTransferCount, solverFreeTransfers]);
-
-  function handleApplyTransfer(suggestion: TransferSuggestion) {
-    updateActive((s) => {
-      let playerIds = [...s.playerIds];
-      let startingXI = [...s.startingXI];
-      let captainId = s.captainId;
-      let viceCaptainId = s.viceCaptainId;
-      for (const leg of suggestion.legs) {
-        playerIds = playerIds.map((id) => (id === leg.out.id ? leg.in.id : id));
-        startingXI = startingXI.map((id) => (id === leg.out.id ? leg.in.id : id));
-        if (captainId === leg.out.id) captainId = leg.in.id;
-        if (viceCaptainId === leg.out.id) viceCaptainId = leg.in.id;
-      }
-      return { ...s, playerIds, startingXI, captainId, viceCaptainId };
-    });
-  }
-
-  /**
-   * Loads a real FPL team by ID — three read-only public requests (team
-   * identity/bank, chip/season history, one gameweek's picks), converted
-   * into a new saved squad via normalizeEntryImport. Picks the team's OWN
-   * current_event when FPL reports one; falls back to this app's own
-   * current/last-completed gameweek, then finally gameweek 1, for the
-   * pre-season edge case where neither has a real answer yet.
-   */
-  async function handleLoadFromFpl() {
-    const teamId = Number(importTeamIdInput.trim());
-    if (!Number.isFinite(teamId) || teamId <= 0) {
-      setImportError("Enter a valid FPL team ID \u2014 the number in your team's URL (fantasy.premierleague.com/entry/1234567/...).");
-      setImportStatus("error");
-      return;
-    }
-    setImportStatus("loading");
-    setImportError(null);
-    try {
-      const teamResult = await fetchEntryTeam(teamId);
-      const fallbackEvent = gameweekState?.kind === "current" || gameweekState?.kind === "last-completed" ? gameweekState.event.id : 1;
-      const eventId = teamResult.data.current_event ?? fallbackEvent;
-      const [historyResult, picksResult] = await Promise.all([fetchEntryHistory(teamId), fetchEntryPicks(teamId, eventId)]);
-      const { squad, warnings } = normalizeEntryImport(teamResult.data, historyResult.data, picksResult.data, eventId, playersById);
-      upsert(squad);
-      setActiveId(squad.id);
-      setImportStatus("idle");
-      setImportTeamIdInput("");
-      if (warnings.length > 0) {
-        setWarning(`Imported with ${warnings.length} note(s): ${warnings[0]}${warnings.length > 1 ? ` (+${warnings.length - 1} more \u2014 check the browser console)` : ""}`);
-        // eslint-disable-next-line no-console
-        console.warn("FPL team import warnings:", warnings);
-      }
-    } catch (err) {
-      setImportStatus("error");
-      if (err instanceof ApiRequestError) {
-        setImportError(err.status === 404 ? "No FPL team found with that ID." : `Couldn't load that team (${err.message}).`);
-      } else {
-        setImportError("Couldn't reach the FPL API \u2014 check your connection and try again.");
-      }
-    }
-  }
-
-  if (!active) {
-    return (
-      <div>
-        <div className="page-header">
-          <div>
-            <h1>Team Building</h1>
-          </div>
-        </div>
-        <div className="empty-state">
-          <h3>Setting up…</h3>
-        </div>
-      </div>
-    );
-  }
-
-  // TS control-flow narrowing from the guard above doesn't reach into the
-  // nested function declarations below (isChipUsedForHalf etc.) — capture
-  // the narrowed value once so those closures see a non-null type.
-  const activeSquad = active;
-
-  const epResult =
-    epChip === "none"
-      ? expectedGameweekPoints(startingXIPlayers, active.captainId, expectedPointsByPlayerId)
-      : computeChipAdjustedExpectedPoints(startingXIPlayers, benchPlayers, active.captainId, fixturesByTeamId, expectedPointsWindow, epChip);
-  const reliability = minutesReliability(startingXIPlayers, teamsById, historicProfiles);
-  const differentials = findDifferentials(squadPlayers, archetypeMap);
-  const mix = archetypeMix(squadPlayers, archetypeMap);
-
   // Per-column min/max across every currently-filtered candidate — the
   // tint below is a "how does this compare to what you're currently
   // looking at" hint, matching how Player Comparison's colour scale is
@@ -861,93 +740,161 @@ export function TeamBuilder() {
     downloadCsv(`team-building-add-players-${pickerHistoricMode}-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
   }
 
-  /**
-   * Whether the active squad's records show this chip already used within
-   * this specific half of the season — see isChipUsedForWindow in
-   * metrics/chipPlanner.ts, shared with Chip Planner's own filtering so
-   * the two pages can't disagree.
-   */
-  function isChipUsedForHalf(chip: ChipWindow["chip"], half: 1 | 2): boolean {
-    const window = chips.find((w) => w.chip === chip && w.half === half);
-    if (!window) return activeSquad.usedChips.some((c) => c.chip === chip);
-    return isChipUsedForWindow(activeSquad.usedChips, window);
-  }
-
-  function toggleChipUsedForHalf(chip: ChipWindow["chip"], half: 1 | 2) {
-    const window = chips.find((w) => w.chip === chip && w.half === half);
-    const currentlyUsed = isChipUsedForHalf(chip, half);
-    updateActive((s) => ({
-      ...s,
-      usedChips: currentlyUsed
-        ? s.usedChips.filter((c) => !(c.chip === chip && (!window || isChipUsedForWindow([c], window))))
-        : [...s.usedChips, { chip, event: window?.startEvent ?? null }],
-    }));
-  }
-
   return (
     <div>
       <div className="page-header">
         <div>
           <h1>Team Building</h1>
-          <p className="page-subtitle">
-            £{SQUAD_RULES.budget.toFixed(1)}m budget, {SQUAD_RULES.composition.GKP}-{SQUAD_RULES.composition.DEF}-
-            {SQUAD_RULES.composition.MID}-{SQUAD_RULES.composition.FWD} (GKP-DEF-MID-FWD), max {SQUAD_RULES.maxPerClub} per club.
-          </p>
         </div>
       </div>
 
       <div className="filters-bar">
-        <div className="field">
-          <label htmlFor="squad-select">Squad</label>
-          <select id="squad-select" value={active.id} onChange={(e) => setActiveId(e.target.value)}>
-            {squads.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="squad-name">Name</label>
-          <input id="squad-name" type="text" value={active.name} onChange={(e) => updateActive((s) => ({ ...s, name: e.target.value }))} />
-        </div>
-        <button type="button" className="btn" onClick={handleNewSquad}>
+        {active && (
+          <>
+            <div className="field">
+              <label htmlFor="squad-select">Squad</label>
+              <select id="squad-select" value={active.id} onChange={(e) => setActiveId(e.target.value)}>
+                {squads.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="squad-name">Name</label>
+              <input id="squad-name" type="text" value={active.name} onChange={(e) => updateActive((s) => ({ ...s, name: e.target.value }))} />
+            </div>
+            {active.importedFrom && (
+              <span className="badge" title={`Loaded from FPL team ${active.importedFrom.teamId}, as of Gameweek ${active.importedFrom.asOfEvent}`}>
+                {active.importedFrom.managerName || active.importedFrom.teamName} {"·"} GW{active.importedFrom.asOfEvent}
+              </span>
+            )}
+          </>
+        )}
+        <button type="button" className="btn" onClick={openNewSquadModal}>
           New Squad
         </button>
-        <button type="button" className="btn" onClick={handleDuplicate}>
-          Duplicate
-        </button>
-        <button type="button" className="btn" onClick={handleDelete}>
-          Delete
-        </button>
-      </div>
-
-      <div className="filters-bar">
-        <div className="field">
-          <label htmlFor="import-team-id">Load from FPL (team ID)</label>
-          <input
-            id="import-team-id"
-            type="text"
-            inputMode="numeric"
-            placeholder="e.g. 1234567"
-            value={importTeamIdInput}
-            onChange={(e) => setImportTeamIdInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleLoadFromFpl();
-            }}
-          />
-        </div>
-        <button type="button" className="btn" onClick={handleLoadFromFpl} disabled={importStatus === "loading"}>
-          {importStatus === "loading" ? "Loading\u2026" : "Load Team"}
-        </button>
-        {active.importedFrom && (
-          <span className="badge" title={`Loaded from FPL team ${active.importedFrom.teamId}, as of Gameweek ${active.importedFrom.asOfEvent}`}>
-            {active.importedFrom.managerName || active.importedFrom.teamName} {"\u00b7"} GW{active.importedFrom.asOfEvent}
-          </span>
+        {active && (
+          <button type="button" className="btn" onClick={handleDelete}>
+            Delete
+          </button>
         )}
       </div>
-      {importStatus === "error" && importError && <div className="banner error">{importError}</div>}
 
+      {showNewSquadModal && (
+        <div className="dialog-backdrop" onClick={closeNewSquadModal}>
+          <div className="dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-title">New Squad</div>
+            <p className="page-subtitle" style={{ marginTop: 0 }}>
+              Create a blank squad template, or import a real squad from its FPL team ID.
+            </p>
+            <div className="field">
+              <label htmlFor="new-squad-name">Squad name (blank template)</label>
+              <input
+                id="new-squad-name"
+                type="text"
+                placeholder="e.g. My Squad"
+                value={newSquadName}
+                onChange={(e) => setNewSquadName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateOrImportSquad();
+                }}
+              />
+            </div>
+            <div className="dialog-divider">or</div>
+            <div className="field">
+              <label htmlFor="new-squad-team-id">FPL team ID (import)</label>
+              <input
+                id="new-squad-team-id"
+                type="text"
+                inputMode="numeric"
+                placeholder="e.g. 1234567"
+                value={importTeamIdInput}
+                onChange={(e) => setImportTeamIdInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateOrImportSquad();
+                }}
+              />
+            </div>
+            {importStatus === "error" && importError && <div className="banner error">{importError}</div>}
+            <div className="dialog-actions">
+              <button type="button" className="btn" onClick={closeNewSquadModal}>
+                Cancel
+              </button>
+              <button type="button" className="btn primary" onClick={handleCreateOrImportSquad} disabled={importStatus === "loading"}>
+                {importStatus === "loading" ? "Loading…" : "Load/Create"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteId &&
+        (() => {
+          const target = squads.find((s) => s.id === confirmDeleteId);
+          if (!target) return null;
+          return (
+            <div className="dialog-backdrop" onClick={() => setConfirmDeleteId(null)}>
+              <div className="dialog" onClick={(e) => e.stopPropagation()}>
+                <div className="dialog-title">Delete squad</div>
+                <p className="page-subtitle" style={{ marginTop: 0 }}>
+                  Do you want to delete squad "{target.name}"?
+                </p>
+                <div className="dialog-actions">
+                  <button type="button" className="btn" onClick={() => setConfirmDeleteId(null)}>
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn primary"
+                    style={{ borderColor: "var(--accent-negative)", color: "var(--accent-negative)" }}
+                    onClick={handleConfirmDelete}
+                  >
+                    Yes
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+      <div className="card" style={{ marginBottom: 22 }}>
+        <div className="card-title">
+          Squad ({squadPlayers.length}/{SQUAD_RULES.squadSize})
+        </div>
+        {xiValidation.size > 0 && !xiValidation.valid && <div className="banner info">Formation: {xiValidation.issues.join(" · ")}</div>}
+        <SquadPitch
+          squadName={active?.name ?? ""}
+          squadValidation={squadValidation}
+          positionGroups={pitchPositionGroups}
+          benchPlayers={benchPlayers}
+          captainId={active?.captainId ?? null}
+          viceCaptainId={active?.viceCaptainId ?? null}
+          expectedPointsByPlayerId={expectedPointsByPlayerId}
+          reliabilityByPlayerId={reliabilityByPlayerId}
+          fixturesByTeamId={fixturesByTeamId}
+          captainPickMode={captainPickMode}
+          onCaptainTileClick={handleCaptainTileClick}
+          onPlayerCardClick={handlePlayerCardClick}
+          onViewProfile={handleViewProfile}
+          onSwap={handleSwapPlayers}
+          onAddToPitch={handleDropOnPitch}
+          onBench={handleDropOnBench}
+          onRemove={handleRemovePlayer}
+          onClearSquad={handleClearSquad}
+          warning={warning}
+        />
+      </div>
+
+      {!active && (
+        <div className="empty-state">
+          <h3>No squad loaded</h3>
+          <p>Create a blank squad or import a real one from its FPL team ID using "New Squad" above to start adding players.</p>
+        </div>
+      )}
+
+      {active && (
       <div className="card" style={{ marginBottom: 22 }}>
         <div className="card-title">Add Players</div>
         <div className="filters-bar" style={{ marginBottom: 12 }}>
@@ -1341,193 +1288,8 @@ export function TeamBuilder() {
           </table>
         </div>
       </div>
-
-      <div className="card" style={{ marginBottom: 22 }}>
-        <div className="card-title">
-          Squad ({squadPlayers.length}/{SQUAD_RULES.squadSize})
-        </div>
-        {xiValidation.size > 0 && !xiValidation.valid && <div className="banner info">Formation: {xiValidation.issues.join(" · ")}</div>}
-        <SquadPitch
-          squadName={active.name}
-          squadValidation={squadValidation}
-          positionGroups={pitchPositionGroups}
-          benchPlayers={benchPlayers}
-          captainId={active.captainId}
-          viceCaptainId={active.viceCaptainId}
-          expectedPointsByPlayerId={expectedPointsByPlayerId}
-          reliabilityByPlayerId={reliabilityByPlayerId}
-          fixturesByTeamId={fixturesByTeamId}
-          captainPickMode={captainPickMode}
-          onCaptainTileClick={handleCaptainTileClick}
-          onPlayerCardClick={handlePlayerCardClick}
-          onViewProfile={handleViewProfile}
-          onSwap={handleSwapPlayers}
-          onAddToPitch={handleDropOnPitch}
-          onBench={handleDropOnBench}
-          onRemove={handleRemovePlayer}
-          onClearSquad={handleClearSquad}
-          onOptimalDraft={handleOptimalDraft}
-          warning={warning}
-        />
-      </div>
-
-      <div className="card-grid">
-        <div className="card">
-          <div className="card-title">Expected Points (Next {expectedPointsWindow} {expectedPointsWindow === 1 ? "GW" : "GWs"})</div>
-          <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-            {(["none", "bboost", "3xc"] as ExpectedPointsChip[]).map((c) => (
-              <button
-                key={c}
-                type="button"
-                className="btn"
-                aria-pressed={epChip === c}
-                style={epChip === c ? { borderColor: "var(--accent-positive)", color: "var(--accent-positive)" } : undefined}
-                onClick={() => setEpChip(c)}
-              >
-                {c === "none" ? "No chip" : c === "bboost" ? "Bench Boost" : "Triple Captain"}
-              </button>
-            ))}
-          </div>
-          <div style={{ fontSize: 26, fontWeight: 700, fontFamily: "var(--font-mono)" }}>{epResult.total !== null ? fmtDecimal(epResult.total, 1) : DASH}</div>
-          <p className="page-subtitle">
-            {epChip === "none"
-              ? "Starting XI total, captain doubled."
-              : epChip === "bboost"
-                ? "Starting XI + bench, captain doubled — the bench's contribution only counts for the first upcoming fixture, since Bench Boost is a one-gameweek chip, not held across this whole window."
-                : "Starting XI total — the captain gets 3x instead of 2x only for their first upcoming fixture, since Triple Captain is a one-gameweek chip; later fixtures in this window keep the normal 2x."}{" "}
-            Built from FPL's own published prediction for the next fixture, extended for later gameweeks using fixture difficulty — a
-            transparent extension, not a second model. See Team Building in the README for the exact formula.
-            {epResult.playersWithNoData > 0 && ` ${epResult.playersWithNoData} player(s) have no prediction available and count as 0.`}
-            {epChip !== "none" && active.usedChips.some((c) => c.chip === epChip) && (
-              <strong style={{ display: "block", marginTop: 4, color: "var(--accent-negative)" }}>
-                Heads up: this squad's records show {epChip === "bboost" ? "Bench Boost" : "Triple Captain"} already used this season —
-                this is just a hypothetical preview, not a live option.
-              </strong>
-            )}
-          </p>
-        </div>
-        <div className="card">
-          <div className="card-title">Minutes Reliability</div>
-          <ReliabilityBar value={reliability.average} />
-        </div>
-        <div className="card">
-          <div className="card-title">Good Differentials ({differentials.length})</div>
-          {differentials.length === 0 ? (
-            <p className="page-subtitle">None in this squad yet — look for a low-owned player the archetype system rates as strong on underlying numbers.</p>
-          ) : (
-            <div className="chip-row">
-              {differentials.map((p) => (
-                <span key={p.id} className="chip">
-                  {p.name} ({fmtPercent(p.ownership, 1)})
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="card">
-          <div className="card-title">Archetype Mix</div>
-          {mix.length === 0 ? (
-            <p className="page-subtitle">Add players to see the archetype mix.</p>
-          ) : (
-            <div className="chip-row">
-              {mix.map((m) => (
-                <span key={m.label} className="badge archetype">
-                  {m.label} ×{m.count}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="card">
-          <div className="card-title">Chips Used This Season</div>
-          {active.importedFrom && (
-            <p className="page-subtitle" style={{ marginTop: 0 }}>
-              Auto-filled from {active.importedFrom.teamName}'s real FPL history as of import. Untick to correct if it's out of date.
-            </p>
-          )}
-          <div className="table-wrap">
-            <table className="data-table compact">
-              <thead>
-                <tr>
-                  <th style={{ textAlign: "left" }}>Chip</th>
-                  <th>First Half</th>
-                  <th>Second Half</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(["wildcard", "freehit", "bboost", "3xc"] as ChipWindow["chip"][]).map((chip) => (
-                  <tr key={chip}>
-                    <td style={{ textAlign: "left" }}>{chip === "wildcard" ? "Wildcard" : chip === "freehit" ? "Free Hit" : chip === "bboost" ? "Bench Boost" : "Triple Captain"}</td>
-                    {([1, 2] as const).map((half) => (
-                      <td key={half}>
-                        <input type="checkbox" checked={isChipUsedForHalf(chip, half)} onChange={() => toggleChipUsedForHalf(chip, half)} aria-label={`${chip} used, half ${half}`} />
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div className="section-heading">Transfer Solver</div>
-
-      <div className="filters-bar">
-        <div className="field">
-          <label htmlFor="solver-count">Transfers to search</label>
-          <select id="solver-count" value={solverTransferCount} onChange={(e) => setSolverTransferCount(Number(e.target.value) as 1 | 2)}>
-            <option value={1}>1 transfer</option>
-            <option value={2}>2 transfers</option>
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="solver-free">Free transfers available</label>
-          <input
-            id="solver-free"
-            type="number"
-            min={0}
-            max={5}
-            value={solverFreeTransfers}
-            onChange={(e) => setSolverFreeTransfers(Math.max(0, Number(e.target.value)))}
-          />
-        </div>
-      </div>
-
-      {transferSuggestions.length === 0 ? (
-        <div className="empty-state">
-          <h3>No improving transfer found</h3>
-          <p>Either this squad is empty, or nothing in the live pool projects higher than what you already have in every checked slot.</p>
-        </div>
-      ) : (
-        <div className="card-grid">
-          {transferSuggestions.slice(0, solverTransferCount === 1 ? 5 : 3).map((suggestion, idx) => (
-            <div className="card" key={idx}>
-              <div className="card-title">
-                {suggestion.legs.map((leg) => `${leg.out.name} → ${leg.in.name}`).join(" · ")}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
-                {suggestion.legs.map((leg) => (
-                  <div key={leg.out.id} className="page-subtitle" style={{ margin: 0 }}>
-                    <PositionBadge position={leg.out.position} /> {leg.out.name} ({fmtPrice(leg.out.price)}) → {leg.in.name} ({fmtPrice(leg.in.price)}) — <SignedNum value={leg.gain} decimals={1} /> pts,{" "}
-                    <SignedNum value={leg.priceDelta} decimals={1} /> price
-                  </div>
-                ))}
-              </div>
-              <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-mono)" }}>
-                <SignedNum value={suggestion.netGain} decimals={1} /> pts net
-              </div>
-              <p className="page-subtitle" style={{ margin: "2px 0 10px" }}>
-                {suggestion.hitCost > 0 ? `Includes a -${suggestion.hitCost}pt hit for going beyond your free transfers.` : "No hit — within your free transfers."} Total
-                price change: <SignedNum value={suggestion.totalPriceDelta} decimals={1} />m.
-              </p>
-              <button type="button" className="btn primary" onClick={() => handleApplyTransfer(suggestion)}>
-                Apply to squad
-              </button>
-            </div>
-          ))}
-        </div>
       )}
+
     </div>
   );
 }
