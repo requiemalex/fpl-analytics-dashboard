@@ -111,13 +111,6 @@ export function Teams() {
 
       <AnalysisModeToggle />
 
-      <div className="banner info">
-        Current-squad aggregate — player totals are attributed to their current FPL club, not the club they were at when the points were
-        scored. A player transferred mid-season (or since) contributes their full total to their new club here.
-        {analysisMode !== "live" &&
-          ` In this mode, "totals" means each player's ${analysisMode === "lastSeason" ? "last completed season" : "historic average"}, not the live season.`}
-      </div>
-
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
         <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "var(--text-secondary)" }}>
           <input type="checkbox" checked={comparativeColouring} onChange={(e) => setComparativeColouring(e.target.checked)} />
@@ -183,6 +176,13 @@ export function Teams() {
           individually.
         </p>
       )}
+
+      <div className="banner info" style={{ marginTop: 10 }}>
+        Current-squad aggregate — player totals are attributed to their current FPL club, not the club they were at when the points were
+        scored. A player transferred mid-season (or since) contributes their full total to their new club here.
+        {analysisMode !== "live" &&
+          ` In this mode, "totals" means each player's ${analysisMode === "lastSeason" ? "last completed season" : "historic average"}, not the live season.`}
+      </div>
     </div>
   );
 }
