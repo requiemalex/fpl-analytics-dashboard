@@ -35,17 +35,34 @@ export function useSortSpec(initial: SortSpec[]) {
 }
 
 /**
- * Nulls always sort last regardless of direction — a missing value isn't
- * "low", it's unknown, and burying it at the bottom either way keeps it
- * from masquerading as a real minimum. Works for strings and numbers
- * alike (JS's `<` does the right thing for both), which is what lets one
- * comparator handle a "Player" name-sort next to every numeric column.
+ * How to treat a null (— on screen) relative to real values:
+ * - "last" (the default, used everywhere except Player Explorer): always
+ *   sorts after every real value regardless of direction — a missing
+ *   value isn't "low", it's unknown, and burying it at the bottom either
+ *   way keeps it from masquerading as a real minimum.
+ * - "belowZero" (Player Explorer, at the user's request): treated as
+ *   smaller than every real value, same as any other number would be —
+ *   so it sorts first ascending, last descending, rather than always last.
+ *
+ * Works for strings and numbers alike (JS's `<` does the right thing for
+ * both), which is what lets one comparator handle a "Player" name-sort
+ * next to every numeric column.
  */
-export function compareSortValues(av: number | string | null, bv: number | string | null, direction: "asc" | "desc"): number {
+export function compareSortValues(
+  av: number | string | null,
+  bv: number | string | null,
+  direction: "asc" | "desc",
+  nullHandling: "last" | "belowZero" = "last",
+): number {
   if (av === null && bv === null) return 0;
-  if (av === null) return 1;
-  if (bv === null) return -1;
-  if (av === bv) return 0;
-  const cmp = av < bv ? -1 : 1;
+  if (nullHandling === "last") {
+    if (av === null) return 1;
+    if (bv === null) return -1;
+  }
+  let cmp: number;
+  if (av === null) cmp = -1; // belowZero: null < any real value
+  else if (bv === null) cmp = 1;
+  else if (av === bv) return 0;
+  else cmp = av < bv ? -1 : 1;
   return direction === "asc" ? cmp : -cmp;
 }

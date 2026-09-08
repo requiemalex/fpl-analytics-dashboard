@@ -308,33 +308,6 @@ export function UnderlyingNumbers() {
         <TopList title="Top xA/£m" rows={topXAPerM} format={(v) => fmtDecimal(v, 2)} onSelect={select} />
       </div>
 
-      <h2 className="section-heading">User Analysis</h2>
-      <div className="card">
-        <div className="filters-bar" style={{ marginBottom: 12 }}>
-          <div className="field">
-            <label htmlFor="custom-x">X axis</label>
-            <select id="custom-x" value={xMetricKey} onChange={(e) => setXMetricKey(e.target.value)}>
-              {PLAYER_COLUMNS.map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="custom-y">Y axis</label>
-            <select id="custom-y" value={yMetricKey} onChange={(e) => setYMetricKey(e.target.value)}>
-              {PLAYER_COLUMNS.map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <ScatterWithReference data={customGraphData} xLabel={xColumn.label} yLabel={yColumn.label} onPointClick={select} />
-      </div>
-
       {analysisMode !== "live" && noDataCount > 0 && (
         <p className="page-subtitle" style={{ marginTop: 10 }}>
           {noDataCount.toLocaleString("en-GB")} player(s) have no data for this mode — still shown above, with {DASH} for the metrics this
@@ -482,6 +455,33 @@ export function UnderlyingNumbers() {
             </LineChart>
           </ResponsiveContainer>
         )}
+      </div>
+
+      <h2 className="section-heading">User Analysis</h2>
+      <div className="card">
+        <div className="filters-bar" style={{ marginBottom: 12 }}>
+          <div className="field">
+            <label htmlFor="custom-x">X axis</label>
+            <select id="custom-x" value={xMetricKey} onChange={(e) => setXMetricKey(e.target.value)}>
+              {PLAYER_COLUMNS.map((c) => (
+                <option key={c.key} value={c.key}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label htmlFor="custom-y">Y axis</label>
+            <select id="custom-y" value={yMetricKey} onChange={(e) => setYMetricKey(e.target.value)}>
+              {PLAYER_COLUMNS.map((c) => (
+                <option key={c.key} value={c.key}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <ScatterWithReference data={customGraphData} xLabel={xColumn.label} yLabel={yColumn.label} onPointClick={select} />
       </div>
     </div>
   );

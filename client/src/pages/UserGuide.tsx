@@ -43,13 +43,10 @@ const SECTION_META = [
   { id: "player-explorer", label: "Player Explorer", accent: "var(--accent-focus)" },
   { id: "underlying-numbers", label: "Underlying Numbers", accent: "var(--accent-value)" },
   { id: "team-building", label: "Team Building", accent: "var(--accent-positive)" },
-  { id: "price-watch", label: "Price Watch", accent: "var(--accent-value)" },
-  { id: "chip-planner", label: "Chip Planner", accent: "var(--accent-positive)" },
   { id: "player-comparison", label: "Player Comparison", accent: "var(--accent-focus)" },
   { id: "teams", label: "Teams", accent: "var(--accent-value)" },
   { id: "player-profile", label: "Player Profile", accent: "var(--accent-positive)" },
   { id: "archetypes", label: "Archetypes", accent: "var(--accent-focus)" },
-  { id: "championship", label: "Championship", accent: "var(--accent-value)" },
   { id: "limitations", label: "Data sourcing & known limitations", accent: "var(--accent-negative)" },
   { id: "metric-reference", label: "Metric reference", accent: "var(--accent-value)" },
 ];
@@ -158,10 +155,8 @@ export function UserGuide() {
         </p>
         <p className="page-subtitle">
           One important asymmetry to know up front: every section of this app is <strong>descriptive</strong> — it tells you what has
-          actually happened, never what will — except Team Building and Chip Planner, which are explicitly built to predict. That's a
-          deliberate, disclosed exception, not an inconsistency; each section's own guide below explains exactly what it predicts and
-          how. Price Watch sits slightly apart from both: its headline figures are FPL's <em>own</em> official predictions, not this
-          app's — see that section below for the distinction.
+          actually happened, never what will — except Team Building, which is explicitly built to predict. That's a deliberate,
+          disclosed exception, not an inconsistency; that section's own guide below explains exactly what it predicts and how.
         </p>
       </Section>
 
@@ -212,7 +207,11 @@ export function UserGuide() {
         </p>
         <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
           <li><strong>Reorder</strong> — drag a column header. <strong>Resize</strong> — drag its right edge.</li>
-          <li><strong>Sort</strong> — click a header; shift-click another to add a secondary tiebreaker.</li>
+          <li>
+            <strong>Sort</strong> — click a header; shift-click another to add a secondary tiebreaker. A blank (—) is treated as lower
+            than any real value here, not always parked at the end — so it appears first ascending, last descending, like any other low
+            number would.
+          </li>
           <li>
             <strong>Filter</strong> — click the ▾ on a header's edge for an Excel-style filter (Less than or equal to / Greater than or
             equal to / Equal to). Confirm with Enter, discard with Cancel.
@@ -357,68 +356,6 @@ export function UserGuide() {
         <Try>Sort the Add Players table by "Exp. Pts (Overall Average)" for a blended view, or by "Minutes Reliability" if durability matters more to you than ceiling.</Try>
       </Section>
 
-      <Section id="price-watch" title="Price Watch">
-        <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Who's closest to a price change, and what the transfer market is doing right now. This section is built around FPL's own{" "}
-          <strong>Price Change Predictor</strong> — a genuinely new official feature for 2026/27, not this app's estimate. The Today /
-          Tomorrow / Day After figures and the rising/falling Signal column are FPL's own published numbers; the "Net Ratio" column
-          alongside them is this app's own supporting figure (net transfers this gameweek ÷ an estimated current owner count, from
-          ownership% × total registered managers), shown for extra context rather than as a competing prediction.
-        </p>
-        <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
-          <li>
-            FPL describes a reading over 100% as "expected to cross the threshold at the next 00:00 UK update" — explicitly still not a
-            guarantee, since late transfer activity before the deadline can pull a player back. This app repeats that caveat rather than
-            softening it.
-          </li>
-          <li>
-            <strong>Still Calibrating</strong> players don't have enough transfer history yet for FPL's own model to give a reliable
-            reading (typically brand-new signings) — shown as a count, not hidden.
-          </li>
-          <li>
-            If a live build's API response doesn't carry these fields yet, the page falls back to raw transfer/price-movement data only,
-            with a banner explaining why — it never fabricates a predictor reading.
-          </li>
-        </ul>
-        <Try>Filter Signal to "Rising" and sort by "FPL Predictor: Today" to see who's closest to an imminent rise across the whole player pool.</Try>
-      </Section>
-
-      <Section id="chip-planner" title="Chip Planner">
-        <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Takes a saved squad from Team Building, plots every remaining fixture to the end of the season, and suggests a window for each
-          of the four chips — Wildcard, Free Hit, Bench Boost, Triple Captain — in each half of the season. The half boundary and each
-          chip's exact opening/closing gameweek come directly from FPL's own live chip schedule (bootstrap-static's <code>chips</code>{" "}
-          data), never a hard-coded assumption.
-        </p>
-        <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
-          <li>
-            <strong>Bench Boost</strong> and <strong>Triple Captain</strong> look for the gameweek where the squad's total (or best
-            player's) points projection peaks — today's Exp. Pts baseline (ep_next, falling back to points-per-game) scaled by each
-            fixture's own difficulty rating, summed across doubles. This reuses the same fixture-scaling method as Team Building's
-            Expected Points, just extended much further into the season.
-          </li>
-          <li>
-            <strong>Free Hit</strong> looks for the squad's biggest blank gameweek — the most squad players with zero fixtures at once.
-          </li>
-          <li>
-            <strong>Wildcard</strong> is deliberately the weakest signal of the four: its value comes from players you don't yet own, so
-            this can only flag when your <em>current</em> squad's own fixture run turns hard, not recommend what to build toward.
-          </li>
-          <li>
-            The projection is a planning aid, not a forecast — it uses today's rate flat across every future gameweek and can't account
-            for price changes, injuries, transfers, or changing form between now and a gameweek that might be months away.
-          </li>
-          <li>
-            <strong>Squad clashes</strong> — a {"\u2694"} marks any fixture where two of your own squad players are on opposite sides.
-            These are factored into Bench Boost's ranking as a modest points haircut (both sides of a match rarely return well at once —
-            a striker's goal is often the same event as a defender losing their clean sheet), and flagged in Triple Captain's reasoning
-            when relevant, though it doesn't change who gets recommended there.
-          </li>
-          <li>The Season Fixture Ticker underneath shows every squad player's actual fixtures gameweek by gameweek, colour-coded by FPL's own difficulty rating, with this page's suggested gameweeks marked in the column headers.</li>
-        </ul>
-        <Try>Build a full 15-player squad in Team Building first — Bench Boost's recommendation in particular is only meaningful once every bench slot is filled.</Try>
-      </Section>
-
       <Section id="player-comparison" title="Player Comparison">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
           Compare up to 5 players side by side across every Player Explorer metric, plus a percentile radar chart per player underneath.
@@ -478,22 +415,6 @@ export function UserGuide() {
         <p className="page-subtitle" style={{ margin: 0 }}>
           Exact price/percentile cutoffs are in the metric reference below. Filter by archetype in Player Explorer's filter bar or Team
           Building's picker.
-        </p>
-      </Section>
-
-      <Section id="championship" title="Championship">
-        <p className="page-subtitle" style={{ marginTop: 0 }}>
-          A different data source from everywhere else in this app, on purpose: the 2025/26 EFL Championship's full 24-team season
-          (football-data.co.uk), computed once into a league table plus final-weeks form, home/away splits, and discipline totals for the
-          three clubs promoted to the Premier League — Coventry City (champions), Ipswich Town (runner-up), and Hull City (play-off
-          winner). It's a fixed historical snapshot, not live data: it won't update through the season, doesn't share anything with the
-          FPL-driven pages, and isn't affected by the analysis-mode toggle, Refresh Data, or an FPL API outage — it'll keep working even
-          if the rest of the app can't reach FPL's servers.
-        </p>
-        <p className="page-subtitle">
-          The point of showing the full table alongside the three promoted teams, rather than just their raw numbers, is context: Coventry's
-          95 points only means something next to "highest in the division," same as Hull's 4th-best goal difference among the promoted
-          three only means something next to their actual final position — 6th, promoted via the play-offs rather than automatically.
         </p>
       </Section>
 

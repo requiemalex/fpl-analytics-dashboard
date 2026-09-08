@@ -76,6 +76,22 @@
   border-left-color: var(--accent-positive);
 }
 
+.nav-separator {
+  height: 1px;
+  background: var(--border);
+  margin: 8px 6px;
+  flex-shrink: 0;
+}
+
+.nav-group-label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 8px 10px 2px;
+}
+
 .topbar {
   grid-area: topbar;
   background: var(--surface);

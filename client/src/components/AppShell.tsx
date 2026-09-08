@@ -3,17 +3,32 @@ import { NavLink } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { fmtTimeAgo, fmtDate } from "../utils/format";
 
-const NAV_ITEMS = [
-  { to: "/", label: "Dashboard" },
-  { to: "/players", label: "Player Explorer" },
-  { to: "/underlying", label: "Underlying Numbers" },
-  { to: "/teams", label: "Teams" },
-  { to: "/team-building", label: "Team Building" },
-  { to: "/price-watch", label: "Price Watch" },
-  { to: "/chip-planner", label: "Chip Planner" },
-  { to: "/player-comparison", label: "Player Comparison" },
-  { to: "/championship", label: "Championship" },
-  { to: "/guide", label: "User Guide" },
+type NavEntry =
+  | { type: "link"; to: string; label: string }
+  | { type: "separator" }
+  | { type: "group"; label: string; links: { to: string; label: string }[] };
+
+const NAV_STRUCTURE: NavEntry[] = [
+  { type: "link", to: "/", label: "Dashboard" },
+  { type: "separator" },
+  {
+    type: "group",
+    label: "Analysis Tools",
+    links: [
+      { to: "/players", label: "Player Explorer" },
+      { to: "/underlying", label: "Underlying Numbers" },
+      { to: "/teams", label: "Teams" },
+      { to: "/player-comparison", label: "Player Comparison" },
+    ],
+  },
+  { type: "separator" },
+  {
+    type: "group",
+    label: "Predictive Tools",
+    links: [{ to: "/team-building", label: "Team Building" }],
+  },
+  { type: "separator" },
+  { type: "link", to: "/guide", label: "User Guide" },
 ];
 
 function GameweekLabel() {
@@ -42,11 +57,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="sidebar-brand">
           FPL<span>Analytics</span>
         </div>
-        {NAV_ITEMS.map((item) => (
-          <NavLink key={item.to} to={item.to} end={item.to === "/"} className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
-            {item.label}
-          </NavLink>
-        ))}
+        {NAV_STRUCTURE.map((entry, i) => {
+          if (entry.type === "separator") return <div key={i} className="nav-separator" />;
+          if (entry.type === "link") {
+            return (
+              <NavLink key={entry.to} to={entry.to} end={entry.to === "/"} className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+                {entry.label}
+              </NavLink>
+            );
+          }
+          return (
+            <div key={entry.label}>
+              <div className="nav-group-label">{entry.label}</div>
+              {entry.links.map((link) => (
+                <NavLink key={link.to} to={link.to} className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}>
+                  {link.label}
+                </NavLink>
+              ))}
+            </div>
+          );
+        })}
       </aside>
 
       <header className="topbar">

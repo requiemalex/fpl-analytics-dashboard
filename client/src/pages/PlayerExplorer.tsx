@@ -118,7 +118,7 @@ export function PlayerExplorer() {
     const arr = [...filteredRows];
     arr.sort((a, b) => {
       for (const s of sort) {
-        const cmp = compareSortValues(getRowValue(a, s.key), getRowValue(b, s.key), s.direction);
+        const cmp = compareSortValues(getRowValue(a, s.key), getRowValue(b, s.key), s.direction, "belowZero");
         if (cmp !== 0) return cmp;
       }
       return 0;

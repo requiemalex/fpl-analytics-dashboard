@@ -42,13 +42,6 @@ Raw FPL API -> Express proxy (cache/timeout/retry) -> Zod validation
   Average / Current Season) resolved through `resolvePlayerStats.ts`.
   Team Building is the one page that doesn't use it — see README's
   "Team Building: a predictive model" for why.
-- `/championship` is a deliberate exception to the whole diagram above —
-  a static, one-time-computed JSON asset (`client/src/data/`), its own
-  types (`types/championship.ts`), no server route, no
-  `AppStateContext` entry, and no `LoadStateGate` (it has its own
-  top-level `<Route>` in `App.tsx` so it survives an FPL API outage).
-  See README's "Championship data (promoted teams)" before touching it
-  — don't wire it into the live pipeline or add a refresh path.
 
 ## A recurring bug class in this codebase: stale closures in `useCallback([])`
 
