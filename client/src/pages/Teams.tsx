@@ -169,19 +169,20 @@ export function Teams() {
           </tbody>
         </table>
       </div>
-      {analysisMode !== "live" && noDataCount > 0 && (
-        <p className="page-subtitle" style={{ marginTop: 10 }}>
-          {noDataCount.toLocaleString("en-GB")} player(s) have no data for this mode — excluded from these club totals specifically (a
-          missing figure would otherwise silently understate a club's sum), though they still appear everywhere players are listed
-          individually.
-        </p>
-      )}
-
       <div className="banner info" style={{ marginTop: 10 }}>
-        Current-squad aggregate — player totals are attributed to their current FPL club, not the club they were at when the points were
-        scored. A player transferred mid-season (or since) contributes their full total to their new club here.
-        {analysisMode !== "live" &&
-          ` In this mode, "totals" means each player's ${analysisMode === "lastSeason" ? "last completed season" : "historic average"}, not the live season.`}
+        <div>
+          Current-squad aggregate — player totals are attributed to their current FPL club, not the club they were at when the points
+          were scored. A player transferred mid-season (or since) contributes their full total to their new club here.
+          {analysisMode !== "live" &&
+            ` In this mode, "totals" means each player's ${analysisMode === "lastSeason" ? "last completed season" : "historic average"}, not the live season.`}
+        </div>
+        {analysisMode !== "live" && noDataCount > 0 && (
+          <div style={{ marginTop: 8 }}>
+            {noDataCount.toLocaleString("en-GB")} player(s) have no data for this mode — excluded from these club totals specifically (a
+            missing figure would otherwise silently understate a club's sum), though they still appear everywhere players are listed
+            individually.
+          </div>
+        )}
       </div>
     </div>
   );
