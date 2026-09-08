@@ -2,11 +2,12 @@ import React, { useMemo, useState } from "react";
 import { useAppState } from "../state/AppStateContext";
 import { PositionBadge } from "./primitives";
 import type { NormalizedPlayer } from "../types/normalized";
+import { matchesPlayerSearch } from "../utils/playerSearch";
 
 /**
  * Shared "search a player, pick one from suggestions" control — first
- * built for Player Comparison, extracted here so Underlying Numbers'
- * Player Trends (also a search-and-add-up-to-N picker) reuses the same
+ * built for Player Comparison, reused by that page's own Player Trends
+ * (also a search-and-add-up-to-N picker) so both share the same
  * matching/rendering logic rather than a second, potentially-diverging
  * implementation.
  */
@@ -32,8 +33,7 @@ export function PlayerSearch({
 
   const matches = useMemo(() => {
     if (query.trim().length < 2) return [];
-    const q = query.toLowerCase();
-    return pool.filter((p) => !excludeIds.includes(p.id) && p.name.toLowerCase().includes(q)).slice(0, 8);
+    return pool.filter((p) => !excludeIds.includes(p.id) && matchesPlayerSearch(p, query)).slice(0, 8);
   }, [pool, query, excludeIds]);
 
   return (

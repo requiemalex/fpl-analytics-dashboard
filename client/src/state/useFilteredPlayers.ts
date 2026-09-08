@@ -4,6 +4,7 @@ import type { GlobalScoutingFilters } from "./AppStateContext";
 import { computeArchetypesForAllPlayers, type ArchetypeLabel } from "../metrics/archetypes";
 import type { HistoricPlayerProfile } from "../metrics/historicAnalysis";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
+import { matchesPlayerSearch } from "../utils/playerSearch";
 
 /**
  * The minutes eligibility threshold exists to protect against noisy
@@ -25,11 +26,11 @@ export function filterPlayers(
   mode: AnalysisMode,
   archetypeMap?: Map<number, ArchetypeLabel[]>,
 ): NormalizedPlayer[] {
-  const search = filters.search.trim().toLowerCase();
+  const search = filters.search.trim();
   const minMinutes = effectiveMinMinutes(filters, mode);
 
   return players.filter((p) => {
-    if (search && !p.name.toLowerCase().includes(search) && !`${p.firstName} ${p.lastName}`.toLowerCase().includes(search)) return false;
+    if (search && !matchesPlayerSearch(p, search)) return false;
     if (filters.position !== "ALL" && p.position !== filters.position) return false;
     if (filters.teamId !== "ALL" && p.teamId !== filters.teamId) return false;
     // A player with no data for this mode (minutes null) isn't "a noisy

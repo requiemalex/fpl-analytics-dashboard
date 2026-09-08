@@ -18,6 +18,7 @@ import { isChipUsedForWindow } from "../metrics/chipPlanner";
 import { fetchEntryTeam, fetchEntryHistory, fetchEntryPicks, ApiRequestError } from "../api/client";
 import { normalizeEntryImport } from "../normalize/normalizeEntryImport";
 import { buildOptimalDraft, isDraftFailure } from "../metrics/optimalDraft";
+import { matchesPlayerSearch } from "../utils/playerSearch";
 import { computeBlendedMinutesReliability } from "../metrics/minutesReliabilityBlend";
 import { bandForPercentile } from "../metrics/percentiles";
 import { getUpcomingFixtures, fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
@@ -632,13 +633,13 @@ export function TeamBuilder() {
   // and `pickerSort` respectively (both listed), plus module-level
   // constants that never change across renders.
   const pickerRows: PickerRowData[] = useMemo(() => {
-    const search = pickerSearch.trim().toLowerCase();
+    const search = pickerSearch.trim();
     return players
       .filter((p) => !squadPlayerIdSet.has(p.id))
       .filter((p) => pickerPosition === "ALL" || p.position === pickerPosition)
       .filter((p) => pickerTeamId === "ALL" || p.teamId === pickerTeamId)
       .filter((p) => pickerArchetypes.length === 0 || pickerArchetypes.some((a) => (archetypeMap.get(p.id) ?? []).includes(a)))
-      .filter((p) => !search || p.name.toLowerCase().includes(search))
+      .filter((p) => !search || matchesPlayerSearch(p, search))
       .map((p): PickerRowData => {
         const playerFixtures = fixturesByTeamId.get(p.teamId) ?? [];
         const historicProfile = historicProfiles.get(p.id);

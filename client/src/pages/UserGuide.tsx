@@ -222,7 +222,11 @@ export function UserGuide() {
           <li>
             The filter bar above the table (search, position, team, min minutes, archetypes) narrows the whole table at once. Every
             other column — Starts, Own%, Price, and the rest — has its own filter (click the ▾ icon on that column's header) with
-            ≤/≥/= fields, so narrowing by ownership or price range happens at the column, not up here.
+            ≤/≥/= fields, so narrowing by ownership or price range happens at the column, not up here. Player-name search (here, in
+            Team Building's Add Players table, and in the search-and-add boxes on Player Comparison and Player Trends) is
+            accent-insensitive (typing "odegaard" or "salah" finds "Ødegaard" or "Salah" either way), matches first and last name in
+            any order (so "fernandes bruno" finds Bruno Fernandes, not just "bruno fernandes"), and tolerates small typos on longer
+            names.
           </li>
           <li><strong>Export CSV</strong> downloads exactly what's on screen — the same rows and visible columns, in the same order, with the same formatted values.</li>
           <li>
@@ -247,22 +251,15 @@ export function UserGuide() {
           Goals Above/Below xG) aren't repeated here — see the Dashboard for those.
         </p>
         <p className="page-subtitle">
-          <strong>Thematic Analysis</strong> and <strong>Player Trends</strong>, further down the page, are deliberately built outside
-          the Last Completed Season / Historic Average / Current Season toggle everything above uses — both need a genuine multi-season
-          time series, which that single-season toggle can't represent. Thematic Analysis shows average points by position and by price
-          tier across every season where a player cleared the same {MIN_QUALIFYING_SEASON_MINUTES}-minute bar used everywhere else historic
-          averages are computed; price tier uses each season's own price (not today's), and position uses each player's current
-          position, since this app has no record of historical position changes — a position-switcher's older seasons are grouped under
-          where they play now. Player Trends starts empty — add up to 5 players via the search box — and plots them against up to 3
-          metrics at once (Points, Points/90, Goals, Assists, xG, xA, xGI, Minutes) — every player×metric combination gets its own
-          line, coloured by player and dashed by metric, labelled in the legend as "Player — Metric" once there's more than one of
-          each. A Normalise toggle (on by default) independently scales each metric to 0–100 across the values on screen, which is
-          what makes overlaying metrics on very different scales (Minutes vs xG, say)
-          actually readable — off by default, since a single metric in its own real units needs no adjusting. No minutes threshold on
-          any of this — a quiet or injury-hit season is real data worth seeing, not noise to filter out — and xG/xA/xGI show as a gap
-          for seasons before FPL tracked expected stats, not as zero. Neither this nor Thematic Analysis re-runs the full
-          percentile-based archetype system against past seasons — that's a materially bigger undertaking than these two charts, so it
-          isn't attempted here.
+          <strong>Thematic Analysis</strong>, further down the page, is deliberately built outside the Last Completed Season / Historic
+          Average / Current Season toggle everything above uses — it needs a genuine multi-season time series, which that single-season
+          toggle can't represent. It shows average points by position and by price tier across every season where a player cleared the
+          same {MIN_QUALIFYING_SEASON_MINUTES}-minute bar used everywhere else historic averages are computed; price tier uses each
+          season's own price (not today's), and position uses each player's current position, since this app has no record of
+          historical position changes — a position-switcher's older seasons are grouped under where they play now. It doesn't re-run
+          the full percentile-based archetype system against past seasons — that's a materially bigger undertaking than this chart, so
+          it isn't attempted here. (<strong>Player Trends</strong>, which uses the same multi-season data, now lives under Player
+          Comparison, further down this guide.)
         </p>
         <p className="page-subtitle">
           Two of the six expected-vs-actual charts intentionally have no dashed reference line, for different reasons. <strong>ICT Index
@@ -364,6 +361,18 @@ export function UserGuide() {
           mechanical count, not a weighted verdict.
         </p>
         <Try>Add two players you're deciding between, then check whether the "leads on more metrics" summary agrees with your gut — if it doesn't, that's worth investigating why.</Try>
+        <p className="page-subtitle">
+          <strong>Player Trends</strong>, beneath the comparison table and radar charts, is a separate tool with its own player
+          selection — it isn't tied to the 5 players compared above. It's deliberately built outside the Last Completed Season /
+          Historic Average / Current Season toggle: it needs a genuine multi-season time series, which that single-season toggle can't
+          represent. Starts empty — add up to 5 players via the search box — and plots them against up to 3 metrics at once (Points,
+          Points/90, Goals, Assists, xG, xA, xGI, Minutes) — every player×metric combination gets its own line, coloured by player and
+          dashed by metric, labelled in the legend as "Player — Metric" once there's more than one of each. A Normalise toggle (on by
+          default) independently scales each metric to 0–100 across the values on screen, which is what makes overlaying metrics on
+          very different scales (Minutes vs xG, say) actually readable. No minutes threshold on any of this — a quiet or injury-hit
+          season is real data worth seeing, not noise to filter out — and xG/xA/xGI show as a gap for seasons before FPL tracked
+          expected stats, not as zero.
+        </p>
       </Section>
 
       <Section id="teams" title="Teams &amp; Team Detail">
