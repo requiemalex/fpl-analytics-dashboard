@@ -154,6 +154,31 @@ export interface PlayerGameweekHistory {
   starts: number | null;
   totalPoints: number;
   wasHome: boolean;
+  opponentTeamId: number;
+  /** This player's own team's/the opponent's goals in this match, already resolved for home vs away — null only if the match's score is somehow missing (shouldn't happen for a played gameweek). */
+  teamScore: number | null;
+  opponentScore: number | null;
+  goals: number;
+  assists: number;
+  cleanSheets: number;
+  goalsConceded: number;
+  ownGoals: number;
+  penaltiesSaved: number;
+  penaltiesMissed: number;
+  yellowCards: number;
+  redCards: number;
+  saves: number;
+  bonus: number;
+  bps: number;
+  /** Always real for the live season (never a pre-2024/25 placeholder, unlike the same fields read from history_past). */
+  defensiveContribution: number;
+  tackles: number;
+  clearancesBlocksInterceptions: number;
+  recoveries: number;
+  xG: number | null;
+  xA: number | null;
+  xGI: number | null;
+  xGC: number | null;
 }
 
 /**

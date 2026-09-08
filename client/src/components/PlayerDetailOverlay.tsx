@@ -7,7 +7,7 @@ import { computePositionPercentiles } from "../metrics/percentiles";
 import { computeArchetypesForAllPlayers } from "../metrics/archetypes";
 import { computeRadarData } from "../metrics/radarStats";
 import { PlayerRadarChart } from "./PlayerRadarChart";
-import { computePlayingTimeIndicators } from "../metrics/rotationIndicators";
+import { computePlayingTimeIndicators, computeGameweekTotals, computeGameweekPer90 } from "../metrics/rotationIndicators";
 import { computeSeasonTrend } from "../metrics/careerMetrics";
 import { buildHistoricPlayerProfile, nextSeasonName } from "../metrics/historicAnalysis";
 import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode } from "../metrics/resolvePlayerStats";
@@ -15,7 +15,7 @@ import { effectiveMinMinutes } from "../state/useFilteredPlayers";
 import { AnalysisModeToggle } from "./AnalysisModeToggle";
 import { PositionBadge, SignedNum, PercentileBar, ArchetypeBadges } from "./primitives";
 import { fmtDecimal, fmtPrice, fmtPercent, fmtSigned, DASH } from "../utils/format";
-import type { NormalizedPlayer, PlayerSeasonHistory } from "../types/normalized";
+import type { NormalizedPlayer, PlayerSeasonHistory, PlayerGameweekHistory } from "../types/normalized";
 
 function useSelectedPlayer(): [NormalizedPlayer | null, (id: number | null) => void] {
   const { players } = useAppState();
@@ -42,6 +42,15 @@ function StatBlock({ label, value }: { label: string; value: React.ReactNode }) 
       <span className="stat-row-value">{value}</span>
     </div>
   );
+}
+
+/** Win/draw/loss from this player's own team's perspective, plus the score written as their-goals–opponent-goals — never assumed from the raw home/away score pair directly, since that already got resolved to teamScore/opponentScore during normalization. */
+function gameweekResult(g: PlayerGameweekHistory): { label: string; outcomeClass: string } {
+  if (g.teamScore === null || g.opponentScore === null) return { label: DASH, outcomeClass: "value-muted" };
+  const label = `${g.teamScore}–${g.opponentScore}`;
+  if (g.teamScore > g.opponentScore) return { label, outcomeClass: "value-positive" };
+  if (g.teamScore < g.opponentScore) return { label, outcomeClass: "value-negative" };
+  return { label, outcomeClass: "value-muted" };
 }
 
 export function PlayerDetailOverlay() {
@@ -250,6 +259,138 @@ export function PlayerDetailOverlay() {
                   />
                   <StatBlock label="Recent Minutes" value={fmtDecimal(ind.recentMinutes)} />
                 </>
+              );
+            })()}
+        </div>
+
+        <div className="card" style={{ marginTop: 16 }}>
+          <div className="card-title">This Season</div>
+          {history.status === "loading" && <p className="page-subtitle">Loading gameweek history…</p>}
+          {history.status === "error" && <p className="page-subtitle">Couldn't load gameweek history: {history.errorMessage}</p>}
+          {history.status === "ready" && history.history.length === 0 && (
+            <p className="page-subtitle">No gameweeks played yet this season.</p>
+          )}
+          {history.status === "ready" &&
+            history.history.length > 0 &&
+            (() => {
+              const gameweeks = [...history.history].sort((a, b) => b.round - a.round);
+              const totals = computeGameweekTotals(history.history);
+              const per90 = computeGameweekPer90(totals);
+              return (
+                <div className="table-wrap">
+                  <table className="data-table compact">
+                    <thead>
+                      <tr>
+                        <th style={{ textAlign: "left" }}>GW</th>
+                        <th style={{ textAlign: "left" }}>Opponent</th>
+                        <th>Result</th>
+                        <th>Pts</th>
+                        <th>ST</th>
+                        <th>MP</th>
+                        <th>GS</th>
+                        <th>A</th>
+                        <th>xG</th>
+                        <th>xA</th>
+                        <th>xGI</th>
+                        <th>CS</th>
+                        <th>GC</th>
+                        <th>xGC</th>
+                        <th>T</th>
+                        <th>CBI</th>
+                        <th>R</th>
+                        <th>DC</th>
+                        <th>OG</th>
+                        <th>PS</th>
+                        <th>PM</th>
+                        <th>YC</th>
+                        <th>RC</th>
+                        <th>Saves</th>
+                        <th>BPS</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {gameweeks.map((g) => {
+                        const opponent = teamsById.get(g.opponentTeamId);
+                        const result = gameweekResult(g);
+                        return (
+                          <tr key={g.round}>
+                            <td style={{ textAlign: "left", fontFamily: "var(--font-body)" }}>{g.round}</td>
+                            <td style={{ textAlign: "left", fontFamily: "var(--font-body)" }}>
+                              {opponent?.shortName ?? "???"} <span className="team">({g.wasHome ? "H" : "A"})</span>
+                            </td>
+                            <td className={result.outcomeClass}>{result.label}</td>
+                            <td>{fmtDecimal(g.totalPoints)}</td>
+                            <td>{g.starts !== null ? fmtDecimal(g.starts) : DASH}</td>
+                            <td>{fmtDecimal(g.minutes)}</td>
+                            <td>{fmtDecimal(g.goals)}</td>
+                            <td>{fmtDecimal(g.assists)}</td>
+                            <td>{fmtDecimal(g.xG, 2)}</td>
+                            <td>{fmtDecimal(g.xA, 2)}</td>
+                            <td>{fmtDecimal(g.xGI, 2)}</td>
+                            <td>{fmtDecimal(g.cleanSheets)}</td>
+                            <td>{fmtDecimal(g.goalsConceded)}</td>
+                            <td>{fmtDecimal(g.xGC, 2)}</td>
+                            <td>{fmtDecimal(g.tackles)}</td>
+                            <td>{fmtDecimal(g.clearancesBlocksInterceptions)}</td>
+                            <td>{fmtDecimal(g.recoveries)}</td>
+                            <td>{fmtDecimal(g.defensiveContribution)}</td>
+                            <td>{fmtDecimal(g.ownGoals)}</td>
+                            <td>{fmtDecimal(g.penaltiesSaved)}</td>
+                            <td>{fmtDecimal(g.penaltiesMissed)}</td>
+                            <td>{fmtDecimal(g.yellowCards)}</td>
+                            <td>{fmtDecimal(g.redCards)}</td>
+                            <td>{fmtDecimal(g.saves)}</td>
+                            <td>{fmtDecimal(g.bps)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ fontWeight: 600 }}>
+                        <td style={{ textAlign: "left", fontFamily: "var(--font-body)" }} colSpan={2}>
+                          Totals
+                        </td>
+                        <td></td>
+                        <td>{fmtDecimal(totals.points)}</td>
+                        <td>{fmtDecimal(totals.starts)}</td>
+                        <td>{fmtDecimal(totals.minutes)}</td>
+                        <td>{fmtDecimal(totals.goals)}</td>
+                        <td>{fmtDecimal(totals.assists)}</td>
+                        <td>{fmtDecimal(totals.xG, 2)}</td>
+                        <td>{fmtDecimal(totals.xA, 2)}</td>
+                        <td>{fmtDecimal(totals.xGI, 2)}</td>
+                        <td>{fmtDecimal(totals.cleanSheets)}</td>
+                        <td>{fmtDecimal(totals.goalsConceded)}</td>
+                        <td>{fmtDecimal(totals.xGC, 2)}</td>
+                        <td>{fmtDecimal(totals.tackles)}</td>
+                        <td>{fmtDecimal(totals.clearancesBlocksInterceptions)}</td>
+                        <td>{fmtDecimal(totals.recoveries)}</td>
+                        <td>{fmtDecimal(totals.defensiveContribution)}</td>
+                        <td>{fmtDecimal(totals.ownGoals)}</td>
+                        <td>{fmtDecimal(totals.penaltiesSaved)}</td>
+                        <td>{fmtDecimal(totals.penaltiesMissed)}</td>
+                        <td>{fmtDecimal(totals.yellowCards)}</td>
+                        <td>{fmtDecimal(totals.redCards)}</td>
+                        <td>{fmtDecimal(totals.saves)}</td>
+                        <td>{fmtDecimal(totals.bps)}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ textAlign: "left", fontFamily: "var(--font-body)" }} colSpan={2}>
+                          Per 90
+                        </td>
+                        <td></td>
+                        <td colSpan={6}></td>
+                        <td>{fmtDecimal(per90.xGPer90, 2)}</td>
+                        <td>{fmtDecimal(per90.xAPer90, 2)}</td>
+                        <td>{fmtDecimal(per90.xGIPer90, 2)}</td>
+                        <td></td>
+                        <td></td>
+                        <td>{fmtDecimal(per90.xGCPer90, 2)}</td>
+                        <td colSpan={9}></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
               );
             })()}
         </div>

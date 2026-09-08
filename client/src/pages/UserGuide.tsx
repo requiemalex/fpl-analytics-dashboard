@@ -440,11 +440,19 @@ export function UserGuide() {
       <Section id="player-profile" title="Player Profile">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
           Click a player's name almost anywhere in the app to open it. Actual Output, Underlying Performance, and Value cards resolve
-          per the active analysis mode; Career History and Playing-Time Indicators are unaffected by that toggle — Career History
-          always shows every prior season on record plus this season in progress (marked "(live)", sourced from live data rather than
-          a completed season's record), and Playing-Time Indicators are always live. The Percentile Radar chart is position-specific —
+          per the active analysis mode; Career History, Playing-Time Indicators, and This Season are unaffected by that toggle — Career
+          History always shows every prior season on record plus this season in progress (marked "(live)", sourced from live data
+          rather than a completed season's record), and the other two are always live. The Percentile Radar chart is position-specific —
           a goalkeeper's axes share almost nothing with a forward's — and also resolves per mode. Archetype badges and the "Compare"
           link (into Player Comparison, pre-filled) sit alongside.
+        </p>
+        <p className="page-subtitle">
+          <strong>This Season</strong> is a gameweek-by-gameweek breakdown of the live season — one row per gameweek played, opponent
+          and result, points, minutes, starts, and the same attacking/defensive/expected-stats columns used everywhere else in this app
+          (goals, assists, xG, xA, xGI, clean sheets, goals conceded, xGC, tackles, clearances/blocks/interceptions, recoveries,
+          Defensive Contributions, cards, saves, penalties, BPS), plus a Totals row and a Per 90 row for the expected-stats columns.
+          The table scrolls horizontally — there are more columns than fit on screen at once. Sourced from the same element-summary
+          request as Career History and Playing-Time Indicators, so it shares their loading/error state.
         </p>
       </Section>
 

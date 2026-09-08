@@ -177,7 +177,13 @@ export interface RawFixture {
   team_a_difficulty: number;
 }
 
-/** A single gameweek entry inside an element-summary "history" array. */
+/**
+ * A single gameweek entry inside an element-summary "history" array — the
+ * live current season only, one row per gameweek this player has actually
+ * played (or been named in a squad for). Field names/shape confirmed
+ * directly against the live 2026/27 API for a real player (Haaland,
+ * element 411) rather than assumed from older-season documentation.
+ */
 export interface RawElementSummaryHistory {
   element: number;
   fixture: number;
@@ -186,6 +192,33 @@ export interface RawElementSummaryHistory {
   starts: number | null;
   total_points: number;
   was_home: boolean;
+  opponent_team: number;
+  team_h_score: number | null;
+  team_a_score: number | null;
+  goals_scored: number;
+  assists: number;
+  clean_sheets: number;
+  goals_conceded: number;
+  own_goals: number;
+  penalties_saved: number;
+  penalties_missed: number;
+  yellow_cards: number;
+  red_cards: number;
+  saves: number;
+  bonus: number;
+  bps: number;
+  // Genuinely tracked every gameweek this season (the stat only started
+  // existing from 2024/25 — irrelevant here, since this array never
+  // covers a prior season) — never a placeholder, unlike the same fields
+  // read from history_past for old seasons.
+  clearances_blocks_interceptions: number;
+  recoveries: number;
+  tackles: number;
+  defensive_contribution: number;
+  expected_goals: string | null;
+  expected_assists: string | null;
+  expected_goal_involvements: string | null;
+  expected_goals_conceded: string | null;
 }
 
 /**

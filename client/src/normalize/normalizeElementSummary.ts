@@ -9,13 +9,40 @@ import { parseNumericString, parseNumberOrNull } from "./parseNumeric";
  */
 export function normalizeElementSummary(raw: RawElementSummary): PlayerGameweekHistory[] {
   return raw.history
-    .map((h) => ({
-      round: h.round,
-      minutes: h.minutes,
-      starts: h.starts ?? null,
-      totalPoints: h.total_points,
-      wasHome: h.was_home,
-    }))
+    .map((h) => {
+      const teamScore = h.was_home ? (h.team_h_score ?? null) : (h.team_a_score ?? null);
+      const opponentScore = h.was_home ? (h.team_a_score ?? null) : (h.team_h_score ?? null);
+      return {
+        round: h.round,
+        minutes: h.minutes,
+        starts: h.starts ?? null,
+        totalPoints: h.total_points,
+        wasHome: h.was_home,
+        opponentTeamId: h.opponent_team,
+        teamScore,
+        opponentScore,
+        goals: h.goals_scored,
+        assists: h.assists,
+        cleanSheets: h.clean_sheets,
+        goalsConceded: h.goals_conceded,
+        ownGoals: h.own_goals,
+        penaltiesSaved: h.penalties_saved,
+        penaltiesMissed: h.penalties_missed,
+        yellowCards: h.yellow_cards,
+        redCards: h.red_cards,
+        saves: h.saves,
+        bonus: h.bonus,
+        bps: h.bps,
+        defensiveContribution: h.defensive_contribution,
+        tackles: h.tackles,
+        clearancesBlocksInterceptions: h.clearances_blocks_interceptions,
+        recoveries: h.recoveries,
+        xG: parseNumericString(h.expected_goals ?? null),
+        xA: parseNumericString(h.expected_assists ?? null),
+        xGI: parseNumericString(h.expected_goal_involvements ?? null),
+        xGC: parseNumericString(h.expected_goals_conceded ?? null),
+      };
+    })
     .sort((a, b) => a.round - b.round);
 }
 

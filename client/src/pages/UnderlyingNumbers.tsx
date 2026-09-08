@@ -67,7 +67,7 @@ export function UnderlyingNumbers() {
   };
   const [trendPlayerIds, setTrendPlayerIds] = useState<number[]>([]);
   const [trendMetrics, setTrendMetrics] = useState<TrendMetricKey[]>(["totalPoints"]);
-  const [normalizeTrend, setNormalizeTrend] = useState(false);
+  const [normalizeTrend, setNormalizeTrend] = useState(true);
   const activeTrendPlayerIds = trendPlayerIds.length > 0 ? trendPlayerIds : playersWithHistory[0] ? [playersWithHistory[0].id] : [];
   const activeTrendMetrics = trendMetrics.length > 0 ? trendMetrics : (["totalPoints"] as TrendMetricKey[]);
   const trendPlayersById = useMemo(() => new Map(playersWithHistory.map((p) => [p.id, p])), [playersWithHistory]);
