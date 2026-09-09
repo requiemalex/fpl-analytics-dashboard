@@ -9,9 +9,12 @@ import { defensiveRewardPer90 } from "../metrics/defensiveReward";
 import { buildThematicTrends } from "../metrics/thematicTrends";
 import { FiltersBar } from "../components/FiltersBar";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
+import { LocalViewControls, createDefaultLocalViewState } from "../components/LocalViewControls";
 import { TopList, type TopListRow } from "../components/TopList";
 import { ScatterWithReference, type ScatterPoint } from "../components/charts/ScatterWithReference";
-import { PLAYER_COLUMNS, columnByKey } from "../components/playerColumns";
+import { UserAnalysisGraphCard } from "../components/UserAnalysisGraphCard";
+import { useSavedUserGraphs, createUserGraph, MAX_USER_GRAPHS, type UserGraphType } from "../state/useSavedUserGraphs";
+import { PLAYER_COLUMNS } from "../components/playerColumns";
 import { fmtDecimal, DASH } from "../utils/format";
 
 function topN(rows: TopListRow[], n: number): TopListRow[] {
@@ -134,41 +137,76 @@ export function UnderlyingNumbers() {
   );
 
   // ---------- Value (merged in from the old Value page) ----------
+  //
+  // Its own view wiring (analysis mode + filters), independent of Expected
+  // vs Actual's above — changing either section's toggle/search only ever
+  // recomputes that section's own graph and summary tiles, never both.
+  const [valueView, setValueView] = useState(createDefaultLocalViewState);
+  const { resolved: valueResolvedPlayers, noDataCount: valueNoDataCount } = useMemo(
+    () => resolvePlayerStatsList(players, valueView.analysisMode, historicProfiles, currentSeasonHasStarted),
+    [players, valueView.analysisMode, historicProfiles, currentSeasonHasStarted],
+  );
+  const valueFiltered = useFilteredPlayers(valueResolvedPlayers, valueView.filters, valueView.analysisMode, teamsById, historicProfiles);
+  const valueRows = useMemo(() => valueFiltered.map((p) => ({ player: p, derived: getPlayerDerivedMetrics(p) })), [valueFiltered]);
 
   const priceVsPoints: ScatterPoint[] = useMemo(
     () =>
-      filtered.filter((p) => p.totalPoints !== null).map((p) => ({ id: p.id, label: p.name, x: p.price, y: p.totalPoints as number })),
-    [filtered],
+      valueFiltered
+        .filter((p) => p.totalPoints !== null)
+        .map((p) => ({ id: p.id, label: p.name, x: p.price, y: p.totalPoints as number })),
+    [valueFiltered],
   );
 
   // Points/£m and xGI/£m are already on the Dashboard (Top 5 — Value and
   // Top 5 — xGI/£m) — same reasoning as above, not repeated here.
   const { topXGPerM, topXAPerM } = useMemo(
     () => ({
-      topXGPerM: topN(rows.map((r) => ({ player: r.player, value: r.derived.xGPerMillion })), 5),
-      topXAPerM: topN(rows.map((r) => ({ player: r.player, value: r.derived.xAPerMillion })), 5),
+      topXGPerM: topN(valueRows.map((r) => ({ player: r.player, value: r.derived.xGPerMillion })), 5),
+      topXAPerM: topN(valueRows.map((r) => ({ player: r.player, value: r.derived.xAPerMillion })), 5),
     }),
-    [rows],
+    [valueRows],
   );
 
   // ---------- User Analysis ----------
+  //
+  // No graph exists by default. Each saved graph (up to MAX_USER_GRAPHS) is
+  // fully self-contained — see UserAnalysisGraphCard — with its own view
+  // wiring, so section/graph independence holds within User Analysis too,
+  // not just between it and Expected vs Actual/Value.
+  const userGraphs = useSavedUserGraphs();
+  const [showCreateGraphModal, setShowCreateGraphModal] = useState(false);
+  const [newGraphName, setNewGraphName] = useState("");
+  const [newGraphType, setNewGraphType] = useState<UserGraphType>("scatter");
+  const [newGraphX, setNewGraphX] = useState("xGI");
+  const [newGraphY, setNewGraphY] = useState("totalPoints");
+  const [newGraphError, setNewGraphError] = useState<string | null>(null);
 
-  const [xMetricKey, setXMetricKey] = useState("xGI");
-  const [yMetricKey, setYMetricKey] = useState("totalPoints");
-  const xColumn = columnByKey(xMetricKey)!;
-  const yColumn = columnByKey(yMetricKey)!;
+  function openCreateGraphModal() {
+    setNewGraphName("");
+    setNewGraphType("scatter");
+    setNewGraphX("xGI");
+    setNewGraphY("totalPoints");
+    setNewGraphError(null);
+    setShowCreateGraphModal(true);
+  }
 
-  const customGraphData: ScatterPoint[] = useMemo(() => {
-    const points: ScatterPoint[] = [];
-    for (const p of filtered) {
-      const derived = getPlayerDerivedMetrics(p);
-      const x = xColumn.getValue(p, derived);
-      const y = yColumn.getValue(p, derived);
-      if (x === null || y === null) continue;
-      points.push({ id: p.id, label: p.name, x, y });
+  function closeCreateGraphModal() {
+    setShowCreateGraphModal(false);
+  }
+
+  function handleCreateGraph() {
+    if (userGraphs.graphs.length >= MAX_USER_GRAPHS) {
+      setNewGraphError(`You already have ${MAX_USER_GRAPHS} saved graphs — the maximum allowed. Remove one first.`);
+      return;
     }
-    return points;
-  }, [filtered, xColumn, yColumn]);
+    const trimmedName = newGraphName.trim();
+    if (!trimmedName) {
+      setNewGraphError("Enter a name for this graph.");
+      return;
+    }
+    userGraphs.addGraph(createUserGraph(trimmedName, newGraphType, newGraphX, newGraphY));
+    setShowCreateGraphModal(false);
+  }
 
   return (
     <div>
@@ -230,7 +268,15 @@ export function UnderlyingNumbers() {
         <TopList title="Assists Below xA" rows={assistsBelowXA} format={(v) => (v !== null ? `−${v.toFixed(2)}` : DASH)} onSelect={select} />
       </div>
 
+      {analysisMode !== "live" && noDataCount > 0 && (
+        <p className="page-subtitle" style={{ marginTop: 10 }}>
+          {noDataCount.toLocaleString("en-GB")} player(s) have no data for this mode — still shown above, with {DASH} for the metrics this
+          mode can't fill in.
+        </p>
+      )}
+
       <h2 className="section-heading">Value</h2>
+      <LocalViewControls idPrefix="value" state={valueView} onChange={setValueView} />
       <div className="card" style={{ marginBottom: 22 }}>
         <div className="card-title">Price vs Points</div>
         <ScatterWithReference
@@ -248,10 +294,10 @@ export function UnderlyingNumbers() {
         <TopList title="Top xA/£m" rows={topXAPerM} format={(v) => fmtDecimal(v, 2)} onSelect={select} />
       </div>
 
-      {analysisMode !== "live" && noDataCount > 0 && (
+      {valueView.analysisMode !== "live" && valueNoDataCount > 0 && (
         <p className="page-subtitle" style={{ marginTop: 10 }}>
-          {noDataCount.toLocaleString("en-GB")} player(s) have no data for this mode — still shown above, with {DASH} for the metrics this
-          mode can't fill in.
+          {valueNoDataCount.toLocaleString("en-GB")} player(s) have no data for this mode — still shown above, with {DASH} for the metrics
+          this mode can't fill in.
         </p>
       )}
 
@@ -291,31 +337,95 @@ export function UnderlyingNumbers() {
       </div>
 
       <h2 className="section-heading">User Analysis</h2>
-      <div className="card">
-        <div className="filters-bar" style={{ marginBottom: 12 }}>
-          <div className="field">
-            <label htmlFor="custom-x">X axis</label>
-            <select id="custom-x" value={xMetricKey} onChange={(e) => setXMetricKey(e.target.value)}>
-              {PLAYER_COLUMNS.map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="custom-y">Y axis</label>
-            <select id="custom-y" value={yMetricKey} onChange={(e) => setYMetricKey(e.target.value)}>
-              {PLAYER_COLUMNS.map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+      {userGraphs.graphs.map((graph) => (
+        <UserAnalysisGraphCard
+          key={graph.id}
+          graph={graph}
+          players={players}
+          teamsById={teamsById}
+          historicProfiles={historicProfiles}
+          currentSeasonHasStarted={currentSeasonHasStarted}
+          onUpdateView={userGraphs.updateGraphView}
+          onRemove={userGraphs.removeGraph}
+          onSelectPlayer={select}
+        />
+      ))}
+      {userGraphs.graphs.length < MAX_USER_GRAPHS ? (
+        <button type="button" className="btn" onClick={openCreateGraphModal} style={{ marginBottom: 22 }}>
+          + Add Graph
+        </button>
+      ) : (
+        <p className="page-subtitle">You've saved the maximum of {MAX_USER_GRAPHS} graphs — remove one to add another.</p>
+      )}
+
+      {showCreateGraphModal && (
+        <div className="dialog-backdrop" onClick={closeCreateGraphModal}>
+          <div className="dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-title">New Graph</div>
+            <div className="field">
+              <label htmlFor="new-graph-name">Name</label>
+              <input
+                id="new-graph-name"
+                type="text"
+                placeholder="e.g. xG vs Bonus"
+                value={newGraphName}
+                onChange={(e) => setNewGraphName(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="new-graph-type">Graph type</label>
+              <select id="new-graph-type" value={newGraphType} onChange={(e) => setNewGraphType(e.target.value as UserGraphType)}>
+                <option value="scatter">Scatter Plot (metric vs metric)</option>
+                <option value="bar">Bar Chart (top 15 by metric)</option>
+              </select>
+            </div>
+            {newGraphType === "scatter" ? (
+              <>
+                <div className="field">
+                  <label htmlFor="new-graph-x">X axis metric</label>
+                  <select id="new-graph-x" value={newGraphX} onChange={(e) => setNewGraphX(e.target.value)}>
+                    {PLAYER_COLUMNS.map((c) => (
+                      <option key={c.key} value={c.key}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label htmlFor="new-graph-y">Y axis metric</label>
+                  <select id="new-graph-y" value={newGraphY} onChange={(e) => setNewGraphY(e.target.value)}>
+                    {PLAYER_COLUMNS.map((c) => (
+                      <option key={c.key} value={c.key}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            ) : (
+              <div className="field">
+                <label htmlFor="new-graph-metric">Metric</label>
+                <select id="new-graph-metric" value={newGraphY} onChange={(e) => setNewGraphY(e.target.value)}>
+                  {PLAYER_COLUMNS.map((c) => (
+                    <option key={c.key} value={c.key}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {newGraphError && <div className="banner error">{newGraphError}</div>}
+            <div className="dialog-actions">
+              <button type="button" className="btn" onClick={closeCreateGraphModal}>
+                Cancel
+              </button>
+              <button type="button" className="btn primary" onClick={handleCreateGraph}>
+                Create
+              </button>
+            </div>
           </div>
         </div>
-        <ScatterWithReference data={customGraphData} xLabel={xColumn.label} yLabel={yColumn.label} onPointClick={select} />
-      </div>
+      )}
     </div>
   );
 }

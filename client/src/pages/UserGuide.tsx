@@ -246,9 +246,16 @@ export function UserGuide() {
         <p className="page-subtitle" style={{ marginTop: 0 }}>
           Charts, not tables — expected-vs-actual scatter plots (xG vs Goals, xA vs Assists, xGI vs Goals+Assists, ICT vs Goals+Assists,
           and a defensive equivalent with a colour-coded third dimension for xGC/90), a Value section (Price vs Points — with gridlines
-          at every £0.5m — plus xG/£m and xA/£m leaderboards), and a User Analysis tool — pick any two metrics from Player Explorer's
-          full list and plot them against each other. Leaderboards that already exist on the Dashboard (Points, xGI, Points/£m, xGI/£m,
-          Goals Above/Below xG) aren't repeated here — see the Dashboard for those.
+          at every £0.5m — plus xG/£m and xA/£m leaderboards), and a User Analysis tool for saving your own graphs. Leaderboards that
+          already exist on the Dashboard (Points, xGI, Points/£m, xGI/£m, Goals Above/Below xG) aren't repeated here — see the Dashboard
+          for those.
+        </p>
+        <p className="page-subtitle">
+          <strong>Expected vs Actual</strong>, <strong>Value</strong>, and each graph inside <strong>User Analysis</strong> each carry
+          their own analysis-mode toggle and search/filter bar — changing one section's (or one saved graph's) toggle, search, position,
+          team, archetype, or minutes filter only ever recomputes that section's own charts and summary tiles, never another section's.
+          Setting Value's toggle to Historic Average, say, has no effect on Expected vs Actual's charts or "Top xG"/"Top xA" tiles above
+          it, and vice versa.
         </p>
         <p className="page-subtitle">
           <strong>Thematic Analysis</strong>, further down the page, is deliberately built outside the Last Completed Season / Historic
@@ -262,14 +269,20 @@ export function UserGuide() {
           Comparison, further down this guide.)
         </p>
         <p className="page-subtitle">
-          Two of the six expected-vs-actual charts intentionally have no dashed reference line, for different reasons. <strong>ICT Index
+          Two of the five expected-vs-actual charts intentionally have no dashed reference line, for different reasons. <strong>ICT Index
           vs Goals + Assists</strong>: ICT is a composite influence/creativity/threat score on its own scale, not the same unit as
-          Goals + Assists, so a 45° "expected output" line would be meaningless — it shows pattern and correlation only. <strong>User
-          Analysis</strong>: an arbitrary pair of metrics usually isn't an expected-vs-actual relationship either, so no line is
-          drawn unless the axes genuinely represent that.
+          Goals + Assists, so a 45° "expected output" line would be meaningless — it shows pattern and correlation only.{" "}
+          <strong>Defensive Contribution/90 vs Defensive Reward/90</strong> is the other, for the reason spelled out below.
         </p>
         <p className="page-subtitle">
-          <strong>Defensive Contribution/90 vs Defensive Reward/90</strong> is the hardest of the six to read honestly, so it's spelled
+          <strong>User Analysis</strong> starts empty — nothing is created for you. Click <strong>+ Add Graph</strong> and pick a name, a
+          graph type (a Scatter Plot comparing two metrics, or a Bar Chart ranking the top 15 players by one), and the metric(s) to plot,
+          then Create (or Cancel to back out without saving anything). Up to 5 graphs can be saved at once, kept in your browser for
+          future visits; each gets its own analysis-mode toggle and filter bar, and a Remove button on its own card. An arbitrary pair of
+          metrics usually isn't an expected-vs-actual relationship, so a scatter graph here never draws a 45° reference line.
+        </p>
+        <p className="page-subtitle">
+          <strong>Defensive Contribution/90 vs Defensive Reward/90</strong> is the hardest of the five to read honestly, so it's spelled
           out here: the x-axis is the qualifying-action rate that earns Defensive Contribution points (CBIT for defenders, CBIRT for
           midfielders/forwards) — capped at 2 points per match, so the rate doesn't convert to points linearly. The y-axis is
           clean-sheet points/90 plus <em>total</em> bonus/90 — bonus isn't isolated to defensive actions specifically, since goals,
