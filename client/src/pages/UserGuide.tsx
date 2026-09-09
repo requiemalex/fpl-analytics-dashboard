@@ -361,7 +361,7 @@ export function UserGuide() {
           selection — it isn't tied to the 5 players compared above. It's deliberately built outside the Last Completed Season /
           Historic Average / Current Season toggle: it needs a genuine multi-season time series, which that single-season toggle can't
           represent. Starts empty — add up to 5 players via the search box — and plots them against up to 3 metrics at once (Points,
-          Points/90, Goals, Assists, xG, xA, xGI, Minutes) — every player×metric combination gets its own line, coloured by player and
+          Goals, Assists, xG, xA, xGI, Minutes) — every player×metric combination gets its own line, coloured by player and
           dashed by metric, labelled in the legend as "Player — Metric" once there's more than one of each. A Normalise toggle (on by
           default) independently scales each metric to 0–100 across the values on screen, which is what makes overlaying metrics on
           very different scales (Minutes vs xG, say) actually readable. No minutes threshold on any of this — a quiet or injury-hit

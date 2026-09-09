@@ -1,5 +1,4 @@
 import type { PlayerSeasonHistory } from "../types/normalized";
-import { per90 } from "./calculations";
 
 export interface PlayerTrendPoint {
   seasonName: string;
@@ -10,7 +9,6 @@ export interface PlayerTrendPoint {
   xG: number | null;
   xA: number | null;
   xGI: number | null;
-  pointsPer90: number | null;
 }
 
 /**
@@ -30,7 +28,6 @@ export function buildPlayerTrend(seasons: PlayerSeasonHistory[]): PlayerTrendPoi
     xG: s.xG,
     xA: s.xA,
     xGI: s.xGI,
-    pointsPer90: per90(s.totalPoints, s.minutes),
   }));
 }
 

@@ -188,7 +188,6 @@ export function PlayerComparison() {
   const TREND_METRIC_DASH_PATTERNS = ["0", "6 4", "2 3"];
   const TREND_METRIC_LABELS: Record<TrendMetricKey, string> = {
     totalPoints: "Total Points",
-    pointsPer90: "Points per 90",
     goals: "Goals",
     assists: "Assists",
     xG: "xG",
