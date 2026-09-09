@@ -305,7 +305,17 @@ table.data-table tbody tr:hover td {
    plain outlined pill — a deliberately different silhouette from other
    FPL tools' position badges (a flush-left flag shape, tinted fill
    instead of a transparent/bordered capsule), while keeping the same
-   at-a-glance colour coding and overall restraint. */
+   at-a-glance colour coding and overall restraint.
+
+   Colours are a dedicated violet/cyan/amber/rose set, not reused from
+   this app's own semantic tokens — the previous colours (gold, blue,
+   green, red) were pulled directly from --accent-value/-focus/-positive/
+   -negative, which happened to be exactly the gold/blue/green/red
+   position scheme several other FPL tools also converge on. Using a
+   genuinely different four-colour set both differentiates this app's
+   own look and removes an accidental ambiguity: MID's badge no longer
+   reads as the same colour as a "good" stat elsewhere on the same page,
+   nor FWD's as a "bad" one. */
 .badge.pos-GKP,
 .badge.pos-DEF,
 .badge.pos-MID,
@@ -316,24 +326,24 @@ table.data-table tbody tr:hover td {
   font-weight: 700;
 }
 .badge.pos-GKP {
-  color: #d8b34a;
-  background: rgba(216, 179, 74, 0.16);
-  border-left: 3px solid #d8b34a;
+  color: #a78bfa;
+  background: rgba(167, 139, 250, 0.16);
+  border-left: 3px solid #a78bfa;
 }
 .badge.pos-DEF {
-  color: #6fb8ff;
-  background: rgba(111, 184, 255, 0.16);
-  border-left: 3px solid #6fb8ff;
+  color: #22d3ee;
+  background: rgba(34, 211, 238, 0.16);
+  border-left: 3px solid #22d3ee;
 }
 .badge.pos-MID {
-  color: #3fbf7f;
-  background: rgba(63, 191, 127, 0.16);
-  border-left: 3px solid #3fbf7f;
+  color: #fb923c;
+  background: rgba(251, 146, 60, 0.16);
+  border-left: 3px solid #fb923c;
 }
 .badge.pos-FWD {
-  color: #e0654a;
-  background: rgba(224, 101, 74, 0.16);
-  border-left: 3px solid #e0654a;
+  color: #f472b6;
+  background: rgba(244, 114, 182, 0.16);
+  border-left: 3px solid #f472b6;
 }
 
 .badge.archetype {
@@ -516,40 +526,38 @@ table.data-table tbody tr:hover td {
   transform: translateX(-50%);
 }
 /* PositionBadge's default colours are tuned for the app's usual dark
-   surfaces, not the jersey's fixed green fill — DEF's light blue and
-   MID's green (identical to --accent-positive, i.e. invisible) needed
-   genuinely different colours; GKP/FWD's gold/red already contrasted
-   fine as plain text, but get the same solid pill backing here too for
-   a consistent look across all four positions. Overridden only in this
-   jersey context — every other place PositionBadge renders (tables,
-   lists, etc.) is untouched. Deliberately kept as a plain rounded pill
-   (not the flush-left flag shape those other places use) — floating
-   alone on a jersey, an asymmetric tag shape doesn't read as cleanly as
-   a small rounded crest does, so this stays its own already-tested look. */
+   surfaces, not the jersey's fixed green fill. A solid near-black pill
+   background behind all four (rather than the transparent fill used
+   elsewhere) sidesteps the contrast problem entirely — every position's
+   text sits on the same dark backing, not on the jersey's green
+   directly, so which specific hue each position uses doesn't matter for
+   legibility here the way it did before this app's position colours
+   moved off its own green/blue/gold/red semantic tokens. Overridden
+   only in this jersey context — every other place PositionBadge renders
+   (tables, lists, etc.) is untouched. Deliberately kept as a plain
+   rounded pill (not the flush-left flag shape those other places use)
+   — floating alone on a jersey, an asymmetric tag shape doesn't read as
+   cleanly as a small rounded crest does, so this stays its own
+   already-tested shape. */
 .pitch-card-jersey-position .badge.pos-GKP,
 .pitch-card-jersey-position .badge.pos-DEF,
 .pitch-card-jersey-position .badge.pos-MID,
 .pitch-card-jersey-position .badge.pos-FWD {
   border-radius: 999px;
   padding-left: 7px;
+  background: var(--bg);
 }
 .pitch-card-jersey-position .badge.pos-GKP {
-  background: var(--bg);
-  border: 1px solid #5c4a29;
+  border: 1px solid #4c3a7a;
 }
 .pitch-card-jersey-position .badge.pos-DEF {
-  color: #cfe0ff;
-  background: #1a3d8f;
-  border: 1px solid #0d2050;
+  border: 1px solid #0d4a54;
 }
 .pitch-card-jersey-position .badge.pos-MID {
-  color: #14140a;
-  background: #f4f6f4;
-  border: 1px solid #2a3630;
+  border: 1px solid #7a3f14;
 }
 .pitch-card-jersey-position .badge.pos-FWD {
-  background: var(--bg);
-  border: 1px solid #5c3129;
+  border: 1px solid #7a2f52;
 }
 .pitch-card-armband {
   position: absolute;
