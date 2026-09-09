@@ -497,12 +497,17 @@ table.data-table tbody tr:hover td {
   left: 50%;
   transform: translateX(-50%);
 }
-/* PositionBadge's default DEF/MID colours (a light blue, and the exact
-   same green as --accent-positive) are tuned for the app's usual dark
-   surfaces — both read poorly, MID invisibly so, against the jersey's
-   fixed green fill. Overridden here only, so every other place
-   PositionBadge appears (tables, lists, etc.) is untouched; GKP/FWD
-   already contrast fine against green and are deliberately left alone. */
+/* PositionBadge's default colours are tuned for the app's usual dark
+   surfaces, not the jersey's fixed green fill — DEF's light blue and
+   MID's green (identical to --accent-positive, i.e. invisible) needed
+   genuinely different colours; GKP/FWD's gold/red already contrasted
+   fine as plain text, but get the same solid pill backing here too for
+   a consistent look across all four positions. Overridden only in this
+   jersey context — every other place PositionBadge renders (tables,
+   lists, etc.) is untouched. */
+.pitch-card-jersey-position .badge.pos-GKP {
+  background: var(--bg);
+}
 .pitch-card-jersey-position .badge.pos-DEF {
   color: #cfe0ff;
   background: #1a3d8f;
@@ -512,6 +517,9 @@ table.data-table tbody tr:hover td {
   color: #14140a;
   background: #f4f6f4;
   border-color: #2a3630;
+}
+.pitch-card-jersey-position .badge.pos-FWD {
+  background: var(--bg);
 }
 .pitch-card-armband {
   position: absolute;
