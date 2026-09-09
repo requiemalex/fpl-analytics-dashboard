@@ -28,6 +28,18 @@ export interface RawTeam {
   draw: number;
   loss: number;
   unavailable: boolean;
+  /**
+   * FPL's own overall team-strength ratings (roughly 2-5), split by
+   * home/away — used for Expected Points Tier 2's clean-sheet estimate.
+   * The live API also exposes strength_attack_home/away and
+   * strength_defence_home/away, which would be a more granular input,
+   * but as observed directly on the live 2026/27 endpoint (9 Sept 2026,
+   * gameweek 4) these are 0 for every single team — not yet populated
+   * this early in the season — so only the overall figures are used;
+   * see README.
+   */
+  strength_overall_home?: number | null;
+  strength_overall_away?: number | null;
 }
 
 export interface RawEvent {
@@ -68,6 +80,9 @@ export interface RawElement {
   bonus: number;
   bps: number;
   ict_index: string;
+  /** Season-to-date total saves — goalkeepers only, 0 for outfield players. Used by Expected Points Tier 2's saves-rate estimate. */
+  saves?: number | null;
+  saves_per_90?: number | null;
   status: string;
   news: string;
   /** 0-100, or null when there's no doubt/no data (e.g. straightforwardly available or long-term situations FPL hasn't put a percentage on). */

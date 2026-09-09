@@ -14,5 +14,7 @@ export function normalizeTeams(rawTeams: RawTeam[]): NormalizedTeam[] {
     draws: t.draw ?? 0,
     losses: t.loss ?? 0,
     unavailable: t.unavailable ?? false,
+    strengthOverallHome: t.strength_overall_home ?? null,
+    strengthOverallAway: t.strength_overall_away ?? null,
   }));
 }

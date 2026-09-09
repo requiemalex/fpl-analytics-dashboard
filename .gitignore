@@ -7,6 +7,10 @@ client/dist/
 release/
 *.tsbuildinfo
 
+# Generated, re-runnable script output — the actual results at time of
+# writing are documented in README.md; re-run client/scripts/backtestExpectedPoints.ts for a fresh snapshot.
+client/scripts/backtest-results.csv
+
 # Env / secrets
 .env
 .env.*

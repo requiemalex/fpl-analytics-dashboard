@@ -645,6 +645,156 @@ overlay (`?player=id`), so it doesn't also trigger the card's
 captain-assign click or interfere with the drag gesture. The rest of
 the card keeps its existing behaviour untouched.
 
+## Expected Points — Tier 2 (experimental, not wired into any page yet)
+
+A second, independent Expected Points estimate, built alongside — not
+instead of — the existing model above. Where Tier 1 trusts FPL's own
+`ep_next` outright, Tier 2 never looks at `ep_next` at all: it estimates
+each of FPL's actual scoring events separately from this app's own
+normalized stats, using FPL's real scoring rules, and sums them.
+`client/src/metrics/expectedPointsV2.ts` — a new module, deliberately
+not touching `expectedPoints.ts` and not replacing any figure shown
+anywhere in the app yet. Whether it ever does depends on the backtest
+results below, per this app's own "never replace a working, documented
+feature with an unvalidated one" rule.
+
+### Scoring rules used (2026/27, cross-checked directly, not assumed)
+
+| Event | GK | DEF | MID | FWD |
+|---|---|---|---|---|
+| Plays 1-59 mins | 1 | 1 | 1 | 1 |
+| Plays 60+ mins | 2 | 2 | 2 | 2 |
+| Goal | 10 | 6 | 5 | 4 |
+| Assist | 3 | 3 | 3 | 3 |
+| Clean sheet (needs 60+ mins) | 4 | 4 | 1 | 0 |
+| Every 3 saves | 1 | — | — | — |
+| Penalty save | 5 | — | — | — |
+| Every 2 goals conceded | -1 | -1 | 0 | 0 |
+| Defensive contribution (flat, doesn't stack) | — | +2 | +2 | +2 |
+| Bonus (top 3 BPS per match) | 3/2/1 | 3/2/1 | 3/2/1 | 3/2/1 |
+
+Defensive contribution needs 10+ combined clearances+blocks+interceptions+tackles (CBIT) for a defender in one match, or 12+ of the same four plus recoveries (CBIRT) for a midfielder/forward — FPL's `defensive_contribution_per_90` field already reflects the position-correct definition, so this app doesn't reconstruct it from the individual components. Cards, red cards, own goals, and penalty misses are **not modelled** (assumed zero) — small, rare events with no per-player historic rate normalized anywhere in this app; modelling them from nothing would be worse than naming the gap. Penalty saves are the same story specifically for goalkeepers.
+
+### Two small data gaps filled in to support this
+
+- **`NormalizedTeam.strengthOverallHome/Away`** — FPL's own overall team-strength rating (roughly 2-5), newly normalized from `bootstrap-static`. The more granular `strength_attack_home/away` / `strength_defence_home/away` fields also exist on the live API, and would be a better input for clean-sheet estimation — but as directly observed on the live 2026/27 endpoint on 9 Sept 2026 (gameweek 4), **they read 0 for every single team**, not yet populated this early in the season. Only the overall ratings are used as a result; worth revisiting once FPL populates the granular fields.
+- **`NormalizedPlayer.saves` / `savesPer90`** — season-to-date save counts, newly normalized (existing goalkeeper columns had never needed this before). Genuinely 0, not null, for an outfield player — same convention as `bonus`/`bps`.
+- **`UpcomingFixture.opponentTeamId`** — the opponent's numeric id was already computed inside `getUpcomingFixtures` but not returned; now exposed so Tier 2 can look up the opponent's own team-strength rating per fixture.
+
+### Per-event modelling
+
+- **Appearance points**: the blended minutes-reliability figure already computed elsewhere (`minutesReliabilityBlend.ts`) is a single 0-1 share, but the scoring rule is a three-way step function (0 / 1 / 2 points). `splitMinutesProbability()` converts one into the other via `p60 = r^1.5`, `p0 = (1-r)^1.5`, remainder = `p1to59` — a judgement-call power curve (like `FDR_SENSITIVITY` elsewhere in this app), chosen so reliable players skew toward "start and finish or don't feature at all" rather than a smeared, unrealistic 45-minutes-every-time distribution this app has no real data to justify more precisely.
+- **Goals & assists**: pay per event with no cap, so expected points from them is just `xG/90 (or xA/90) × expected-minutes-fraction × fixture attack multiplier × point value` — no probability distribution needed for an unbounded-count event. The fixture attack multiplier **reuses** `fixtureMultiplier()` from Tier 1 rather than inventing a second fixture-adjustment scheme — one fixture-difficulty judgement call in this app, not two.
+- **Clean sheets**: genuinely needs a probability (a threshold, flat-value outcome), estimated from the defending side's own home/away-specific overall-strength rating vs. the attacking side's, mapped through a bounded linear function anchored on a ~28% league-average clean-sheet rate (`estimateCleanSheetProbability`), then gated by `p60Plus` — a clean sheet only pays for 60+ minutes. Falls back to the flat anchor, not a guessed direction, if either side's rating is unavailable.
+- **Goals conceded** (GK/DEF only): `xGC/90 × expected-minutes-fraction`, scaled by the mirror image of the same fixture multiplier (a harder fixture means facing a stronger attack, so MORE expected concessions, not fewer). "Every 2 conceded → -1" is a discrete floor() rule; `E[floor(X/2)]` is approximated as `E[X]/2` — a continuous relaxation, documented rather than hidden, and immaterial at the fractional-goal scale this operates on.
+- **Saves** (GK only): `saves/90 × expected-minutes-fraction ÷ 3` — a continuous rate, same reasoning as goals/assists.
+- **Defensive contribution**: the hardest one to get right, and honestly flagged in the model's own output as its least certain component. It's a threshold on a per-match total, but only a per-90 season rate exists for the live model (match-by-match action counts aren't bulk-fetched anywhere in this app — see the backtest section below for where they ARE used). Approximated via a Poisson distribution: `λ = defensive_contribution_per_90 × expected-minutes-fraction`, `P(reach threshold) = P(X ≥ threshold)` for `X ~ Poisson(λ)`. A genuine approximation, not a measured probability — real defensive-action counts are typically more variable than a Poisson distribution assumes, so this likely understates the true spread.
+- **Bonus**: the roughest approximation in the whole model, and it's fine to say so — BPS depends on how a player compares to 21 others in the same match, which nothing in this app's data can see directly. A historic bonus-points-per-90 rate (from qualifying prior seasons), scaled by expected minutes and the same mild fixture-favourability multiplier used for goals/assists. Nothing more sophisticated is attempted here.
+
+Every `ExpectedPointsV2Breakdown` carries a `caveats: string[]` array listing exactly which of the above applied for that specific estimate (missing xG/xA/xGC/saves/DC data, the always-true omissions, the DC and bonus roughness notes) — read before trusting the total at face value, per this app's own convention.
+
+### Why Tier 1 itself can't be backtested (and what this backtest compares instead)
+
+Tier 1's headline figure is built on FPL's own `ep_next` — a live,
+continuously-updated "current best guess," with **no historical record
+anywhere**. There is no way to ask the FPL API "what was `ep_next`
+before gameweek 2" after the fact, so a true head-to-head backtest of
+Tier 1's actual number against Tier 2 isn't possible with data that
+exists — this was checked directly against the raw API and confirmed
+absent, not assumed.
+
+What CAN be faithfully reconstructed for any past gameweek is Tier 1's
+other two inputs — `lastSeason` and `historicAverage` — both pure
+prior-season rate extrapolations that never depend on the live season,
+so they're identical whether computed today or reconstructed for
+gameweek 2. The backtest below compares Tier 2 against that
+reconstruction (`computeExpPointsBreakdown`'s `overallAverage`, with
+`fplPredicted` forced null) — a genuinely fair, apples-to-apples
+comparison, just not the exact number Team Building shows today (which
+also blends in live `ep_next`).
+
+### Backtest methodology and results
+
+`client/scripts/backtestExpectedPoints.ts` — run with `npx tsx
+client/scripts/backtestExpectedPoints.ts` from the repo root. Fetches
+the live FPL API directly (bootstrap-static, fixtures, and
+`element-summary` per sampled player), reconstructs each sampled
+player's cumulative per-90 rates and reliability **as of immediately
+before** each past gameweek (never using data from the gameweek being
+predicted or later — no leakage), and compares both models' single-
+fixture estimate to the real result. Real per-match fixture difficulty,
+opponent, and home/away are looked up from the actual historical
+fixture list, not approximated.
+
+**Sample**: the 20 highest-minutes players per position (80 total) as
+of the time this was run — a documented, bounded selection, not a
+random sample or every player who's featured, chosen to keep the
+script's load on FPL's public API reasonable while covering a
+position-balanced cross-section of players with an actual per-90 rate
+to estimate from.
+
+**Depth**: only gameweeks 2 and 3 were backtestable at the time this was
+run (gameweek 1 has no prior data to predict from, and gameweek 4 hadn't
+been played yet) — 156 backtest points total. This is a genuinely small
+sample from a very early point in the season; treat the numbers below as
+an early read, not a settled verdict, and re-run this script as the
+season progresses for a more reliable comparison.
+
+Results from that run:
+
+| | n | MAE | Mean signed error |
+|---|---|---|---|
+| Tier 2 | 156 | 2.66 | +0.23 (slight over-prediction) |
+| Tier 1 baseline (historic-rate only) | 125 | 2.76 | +0.60 (over-predicts more) |
+
+*(Tier 1 baseline has fewer rows — some sampled players have no
+qualifying prior season, e.g. newly-established Premier League players,
+so it's null for them while Tier 2 still produces a caveated estimate
+from live per-90 rates alone.)*
+
+By position:
+
+| Position | n | Tier 2 MAE | Tier 1 baseline MAE |
+|---|---|---|---|
+| GKP | 38 | 2.27 | 1.90 |
+| DEF | 40 | 2.47 | 2.54 |
+| MID | 40 | 3.38 | 3.31 |
+| FWD | 38 | 2.48 | **3.07** |
+
+Tier 2's clearest edge is at forward (a full point of MAE better) — plausibly because it's estimating goal threat from this season's actual live xG/90 rather than a flat prior-season rate, which matters most for the position where scoring output is most volatile season to season. Tier 1's baseline edges it out for goalkeepers, where clean sheets and saves dominate and a flat historic rate may simply be a more stable target than this early season's small sample.
+
+By current ownership (a rough "nailed-on vs. differential" split, since only 2 backtestable gameweeks exist so far — too little depth for an appearance-count-based split to mean anything):
+
+| | n | Tier 2 MAE |
+|---|---|---|
+| Ownership ≥15% ("nailed-on") | 28 | 3.89 |
+| Ownership <15% ("differential") | 128 | 2.39 |
+
+Tier 2 does noticeably worse on high-ownership players — the same
+direction FPL Pulse's own published comparison against FPL's official
+xP has described. Some of this is a property of MAE itself rather than
+a model flaw specifically: popular players tend to be explosive
+high-ceiling picks, so a single big haul produces a large absolute
+error regardless of which model predicted it. Worth re-checking once
+there's enough season depth to separate "Tier 2 is worse at nailed-on
+players" from "nailed-on players are just higher-variance."
+
+### Not wired into the UI, and what would change that
+
+Per this app's own conventions (documented in `build_and_validate`
+guidance this section was built against): an unvalidated model doesn't
+quietly replace, or even sit alongside, a working documented feature
+until there's real evidence it's earned the place. Right now the
+backtest is 156 points from 2 gameweeks — real signal, but nowhere near
+enough to trust as a settled comparison. Before Tier 2 appears anywhere
+in the UI, it should be re-run with more backtest depth (ideally
+several gameweeks, all 654 players not just the top 20 per position),
+and even then it should be surfaced **alongside** the existing Tier 1
+figure, not in place of it — so a person using the app can see both and
+judge for themselves, exactly as `overallAverage` already blends
+multiple inputs transparently rather than presenting one as ground
+truth.
+
 ## Player Comparison
 
 Comparison moved out of the player profile into its own section

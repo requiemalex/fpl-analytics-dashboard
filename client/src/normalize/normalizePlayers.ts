@@ -86,6 +86,8 @@ function normalizeOnePlayer(
     bonus: el.bonus,
     bps: el.bps,
     ictIndex: parseNumericString(el.ict_index),
+    saves: parseNumberOrNull(el.saves),
+    savesPer90: parseNumberOrNull(el.saves_per_90),
 
     xG: availability.expected_goals ? parseNumericString(el.expected_goals) : null,
     xA: availability.expected_assists ? parseNumericString(el.expected_assists) : null,

@@ -3,6 +3,7 @@ import { DASH } from "../utils/format";
 
 export interface UpcomingFixture {
   fixtureId: number;
+  opponentTeamId: number;
   opponentShortName: string;
   isHome: boolean;
   /** 1 (easiest) to 5 (hardest), FPL's own rating, from this team's perspective. */
@@ -28,6 +29,7 @@ export function getUpcomingFixtures(teamId: number, fixtures: NormalizedFixture[
       const opponentId = isHome ? f.awayTeamId : f.homeTeamId;
       return {
         fixtureId: f.id,
+        opponentTeamId: opponentId,
         opponentShortName: teamsById.get(opponentId)?.shortName ?? "???",
         isHome,
         difficulty: isHome ? f.homeDifficulty : f.awayDifficulty,

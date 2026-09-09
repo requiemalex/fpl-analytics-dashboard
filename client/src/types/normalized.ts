@@ -11,6 +11,18 @@ export interface NormalizedTeam {
   draws: number;
   losses: number;
   unavailable: boolean;
+  /**
+   * FPL's own overall team-strength rating (roughly 2-5), split home/away
+   * — used by Expected Points Tier 2's clean-sheet estimate (see
+   * metrics/expectedPointsV2.ts). Null if the live build ever omits it.
+   * The more granular strength_attack_home/away and
+   * strength_defence_home/away exist on the raw API too, but aren't
+   * normalized here — they read 0 for every team as of gameweek 4 of the
+   * 2026/27 season (not yet populated this early on), so only the
+   * overall figures are usable right now. See README.
+   */
+  strengthOverallHome: number | null;
+  strengthOverallAway: number | null;
 }
 
 /**
@@ -53,6 +65,9 @@ export interface NormalizedPlayer {
   bonus: number | null;
   bps: number | null;
   ictIndex: number | null;
+  /** Season-to-date saves — genuinely 0 (not null) for an outfield player who has made none, same as bonus/bps. Null only if the live build omits the field entirely. See metrics/expectedPointsV2.ts. */
+  saves: number | null;
+  savesPer90: number | null;
 
   // Expected-stats totals. API-supplied where the field exists on the live response.
   xG: number | null;
