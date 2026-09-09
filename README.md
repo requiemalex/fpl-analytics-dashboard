@@ -573,22 +573,33 @@ proxies risked producing something worse than what's already sitting in
 the data this app already fetches. "Just use that number" was the
 instruction, and that's what happens for the immediate gameweek.
 
-FPL doesn't publish `ep_next2`, `ep_next3`, etc., so the 1/3/5-gameweek
-toggle extends forward using only real, FPL-published fixture-difficulty
-data (`client/src/metrics/expectedPoints.ts`):
+FPL doesn't publish `ep_next2`, `ep_next3`, etc., so gameweeks beyond
+the immediate one extend forward using only real, FPL-published
+fixture-difficulty data (`client/src/metrics/expectedPoints.ts`):
 
-- Gameweek+1 = `ep_next`, unmodified.
+- The very next fixture = `ep_next`, unmodified.
 - Each fixture after that = `ep_next × fixtureMultiplier(difficulty, position)`, where the multiplier moves the estimate away from
   neutral (FDR 3) by a per-position sensitivity constant
   (`FDR_SENSITIVITY` — forwards swing most on attacking difficulty,
   defenders/goalkeepers least, since appearance/DC/save points are less
   fixture-dependent than goal threat).
-- Summed across the window. "Gameweek" here means each player's own
-  next fixtures, not a calendar slot — a blank gameweek contributes
-  nothing automatically (there's no fixture to sum), and a double
-  gameweek counts both fixtures, simply by using "next N fixtures" as
-  the unit throughout (`getUpcomingFixtures`, already built for the
-  pitch's fixture ticker).
+- "Gameweek" here means each player's own next fixtures, not a calendar
+  slot — a blank gameweek has no fixture to select, and a double
+  gameweek's two fixtures both show up as consecutive steps, simply by
+  using "next N fixtures" as the unit throughout (`getUpcomingFixtures`,
+  already built for the pitch's fixture ticker).
+
+**Team Building no longer sums a 1/3/5-gameweek window into one
+figure.** A gameweek navigator on the pitch view (`GW+1` .. `GW+5`)
+picks exactly one of a player's next five upcoming fixtures, and both
+this figure and Expected Points Tier 2 (below) show that single
+fixture's estimate — on the pitch cards and in the Add Players table —
+recomputed live as the navigator moves.
+`computeExpectedPointsForSingleFixture` is the single-fixture building
+block; `computeExpectedPointsForWindow` (still exported, used only by
+a few now-orphaned exploratory modules — `optimalDraft.ts`,
+`squadRating.ts`, `transferSolver.ts`, none currently referenced from
+any page) sums it across a window for anything that still wants that shape.
 
 No separate "team defence" / "opponent attack" buckets: FDR is already
 substantially derived from team strength by FPL, so weighting both
@@ -779,21 +790,37 @@ error regardless of which model predicted it. Worth re-checking once
 there's enough season depth to separate "Tier 2 is worse at nailed-on
 players" from "nailed-on players are just higher-variance."
 
-### Not wired into the UI, and what would change that
+### Now wired into Team Building, alongside — not instead of — Tier 1
 
-Per this app's own conventions (documented in `build_and_validate`
-guidance this section was built against): an unvalidated model doesn't
-quietly replace, or even sit alongside, a working documented feature
-until there's real evidence it's earned the place. Right now the
-backtest is 156 points from 2 gameweeks — real signal, but nowhere near
-enough to trust as a settled comparison. Before Tier 2 appears anywhere
-in the UI, it should be re-run with more backtest depth (ideally
-several gameweeks, all 654 players not just the top 20 per position),
-and even then it should be surfaced **alongside** the existing Tier 1
-figure, not in place of it — so a person using the app can see both and
-judge for themselves, exactly as `overallAverage` already blends
-multiple inputs transparently rather than presenting one as ground
-truth.
+With the backtest above showing genuine (if early and mixed) promise —
+roughly tied overall, clearly ahead at forward, behind at goalkeeper
+and for high-ownership players — the decision made was **not** to
+replace Tier 1, and not to wait for a deeper backtest before showing
+Tier 2 at all. Team Building's Add Players table now shows both figures
+as separate columns, **Exp. Pts (FPL Official)** and **Exp. Pts (Model
+Predicted)**, so a person using the app can see both and judge for
+themselves which to trust for a given player — exactly the "surface
+alongside, never replace outright" approach this section originally
+called for, just exercised now rather than after a deeper backtest,
+since showing both costs nothing a user can't already see through
+(hover the Model Predicted figure for its caveats).
+
+The old three-way Last Completed Season / Historic Average / Overall
+Average breakdown and the 1/3/5-gameweek window toggle are both gone
+from the Add Players table — replaced by the single-fixture gameweek
+navigator described above, which now drives both Expected Points
+columns together. `optimalDraft.ts`, `squadRating.ts`, and
+`transferSolver.ts` still reference the old window-summing shape
+(`computeExpectedPointsForWindow`/`ExpPointsBreakdown`) but aren't
+imported from any page any more — orphaned by an earlier Team Building
+simplification, left alone rather than touched as part of this change,
+still fully functional if ever reconnected.
+
+Re-running the backtest with more depth (more gameweeks, the full
+player pool rather than the top 20 per position) as the season
+progresses remains worthwhile — the numbers above are still an early
+read, and the gap in how Tier 2 handles goalkeepers and nailed-on
+picks specifically is worth watching rather than dismissing.
 
 ## Player Comparison
 

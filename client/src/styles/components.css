@@ -589,6 +589,15 @@ table.data-table tbody tr:hover td {
   font-size: 9px;
   color: var(--text-muted);
 }
+.pitch-card-model-points {
+  width: 100%;
+  margin-top: 2px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 9.5px;
+  color: rgba(232, 237, 233, 0.7);
+}
 .pitch-card-meta {
   display: flex;
   justify-content: center;
@@ -727,6 +736,18 @@ table.data-table tbody tr:hover td {
 }
 .captain-tile:hover {
   border-color: var(--accent-focus);
+}
+.gw-navigator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.gw-navigator-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-right: 2px;
 }
 .captain-tile.active {
   background: var(--accent-value);

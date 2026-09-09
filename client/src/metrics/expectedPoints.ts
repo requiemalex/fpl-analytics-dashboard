@@ -51,9 +51,25 @@ export function computeExpectedPointsForWindow(player: NormalizedPlayer, upcomin
 
   let total = 0;
   fixtures.forEach((fixture, i) => {
-    total += i === 0 ? player.epNext! : player.epNext! * fixtureMultiplier(fixture.difficulty, player.position);
+    total += computeExpectedPointsForSingleFixture(player, fixture, i) ?? 0;
   });
   return total;
+}
+
+/**
+ * The single-fixture building block computeExpectedPointsForWindow sums
+ * across a window — exposed on its own for the gameweek navigator (Team
+ * Building's pitch view and Add Players table), which shows exactly one
+ * upcoming fixture's estimate at a time rather than a summed window.
+ * `fixtureIndexZeroBased` is the fixture's position in the player's own
+ * upcoming-fixtures list (0 = the very next one, still `ep_next`
+ * unmodified; every fixture after that is `ep_next` scaled by ITS OWN
+ * difficulty rating) — not a calendar gameweek number, same "next N
+ * fixtures" unit used throughout this app.
+ */
+export function computeExpectedPointsForSingleFixture(player: NormalizedPlayer, fixture: UpcomingFixture, fixtureIndexZeroBased: number): number | null {
+  if (player.epNext === null) return null;
+  return fixtureIndexZeroBased === 0 ? player.epNext : player.epNext * fixtureMultiplier(fixture.difficulty, player.position);
 }
 
 export interface ExpPointsBreakdown {

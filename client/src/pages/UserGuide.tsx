@@ -314,8 +314,23 @@ export function UserGuide() {
             The <strong>pitch view</strong> is drag-and-drop: drag a player from the Add Players list onto the pitch or bench, drag a
             card onto another to swap it, click a player's name for their profile, click <strong>Captain</strong>/<strong>Vice-Captain</strong>{" "}
             then a starting player to assign that role, and <strong>Clear Draft</strong> empties the whole squad in one click. Each
-            player's card shows their live price, ownership, minutes reliability, next-fixture ticker, and Expected Points for the
-            window selected in the Add Players table below (captain's points shown doubled).
+            player's card shows their live price, ownership, minutes reliability, next-fixture ticker, and two Expected Points
+            figures — captain's points shown doubled on both.
+          </li>
+          <li>
+            The <strong>GW+1..GW+5 navigator</strong> above the pitch picks which of a player's next five upcoming fixtures both
+            Expected Points figures — on the pitch cards and in the Add Players table below — currently estimate. This is each
+            player's own <em>Nth upcoming fixture</em>, not a calendar gameweek number: a blank gameweek simply has no fixture to
+            select, and a double gameweek's two fixtures both show up as consecutive steps.
+          </li>
+          <li>
+            Two independent Expected Points figures, side by side, deliberately not blended into one number: <strong>FPL Official</strong>{" "}
+            is FPL's own published `ep_next` prediction (extended to fixtures beyond the very next one using real fixture-difficulty
+            data). <strong>Model Predicted</strong> is this app's own estimate, built entirely independently — from live per-90 stats
+            (xG, xA, xGC, defensive contribution, saves) and FPL's actual scoring rules, never looking at FPL's own prediction at all.
+            Hover the Model Predicted figure for the specific caveats behind it — it's a genuinely useful second opinion, not a
+            replacement for the official one, and is measurably rougher for goalkeepers and for popular "nailed-on" picks specifically
+            (see README for the full backtest).
           </li>
           <li>
             The squad status line above the pitch shows size, budget, composition, and any club-limit breach — budget only ever turns
@@ -324,14 +339,13 @@ export function UserGuide() {
           </li>
           <li>
             The <strong>Add Players table</strong> has the same reorder/resize/sort/filter/Fit-to-Box/Export-CSV toolkit as Player
-            Explorer, split into two independently-toggled groups: <strong>Predictive</strong> (Exp. Points for the Next 1/3/5 GW
-            toggle, plus Minutes Reliability and a fixture ticker — governed by that same window) and <strong>Historic/Raw</strong>{" "}
-            (its own Last Completed Season / Historic Average / Current Season toggle) — the two can't be reordered into each other,
-            marked by the vertical divider line. Price and club-limit rules always use today's real price and current club, regardless
-            of any toggle.
+            Explorer, split into two independently-toggled groups: <strong>Predictive</strong> (the two Expected Points columns above,
+            plus Minutes Reliability and a fixture ticker) and <strong>Historic/Raw</strong> (its own Last Completed Season / Historic
+            Average / Current Season toggle) — the two can't be reordered into each other, marked by the vertical divider line. Price
+            and club-limit rules always use today's real price and current club, regardless of any toggle.
           </li>
         </ul>
-        <Try>Sort the Add Players table by "Exp. Pts (Overall Average)" for a blended view, or by "Minutes Reliability" if durability matters more to you than ceiling.</Try>
+        <Try>Sort the Add Players table by "Exp. Pts (Model Predicted)" and compare it to the "FPL Official" column for the same players — where they disagree most is usually worth a second look.</Try>
       </Section>
 
       <Section id="player-comparison" title="Player Comparison">

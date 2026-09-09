@@ -61,6 +61,7 @@ function PlayerCard({
   isViceCaptain,
   isPickable,
   expectedPoints,
+  modelPredicted,
   reliability,
   fixtures,
   onDropOnCard,
@@ -73,8 +74,10 @@ function PlayerCard({
   isCaptain: boolean;
   isViceCaptain: boolean;
   isPickable: boolean;
-  /** Not yet captain-doubled — this component doubles it for display when isCaptain. */
+  /** FPL's own official figure for the navigator-selected gameweek — not yet captain-doubled, this component doubles it for display when isCaptain. */
   expectedPoints: number | null;
+  /** Expected Points Tier 2 — this app's own independent estimate for the same gameweek, same captain-doubling treatment. */
+  modelPredicted: number | null;
   /** 0-1 blended reliability share, or null with neither historic nor live data. */
   reliability: number | null;
   fixtures: UpcomingFixture[];
@@ -85,6 +88,7 @@ function PlayerCard({
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
   const displayPoints = expectedPoints !== null && isCaptain ? expectedPoints * 2 : expectedPoints;
+  const displayModelPredicted = modelPredicted !== null && isCaptain ? modelPredicted * 2 : modelPredicted;
   const reliabilityBand = reliability !== null ? bandForPercentile(reliability * 100) : null;
 
   return (
@@ -152,8 +156,14 @@ function PlayerCard({
         </div>
         <div className="pitch-card-team">{player.teamShortName}</div>
       </div>
-      <div className="pitch-card-points" title="Expected points for the selected window (captain doubled)">
+      <div className="pitch-card-points" title="FPL's own official expected points for the navigator-selected gameweek (captain doubled)">
         {displayPoints !== null ? fmtDecimal(displayPoints, 1) : DASH} <span className="pitch-card-points-label">pts</span>
+      </div>
+      <div
+        className="pitch-card-model-points"
+        title="Expected Points Tier 2 — this app's own independent estimate for the same gameweek, built from live per-event stats and FPL's real scoring rules (captain doubled)"
+      >
+        Model {displayModelPredicted !== null ? fmtDecimal(displayModelPredicted, 1) : DASH}
       </div>
       <div className="pitch-card-meta">
         <span title="Price">{fmtPrice(player.price)}</span>
@@ -176,8 +186,11 @@ export function SquadPitch({
   captainId,
   viceCaptainId,
   expectedPointsByPlayerId,
+  modelPredictedByPlayerId,
   reliabilityByPlayerId,
   fixturesByTeamId,
+  gwOffset,
+  onGwOffsetChange,
   captainPickMode,
   onCaptainTileClick,
   onPlayerCardClick,
@@ -196,8 +209,12 @@ export function SquadPitch({
   captainId: number | null;
   viceCaptainId: number | null;
   expectedPointsByPlayerId: Map<number, number | null>;
+  modelPredictedByPlayerId: Map<number, number | null>;
   reliabilityByPlayerId: Map<number, number | null>;
   fixturesByTeamId: Map<number, UpcomingFixture[]>;
+  /** Which of the squad's next 1-5 upcoming fixtures both Exp. Pts figures currently estimate — 1 = the very next fixture. Same "next N fixtures" unit used throughout this app, not a calendar gameweek number (a blank gameweek has no fixture to select). */
+  gwOffset: 1 | 2 | 3 | 4 | 5;
+  onGwOffsetChange: (offset: 1 | 2 | 3 | 4 | 5) => void;
   captainPickMode: "captain" | "viceCaptain" | null;
   onCaptainTileClick: (role: "captain" | "viceCaptain") => void;
   onPlayerCardClick: (playerId: number) => void;
@@ -241,6 +258,22 @@ export function SquadPitch({
             Clear Draft
           </button>
         </div>
+      </div>
+      <div className="gw-navigator">
+        <span className="gw-navigator-label">Exp. Pts for:</span>
+        {([1, 2, 3, 4, 5] as const).map((offset) => (
+          <button
+            key={offset}
+            type="button"
+            className="chip"
+            aria-pressed={gwOffset === offset}
+            style={gwOffset === offset ? { borderColor: "var(--accent-positive)", color: "var(--accent-positive)" } : undefined}
+            onClick={() => onGwOffsetChange(offset)}
+            title={`Each player's ${offset === 1 ? "very next" : `${offset}${offset === 2 ? "nd" : offset === 3 ? "rd" : "th"}`} upcoming fixture — not a calendar gameweek number, so a blank gameweek simply has no fixture to select here.`}
+          >
+            GW+{offset}
+          </button>
+        ))}
       </div>
       {captainPickMode && (
         <p className="page-subtitle" style={{ marginTop: 0, marginBottom: 8 }}>
@@ -286,6 +319,7 @@ export function SquadPitch({
                   isViceCaptain={p.id === viceCaptainId}
                   isPickable={captainPickMode !== null}
                   expectedPoints={expectedPointsByPlayerId.get(p.id) ?? null}
+                  modelPredicted={modelPredictedByPlayerId.get(p.id) ?? null}
                   reliability={reliabilityByPlayerId.get(p.id) ?? null}
                   fixtures={fixturesByTeamId.get(p.teamId) ?? []}
                   onDropOnCard={onSwap}
@@ -324,6 +358,7 @@ export function SquadPitch({
               isViceCaptain={false}
               isPickable={false}
               expectedPoints={expectedPointsByPlayerId.get(p.id) ?? null}
+              modelPredicted={modelPredictedByPlayerId.get(p.id) ?? null}
               reliability={reliabilityByPlayerId.get(p.id) ?? null}
               fixtures={fixturesByTeamId.get(p.teamId) ?? []}
               onDropOnCard={onSwap}

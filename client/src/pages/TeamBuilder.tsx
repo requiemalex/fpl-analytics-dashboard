@@ -11,7 +11,8 @@ import { validateSquad, validateStartingXI, canAddPlayer } from "../metrics/squa
 import { computeArchetypesForAllPlayers, ARCHETYPE_LABELS, type ArchetypeLabel } from "../metrics/archetypes";
 import { resolvePlayerStats, resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
-import { computeExpectedPointsForWindow, computeExpPointsBreakdown, type ExpectedPointsWindow, type ExpPointsBreakdown } from "../metrics/expectedPoints";
+import { computeExpectedPointsForSingleFixture } from "../metrics/expectedPoints";
+import { computeExpectedPointsV2ForFixture } from "../metrics/expectedPointsV2";
 import { fetchEntryTeam, fetchEntryHistory, fetchEntryPicks, ApiRequestError } from "../api/client";
 import { normalizeEntryImport } from "../normalize/normalizeEntryImport";
 import { matchesPlayerSearch } from "../utils/playerSearch";
@@ -27,7 +28,9 @@ import type { NormalizedPlayer, Position } from "../types/normalized";
 
 /** How long a rejected drag's warning message stays visible before clearing itself. */
 const WARNING_DISPLAY_MS = 4000;
-const EXPECTED_POINTS_WINDOWS: ExpectedPointsWindow[] = [1, 3, 5];
+/** How many fixtures ahead the gameweek navigator (pitch view) can step through — matches getUpcomingFixtures' own 5-fixture default. */
+export type GwOffset = 1 | 2 | 3 | 4 | 5;
+export const GW_OFFSETS: GwOffset[] = [1, 2, 3, 4, 5];
 const HISTORIC_RAW_GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE", "ADVANCED"];
 const PICKER_HISTORIC_MODE_OPTIONS: { mode: AnalysisMode; label: string }[] = [
   { mode: "lastSeason", label: "Last Completed Season" },
@@ -47,7 +50,12 @@ interface PickerRowData {
   /** Resolved per the picker's own Historic/Raw toggle — null if the player has no data for that mode. */
   historicRaw: NormalizedPlayer;
   fixtures: UpcomingFixture[];
-  expBreakdown: ExpPointsBreakdown;
+  /** FPL's own ep_next, extended by fixture difficulty for the gameweek currently selected on the pitch-view navigator — see computeExpectedPointsForSingleFixture. */
+  fplOfficial: number | null;
+  /** Expected Points Tier 2 — this app's own independent per-event estimate for the same navigator-selected gameweek. See metrics/expectedPointsV2.ts. */
+  modelPredicted: number | null;
+  /** Which approximations/data gaps applied to this player's modelPredicted figure, if any — shown as a hover tooltip on the cell. */
+  modelCaveats: string[];
   reliability: number | null;
 }
 
@@ -62,39 +70,24 @@ interface PredictiveColumnDef {
 
 const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
   {
-    key: "expFplPredicted",
-    label: "Exp. Pts (FPL Predicted)",
-    getValue: (row) => row.expBreakdown.fplPredicted,
-    renderCell: (row) => fmtDecimal(row.expBreakdown.fplPredicted, 1),
+    key: "expFplOfficial",
+    label: "Exp. Pts (FPL Official)",
+    getValue: (row) => row.fplOfficial,
+    renderCell: (row) => fmtDecimal(row.fplOfficial, 1),
   },
   {
-    key: "expLastSeason",
-    label: "Exp. Pts (Last Completed Season)",
-    getValue: (row) => row.expBreakdown.lastSeason,
-    renderCell: (row) => fmtDecimal(row.expBreakdown.lastSeason, 1),
-  },
-  {
-    key: "expHistoricAvg",
-    label: "Exp. Pts (Historic Average)",
-    getValue: (row) => row.expBreakdown.historicAverage,
-    renderCell: (row) => fmtDecimal(row.expBreakdown.historicAverage, 1),
-  },
-  {
-    key: "expOverallAvg",
-    label: "Exp. Pts (Overall Average)",
-    getValue: (row) => row.expBreakdown.overallAverage,
+    key: "expModelPredicted",
+    label: "Exp. Pts (Model Predicted)",
+    getValue: (row) => row.modelPredicted,
     renderCell: (row) => (
       <span
         title={
-          row.expBreakdown.overallAverage !== null && !row.expBreakdown.overallAverageComplete
-            ? "Built from incomplete data — at least one of FPL Predicted / Last Completed Season / Historic Average is missing for this player"
-            : undefined
+          row.modelCaveats.length > 0
+            ? `This app's own independent estimate, built from live per-event stats and FPL's real scoring rules — not FPL's own figure. ${row.modelCaveats.join(" ")}`
+            : "This app's own independent estimate, built from live per-event stats and FPL's real scoring rules — not FPL's own figure."
         }
       >
-        {fmtDecimal(row.expBreakdown.overallAverage, 1)}
-        {row.expBreakdown.overallAverage !== null && !row.expBreakdown.overallAverageComplete && (
-          <sup style={{ color: "var(--accent-value)" }}>*</sup>
-        )}
+        {fmtDecimal(row.modelPredicted, 1)}
       </span>
     ),
   },
@@ -152,7 +145,7 @@ export function TeamBuilder() {
   const [showPickerArchetypePopover, setShowPickerArchetypePopover] = useState(false);
   const [captainPickMode, setCaptainPickMode] = useState<"captain" | "viceCaptain" | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
-  const [expectedPointsWindow, setExpectedPointsWindow] = useState<ExpectedPointsWindow>(1);
+  const [gwOffset, setGwOffset] = useState<GwOffset>(1);
   const [showNewSquadModal, setShowNewSquadModal] = useState(false);
   const [newSquadName, setNewSquadName] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -166,7 +159,7 @@ export function TeamBuilder() {
   const [showHistoricRawColumnPopover, setShowHistoricRawColumnPopover] = useState(false);
   const predictiveCols = useColumnCustomization(DEFAULT_PREDICTIVE_COLUMN_KEYS);
   const historicRawCols = useColumnCustomization(DEFAULT_HISTORIC_RAW_COLUMN_KEYS);
-  const { sort: pickerSort, handleHeaderClick: handlePickerHeaderClick } = useSortSpec([{ key: "expFplPredicted", direction: "desc" }]);
+  const { sort: pickerSort, handleHeaderClick: handlePickerHeaderClick } = useSortSpec([{ key: "expFplOfficial", direction: "desc" }]);
   const pickerTableWrapRef = useRef<HTMLDivElement>(null);
 
   // Keep activeId pointing at a real squad even after a delete/first-load.
@@ -549,20 +542,9 @@ export function TeamBuilder() {
     return map;
   }, [teamsById, fixtures]);
 
-  // Expected points for the selected window, keyed by id — FPL's own
-  // ep_next for the immediate fixture, fixture-difficulty-extended for
-  // the rest (see metrics/expectedPoints.ts). Not yet captain-doubled;
-  // SquadPitch doubles it for display when rendering the captain's card.
-  const expectedPointsByPlayerId = useMemo(() => {
-    const map = new Map<number, number | null>();
-    for (const p of squadPlayers) {
-      map.set(p.id, computeExpectedPointsForWindow(p, fixturesByTeamId.get(p.teamId) ?? [], expectedPointsWindow));
-    }
-    return map;
-  }, [squadPlayers, fixturesByTeamId, expectedPointsWindow]);
-
   // Blended (historic + live, availability-adjusted) minutes reliability,
-  // keyed by id — see metrics/minutesReliabilityBlend.ts.
+  // keyed by id — see metrics/minutesReliabilityBlend.ts. Computed ahead
+  // of the two Expected Points maps below since Tier 2 needs it as an input.
   const reliabilityByPlayerId = useMemo(() => {
     const map = new Map<number, number | null>();
     for (const p of squadPlayers) {
@@ -570,6 +552,39 @@ export function TeamBuilder() {
     }
     return map;
   }, [squadPlayers, teamsById, historicProfiles]);
+
+  // Expected points for whichever single upcoming fixture the pitch-view
+  // navigator currently has selected (gwOffset 1 = the very next fixture)
+  // — FPL's own ep_next for that fixture, fixture-difficulty-extended if
+  // it isn't the immediate one (see metrics/expectedPoints.ts). Not yet
+  // captain-doubled; SquadPitch doubles it for display on the captain's card.
+  const expectedPointsByPlayerId = useMemo(() => {
+    const map = new Map<number, number | null>();
+    for (const p of squadPlayers) {
+      const fixture = (fixturesByTeamId.get(p.teamId) ?? [])[gwOffset - 1];
+      map.set(p.id, fixture ? computeExpectedPointsForSingleFixture(p, fixture, gwOffset - 1) : null);
+    }
+    return map;
+  }, [squadPlayers, fixturesByTeamId, gwOffset]);
+
+  // Expected Points Tier 2 — this app's own independent per-event estimate
+  // for the same navigator-selected fixture (see metrics/expectedPointsV2.ts).
+  const modelPredictedByPlayerId = useMemo(() => {
+    const map = new Map<number, number | null>();
+    for (const p of squadPlayers) {
+      const fixture = (fixturesByTeamId.get(p.teamId) ?? [])[gwOffset - 1];
+      const reliability = reliabilityByPlayerId.get(p.id) ?? null;
+      if (!fixture || reliability === null) {
+        map.set(p.id, null);
+        continue;
+      }
+      const ownTeam = teamsById.get(p.teamId);
+      const opponentTeam = teamsById.get(fixture.opponentTeamId);
+      const breakdown = computeExpectedPointsV2ForFixture(p, fixture, ownTeam, opponentTeam, reliability, historicProfiles.get(p.id));
+      map.set(p.id, breakdown.total);
+    }
+    return map;
+  }, [squadPlayers, fixturesByTeamId, gwOffset, reliabilityByPlayerId, teamsById, historicProfiles]);
 
   const predictiveColumnsInOrder = useMemo(
     () => predictiveCols.visibleColumns.map((key) => PREDICTIVE_COLUMNS.find((c) => c.key === key)).filter((c): c is PredictiveColumnDef => !!c),
@@ -622,12 +637,24 @@ export function TeamBuilder() {
       .map((p): PickerRowData => {
         const playerFixtures = fixturesByTeamId.get(p.teamId) ?? [];
         const historicProfile = historicProfiles.get(p.id);
+        const reliability = computeBlendedMinutesReliability(p, teamsById.get(p.teamId), historicProfile).value;
+        const fixture = playerFixtures[gwOffset - 1];
+        const fplOfficial = fixture ? computeExpectedPointsForSingleFixture(p, fixture, gwOffset - 1) : null;
+        let modelPredicted: number | null = null;
+        let modelCaveats: string[] = [];
+        if (fixture && reliability !== null) {
+          const breakdown = computeExpectedPointsV2ForFixture(p, fixture, teamsById.get(p.teamId), teamsById.get(fixture.opponentTeamId), reliability, historicProfile);
+          modelPredicted = breakdown.total;
+          modelCaveats = breakdown.caveats;
+        }
         return {
           live: p,
           historicRaw: resolvePlayerStats(p, pickerHistoricMode, historicProfile, currentSeasonHasStarted),
           fixtures: playerFixtures.slice(0, 5),
-          expBreakdown: computeExpPointsBreakdown(p, playerFixtures, expectedPointsWindow, historicProfile, currentSeasonHasStarted),
-          reliability: computeBlendedMinutesReliability(p, teamsById.get(p.teamId), historicProfile).value,
+          fplOfficial,
+          modelPredicted,
+          modelCaveats,
+          reliability,
         };
       })
       // A player with no data at all for the selected Historic/Raw mode is
@@ -657,7 +684,7 @@ export function TeamBuilder() {
     historicProfiles,
     pickerHistoricMode,
     currentSeasonHasStarted,
-    expectedPointsWindow,
+    gwOffset,
     teamsById,
     pickerMinMinutes,
     columnFiltersState.columnFilters,
@@ -872,8 +899,11 @@ export function TeamBuilder() {
           captainId={active?.captainId ?? null}
           viceCaptainId={active?.viceCaptainId ?? null}
           expectedPointsByPlayerId={expectedPointsByPlayerId}
+          modelPredictedByPlayerId={modelPredictedByPlayerId}
           reliabilityByPlayerId={reliabilityByPlayerId}
           fixturesByTeamId={fixturesByTeamId}
+          gwOffset={gwOffset}
+          onGwOffsetChange={setGwOffset}
           captainPickMode={captainPickMode}
           onCaptainTileClick={handleCaptainTileClick}
           onPlayerCardClick={handlePlayerCardClick}
@@ -1039,20 +1069,9 @@ export function TeamBuilder() {
         <div style={{ display: "flex", gap: 28, flexWrap: "wrap", marginBottom: 12 }}>
           <div>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Predictive columns show:</div>
-            <div style={{ display: "flex", gap: 6 }}>
-              {EXPECTED_POINTS_WINDOWS.map((w) => (
-                <button
-                  key={w}
-                  type="button"
-                  className="btn"
-                  aria-pressed={expectedPointsWindow === w}
-                  style={expectedPointsWindow === w ? { borderColor: "var(--accent-positive)", color: "var(--accent-positive)" } : undefined}
-                  onClick={() => setExpectedPointsWindow(w)}
-                >
-                  Next {w} {w === 1 ? "GW" : "GWs"}
-                </button>
-              ))}
-            </div>
+            <p className="page-subtitle" style={{ margin: 0, maxWidth: 320 }}>
+              GW+{gwOffset} — use the gameweek navigator on the pitch above to change which upcoming fixture both Exp. Pts columns estimate.
+            </p>
           </div>
           <div>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Historic/raw columns show:</div>
