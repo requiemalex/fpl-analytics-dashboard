@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { resolvePlayerStatsList } from "../metrics/resolvePlayerStats";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
+import { TeamBadge } from "../components/primitives";
 import { useSortSpec, compareSortValues } from "../state/useSortSpec";
 import { relativeCellTint } from "../utils/colorScale";
 import { fmtDecimal } from "../utils/format";
@@ -144,6 +145,7 @@ export function Teams() {
               <tr key={t.teamId} onClick={() => navigate(`/teams/${t.teamId}`)}>
                 <td style={{ textAlign: "left", fontFamily: "var(--font-body)", fontWeight: 600 }}>
                   <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <TeamBadge teamId={t.teamId} shortName={t.shortName} />
                     {t.name}
                     <button
                       type="button"

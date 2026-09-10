@@ -351,6 +351,15 @@ table.data-table tbody tr:hover td {
   background: color-mix(in srgb, var(--pos-fwd) 12%, transparent);
   border-left: 3px solid var(--pos-fwd);
 }
+/* Same flush-left flag shape as position badges — colour itself is set
+   inline per team (TeamBadge, primitives.tsx) since the team list isn't a
+   small fixed set the way positions are. */
+.badge.team-badge {
+  border: none;
+  border-radius: 0 4px 4px 0;
+  padding-left: 6px;
+  font-weight: 700;
+}
 
 .badge.archetype {
   background: var(--surface-raised);

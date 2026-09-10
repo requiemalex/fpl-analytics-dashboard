@@ -1,4 +1,5 @@
 import React from "react";
+import { TeamBadge } from "./primitives";
 
 export interface TeamTopListRow {
   teamId: number;
@@ -64,7 +65,10 @@ export function TeamTopList({
       ) : (
         rows.map((row) => (
           <div className="stat-row" key={row.teamId} onClick={() => onSelect?.(row.teamId)} style={{ cursor: onSelect ? "pointer" : "default" }}>
-            <span className="stat-row-name">{row.name}</span>
+            <span className="stat-row-name">
+              <TeamBadge teamId={row.teamId} shortName={row.shortName} />
+              {row.name}
+            </span>
             <span className="stat-row-value">{format(row.value)}</span>
           </div>
         ))

@@ -4,10 +4,30 @@ import { bandForPercentile, type PercentileBand } from "../metrics/percentiles";
 import { getMetricDefinition } from "../metrics/dictionary";
 import { ARCHETYPE_SHORT_LABELS, type ArchetypeLabel } from "../metrics/archetypes";
 import { fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
+import { teamAccentColor } from "../utils/teamColors";
 import type { Position } from "../types/normalized";
 
 export function PositionBadge({ position }: { position: Position }) {
   return <span className={`badge pos-${position}`}>{position}</span>;
+}
+
+/**
+ * Same visual language as PositionBadge (flush-left flag shape, ~12%
+ * tinted fill) but for a team — colour comes from teamAccentColor()
+ * (generated per team id) as an inline style rather than a fixed
+ * --pos-* token, since the team list isn't a small fixed set the way
+ * positions are. Used only where a team is a row's own primary subject
+ * (Teams, Team Detail, the Dashboard's team tiles) — the small team
+ * abbreviation shown next to a player's name elsewhere stays plain text,
+ * deliberately subdued relative to the player.
+ */
+export function TeamBadge({ teamId, shortName }: { teamId: number; shortName: string }) {
+  const color = teamAccentColor(teamId);
+  return (
+    <span className="badge team-badge" style={{ color, background: `color-mix(in srgb, ${color} 12%, transparent)`, borderLeft: `3px solid ${color}` }}>
+      {shortName}
+    </span>
+  );
 }
 
 const AVAILABILITY_STATUS_INFO: Record<string, { label: string; className: string } | undefined> = {

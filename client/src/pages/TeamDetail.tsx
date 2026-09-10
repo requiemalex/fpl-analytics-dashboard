@@ -4,7 +4,7 @@ import { useAppState } from "../state/AppStateContext";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList } from "../metrics/resolvePlayerStats";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
-import { PositionBadge, AvailabilityFlag, availabilityTextClass } from "../components/primitives";
+import { PositionBadge, TeamBadge, AvailabilityFlag, availabilityTextClass } from "../components/primitives";
 import { columnByKey, isStaticColumn } from "../components/playerColumns";
 import { fmtPrice } from "../utils/format";
 
@@ -57,7 +57,10 @@ export function TeamDetail() {
     <div>
       <div className="page-header">
         <div>
-          <h1>{team.name}</h1>
+          <h1 style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <TeamBadge teamId={team.id} shortName={team.shortName} />
+            {team.name}
+          </h1>
           <p className="page-subtitle">
             {team.played} played · {team.wins}W {team.draws}D {team.losses}L
           </p>
