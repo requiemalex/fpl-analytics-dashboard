@@ -84,6 +84,22 @@ table.data-table th {
   border-bottom: 1px solid var(--border-strong);
   z-index: 2;
 }
+/* Marks a column (or, in Player Comparison's transposed table, a metric
+   row label) whose value stays the same regardless of the page's
+   analysis-mode / Historic-Raw toggle — always today's live figure
+   (price, ownership, Minutes Reliability, fixtures), unlike almost
+   every other column here. A brighter, bolder label is the
+   distinguishing cue rather than a new hue: this app already uses
+   several accent colours for genuinely different things (position,
+   positive/negative, focus), and introducing another one here risked
+   exactly the kind of accidental collision the position-badge colours
+   were recently changed to avoid. See PlayerColumn.varies
+   (playerColumns.tsx) for which columns this applies to and why. */
+table.data-table th.col-static,
+table.data-table td.col-static {
+  color: var(--text-primary);
+  font-weight: 700;
+}
 table.data-table th.sticky-col,
 table.data-table td.sticky-col {
   position: sticky;

@@ -18,7 +18,7 @@ import { normalizeEntryImport } from "../normalize/normalizeEntryImport";
 import { matchesPlayerSearch } from "../utils/playerSearch";
 import { computeBlendedMinutesReliability } from "../metrics/minutesReliabilityBlend";
 import { getUpcomingFixtures, fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
-import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, columnByKey, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
+import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, columnByKey, isStaticColumn, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { SquadPitch } from "../components/SquadPitch";
 import { PositionBadge, AvailabilityFlag, SignedNum, availabilityTextClass } from "../components/primitives";
 import { fmtPrice, fmtDecimal, fmtPercent, fmtSigned, DASH } from "../utils/format";
@@ -66,6 +66,8 @@ interface PredictiveColumnDef {
   renderCell: (row: PickerRowData) => React.ReactNode;
   /** Defaults true; only the fixtures column (lower average difficulty = easier = better) needs false. */
   higherIsBetter?: boolean;
+  /** Same meaning as PlayerColumn.varies (playerColumns.tsx) — whether this column changes with the picker's own Historic/Raw toggle or gameweek navigator. Both predictive figures are navigator-driven, so they vary; Minutes Reliability and fixtures are always the player's live, current figures regardless of either toggle. Defaults true. */
+  varies?: boolean;
 }
 
 const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
@@ -96,12 +98,14 @@ const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
     label: "Minutes Reliability",
     getValue: (row) => (row.reliability !== null ? row.reliability * 100 : null),
     renderCell: (row) => (row.reliability !== null ? fmtPercent(row.reliability * 100, 0) : DASH),
+    varies: false,
   },
   {
     key: "fixtures",
     label: "Next 5 Fixtures",
     getValue: (row) => averageFixtureDifficulty(row.fixtures),
     higherIsBetter: false,
+    varies: false,
     renderCell: (row) => {
       const avgFdr = averageFixtureDifficulty(row.fixtures);
       if (row.fixtures.length === 0 || avgFdr === null) return <span className="value-muted">{DASH}</span>;
@@ -131,6 +135,10 @@ const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
   },
 ];
 const DEFAULT_PREDICTIVE_COLUMN_KEYS = PREDICTIVE_COLUMNS.map((c) => c.key);
+/** Same meaning as isStaticColumn (playerColumns.tsx), for this page's own local PredictiveColumnDef type. */
+function isStaticPredictiveColumn(c: PredictiveColumnDef): boolean {
+  return c.varies === false;
+}
 
 export function TeamBuilder() {
   const { players, teams, teamsById, fixtures, filters, historicProfiles, historicStatus, currentSeasonHasStarted, gameweekState } = useAppState();
@@ -1117,6 +1125,7 @@ export function TeamBuilder() {
                   return (
                     <th
                       key={c.key}
+                      className={isStaticPredictiveColumn(c) ? "col-static" : undefined}
                       draggable
                       onDragStart={(e) => e.dataTransfer.setData("text/plain", c.key)}
                       onDragOver={(e) => {
@@ -1131,7 +1140,11 @@ export function TeamBuilder() {
                         if (draggedKey && draggedKey !== c.key) predictiveCols.reorderColumn(draggedKey, c.key);
                       }}
                       onClick={(e) => handlePickerHeaderClick(c.key, e.shiftKey)}
-                      title="Click to sort · Shift-click to add secondary sort · Drag to reorder · Drag the right edge to resize"
+                      title={
+                        isStaticPredictiveColumn(c)
+                          ? "Always today's live figure, regardless of the toggle above · Click to sort · Shift-click to add secondary sort · Drag to reorder · Drag the right edge to resize"
+                          : "Click to sort · Shift-click to add secondary sort · Drag to reorder · Drag the right edge to resize"
+                      }
                       style={{
                         position: "relative",
                         width: width ? `${width}px` : undefined,
@@ -1167,7 +1180,7 @@ export function TeamBuilder() {
                   return (
                     <th
                       key={c.key}
-                      className={i === 0 ? "column-group-divider" : undefined}
+                      className={[i === 0 ? "column-group-divider" : null, isStaticColumn(c) ? "col-static" : null].filter(Boolean).join(" ") || undefined}
                       draggable
                       onDragStart={(e) => e.dataTransfer.setData("text/plain", c.key)}
                       onDragOver={(e) => {
@@ -1182,7 +1195,11 @@ export function TeamBuilder() {
                         if (draggedKey && draggedKey !== c.key) historicRawCols.reorderColumn(draggedKey, c.key);
                       }}
                       onClick={(e) => handlePickerHeaderClick(c.key, e.shiftKey)}
-                      title="Click to sort · Shift-click to add secondary sort · Drag to reorder · Drag the right edge to resize"
+                      title={
+                        isStaticColumn(c)
+                          ? "Always today's live figure, regardless of the toggle above · Click to sort · Shift-click to add secondary sort · Drag to reorder · Drag the right edge to resize"
+                          : "Click to sort · Shift-click to add secondary sort · Drag to reorder · Drag the right edge to resize"
+                      }
                       style={{
                         position: "relative",
                         width: width ? `${width}px` : undefined,

@@ -11,7 +11,7 @@ import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { PlayerRadarChart } from "../components/PlayerRadarChart";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass } from "../components/primitives";
-import { PLAYER_COLUMNS, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
+import { PLAYER_COLUMNS, isStaticColumn, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { relativeCellTextColor } from "../utils/colorScale";
 import { DASH } from "../utils/format";
 import type { NormalizedPlayer } from "../types/normalized";
@@ -334,7 +334,13 @@ export function PlayerComparison() {
                         const bestValue = higherIsBetter ? max : min;
                         return (
                           <tr key={col.key}>
-                            <td style={{ textAlign: "left", fontFamily: "var(--font-body)" }}>{col.label}</td>
+                            <td
+                              className={isStaticColumn(col) ? "col-static" : undefined}
+                              style={{ textAlign: "left", fontFamily: "var(--font-body)" }}
+                              title={isStaticColumn(col) ? "Always today's live figure, regardless of the toggle above" : undefined}
+                            >
+                              {col.label}
+                            </td>
                             {values.map((v, i) => (
                               <td
                                 key={comparedPlayers[i].id}

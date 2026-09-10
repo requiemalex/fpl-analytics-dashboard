@@ -5,7 +5,7 @@ import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList } from "../metrics/resolvePlayerStats";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass } from "../components/primitives";
-import { columnByKey } from "../components/playerColumns";
+import { columnByKey, isStaticColumn } from "../components/playerColumns";
 import { fmtPrice } from "../utils/format";
 
 const TEAM_RANKING_METRICS = ["totalPoints", "xG", "xA", "xGI", "xGIPer90", "goals", "assists", "pointsPerMillion"];
@@ -87,7 +87,12 @@ export function TeamDetail() {
           <thead>
             <tr>
               <th style={{ textAlign: "left" }}>Player</th>
-              <th>{column.label}</th>
+              <th
+                className={isStaticColumn(column) ? "col-static" : undefined}
+                title={isStaticColumn(column) ? "Always today's live figure, regardless of the toggle above" : undefined}
+              >
+                {column.label}
+              </th>
             </tr>
           </thead>
           <tbody>

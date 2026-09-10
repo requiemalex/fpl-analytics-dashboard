@@ -13,7 +13,7 @@ import { getUpcomingFixtures, formatFixturesForCsv, type UpcomingFixture } from 
 import { FiltersBar } from "../components/FiltersBar";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { PositionBadge, SignedNum, ArchetypeBadges, AvailabilityFlag, availabilityTextClass, FixtureChips } from "../components/primitives";
-import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, columnByKey, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
+import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, columnByKey, isStaticColumn, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { fmtPrice, fmtSigned, DASH } from "../utils/format";
 import { relativeCellTint } from "../utils/colorScale";
 import { downloadCsv } from "../utils/csvExport";
@@ -327,10 +327,13 @@ export function PlayerExplorer() {
                   const label = c === ARCHETYPES_COLUMN_KEY ? "Archetypes" : c === FIXTURES_COLUMN_KEY ? "Next 5 Fixtures" : (c as PlayerColumn).label;
                   const sortEntry = isSpecial ? undefined : sort.find((s) => s.key === key);
                   const width = columnWidths[key];
+                  // Fixtures are always the player's live upcoming fixtures regardless of mode; Archetypes are computed off the currently-resolved population, so they DO vary with the toggle.
+                  const isStatic = c === FIXTURES_COLUMN_KEY || (!isSpecial && isStaticColumn(c as PlayerColumn));
                   return (
                     <th
                       key={key}
                       draggable
+                      className={isStatic ? "col-static" : undefined}
                       onDragStart={(e) => e.dataTransfer.setData("text/plain", key)}
                       onDragOver={(e) => {
                         e.preventDefault();
@@ -349,7 +352,9 @@ export function PlayerExplorer() {
                           ? "Drag to reorder · Drag the right edge to resize — badges shrink to short codes, or disappear, as this column narrows"
                           : c === FIXTURES_COLUMN_KEY
                             ? "Always the player's live team's upcoming fixtures, regardless of analysis mode · Drag to reorder · Drag the right edge to resize"
-                            : "Click to sort · Shift-click to add secondary sort · Drag to reorder · Drag the right edge to resize"
+                            : isStatic
+                              ? "Always today's live figure, regardless of the toggle above · Click to sort · Shift-click to add secondary sort · Drag to reorder · Drag the right edge to resize"
+                              : "Click to sort · Shift-click to add secondary sort · Drag to reorder · Drag the right edge to resize"
                       }
                       style={{
                         position: "relative",
