@@ -25,6 +25,12 @@
   --band-average: #9fb0a6;
   --band-poor: #e0654a;
 
+  /* A muted, desaturated red distinct from --accent-negative (which means
+     "bad value") — used only to flag a column/row-label as an "always
+     live" static figure (see .col-static in components.css). Deliberately
+     duller than accent-negative so it never reads as a warning. */
+  --col-static: #a8695f;
+
   /* Position colours — a dedicated four-colour set (violet/cyan/amber/
      pink), not reused from the semantic accent tokens above. Solid
      values only; tinted backgrounds and border companions are derived

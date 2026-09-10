@@ -13,16 +13,50 @@ export function TopList({
   format,
   onSelect,
   emptyMessage = "No eligible players.",
+  onRemove,
+  draggable,
+  isDragOver,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
 }: {
   title: string;
   rows: TopListRow[];
   format: (v: number | null) => string;
   onSelect?: (id: number) => void;
   emptyMessage?: string;
+  /** Dashboard-only: renders a "Remove" button in the header when set — every other TopList usage omits this and is unaffected. */
+  onRemove?: () => void;
+  draggable?: boolean;
+  isDragOver?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDragLeave?: () => void;
+  onDrop?: (e: React.DragEvent) => void;
 }) {
   return (
-    <div className="card">
-      <div className="card-title">{title}</div>
+    <div
+      className="card"
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      style={
+        draggable
+          ? { cursor: "grab", outline: isDragOver ? "2px dashed var(--accent-focus)" : undefined, outlineOffset: isDragOver ? -2 : undefined }
+          : undefined
+      }
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+        <div className="card-title">{title}</div>
+        {onRemove && (
+          <button type="button" className="btn" onClick={onRemove} title="Remove this tile">
+            Remove
+          </button>
+        )}
+      </div>
       {rows.length === 0 ? (
         <p className="page-subtitle" style={{ margin: 0 }}>
           {emptyMessage}
