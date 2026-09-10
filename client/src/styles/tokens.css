@@ -25,6 +25,18 @@
   --band-average: #9fb0a6;
   --band-poor: #e0654a;
 
+  /* Position colours — a dedicated four-colour set (violet/cyan/amber/
+     pink), not reused from the semantic accent tokens above. Solid
+     values only; tinted backgrounds and border companions are derived
+     from these via color-mix() at point of use (see components.css),
+     so every position gets the exact same treatment at the same ratio
+     — that shared mechanism is what keeps all four feeling like one
+     cohesive set rather than four independently-picked colours. */
+  --pos-gkp: #a78bfa;
+  --pos-def: #22d3ee;
+  --pos-mid: #f59e0b;
+  --pos-fwd: #f472b6;
+
   --font-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
   --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Roboto Mono", monospace;
