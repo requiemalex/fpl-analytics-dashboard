@@ -31,17 +31,20 @@
      duller than accent-negative so it never reads as a warning. */
   --col-static: #a8695f;
 
-  /* Position colours — a dedicated four-colour set (violet/cyan/amber/
-     pink), not reused from the semantic accent tokens above. Solid
+  /* Position colours — reverted to this app's original red/green/blue/
+     yellow set (the same hues as the semantic accent tokens above,
+     though kept as their own dedicated values here rather than aliased
+     to them, so a future change to what "positive"/"negative" mean
+     elsewhere can't silently recolour every position badge). Solid
      values only; tinted backgrounds and border companions are derived
      from these via color-mix() at point of use (see components.css),
      so every position gets the exact same treatment at the same ratio
      — that shared mechanism is what keeps all four feeling like one
      cohesive set rather than four independently-picked colours. */
-  --pos-gkp: #a78bfa;
-  --pos-def: #22d3ee;
-  --pos-mid: #f59e0b;
-  --pos-fwd: #f472b6;
+  --pos-gkp: #d8b34a;
+  --pos-def: #6fb8ff;
+  --pos-mid: #3fbf7f;
+  --pos-fwd: #e0654a;
 
   --font-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
   --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
