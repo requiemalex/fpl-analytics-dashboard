@@ -1,6 +1,14 @@
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, Menu } = require("electron");
 const path = require("path");
 const { autoUpdater } = require("electron-updater");
+
+// No File/Edit/View/Window/Help — those are Electron's generic defaults
+// (reload, dev tools, zoom, etc.), not anything this app's own UI exposes
+// or needs; removing the whole application menu is what actually gets rid
+// of that strip, on Windows/Linux at least (macOS always keeps a minimal
+// app menu regardless — not a concern since this app is Windows-only for
+// now). Must run before any window is created.
+Menu.setApplicationMenu(null);
 
 /**
  * A distinct port from the dev-mode default (4000, in server/src/config.ts)
@@ -54,6 +62,21 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 700,
     title: "FPL Analytics Dashboard",
+    icon: path.join(__dirname, "../build/icon.png"),
+    show: false,
+    backgroundColor: "#0a0f0c", // matches --bg (tokens.css) — avoids a white flash before the page paints
+    // Borderless-but-still-controllable: hides the traditional title bar
+    // (no more floating in a small window with a visible OS frame) while
+    // titleBarOverlay keeps native minimize/maximize/close buttons, drawn
+    // in the app's own colours instead of Windows' default light theme —
+    // Windows-only API (Window Controls Overlay); harmless no-op on other
+    // platforms if this is ever built for them.
+    titleBarStyle: "hidden",
+    titleBarOverlay: {
+      color: "#161f1a", // --surface-raised
+      symbolColor: "#e8ede9", // --text-primary
+      height: 36,
+    },
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -64,6 +87,15 @@ function createWindow() {
   });
 
   mainWindow.loadURL(`http://localhost:${process.env.PORT}`);
+
+  // Maximized by default ("fullscreen borderless", not literal OS
+  // fullscreen — that would also hide the taskbar, which isn't wanted for
+  // a productivity dashboard). Waiting for ready-to-show avoids a visible
+  // jump from the initial small size to maximized.
+  mainWindow.once("ready-to-show", () => {
+    mainWindow.maximize();
+    mainWindow.show();
+  });
 
   mainWindow.on("closed", () => {
     mainWindow = null;

@@ -100,8 +100,20 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 18px;
+  /* Extra right padding reserves room for the Electron desktop app's
+     native window control buttons (minimize/maximize/close), drawn as an
+     overlay in the top-right corner — see electron/main.js's
+     titleBarOverlay. A no-op / unused space in a normal browser tab. */
+  padding-right: 150px;
   gap: 16px;
   overflow-x: auto;
+  /* Makes the desktop app's borderless window draggable by its topbar,
+     the way a normal title bar would be — ignored in a browser tab
+     (-webkit-app-region is an Electron/Chromium-only extension). */
+  -webkit-app-region: drag;
+}
+.topbar button {
+  -webkit-app-region: no-drag;
 }
 
 .topbar-status {

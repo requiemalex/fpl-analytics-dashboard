@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(railway status *)",
+      "Bash(npx tsc *)",
+      "Bash(npm run dev)",
+      "Bash(tasklist *)",
+      "Bash(npm run build:electron-server)",
+      "Bash(npm run build)",
+      "Bash(railway list)"
+    ]
+  }
+}

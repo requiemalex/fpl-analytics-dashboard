@@ -22,7 +22,8 @@
     "concurrently": "^9.0.1",
     "electron": "^32.0.0",
     "electron-builder": "^25.1.8",
-    "esbuild": "^0.24.0"
+    "esbuild": "^0.24.0",
+    "png-to-ico": "^3.0.2"
   },
   "engines": {
     "node": ">=18.18.0"
@@ -35,6 +36,7 @@
       "electron/**/*",
       "server/dist/app.bundle.cjs",
       "client/dist/**/*",
+      "build/icon.png",
       "package.json"
     ],
     "directories": {
@@ -50,9 +52,9 @@
       "target": "dmg",
       "category": "public.app-category.sports"
     },
+    "icon": "build/icon.ico",
     "win": {
-      "target": "nsis",
-      "signAndEditExecutable": false
+      "target": "nsis"
     },
     "linux": {
       "target": "AppImage",
