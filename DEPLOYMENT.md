@@ -122,48 +122,71 @@ Docker:
   restarts on failure. `PORT` is Railway-injected automatically, so no
   extra env var setup is needed for a first deploy.
 
-## Electron desktop app: assessment
+## Electron desktop app: verified working, now the primary distribution path
 
-The README already disclosed this was written without ever being
-installed or run (no network access in that build environment). This
-round had real network access, so it was actually tested for the first
-time.
+Railway's free tier was ending, which prompted moving off a paid shared
+host entirely: each user now runs their own copy of the app locally,
+against their own network connection, at zero hosting cost — the app's
+heavier server-side work (TTL caching, a concurrency-limited historic-
+data build across ~600 players) still happens, it just runs on the
+user's own machine instead of a shared box, with the side benefit of
+spreading FPL API load across many home IPs instead of one shared one.
 
-**What's now confirmed working, not just reasoned through:**
-- `npm run build:electron-server` (the esbuild bundle of `app.ts`) runs
-  cleanly and produces a working bundle.
-- The specific concern the README flagged as "least able to vouch for" —
-  **dynamic `import()` of the ESM bundle from Electron's CommonJS
-  `main.js`** — was tested directly and works: `import("../server/dist/app.bundle.js")`
-  resolves successfully and `createApp()` runs without error. This is a
-  different, safe usage of the same bundle from the fragile pattern
-  described above (Docker's failed approach ran the bundle *as* the
-  process entry point; Electron's `main.js` dynamically imports it *from
-  within* an already-running CommonJS process — the case that
-  consistently worked in testing).
-- Launching the actual Electron GUI process itself could not be fully
-  verified in this environment: the sandbox this was run in sets
-  `ELECTRON_RUN_AS_NODE=1` globally, which forces `electron.exe` to run
-  as a plain Node process instead of the real Chromium/Electron runtime
-  (this is very likely a deliberate guard against agentic sessions
-  spawning uncontrolled GUI windows, not something specific to this
-  app). Temporarily clearing that variable, the process no longer
-  crashed with the `app.whenReady` error the guard causes — but the
-  embedded server never came up on its target port either, consistent
-  with this sandbox having no real display/window station for a native
-  window to attach to, a separate, disclosed limitation of the
-  environment this was tested in, on the same footing as the original
-  "no network access" limitation the README already discloses elsewhere.
-  **A real desktop session (a normal Windows/Mac/Linux machine, not an
-  agentic sandbox) is the outstanding step to fully confirm the window
-  opens and renders** — everything short of that has now been verified.
+This was previously written and reasoned through but never run on a
+real desktop (see git history for the earlier, more tentative version
+of this section). It has now actually been built, installed, and
+launched end-to-end on a real Windows machine, and two real bugs
+specific to that were found and fixed:
 
-**Recommendation: finish the web deployment first, revisit Electron
-after.** The core risk the README couldn't check at all (does the
-bundle even load without crashing?) is now resolved — it does. What's
-left (does a real window open and render on each OS) is a much smaller,
-lower-risk gap than what existed before, and is best closed by running
-`npm run electron:start` on an actual desktop once, not from here. It
-doesn't block or depend on the web deployment in any way (they share
-`createApp()` but are otherwise independent artifacts), so there's no
-sequencing risk in shipping the web version first.
+- **`ERR_UNSUPPORTED_ESM_URL_SCHEME` on Windows.** `main.js`'s dynamic
+  `import()` of the server bundle used a raw `path.join(...)` result —
+  fine on macOS/Linux, but Node's ESM loader rejects a raw `"C:\..."`
+  path as an unsupported URL scheme (`"c:"`) on Windows. Fixed by
+  switching the server bundle to CommonJS output (`--format=cjs`,
+  `server/dist/app.bundle.cjs`) and loading it with a plain `require()`
+  instead of a dynamic `import()` — sidesteps the URL/path question
+  entirely, since `require()` takes a filesystem path natively.
+- **`Dynamic require of "path" is not supported`.** esbuild's ESM output
+  has no real `require` in scope, so any dependency doing a dynamic
+  `require(x)` it can't statically resolve — `body-parser`'s `depd`
+  dependency does exactly this, for the built-in `path` module — gets
+  replaced with a shim that throws the moment it runs. This is the same
+  failure the Dockerfile section above hit trying to use this bundle as
+  a process entry point; it turned out to affect Electron's `import()`
+  usage too, contrary to what was assumed here previously. The same CJS
+  switch fixes it for the same reason: CJS keeps a real `require` in
+  scope, so `depd`'s `require("path")` (a Node built-in — always
+  resolvable, no relative-path concerns) just works.
+- A third, Windows-packaging-specific issue: `electron-builder`'s NSIS
+  target normally downloads a `winCodeSign` tool archive (used for
+  editing the exe's icon/version resources) that contains macOS `.dylib`
+  symlinks — extracting those requires Windows "Developer Mode" or an
+  elevated shell, neither of which can be assumed on a build machine (or
+  CI runner). Since this app ships unsigned with no custom icon yet
+  anyway, `win.signAndEditExecutable: false` in `package.json`'s build
+  config skips that step entirely rather than requiring a machine-level
+  setting change.
+
+**Auto-updates**: wired via `electron-updater` — `main.js` calls
+`autoUpdater.checkForUpdatesAndNotify()` once the window is up, which
+checks GitHub Releases (`package.json`'s `build.publish` config) for a
+newer tag, downloads it in the background, and shows a native OS
+notification prompting a restart when ready. This is a no-op during
+`npm run electron:start` (electron-updater skips itself for an
+unpackaged dev run).
+
+**Release pipeline**: `.github/workflows/release.yml` builds and
+publishes automatically on every `v*` tag push — the exact same
+tagging convention this project already uses for the web deploy, now
+with one added effect: it also builds the Windows installer and
+publishes it (plus the `latest.yml` update-metadata file) to a GitHub
+Release, which every installed copy's `electron-updater` then finds.
+The workflow derives the app version from the pushed tag itself
+(`npm pkg set version=...`) rather than requiring `package.json`'s
+`version` field to be kept in sync by hand.
+
+**Platform scope**: Windows-only for now (NSIS installer), unsigned
+(a SmartScreen "Windows protected your PC" prompt on first install is
+expected and normal — click "More info" → "Run anyway"). Mac/Linux can
+be added later as more matrix entries in the same workflow; nothing
+about the current setup would need to change to add them.

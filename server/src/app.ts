@@ -19,8 +19,18 @@ import { entryImportRouter } from "./routes/entryImport.js";
  * and `npm start`), and the Electron main process, which imports this
  * directly rather than spawning a second process and having to resolve
  * its own dependencies/paths when packaged.
+ *
+ * `clientDistPath` is explicit, not auto-detected via `import.meta.url`,
+ * because this same source file is loaded two different ways: normal
+ * ESM (index.ts, tsc build, Docker) where `import.meta.url` works fine,
+ * and an esbuild CJS bundle (Electron — see electron/main.js) where
+ * `import.meta` is empty and `__dirname` also no longer points at this
+ * file's real location once bundled into one file elsewhere. Rather
+ * than branch on which module system loaded this file, each caller just
+ * tells createApp() where client/dist actually is; index.ts's default
+ * covers every non-Electron caller unchanged.
  */
-export function createApp(): express.Express {
+export function createApp(options?: { clientDistPath?: string }): express.Express {
   const app = express();
 
   app.use(cors({ origin: CORS_ORIGIN }));
@@ -43,8 +53,10 @@ export function createApp(): express.Express {
   // block simply does nothing extra there. Checking for the built
   // files' actual presence, rather than an environment flag, means one
   // fewer thing to configure correctly when packaging for Electron.
-  const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  const clientDist = path.join(__dirname, "../../client/dist");
+  // import.meta.url is only ever evaluated in the non-Electron (real ESM)
+  // path below — it must not run unconditionally, since it's empty in the
+  // esbuild CJS bundle Electron loads (see the createApp() doc comment).
+  const clientDist = options?.clientDistPath ?? path.join(path.dirname(fileURLToPath(import.meta.url)), "../../client/dist");
   if (existsSync(clientDist)) {
     app.use(express.static(clientDist));
     // Anything not matched above (an API route, or a real static file)

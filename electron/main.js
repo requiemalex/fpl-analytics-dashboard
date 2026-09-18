@@ -1,5 +1,6 @@
 const { app, BrowserWindow } = require("electron");
 const path = require("path");
+const { autoUpdater } = require("electron-updater");
 
 /**
  * A distinct port from the dev-mode default (4000, in server/src/config.ts)
@@ -18,19 +19,29 @@ let mainWindow = null;
  * Starts the embedded server and resolves once it's actually listening —
  * the window must not try to load the URL before that.
  *
- * <build_prerequisite>: this imports server/dist/app.bundle.js, produced
+ * <build_prerequisite>: this requires server/dist/app.bundle.cjs, produced
  * by `npm run build:electron-server` (esbuild, bundling app.ts and its
- * dependencies — express, cors — into one self-contained file). That's
- * deliberate: this is an npm-workspaces monorepo with dependencies
+ * dependencies — express, cors — into one self-contained CommonJS file).
+ * That's deliberate: this is an npm-workspaces monorepo with dependencies
  * hoisted to the root node_modules, and having the packaged app rely on
  * electron-builder correctly resolving that from server/'s own
  * package.json is a real, untestable-from-here risk — a single bundled
  * file needs no node_modules resolution at runtime at all. See the root
  * README for the exact build commands.
+ *
+ * CJS, not ESM: esbuild's ESM output has no real `require` in scope, so
+ * anything it can't statically resolve into an import (a dependency doing
+ * a dynamic `require(x)` — body-parser's `depd` dependency does exactly
+ * this, for the built-in "path" module) gets replaced with a shim that
+ * throws "Dynamic require of ... is not supported" the moment it runs.
+ * CJS output keeps a real, working `require` in scope, so that same call
+ * just works — confirmed by actually hitting the ESM version's failure
+ * on a real Windows run and fixing it, not reasoned through untested.
  */
 async function startEmbeddedServer() {
-  const { createApp } = await import(path.join(__dirname, "../server/dist/app.bundle.js"));
-  const expressApp = createApp();
+  const bundlePath = path.join(__dirname, "../server/dist/app.bundle.cjs");
+  const { createApp } = require(bundlePath);
+  const expressApp = createApp({ clientDistPath: path.join(__dirname, "../client/dist") });
   await new Promise((resolve) => {
     expressApp.listen(process.env.PORT, resolve);
   });
@@ -59,9 +70,36 @@ function createWindow() {
   });
 }
 
+/**
+ * Checks GitHub Releases (see package.json's build.publish config) for a
+ * newer tagged version than this running one, downloads it in the
+ * background if found, and shows a native OS notification prompting a
+ * restart once it's ready — electron-updater's own default UI, no custom
+ * dialog needed for this. This is the entire "push a fix, every install
+ * gets it" mechanism: a new git tag → CI builds + publishes a release
+ * (.github/workflows/release.yml) → every running copy of the app finds
+ * it here on its next launch.
+ *
+ * A no-op in dev (`npm run electron:start`) — electron-updater checks
+ * `app.isPackaged` internally and skips entirely for an unpackaged run,
+ * so this never tries to hit GitHub while iterating locally. Errors
+ * (most commonly: no internet connection) are caught and logged rather
+ * than surfaced to the user — a failed update check should never block
+ * or interrupt using the app itself.
+ */
+function checkForUpdates() {
+  autoUpdater.on("error", (err) => console.error("Auto-update error:", err));
+  autoUpdater.on("update-available", (info) => console.log("Update available:", info.version));
+  autoUpdater.on("update-not-available", () => console.log("No update available — already on the latest version."));
+  autoUpdater.on("update-downloaded", (info) => console.log("Update downloaded, will prompt to restart:", info.version));
+
+  autoUpdater.checkForUpdatesAndNotify().catch((err) => console.error("Auto-update check failed:", err));
+}
+
 app.whenReady().then(async () => {
   await startEmbeddedServer();
   createWindow();
+  checkForUpdates();
 
   // macOS convention: clicking the dock icon with no windows open
   // re-creates one rather than doing nothing.

@@ -14,7 +14,7 @@
     "start": "node server/dist/index.js",
     "server": "npm run dev -w server",
     "client": "npm run dev -w client",
-    "build:electron-server": "esbuild server/src/app.ts --bundle --platform=node --format=esm --outfile=server/dist/app.bundle.js",
+    "build:electron-server": "esbuild server/src/app.ts --bundle --platform=node --format=cjs --log-override:empty-import-meta=silent --outfile=server/dist/app.bundle.cjs",
     "electron:build": "npm run build -w client && npm run build:electron-server && electron-builder",
     "electron:start": "npm run build -w client && npm run build:electron-server && electron ."
   },
@@ -33,23 +33,32 @@
     "asar": false,
     "files": [
       "electron/**/*",
-      "server/dist/app.bundle.js",
+      "server/dist/app.bundle.cjs",
       "client/dist/**/*",
       "package.json"
     ],
     "directories": {
       "output": "release"
     },
+    "publish": {
+      "provider": "github",
+      "owner": "requiemalex",
+      "repo": "fpl-analytics-dashboard"
+    },
     "mac": {
       "target": "dmg",
       "category": "public.app-category.sports"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "signAndEditExecutable": false
     },
     "linux": {
       "target": "AppImage",
       "category": "Sports"
     }
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
   }
 }

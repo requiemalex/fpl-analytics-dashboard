@@ -1,0 +1,41 @@
+name: Release desktop app
+
+# Fires on the exact same git tag convention this project already uses
+# for every versioned change (`git tag -a vX.Y.Z && git push origin
+# vX.Y.Z`) — tagging a release now also builds and publishes the
+# Windows installer, so every installed copy's electron-updater picks it
+# up automatically. No separate release process to remember.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # electron-builder needs this to create the GitHub Release and upload assets
+
+jobs:
+  build-and-publish:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - run: npm ci
+
+      # electron-builder reads package.json's version to name the release
+      # and the installer file. Deriving it from the pushed tag here means
+      # the tag is the one source of truth for the version — exactly like
+      # this project's existing (non-Electron) release process already
+      # works — instead of relying on someone remembering to also bump
+      # package.json by hand before tagging.
+      - name: Set package version from tag
+        shell: bash
+        run: npm pkg set version="${GITHUB_REF#refs/tags/v}"
+
+      - run: npm run electron:build -- --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

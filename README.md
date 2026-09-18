@@ -2062,82 +2062,94 @@ Same disclosed limitation as every other round: no network access in this build 
 
 Wraps the existing app into a downloadable, installable desktop app —
 one self-contained install per person, no accounts, no shared server,
-no database. This deliberately avoids the much larger multi-user-website
-version of this project (auth, a real database, a shared cache to avoid
-multiplying load on FPL's API across many users) — a downloadable app
-doesn't have that problem, since each install just runs the app the way
-it already runs locally today. **I could not install or test any of
-this myself** — the environment this was built in has no network
-access, so `npm install electron` and an actual build/launch were never
-possible here. Everything below is written and reasoned through
-carefully, but the exact commands below are the first real test of it.
+no database, no hosting cost. This deliberately avoids the much larger
+multi-user-website version of this project (auth, a real database, a
+shared cache to avoid multiplying load on FPL's API across many users)
+— a downloadable app doesn't have that problem, since each install just
+runs the app the way it already runs locally today, against the user's
+own network connection. **This is now the primary way this app is
+distributed** — built, installed, and verified working end-to-end on a
+real Windows machine (see `DEPLOYMENT.md`'s "Electron desktop app"
+section for the full verification writeup and the real bugs that
+surfaced and got fixed along the way).
 
 ### What changed
-- `server/src/app.ts` (new) — the Express app's setup, extracted out of
-  `index.ts` into a `createApp()` function that builds the app without
-  starting it. `index.ts` is now a thin entry point (`createApp().listen(...)`)
-  — `npm run dev` and `npm start` behave identically to before. The
-  extraction exists so Electron can start the exact same app itself,
-  rather than duplicating its route/middleware setup.
-- `createApp()` also now serves the built client (`client/dist`) and
-  falls back to `index.html` for client-side routes, whenever that
-  build actually exists on disk — a plain `npm run dev` never has one,
-  so this is a no-op there; a production/Electron run does.
-- `electron/main.js` (new) — the Electron main process. Starts the
-  embedded server on port 4317 (chosen to avoid colliding with the dev
-  server's port 4000), waits for it to actually be listening, then
-  opens a window pointed at `http://localhost:4317`. No preload script
-  — the page itself never needs Node or Electron APIs, it's the same
-  web app that already runs in a normal browser.
-- Root `package.json` — added `electron`, `electron-builder`, and
-  `esbuild` as dev dependencies, plus an electron-builder `build`
-  config (targets: `.dmg` for Mac, NSIS installer for Windows,
-  AppImage for Linux — pick whichever you actually want to build; you
-  don't need all three).
+- `server/src/app.ts` — the Express app's setup, extracted out of
+  `index.ts` into a `createApp(options?)` function that builds the app
+  without starting it. `index.ts` is a thin entry point
+  (`createApp().listen(...)`) — `npm run dev` and `npm start` behave
+  identically to before. The extraction exists so Electron can start
+  the exact same app itself, rather than duplicating its route/
+  middleware setup. `createApp()` takes an optional `clientDistPath` —
+  Electron's bundled server can't use `import.meta.url` (see below) to
+  find `client/dist` itself, so it passes the path in explicitly;
+  every other caller (`index.ts`, Docker) omits it and gets the normal
+  auto-detected path.
+- `electron/main.js` — the Electron main process. Starts the embedded
+  server on port 4317 (chosen to avoid colliding with the dev server's
+  port 4000), waits for it to actually be listening, opens a window
+  pointed at `http://localhost:4317`, then calls `electron-updater`'s
+  `checkForUpdatesAndNotify()` to check GitHub Releases for a newer
+  version. No preload script — the page itself never needs Node or
+  Electron APIs, it's the same web app that already runs in a normal
+  browser.
+- Root `package.json` — `electron`, `electron-builder`, `esbuild` as
+  dev dependencies, `electron-updater` as a runtime dependency, an
+  electron-builder `build` config (Windows NSIS installer for now —
+  see `DEPLOYMENT.md` for why Mac/Linux are deferred), and a `publish`
+  block pointing at this repo's GitHub Releases.
+- `.github/workflows/release.yml` — builds and publishes the installer
+  automatically on every `v*` tag push, so tagging a release (the same
+  `git tag -a vX.Y.Z` this project always does) is the entire release
+  process — no separate manual build-and-upload step.
 
 ### Why the server is bundled with esbuild, not packaged as-is
 This is an npm-workspaces monorepo — `express`/`cors` live in the
 hoisted root `node_modules`, not `server/node_modules`. Having
 electron-builder figure out which `node_modules` to include based on
 `server/package.json`'s dependencies, when the actual files live one
-level up, is a real risk I had no way to verify from here — getting it
-wrong would mean the packaged app silently fails to start because
-`express` can't be found. Sidestepped entirely: `npm run
+level up, was a real risk worth avoiding entirely: `npm run
 build:electron-server` uses esbuild to bundle `server/src/app.ts` and
 everything it imports — express and cors included — into one
-self-contained file (`server/dist/app.bundle.js`) that needs zero
-`node_modules` resolution at runtime. Same reasoning behind `"asar":
-false` in the build config — `express.static` serving files from
-inside an ASAR archive is a known friction point elsewhere, and this
-app has no real need for ASAR's main benefit (obscuring source), so
-avoiding that whole risk category seemed worth more than the slightly
-less "sealed" result.
+self-contained **CommonJS** file (`server/dist/app.bundle.cjs`) that
+needs zero `node_modules` resolution at runtime. CommonJS, not ESM —
+an earlier version of this bundle used ESM output and dynamic
+`import()`, which broke two different ways on a real Windows run (see
+`DEPLOYMENT.md`); CJS plus a plain `require()` sidesteps both. Same
+reasoning behind `"asar": false` in the build config — `express.static`
+serving files from inside an ASAR archive is a known friction point
+elsewhere, and this app has no real need for ASAR's main benefit
+(obscuring source).
 
-### To actually build and test it
+### To build and test it locally
 ```bash
-npm install                    # pulls in electron/electron-builder/esbuild
-npm run electron:start         # builds the client, bundles the server, launches the app directly (fastest way to check it actually works)
+npm install                    # pulls in electron/electron-builder/esbuild/electron-updater
+npm run electron:start         # builds the client, bundles the server, launches the app directly
 ```
-If that opens a working window, packaging an installer is:
+Packaging an installer:
 ```bash
-npm run electron:build         # same build steps, then electron-builder packages an installer into /release
+npm run electron:build         # same build steps, then electron-builder packages an NSIS installer into /release
 ```
 
-### What's genuinely untested and most likely to need a small fix
-- **The dynamic `import()` of the ESM bundle from a CommonJS main
-  process.** This is a well-supported Node pattern, but it's the one
-  piece of this I'm least able to vouch for without having run it.
-- **Whether `esbuild`'s ESM output bundles cleanly** given the server
-  code's `.js`-suffixed imports (`./config.js` etc.) — a common,
-  well-supported TypeScript/ESM pattern, but again, unverified here.
-- **Unsigned app warnings.** No code-signing certificates are
-  configured (they cost money and need real identity verification I
-  can't do on your behalf) — expect Gatekeeper on Mac and SmartScreen
-  on Windows to warn on first launch. Normal for an unsigned first
-  version, not a bug.
-- **No app icon configured** — Electron will fall back to its own
-  default icon. Easy to add later; didn't want to block a first
-  working build on it.
+### Releasing a new version
+Tag it exactly as usual — `git tag -a vX.Y.Z -m "..." && git push origin vX.Y.Z`.
+GitHub Actions (`.github/workflows/release.yml`) takes it from there:
+builds the installer, derives the app version from the tag itself, and
+publishes both the installer and update metadata to a GitHub Release.
+Every installed copy's `electron-updater` finds it on next launch,
+downloads it in the background, and prompts a restart when ready.
+
+### Known, accepted limitations for now
+- **Unsigned app.** No code-signing certificate — expect a Windows
+  SmartScreen "Windows protected your PC" prompt on first install
+  (click "More info" → "Run anyway"). A deliberate cost/complexity
+  trade-off, not a bug; revisit if it ever becomes worth the ~$100–400/yr.
+- **No app icon configured** — Electron falls back to its own default
+  icon. Cosmetic; easy to add later.
+- **Windows only.** Mac/Linux would need their own CI runners in the
+  same workflow (and Mac specifically needs paid code signing +
+  notarization for its own auto-update to work at all) — deferred
+  until actually needed, not because of any blocker in the approach.
 
 ## Championship data (promoted teams) — added, then removed
 
