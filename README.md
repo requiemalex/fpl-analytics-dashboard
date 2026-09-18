@@ -4,6 +4,13 @@ A locally-run scouting and analytics dashboard for Fantasy Premier League,
 built against the **live official FPL API**. No mock data, no database, no
 authentication — just your machine, a small Express proxy, and a React UI.
 
+**Just want to use it?** Download the Windows installer from
+[the latest release](https://github.com/requiemalex/fpl-analytics-dashboard/releases/latest)
+— no Node, no terminal, no hosting cost. It auto-updates itself. See
+"Electron desktop app" further down for details. Everything below this
+point (`npm install`, `npm run dev`, etc.) is for developing the app
+itself, not for using it.
+
 ---
 
 ## Prerequisites

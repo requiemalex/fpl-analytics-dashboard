@@ -71,7 +71,19 @@ checks; not committed to the repo.
 ## Known-good state (last verified)
 
 Both packages type-check clean (`tsc -b` / `tsc --noEmit`) and the app
-loads with zero console errors across every page. Production build and
-the Docker/Railway deploy path were verified end-to-end. See git history
-/ session notes for specifics — don't assume this stays true without
-re-checking after further changes.
+loads with zero console errors across every page. Production build,
+the Electron desktop app, and its GitHub Actions release/auto-update
+pipeline were verified end-to-end. See git history / session notes for
+specifics — don't assume this stays true without re-checking after
+further changes.
+
+## Distribution: desktop app, not a hosted website
+
+The Windows desktop app (Electron, auto-updating via GitHub Releases —
+see `DEPLOYMENT.md`) is the primary way this app reaches users now. The
+Railway web deployment was decommissioned once the desktop app was
+verified working — `Dockerfile`/`railway.json` still exist and still
+work, kept only as a reference for potential future redeploy, not as
+anything currently live. A new release ships by tagging exactly as
+before (`git tag -a vX.Y.Z && git push origin vX.Y.Z`); CI takes it
+from there and every installed copy updates itself.

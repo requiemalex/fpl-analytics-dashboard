@@ -1,5 +1,19 @@
 # Deployment
 
+## Current status: desktop app is primary; Railway is retired
+
+The Railway deployment described below was decommissioned (project
+deleted) once the Electron desktop app (see README's "Electron desktop
+app" section) was verified working end-to-end — each user now runs
+their own copy locally, against their own FPL API requests, at zero
+hosting cost, instead of one shared paid host. Everything below this
+point (Docker image, `railway.json`, the single-host reasoning) is kept
+as-is, working and unmaintained-but-valid, purely as a reference if the
+hosted web version is ever wanted again — `Dockerfile` and
+`railway.json` are still in the repo and nothing about them changed. It
+would just need a fresh Railway (or equivalent) project created and
+linked, since the old one no longer exists.
+
 ## Hosting shape: single host, not split
 
 This app needs a real always-on backend — the Express proxy caches and
