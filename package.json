@@ -43,7 +43,8 @@
     "publish": {
       "provider": "github",
       "owner": "requiemalex",
-      "repo": "fpl-analytics-dashboard"
+      "repo": "fpl-analytics-dashboard",
+      "draft": false
     },
     "mac": {
       "target": "dmg",
