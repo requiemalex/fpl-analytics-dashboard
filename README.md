@@ -1228,6 +1228,14 @@ own `RadarChart` — already a dependency, no new one added).
   (Goals, xG/90, Assists, xA/90, ICT Index, Points). Every axis is a
   metric that already exists on `NormalizedPlayer`, so nothing new had
   to be computed to support this.
+- **Defenders and midfielders get two radars, not one** — "Percentile
+  Radar — Defense" (Clean Sheets, Defence Tightness, Def. Contribution/90,
+  BPS, Bonus) and "Percentile Radar — Offense" (Goals, Assists, xG/90,
+  xA/90, xGI/90, plus ICT Index for midfielders only), on the player
+  profile only (Player Comparison, below, still uses one combined radar
+  per position). Goalkeepers and forwards keep a single combined radar,
+  since their points genuinely come from overwhelmingly one facet already.
+  See `getRadarAxisGroupsForPosition` (`metrics/radarStats.ts`).
 - **Every axis is a within-position percentile**, reusing
   `computePositionPercentiles` — the same function and the same
   `<percentile_population>` convention (computed against the full,

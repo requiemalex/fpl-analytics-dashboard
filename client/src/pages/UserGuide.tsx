@@ -386,8 +386,9 @@ export function UserGuide() {
           Season Log, Playing Time, Career History) always shows today's actual figures regardless of that toggle — Career History
           always shows every prior season on record plus this season in progress (marked "(live)", sourced from live data rather than a
           completed season's record). The Percentile Radar chart is position-specific — a goalkeeper's axes share almost nothing with a
-          forward's — and also resolves per mode. Archetype badges sit alongside it, and a "Compare" button in the header links into
-          Player Comparison, pre-filled.
+          forward's — and also resolves per mode. Defenders and midfielders get two radars ("Defense" and "Offense"), since both facets
+          genuinely drive their points; goalkeepers and forwards keep one combined radar. Archetype badges sit alongside the first radar,
+          and a "Compare" button in the header links into Player Comparison, pre-filled.
         </p>
         <p className="page-subtitle">
           <strong>Current Season Log</strong> is a gameweek-by-gameweek breakdown of the live season — one row per gameweek played,

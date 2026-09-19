@@ -5,7 +5,7 @@ import { usePlayerHistory } from "../state/usePlayerHistory";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { computePositionPercentiles } from "../metrics/percentiles";
 import { computeArchetypesForAllPlayers } from "../metrics/archetypes";
-import { computeRadarData } from "../metrics/radarStats";
+import { computeRadarDataForAxes, getRadarAxisGroupsForPosition } from "../metrics/radarStats";
 import { PlayerRadarChart } from "./PlayerRadarChart";
 import { ActualVsExpectedBars } from "./playerProfile/ActualVsExpectedBars";
 import { CareerHistoryChart } from "./playerProfile/CareerHistoryChart";
@@ -147,11 +147,17 @@ export function PlayerDetailOverlay() {
   // Hooks must run before the early return below, so this recomputes its own
   // resolved player rather than reusing the `resolvedPlayer` const further
   // down (cheap — a single-player transform) to memoize the genuinely
-  // expensive part: computeRadarData's 6 full-population percentile scans.
-  const radarData = useMemo(() => {
+  // expensive part: one full-population percentile scan per axis, across
+  // every radar group (one group for GKP/FWD, two — Defense/Offense — for
+  // DEF/MID; see getRadarAxisGroupsForPosition).
+  const radarGroups = useMemo(() => {
     if (!player) return [];
     const resolved = resolvePlayerStats(player, analysisMode, historicProfiles.get(player.id), currentSeasonHasStarted);
-    return computeRadarData(resolved, resolvedPlayers, effectiveMinMinutes(filters, analysisMode));
+    const minMinutes = effectiveMinMinutes(filters, analysisMode);
+    return getRadarAxisGroupsForPosition(player.position).map((group) => ({
+      label: group.label,
+      data: computeRadarDataForAxes(group.axes, resolved, resolvedPlayers, minMinutes),
+    }));
   }, [player, analysisMode, historicProfiles, currentSeasonHasStarted, resolvedPlayers, filters.minMinutes]);
 
   if (!player) return null;
@@ -331,22 +337,28 @@ export function PlayerDetailOverlay() {
             </div>
 
             <div className="profile-col">
-              <div className="card">
-                <div className="card-title">
-                  Percentile Radar — {player.position}
-                  {smallSample && <span style={{ color: "var(--accent-value)" }}> (below eligibility threshold)</span>}
-                </div>
-                <PlayerRadarChart data={smallSample ? radarData.map((d) => ({ ...d, percentile: null })) : radarData} />
-                <div style={{ marginTop: 4 }}>
-                  <ArchetypeBadges labels={archetypes} />
-                </div>
-                <div style={{ marginTop: 14 }}>
-                  <div className="card-title" style={{ marginBottom: 8 }}>
-                    Position Percentile — xGI/90 {smallSample && <span style={{ color: "var(--accent-value)" }}>(below eligibility threshold)</span>}
+              {radarGroups.map((group, i) => (
+                <div className="card" key={group.label || "combined"}>
+                  <div className="card-title">
+                    Percentile Radar{group.label ? ` — ${group.label}` : ` — ${player.position}`}
+                    {smallSample && <span style={{ color: "var(--accent-value)" }}> (below eligibility threshold)</span>}
                   </div>
-                  <PercentileBar percentile={smallSample ? null : percentile} />
+                  <PlayerRadarChart data={smallSample ? group.data.map((d) => ({ ...d, percentile: null })) : group.data} />
+                  {i === 0 && (
+                    <>
+                      <div style={{ marginTop: 4 }}>
+                        <ArchetypeBadges labels={archetypes} />
+                      </div>
+                      <div style={{ marginTop: 14 }}>
+                        <div className="card-title" style={{ marginBottom: 8 }}>
+                          Position Percentile — xGI/90 {smallSample && <span style={{ color: "var(--accent-value)" }}>(below eligibility threshold)</span>}
+                        </div>
+                        <PercentileBar percentile={smallSample ? null : percentile} />
+                      </div>
+                    </>
+                  )}
                 </div>
-              </div>
+              ))}
 
               <div className="card">
                 <div className="card-title">Value</div>
@@ -621,10 +633,6 @@ export function PlayerDetailOverlay() {
                           </tbody>
                         </table>
                       </div>
-                      <p className="page-subtitle" style={{ marginTop: 8 }}>
-                        Seasons marked * (or (live), for the season in progress) fall outside the qualifying window or minutes bar and
-                        aren't counted in the average above — the table itself still shows every season on record.
-                      </p>
                     </>
                   )}
                 </>

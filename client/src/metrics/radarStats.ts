@@ -72,12 +72,73 @@ export interface RadarDataPoint {
  * (<percentile_population> — never pre-filtered by team/ownership/price,
  * though the minutes-eligibility threshold IS applied, same as always).
  */
-export function computeRadarData(player: NormalizedPlayer, allPlayers: NormalizedPlayer[], minMinutesThreshold: number): RadarDataPoint[] {
-  const axes = getRadarAxesForPosition(player.position);
+export function computeRadarDataForAxes(
+  axes: RadarAxis[],
+  player: NormalizedPlayer,
+  allPlayers: NormalizedPlayer[],
+  minMinutesThreshold: number,
+): RadarDataPoint[] {
   return axes.map((axis) => {
     const percentiles = computePositionPercentiles(allPlayers, axis.metricFn, minMinutesThreshold);
     const rawPercentile = percentiles.get(player.id) ?? null;
     const percentile = rawPercentile === null ? null : axis.higherIsBetter ? rawPercentile : 100 - rawPercentile;
     return { key: axis.key, label: axis.label, percentile, rawValue: axis.metricFn(player) };
   });
+}
+
+export function computeRadarData(player: NormalizedPlayer, allPlayers: NormalizedPlayer[], minMinutesThreshold: number): RadarDataPoint[] {
+  return computeRadarDataForAxes(getRadarAxesForPosition(player.position), player, allPlayers, minMinutesThreshold);
+}
+
+export interface RadarAxisGroup {
+  /** "" for a position with one combined radar (GKP, FWD — points come
+   * overwhelmingly from one facet already); "Defense"/"Offense" for a
+   * position split into two (DEF, MID — both facets genuinely drive
+   * their points). See README → Percentile Radar. */
+  label: string;
+  axes: RadarAxis[];
+}
+
+const DEFENSIVE_AXES: RadarAxis[] = [
+  { key: "cleanSheets", label: "Clean Sheets", metricFn: (p) => p.cleanSheets, higherIsBetter: true },
+  { key: "xGCPer90", label: "Defence Tightness", metricFn: (p) => p.xGCPer90, higherIsBetter: false },
+  { key: "defensiveContributionsPer90", label: "Def. Contribution/90", metricFn: (p) => p.defensiveContributionsPer90, higherIsBetter: true },
+  { key: "bps", label: "BPS", metricFn: (p) => p.bps, higherIsBetter: true },
+  { key: "bonus", label: "Bonus", metricFn: (p) => p.bonus, higherIsBetter: true },
+];
+
+/** DEF and MID each get a Defense radar (built from `DEFENSIVE_AXES`, shared between them since the same defensive-scoring fields apply to both) plus their own Offense radar below — a defender's or midfielder's points genuinely come from both facets, unlike a goalkeeper's (defence) or forward's (attack). */
+const SPLIT_RADAR_AXES: Partial<Record<Position, { defense: RadarAxis[]; offense: RadarAxis[] }>> = {
+  DEF: {
+    defense: DEFENSIVE_AXES,
+    offense: [
+      { key: "goals", label: "Goals", metricFn: (p) => p.goals, higherIsBetter: true },
+      { key: "assists", label: "Assists", metricFn: (p) => p.assists, higherIsBetter: true },
+      { key: "xGPer90", label: "xG/90", metricFn: (p) => p.xGPer90, higherIsBetter: true },
+      { key: "xAPer90", label: "xA/90", metricFn: (p) => p.xAPer90, higherIsBetter: true },
+      { key: "xGIPer90", label: "xGI/90", metricFn: (p) => p.xGIPer90, higherIsBetter: true },
+    ],
+  },
+  MID: {
+    defense: DEFENSIVE_AXES,
+    offense: [
+      { key: "goals", label: "Goals", metricFn: (p) => p.goals, higherIsBetter: true },
+      { key: "assists", label: "Assists", metricFn: (p) => p.assists, higherIsBetter: true },
+      { key: "xGPer90", label: "xG/90", metricFn: (p) => p.xGPer90, higherIsBetter: true },
+      { key: "xAPer90", label: "xA/90", metricFn: (p) => p.xAPer90, higherIsBetter: true },
+      { key: "xGIPer90", label: "xGI/90", metricFn: (p) => p.xGIPer90, higherIsBetter: true },
+      { key: "ictIndex", label: "ICT Index", metricFn: (p) => p.ictIndex, higherIsBetter: true },
+    ],
+  },
+};
+
+export function getRadarAxisGroupsForPosition(position: Position): RadarAxisGroup[] {
+  const split = SPLIT_RADAR_AXES[position];
+  if (split) {
+    return [
+      { label: "Defense", axes: split.defense },
+      { label: "Offense", axes: split.offense },
+    ];
+  }
+  return [{ label: "", axes: getRadarAxesForPosition(position) }];
 }
