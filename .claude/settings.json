@@ -7,7 +7,16 @@
       "Bash(tasklist *)",
       "Bash(npm run build:electron-server)",
       "Bash(npm run build)",
-      "Bash(railway list)"
+      "Bash(railway list)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git tag -a *)",
+      "Bash(git push origin *)",
+      "Bash(gh run list*)",
+      "Bash(gh run view*)",
+      "Bash(gh run watch*)",
+      "Bash(gh release view*)",
+      "Bash(gh release download*)"
     ]
   }
 }
