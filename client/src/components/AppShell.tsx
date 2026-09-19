@@ -101,18 +101,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <header className="topbar">
-        <div className="topbar-status">
-          <span>
-            <span className={`status-dot ${status === "error" ? "error" : isStale ? "stale" : "live"}`} />
-            <GameweekLabel />
-          </span>
-          <span>{players.length.toLocaleString("en-GB")} players</span>
-          <span>Updated {fmtTimeAgo(lastUpdated)}</span>
-          {isStale && <span style={{ color: "var(--accent-value)" }}>Stale data — showing last successful fetch</span>}
+        <div className="topbar-left">
+          <div className="topbar-status">
+            <span>
+              <span className={`status-dot ${status === "error" ? "error" : isStale ? "stale" : "live"}`} />
+              <GameweekLabel />
+            </span>
+            <span>{players.length.toLocaleString("en-GB")} players</span>
+            <span>Updated {fmtTimeAgo(lastUpdated)}</span>
+            {isStale && <span style={{ color: "var(--accent-value)" }}>Stale data — showing last successful fetch</span>}
+          </div>
+          <button className="btn primary" onClick={() => refresh()} disabled={refreshing}>
+            {refreshing ? "Refreshing…" : "Refresh Data"}
+          </button>
         </div>
-        <button className="btn primary" onClick={() => refresh()} disabled={refreshing}>
-          {refreshing ? "Refreshing…" : "Refresh Data"}
-        </button>
         <WindowControls />
       </header>
 

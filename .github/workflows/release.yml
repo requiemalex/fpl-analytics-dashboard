@@ -39,3 +39,19 @@ jobs:
       - run: npm run electron:build -- --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Keeps the Releases page from accumulating every installer ever
+      # built — deletes the release (and its uploaded .exe/.blockmap/
+      # latest.yml assets) for anything beyond the 5 most recent. Tags
+      # themselves are left alone (cheap, useful history); only the
+      # built artifacts get pruned.
+      - name: Prune old releases (keep latest 5)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          old_releases=$(gh release list --limit 100 --json tagName,createdAt --jq 'sort_by(.createdAt) | reverse | .[5:] | .[].tagName')
+          for tag in $old_releases; do
+            echo "Deleting old release $tag"
+            gh release delete "$tag" --yes
+          done

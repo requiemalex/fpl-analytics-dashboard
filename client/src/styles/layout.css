@@ -100,7 +100,6 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 14px 0 18px;
-  gap: 16px;
   overflow-x: auto;
   /* Makes the desktop app's frameless window draggable by its topbar, the
      way a normal title bar would be — ignored in a browser tab
@@ -109,6 +108,17 @@
 }
 .topbar button {
   -webkit-app-region: no-drag;
+}
+
+/* Groups the status text and Refresh Data together on the left, so
+   space-between pushes only this whole group vs. the window controls
+   apart — keeping Refresh Data away from minimize/close instead of the
+   two ending up crowded next to each other. */
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
 }
 
 /* Stand-ins for the native minimize/close buttons removed by electron/
