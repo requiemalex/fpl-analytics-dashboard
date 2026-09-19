@@ -265,6 +265,42 @@ This is fetched lazily (only when a player profile is opened) and is
 race-condition-safe: switching profiles quickly discards any in-flight
 response for the previously-selected player.
 
+## Dashboard: minimum-sample floor for rate-based Top-5 tiles
+
+Audited every per-90/per-game calculation in the app after a reported
+skew in the Dashboard's "Points/90" tile, to check for a repeat of the
+earlier PPG bug (a "per game" field that was actually computed as a
+per-90-minutes rate, distorting badly for a low-minutes cameo — see
+`estimatedPointsPerGame` in `calculations.ts`). Result: no other
+metric has that specific defect — every other per-90 field genuinely
+is documented and computed as a true per-90-minutes rate (`per90()`
+correctly pairs the same season's numerator and denominator
+everywhere it's called, in `resolvePlayerStats.ts` and
+`playerMetrics.ts`), so the formulas themselves are correct.
+
+The visible symptom was real, though: a rate-per-minutes metric
+(PPG, Points/90, Goals/90, Assists/90, DC/90 — see
+`PlayerTileMetric.ratePerMinutes` in `summaryTileMetrics.ts`) can
+still look absurd for a tiny-minutes sample (one bonus point in a
+2-minute cameo), and the Dashboard is the one page with no Min
+Minutes control of its own — Player Explorer, Underlying Numbers, and
+Team Building all expose one, but the Dashboard's Top-5 leaderboards
+just inherited the shared global filter, which defaults to 0. Fixed
+by giving exactly those rate-based tiles their own minimum-minutes
+floor (`RATE_STAT_MIN_MINUTES = 450` in `Dashboard.tsx`, the same
+~5-games threshold Underlying Numbers' defensive-reward chart already
+uses for the same reason), via `Math.max` against whatever the shared
+filter is set to — so a stricter setting elsewhere is never loosened,
+but a low default can no longer let a cameo outlier top a rate-based
+leaderboard. Count-based and price-based tiles (Points, Goals,
+Points/£m, etc.) are untouched — a small-minutes player can't
+accumulate a large total the way a rate stat can spike, so they were
+never the source of this bug. Bypassed entirely in Current Season
+mode, matching `effectiveMinMinutes`'s own live-mode exemption:
+everyone genuinely has low minutes early in a season, so a fixed
+floor would just empty these leaderboards out for the first few
+gameweeks rather than fix anything.
+
 ## Known limitations
 
 - Historic ownership isn't available. Confirmed directly against the raw

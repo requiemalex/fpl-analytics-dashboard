@@ -57,6 +57,30 @@ export function Dashboard() {
 
   const rows = useMemo(() => eligible.map((p) => ({ player: p, derived: getPlayerDerivedMetrics(p) })), [eligible]);
 
+  // A rate-per-minutes metric (PPG, Points/90, Goals/90, Assists/90,
+  // DC/90 — see PlayerTileMetric.ratePerMinutes) needs a real sample to
+  // mean anything: one lucky bonus point in a 2-minute cameo reads as an
+  // absurd rate otherwise, the same shape of problem PPG itself used to
+  // have before it was fixed to use an estimated-games basis. This page
+  // has no Min Minutes control of its own (unlike Player Explorer/
+  // Underlying Numbers/Team Building), and the shared global filter
+  // defaults to 0, so without this a single-cameo outlier could silently
+  // top one of these Top-5 leaderboards. Reuses the same ~5-games
+  // threshold Underlying Numbers' defensive-reward chart already
+  // enforces for the same reason — `Math.max` so a stricter min-minutes
+  // the user set elsewhere is never loosened. Bypassed in Current Season
+  // mode, matching effectiveMinMinutes' own live-mode exemption: everyone
+  // genuinely has low minutes early in a season, so a fixed floor would
+  // just empty these leaderboards out for the season's first few weeks.
+  const RATE_STAT_MIN_MINUTES = 450;
+  const rateEligible = useMemo(() => {
+    if (analysisMode === "live") return eligible;
+    const minMinutes = Math.max(effectiveMinMinutes(filters, analysisMode), RATE_STAT_MIN_MINUTES);
+    return resolvedPlayers.filter((p) => p.minutes !== null && p.minutes >= minMinutes);
+  }, [resolvedPlayers, eligible, filters.minMinutes, analysisMode]);
+
+  const rateRows = useMemo(() => rateEligible.map((p) => ({ player: p, derived: getPlayerDerivedMetrics(p) })), [rateEligible]);
+
   // Team snapshot — same aggregation basis as the Teams page (every
   // resolved player attributed to their current club, not minutes-
   // filtered), so these numbers match what you'd see if you clicked
@@ -97,7 +121,8 @@ export function Dashboard() {
         if (tile.scope === "player") {
           const metric = playerTileMetricByKey(tile.metricKey);
           if (!metric) return null;
-          const valueRows: TopListRow[] = rows.map((r) => ({ player: r.player, value: metric.getValue(r.player, r.derived) }));
+          const sourceRows = metric.ratePerMinutes ? rateRows : rows;
+          const valueRows: TopListRow[] = sourceRows.map((r) => ({ player: r.player, value: metric.getValue(r.player, r.derived) }));
           return { tile, metric, kind: "player" as const, topRows: topN(valueRows, 5, tile.direction === "asc") };
         }
         const metric = teamTileMetricByKey(tile.metricKey);
@@ -111,7 +136,7 @@ export function Dashboard() {
         return { tile, metric, kind: "team" as const, topRows: topN(valueRows, 5, tile.direction === "asc") };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
-  }, [tilesState.tiles, rows, teamAggregates]);
+  }, [tilesState.tiles, rows, rateRows, teamAggregates]);
 
   function openAddTileModal() {
     setNewTileScope("player");
