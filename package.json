@@ -1,7 +1,7 @@
 {
   "name": "fpl-analytics-dashboard",
   "private": true,
-  "version": "1.14.0",
+  "version": "1.14.1",
   "description": "Production-quality Fantasy Premier League analytics dashboard (2026/27 live season)",
   "main": "electron/main.js",
   "workspaces": [
