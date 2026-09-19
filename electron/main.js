@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu } = require("electron");
+const { app, BrowserWindow, Menu, ipcMain } = require("electron");
 const path = require("path");
 const { autoUpdater } = require("electron-updater");
 
@@ -65,35 +65,26 @@ function createWindow() {
     icon: path.join(__dirname, "../build/icon.png"),
     show: false,
     backgroundColor: "#0a0f0c", // matches --bg (tokens.css) — avoids a white flash before the page paints
-    // Borderless-but-still-controllable: hides the traditional title bar
-    // (no more floating in a small window with a visible OS frame) while
-    // titleBarOverlay keeps native minimize/maximize/close buttons, drawn
-    // in the app's own colours instead of Windows' default light theme —
-    // Windows-only API (Window Controls Overlay); harmless no-op on other
-    // platforms if this is ever built for them.
-    titleBarStyle: "hidden",
-    titleBarOverlay: {
-      color: "#161f1a", // --surface-raised
-      symbolColor: "#e8ede9", // --text-primary
-      height: 36,
-    },
+    // No OS frame at all (no title bar, no native min/max/close buttons —
+    // those are drawn by the app's own topbar instead, see preload.js +
+    // AppShell.tsx) and true OS fullscreen rather than just maximized:
+    // on Windows a fullscreen window also auto-hides the taskbar on the
+    // monitor it's shown on, which is what actually makes the app fill
+    // the entire screen edge-to-edge.
+    frame: false,
+    fullscreen: true,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
-      // The app never needs Node or Electron APIs from the page itself
-      // — it's the same web app that already runs in a regular browser
-      // — so no preload script is needed to bridge anything across.
+      // Only bridge exposed: minimize/close, for the custom topbar
+      // controls that replace the native window chrome removed above.
+      preload: path.join(__dirname, "preload.js"),
     },
   });
 
   mainWindow.loadURL(`http://localhost:${process.env.PORT}`);
 
-  // Maximized by default ("fullscreen borderless", not literal OS
-  // fullscreen — that would also hide the taskbar, which isn't wanted for
-  // a productivity dashboard). Waiting for ready-to-show avoids a visible
-  // jump from the initial small size to maximized.
   mainWindow.once("ready-to-show", () => {
-    mainWindow.maximize();
     mainWindow.show();
   });
 
@@ -101,6 +92,18 @@ function createWindow() {
     mainWindow = null;
   });
 }
+
+// The only window-control surface left now that the native frame is gone —
+// backs the custom minimize/close buttons rendered in AppShell.tsx's
+// topbar. Deliberately not exposing anything broader (no full Node/Electron
+// API bridge) since the page content is the same web app that also runs in
+// a plain browser tab.
+ipcMain.on("window-minimize", () => {
+  mainWindow?.minimize();
+});
+ipcMain.on("window-close", () => {
+  mainWindow?.close();
+});
 
 /**
  * Checks GitHub Releases (see package.json's build.publish config) for a

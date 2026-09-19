@@ -18,8 +18,13 @@
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 14px;
+  /* Capped at 340px so cards don't stretch into oversized, mostly-empty
+     boxes on a fullscreen wide monitor — auto-fit still adds more columns
+     as width allows, and justify-content spreads any leftover row width
+     out as even spacing between cards instead of pooling it on one side. */
+  grid-template-columns: repeat(auto-fit, minmax(260px, 340px));
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 22px;
 }
 

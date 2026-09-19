@@ -31,6 +31,27 @@ const NAV_STRUCTURE: NavEntry[] = [
   { type: "link", to: "/guide", label: "User Guide" },
 ];
 
+function WindowControls() {
+  const electronWindow = window.electronWindow;
+  if (!electronWindow) return null; // plain browser tab (dev server, etc.) — nothing to control
+
+  return (
+    <div className="window-controls">
+      <button type="button" className="window-control" title="Minimize" onClick={() => electronWindow.minimize()}>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <line x1="2" y1="6" x2="10" y2="6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+      </button>
+      <button type="button" className="window-control close" title="Close" onClick={() => electronWindow.close()}>
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <line x1="2" y1="2" x2="10" y2="10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          <line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 function GameweekLabel() {
   const { gameweekState, events } = useAppState();
   if (!gameweekState) return <span>Loading gameweek…</span>;
@@ -92,6 +113,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <button className="btn primary" onClick={() => refresh()} disabled={refreshing}>
           {refreshing ? "Refreshing…" : "Refresh Data"}
         </button>
+        <WindowControls />
       </header>
 
       <main className="main-content">
