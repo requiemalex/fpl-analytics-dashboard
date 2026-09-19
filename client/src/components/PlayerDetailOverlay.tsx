@@ -3,7 +3,6 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { usePlayerHistory } from "../state/usePlayerHistory";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
-import { computePositionPercentiles } from "../metrics/percentiles";
 import { computeRadarDataForAxes, getRadarAxisGroupsForPosition } from "../metrics/radarStats";
 import { PlayerRadarChart } from "./PlayerRadarChart";
 import { ActualVsExpectedBars } from "./playerProfile/ActualVsExpectedBars";
@@ -15,7 +14,7 @@ import { buildHistoricPlayerProfile, nextSeasonName } from "../metrics/historicA
 import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode } from "../metrics/resolvePlayerStats";
 import { effectiveMinMinutes } from "../state/useFilteredPlayers";
 import { AnalysisModeToggle } from "./AnalysisModeToggle";
-import { PositionBadge, PercentileBar } from "./primitives";
+import { PositionBadge } from "./primitives";
 import { fmtDecimal, fmtPrice, fmtPercent, fmtSigned, DASH } from "../utils/format";
 import type { NormalizedPlayer, PlayerSeasonHistory, PlayerGameweekHistory } from "../types/normalized";
 
@@ -127,17 +126,6 @@ export function PlayerDetailOverlay() {
     [players, analysisMode, historicProfiles, currentSeasonHasStarted],
   );
 
-  // Deliberately keyed on filters.minMinutes, not the whole filters object —
-  // it's the only field effectiveMinMinutes actually reads, and filters gets
-  // a new reference on every keystroke elsewhere (e.g. the underlying page's
-  // FiltersBar), which would otherwise bust this memo and rerun a full
-  // population percentile scan on every unrelated keystroke while this
-  // overlay happens to be open.
-  const xGIPercentiles = useMemo(
-    () => computePositionPercentiles(resolvedPlayers, (p) => p.xGIPer90, effectiveMinMinutes(filters, analysisMode)),
-    [resolvedPlayers, filters.minMinutes, analysisMode],
-  );
-
   // Hooks must run before the early return below, so this recomputes its own
   // resolved player rather than reusing the `resolvedPlayer` const further
   // down (cheap — a single-player transform) to memoize the genuinely
@@ -163,7 +151,6 @@ export function PlayerDetailOverlay() {
   // the performance figures.
   const resolvedPlayer = resolvePlayerStats(player, analysisMode, historicProfiles.get(player.id), currentSeasonHasStarted);
   const derived = getPlayerDerivedMetrics(resolvedPlayer);
-  const percentile = xGIPercentiles.get(player.id) ?? null;
   // <live_vs_resolved_bug>: this used to check `player.minutes` (the
   // LIVE player's current-season minutes) even when viewing Last
   // Completed Season or Historic Average — so a player with a full,
@@ -283,6 +270,16 @@ export function PlayerDetailOverlay() {
             <h3>Views</h3>
           </div>
           <div className="profile-columns profile-columns-balanced">
+            {radarGroups.map((group) => (
+              <div className="card" key={group.label || "combined"}>
+                <div className="card-title">
+                  Percentile Radar{group.label ? ` — ${group.label}` : ` — ${player.position}`}
+                  {smallSample && <span style={{ color: "var(--accent-value)" }}> (below eligibility threshold)</span>}
+                </div>
+                <PlayerRadarChart data={smallSample ? group.data.map((d) => ({ ...d, percentile: null })) : group.data} />
+              </div>
+            ))}
+
             <div className="card">
               <div className="card-title">Actual vs Expected</div>
               {smallSample && (
@@ -354,24 +351,6 @@ export function PlayerDetailOverlay() {
                 </>
               )}
             </div>
-
-            {radarGroups.map((group, i) => (
-              <div className="card" key={group.label || "combined"}>
-                <div className="card-title">
-                  Percentile Radar{group.label ? ` — ${group.label}` : ` — ${player.position}`}
-                  {smallSample && <span style={{ color: "var(--accent-value)" }}> (below eligibility threshold)</span>}
-                </div>
-                <PlayerRadarChart data={smallSample ? group.data.map((d) => ({ ...d, percentile: null })) : group.data} />
-                {i === 0 && (
-                  <div style={{ marginTop: 14 }}>
-                    <div className="card-title" style={{ marginBottom: 8 }}>
-                      Position Percentile — xGI/90 {smallSample && <span style={{ color: "var(--accent-value)" }}>(below eligibility threshold)</span>}
-                    </div>
-                    <PercentileBar percentile={smallSample ? null : percentile} />
-                  </div>
-                )}
-              </div>
-            ))}
 
             <div className="card">
               <div className="card-title">Value</div>

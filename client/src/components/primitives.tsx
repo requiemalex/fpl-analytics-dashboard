@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { fmtDecimal, fmtSigned, DASH } from "../utils/format";
-import { bandForPercentile, type PercentileBand } from "../metrics/percentiles";
 import { getMetricDefinition } from "../metrics/dictionary";
 import { fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { teamAccentColor } from "../utils/teamColors";
@@ -146,20 +145,5 @@ export function MetricLabel({ metricKey, fallback }: { metricKey: string; fallba
         </>
       ) : null}
     </Tooltip>
-  );
-}
-
-export function PercentileBar({ percentile }: { percentile: number | null }) {
-  if (percentile === null) {
-    return <span className="value-muted">{DASH}</span>;
-  }
-  const band: PercentileBand = bandForPercentile(percentile);
-  return (
-    <span className="percentile-row">
-      <span className="percentile-track">
-        <span className={`percentile-fill ${band}`} style={{ width: `${Math.max(4, percentile)}%` }} />
-      </span>
-      <span className="percentile-label">{Math.round(percentile)}th</span>
-    </span>
   );
 }

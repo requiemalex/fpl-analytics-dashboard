@@ -1197,8 +1197,7 @@ own `RadarChart` — already a dependency, no new one added).
   `computePositionPercentiles` — the same function and the same
   `<percentile_population>` convention (computed against the full,
   unfiltered, mode-resolved population, never something already cut
-  down by team/ownership/price) already used for the existing Position
-  Percentile card and the archetype system.
+  down by team/ownership/price).
 - **Axes where a lower raw value is better get flipped**
   (`higherIsBetter: false` — currently just xGC/90, "Defence
   Tightness"), so every axis on the chart consistently points "outward
@@ -1208,10 +1207,16 @@ own `RadarChart` — already a dependency, no new one added).
   profile's other cards already compute, so switching
   Last Completed Season / Historic Average / Current Season just works
   without the chart needing any mode-awareness of its own.
-- A player below the minutes eligibility threshold gets the same
-  "(below eligibility threshold)" treatment as the existing Position
-  Percentile card, rather than a chart quietly built from an unreliable
-  sample.
+- A player below the minutes eligibility threshold gets a
+  "(below eligibility threshold)" label on the card title, rather than a
+  chart quietly built from an unreliable sample. (A standalone
+  "Position Percentile — xGI/90" bar used to sit under the first radar
+  card too — removed as redundant clutter now that multiple radar
+  charts already cover this ground; see `PercentileBar`'s removal.)
+- The Views zone's cards are ordered radar chart(s) first, then Actual
+  vs Expected / Underlying Numbers / Value — set by JSX source order,
+  which is what the CSS multi-column balance layout (see the "This
+  View card-height imbalance" fix above) flows through.
 
 ## Player name colour matches their availability marker
 
