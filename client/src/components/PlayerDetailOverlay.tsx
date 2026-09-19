@@ -9,7 +9,8 @@ import { computeRadarData } from "../metrics/radarStats";
 import { PlayerRadarChart } from "./PlayerRadarChart";
 import { ActualVsExpectedBars } from "./playerProfile/ActualVsExpectedBars";
 import { CareerHistoryChart } from "./playerProfile/CareerHistoryChart";
-import { computePlayingTimeIndicators, computeGameweekTotals, computeGameweekPer90 } from "../metrics/rotationIndicators";
+import { PlayingTimeIcon } from "./playerProfile/PlayingTimeIcon";
+import { computeSeasonAverageMinutes, computeGameweekTotals, computeGameweekAverages } from "../metrics/rotationIndicators";
 import { computeSeasonTrend } from "../metrics/careerMetrics";
 import { buildHistoricPlayerProfile, nextSeasonName } from "../metrics/historicAnalysis";
 import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode } from "../metrics/resolvePlayerStats";
@@ -259,7 +260,7 @@ export function PlayerDetailOverlay() {
           </div>
           <div className="profile-header-actions">
             <Link className="profile-icon-btn" to={`/player-comparison?players=${player.id}`} title={`Compare ${player.name}`} aria-label={`Compare ${player.name}`}>
-              <CompareIcon />
+              <CompareIcon /> Compare
             </Link>
           </div>
         </div>
@@ -278,9 +279,6 @@ export function PlayerDetailOverlay() {
         <div className="profile-section">
           <div className="profile-section-heading">
             <h3>This View</h3>
-            <p className="page-subtitle" style={{ margin: 0 }}>
-              Changes with the Last Completed Season / Historic Average / Current Season toggle above.
-            </p>
           </div>
           <div className="profile-columns">
             <div className="profile-col">
@@ -367,14 +365,11 @@ export function PlayerDetailOverlay() {
         <div className="profile-section">
           <div className="profile-section-heading">
             <h3>Always Live</h3>
-            <p className="page-subtitle" style={{ margin: 0 }}>
-              Same regardless of the toggle above — today's actual figures.
-            </p>
           </div>
           <div className="profile-columns">
           <div className="profile-col">
             <div className="card">
-              <div className="card-title">Season Log</div>
+              <div className="card-title">Current Season Log</div>
               {history.status === "loading" && <p className="page-subtitle">Loading gameweek history…</p>}
               {history.status === "error" && <p className="page-subtitle">Couldn't load gameweek history: {history.errorMessage}</p>}
               {history.status === "ready" && history.history.length === 0 && <p className="page-subtitle">No gameweeks played yet this season.</p>}
@@ -383,7 +378,7 @@ export function PlayerDetailOverlay() {
                 (() => {
                   const gameweeks = [...history.history].sort((a, b) => b.round - a.round);
                   const totals = computeGameweekTotals(history.history);
-                  const per90 = computeGameweekPer90(totals);
+                  const averages = computeGameweekAverages(totals);
                   const totalsByKey: Record<string, React.ReactNode> = {
                     pts: fmtDecimal(totals.points),
                     min: fmtDecimal(totals.minutes),
@@ -408,11 +403,29 @@ export function PlayerDetailOverlay() {
                     saves: fmtDecimal(totals.saves),
                     bps: fmtDecimal(totals.bps),
                   };
-                  const per90ByKey: Record<string, React.ReactNode> = {
-                    xg: fmtDecimal(per90.xGPer90, 2),
-                    xa: fmtDecimal(per90.xAPer90, 2),
-                    xgi: fmtDecimal(per90.xGIPer90, 2),
-                    xgc: fmtDecimal(per90.xGCPer90, 2),
+                  const averagesByKey: Record<string, React.ReactNode> = {
+                    pts: fmtDecimal(averages.points, 1),
+                    min: fmtDecimal(averages.minutes, 0),
+                    g: fmtDecimal(averages.goals, 2),
+                    a: fmtDecimal(averages.assists, 2),
+                    xg: fmtDecimal(averages.xG, 2),
+                    xa: fmtDecimal(averages.xA, 2),
+                    xgi: fmtDecimal(averages.xGI, 2),
+                    cs: fmtDecimal(averages.cleanSheets, 2),
+                    st: fmtDecimal(averages.starts, 2),
+                    gc: fmtDecimal(averages.goalsConceded, 2),
+                    xgc: fmtDecimal(averages.xGC, 2),
+                    t: fmtDecimal(averages.tackles, 2),
+                    cbi: fmtDecimal(averages.clearancesBlocksInterceptions, 2),
+                    r: fmtDecimal(averages.recoveries, 2),
+                    dc: fmtDecimal(averages.defensiveContribution, 2),
+                    og: fmtDecimal(averages.ownGoals, 2),
+                    ps: fmtDecimal(averages.penaltiesSaved, 2),
+                    pm: fmtDecimal(averages.penaltiesMissed, 2),
+                    yc: fmtDecimal(averages.yellowCards, 2),
+                    rc: fmtDecimal(averages.redCards, 2),
+                    saves: fmtDecimal(averages.saves, 2),
+                    bps: fmtDecimal(averages.bps, 1),
                   };
                   return (
                     <>
@@ -454,10 +467,10 @@ export function PlayerDetailOverlay() {
                               {visibleGwColumns.map((c, i) =>
                                 i === 0 ? (
                                   <td key={c.key} style={{ textAlign: "left", fontFamily: "var(--font-body)" }} colSpan={2}>
-                                    Per 90
+                                    Average
                                   </td>
                                 ) : i === 1 ? null : (
-                                  <td key={c.key}>{per90ByKey[c.key] ?? ""}</td>
+                                  <td key={c.key}>{averagesByKey[c.key] ?? ""}</td>
                                 ),
                               )}
                             </tr>
@@ -476,26 +489,13 @@ export function PlayerDetailOverlay() {
           <div className="profile-col">
             <div className="card">
               <div className="card-title">Playing Time</div>
-              {history.status === "loading" && <p className="page-subtitle" style={{ margin: 0 }}>Loading playing-time indicators…</p>}
+              {history.status === "loading" && <p className="page-subtitle" style={{ margin: 0 }}>Loading…</p>}
               {history.status === "error" && <p className="page-subtitle" style={{ margin: 0 }}>Couldn't load gameweek history.</p>}
               {history.status === "ready" &&
                 (() => {
-                  const ind = computePlayingTimeIndicators(history.history);
-                  return (
-                    <p className="page-subtitle" style={{ margin: 0, fontStyle: "italic" }}>
-                      Descriptive, not predictive: {ind.startsPercentage !== null ? fmtPercent(ind.startsPercentage, 0) : DASH} starts over the
-                      last {ind.windowSize} GWs · {fmtDecimal(ind.averageMinutes, 0)} min average ·{" "}
-                      {ind.substituteAppearanceFrequency !== null ? fmtPercent(ind.substituteAppearanceFrequency, 0) : DASH} as a substitute.
-                    </p>
-                  );
+                  const { averageMinutes, gameweeksPlayed } = computeSeasonAverageMinutes(history.history);
+                  return <PlayingTimeIcon averageMinutes={averageMinutes} gameweeksPlayed={gameweeksPlayed} />;
                 })()}
-            </div>
-
-            <div className="card">
-              <div className="card-title">Compare</div>
-              <Link className="btn" to={`/player-comparison?players=${player.id}`}>
-                Compare {player.name}
-              </Link>
             </div>
           </div>
           </div>

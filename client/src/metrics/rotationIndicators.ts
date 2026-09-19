@@ -1,45 +1,21 @@
 import type { PlayerGameweekHistory } from "../types/normalized";
-import { per90 } from "./calculations";
 
-const RECENT_WINDOW_SIZE = 5;
-
-export interface PlayingTimeIndicators {
-  windowSize: number;
-  appearances: number; // entries in the window with minutes > 0
-  startsPercentage: number | null; // starts / appearances, among entries where starts is known
-  averageMinutes: number | null; // minutes / appearances
-  substituteAppearanceFrequency: number | null; // (appearances - knownStarts) / appearances, among entries where starts is known
-  recentMinutes: number; // total minutes across the window, regardless of appearance
+export interface SeasonAverageMinutes {
+  averageMinutes: number | null;
+  gameweeksPlayed: number;
 }
 
 /**
- * "Recent" = the 5 most recently completed current-season gameweeks
- * present in the player's history (see README → Playing-Time Indicator
- * methodology for the full definition and the least-assumptive choices
- * made where the brief did not pin one down).
+ * Average minutes per completed gameweek across the whole current season
+ * so far — not a rolling recent-form window — used to drive the player
+ * profile's single-icon Playing Time summary (see README → Playing-time
+ * indicator methodology).
  */
-export function computePlayingTimeIndicators(history: PlayerGameweekHistory[]): PlayingTimeIndicators {
-  const recent = [...history].sort((a, b) => b.round - a.round).slice(0, RECENT_WINDOW_SIZE);
-
-  const appearances = recent.filter((g) => g.minutes > 0).length;
-  const recentMinutes = recent.reduce((sum, g) => sum + g.minutes, 0);
-
-  const entriesWithKnownStarts = recent.filter((g) => g.minutes > 0 && g.starts !== null);
-  const knownStartsCount = entriesWithKnownStarts.filter((g) => (g.starts ?? 0) > 0).length;
-
-  const startsPercentage = entriesWithKnownStarts.length > 0 ? (knownStartsCount / entriesWithKnownStarts.length) * 100 : null;
-  const substituteAppearanceFrequency =
-    entriesWithKnownStarts.length > 0 ? ((entriesWithKnownStarts.length - knownStartsCount) / entriesWithKnownStarts.length) * 100 : null;
-  const averageMinutes = appearances > 0 ? recentMinutes / recent.length : null;
-
-  return {
-    windowSize: recent.length,
-    appearances,
-    startsPercentage,
-    averageMinutes,
-    substituteAppearanceFrequency,
-    recentMinutes,
-  };
+export function computeSeasonAverageMinutes(history: PlayerGameweekHistory[]): SeasonAverageMinutes {
+  const gameweeksPlayed = history.length;
+  if (gameweeksPlayed === 0) return { averageMinutes: null, gameweeksPlayed: 0 };
+  const totalMinutes = history.reduce((sum, g) => sum + g.minutes, 0);
+  return { averageMinutes: totalMinutes / gameweeksPlayed, gameweeksPlayed };
 }
 
 /** Season-to-date totals across every gameweek entry in the player's current-season history — the Totals row under a gameweek-by-gameweek breakdown table. */
@@ -106,19 +82,62 @@ export function computeGameweekTotals(history: PlayerGameweekHistory[]): Gamewee
   };
 }
 
-/** Per-90 rates for the expected-stats columns only — the rest (goals, cards, etc.) are whole-number counting stats a per-90 rate wouldn't meaningfully describe over a handful of gameweeks. */
-export interface GameweekHistoryPer90 {
-  xGPer90: number | null;
-  xAPer90: number | null;
-  xGIPer90: number | null;
-  xGCPer90: number | null;
+/** Average per completed gameweek — total ÷ gameweeks played — for every
+ * column in the Season Log table, not just the four expected-stats
+ * columns a per-90-minutes rate used to cover (leaving every other
+ * column's average cell blank). */
+export interface GameweekHistoryAverages {
+  points: number | null;
+  starts: number | null;
+  minutes: number | null;
+  goals: number | null;
+  assists: number | null;
+  cleanSheets: number | null;
+  goalsConceded: number | null;
+  ownGoals: number | null;
+  penaltiesSaved: number | null;
+  penaltiesMissed: number | null;
+  yellowCards: number | null;
+  redCards: number | null;
+  saves: number | null;
+  bonus: number | null;
+  bps: number | null;
+  defensiveContribution: number | null;
+  tackles: number | null;
+  clearancesBlocksInterceptions: number | null;
+  recoveries: number | null;
+  xG: number | null;
+  xA: number | null;
+  xGI: number | null;
+  xGC: number | null;
 }
 
-export function computeGameweekPer90(totals: GameweekHistoryTotals): GameweekHistoryPer90 {
+export function computeGameweekAverages(totals: GameweekHistoryTotals): GameweekHistoryAverages {
+  const matches = totals.matches;
+  const avg = (total: number | null) => (matches > 0 && total !== null ? total / matches : null);
   return {
-    xGPer90: per90(totals.xG, totals.minutes),
-    xAPer90: per90(totals.xA, totals.minutes),
-    xGIPer90: per90(totals.xGI, totals.minutes),
-    xGCPer90: per90(totals.xGC, totals.minutes),
+    points: avg(totals.points),
+    starts: avg(totals.starts),
+    minutes: avg(totals.minutes),
+    goals: avg(totals.goals),
+    assists: avg(totals.assists),
+    cleanSheets: avg(totals.cleanSheets),
+    goalsConceded: avg(totals.goalsConceded),
+    ownGoals: avg(totals.ownGoals),
+    penaltiesSaved: avg(totals.penaltiesSaved),
+    penaltiesMissed: avg(totals.penaltiesMissed),
+    yellowCards: avg(totals.yellowCards),
+    redCards: avg(totals.redCards),
+    saves: avg(totals.saves),
+    bonus: avg(totals.bonus),
+    bps: avg(totals.bps),
+    defensiveContribution: avg(totals.defensiveContribution),
+    tackles: avg(totals.tackles),
+    clearancesBlocksInterceptions: avg(totals.clearancesBlocksInterceptions),
+    recoveries: avg(totals.recoveries),
+    xG: avg(totals.xG),
+    xA: avg(totals.xA),
+    xGI: avg(totals.xGI),
+    xGC: avg(totals.xGC),
   };
 }

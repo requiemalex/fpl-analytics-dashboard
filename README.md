@@ -290,22 +290,19 @@ one-file change.
 
 ## Playing-time indicator methodology
 
-Shown on a player's profile once their current-season gameweek history has
-loaded (`client/src/metrics/rotationIndicators.ts`). Always labelled
-**descriptive**, never a rotation prediction.
+Shown on a player's profile as a single color-tiered gauge icon (Playing
+Time card) once their current-season gameweek history has loaded
+(`client/src/metrics/rotationIndicators.ts` /
+`client/src/components/playerProfile/PlayingTimeIcon.tsx`). The exact
+figures live in the icon's hover tooltip rather than as on-card text.
 
-- **Recent window** = the 5 most recently completed current-season
-  gameweeks present in the player's history.
-- **Appearances** = entries in that window with minutes > 0.
-- **Starts %** = starts ÷ appearances, computed only over entries where
-  the API's per-gameweek `starts` value is known (entries with an unknown
-  `starts` value are excluded from this specific ratio rather than
-  guessed).
-- **Average Minutes** = total minutes in the window ÷ window size.
-- **Substitute Appearance Frequency** = (appearances − known starts) ÷
-  appearances, among entries with a known starts value.
-- **Recent Minutes** = total minutes across the window, regardless of
-  whether the player appeared.
+- **Average Minutes** = total minutes across every completed gameweek
+  this season ÷ number of completed gameweeks — a season-to-date average,
+  not a recent-form rolling window.
+- **Tier** (drives the icon's fill and color) = that average as a
+  fraction of a 90-minute match: ≥75% is a regular starter (green),
+  40–74% is a rotation risk (amber), below 40% is a fringe player (red).
+  No data yet this season renders as an empty dashed ring.
 
 This is fetched lazily (only when a player profile is opened) and is
 race-condition-safe: switching profiles quickly discards any in-flight

@@ -992,12 +992,14 @@ table.data-table tbody tr:hover td {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
+  gap: 6px;
   height: 34px;
+  padding: 0 14px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-strong);
   background: var(--surface-raised);
   color: var(--text-secondary);
+  font-size: 13px;
   cursor: pointer;
   text-decoration: none;
 }
@@ -1079,6 +1081,29 @@ table.data-table tbody tr:hover td {
 .avx-value {
   text-align: right;
   font-size: 12.5px;
+}
+
+/* A single color-tiered gauge (Playing Time card) — deliberately icon-only,
+   with the exact minutes figure left to the title tooltip rather than
+   printed on the card. */
+.playing-time-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 6px 0 2px;
+  cursor: default;
+}
+.playing-time-icon.tier-high {
+  color: var(--accent-positive);
+}
+.playing-time-icon.tier-medium {
+  color: var(--accent-value);
+}
+.playing-time-icon.tier-low {
+  color: var(--accent-negative);
+}
+.playing-time-icon.tier-none {
+  color: var(--text-muted);
 }
 
 /* Stacked label-above-value tiles (Underlying Numbers, Value) — StatBlock's
