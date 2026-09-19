@@ -287,19 +287,29 @@ Minutes control of its own — Player Explorer, Underlying Numbers, and
 Team Building all expose one, but the Dashboard's Top-5 leaderboards
 just inherited the shared global filter, which defaults to 0. Fixed
 by giving exactly those rate-based tiles their own minimum-minutes
-floor (`RATE_STAT_MIN_MINUTES = 450` in `Dashboard.tsx`, the same
-~5-games threshold Underlying Numbers' defensive-reward chart already
-uses for the same reason), via `Math.max` against whatever the shared
+floor (`Dashboard.tsx`), via `Math.max` against whatever the shared
 filter is set to — so a stricter setting elsewhere is never loosened,
 but a low default can no longer let a cameo outlier top a rate-based
 leaderboard. Count-based and price-based tiles (Points, Goals,
 Points/£m, etc.) are untouched — a small-minutes player can't
 accumulate a large total the way a rate stat can spike, so they were
-never the source of this bug. Bypassed entirely in Current Season
-mode, matching `effectiveMinMinutes`'s own live-mode exemption:
-everyone genuinely has low minutes early in a season, so a fixed
-floor would just empty these leaderboards out for the first few
-gameweeks rather than fix anything.
+never the source of this bug.
+
+**First cut of this fix bypassed Current Season mode entirely**,
+reasoning that everyone has low minutes early in a season so a fixed
+floor would just empty the leaderboards. Wrong in practice — confirmed
+directly from a live screenshot at gameweek 5 showing "Points/90:
+180.0" (exactly 2 points in 1 minute, `2/1*90`) still topping the
+tile. `per90()`'s `*90` multiplier is greater than 1 for any minutes
+total below 90 and only a dampener at or above it — 90 minutes (one
+full match) is the precise, mathematically meaningful floor below
+which the rate can read as better than the player's real observed
+output, and it's trivially reachable by any genuine starter from
+gameweek 1 onward, unlike a fixed 450. So Current Season now gets its
+own lower floor (`LIVE_RATE_STAT_MIN_MINUTES = 90`) instead of no
+floor at all, while Last Completed Season / Historic Average keep the
+stricter `RATE_STAT_MIN_MINUTES = 450` (~5 games) for genuine ranking
+confidence over a completed season's full data.
 
 ## Known limitations
 
