@@ -107,15 +107,6 @@ table.data-table th.col-static,
 table.data-table td.col-static {
   color: var(--col-static);
 }
-/* Same cue, for a whole table (Player Profile's Season Log and Career
-   History detail tables are 100% unaffected by the mode toggle — every
-   cell, not just one column) or a standalone element outside any
-   table (the profile header's price/ownership, a descriptive line). */
-.static-table th,
-.static-table td,
-.text-static {
-  color: var(--col-static);
-}
 table.data-table th.sticky-col,
 table.data-table td.sticky-col {
   position: sticky;
@@ -1030,6 +1021,25 @@ table.data-table tbody tr:hover td {
   .profile-columns {
     grid-template-columns: 1fr;
   }
+}
+/* Groups the player profile's cards into two zones — one whose figures
+   change with the Last Completed Season / Historic Average / Current
+   Season toggle above, one that's always today's live data regardless of
+   it — as a spatial distinction instead of per-field coloring. */
+.profile-section + .profile-section {
+  margin-top: 28px;
+}
+.profile-section-heading {
+  margin-bottom: 12px;
+}
+.profile-section-heading h3 {
+  margin: 0 0 2px;
+  font-size: 15px;
+}
+.profile-divider {
+  border: none;
+  border-top: 1px solid var(--border-strong);
+  margin: 28px 0;
 }
 
 /* Actual vs Expected bars */

@@ -253,10 +253,8 @@ export function PlayerDetailOverlay() {
           <div>
             <h2 style={{ marginBottom: 2 }}>{player.name}</h2>
             <p className="page-subtitle" style={{ marginTop: 0 }}>
-              <PositionBadge position={player.position} /> &nbsp;{player.teamName} ·{" "}
-              <span className="text-static" title="Always today's live figure, regardless of the analysis-mode toggle below">
-                {fmtPrice(player.price)} · {fmtPercent(player.ownership)} owned
-              </span>
+              <PositionBadge position={player.position} /> &nbsp;{player.teamName} · {fmtPrice(player.price)} ·{" "}
+              {fmtPercent(player.ownership)} owned
             </p>
           </div>
           <div className="profile-header-actions">
@@ -277,12 +275,106 @@ export function PlayerDetailOverlay() {
           </div>
         )}
 
-        <div className="profile-columns">
+        <div className="profile-section">
+          <div className="profile-section-heading">
+            <h3>This View</h3>
+            <p className="page-subtitle" style={{ margin: 0 }}>
+              Changes with the Last Completed Season / Historic Average / Current Season toggle above.
+            </p>
+          </div>
+          <div className="profile-columns">
+            <div className="profile-col">
+              <div className="card">
+                <div className="card-title">Actual vs Expected</div>
+                {smallSample && (
+                  <div className="banner info" style={{ marginBottom: 12 }}>
+                    Small sample — below the current minutes eligibility threshold ({filters.minMinutes} min). Read with caution.
+                  </div>
+                )}
+                <ActualVsExpectedBars
+                  rows={[
+                    { label: "Goals − xG", value: derived.goalsMinusXG },
+                    { label: "Assists − xA", value: derived.assistsMinusXA },
+                    { label: "Goal Inv. − xGI", value: derived.goalInvolvementsMinusXGI },
+                  ]}
+                />
+              </div>
+
+              <div className="card">
+                <div className="card-title">Underlying Numbers</div>
+                {isDefensivePosition ? (
+                  <>
+                    <div className="stat-tile-grid">
+                      <StatTile label="Clean Sheets" value={fmtDecimal(resolvedPlayer.cleanSheets)} />
+                      <StatTile label="xGC" value={fmtDecimal(resolvedPlayer.xGC, 2)} />
+                      <StatTile label="Def. Contrib." value={fmtDecimal(resolvedPlayer.defensiveContributions)} />
+                    </div>
+                    <div className="stat-tile-grid" style={{ marginTop: 10 }}>
+                      <StatTile label="xGC/90" value={fmtDecimal(resolvedPlayer.xGCPer90, 2)} />
+                      <StatTile label="DC/90" value={fmtDecimal(resolvedPlayer.defensiveContributionsPer90, 2)} />
+                      <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="stat-tile-grid">
+                      <StatTile label="xG" value={fmtDecimal(resolvedPlayer.xG, 2)} />
+                      <StatTile label="xA" value={fmtDecimal(resolvedPlayer.xA, 2)} />
+                      <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} />
+                    </div>
+                    <div className="stat-tile-grid" style={{ marginTop: 10 }}>
+                      <StatTile label="xG/90" value={fmtDecimal(resolvedPlayer.xGPer90, 2)} />
+                      <StatTile label="xA/90" value={fmtDecimal(resolvedPlayer.xAPer90, 2)} />
+                      <StatTile label="xGI/90" value={fmtDecimal(resolvedPlayer.xGIPer90, 2)} />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="profile-col">
+              <div className="card">
+                <div className="card-title">
+                  Percentile Radar — {player.position}
+                  {smallSample && <span style={{ color: "var(--accent-value)" }}> (below eligibility threshold)</span>}
+                </div>
+                <PlayerRadarChart data={smallSample ? radarData.map((d) => ({ ...d, percentile: null })) : radarData} />
+                <div style={{ marginTop: 4 }}>
+                  <ArchetypeBadges labels={archetypes} />
+                </div>
+                <div style={{ marginTop: 14 }}>
+                  <div className="card-title" style={{ marginBottom: 8 }}>
+                    Position Percentile — xGI/90 {smallSample && <span style={{ color: "var(--accent-value)" }}>(below eligibility threshold)</span>}
+                  </div>
+                  <PercentileBar percentile={smallSample ? null : percentile} />
+                </div>
+              </div>
+
+              <div className="card">
+                <div className="card-title">Value</div>
+                <div className="stat-tile-grid">
+                  <StatTile label="Pts/£m" value={fmtDecimal(derived.pointsPerMillion, 1)} />
+                  <StatTile label="Pts/90" value={fmtDecimal(derived.pointsPer90, 1)} />
+                  <StatTile label="Min/Goal" value={fmtDecimal(derived.minutesPerGoal, 0)} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <hr className="profile-divider" />
+
+        <div className="profile-section">
+          <div className="profile-section-heading">
+            <h3>Always Live</h3>
+            <p className="page-subtitle" style={{ margin: 0 }}>
+              Same regardless of the toggle above — today's actual figures.
+            </p>
+          </div>
+          <div className="profile-columns">
           <div className="profile-col">
             <div className="card">
-              <div className="card-title">
-                Season Log <span className="text-static">(this season, every gameweek — always live, regardless of the toggle above)</span>
-              </div>
+              <div className="card-title">Season Log</div>
               {history.status === "loading" && <p className="page-subtitle">Loading gameweek history…</p>}
               {history.status === "error" && <p className="page-subtitle">Couldn't load gameweek history: {history.errorMessage}</p>}
               {history.status === "ready" && history.history.length === 0 && <p className="page-subtitle">No gameweeks played yet this season.</p>}
@@ -325,7 +417,7 @@ export function PlayerDetailOverlay() {
                   return (
                     <>
                       <div className="table-wrap">
-                        <table className="data-table compact static-table">
+                        <table className="data-table compact">
                           <thead>
                             <tr>
                               {visibleGwColumns.map((c) => (
@@ -379,21 +471,24 @@ export function PlayerDetailOverlay() {
                   );
                 })()}
             </div>
+          </div>
 
+          <div className="profile-col">
             <div className="card">
-              <div className="card-title">Actual vs Expected</div>
-              {smallSample && (
-                <div className="banner info" style={{ marginBottom: 12 }}>
-                  Small sample — below the current minutes eligibility threshold ({filters.minMinutes} min). Read with caution.
-                </div>
-              )}
-              <ActualVsExpectedBars
-                rows={[
-                  { label: "Goals − xG", value: derived.goalsMinusXG },
-                  { label: "Assists − xA", value: derived.assistsMinusXA },
-                  { label: "Goal Inv. − xGI", value: derived.goalInvolvementsMinusXGI },
-                ]}
-              />
+              <div className="card-title">Playing Time</div>
+              {history.status === "loading" && <p className="page-subtitle" style={{ margin: 0 }}>Loading playing-time indicators…</p>}
+              {history.status === "error" && <p className="page-subtitle" style={{ margin: 0 }}>Couldn't load gameweek history.</p>}
+              {history.status === "ready" &&
+                (() => {
+                  const ind = computePlayingTimeIndicators(history.history);
+                  return (
+                    <p className="page-subtitle" style={{ margin: 0, fontStyle: "italic" }}>
+                      Descriptive, not predictive: {ind.startsPercentage !== null ? fmtPercent(ind.startsPercentage, 0) : DASH} starts over the
+                      last {ind.windowSize} GWs · {fmtDecimal(ind.averageMinutes, 0)} min average ·{" "}
+                      {ind.substituteAppearanceFrequency !== null ? fmtPercent(ind.substituteAppearanceFrequency, 0) : DASH} as a substitute.
+                    </p>
+                  );
+                })()}
             </div>
 
             <div className="card">
@@ -403,87 +498,10 @@ export function PlayerDetailOverlay() {
               </Link>
             </div>
           </div>
-
-          <div className="profile-col">
-            <div className="card">
-              <div className="card-title">
-                Percentile Radar — {player.position}
-                {smallSample && <span style={{ color: "var(--accent-value)" }}> (below eligibility threshold)</span>}
-              </div>
-              <PlayerRadarChart data={smallSample ? radarData.map((d) => ({ ...d, percentile: null })) : radarData} />
-              <div style={{ marginTop: 4 }}>
-                <ArchetypeBadges labels={archetypes} />
-              </div>
-              <div style={{ marginTop: 14 }}>
-                <div className="card-title" style={{ marginBottom: 8 }}>
-                  Position Percentile — xGI/90 {smallSample && <span style={{ color: "var(--accent-value)" }}>(below eligibility threshold)</span>}
-                </div>
-                <PercentileBar percentile={smallSample ? null : percentile} />
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="card-title">Underlying Numbers</div>
-              {isDefensivePosition ? (
-                <>
-                  <div className="stat-tile-grid">
-                    <StatTile label="Clean Sheets" value={fmtDecimal(resolvedPlayer.cleanSheets)} />
-                    <StatTile label="xGC" value={fmtDecimal(resolvedPlayer.xGC, 2)} />
-                    <StatTile label="Def. Contrib." value={fmtDecimal(resolvedPlayer.defensiveContributions)} />
-                  </div>
-                  <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                    <StatTile label="xGC/90" value={fmtDecimal(resolvedPlayer.xGCPer90, 2)} />
-                    <StatTile label="DC/90" value={fmtDecimal(resolvedPlayer.defensiveContributionsPer90, 2)} />
-                    <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="stat-tile-grid">
-                    <StatTile label="xG" value={fmtDecimal(resolvedPlayer.xG, 2)} />
-                    <StatTile label="xA" value={fmtDecimal(resolvedPlayer.xA, 2)} />
-                    <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} />
-                  </div>
-                  <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                    <StatTile label="xG/90" value={fmtDecimal(resolvedPlayer.xGPer90, 2)} />
-                    <StatTile label="xA/90" value={fmtDecimal(resolvedPlayer.xAPer90, 2)} />
-                    <StatTile label="xGI/90" value={fmtDecimal(resolvedPlayer.xGIPer90, 2)} />
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="card">
-              <div className="card-title">Value</div>
-              <div className="stat-tile-grid">
-                <StatTile label="Pts/£m" value={fmtDecimal(derived.pointsPerMillion, 1)} />
-                <StatTile label="Pts/90" value={fmtDecimal(derived.pointsPer90, 1)} />
-                <StatTile label="Min/Goal" value={fmtDecimal(derived.minutesPerGoal, 0)} />
-              </div>
-              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
-                {history.status === "loading" && <p className="page-subtitle" style={{ margin: 0 }}>Loading playing-time indicators…</p>}
-                {history.status === "error" && <p className="page-subtitle" style={{ margin: 0 }}>Couldn't load gameweek history.</p>}
-                {history.status === "ready" &&
-                  (() => {
-                    const ind = computePlayingTimeIndicators(history.history);
-                    return (
-                      <p className="page-subtitle text-static" style={{ margin: 0, fontStyle: "italic" }} title="Always live — based on this season's actual gameweeks, regardless of the toggle above">
-                        Playing time (descriptive, not predictive):{" "}
-                        {ind.startsPercentage !== null ? fmtPercent(ind.startsPercentage, 0) : DASH} starts over the last {ind.windowSize} GWs ·{" "}
-                        {fmtDecimal(ind.averageMinutes, 0)} min average ·{" "}
-                        {ind.substituteAppearanceFrequency !== null ? fmtPercent(ind.substituteAppearanceFrequency, 0) : DASH} as a substitute.
-                      </p>
-                    );
-                  })()}
-              </div>
-            </div>
           </div>
-        </div>
 
         <div className="card" style={{ marginTop: 16 }}>
-          <div className="card-title">
-            Career History — Points by Season <span className="text-static">(always live — every season on record, regardless of the toggle above)</span>
-          </div>
+          <div className="card-title">Career History — Points by Season</div>
           {history.status === "loading" && <p className="page-subtitle">Loading career history…</p>}
           {history.status === "error" && (
             <p className="page-subtitle">
@@ -532,7 +550,7 @@ export function PlayerDetailOverlay() {
                     <span className="stat-row-name">
                       Qualifying average ({qualifyingAverage?.seasonsPlayed ?? 0} season{qualifyingAverage?.seasonsPlayed === 1 ? "" : "s"})
                     </span>
-                    <span className="stat-row-value text-static">
+                    <span className="stat-row-value">
                       {qualifyingAverage ? (
                         <>
                           {fmtDecimal(qualifyingAverage.avgPointsPerSeason, 0)} pts · {fmtDecimal(qualifyingAverage.avgMinutesPerSeason, 0)} mins ·{" "}
@@ -551,7 +569,7 @@ export function PlayerDetailOverlay() {
                   {showFullCareerTable && (
                     <>
                       <div className="table-wrap" style={{ marginTop: 10 }}>
-                        <table className="data-table compact static-table">
+                        <table className="data-table compact">
                           <thead>
                             <tr>
                               <th style={{ textAlign: "left", cursor: "default" }}>Season</th>
@@ -612,6 +630,7 @@ export function PlayerDetailOverlay() {
                 </>
               );
             })()}
+        </div>
         </div>
       </div>
     </div>
