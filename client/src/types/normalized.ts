@@ -67,7 +67,7 @@ export interface NormalizedPlayer {
   ictIndex: number | null;
   /** Season-to-date saves — genuinely 0 (not null) for an outfield player who has made none, same as bonus/bps. Null only if the live build omits the field entirely. See metrics/expectedPointsV2.ts. */
   saves: number | null;
-  savesPer90: number | null;
+  savesPerGame: number | null;
 
   // Expected-stats totals. API-supplied where the field exists on the live response.
   xG: number | null;
@@ -75,15 +75,18 @@ export interface NormalizedPlayer {
   xGI: number | null;
   xGC: number | null;
 
-  // API-supplied per-90 expected-stats (authoritative — see per90_validation
-  // rule in README). Independently cross-checked in metrics/validation.ts.
-  xGPer90: number | null;
-  xAPer90: number | null;
-  xGIPer90: number | null;
-  xGCPer90: number | null;
+  // Per-GAME expected-stats — this app's own estimated-games basis (see
+  // <per_game_not_per_90> in metrics/calculations.ts), resolved per mode
+  // in resolvePlayerStats.ts for every analysis mode including live
+  // (never FPL's own raw per-90 figures, which this app no longer reads
+  // for these fields at all).
+  xGPerGame: number | null;
+  xAPerGame: number | null;
+  xGIPerGame: number | null;
+  xGCPerGame: number | null;
 
   defensiveContributions: number | null;
-  defensiveContributionsPer90: number | null;
+  defensiveContributionsPerGame: number | null;
 
   status: string;
   news: string;

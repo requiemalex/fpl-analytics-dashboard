@@ -131,14 +131,95 @@ from a previous season):
 |---|---|---|
 | Price | `now_cost` ÷ 10 | Derived (unit conversion only) |
 | xG / xA / xGI / xGC | `expected_goals`, `expected_assists`, `expected_goal_involvements`, `expected_goals_conceded` | FPL API |
-| xG/90, xA/90, xGI/90, xGC/90 | `expected_goals_per_90`, etc. | **FPL API — supplied directly**, not derived |
-| Defensive Contributions, DC/90 | `defensive_contribution`, `defensive_contribution_per_90` | FPL API |
+| xG/Game, xA/Game, xGI/Game, xGC/Game | `xG`/`xA`/`xGI`/`xGC` above ÷ estimated games played | **Derived by this app** — see "Per-game, not per-90" below |
+| Defensive Contributions, DC/Game | `defensive_contribution`; DC/Game derived the same way | Total: FPL API; DC/Game: derived |
 | Starts | `starts` | FPL API |
 
-The per-90 expected-stats fields and Defensive Contributions/90 turned out
-to be supplied directly by the live API rather than needing local
-derivation — this was confirmed by inspecting an actual `bootstrap-static`
-response, per the project's "inspect, don't assume" rule.
+The live API also supplies its own `expected_goals_per_90` etc. and
+`defensive_contribution_per_90` fields directly — confirmed by inspecting
+an actual `bootstrap-static` response, per the project's "inspect, don't
+assume" rule — but this app deliberately no longer reads them; see
+"Per-game, not per-90" below for why.
+
+## Per-game, not per-90
+
+Every display-facing rate metric in this app — xG/Game, xA/Game,
+xGI/Game, xGC/Game, Defensive Contributions/Game, Goals/Game,
+Assists/Game, and PPG — is normalized per estimated GAME, not per 90
+minutes. This replaced an earlier per-90-minutes basis (total ÷ minutes
+× 90, including trusting the live API's own supplied per-90 fields
+directly) app-wide, after that shape of formula repeatedly produced
+nonsensical results for a low-minutes cameo. Confirmed directly from a
+live screenshot at gameweek 5: "Points/90: 180.0" was exactly 2 points
+scored in 1 minute (`2/1*90`). PPG had already been fixed the same way
+earlier (see the PPG section above) — this generalizes that same fix to
+every other per-90 metric in the app, by explicit request, rather than
+patching each one individually as it was noticed.
+
+**Why per-90 caused this**: the `×90` multiplier is greater than 1 for
+any minutes total below 90 and only a dampener at or above it, so it
+structurally amplifies a tiny sample instead of just describing it. A
+490-minute season with 1 goal reads as a modest 0.18 xG/90-equivalent;
+a 5-minute cameo with 1 goal reads as an absurd 18.0.
+
+**Why per-game instead, and how "games" is estimated**: real
+games-played isn't available from the FPL API for the whole player
+population in one request — only fetched per-player, lazily, via
+gameweek history when a profile is opened. So games played is
+estimated from cumulative minutes (`estimatedGamesFromMinutes` in
+`metrics/calculations.ts`), by explicit product decision:
+
+- **Any appearance, even a single minute, counts as a full game
+  played** — so a player whose minutes are fragmented across several
+  small cameos gets divided by MORE estimated games (a lower, more
+  conservative rate), the opposite bias from the old per-90 problem.
+  This pushes low-minutes cameo players down the rankings rather than
+  letting them spike to the top, which was the explicit goal: "the best
+  players with the best minutes per game with the best points per game
+  truly appear at the top."
+- Concretely, this means always rounding UP (`Math.ceil(minutes / 90)`,
+  floored at 1 for any nonzero minutes), never to the nearest or down —
+  95 minutes (a full match plus 5 more) is estimated as at least 2
+  separate appearances, never 1.
+- **Known limitation**, disclosed rather than hidden: this can still
+  under-count truly fragmented appearances. Ten separate 1-minute
+  cameos summing to 10 minutes look identical, from cumulative minutes
+  alone, to one 10-minute cameo — both estimate to 1 game — since the
+  app has no per-gameweek data for the whole population to tell them
+  apart. A real, structural limit of estimating from a cumulative total
+  rather than counting actual appearances, not a bug to be fixed later
+  without a bigger data-fetching change (bulk gameweek history for the
+  whole player pool, rather than one player at a time as now).
+
+**One deliberate exception**: Expected Points Tier 2
+(`metrics/expectedPointsV2.ts`) still computes and uses a genuine
+per-90-minutes rate internally, via `per90()` (kept in
+`calculations.ts` for exactly this one caller). That model multiplies a
+rate by `expectedMinutesFraction` — the expected share of ONE upcoming
+fixture's minutes — to project that single match's expected output; a
+per-game figure has no coherent way to be scaled by a fraction of one
+match, since "how many games appeared in so far" has no bearing on "how
+much of the next single match will this player be on the pitch for."
+This is the only place in the app that still reads a true per-90 rate,
+and it computes it fresh from the player's own totals + minutes rather
+than depending on any of the renamed display fields.
+
+**What changed, concretely**: `NormalizedPlayer.xGPer90` →
+`xGPerGame` (same for xA/xGI/xGC/defensiveContributions/saves);
+`PlayerDerivedMetrics.pointsPer90` removed entirely (redundant with the
+already-existing `player.pointsPerGame`); `goalsPer90`/`assistsPer90` →
+`goalsPerGame`/`assistsPerGame`; every column, radar axis, chart label,
+and dictionary entry renamed to match ("xG/90" → "xG/Game", etc.);
+`normalize/normalizePlayers.ts` no longer reads the live API's raw
+per-90 fields at all (they're left `null` there, always overwritten by
+`resolvePlayerStats.ts` for every analysis mode including live); and
+the old per-90 API-vs-recomputed cross-check in `metrics/validation.ts`
+was retired, since there's no longer a raw per-90 figure to cross-check
+against (the xGI = xG + xA cross-check is unaffected and still runs).
+Dashboard's existing rate-based Top-5 minimum-minutes floor (see below)
+is unchanged in spirit and still applies on top of this — the
+calculation fix and the leaderboard-ranking-confidence floor address
+two different, complementary concerns.
 
 ## Underlying Numbers — chart methodology
 
@@ -203,16 +284,19 @@ Assists − xA         = assists - xA
 Goal Involvements − xGI = (goals + assists) - xGI
 ```
 
-## Per-90 and xGI validation
+## xGI validation
 
-Because the live API supplies xG/90, xA/90, xGI/90, xGC/90 and DC/90
-directly, this app treats those API values as authoritative for display —
-but it also **independently recomputes** each one from raw totals ÷
-minutes × 90 (and xGI as xG + xA) as a cross-check, with a 0.01 tolerance.
-Discrepancies beyond tolerance are never silently hidden: they're logged
-to the browser console and summarised on the Metric Definitions page
+This app **independently recomputes** xGI as xG + xA as a cross-check
+against the API-supplied value, with a 0.01 tolerance. Discrepancies
+beyond tolerance are never silently hidden: they're logged to the
+browser console and summarised on the Metric Definitions page
 (`client/src/metrics/validation.ts`). This runs automatically once per
-data load.
+data load. This section used to also cover xG/90, xA/90, xGI/90, xGC/90,
+and DC/90 — the live API supplies those directly, and this app used to
+treat them as authoritative for display, cross-checking them the same
+way. Retired alongside the app-wide move to per-game metrics (see
+"Per-game, not per-90" above): this app no longer reads or surfaces
+those raw per-90 fields at all, so there's nothing left to cross-check.
 
 ## Percentile methodology
 
@@ -1228,13 +1312,13 @@ own `RadarChart` — already a dependency, no new one added).
 - **The stat set is position-specific**, not one generic set for
   everyone — a goalkeeper's axes (Clean Sheets, Defence Tightness,
   Bonus, BPS, ICT Index, Points) share almost nothing with a forward's
-  (Goals, xG/90, Assists, xA/90, ICT Index, Points). Every axis is a
+  (Goals, xG/Game, Assists, xA/Game, ICT Index, Points). Every axis is a
   metric that already exists on `NormalizedPlayer`, so nothing new had
   to be computed to support this.
 - **Defenders and midfielders get two radars, not one** — "Percentile
-  Radar — Defense" (Clean Sheets, Defence Tightness, Def. Contribution/90,
-  BPS, Bonus) and "Percentile Radar — Offense" (Goals, Assists, xG/90,
-  xA/90, xGI/90, plus ICT Index for midfielders only), on the player
+  Radar — Defense" (Clean Sheets, Defence Tightness, Def. Contribution/Game,
+  BPS, Bonus) and "Percentile Radar — Offense" (Goals, Assists, xG/Game,
+  xA/Game, xGI/Game, plus ICT Index for midfielders only), on the player
   profile only (Player Comparison, below, still uses one combined radar
   per position). Goalkeepers and forwards keep a single combined radar,
   since their points genuinely come from overwhelmingly one facet already.
@@ -1245,7 +1329,7 @@ own `RadarChart` — already a dependency, no new one added).
   unfiltered, mode-resolved population, never something already cut
   down by team/ownership/price).
 - **Axes where a lower raw value is better get flipped**
-  (`higherIsBetter: false` — currently just xGC/90, "Defence
+  (`higherIsBetter: false` — currently just xGC/Game, "Defence
   Tightness"), so every axis on the chart consistently points "outward
   = good" regardless of which direction the underlying stat runs.
 - **Works across all three analysis modes already on the page** — the
@@ -1256,7 +1340,7 @@ own `RadarChart` — already a dependency, no new one added).
 - A player below the minutes eligibility threshold gets a
   "(below eligibility threshold)" label on the card title, rather than a
   chart quietly built from an unreliable sample. (A standalone
-  "Position Percentile — xGI/90" bar used to sit under the first radar
+  "Position Percentile — xGI/Game" bar used to sit under the first radar
   card too — removed as redundant clutter now that multiple radar
   charts already cover this ground; see `PercentileBar`'s removal.)
 - The Views zone's cards are ordered radar chart(s) first, then Actual

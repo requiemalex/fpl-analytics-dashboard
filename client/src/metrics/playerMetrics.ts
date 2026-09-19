@@ -4,7 +4,7 @@ import {
   xGPerMillion,
   xAPerMillion,
   xGIPerMillion,
-  per90,
+  perGame,
   minutesPerPoint,
   minutesPerGoal,
   minutesPerAssist,
@@ -18,9 +18,9 @@ export interface PlayerDerivedMetrics {
   xGPerMillion: number | null;
   xAPerMillion: number | null;
   xGIPerMillion: number | null;
-  pointsPer90: number | null;
-  goalsPer90: number | null;
-  assistsPer90: number | null;
+  /** Points-per-game already exists on NormalizedPlayer itself (player.pointsPerGame — FPL's own figure live, estimated historically); no separate derived copy needed here now that this used to be pointsPer90. */
+  goalsPerGame: number | null;
+  assistsPerGame: number | null;
   minutesPerPoint: number | null;
   minutesPerGoal: number | null;
   minutesPerAssist: number | null;
@@ -35,9 +35,8 @@ export function getPlayerDerivedMetrics(p: NormalizedPlayer): PlayerDerivedMetri
     xGPerMillion: xGPerMillion(p.xG, p.price),
     xAPerMillion: xAPerMillion(p.xA, p.price),
     xGIPerMillion: xGIPerMillion(p.xGI, p.price),
-    pointsPer90: per90(p.totalPoints, p.minutes),
-    goalsPer90: per90(p.goals, p.minutes),
-    assistsPer90: per90(p.assists, p.minutes),
+    goalsPerGame: perGame(p.goals, p.minutes),
+    assistsPerGame: perGame(p.assists, p.minutes),
     minutesPerPoint: minutesPerPoint(p.minutes, p.totalPoints),
     minutesPerGoal: minutesPerGoal(p.minutes, p.goals),
     minutesPerAssist: minutesPerAssist(p.minutes, p.assists),

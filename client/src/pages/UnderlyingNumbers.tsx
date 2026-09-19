@@ -5,7 +5,7 @@ import { useAppState } from "../state/AppStateContext";
 import { useFilteredPlayers, effectiveMinMinutes } from "../state/useFilteredPlayers";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList } from "../metrics/resolvePlayerStats";
-import { defensiveRewardPer90 } from "../metrics/defensiveReward";
+import { defensiveRewardPerGame } from "../metrics/defensiveReward";
 import { buildThematicTrends } from "../metrics/thematicTrends";
 import { FiltersBar } from "../components/FiltersBar";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
@@ -85,32 +85,33 @@ export function UnderlyingNumbers() {
 
   // Defensive "expected vs actual", the equivalent of the xG/Goals charts
   // for defensive output. X = defensive contribution rate (the input:
-  // qualifying CBIT/CBIRT actions/90). Y = clean-sheet points/90 +
-  // bonus/90 (the actual reward, see metrics/defensiveReward.ts for the
-  // caveats). Dot colour = xGC/90 (green = low/tight defence, red =
+  // qualifying CBIT/CBIRT actions/game). Y = clean-sheet points/game +
+  // bonus/game (the actual reward, see metrics/defensiveReward.ts for the
+  // caveats). Dot colour = xGC/Game (green = low/tight defence, red =
   // high/leaky defence) as a third, deliberately-not-merged dimension —
   // see the card's own caption below. Goalkeepers are excluded: the
   // DefCon mechanic doesn't apply to them.
-  // Per-90 rates explode for tiny samples (one substitute appearance with a
-  // single defensive action reads as an absurd DC/90) — a handful of these
-  // outliers were stretching the x-axis so far that the genuine data (the
-  // vast majority of players) got squashed into a sliver on the left. The
-  // Min Minutes filter above defaults to 0 now (deliberately, for the table
-  // views), so this chart specifically enforces its own floor — reusing
-  // the ~5-games'-worth reasoning behind this app's old sitewide default —
-  // regardless of what Min Minutes is set to, same idea as the qualifying-
-  // minutes bar historic averages already use elsewhere in this app.
+  // Even on a per-GAME basis, a genuinely tiny sample (one substitute
+  // appearance with a single defensive action) can still read as an
+  // outsized DC/Game — a handful of these outliers were stretching the
+  // x-axis so far that the genuine data (the vast majority of players)
+  // got squashed into a sliver on the left. The Min Minutes filter above
+  // defaults to 0 now (deliberately, for the table views), so this chart
+  // specifically enforces its own floor — reusing the ~5-games'-worth
+  // reasoning behind this app's old sitewide default — regardless of
+  // what Min Minutes is set to, same idea as the qualifying-minutes bar
+  // historic averages already use elsewhere in this app.
   const MIN_MINUTES_FOR_DEFENSIVE_CHART = 450;
   const defensiveReward: ScatterPoint[] = useMemo(() => {
     const minMinutes = Math.max(effectiveMinMinutes(filters, analysisMode), MIN_MINUTES_FOR_DEFENSIVE_CHART);
     const points: ScatterPoint[] = [];
     for (const p of filtered) {
       if (p.position === "GKP") continue;
-      if (p.defensiveContributionsPer90 === null) continue;
+      if (p.defensiveContributionsPerGame === null) continue;
       if ((p.minutes ?? 0) < minMinutes) continue;
-      const y = defensiveRewardPer90(p);
+      const y = defensiveRewardPerGame(p);
       if (y === null) continue;
-      points.push({ id: p.id, label: p.name, x: p.defensiveContributionsPer90, y, z: p.xGCPer90 ?? undefined });
+      points.push({ id: p.id, label: p.name, x: p.defensiveContributionsPerGame, y, z: p.xGCPerGame ?? undefined });
     }
     return points;
   }, [filtered, filters, analysisMode]);
@@ -122,11 +123,11 @@ export function UnderlyingNumbers() {
   // (Top 5 — xGI / Goals Above xG / xG Above Goals), and repeating the
   // same leaderboard in two places just to see it again isn't the point
   // of this page.
-  const { topXG, topXA, topXGIPer90, assistsAboveXA, assistsBelowXA } = useMemo(
+  const { topXG, topXA, topXGIPerGame, assistsAboveXA, assistsBelowXA } = useMemo(
     () => ({
       topXG: topN(rows.map((r) => ({ player: r.player, value: r.player.xG })), 5),
       topXA: topN(rows.map((r) => ({ player: r.player, value: r.player.xA })), 5),
-      topXGIPer90: topN(rows.map((r) => ({ player: r.player, value: r.player.xGIPer90 })), 5),
+      topXGIPerGame: topN(rows.map((r) => ({ player: r.player, value: r.player.xGIPerGame })), 5),
       assistsAboveXA: topN(rows.map((r) => ({ player: r.player, value: r.derived.assistsMinusXA })), 5),
       assistsBelowXA: topN(
         rows.map((r) => ({ player: r.player, value: r.derived.assistsMinusXA !== null ? -r.derived.assistsMinusXA : null })),
@@ -239,23 +240,23 @@ export function UnderlyingNumbers() {
           <ScatterWithReference data={ictVsGA} xLabel="ICT Index" yLabel="Goals + Assists" onPointClick={select} />
         </div>
         <div className="card">
-          <div className="card-title">Defensive Contribution/90 vs Defensive Reward/90</div>
+          <div className="card-title">Defensive Contribution/Game vs Defensive Reward/Game</div>
           <ScatterWithReference
             data={defensiveReward}
-            xLabel="Def. Contribution/90"
-            yLabel="CS Points/90 + Bonus/90"
-            zLabel="xGC/90"
+            xLabel="Def. Contribution/Game"
+            yLabel="CS Points/Game + Bonus/Game"
+            zLabel="xGC/Game"
             colorScale={{
               lowColor: [63, 191, 127],
               highColor: [224, 101, 74],
-              lowLabel: "Low xGC/90 (tight)",
-              highLabel: "High xGC/90 (leaky)",
+              lowLabel: "Low xGC/Game (tight)",
+              highLabel: "High xGC/Game (leaky)",
             }}
             onPointClick={select}
           />
           <p className="page-subtitle" style={{ marginTop: 6, marginBottom: 0 }}>
-            Shows players with at least {MIN_MINUTES_FOR_DEFENSIVE_CHART} minutes regardless of the Min Minutes filter above — a per-90
-            rate from a handful of minutes reads as an extreme, meaningless outlier and was dominating the chart's scale.
+            Shows players with at least {MIN_MINUTES_FOR_DEFENSIVE_CHART} minutes regardless of the Min Minutes filter above — a rate
+            from a handful of minutes reads as an extreme, meaningless outlier and was dominating the chart's scale.
           </p>
         </div>
       </div>
@@ -263,7 +264,7 @@ export function UnderlyingNumbers() {
       <div className="card-grid">
         <TopList title="Top xG" rows={topXG} format={(v) => fmtDecimal(v, 2)} onSelect={select} />
         <TopList title="Top xA" rows={topXA} format={(v) => fmtDecimal(v, 2)} onSelect={select} />
-        <TopList title="Top xGI/90" rows={topXGIPer90} format={(v) => fmtDecimal(v, 2)} onSelect={select} />
+        <TopList title="Top xGI/Game" rows={topXGIPerGame} format={(v) => fmtDecimal(v, 2)} onSelect={select} />
         <TopList title="Assists Above xA" rows={assistsAboveXA} format={(v) => (v !== null ? `+${v.toFixed(2)}` : DASH)} onSelect={select} />
         <TopList title="Assists Below xA" rows={assistsBelowXA} format={(v) => (v !== null ? `−${v.toFixed(2)}` : DASH)} onSelect={select} />
       </div>

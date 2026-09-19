@@ -1,5 +1,4 @@
 import type { NormalizedPlayer } from "../types/normalized";
-import { per90 } from "./calculations";
 
 const TOLERANCE = 0.01;
 
@@ -33,32 +32,26 @@ function compare(
 }
 
 /**
- * Runs the data-validation checks required by <per90_validation> and
- * <xgi_rule>: independently recompute each API-supplied per-90 metric (and
- * xGI) from raw totals + minutes, and flag any discrepancy beyond the
- * 0.01 tolerance. The API-supplied value is ALWAYS what gets displayed —
- * this never mutates player data, it only surfaces discrepancies so they
- * are identifiable during development rather than silently concealed.
+ * Runs the data-validation check required by <xgi_rule>: independently
+ * recompute xGI as xG + xA and flag any discrepancy beyond the 0.01
+ * tolerance. This file used to also cross-check the live API's own
+ * per-90 fields (xG/90, xA/90, etc.) against a recomputed per90() —
+ * retired alongside the app-wide move from per-90 to per-game metrics
+ * (see <per_game_not_per_90> in metrics/calculations.ts). This app no
+ * longer reads or surfaces FPL's raw per-90 figures at all for those
+ * fields, so there's nothing left to cross-check them against.
  */
 export function runMetricValidation(players: NormalizedPlayer[]): ValidationReport {
   const discrepancies: ValidationDiscrepancy[] = [];
 
   for (const p of players) {
-    if (p.minutes === null || p.minutes <= 0) continue; // per90 is undefined at 0 minutes; nothing to cross-check
-
-    compare(p, "xG/90", p.xGPer90, per90(p.xG, p.minutes), discrepancies);
-    compare(p, "xA/90", p.xAPer90, per90(p.xA, p.minutes), discrepancies);
-    compare(p, "xGI/90", p.xGIPer90, per90(p.xGI, p.minutes), discrepancies);
-    compare(p, "xGC/90", p.xGCPer90, per90(p.xGC, p.minutes), discrepancies);
-    compare(p, "Defensive Contributions/90", p.defensiveContributionsPer90, per90(p.defensiveContributions, p.minutes), discrepancies);
-
     if (p.xGI !== null && p.xG !== null && p.xA !== null) {
       compare(p, "xGI vs xG+xA", p.xGI, p.xG + p.xA, discrepancies);
     }
   }
 
   const report: ValidationReport = {
-    checkedMetrics: ["xG/90", "xA/90", "xGI/90", "xGC/90", "Defensive Contributions/90", "xGI vs xG+xA"],
+    checkedMetrics: ["xGI vs xG+xA"],
     playersChecked: players.length,
     discrepancies,
   };

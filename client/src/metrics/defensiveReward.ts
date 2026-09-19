@@ -1,4 +1,5 @@
 import type { NormalizedPlayer, Position } from "../types/normalized";
+import { perGame } from "./calculations";
 
 /**
  * FPL clean-sheet points by position — verified against the current
@@ -16,31 +17,30 @@ export const CLEAN_SHEET_POINTS_BY_POSITION: Record<Position, number> = {
   FWD: 0,
 };
 
-/** Clean-sheet points earned per 90 minutes, using the position table above. Null if the player hasn't played, or has no data for the selected mode. */
-export function cleanSheetPointsPer90(player: NormalizedPlayer): number | null {
-  if (player.minutes === null || player.cleanSheets === null || player.minutes <= 0) return null;
+/** Clean-sheet points earned per game (see <per_game_not_per_90>, calculations.ts), using the position table above. Null if the player hasn't played, or has no data for the selected mode. */
+export function cleanSheetPointsPerGame(player: NormalizedPlayer): number | null {
+  if (player.cleanSheets === null) return null;
   const pointsPerCleanSheet = CLEAN_SHEET_POINTS_BY_POSITION[player.position];
-  return ((player.cleanSheets * pointsPerCleanSheet) / player.minutes) * 90;
+  return perGame(player.cleanSheets * pointsPerCleanSheet, player.minutes);
 }
 
-/** Total bonus points per 90. Null if the player hasn't played, or has no data for the selected mode. */
-export function bonusPer90(player: NormalizedPlayer): number | null {
-  if (player.minutes === null || player.bonus === null || player.minutes <= 0) return null;
-  return (player.bonus / player.minutes) * 90;
+/** Total bonus points per game. Null if the player hasn't played, or has no data for the selected mode. */
+export function bonusPerGame(player: NormalizedPlayer): number | null {
+  return perGame(player.bonus, player.minutes);
 }
 
 /**
- * Clean-sheet points/90 + total bonus/90 — the closest honest read of
- * "defensive reward rate" available from the public API. This is
+ * Clean-sheet points/game + total bonus/game — the closest honest read
+ * of "defensive reward rate" available from the public API. This is
  * deliberately NOT "bonus points caused by defensive contribution":
  * defensive actions feed into the Bonus Points System alongside goals,
  * assists, clean sheets, and saves, but the API only exposes total bonus,
  * never a breakdown by contributing factor. Using total bonus here is a
  * proxy, not an isolation — labelled as such wherever this is shown.
  */
-export function defensiveRewardPer90(player: NormalizedPlayer): number | null {
-  const cs = cleanSheetPointsPer90(player);
-  const bonus = bonusPer90(player);
+export function defensiveRewardPerGame(player: NormalizedPlayer): number | null {
+  const cs = cleanSheetPointsPerGame(player);
+  const bonus = bonusPerGame(player);
   if (cs === null || bonus === null) return null;
   return cs + bonus;
 }

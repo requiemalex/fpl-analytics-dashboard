@@ -39,7 +39,7 @@ function useSelectedPlayer(): [NormalizedPlayer | null, (id: number | null) => v
 /** Label-above-value, not label-beside-value — a side-by-side stat-row
  * only has room to breathe in a full-width card; this is for the narrow
  * multi-column grids (Underlying Numbers, Value) where that would
- * otherwise visually collide (e.g. "xG/90" and "0.78" running together). */
+ * otherwise visually collide (e.g. "xG/Game" and "0.78" running together). */
 function StatTile({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="stat-tile">
@@ -307,8 +307,8 @@ export function PlayerDetailOverlay() {
                     <StatTile label="Def. Contrib." value={fmtDecimal(resolvedPlayer.defensiveContributions)} />
                   </div>
                   <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                    <StatTile label="xGC/90" value={fmtDecimal(resolvedPlayer.xGCPer90, 2)} />
-                    <StatTile label="DC/90" value={fmtDecimal(resolvedPlayer.defensiveContributionsPer90, 2)} />
+                    <StatTile label="xGC/Game" value={fmtDecimal(resolvedPlayer.xGCPerGame, 2)} />
+                    <StatTile label="DC/Game" value={fmtDecimal(resolvedPlayer.defensiveContributionsPerGame, 2)} />
                     <StatTile label="BPS" value={fmtDecimal(resolvedPlayer.bps)} />
                   </div>
                   <div className="card-title" style={{ marginTop: 16, marginBottom: 8 }}>Offensive</div>
@@ -318,9 +318,9 @@ export function PlayerDetailOverlay() {
                     <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} />
                   </div>
                   <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                    <StatTile label="xG/90" value={fmtDecimal(resolvedPlayer.xGPer90, 2)} />
-                    <StatTile label="xA/90" value={fmtDecimal(resolvedPlayer.xAPer90, 2)} />
-                    <StatTile label="xGI/90" value={fmtDecimal(resolvedPlayer.xGIPer90, 2)} />
+                    <StatTile label="xG/Game" value={fmtDecimal(resolvedPlayer.xGPerGame, 2)} />
+                    <StatTile label="xA/Game" value={fmtDecimal(resolvedPlayer.xAPerGame, 2)} />
+                    <StatTile label="xGI/Game" value={fmtDecimal(resolvedPlayer.xGIPerGame, 2)} />
                   </div>
                 </>
               ) : player.position === "GKP" ? (
@@ -331,8 +331,8 @@ export function PlayerDetailOverlay() {
                     <StatTile label="Def. Contrib." value={fmtDecimal(resolvedPlayer.defensiveContributions)} />
                   </div>
                   <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                    <StatTile label="xGC/90" value={fmtDecimal(resolvedPlayer.xGCPer90, 2)} />
-                    <StatTile label="DC/90" value={fmtDecimal(resolvedPlayer.defensiveContributionsPer90, 2)} />
+                    <StatTile label="xGC/Game" value={fmtDecimal(resolvedPlayer.xGCPerGame, 2)} />
+                    <StatTile label="DC/Game" value={fmtDecimal(resolvedPlayer.defensiveContributionsPerGame, 2)} />
                     <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} />
                   </div>
                 </>
@@ -344,9 +344,9 @@ export function PlayerDetailOverlay() {
                     <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} />
                   </div>
                   <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                    <StatTile label="xG/90" value={fmtDecimal(resolvedPlayer.xGPer90, 2)} />
-                    <StatTile label="xA/90" value={fmtDecimal(resolvedPlayer.xAPer90, 2)} />
-                    <StatTile label="xGI/90" value={fmtDecimal(resolvedPlayer.xGIPer90, 2)} />
+                    <StatTile label="xG/Game" value={fmtDecimal(resolvedPlayer.xGPerGame, 2)} />
+                    <StatTile label="xA/Game" value={fmtDecimal(resolvedPlayer.xAPerGame, 2)} />
+                    <StatTile label="xGI/Game" value={fmtDecimal(resolvedPlayer.xGIPerGame, 2)} />
                   </div>
                 </>
               )}
@@ -356,7 +356,7 @@ export function PlayerDetailOverlay() {
               <div className="card-title">Value</div>
               <div className="stat-tile-grid">
                 <StatTile label="Pts/£m" value={fmtDecimal(derived.pointsPerMillion, 1)} />
-                <StatTile label="Pts/90" value={fmtDecimal(derived.pointsPer90, 1)} />
+                <StatTile label="PPG" value={fmtDecimal(resolvedPlayer.pointsPerGame, 1)} />
                 <StatTile label="Min/Goal" value={fmtDecimal(derived.minutesPerGoal, 0)} />
               </div>
             </div>

@@ -57,34 +57,31 @@ export function Dashboard() {
 
   const rows = useMemo(() => eligible.map((p) => ({ player: p, derived: getPlayerDerivedMetrics(p) })), [eligible]);
 
-  // A rate-per-minutes metric (PPG, Points/90, Goals/90, Assists/90,
-  // DC/90 — see PlayerTileMetric.ratePerMinutes) needs a real sample to
-  // mean anything: per90()'s *90 multiplier is greater than 1 for any
-  // minutes total below 90 and only a dampener at or above it, so a
-  // single-digit-minute cameo can read as a wildly better rate than the
-  // player's actual observed output (confirmed directly — a "Points/90"
-  // of 180.0 is exactly 2 points in 1 minute, 2/1*90) — the same shape of
-  // problem PPG itself used to have before it was fixed to an estimated-
-  // games basis, just for a different family of metrics. This page has
-  // no Min Minutes control of its own (unlike Player Explorer/Underlying
-  // Numbers/Team Building), and the shared global filter defaults to 0,
-  // so without this a single-cameo outlier could silently top one of
-  // these Top-5 leaderboards. `Math.max` against the shared filter means
-  // a stricter min-minutes set elsewhere is never loosened.
+  // A rate-per-game metric (PPG, Goals/Game, Assists/Game, DC/Game — see
+  // PlayerTileMetric.ratePerMinutes) still needs a real sample to mean
+  // anything, even now that the underlying calculation itself is
+  // per-game rather than per-90-minutes (see <per_game_not_per_90> in
+  // metrics/calculations.ts, which fixed the raw amplification bug this
+  // was originally written to guard against). A one-or-two-appearance
+  // sample can still read as a better rate than a player's normal
+  // output. This page has no Min Minutes control of its own (unlike
+  // Player Explorer/Underlying Numbers/Team Building), and the shared
+  // global filter defaults to 0, so without this a tiny-sample outlier
+  // could silently top one of these Top-5 leaderboards. `Math.max`
+  // against the shared filter means a stricter min-minutes set
+  // elsewhere is never loosened.
   //
-  // Current Season gets its own, much lower floor (one full match) rather
-  // than being exempted entirely (an earlier version of this fix bypassed
-  // it completely for live mode, on the reasoning that everyone has low
-  // minutes early in a season — true for the FIRST couple of gameweeks,
-  // but by gameweek 5+ a bench cameo and a genuine starter both count as
-  // "low minutes" under a 450-minute bar, and only the former is the
-  // actual bug). 90 minutes is never too strict to be reachable — any
-  // player who's started and finished a single match already clears it —
-  // while still ruling out the sub-one-match cameos that cause the
-  // amplification. Last Completed Season / Historic Average keep the
-  // stricter ~5-games bar, reusing the same threshold Underlying
-  // Numbers' defensive-reward chart already enforces for genuine ranking
-  // confidence over a completed season's full data.
+  // Current Season gets its own, much lower floor (one full match)
+  // rather than being exempted entirely, since everyone genuinely has
+  // low minutes for only the first couple of gameweeks — by gameweek 5+
+  // a bench cameo and a genuine starter both count as "low minutes"
+  // under a 450-minute bar, and only the former deserves excluding. 90
+  // minutes is never too strict to be reachable — any player who's
+  // started and finished a single match already clears it. Last
+  // Completed Season / Historic Average keep the stricter ~5-games bar,
+  // reusing the same threshold Underlying Numbers' defensive-reward
+  // chart already enforces for genuine ranking confidence over a
+  // completed season's full data.
   const LIVE_RATE_STAT_MIN_MINUTES = 90;
   const RATE_STAT_MIN_MINUTES = 450;
   const rateEligible = useMemo(() => {

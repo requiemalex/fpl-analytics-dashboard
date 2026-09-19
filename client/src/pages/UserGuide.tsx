@@ -244,7 +244,7 @@ export function UserGuide() {
       <Section id="underlying-numbers" title="Underlying Numbers">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
           Charts, not tables — expected-vs-actual scatter plots (xG vs Goals, xA vs Assists, xGI vs Goals+Assists, ICT vs Goals+Assists,
-          and a defensive equivalent with a colour-coded third dimension for xGC/90), a Value section (Price vs Points — with gridlines
+          and a defensive equivalent with a colour-coded third dimension for xGC/Game), a Value section (Price vs Points — with gridlines
           at every £0.5m — plus xG/£m and xA/£m leaderboards), and a User Analysis tool for saving your own graphs. Leaderboards that
           already exist on the Dashboard (Points, xGI, Points/£m, xGI/£m, Goals Above/Below xG) aren't repeated here — see the Dashboard
           for those.
@@ -269,7 +269,7 @@ export function UserGuide() {
           Two of the five expected-vs-actual charts intentionally have no dashed reference line, for different reasons. <strong>ICT Index
           vs Goals + Assists</strong>: ICT is a composite influence/creativity/threat score on its own scale, not the same unit as
           Goals + Assists, so a 45° "expected output" line would be meaningless — it shows pattern and correlation only.{" "}
-          <strong>Defensive Contribution/90 vs Defensive Reward/90</strong> is the other, for the reason spelled out below.
+          <strong>Defensive Contribution/Game vs Defensive Reward/Game</strong> is the other, for the reason spelled out below.
         </p>
         <p className="page-subtitle">
           <strong>User Analysis</strong> starts empty — nothing is created for you. Click <strong>+ Add Graph</strong> and pick a name, a
@@ -279,12 +279,12 @@ export function UserGuide() {
           metrics usually isn't an expected-vs-actual relationship, so a scatter graph here never draws a 45° reference line.
         </p>
         <p className="page-subtitle">
-          <strong>Defensive Contribution/90 vs Defensive Reward/90</strong> is the hardest of the five to read honestly, so it's spelled
+          <strong>Defensive Contribution/Game vs Defensive Reward/Game</strong> is the hardest of the five to read honestly, so it's spelled
           out here: the x-axis is the qualifying-action rate that earns Defensive Contribution points (CBIT for defenders, CBIRT for
           midfielders/forwards) — capped at 2 points per match, so the rate doesn't convert to points linearly. The y-axis is
-          clean-sheet points/90 plus <em>total</em> bonus/90 — bonus isn't isolated to defensive actions specifically, since goals,
+          clean-sheet points/game plus <em>total</em> bonus/game — bonus isn't isolated to defensive actions specifically, since goals,
           assists, clean sheets and saves all feed the same Bonus Points System, so treat it as a proxy, not an attribution. Dot colour
-          is Expected Goals Conceded/90 (green = tighter expected defence, red = leakier), scaled to the range actually present in the
+          is Expected Goals Conceded/Game (green = tighter expected defence, red = leakier), scaled to the range actually present in the
           current view. Goalkeepers are excluded, since the Defensive Contribution mechanic doesn't apply to them, and in historic
           modes, seasons before 2024/25 (when the FPL API started tracking it) are excluded from the average rather than diluting it
           with an untracked zero.
@@ -464,11 +464,13 @@ export function UserGuide() {
 
         {validationReport && (
           <div style={{ marginBottom: 20 }}>
-            <SubHeading>Per-90 &amp; xGI Cross-Check (development validation)</SubHeading>
+            <SubHeading>xGI Cross-Check (development validation)</SubHeading>
             <p className="page-subtitle" style={{ marginBottom: 6 }}>
-              For every API-supplied per-90 metric and xGI, this app independently recomputes the value from raw totals ÷ minutes × 90
-              and compares it against the API-supplied value (tolerance 0.01). The API-supplied value is always what's displayed — this
-              check exists purely to surface discrepancies rather than conceal them.
+              This app independently recomputes xGI as xG + xA and compares it against the API-supplied value (tolerance 0.01) — the
+              API-supplied value is always what's displayed, this check exists purely to surface discrepancies rather than conceal
+              them. This used to also cross-check the live API's own per-90 fields (xG/90, xA/90, etc.) against a recomputed rate;
+              retired alongside the app-wide move from per-90 to per-game metrics, since this app no longer reads or surfaces FPL's
+              raw per-90 figures at all for those fields.
             </p>
             <div className="stat-row">
               <span className="stat-row-name">Players checked</span>

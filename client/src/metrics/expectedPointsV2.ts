@@ -2,6 +2,7 @@ import type { NormalizedPlayer, NormalizedTeam, Position } from "../types/normal
 import type { UpcomingFixture } from "./fixtureTicker";
 import type { HistoricPlayerProfile } from "./historicAnalysis";
 import { fixtureMultiplier, FDR_SENSITIVITY, type ExpectedPointsWindow } from "./expectedPoints";
+import { per90 } from "./calculations";
 
 /**
  * Expected Points — Tier 2: an independent, per-scoring-event estimate,
@@ -27,6 +28,16 @@ import { fixtureMultiplier, FDR_SENSITIVITY, type ExpectedPointsWindow } from ".
  * inline and in README — this file follows the same "judgement calls,
  * not fitted coefficients, always labelled as such" convention as
  * FDR_SENSITIVITY in expectedPoints.ts.
+ *
+ * <deliberately_still_per90>: every rate here is computed inline via
+ * `per90(total, player.minutes)`, not read off the player's own
+ * xGPerGame/xAPerGame/etc. fields — this app moved every DISPLAY metric
+ * to a per-game basis (see <per_game_not_per_90>, calculations.ts), but
+ * this model multiplies each rate by `expectedMinutesFraction` (a
+ * fraction of ONE upcoming match's minutes), which is only coherent
+ * against a genuinely per-90-MINUTES rate. "How many games this player
+ * has appeared in so far" has no bearing on "how much of the next single
+ * match they'll be on the pitch for", so per-game does not apply here.
  */
 
 interface PositionScoring {
@@ -189,14 +200,23 @@ export function computeExpectedPointsV2ForFixture(
   // one fixture-difficulty judgement call in this app, not two.
   const attackMultiplier = fixtureMultiplier(fixture.difficulty, player.position);
 
+  // Genuinely per-90-minutes, computed fresh from this player's own
+  // totals + minutes — see <deliberately_still_per90> at the top of this
+  // file for why this doesn't use the app's display xGPerGame/etc. fields.
+  const xGPer90 = per90(player.xG, player.minutes);
+  const xAPer90 = per90(player.xA, player.minutes);
+  const xGCPer90 = per90(player.xGC, player.minutes);
+  const savesPer90 = per90(player.saves, player.minutes);
+  const defensiveContributionsPer90 = per90(player.defensiveContributions, player.minutes);
+
   // Goals & assists pay per event with no cap, so expected points from
   // them is just rate x expected minutes x point value — no probability
   // distribution needed, unlike the threshold-based events below.
   let goals = 0;
   let assists = 0;
-  if (player.xGPer90 !== null) goals = player.xGPer90 * minutesModel.expectedMinutesFraction * attackMultiplier * rules.goal;
+  if (xGPer90 !== null) goals = xGPer90 * minutesModel.expectedMinutesFraction * attackMultiplier * rules.goal;
   else caveats.push("No xG/90 data available for this player — goal contribution assumed zero.");
-  if (player.xAPer90 !== null) assists = player.xAPer90 * minutesModel.expectedMinutesFraction * attackMultiplier * rules.assist;
+  if (xAPer90 !== null) assists = xAPer90 * minutesModel.expectedMinutesFraction * attackMultiplier * rules.assist;
   else caveats.push("No xA/90 data available for this player — assist contribution assumed zero.");
 
   let cleanSheet = 0;
@@ -212,12 +232,12 @@ export function computeExpectedPointsV2ForFixture(
 
   let goalsConceded = 0;
   if (rules.everyTwoConceded !== 0) {
-    if (player.xGCPer90 !== null) {
+    if (xGCPer90 !== null) {
       // Mirror image of the attack multiplier: a HARDER fixture (facing a
       // stronger attack) means MORE expected goals conceded, not fewer —
       // same FDR_SENSITIVITY constants, opposite sign on the difficulty term.
       const concedeMultiplier = 1 + (fixture.difficulty - 3) * FDR_SENSITIVITY[player.position];
-      const expectedConceded = player.xGCPer90 * minutesModel.expectedMinutesFraction * concedeMultiplier;
+      const expectedConceded = xGCPer90 * minutesModel.expectedMinutesFraction * concedeMultiplier;
       // "every 2 goals conceded" is a discrete floor() rule; E[floor(X/2)] is
       // approximated here as E[X]/2, a continuous relaxation — documented,
       // not hidden, and immaterial at the fractional-goal scale this
@@ -230,8 +250,8 @@ export function computeExpectedPointsV2ForFixture(
 
   let saves = 0;
   if (rules.everyThreeSaves > 0) {
-    if (player.savesPer90 !== null) {
-      const expectedSaves = player.savesPer90 * minutesModel.expectedMinutesFraction;
+    if (savesPer90 !== null) {
+      const expectedSaves = savesPer90 * minutesModel.expectedMinutesFraction;
       saves = (expectedSaves / 3) * rules.everyThreeSaves;
     } else {
       caveats.push("No saves/90 data available for this goalkeeper — saves contribution assumed zero.");
@@ -241,8 +261,8 @@ export function computeExpectedPointsV2ForFixture(
   let defensiveContribution = 0;
   const dcThreshold = DEFENSIVE_CONTRIBUTION_THRESHOLD[player.position];
   if (dcThreshold !== null) {
-    if (player.defensiveContributionsPer90 !== null) {
-      const expectedActionsThisMatch = player.defensiveContributionsPer90 * minutesModel.expectedMinutesFraction;
+    if (defensiveContributionsPer90 !== null) {
+      const expectedActionsThisMatch = defensiveContributionsPer90 * minutesModel.expectedMinutesFraction;
       const pThresholdReached = poissonAtLeast(dcThreshold, expectedActionsThisMatch);
       defensiveContribution = pThresholdReached * rules.defensiveContribution;
     } else {

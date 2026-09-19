@@ -26,24 +26,22 @@ export interface PlayerTileMetric {
   /** Used only to pick a sensible default sort direction when this metric is first selected in the Add Tile form. */
   higherIsBetter: boolean;
   /**
-   * True for a metric that divides by minutes (or an estimate of games
-   * derived from minutes) and scales the result up — PPG, Points/90,
-   * Goals/90, Assists/90, DC/90. A tiny-minutes cameo can produce a wildly
-   * inflated value here (e.g. one bonus point in 2 minutes reads as an
-   * enormous "Points/90") even though the arithmetic itself is correct —
-   * the number really is that player's rate over the minutes they've
-   * played, it's just not a meaningful sample. Dashboard.tsx uses this
-   * flag to apply a minimum-minutes floor to exactly these metrics' Top-5
-   * leaderboards (see RATE_STAT_MIN_MINUTES there), leaving count-based
-   * and price-based metrics (Points, Goals, Points/£m, etc.) — which
-   * aren't distorted by a small minutes sample the same way — ungated by
-   * anything beyond the page's own Min Minutes setting.
+   * True for a metric divided by an estimate of games played (see
+   * <per_game_not_per_90> in metrics/calculations.ts) — PPG, Goals/Game,
+   * Assists/Game, DC/Game. Even with that estimated-games basis (rather
+   * than the old, more easily-amplified per-90-minutes one), a genuinely
+   * tiny sample can still read as a better rate than a player's normal
+   * output. Dashboard.tsx uses this flag to apply a minimum-minutes floor
+   * to exactly these metrics' Top-5 leaderboards (see RATE_STAT_MIN_MINUTES
+   * there), leaving count-based and price-based metrics (Points, Goals,
+   * Points/£m, etc.) — which aren't distorted by a small sample the same
+   * way — ungated by anything beyond the page's own Min Minutes setting.
    */
   ratePerMinutes?: boolean;
 }
 
 /** See `PlayerTileMetric.ratePerMinutes` — the set of PLAYER_COLUMNS keys that need the flag, since those are spread in below rather than declared with it directly. */
-const RATE_PER_MINUTES_COLUMN_KEYS = new Set(["pointsPerGame", "defensiveContributionsPer90"]);
+const RATE_PER_MINUTES_COLUMN_KEYS = new Set(["pointsPerGame", "defensiveContributionsPerGame"]);
 
 export interface TeamTileMetric {
   key: string;
@@ -79,9 +77,10 @@ export const PLAYER_TILE_METRICS: PlayerTileMetric[] = [
     format: fmtSigned,
     higherIsBetter: true,
   },
-  { key: "pointsPer90", label: "Points/90", getValue: (_p, d) => d.pointsPer90, format: num(1), higherIsBetter: true, ratePerMinutes: true },
-  { key: "goalsPer90", label: "Goals/90", getValue: (_p, d) => d.goalsPer90, format: num(2), higherIsBetter: true, ratePerMinutes: true },
-  { key: "assistsPer90", label: "Assists/90", getValue: (_p, d) => d.assistsPer90, format: num(2), higherIsBetter: true, ratePerMinutes: true },
+  // No separate "Points/Game" tile — that's just PPG (already above, via
+  // PLAYER_COLUMNS' "pointsPerGame"/"PPG" entry), not a distinct metric.
+  { key: "goalsPerGame", label: "Goals/Game", getValue: (_p, d) => d.goalsPerGame, format: num(2), higherIsBetter: true, ratePerMinutes: true },
+  { key: "assistsPerGame", label: "Assists/Game", getValue: (_p, d) => d.assistsPerGame, format: num(2), higherIsBetter: true, ratePerMinutes: true },
 ];
 
 export const TEAM_TILE_METRICS: TeamTileMetric[] = [

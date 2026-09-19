@@ -87,20 +87,27 @@ function normalizeOnePlayer(
     bps: el.bps,
     ictIndex: parseNumericString(el.ict_index),
     saves: parseNumberOrNull(el.saves),
-    savesPer90: parseNumberOrNull(el.saves_per_90),
+    // This app computes its own per-GAME rate for every one of these
+    // fields (see <per_game_not_per_90>, metrics/calculations.ts) rather
+    // than trusting FPL's raw per-90 figures — resolvePlayerStats.ts
+    // always overwrites the placeholder null below, for every analysis
+    // mode including live, from this same object's own totals + minutes.
+    // Never read savesPerGame/xGPerGame/etc. off a player straight out of
+    // this function; always go through resolvePlayerStats first.
+    savesPerGame: null,
 
     xG: availability.expected_goals ? parseNumericString(el.expected_goals) : null,
     xA: availability.expected_assists ? parseNumericString(el.expected_assists) : null,
     xGI: availability.expected_goal_involvements ? parseNumericString(el.expected_goal_involvements) : null,
     xGC: availability.expected_goals_conceded ? parseNumericString(el.expected_goals_conceded) : null,
 
-    xGPer90: availability.expected_goals_per_90 ? parseNumberOrNull(el.expected_goals_per_90) : null,
-    xAPer90: availability.expected_assists_per_90 ? parseNumberOrNull(el.expected_assists_per_90) : null,
-    xGIPer90: availability.expected_goal_involvements_per_90 ? parseNumberOrNull(el.expected_goal_involvements_per_90) : null,
-    xGCPer90: availability.expected_goals_conceded_per_90 ? parseNumberOrNull(el.expected_goals_conceded_per_90) : null,
+    xGPerGame: null,
+    xAPerGame: null,
+    xGIPerGame: null,
+    xGCPerGame: null,
 
     defensiveContributions: availability.defensive_contribution ? parseNumberOrNull(el.defensive_contribution) : null,
-    defensiveContributionsPer90: availability.defensive_contribution_per_90 ? parseNumberOrNull(el.defensive_contribution_per_90) : null,
+    defensiveContributionsPerGame: null,
 
     status: el.status,
     news: el.news,

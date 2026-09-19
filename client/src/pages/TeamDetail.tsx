@@ -8,7 +8,7 @@ import { PositionBadge, TeamBadge, AvailabilityFlag, availabilityTextClass } fro
 import { columnByKey, isStaticColumn } from "../components/playerColumns";
 import { fmtPrice } from "../utils/format";
 
-const TEAM_RANKING_METRICS = ["totalPoints", "xG", "xA", "xGI", "xGIPer90", "goals", "assists", "pointsPerMillion"];
+const TEAM_RANKING_METRICS = ["totalPoints", "xG", "xA", "xGI", "xGIPerGame", "goals", "assists", "pointsPerMillion"];
 
 export function TeamDetail() {
   const { teamId } = useParams<{ teamId: string }>();

@@ -44,9 +44,9 @@ export const PLAYER_COLUMNS: PlayerColumn[] = [
   { key: "xG", label: "xG", group: "UNDERLYING PERFORMANCE", metricKey: "xG", getValue: (p) => p.xG, format: num(2) },
   { key: "xA", label: "xA", group: "UNDERLYING PERFORMANCE", metricKey: "xA", getValue: (p) => p.xA, format: num(2) },
   { key: "xGI", label: "xGI", group: "UNDERLYING PERFORMANCE", metricKey: "xGI", getValue: (p) => p.xGI, format: num(2) },
-  { key: "xGPer90", label: "xG/90", group: "UNDERLYING PERFORMANCE", metricKey: "xGPer90", getValue: (p) => p.xGPer90, format: num(2) },
-  { key: "xAPer90", label: "xA/90", group: "UNDERLYING PERFORMANCE", metricKey: "xAPer90", getValue: (p) => p.xAPer90, format: num(2) },
-  { key: "xGIPer90", label: "xGI/90", group: "UNDERLYING PERFORMANCE", metricKey: "xGIPer90", getValue: (p) => p.xGIPer90, format: num(2) },
+  { key: "xGPerGame", label: "xG/Game", group: "UNDERLYING PERFORMANCE", metricKey: "xGPerGame", getValue: (p) => p.xGPerGame, format: num(2) },
+  { key: "xAPerGame", label: "xA/Game", group: "UNDERLYING PERFORMANCE", metricKey: "xAPerGame", getValue: (p) => p.xAPerGame, format: num(2) },
+  { key: "xGIPerGame", label: "xGI/Game", group: "UNDERLYING PERFORMANCE", metricKey: "xGIPerGame", getValue: (p) => p.xGIPerGame, format: num(2) },
   { key: "xGC", label: "xGC", group: "UNDERLYING PERFORMANCE", metricKey: "xGC", getValue: (p) => p.xGC, format: num(2), higherIsBetter: false },
 
   // VALUE
@@ -70,11 +70,11 @@ export const PLAYER_COLUMNS: PlayerColumn[] = [
     format: num(0),
   },
   {
-    key: "defensiveContributionsPer90",
-    label: "DC/90",
+    key: "defensiveContributionsPerGame",
+    label: "DC/Game",
     group: "ADVANCED",
-    metricKey: "defensiveContributionsPer90",
-    getValue: (p) => p.defensiveContributionsPer90,
+    metricKey: "defensiveContributionsPerGame",
+    getValue: (p) => p.defensiveContributionsPerGame,
     format: num(2),
   },
   {

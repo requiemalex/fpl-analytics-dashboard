@@ -1,6 +1,6 @@
 import type { NormalizedPlayer } from "../types/normalized";
 import type { HistoricPlayerProfile } from "./historicAnalysis";
-import { per90, estimatedPointsPerGame } from "./calculations";
+import { perGame, estimatedPointsPerGame } from "./calculations";
 
 export type AnalysisMode = "live" | "lastSeason" | "historicAverage";
 
@@ -57,9 +57,9 @@ export const ANALYSIS_MODE_LABELS: Record<AnalysisMode, string> = {
  * TRUE current-season value for every one of those fields is genuinely
  * zero (zero games played, zero points scored) — not "unknown", an
  * actual, correct zero — so it's safe to zero them here rather than
- * needing them to be nullable. Per-90 rates go to null instead of zero,
- * since a rate is undefined (not zero) with zero minutes played —
- * `per90(0, 0)` already returns null, so this falls out for free.
+ * needing them to be nullable. Per-game rates go to null instead of
+ * zero, since a rate is undefined (not zero) with zero minutes played —
+ * `perGame(0, 0)` already returns null, so this falls out for free.
  * `currentSeasonHasStarted` (any club with `played > 0`) is the signal
  * for whether to trust the raw fields or apply this correction. Price,
  * ownership, status, news, and chance-of-playing are untouched either
@@ -100,12 +100,12 @@ function nullPerformanceFields(player: NormalizedPlayer): NormalizedPlayer {
     xA: null,
     xGI: null,
     xGC: null,
-    xGPer90: null,
-    xAPer90: null,
-    xGIPer90: null,
-    xGCPer90: null,
+    xGPerGame: null,
+    xAPerGame: null,
+    xGIPerGame: null,
+    xGCPerGame: null,
     defensiveContributions: null,
-    defensiveContributionsPer90: null,
+    defensiveContributionsPerGame: null,
   };
 }
 
@@ -116,7 +116,22 @@ export function resolvePlayerStats(
   currentSeasonHasStarted: boolean,
 ): NormalizedPlayer {
   if (mode === "live") {
-    if (currentSeasonHasStarted) return player;
+    if (currentSeasonHasStarted) {
+      // The live player's own totals + minutes, run through this app's
+      // own perGame() — never FPL's raw per-90 fields, which normalize/
+      // normalizePlayers.ts deliberately leaves null (see
+      // <per_game_not_per_90>, calculations.ts). Every analysis mode
+      // resolves these the same way, live included.
+      return {
+        ...player,
+        xGPerGame: perGame(player.xG, player.minutes),
+        xAPerGame: perGame(player.xA, player.minutes),
+        xGIPerGame: perGame(player.xGI, player.minutes),
+        xGCPerGame: perGame(player.xGC, player.minutes),
+        defensiveContributionsPerGame: perGame(player.defensiveContributions, player.minutes),
+        savesPerGame: perGame(player.saves, player.minutes),
+      };
+    }
     return {
       ...player,
       totalPoints: 0,
@@ -133,12 +148,13 @@ export function resolvePlayerStats(
       xA: 0,
       xGI: 0,
       xGC: 0,
-      xGPer90: null,
-      xAPer90: null,
-      xGIPer90: null,
-      xGCPer90: null,
+      xGPerGame: null,
+      xAPerGame: null,
+      xGIPerGame: null,
+      xGCPerGame: null,
       defensiveContributions: 0,
-      defensiveContributionsPer90: null,
+      defensiveContributionsPerGame: null,
+      savesPerGame: null,
     };
   }
 
@@ -161,12 +177,12 @@ export function resolvePlayerStats(
       xA: s.xA,
       xGI: s.xGI,
       xGC: s.xGC,
-      xGPer90: per90(s.xG, s.minutes),
-      xAPer90: per90(s.xA, s.minutes),
-      xGIPer90: per90(s.xGI, s.minutes),
-      xGCPer90: per90(s.xGC, s.minutes),
+      xGPerGame: perGame(s.xG, s.minutes),
+      xAPerGame: perGame(s.xA, s.minutes),
+      xGIPerGame: perGame(s.xGI, s.minutes),
+      xGCPerGame: perGame(s.xGC, s.minutes),
       defensiveContributions: s.defensiveContribution,
-      defensiveContributionsPer90: per90(s.defensiveContribution, s.minutes),
+      defensiveContributionsPerGame: perGame(s.defensiveContribution, s.minutes),
     };
   }
 
@@ -189,12 +205,12 @@ export function resolvePlayerStats(
     xA: avg.avgXAPerSeason,
     xGI: avg.avgXGIPerSeason,
     xGC: avg.avgXGCPerSeason,
-    xGPer90: per90(avg.avgXGPerSeason, avg.avgMinutesPerSeason),
-    xAPer90: per90(avg.avgXAPerSeason, avg.avgMinutesPerSeason),
-    xGIPer90: per90(avg.avgXGIPerSeason, avg.avgMinutesPerSeason),
-    xGCPer90: per90(avg.avgXGCPerSeason, avg.avgMinutesPerSeason),
+    xGPerGame: perGame(avg.avgXGPerSeason, avg.avgMinutesPerSeason),
+    xAPerGame: perGame(avg.avgXAPerSeason, avg.avgMinutesPerSeason),
+    xGIPerGame: perGame(avg.avgXGIPerSeason, avg.avgMinutesPerSeason),
+    xGCPerGame: perGame(avg.avgXGCPerSeason, avg.avgMinutesPerSeason),
     defensiveContributions: avg.avgDefensiveContributionPerSeason,
-    defensiveContributionsPer90: per90(avg.avgDefensiveContributionPerSeason, avg.avgMinutesPerSeason),
+    defensiveContributionsPerGame: perGame(avg.avgDefensiveContributionPerSeason, avg.avgMinutesPerSeason),
   };
 }
 

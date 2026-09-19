@@ -34,31 +34,89 @@ export function xGIPerMillion(xGI: number | null, priceInMillions: number | null
   return safeDivide(xGI, priceInMillions);
 }
 
-/** total / minutes * 90 — the general per-90 shape for metrics with no API-supplied per-90 equivalent. */
+/**
+ * <per_game_not_per_90>: this app used to normalize goal/assist/expected-
+ * stats/defensive metrics as a per-90-minutes rate (total ÷ minutes × 90)
+ * — replaced app-wide with a per-GAME basis after that formula
+ * repeatedly produced nonsensical results for a low-minutes cameo (a
+ * "Points/90" of 180.0 was confirmed, from a live screenshot, to be
+ * exactly 2 points scored in 1 minute — 2/1*90). The ×90 multiplier is
+ * greater than 1 for any minutes total below 90 and only a dampener at
+ * or above it, so it structurally amplifies a tiny sample rather than
+ * just describing it.
+ *
+ * Real games-played isn't available from the FPL API for the whole
+ * player population in one request (only fetched per-player, lazily,
+ * via gameweek history when a profile is opened) — so it's estimated
+ * from cumulative minutes instead. Per explicit product direction: ANY
+ * appearance, even a single minute, should count as a full game played,
+ * so a player whose minutes are fragmented across several small cameos
+ * gets divided by MORE estimated games (a lower, more conservative
+ * rate) — the opposite bias from the old per-90 problem, pushing
+ * low-minutes cameo players down rather than letting them spike up.
+ * That means always rounding UP (`Math.ceil`), never to the nearest or
+ * down: 95 minutes (a full match plus 5 more) is at least 2 separate
+ * appearances, never 1.
+ *
+ * <estimation_limit>: this can still under-count truly fragmented
+ * appearances — ten separate 1-minute cameos summing to 10 minutes look
+ * identical, from cumulative minutes alone, to one 10-minute cameo, both
+ * estimating to 1 game — since the app has no per-gameweek data for the
+ * whole population to tell them apart. A real, disclosed limitation of
+ * estimating from a cumulative total rather than counting actual
+ * appearances; see README.
+ */
+function estimatedGamesFromMinutes(minutes: number): number {
+  return minutes > 0 ? Math.max(1, Math.ceil(minutes / 90)) : 0;
+}
+
+/**
+ * The general per-game shape for a metric with no API-supplied per-game
+ * equivalent — total ÷ estimated games (see estimatedGamesFromMinutes
+ * above). Zero minutes returns null (an undefined rate, not a fake
+ * zero) per <zero_handling> — see estimatedPointsPerGame below for the
+ * one deliberate exception to that.
+ */
+export function perGame(total: number | null, minutes: number | null): number | null {
+  if (total === null || minutes === null) return null;
+  const games = estimatedGamesFromMinutes(minutes);
+  if (games === 0) return null;
+  return total / games;
+}
+
+/**
+ * <ppg_vs_per90>: kept as its own function rather than a plain
+ * perGame() call, for one deliberate difference — a player confirmed to
+ * have played zero minutes with zero points (a real, on-the-record
+ * season with nothing to show, not missing data) shows a genuine "0.0"
+ * here rather than perGame()'s "—", matching this metric's existing
+ * behaviour from before the wider per-game rollout. FPL's own bootstrap
+ * `points_per_game` field (used as-is for the live season, see
+ * resolvePlayerStats.ts) is genuinely games-based already — this is
+ * only needed to estimate it for history_past (past seasons), which has
+ * no such field.
+ */
+export function estimatedPointsPerGame(totalPoints: number | null, minutes: number | null): number | null {
+  if (totalPoints === null || minutes === null) return null;
+  const games = minutes > 0 ? estimatedGamesFromMinutes(minutes) : 1;
+  return safeDivide(totalPoints, games);
+}
+
+/**
+ * True per-90-minutes rate (total ÷ minutes × 90) — kept only for
+ * Expected Points Tier 2's minute-projection model
+ * (metrics/expectedPointsV2.ts), which multiplies a rate by an expected
+ * FRACTION OF MINUTES for one upcoming fixture; that projection is
+ * genuinely minutes-based, since it's asking "how much of the next
+ * single match will this player be on the pitch for" — a per-game
+ * figure has no meaningful way to be scaled by a fraction of one match.
+ * Every user-facing display metric elsewhere in the app uses perGame()
+ * instead — do not add a new display consumer of this function.
+ */
 export function per90(total: number | null, minutes: number | null): number | null {
   const perMinute = safeDivide(total, minutes);
   if (perMinute === null) return null;
   return perMinute * 90;
-}
-
-/**
- * <ppg_vs_per90>: points per GAME, not points per 90 minutes — these
- * aren't the same thing, and per90() badly distorts this specific
- * metric for a low-minutes cameo (1 point in 1 minute played would
- * read as a 90.0 "points per game" via the per-90 shape, since 1/1*90
- * = 90). FPL's own bootstrap `points_per_game` field (used as-is for
- * the live season, see resolvePlayerStats.ts) is genuinely games-based,
- * not minutes-based — but history_past (past seasons) has no such
- * field, so it has to be estimated here: games played ~= minutes / 90,
- * rounded to the nearest whole game and floored at 1 once the player
- * has recorded any minutes at all, since "played some part of at least
- * one game" is the right floor — never a fractional or zero game count
- * for someone who actually appeared.
- */
-export function estimatedPointsPerGame(totalPoints: number | null, minutes: number | null): number | null {
-  if (totalPoints === null || minutes === null) return null;
-  const estimatedGames = minutes > 0 ? Math.max(1, Math.round(minutes / 90)) : 1;
-  return safeDivide(totalPoints, estimatedGames);
 }
 
 export function minutesPerPoint(minutes: number | null, totalPoints: number | null): number | null {
