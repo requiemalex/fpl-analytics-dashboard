@@ -372,15 +372,6 @@ table.data-table tbody tr:hover td {
   font-weight: 700;
 }
 
-.badge.archetype {
-  background: var(--surface-raised);
-  color: var(--text-secondary);
-}
-.badge.archetype.compact {
-  padding: 1px 4px;
-  font-size: 9.5px;
-  letter-spacing: 0;
-}
 
 /* ---------- Availability flag ---------- */
 .availability-flag {

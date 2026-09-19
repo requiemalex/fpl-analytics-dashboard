@@ -29,7 +29,7 @@ export function UnderlyingNumbers() {
     () => resolvePlayerStatsList(players, analysisMode, historicProfiles, currentSeasonHasStarted),
     [players, analysisMode, historicProfiles, currentSeasonHasStarted],
   );
-  const filtered = useFilteredPlayers(resolvedPlayers, filters, analysisMode, teamsById, historicProfiles);
+  const filtered = useFilteredPlayers(resolvedPlayers, filters, analysisMode);
   const [, setSearchParams] = useSearchParams();
 
   function select(id: number) {
@@ -146,7 +146,7 @@ export function UnderlyingNumbers() {
     () => resolvePlayerStatsList(players, valueView.analysisMode, historicProfiles, currentSeasonHasStarted),
     [players, valueView.analysisMode, historicProfiles, currentSeasonHasStarted],
   );
-  const valueFiltered = useFilteredPlayers(valueResolvedPlayers, valueView.filters, valueView.analysisMode, teamsById, historicProfiles);
+  const valueFiltered = useFilteredPlayers(valueResolvedPlayers, valueView.filters, valueView.analysisMode);
   const valueRows = useMemo(() => valueFiltered.map((p) => ({ player: p, derived: getPlayerDerivedMetrics(p) })), [valueFiltered]);
 
   const priceVsPoints: ScatterPoint[] = useMemo(
@@ -342,7 +342,6 @@ export function UnderlyingNumbers() {
           key={graph.id}
           graph={graph}
           players={players}
-          teamsById={teamsById}
           historicProfiles={historicProfiles}
           currentSeasonHasStarted={currentSeasonHasStarted}
           onUpdateView={userGraphs.updateGraphView}

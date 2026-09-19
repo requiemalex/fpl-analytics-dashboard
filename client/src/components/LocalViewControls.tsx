@@ -1,6 +1,5 @@
-import React, { useState } from "react";
+import React from "react";
 import { useAppState, type GlobalScoutingFilters } from "../state/AppStateContext";
-import { ARCHETYPE_LABELS, type ArchetypeLabel } from "../metrics/archetypes";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 
 const MINUTES_STEP = 90;
@@ -16,7 +15,6 @@ export const DEFAULT_LOCAL_FILTERS: GlobalScoutingFilters = {
   position: "ALL",
   teamId: "ALL",
   minMinutes: 0,
-  archetypes: [],
 };
 
 /** One section/graph's own analysis-mode + filter selection — deliberately the same shape as the app-wide GlobalScoutingFilters/AnalysisMode pairing, just not threaded through AppStateContext, so it can be duplicated per section without one section's changes leaking into another's. */
@@ -53,7 +51,6 @@ export function LocalViewControls({
   onChange: (next: LocalViewState) => void;
 }) {
   const { teams, historicStatus, historicErrorMessage, historicSkippedPlayerIds, refreshHistoricData, historicRefreshing } = useAppState();
-  const [showArchetypePopover, setShowArchetypePopover] = useState(false);
 
   function setMode(mode: AnalysisMode) {
     onChange({ ...state, analysisMode: mode });
@@ -61,11 +58,6 @@ export function LocalViewControls({
 
   function updateFilter<K extends keyof GlobalScoutingFilters>(key: K, value: GlobalScoutingFilters[K]) {
     onChange({ ...state, filters: { ...state.filters, [key]: value } });
-  }
-
-  function toggleArchetype(label: ArchetypeLabel) {
-    const current = state.filters.archetypes;
-    updateFilter("archetypes", current.includes(label) ? current.filter((a) => a !== label) : [...current, label]);
   }
 
   function resetCriteria() {
@@ -154,34 +146,6 @@ export function LocalViewControls({
                 </option>
               ))}
           </select>
-        </div>
-
-        <div className="field" style={{ position: "relative" }}>
-          <label htmlFor={`${idPrefix}-archetypes`}>Archetypes</label>
-          <button
-            id={`${idPrefix}-archetypes`}
-            type="button"
-            className="btn"
-            onClick={() => setShowArchetypePopover((v) => !v)}
-            style={{ minWidth: 90, textAlign: "left" }}
-          >
-            {state.filters.archetypes.length === 0 ? "All" : `${state.filters.archetypes.length} selected`}
-          </button>
-          {showArchetypePopover && (
-            <div className="popover">
-              {ARCHETYPE_LABELS.map((label) => (
-                <label key={label}>
-                  <input type="checkbox" checked={state.filters.archetypes.includes(label)} onChange={() => toggleArchetype(label)} />
-                  {label}
-                </label>
-              ))}
-              {state.filters.archetypes.length > 0 && (
-                <button type="button" className="chip" style={{ marginTop: 6 }} onClick={() => updateFilter("archetypes", [])}>
-                  Clear
-                </button>
-              )}
-            </div>
-          )}
         </div>
 
         <div className="field">

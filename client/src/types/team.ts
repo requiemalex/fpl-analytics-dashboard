@@ -8,9 +8,7 @@ import type { Position, ChipWindow } from "./normalized";
  * team's PUBLIC entry data — the FPL API's entry/{id}/ endpoints require
  * no login — so it doesn't need or add any authentication to this app;
  * that design principle (no accounts, nothing written back to FPL) is
- * unchanged. Centralised here for the same reason ARCHETYPE_THRESHOLDS is
- * centralised — change it in one place, nowhere else hard-codes these
- * numbers.
+ * unchanged. Centralised here so nowhere else hard-codes these numbers.
  */
 export const SQUAD_RULES = {
   budget: 100.0, // £m
@@ -24,8 +22,6 @@ export const SQUAD_RULES = {
     MID: { min: 2, max: 5 },
     FWD: { min: 1, max: 3 },
   } as Record<Position, { min: number; max: number }>,
-  /** Ownership% below which a strong-underlying player counts as a "good differential". */
-  differentialOwnershipMax: 10,
 };
 
 /** One chip already spent — either read from a loaded FPL team's real history, or ticked manually for a squad built from scratch. */

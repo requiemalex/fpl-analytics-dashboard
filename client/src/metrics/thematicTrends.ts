@@ -1,5 +1,4 @@
 import type { NormalizedPlayer, Position, PlayerSeasonHistory } from "../types/normalized";
-import { ARCHETYPE_THRESHOLDS } from "./archetypes";
 import { MIN_QUALIFYING_SEASON_MINUTES } from "./historicAnalysis";
 
 export type PriceTier = "Budget" | "Mid-priced" | "Premium";
@@ -7,9 +6,13 @@ export type PriceTier = "Budget" | "Mid-priced" | "Premium";
 const POSITIONS: Position[] = ["GKP", "DEF", "MID", "FWD"];
 const PRICE_TIERS: PriceTier[] = ["Budget", "Mid-priced", "Premium"];
 
+/** Same price-tier cutoffs the app has always used for "Premium"/"Mid-priced"/"Budget" — not tied to any other feature, just centralised here since this is the only place left that needs them. */
+const PREMIUM_PRICE_MIN = 8.0; // £m
+const MID_PRICE_MIN = 5.1; // £m
+
 function priceTierFor(price: number): PriceTier {
-  if (price >= ARCHETYPE_THRESHOLDS.premiumPriceMin) return "Premium";
-  if (price >= ARCHETYPE_THRESHOLDS.midPriceMin) return "Mid-priced";
+  if (price >= PREMIUM_PRICE_MIN) return "Premium";
+  if (price >= MID_PRICE_MIN) return "Mid-priced";
   return "Budget";
 }
 
@@ -26,16 +29,13 @@ export interface SeasonPriceTierPoint {
 }
 
 /**
- * <thematic_trends_scope>: this deliberately does NOT re-run the full
- * percentile-based archetype system (High-upside Attacker, Strong
- * Underlying Attacker, etc.) against every historical season — that would
- * mean rebuilding a whole separate qualifying population and percentile
- * computation per season, a materially bigger undertaking than this
- * chart. What it DOES cover is genuinely archetype-adjacent and much more
- * tractable: price tier (Premium/Mid-priced/Budget), using that season's
- * OWN price (endCost, falling back to startCost) rather than today's — a
- * player judged by what they cost at the time, consistent with how price
- * tiers work everywhere else in this app. Position is the player's
+ * <thematic_trends_scope>: this deliberately does NOT rebuild a whole
+ * separate qualifying population and percentile computation per season —
+ * a materially bigger undertaking than this chart. What it DOES cover is
+ * price tier (Premium/Mid-priced/Budget), using that season's OWN price
+ * (endCost, falling back to startCost) rather than today's — a player
+ * judged by what they cost at the time, consistent with how price tiers
+ * work everywhere else in this app. Position is the player's
  * CURRENT position from live data; this app has no record of historical
  * position changes, so a position-switcher's older seasons are grouped
  * under where they play now — a disclosed simplification, not a hidden

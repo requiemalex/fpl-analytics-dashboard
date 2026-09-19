@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { fmtDecimal, fmtSigned, DASH } from "../utils/format";
 import { bandForPercentile, type PercentileBand } from "../metrics/percentiles";
 import { getMetricDefinition } from "../metrics/dictionary";
-import { ARCHETYPE_SHORT_LABELS, type ArchetypeLabel } from "../metrics/archetypes";
 import { fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { teamAccentColor } from "../utils/teamColors";
 import type { Position } from "../types/normalized";
@@ -161,19 +160,6 @@ export function PercentileBar({ percentile }: { percentile: number | null }) {
         <span className={`percentile-fill ${band}`} style={{ width: `${Math.max(4, percentile)}%` }} />
       </span>
       <span className="percentile-label">{Math.round(percentile)}th</span>
-    </span>
-  );
-}
-
-export function ArchetypeBadges({ labels, compact = false }: { labels: string[]; compact?: boolean }) {
-  if (labels.length === 0) return <span className="value-muted">{DASH}</span>;
-  return (
-    <span className="chip-row" style={compact ? { gap: 3 } : undefined}>
-      {labels.map((l) => (
-        <span key={l} className={`badge archetype${compact ? " compact" : ""}`} title={compact ? l : undefined}>
-          {compact ? (ARCHETYPE_SHORT_LABELS[l as ArchetypeLabel] ?? l.slice(0, 3)) : l}
-        </span>
-      ))}
     </span>
   );
 }

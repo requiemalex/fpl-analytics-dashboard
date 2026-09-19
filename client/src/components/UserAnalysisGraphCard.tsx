@@ -7,7 +7,7 @@ import { ScatterWithReference, type ScatterPoint } from "./charts/ScatterWithRef
 import { BarTopN, type BarDatum } from "./charts/BarTopN";
 import { LocalViewControls } from "./LocalViewControls";
 import type { SavedUserGraph } from "../state/useSavedUserGraphs";
-import type { NormalizedPlayer, NormalizedTeam } from "../types/normalized";
+import type { NormalizedPlayer } from "../types/normalized";
 import type { HistoricPlayerProfile } from "../metrics/historicAnalysis";
 
 /**
@@ -25,7 +25,6 @@ import type { HistoricPlayerProfile } from "../metrics/historicAnalysis";
 export function UserAnalysisGraphCard({
   graph,
   players,
-  teamsById,
   historicProfiles,
   currentSeasonHasStarted,
   onUpdateView,
@@ -34,7 +33,6 @@ export function UserAnalysisGraphCard({
 }: {
   graph: SavedUserGraph;
   players: NormalizedPlayer[];
-  teamsById: Map<number, NormalizedTeam>;
   historicProfiles: Map<number, HistoricPlayerProfile>;
   currentSeasonHasStarted: boolean;
   onUpdateView: (id: string, view: SavedUserGraph["view"]) => void;
@@ -45,7 +43,7 @@ export function UserAnalysisGraphCard({
     () => resolvePlayerStatsList(players, graph.view.analysisMode, historicProfiles, currentSeasonHasStarted),
     [players, graph.view.analysisMode, historicProfiles, currentSeasonHasStarted],
   );
-  const filtered = useFilteredPlayers(resolved, graph.view.filters, graph.view.analysisMode, teamsById, historicProfiles);
+  const filtered = useFilteredPlayers(resolved, graph.view.filters, graph.view.analysisMode);
 
   const xColumn = columnByKey(graph.xMetricKey);
   const yColumn = columnByKey(graph.yMetricKey);

@@ -8,7 +8,6 @@ import { ColumnFilterControl } from "../components/ColumnFilterControl";
 import { useSortSpec, compareSortValues } from "../state/useSortSpec";
 import { SQUAD_RULES, createBlankSquad, type SavedSquad } from "../types/team";
 import { validateSquad, validateStartingXI, canAddPlayer } from "../metrics/squadRules";
-import { computeArchetypesForAllPlayers, ARCHETYPE_LABELS, type ArchetypeLabel } from "../metrics/archetypes";
 import { resolvePlayerStats, resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { computeExpectedPointsForSingleFixture } from "../metrics/expectedPoints";
@@ -149,8 +148,6 @@ export function TeamBuilder() {
   const [pickerPosition, setPickerPosition] = useState<"ALL" | Position>("ALL");
   const [pickerTeamId, setPickerTeamId] = useState<"ALL" | number>("ALL");
   const [pickerMinMinutes, setPickerMinMinutes] = useState<number | null>(null);
-  const [pickerArchetypes, setPickerArchetypes] = useState<ArchetypeLabel[]>([]);
-  const [showPickerArchetypePopover, setShowPickerArchetypePopover] = useState(false);
   const [captainPickMode, setCaptainPickMode] = useState<"captain" | "viceCaptain" | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [gwOffset, setGwOffset] = useState<GwOffset>(1);
@@ -185,21 +182,6 @@ export function TeamBuilder() {
   const active = squads.find((s) => s.id === activeId) ?? null;
 
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
-
-  // Squad membership and composition/club-limit rules ALWAYS use live
-  // players — real prices and real teams, regardless of any toggle.
-  // Archetypes (which feed the Add Players archetype filter) use a fixed
-  // historic-average basis — not user-toggleable in this section, since
-  // Team Building is now about modelled predictions for the current
-  // season rather than a choice of description basis (see README).
-  const { resolved: historicAverageStats } = useMemo(
-    () => resolvePlayerStatsList(players, "historicAverage", historicProfiles, currentSeasonHasStarted),
-    [players, historicProfiles, currentSeasonHasStarted],
-  );
-  const archetypeMap = useMemo(
-    () => computeArchetypesForAllPlayers(historicAverageStats, filters.minMinutes, teamsById, historicProfiles, players),
-    [historicAverageStats, filters.minMinutes, teamsById, historicProfiles, players],
-  );
 
   function updateActive(mutator: (s: SavedSquad) => SavedSquad) {
     if (!active) return;
@@ -457,7 +439,6 @@ export function TeamBuilder() {
     setPickerPosition("ALL");
     setPickerTeamId("ALL");
     setPickerMinMinutes(null);
-    setPickerArchetypes([]);
     columnFiltersState.resetAllFilters();
   }
 
@@ -640,7 +621,6 @@ export function TeamBuilder() {
       .filter((p) => !squadPlayerIdSet.has(p.id))
       .filter((p) => pickerPosition === "ALL" || p.position === pickerPosition)
       .filter((p) => pickerTeamId === "ALL" || p.teamId === pickerTeamId)
-      .filter((p) => pickerArchetypes.length === 0 || pickerArchetypes.some((a) => (archetypeMap.get(p.id) ?? []).includes(a)))
       .filter((p) => !search || matchesPlayerSearch(p, search))
       .map((p): PickerRowData => {
         const playerFixtures = fixturesByTeamId.get(p.teamId) ?? [];
@@ -686,8 +666,6 @@ export function TeamBuilder() {
     pickerSearch,
     pickerPosition,
     pickerTeamId,
-    pickerArchetypes,
-    archetypeMap,
     fixturesByTeamId,
     historicProfiles,
     pickerHistoricMode,
@@ -974,39 +952,6 @@ export function TeamBuilder() {
               onChange={(e) => setPickerMinMinutes(e.target.value === "" ? null : Number(e.target.value))}
             />
           </div>
-          <div className="field" style={{ position: "relative" }}>
-            <label htmlFor="picker-archetypes">Archetypes</label>
-            <button
-              id="picker-archetypes"
-              type="button"
-              className="btn"
-              onClick={() => setShowPickerArchetypePopover((v) => !v)}
-              style={{ minWidth: 90, textAlign: "left" }}
-            >
-              {pickerArchetypes.length === 0 ? "All" : `${pickerArchetypes.length} selected`}
-            </button>
-            {showPickerArchetypePopover && (
-              <div className="popover">
-                {ARCHETYPE_LABELS.map((label) => (
-                  <label key={label}>
-                    <input
-                      type="checkbox"
-                      checked={pickerArchetypes.includes(label)}
-                      onChange={() =>
-                        setPickerArchetypes((prev) => (prev.includes(label) ? prev.filter((a) => a !== label) : [...prev, label]))
-                      }
-                    />
-                    {label}
-                  </label>
-                ))}
-                {pickerArchetypes.length > 0 && (
-                  <button type="button" className="chip" style={{ marginTop: 6 }} onClick={() => setPickerArchetypes([])}>
-                    Clear
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
         </div>
 
         <div className="chip-row" style={{ marginBottom: 12 }}>
@@ -1061,7 +1006,7 @@ export function TeamBuilder() {
             type="button"
             className="chip"
             onClick={handleClearPickerFilters}
-            title="Clear every picker filter — search, position, team, price, minutes, archetypes, and any per-column filters"
+            title="Clear every picker filter — search, position, team, price, minutes, and any per-column filters"
           >
             Clear Filters
           </button>

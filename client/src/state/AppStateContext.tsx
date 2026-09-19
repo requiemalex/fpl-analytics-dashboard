@@ -13,7 +13,6 @@ import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import { SchemaValidationError } from "../validation/schema";
 import type { NormalizedPlayer, NormalizedTeam, NormalizedFixture, NormalizedEvent, GameweekState, ChipWindow, PlayerSeasonHistory } from "../types/normalized";
 import type { AdvancedFieldAvailability } from "../normalize/fieldAvailability";
-import type { ArchetypeLabel } from "../metrics/archetypes";
 
 export type DataStatus = "loading" | "ready" | "error";
 
@@ -22,8 +21,6 @@ export interface GlobalScoutingFilters {
   position: "ALL" | "GKP" | "DEF" | "MID" | "FWD";
   teamId: number | "ALL";
   minMinutes: number;
-  /** Empty array = no archetype filter applied. Any-of match when non-empty. */
-  archetypes: ArchetypeLabel[];
 }
 
 const DEFAULT_MIN_MINUTES = 0;
@@ -33,7 +30,6 @@ const DEFAULT_FILTERS: GlobalScoutingFilters = {
   position: "ALL",
   teamId: "ALL",
   minMinutes: DEFAULT_MIN_MINUTES,
-  archetypes: [],
 };
 
 export type HistoricDataStatus = "idle" | "loading" | "ready" | "error";

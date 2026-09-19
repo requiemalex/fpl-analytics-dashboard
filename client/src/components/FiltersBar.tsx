@@ -1,22 +1,13 @@
-import React, { useState } from "react";
+import React from "react";
 import { useAppState, type GlobalScoutingFilters } from "../state/AppStateContext";
-import { ARCHETYPE_LABELS, type ArchetypeLabel } from "../metrics/archetypes";
 
 const MINUTES_STEP = 90;
 
 export function FiltersBar() {
   const { filters, setFilters, resetFilters, teams, analysisMode } = useAppState();
-  const [showArchetypePopover, setShowArchetypePopover] = useState(false);
 
   function update<K extends keyof GlobalScoutingFilters>(key: K, value: GlobalScoutingFilters[K]) {
     setFilters((f) => ({ ...f, [key]: value }));
-  }
-
-  function toggleArchetype(label: ArchetypeLabel) {
-    setFilters((f) => ({
-      ...f,
-      archetypes: f.archetypes.includes(label) ? f.archetypes.filter((a) => a !== label) : [...f.archetypes, label],
-    }));
   }
 
   return (
@@ -54,34 +45,6 @@ export function FiltersBar() {
               </option>
             ))}
         </select>
-      </div>
-
-      <div className="field" style={{ position: "relative" }}>
-        <label htmlFor="f-archetypes">Archetypes</label>
-        <button
-          id="f-archetypes"
-          type="button"
-          className="btn"
-          onClick={() => setShowArchetypePopover((v) => !v)}
-          style={{ minWidth: 90, textAlign: "left" }}
-        >
-          {filters.archetypes.length === 0 ? "All" : `${filters.archetypes.length} selected`}
-        </button>
-        {showArchetypePopover && (
-          <div className="popover">
-            {ARCHETYPE_LABELS.map((label) => (
-              <label key={label}>
-                <input type="checkbox" checked={filters.archetypes.includes(label)} onChange={() => toggleArchetype(label)} />
-                {label}
-              </label>
-            ))}
-            {filters.archetypes.length > 0 && (
-              <button type="button" className="chip" style={{ marginTop: 6 }} onClick={() => update("archetypes", [])}>
-                Clear
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
       <div className="field">

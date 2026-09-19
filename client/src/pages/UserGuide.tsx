@@ -46,7 +46,6 @@ const SECTION_META = [
   { id: "player-comparison", label: "Player Comparison", accent: "var(--accent-focus)" },
   { id: "teams", label: "Teams", accent: "var(--accent-value)" },
   { id: "player-profile", label: "Player Profile", accent: "var(--accent-positive)" },
-  { id: "archetypes", label: "Archetypes", accent: "var(--accent-focus)" },
   { id: "limitations", label: "Data sourcing & known limitations", accent: "var(--accent-negative)" },
   { id: "metric-reference", label: "Metric reference", accent: "var(--accent-value)" },
 ];
@@ -220,7 +219,7 @@ export function UserGuide() {
           <li><strong>Reset Columns</strong> restores the packaged defaults — order, visibility, and width.</li>
           <li><strong>Comparative Colouring</strong> (top right) tints each cell green/red relative to what's currently on screen — turn it off if it's too busy.</li>
           <li>
-            The filter bar above the table (search, position, team, min minutes, archetypes) narrows the whole table at once. Every
+            The filter bar above the table (search, position, team, min minutes) narrows the whole table at once. Every
             other column — Starts, Own%, Price, and the rest — has its own filter (click the ▾ icon on that column's header) with
             ≤/≥/= fields, so narrowing by ownership or price range happens at the column, not up here. Player-name search (here, in
             Team Building's Add Players table, and in the search-and-add boxes on Player Comparison and Player Trends) is
@@ -238,7 +237,7 @@ export function UserGuide() {
         </ul>
         <Try>
           Looking for undervalued midfielders? Set Position to MID, add the "Points/£m" column, click its header to sort descending, and
-          turn on the archetype filter for "Enabler" or "Budget Option" to narrow further.
+          use the Price column's own ▾ filter to cap it at a budget you're working within.
         </Try>
       </Section>
 
@@ -253,7 +252,7 @@ export function UserGuide() {
         <p className="page-subtitle">
           <strong>Expected vs Actual</strong>, <strong>Value</strong>, and each graph inside <strong>User Analysis</strong> each carry
           their own analysis-mode toggle and search/filter bar — changing one section's (or one saved graph's) toggle, search, position,
-          team, archetype, or minutes filter only ever recomputes that section's own charts and summary tiles, never another section's.
+          team, or minutes filter only ever recomputes that section's own charts and summary tiles, never another section's.
           Setting Value's toggle to Historic Average, say, has no effect on Expected vs Actual's charts or "Top xG"/"Top xA" tiles above
           it, and vice versa.
         </p>
@@ -263,10 +262,8 @@ export function UserGuide() {
           toggle can't represent. It shows average points by position and by price tier across every season where a player cleared the
           same {MIN_QUALIFYING_SEASON_MINUTES}-minute bar used everywhere else historic averages are computed; price tier uses each
           season's own price (not today's), and position uses each player's current position, since this app has no record of
-          historical position changes — a position-switcher's older seasons are grouped under where they play now. It doesn't re-run
-          the full percentile-based archetype system against past seasons — that's a materially bigger undertaking than this chart, so
-          it isn't attempted here. (<strong>Player Trends</strong>, which uses the same multi-season data, now lives under Player
-          Comparison, further down this guide.)
+          historical position changes — a position-switcher's older seasons are grouped under where they play now. (<strong>Player
+          Trends</strong>, which uses the same multi-season data, now lives under Player Comparison, further down this guide.)
         </p>
         <p className="page-subtitle">
           Two of the five expected-vs-actual charts intentionally have no dashed reference line, for different reasons. <strong>ICT Index
@@ -387,8 +384,8 @@ export function UserGuide() {
           always shows every prior season on record plus this season in progress (marked "(live)", sourced from live data rather than a
           completed season's record). The Percentile Radar chart is position-specific — a goalkeeper's axes share almost nothing with a
           forward's — and also resolves per mode. Defenders and midfielders get two radars ("Defense" and "Offense"), since both facets
-          genuinely drive their points; goalkeepers and forwards keep one combined radar. Archetype badges sit alongside the first radar,
-          and a "Compare" button in the header links into Player Comparison, pre-filled.
+          genuinely drive their points; goalkeepers and forwards keep one combined radar. A "Compare" button in the header links into
+          Player Comparison, pre-filled.
         </p>
         <p className="page-subtitle">
           <strong>Current Season Log</strong> is a gameweek-by-gameweek breakdown of the live season — one row per gameweek played,
@@ -397,30 +394,6 @@ export function UserGuide() {
           Defensive Contributions, cards, saves, penalties, BPS), plus a Totals row and an Average row (total ÷ gameweeks played so far)
           for every column. The table scrolls horizontally — there are more columns than fit on screen at once. Sourced from the same
           element-summary request as Career History and Playing Time, so it shares their loading/error state.
-        </p>
-      </Section>
-
-      <Section id="archetypes" title="Archetypes">
-        <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Rule-based labels, never predictions — a player either meets a stated condition or doesn't. A price tier (Premium/Mid-priced/
-          Budget) plus zero or more of the following, all thresholds centralised in one place so they can't drift between components.
-          Price tier always uses today's real price, even in a Historic Average or Last Completed Season view elsewhere on the same
-          page — so the tier next to a player never disagrees with the price shown right beside it.
-        </p>
-        <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
-          <li><strong>Enabler</strong> — budget price and a strong blended minutes-reliability track record.</li>
-          <li><strong>High-upside Attacker</strong> — MID/FWD with elite Goals+Assists for their position.</li>
-          <li><strong>High-xGI Defender</strong> — DEF with elite attacking threat (xGI/90).</li>
-          <li><strong>Strong Underlying Attacker</strong> — any position with strong (not necessarily elite) xGI/90.</li>
-          <li><strong>High-clean sheet Defender</strong> — DEF with an elite (tightest) expected-goals-conceded rate.</li>
-          <li><strong>High def con Defender</strong> — DEF with elite Defensive Contributions/90.</li>
-          <li><strong>Influential Player</strong> — any position with elite ICT Index.</li>
-          <li><strong>Rounded Midfielder</strong> — MID strong in both Defensive Contributions/90 and xGI/90 at once.</li>
-          <li><strong>Goals Above/Below xG</strong> — currently over- or under-performing their expected goals.</li>
-        </ul>
-        <p className="page-subtitle" style={{ margin: 0 }}>
-          Exact price/percentile cutoffs are in the metric reference below. Filter by archetype in Player Explorer's filter bar or Team
-          Building's picker.
         </p>
       </Section>
 

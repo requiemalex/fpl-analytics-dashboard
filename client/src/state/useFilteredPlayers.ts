@@ -1,8 +1,6 @@
 import { useMemo } from "react";
-import type { NormalizedPlayer, NormalizedTeam } from "../types/normalized";
+import type { NormalizedPlayer } from "../types/normalized";
 import type { GlobalScoutingFilters } from "./AppStateContext";
-import { computeArchetypesForAllPlayers, type ArchetypeLabel } from "../metrics/archetypes";
-import type { HistoricPlayerProfile } from "../metrics/historicAnalysis";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import { matchesPlayerSearch } from "../utils/playerSearch";
 
@@ -20,12 +18,7 @@ export function effectiveMinMinutes(filters: GlobalScoutingFilters, mode: Analys
   return mode === "live" ? 0 : filters.minMinutes;
 }
 
-export function filterPlayers(
-  players: NormalizedPlayer[],
-  filters: GlobalScoutingFilters,
-  mode: AnalysisMode,
-  archetypeMap?: Map<number, ArchetypeLabel[]>,
-): NormalizedPlayer[] {
+export function filterPlayers(players: NormalizedPlayer[], filters: GlobalScoutingFilters, mode: AnalysisMode): NormalizedPlayer[] {
   const search = filters.search.trim();
   const minMinutes = effectiveMinMinutes(filters, mode);
 
@@ -39,33 +32,10 @@ export function filterPlayers(
     // resolvePlayerStats.ts: excluding them here would just reintroduce
     // the same vanishing-player problem through a different code path.
     if (p.minutes !== null && p.minutes < minMinutes) return false;
-    // Starts/ownership/price row-filtering moved to each column's own
-    // Excel-style filter (▾ icon) — this global bar only keeps the
-    // fields that either can't be replicated at the column level
-    // (Archetypes has no filterable column) or drive more than row
-    // filtering (Min Minutes — see effectiveMinMinutes/percentile use
-    // app-wide).
-    if (filters.archetypes.length > 0) {
-      const playerLabels = archetypeMap?.get(p.id) ?? [];
-      if (!filters.archetypes.some((a) => playerLabels.includes(a))) return false;
-    }
     return true;
   });
 }
 
-export function useFilteredPlayers(
-  players: NormalizedPlayer[],
-  filters: GlobalScoutingFilters,
-  mode: AnalysisMode,
-  teamsById: Map<number, NormalizedTeam>,
-  historicProfiles: Map<number, HistoricPlayerProfile>,
-): NormalizedPlayer[] {
-  const minMinutes = effectiveMinMinutes(filters, mode);
-  // Archetypes need the whole-population percentile context (<percentile_population>),
-  // so it's computed here against the unfiltered `players` list, not the result.
-  const archetypeMap = useMemo(
-    () => (filters.archetypes.length > 0 ? computeArchetypesForAllPlayers(players, minMinutes, teamsById, historicProfiles) : undefined),
-    [players, minMinutes, filters.archetypes.length, teamsById, historicProfiles],
-  );
-  return useMemo(() => filterPlayers(players, filters, mode, archetypeMap), [players, filters, mode, archetypeMap]);
+export function useFilteredPlayers(players: NormalizedPlayer[], filters: GlobalScoutingFilters, mode: AnalysisMode): NormalizedPlayer[] {
+  return useMemo(() => filterPlayers(players, filters, mode), [players, filters, mode]);
 }

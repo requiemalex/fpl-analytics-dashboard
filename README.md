@@ -226,67 +226,24 @@ regardless of what you're currently filtering the visible table by.
 Bands: 90th percentile+ = Excellent, 70th–89th = Good, 30th–69th =
 Average, below 30th = Poor.
 
-## Archetype rules
+## Archetypes — removed
 
-Archetypes (`client/src/metrics/archetypes.ts`) are transparent,
-rule-based labels — never predictions. All thresholds are centralised in
-one exported object (`ARCHETYPE_THRESHOLDS`) rather than scattered magic
-numbers:
-
-- **Premium Player**: price ≥ £8.0m
-- **Mid-priced Player**: £5.1m ≤ price ≤ £7.9m
-- **Budget Option**: price ≤ £5.0m
-- **Enabler**: price ≤ £5.0m *and* blended minutes reliability ≥ 65%
-  (`minutesReliabilityBlend.ts` — the same historic+live blend Team
-  Building uses, not a flat minutes-eligibility check; a cheap-but-risky
-  bench player no longer qualifies just for having once cleared a
-  minutes bar)
-- **High-upside Attacker**: MID/FWD with Goals+Assists ≥ 90th positional
-  percentile (min-minutes eligible)
-- **High-xGI Defender**: DEF with xGI/90 ≥ 90th positional percentile
-- **Strong Underlying Attacker**: xGI/90 ≥ 70th positional percentile
-  (any position; actual output plays no part in this label)
-- **High-clean sheet Defender**: DEF with xGC/90 in the *tightest* 90th
-  percentile for the position — computed on −xGC/90 so a low expected-
-  goals-conceded rate is what ranks highly, not a raw ascending
-  percentile that would reward leaky defences
-- **High def con Defender**: DEF with Defensive Contributions/90 ≥ 90th
-  positional percentile
-- **Influential Player**: any position, ICT Index ≥ 90th positional
-  percentile
-- **Rounded Midfielder**: MID with *both* Defensive Contributions/90 and
-  xGI/90 ≥ 70th positional percentile — the only label requiring two
-  conditions at once
-- **Goals Above / Below xG**: `goals - xG` sign
-
-Price cutoffs (£5.0m / £5.1m–£7.9m / £8.0m) and percentile bars (70th
-"strong", 90th "elite") were not specified in the brief; these are the
-least-assumptive, commonly-understood bands, centralised here rather
-than hard-coded per component. Change `ARCHETYPE_THRESHOLDS` in one
-place if you'd prefer different cutoffs. The Mid-priced floor was
-originally £5.5m, leaving a £5.1m–£5.4m gap that fell into neither
-Budget nor Mid-priced — fixed by lowering the floor to £5.1m rather than
-raising Budget's ceiling, so every price still gets exactly one tier.
-
-**One entry point, not two.** `computeArchetypes` (a single-player
-function) used to exist alongside `computeArchetypesForAllPlayers` (a
-population function) — now there's only the population version, and a
-single-player caller just looks up `.get(id)` on its result. This
-stopped being optional once Enabler needed reliability data: reliability
-requires `NormalizedTeam` + `HistoricPlayerProfile` per player, which
-only the population function was already threading through, so
-maintaining two separate context-building paths would have meant either
-duplicating that plumbing or letting the two diverge. Every caller
-(`PlayerDetailOverlay.tsx`, `useFilteredPlayers.ts`, `PlayerExplorer.tsx`,
-`TeamBuilder.tsx`) now passes `teamsById`/`historicProfiles` through to
-get there.
-
-**Every archetype surface updates from one shared list.** The
-`ARCHETYPE_LABELS` array drives the FiltersBar popover, Team Building's
-picker archetype filter, and every `ArchetypeBadges` render (Player
-Explorer's table, the profile) — nothing hard-codes a second copy of the
-label list anywhere, so adding a new archetype here is genuinely a
-one-file change.
+The rule-based archetype label system (Premium/Mid-priced/Budget price
+tiers, Enabler, High-upside Attacker, Strong Underlying Attacker, etc. —
+previously `client/src/metrics/archetypes.ts`) has been removed
+entirely, end to end: the computation module, `ArchetypeBadges` (was in
+`primitives.tsx`), the Archetypes column in Player Explorer, the
+archetype filter popovers in FiltersBar/LocalViewControls/Team
+Building's Add Players picker, and the `archetypes` field on
+`GlobalScoutingFilters`. Removed by request — it wasn't earning its
+clutter. `thematicTrends.ts`'s unrelated price-tier logic (Premium/
+Mid-priced/Budget for the Season Trends chart) kept its own small local
+threshold constants rather than importing from the now-deleted module.
+`squadRating.ts`, which depended on `ArchetypeLabel` but had zero
+importers anywhere in the app (a "Good Differentials"/"Archetype Mix"
+feature that no longer existed on any page), was confirmed fully dead
+and deleted alongside it, along with `SQUAD_RULES.differentialOwnershipMax`
+(orphaned by the same deletion).
 
 ## Playing-time indicator methodology
 
@@ -1482,27 +1439,6 @@ global filter state, not a page's own column-filter state). Added
 `resetAllFilters` to the shared `useColumnFilters` hook rather than
 reaching into its internals from each page.
 
-## Player Explorer: Archetypes is a real column now
-
-Previously fixed in its own fixed-width slot next to Player, unable to
-move, resize, or hide — now it participates in the same
-reorder/resize/Fit-to-Box/visibility system as every other column, via
-a synthetic `"archetypes"` key that isn't a `PLAYER_COLUMNS` entry (it
-renders badges, not a number) but flows through the same engine as a
-special case. Scoped to this page's own default column list, not the
-shared `DEFAULT_VISIBLE_COLUMNS` Team Building also uses — Team
-Building's Historic/Raw group was never asked for an archetypes column
-and doesn't get one.
-
-Below 110px wide, badges switch to short 2-4 character codes
-(`ARCHETYPE_SHORT_LABELS` — a `Record<ArchetypeLabel, string>` rather
-than a lookup-with-fallback, so TypeScript itself refuses to compile if
-a future archetype is added without a short form) with the full label
-as a tooltip; narrower still, they simply overflow-hide, which was the
-explicitly acceptable fallback ("disappearing or turning into little
-symbol icons" — this does the second, and lets the first happen
-naturally at the extreme rather than needing a third explicit tier).
-
 ## Fixed: Player Explorer's table went stale on filter changes
 
 Confirmed and fixed a real bug: `sortedRows` read from `filteredRows` in
@@ -2207,7 +2143,7 @@ fpl-dashboard/
       types/                Raw API types vs. normalised UI types
       validation/            Zod schemas — validated before normalisation
       normalize/             Raw -> normalised mapping, gameweek logic, field-availability detection
-      metrics/               Calculations, dictionary, percentiles, archetypes, validation, rotation indicators
+      metrics/               Calculations, dictionary, percentiles, validation, rotation indicators
       api/                  Frontend fetch client
       state/                 App-wide React Context (data + global filters)
       components/            Reusable UI pieces (table, filters, charts, overlay)
