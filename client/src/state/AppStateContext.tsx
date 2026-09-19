@@ -276,42 +276,83 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const teamsWithRealStandings = useMemo(() => applyRealTeamStandings(teams, fixtures), [teams, fixtures]);
   const teamsById = useMemo(() => new Map(teamsWithRealStandings.map((t) => [t.id, t])), [teamsWithRealStandings]);
 
-  const value: AppState = {
-    status,
-    errorMessage,
-    isStale,
-    lastUpdated,
-    players,
-    teams: teamsWithRealStandings,
-    teamsById,
-    // Real fixture results, not bootstrap-static's own (unreliable, see
-    // above) team.played — true the moment any fixture has actually been
-    // played and finished, current-season carryover-zeroing switches off.
-    currentSeasonHasStarted: fixtures.some((f) => f.finished),
-    fixtures,
-    gameweekState,
-    events,
-    chips,
-    totalPlayers,
-    advancedFieldAvailability,
-    skippedPlayerCount,
-    validationReport,
-    refreshing,
-    refresh,
-    filters,
-    setFilters,
-    resetFilters,
-    analysisMode,
-    setAnalysisMode,
-    historicStatus,
-    historicReferenceSeason,
-    historicProfiles,
-    allTimeSeasonsByPlayerId,
-    historicSkippedPlayerIds,
-    historicErrorMessage,
-    historicRefreshing,
-    refreshHistoricData,
-  };
+  // Memoized: without this, a brand-new object is created on every render
+  // of this provider — which wraps the ENTIRE app — so setting `filters`
+  // from a single keystroke in Player Explorer's search box (or any other
+  // context state update, anywhere) was invalidating the context value
+  // and re-rendering every consumer in the whole tree, including
+  // unrelated pages/components that don't even read the field that
+  // changed. Confirmed as the main cause of app-wide click/typing lag.
+  const value: AppState = useMemo(
+    () => ({
+      status,
+      errorMessage,
+      isStale,
+      lastUpdated,
+      players,
+      teams: teamsWithRealStandings,
+      teamsById,
+      // Real fixture results, not bootstrap-static's own (unreliable, see
+      // above) team.played — true the moment any fixture has actually been
+      // played and finished, current-season carryover-zeroing switches off.
+      currentSeasonHasStarted: fixtures.some((f) => f.finished),
+      fixtures,
+      gameweekState,
+      events,
+      chips,
+      totalPlayers,
+      advancedFieldAvailability,
+      skippedPlayerCount,
+      validationReport,
+      refreshing,
+      refresh,
+      filters,
+      setFilters,
+      resetFilters,
+      analysisMode,
+      setAnalysisMode,
+      historicStatus,
+      historicReferenceSeason,
+      historicProfiles,
+      allTimeSeasonsByPlayerId,
+      historicSkippedPlayerIds,
+      historicErrorMessage,
+      historicRefreshing,
+      refreshHistoricData,
+    }),
+    [
+      status,
+      errorMessage,
+      isStale,
+      lastUpdated,
+      players,
+      teamsWithRealStandings,
+      teamsById,
+      fixtures,
+      gameweekState,
+      events,
+      chips,
+      totalPlayers,
+      advancedFieldAvailability,
+      skippedPlayerCount,
+      validationReport,
+      refreshing,
+      refresh,
+      filters,
+      setFilters,
+      resetFilters,
+      analysisMode,
+      setAnalysisMode,
+      historicStatus,
+      historicReferenceSeason,
+      historicProfiles,
+      allTimeSeasonsByPlayerId,
+      historicSkippedPlayerIds,
+      historicErrorMessage,
+      historicRefreshing,
+      refreshHistoricData,
+    ],
+  );
 
   return <AppStateCtx.Provider value={value}>{children}</AppStateCtx.Provider>;
 }

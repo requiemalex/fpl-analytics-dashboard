@@ -1,17 +1,22 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppStateProvider } from "./state/AppStateContext";
 import { AppShell } from "./components/AppShell";
 import { LoadStateGate } from "./components/LoadStateGate";
 import { PlayerDetailOverlay } from "./components/PlayerDetailOverlay";
-import { Dashboard } from "./pages/Dashboard";
-import { PlayerExplorer } from "./pages/PlayerExplorer";
-import { UnderlyingNumbers } from "./pages/UnderlyingNumbers";
-import { Teams } from "./pages/Teams";
-import { TeamDetail } from "./pages/TeamDetail";
-import { TeamBuilder } from "./pages/TeamBuilder";
-import { PlayerComparison } from "./pages/PlayerComparison";
-import { UserGuide } from "./pages/UserGuide";
+
+// Lazy-loaded per route: these pages (and recharts, which only they pull
+// in) previously all sat in one ~880KB bundle parsed upfront on startup,
+// whether or not that page was ever opened this session. Each now loads
+// on first visit only.
+const Dashboard = lazy(() => import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })));
+const PlayerExplorer = lazy(() => import("./pages/PlayerExplorer").then((m) => ({ default: m.PlayerExplorer })));
+const UnderlyingNumbers = lazy(() => import("./pages/UnderlyingNumbers").then((m) => ({ default: m.UnderlyingNumbers })));
+const Teams = lazy(() => import("./pages/Teams").then((m) => ({ default: m.Teams })));
+const TeamDetail = lazy(() => import("./pages/TeamDetail").then((m) => ({ default: m.TeamDetail })));
+const TeamBuilder = lazy(() => import("./pages/TeamBuilder").then((m) => ({ default: m.TeamBuilder })));
+const PlayerComparison = lazy(() => import("./pages/PlayerComparison").then((m) => ({ default: m.PlayerComparison })));
+const UserGuide = lazy(() => import("./pages/UserGuide").then((m) => ({ default: m.UserGuide })));
 
 export default function App() {
   return (
@@ -19,16 +24,18 @@ export default function App() {
       <BrowserRouter>
         <AppShell>
           <LoadStateGate>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/players" element={<PlayerExplorer />} />
-              <Route path="/underlying" element={<UnderlyingNumbers />} />
-              <Route path="/teams" element={<Teams />} />
-              <Route path="/teams/:teamId" element={<TeamDetail />} />
-              <Route path="/player-comparison" element={<PlayerComparison />} />
-              <Route path="/team-building" element={<TeamBuilder />} />
-              <Route path="/guide" element={<UserGuide />} />
-            </Routes>
+            <Suspense fallback={null}>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/players" element={<PlayerExplorer />} />
+                <Route path="/underlying" element={<UnderlyingNumbers />} />
+                <Route path="/teams" element={<Teams />} />
+                <Route path="/teams/:teamId" element={<TeamDetail />} />
+                <Route path="/player-comparison" element={<PlayerComparison />} />
+                <Route path="/team-building" element={<TeamBuilder />} />
+                <Route path="/guide" element={<UserGuide />} />
+              </Routes>
+            </Suspense>
             <PlayerDetailOverlay />
           </LoadStateGate>
         </AppShell>
