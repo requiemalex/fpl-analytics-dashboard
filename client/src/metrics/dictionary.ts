@@ -46,7 +46,8 @@ export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
     derived: false,
     formula: null,
     units: "points/game",
-    caveats: "FPL's own PPG definition; not recalculated by this app.",
+    caveats:
+      "FPL's own figure for the live season. FPL's API has no historical equivalent, so Last Completed Season / Historic Average estimate it as total points ÷ estimated games played (minutes ÷ 90, rounded, floored at 1 appearance) — a close approximation for regular starters, less precise for players used mainly as substitutes.",
     availabilityNote: "Always available.",
   }),
   goals: def({

@@ -107,6 +107,15 @@ table.data-table th.col-static,
 table.data-table td.col-static {
   color: var(--col-static);
 }
+/* Same cue, for a whole table (Player Profile's Season Log and Career
+   History detail tables are 100% unaffected by the mode toggle — every
+   cell, not just one column) or a standalone element outside any
+   table (the profile header's price/ownership, a descriptive line). */
+.static-table th,
+.static-table td,
+.text-static {
+  color: var(--col-static);
+}
 table.data-table th.sticky-col,
 table.data-table td.sticky-col {
   position: sticky;

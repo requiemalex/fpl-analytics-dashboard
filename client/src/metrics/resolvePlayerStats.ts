@@ -1,6 +1,6 @@
 import type { NormalizedPlayer } from "../types/normalized";
 import type { HistoricPlayerProfile } from "./historicAnalysis";
-import { per90 } from "./calculations";
+import { per90, estimatedPointsPerGame } from "./calculations";
 
 export type AnalysisMode = "live" | "lastSeason" | "historicAverage";
 
@@ -148,7 +148,7 @@ export function resolvePlayerStats(
     return {
       ...player,
       totalPoints: s.totalPoints,
-      pointsPerGame: per90(s.totalPoints, s.minutes),
+      pointsPerGame: estimatedPointsPerGame(s.totalPoints, s.minutes),
       minutes: s.minutes,
       starts: s.starts,
       goals: s.goals,
@@ -176,7 +176,7 @@ export function resolvePlayerStats(
   return {
     ...player,
     totalPoints: avg.avgPointsPerSeason ?? 0,
-    pointsPerGame: per90(avg.avgPointsPerSeason, avg.avgMinutesPerSeason),
+    pointsPerGame: estimatedPointsPerGame(avg.avgPointsPerSeason, avg.avgMinutesPerSeason),
     minutes: avg.avgMinutesPerSeason ?? 0,
     starts: avg.avgStartsPerSeason,
     goals: avg.avgGoalsPerSeason ?? 0,

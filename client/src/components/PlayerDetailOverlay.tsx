@@ -253,7 +253,10 @@ export function PlayerDetailOverlay() {
           <div>
             <h2 style={{ marginBottom: 2 }}>{player.name}</h2>
             <p className="page-subtitle" style={{ marginTop: 0 }}>
-              <PositionBadge position={player.position} /> &nbsp;{player.teamName} · {fmtPrice(player.price)} · {fmtPercent(player.ownership)} owned
+              <PositionBadge position={player.position} /> &nbsp;{player.teamName} ·{" "}
+              <span className="text-static" title="Always today's live figure, regardless of the analysis-mode toggle below">
+                {fmtPrice(player.price)} · {fmtPercent(player.ownership)} owned
+              </span>
             </p>
           </div>
           <div className="profile-header-actions">
@@ -277,7 +280,9 @@ export function PlayerDetailOverlay() {
         <div className="profile-columns">
           <div className="profile-col">
             <div className="card">
-              <div className="card-title">Season Log (this season, every gameweek)</div>
+              <div className="card-title">
+                Season Log <span className="text-static">(this season, every gameweek — always live, regardless of the toggle above)</span>
+              </div>
               {history.status === "loading" && <p className="page-subtitle">Loading gameweek history…</p>}
               {history.status === "error" && <p className="page-subtitle">Couldn't load gameweek history: {history.errorMessage}</p>}
               {history.status === "ready" && history.history.length === 0 && <p className="page-subtitle">No gameweeks played yet this season.</p>}
@@ -320,7 +325,7 @@ export function PlayerDetailOverlay() {
                   return (
                     <>
                       <div className="table-wrap">
-                        <table className="data-table compact">
+                        <table className="data-table compact static-table">
                           <thead>
                             <tr>
                               {visibleGwColumns.map((c) => (
@@ -462,7 +467,7 @@ export function PlayerDetailOverlay() {
                   (() => {
                     const ind = computePlayingTimeIndicators(history.history);
                     return (
-                      <p className="page-subtitle" style={{ margin: 0, fontStyle: "italic" }}>
+                      <p className="page-subtitle text-static" style={{ margin: 0, fontStyle: "italic" }} title="Always live — based on this season's actual gameweeks, regardless of the toggle above">
                         Playing time (descriptive, not predictive):{" "}
                         {ind.startsPercentage !== null ? fmtPercent(ind.startsPercentage, 0) : DASH} starts over the last {ind.windowSize} GWs ·{" "}
                         {fmtDecimal(ind.averageMinutes, 0)} min average ·{" "}
@@ -476,7 +481,9 @@ export function PlayerDetailOverlay() {
         </div>
 
         <div className="card" style={{ marginTop: 16 }}>
-          <div className="card-title">Career History — Points by Season</div>
+          <div className="card-title">
+            Career History — Points by Season <span className="text-static">(always live — every season on record, regardless of the toggle above)</span>
+          </div>
           {history.status === "loading" && <p className="page-subtitle">Loading career history…</p>}
           {history.status === "error" && (
             <p className="page-subtitle">
@@ -525,7 +532,7 @@ export function PlayerDetailOverlay() {
                     <span className="stat-row-name">
                       Qualifying average ({qualifyingAverage?.seasonsPlayed ?? 0} season{qualifyingAverage?.seasonsPlayed === 1 ? "" : "s"})
                     </span>
-                    <span className="stat-row-value">
+                    <span className="stat-row-value text-static">
                       {qualifyingAverage ? (
                         <>
                           {fmtDecimal(qualifyingAverage.avgPointsPerSeason, 0)} pts · {fmtDecimal(qualifyingAverage.avgMinutesPerSeason, 0)} mins ·{" "}
@@ -544,7 +551,7 @@ export function PlayerDetailOverlay() {
                   {showFullCareerTable && (
                     <>
                       <div className="table-wrap" style={{ marginTop: 10 }}>
-                        <table className="data-table compact">
+                        <table className="data-table compact static-table">
                           <thead>
                             <tr>
                               <th style={{ textAlign: "left", cursor: "default" }}>Season</th>
