@@ -284,89 +284,85 @@ export function PlayerDetailOverlay() {
 
         <div className="profile-section">
           <div className="profile-section-heading">
-            <h3>This View</h3>
+            <h3>Views</h3>
           </div>
-          <div className="profile-columns">
-            <div className="profile-col">
-              <div className="card">
-                <div className="card-title">Actual vs Expected</div>
-                {smallSample && (
-                  <div className="banner info" style={{ marginBottom: 12 }}>
-                    Small sample — below the current minutes eligibility threshold ({filters.minMinutes} min). Read with caution.
-                  </div>
-                )}
-                <ActualVsExpectedBars
-                  rows={[
-                    { label: "Goals − xG", value: derived.goalsMinusXG },
-                    { label: "Assists − xA", value: derived.assistsMinusXA },
-                    { label: "Goal Inv. − xGI", value: derived.goalInvolvementsMinusXGI },
-                  ]}
-                />
-              </div>
-
-              <div className="card">
-                <div className="card-title">Underlying Numbers</div>
-                {isDefensivePosition ? (
-                  <>
-                    <div className="stat-tile-grid">
-                      <StatTile label="Clean Sheets" value={fmtDecimal(resolvedPlayer.cleanSheets)} />
-                      <StatTile label="xGC" value={fmtDecimal(resolvedPlayer.xGC, 2)} />
-                      <StatTile label="Def. Contrib." value={fmtDecimal(resolvedPlayer.defensiveContributions)} />
-                    </div>
-                    <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                      <StatTile label="xGC/90" value={fmtDecimal(resolvedPlayer.xGCPer90, 2)} />
-                      <StatTile label="DC/90" value={fmtDecimal(resolvedPlayer.defensiveContributionsPer90, 2)} />
-                      <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} />
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="stat-tile-grid">
-                      <StatTile label="xG" value={fmtDecimal(resolvedPlayer.xG, 2)} />
-                      <StatTile label="xA" value={fmtDecimal(resolvedPlayer.xA, 2)} />
-                      <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} />
-                    </div>
-                    <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                      <StatTile label="xG/90" value={fmtDecimal(resolvedPlayer.xGPer90, 2)} />
-                      <StatTile label="xA/90" value={fmtDecimal(resolvedPlayer.xAPer90, 2)} />
-                      <StatTile label="xGI/90" value={fmtDecimal(resolvedPlayer.xGIPer90, 2)} />
-                    </div>
-                  </>
-                )}
-              </div>
+          <div className="profile-columns profile-columns-balanced">
+            <div className="card">
+              <div className="card-title">Actual vs Expected</div>
+              {smallSample && (
+                <div className="banner info" style={{ marginBottom: 12 }}>
+                  Small sample — below the current minutes eligibility threshold ({filters.minMinutes} min). Read with caution.
+                </div>
+              )}
+              <ActualVsExpectedBars
+                rows={[
+                  { label: "Goals − xG", value: derived.goalsMinusXG },
+                  { label: "Assists − xA", value: derived.assistsMinusXA },
+                  { label: "Goal Inv. − xGI", value: derived.goalInvolvementsMinusXGI },
+                ]}
+              />
             </div>
 
-            <div className="profile-col">
-              {radarGroups.map((group, i) => (
-                <div className="card" key={group.label || "combined"}>
-                  <div className="card-title">
-                    Percentile Radar{group.label ? ` — ${group.label}` : ` — ${player.position}`}
-                    {smallSample && <span style={{ color: "var(--accent-value)" }}> (below eligibility threshold)</span>}
+            <div className="card">
+              <div className="card-title">Underlying Numbers</div>
+              {isDefensivePosition ? (
+                <>
+                  <div className="stat-tile-grid">
+                    <StatTile label="Clean Sheets" value={fmtDecimal(resolvedPlayer.cleanSheets)} />
+                    <StatTile label="xGC" value={fmtDecimal(resolvedPlayer.xGC, 2)} />
+                    <StatTile label="Def. Contrib." value={fmtDecimal(resolvedPlayer.defensiveContributions)} />
                   </div>
-                  <PlayerRadarChart data={smallSample ? group.data.map((d) => ({ ...d, percentile: null })) : group.data} />
-                  {i === 0 && (
-                    <>
-                      <div style={{ marginTop: 4 }}>
-                        <ArchetypeBadges labels={archetypes} />
-                      </div>
-                      <div style={{ marginTop: 14 }}>
-                        <div className="card-title" style={{ marginBottom: 8 }}>
-                          Position Percentile — xGI/90 {smallSample && <span style={{ color: "var(--accent-value)" }}>(below eligibility threshold)</span>}
-                        </div>
-                        <PercentileBar percentile={smallSample ? null : percentile} />
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))}
+                  <div className="stat-tile-grid" style={{ marginTop: 10 }}>
+                    <StatTile label="xGC/90" value={fmtDecimal(resolvedPlayer.xGCPer90, 2)} />
+                    <StatTile label="DC/90" value={fmtDecimal(resolvedPlayer.defensiveContributionsPer90, 2)} />
+                    <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="stat-tile-grid">
+                    <StatTile label="xG" value={fmtDecimal(resolvedPlayer.xG, 2)} />
+                    <StatTile label="xA" value={fmtDecimal(resolvedPlayer.xA, 2)} />
+                    <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} />
+                  </div>
+                  <div className="stat-tile-grid" style={{ marginTop: 10 }}>
+                    <StatTile label="xG/90" value={fmtDecimal(resolvedPlayer.xGPer90, 2)} />
+                    <StatTile label="xA/90" value={fmtDecimal(resolvedPlayer.xAPer90, 2)} />
+                    <StatTile label="xGI/90" value={fmtDecimal(resolvedPlayer.xGIPer90, 2)} />
+                  </div>
+                </>
+              )}
+            </div>
 
-              <div className="card">
-                <div className="card-title">Value</div>
-                <div className="stat-tile-grid">
-                  <StatTile label="Pts/£m" value={fmtDecimal(derived.pointsPerMillion, 1)} />
-                  <StatTile label="Pts/90" value={fmtDecimal(derived.pointsPer90, 1)} />
-                  <StatTile label="Min/Goal" value={fmtDecimal(derived.minutesPerGoal, 0)} />
+            {radarGroups.map((group, i) => (
+              <div className="card" key={group.label || "combined"}>
+                <div className="card-title">
+                  Percentile Radar{group.label ? ` — ${group.label}` : ` — ${player.position}`}
+                  {smallSample && <span style={{ color: "var(--accent-value)" }}> (below eligibility threshold)</span>}
                 </div>
+                <PlayerRadarChart data={smallSample ? group.data.map((d) => ({ ...d, percentile: null })) : group.data} />
+                {i === 0 && (
+                  <>
+                    <div style={{ marginTop: 4 }}>
+                      <ArchetypeBadges labels={archetypes} />
+                    </div>
+                    <div style={{ marginTop: 14 }}>
+                      <div className="card-title" style={{ marginBottom: 8 }}>
+                        Position Percentile — xGI/90 {smallSample && <span style={{ color: "var(--accent-value)" }}>(below eligibility threshold)</span>}
+                      </div>
+                      <PercentileBar percentile={smallSample ? null : percentile} />
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+
+            <div className="card">
+              <div className="card-title">Value</div>
+              <div className="stat-tile-grid">
+                <StatTile label="Pts/£m" value={fmtDecimal(derived.pointsPerMillion, 1)} />
+                <StatTile label="Pts/90" value={fmtDecimal(derived.pointsPer90, 1)} />
+                <StatTile label="Min/Goal" value={fmtDecimal(derived.minutesPerGoal, 0)} />
               </div>
             </div>
           </div>
@@ -376,7 +372,7 @@ export function PlayerDetailOverlay() {
 
         <div className="profile-section">
           <div className="profile-section-heading">
-            <h3>Always Live</h3>
+            <h3>Live Data</h3>
           </div>
           <div className="profile-columns">
           <div className="profile-col">

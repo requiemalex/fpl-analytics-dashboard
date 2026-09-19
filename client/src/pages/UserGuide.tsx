@@ -381,8 +381,8 @@ export function UserGuide() {
 
       <Section id="player-profile" title="Player Profile">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Click a player's name almost anywhere in the app to open it. The profile is split into two zones: "This View" (Actual vs
-          Expected, Underlying Numbers, Percentile Radar, Value) resolves per the active analysis mode, while "Always Live" (Current
+          Click a player's name almost anywhere in the app to open it. The profile is split into two zones: "Views" (Actual vs
+          Expected, Underlying Numbers, Percentile Radar, Value) resolves per the active analysis mode, while "Live Data" (Current
           Season Log, Playing Time, Career History) always shows today's actual figures regardless of that toggle — Career History
           always shows every prior season on record plus this season in progress (marked "(live)", sourced from live data rather than a
           completed season's record). The Percentile Radar chart is position-specific — a goalkeeper's axes share almost nothing with a

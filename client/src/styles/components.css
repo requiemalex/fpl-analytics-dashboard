@@ -1024,6 +1024,28 @@ table.data-table tbody tr:hover td {
     grid-template-columns: 1fr;
   }
 }
+/* "Views" zone only — a variable, position-dependent number of
+   differently-sized cards (defenders/midfielders add a second radar
+   card, taller than everything else on the page) made the fixed
+   left/right grid above badly lopsided: one side could end up almost
+   empty while the other stacked three tall cards. A CSS multi-column
+   flow instead auto-balances total height across both columns —
+   `break-inside: avoid` keeps each card whole, so a card only ever
+   moves to the next column as a unit, never splits across the two. */
+.profile-columns-balanced {
+  display: block;
+  column-count: 2;
+  column-gap: 16px;
+}
+.profile-columns-balanced .card {
+  break-inside: avoid;
+  margin-bottom: 16px;
+}
+@media (max-width: 900px) {
+  .profile-columns-balanced {
+    column-count: 1;
+  }
+}
 /* Groups the player profile's cards into two zones — one whose figures
    change with the Last Completed Season / Historic Average / Current
    Season toggle above, one that's always today's live data regardless of
