@@ -1,7 +1,6 @@
 import React from "react";
 import { useAppState } from "../state/AppStateContext";
 import { METRIC_LIST } from "../metrics/dictionary";
-import { MIN_QUALIFYING_SEASON_MINUTES } from "../metrics/historicAnalysis";
 
 const FIELD_LABELS: Record<string, string> = {
   expected_goals: "xG (expected_goals)",
@@ -259,8 +258,8 @@ export function UserGuide() {
         <p className="page-subtitle">
           <strong>Thematic Analysis</strong>, further down the page, is deliberately built outside the Last Completed Season / Historic
           Average / Current Season toggle everything above uses — it needs a genuine multi-season time series, which that single-season
-          toggle can't represent. It shows average points by position and by price tier across every season where a player cleared the
-          same {MIN_QUALIFYING_SEASON_MINUTES}-minute bar used everywhere else historic averages are computed; price tier uses each
+          toggle can't represent. It shows average points by position and by price tier across every season on record, injury-hit or
+          light seasons included — the same reasoning Historic Average uses; price tier uses each
           season's own price (not today's), and position uses each player's current position, since this app has no record of
           historical position changes — a position-switcher's older seasons are grouped under where they play now. (<strong>Player
           Trends</strong>, which uses the same multi-season data, now lives under Player Comparison, further down this guide.)

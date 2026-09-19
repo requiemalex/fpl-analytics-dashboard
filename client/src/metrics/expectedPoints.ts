@@ -2,6 +2,8 @@ import type { NormalizedPlayer, Position } from "../types/normalized";
 import type { UpcomingFixture } from "./fixtureTicker";
 import { MIN_QUALIFYING_SEASON_MINUTES, type HistoricPlayerProfile } from "./historicAnalysis";
 import { resolvePlayerStats } from "./resolvePlayerStats";
+import { computeCareerAverages } from "./careerMetrics";
+import { estimatedPointsPerGame } from "./calculations";
 
 export type ExpectedPointsWindow = 1 | 3 | 5;
 
@@ -118,6 +120,16 @@ export interface ExpPointsBreakdown {
  * Historic Average's qualifying seasons already individually clear this
  * bar by construction, so this rarely changes anything there; Last
  * Completed Season had no such floor at all, which is what caused the bug.
+ *
+ * <expected_points_frozen>: `historicAverage` here is built directly from
+ * `historicProfile.qualifyingSeasons` (via a local computeCareerAverages
+ * call), not from `resolvePlayerStats(player, "historicAverage", ...)`
+ * the way it briefly was — that shared helper's "historicAverage" mode
+ * now averages across every season in the window, unfiltered (see
+ * <no_survivorship_bias> in historicAnalysis.ts), which would silently
+ * have changed this model's input too. Expected Points modeling is
+ * being revisited separately, so this keeps its prior qualifying-only
+ * basis byte-for-byte unchanged for now.
  */
 export function computeExpPointsBreakdown(
   player: NormalizedPlayer,
@@ -133,9 +145,10 @@ export function computeExpPointsBreakdown(
   const lastSeasonRate = lastSeasonQualifies ? lastSeasonPlayer.pointsPerGame : null;
   const lastSeason = lastSeasonRate !== null ? lastSeasonRate * window : null;
 
-  const historicAvgPlayer = resolvePlayerStats(player, "historicAverage", historicProfile, currentSeasonHasStarted);
-  const historicAvgQualifies = historicAvgPlayer.minutes !== null && historicAvgPlayer.minutes >= MIN_QUALIFYING_SEASON_MINUTES;
-  const historicAvgRate = historicAvgQualifies ? historicAvgPlayer.pointsPerGame : null;
+  const qualifyingSeasons = historicProfile?.qualifyingSeasons ?? [];
+  const historicAvg = qualifyingSeasons.length > 0 ? computeCareerAverages(qualifyingSeasons) : null;
+  const historicAvgQualifies = historicAvg !== null && historicAvg.avgMinutesPerSeason !== null && historicAvg.avgMinutesPerSeason >= MIN_QUALIFYING_SEASON_MINUTES;
+  const historicAvgRate = historicAvgQualifies ? estimatedPointsPerGame(historicAvg.avgPointsPerSeason, historicAvg.avgMinutesPerSeason) : null;
   const historicAverage = historicAvgRate !== null ? historicAvgRate * window : null;
 
   const inputs = [fplPredicted, lastSeason, historicAverage].filter((v): v is number => v !== null);

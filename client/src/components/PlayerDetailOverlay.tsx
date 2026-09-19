@@ -10,7 +10,7 @@ import { CareerHistoryChart } from "./playerProfile/CareerHistoryChart";
 import { PlayingTimeIcon } from "./playerProfile/PlayingTimeIcon";
 import { computeSeasonAverageMinutes, computeGameweekTotals, computeGameweekAverages } from "../metrics/rotationIndicators";
 import { computeSeasonTrend } from "../metrics/careerMetrics";
-import { buildHistoricPlayerProfile, nextSeasonName } from "../metrics/historicAnalysis";
+import { buildHistoricPlayerProfile, nextSeasonName, HISTORIC_WINDOW_SEASONS } from "../metrics/historicAnalysis";
 import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode } from "../metrics/resolvePlayerStats";
 import { effectiveMinMinutes } from "../state/useFilteredPlayers";
 import { AnalysisModeToggle } from "./AnalysisModeToggle";
@@ -518,14 +518,22 @@ export function PlayerDetailOverlay() {
             <p className="page-subtitle">No season data — {player.name} doesn't appear in the FPL API before this season.</p>
           )}
           {history.status === "ready" && combinedSeasonHistory.length > 0 && historicStatus === "loading" && (
-            <p className="page-subtitle">Determining the qualifying-average window (uses the same historic dataset as the rest of the app)…</p>
+            <p className="page-subtitle">Determining the historic-average window (uses the same historic dataset as the rest of the app)…</p>
           )}
           {history.status === "ready" &&
             combinedSeasonHistory.length > 0 &&
             historicStatus !== "loading" &&
             (() => {
-              const { qualifyingSeasons, qualifyingAverage } = buildHistoricPlayerProfile(combinedSeasonHistory, historicReferenceSeason);
+              // Built from completed seasons only (history.seasonHistory), not
+              // combinedSeasonHistory — the live/in-progress season is a real
+              // bar on the chart below (drawn dashed, via CareerHistoryChart's
+              // own isLive handling), but averaging its partial totals in
+              // alongside complete seasons would understate the average for
+              // reasons that have nothing to do with an injury or bad season,
+              // just the season not being over yet.
+              const { qualifyingSeasons, windowAverage, allSeasonsInWindow } = buildHistoricPlayerProfile(history.seasonHistory, historicReferenceSeason);
               const qualifyingSeasonNames = new Set(qualifyingSeasons.map((s) => s.seasonName));
+              const inWindowNames = new Set(allSeasonsInWindow.map((s) => s.seasonName));
               const trend = computeSeasonTrend(history.seasonHistory);
               const orderedSeasons = [...combinedSeasonHistory].sort((a, b) => a.seasonName.localeCompare(b.seasonName));
               return (
@@ -546,18 +554,18 @@ export function PlayerDetailOverlay() {
                     seasons={orderedSeasons}
                     qualifyingSeasonNames={qualifyingSeasonNames}
                     currentSeasonName={currentSeasonEntry?.seasonName ?? null}
-                    averagePoints={qualifyingAverage?.avgPointsPerSeason ?? null}
+                    averagePoints={windowAverage?.avgPointsPerSeason ?? null}
                   />
 
                   <div className="stat-row" style={{ marginTop: 10 }}>
                     <span className="stat-row-name">
-                      Qualifying average ({qualifyingAverage?.seasonsPlayed ?? 0} season{qualifyingAverage?.seasonsPlayed === 1 ? "" : "s"})
+                      Season average ({windowAverage?.seasonsPlayed ?? 0} season{windowAverage?.seasonsPlayed === 1 ? "" : "s"})
                     </span>
                     <span className="stat-row-value">
-                      {qualifyingAverage ? (
+                      {windowAverage ? (
                         <>
-                          {fmtDecimal(qualifyingAverage.avgPointsPerSeason, 0)} pts · {fmtDecimal(qualifyingAverage.avgMinutesPerSeason, 0)} mins ·{" "}
-                          {fmtDecimal(qualifyingAverage.avgGoalsPerSeason, 1)} G · {fmtDecimal(qualifyingAverage.avgAssistsPerSeason, 1)} A
+                          {fmtDecimal(windowAverage.avgPointsPerSeason, 0)} pts · {fmtDecimal(windowAverage.avgMinutesPerSeason, 0)} mins ·{" "}
+                          {fmtDecimal(windowAverage.avgGoalsPerSeason, 1)} G · {fmtDecimal(windowAverage.avgAssistsPerSeason, 1)} A
                         </>
                       ) : (
                         DASH
@@ -590,17 +598,27 @@ export function PlayerDetailOverlay() {
                           </thead>
                           <tbody>
                             {combinedSeasonHistory.map((s) => {
-                              const qualifies = qualifyingSeasonNames.has(s.seasonName);
                               const isCurrentSeason = s.seasonName === currentSeasonEntry?.seasonName;
+                              const inWindow = inWindowNames.has(s.seasonName);
+                              const isLight = !isCurrentSeason && inWindow && !qualifyingSeasonNames.has(s.seasonName);
+                              const outsideWindow = !isCurrentSeason && !inWindow;
                               return (
                                 <tr
                                   key={s.seasonName}
-                                  style={qualifies ? undefined : { color: "var(--text-muted)" }}
-                                  title={qualifies ? undefined : "Outside the qualifying window or below the minutes threshold — excluded from the career average above"}
+                                  style={isLight || outsideWindow ? { color: "var(--text-muted)" } : undefined}
+                                  title={
+                                    isCurrentSeason
+                                      ? undefined
+                                      : outsideWindow
+                                        ? `Outside the ${HISTORIC_WINDOW_SEASONS}-season averaging window — not counted in the average above`
+                                        : isLight
+                                          ? "Light season (fewer minutes than usual — e.g. injury) — still counted in the average above"
+                                          : undefined
+                                  }
                                 >
                                   <td style={{ textAlign: "left", fontFamily: "var(--font-body)" }}>
                                     {s.seasonName}
-                                    {isCurrentSeason ? " (live)" : !qualifies && " *"}
+                                    {isCurrentSeason ? " (live)" : outsideWindow ? " †" : isLight ? " *" : ""}
                                   </td>
                                   <td>
                                     {isCurrentSeason

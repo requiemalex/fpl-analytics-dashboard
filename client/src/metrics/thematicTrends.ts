@@ -1,5 +1,4 @@
 import type { NormalizedPlayer, Position, PlayerSeasonHistory } from "../types/normalized";
-import { MIN_QUALIFYING_SEASON_MINUTES } from "./historicAnalysis";
 
 export type PriceTier = "Budget" | "Mid-priced" | "Premium";
 
@@ -41,14 +40,18 @@ export interface SeasonPriceTierPoint {
  * under where they play now — a disclosed simplification, not a hidden
  * one (see the chart's own caveat text).
  *
- * A season only counts for a player if they met
- * MIN_QUALIFYING_SEASON_MINUTES that season — the same bar
- * historicProfiles uses elsewhere, so a cameo appearance doesn't drag an
- * average down. Only players still present in the live pool are
- * included, since position/qualification needs current data; a player
- * who's left the Premier League entirely can't be classified and is
- * silently excluded from this specific chart (their own Player Trends
- * chart is unaffected — that one needs no live-pool match).
+ * Every season counts for a player regardless of minutes played that
+ * season — no qualifying-minutes bar, by explicit product decision (see
+ * <no_survivorship_bias> in historicAnalysis.ts): an injury-hit or
+ * otherwise light season is real history for "average points by
+ * position/price tier" the same way it now is for Historic Average, and
+ * excluding it would understate how much time was actually lost to
+ * injuries/rotation across the league, not just for one player. Only
+ * players still present in the live pool are included, since position/
+ * classification needs current data; a player who's left the Premier
+ * League entirely can't be classified and is silently excluded from
+ * this specific chart (their own Player Trends chart is unaffected —
+ * that one needs no live-pool match).
  */
 export function buildThematicTrends(
   allTimeSeasonsByPlayerId: Map<number, PlayerSeasonHistory[]>,
@@ -64,8 +67,6 @@ export function buildThematicTrends(
     if (!live) continue;
 
     for (const s of seasons) {
-      if (s.minutes < MIN_QUALIFYING_SEASON_MINUTES) continue;
-
       if (!positionBuckets.has(s.seasonName)) {
         positionBuckets.set(s.seasonName, { GKP: [], DEF: [], MID: [], FWD: [] });
       }

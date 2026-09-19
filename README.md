@@ -467,16 +467,22 @@ performance", per the brief:
    recently completed FPL season, however much or little they played.
    No minutes threshold applied: an injury-hit season is real data, not
    noise, when the question is specifically "what happened last season".
-2. **Historic Average** — averaged across however many *qualifying*
-   prior seasons the player has (1 season → that season; 2 → averaged
-   over 2; etc.), where a qualifying season is one that:
-   - falls within the most recent **4 completed seasons** (a hard
-     window — currently 2022/23 through 2025/26 — that rolls forward on
-     its own as real seasons complete, see below), and
-   - has at least **900 minutes** played (~10 full matches) — an
-     example threshold from the brief, centralised as
-     `MIN_QUALIFYING_SEASON_MINUTES` in
-     `client/src/metrics/historicAnalysis.ts` if you want it changed.
+2. **Historic Average** — averaged across every prior season the player
+   has within the most recent **4 completed seasons** (a hard window —
+   currently 2022/23 through 2025/26 — that rolls forward on its own as
+   real seasons complete, see below), 1 season → that season, 2 →
+   averaged over 2, etc. **No minutes threshold applied**, by explicit
+   product decision (see `<no_survivorship_bias>` in
+   `client/src/metrics/historicAnalysis.ts`): a light or injury-hit
+   season is real history and now drags the average down like any other
+   season, rather than being quietly dropped from it — a player who's
+   reliably excellent when fit but frequently unavailable should show a
+   LOWER average than one who's merely good but always available, not a
+   flattered one from only ever averaging their good seasons. A
+   `MIN_QUALIFYING_SEASON_MINUTES` bar (~10 full matches) still exists
+   for two narrower, unrelated purposes — flagging a season as "light"
+   in the UI, and Expected Points' forward-prediction reliability gate —
+   see that file for both.
 3. **Current Season** — the live 2026/27 season's own bootstrap fields,
    completely unresolved (`resolvePlayerStats` returns the player
    object unchanged for `mode === "live"`). Added as a third toggle
@@ -2129,7 +2135,7 @@ Both requested to sit outside the Last Completed Season / Historic Average / Cur
 
 **Player Trends**: pick any player, pick a metric (Points/Points-per-90/xG/xA/xGI/Minutes), see their whole career on record — no minutes qualifying threshold, deliberately, since a quiet or injury-hit season is real data worth seeing, not noise to filter out.
 
-**Thematic Analysis**: average points by position, and average points by price tier, across every season on record. Price tier uses each season's OWN price (`endCost`, falling back to `startCost`), not today's — consistent with how price tiers work everywhere else in this app. Position uses each player's CURRENT position, since this app has no record of historical position changes; a position-switcher's older seasons are grouped under where they play now, disclosed rather than hidden. This deliberately does NOT re-run the full percentile-based archetype system (High-upside Attacker, Strong Underlying Attacker, etc.) against every historical season — that would mean rebuilding a whole separate qualifying population and percentile computation per season, a materially bigger undertaking than two charts, so it wasn't attempted. A season only counts for a player if they met the same `MIN_QUALIFYING_SEASON_MINUTES` bar `historicProfiles` uses elsewhere; a player no longer in the live pool is excluded from this chart specifically (their own Player Trends chart is unaffected).
+**Thematic Analysis**: average points by position, and average points by price tier, across every season on record — including light or injury-hit ones, no qualifying-minutes bar (see <no_survivorship_bias>, `historicAnalysis.ts`). Price tier uses each season's OWN price (`endCost`, falling back to `startCost`), not today's — consistent with how price tiers work everywhere else in this app. Position uses each player's CURRENT position, since this app has no record of historical position changes; a position-switcher's older seasons are grouped under where they play now, disclosed rather than hidden. A player no longer in the live pool is excluded from this chart specifically (their own Player Trends chart is unaffected).
 
 **What changed**: `state/AppStateContext.tsx` (`allTimeSeasonsByPlayerId`), new `metrics/careerTrends.ts` and `metrics/thematicTrends.ts`, `pages/UnderlyingNumbers.tsx` (two new chart sections using Recharts' `LineChart` directly, alongside the existing `ScatterWithReference` component).
 

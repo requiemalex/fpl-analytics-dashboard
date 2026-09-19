@@ -13,7 +13,10 @@ function ChartTooltip({ active, payload }: any) {
         {s.isLive ? " (live)" : !s.qualifies && " *"}
       </strong>
       <div className="mono">{fmtDecimal(s.totalPoints)} pts</div>
-      {!s.qualifies && <div style={{ color: "var(--text-muted)", marginTop: 2 }}>{s.isLive ? "In progress — excluded from the average" : "Below the qualifying minutes — excluded from the average"}</div>}
+      {s.isLive && <div style={{ color: "var(--text-muted)", marginTop: 2 }}>In progress — not yet counted in the average</div>}
+      {!s.isLive && !s.qualifies && (
+        <div style={{ color: "var(--text-muted)", marginTop: 2 }}>Light season (fewer minutes than usual) — still counted in the average</div>
+      )}
     </div>
   );
 }
@@ -21,11 +24,13 @@ function ChartTooltip({ active, payload }: any) {
 /**
  * A qualifying season (enough minutes, within the rolling window) draws
  * as a solid bar; the live/in-progress season draws dashed-outline only
- * (it's real but not comparable to a full season yet); any other
- * completed-but-not-qualifying season (an injury-hit year, or outside
- * the window) draws muted-solid — same three-way distinction the
- * existing Career History table already uses via row colour/asterisk,
- * just carried over into the chart.
+ * (it's real but not comparable to a full season yet, and isn't counted
+ * in the average until it's complete); any other completed-but-light
+ * season (an injury-hit year) draws muted-solid — still counted in the
+ * average (see <no_survivorship_bias>, historicAnalysis.ts), just
+ * visually flagged so a dip in the average line is legible rather than
+ * mysterious. Same distinction the existing Career History table
+ * already uses via row colour/asterisk, just carried over into the chart.
  */
 export function CareerHistoryChart({
   seasons,

@@ -9,11 +9,19 @@ import { computeCareerAverages, type CareerAverages } from "./careerMetrics";
 export const HISTORIC_WINDOW_SEASONS = 4;
 
 /**
- * A season must meet this minimum before it counts toward the qualifying
- * average — roughly 10 full matches. Deliberately does NOT apply to
- * "last completed season" mode, which shows that season's actual data
- * however little the player played (an injury-hit season is real data,
- * not noise, when someone's asking "what happened last season").
+ * Roughly 10 full matches. No longer gates the Historic Average itself
+ * (see <no_survivorship_bias> below) — an injury-hit or otherwise light
+ * season is real history and now counts toward the average like any
+ * other, on the same reasoning "last completed season" mode has always
+ * used (that season's actual data however little the player played,
+ * never treated as noise). Still used for two narrower, still-valid
+ * purposes: (1) flagging a season as "light" in the UI (season colour
+ * in the Career History chart, the `*` marker in its detail table) so a
+ * dip in the average is legible rather than mysterious, and (2)
+ * `expectedPoints.ts`'s forward-looking Expected Points model, which
+ * needs a season's RATE to be built from enough minutes to be worth
+ * extrapolating into a future prediction — a different question from
+ * "did this season really happen" and deliberately left alone.
  */
 export const MIN_QUALIFYING_SEASON_MINUTES = 900;
 
@@ -54,17 +62,37 @@ export interface HistoricPlayerProfile {
    * data, full stop.
    */
   lastCompletedSeason: PlayerSeasonHistory | null;
-  /** Seasons within the window that meet MIN_QUALIFYING_SEASON_MINUTES, oldest first. For PERFORMANCE metrics (points, xG, etc.), where a tiny sample is noise worth excluding. */
+  /**
+   * Seasons within the window that meet MIN_QUALIFYING_SEASON_MINUTES,
+   * oldest first. No longer used to build the average (see
+   * <no_survivorship_bias> on windowAverage below) — kept only so the UI
+   * can flag a season as "light" (Career History chart colour, the `*`
+   * marker in its detail table) and for `expectedPoints.ts`'s
+   * forward-prediction reliability gate.
+   */
   qualifyingSeasons: PlayerSeasonHistory[];
-  /** Average across qualifyingSeasons — null if there are none. */
-  qualifyingAverage: CareerAverages | null;
+  /**
+   * <no_survivorship_bias>: average across EVERY season in the window
+   * (same set as allSeasonsInWindow below), not just the ones meeting
+   * MIN_QUALIFYING_SEASON_MINUTES — changed directly at the user's
+   * request. Filtering out light seasons before averaging meant an
+   * injury-hit or lost-form season simply vanished from "Historic
+   * Average" instead of dragging it down, which is exactly backwards
+   * for a metric whose job is describing how much a player is really
+   * worth holding across a season: a player who's reliably excellent
+   * when fit but frequently hurt should show a LOWER average than one
+   * who's merely good but always available, not the same or better one
+   * because their bad seasons got quietly dropped. Named `windowAverage`
+   * rather than `qualifyingAverage` (its old name) since nothing is
+   * filtered out anymore. Null only if the window has no seasons at all.
+   */
+  windowAverage: CareerAverages | null;
   /**
    * EVERY season within the window, oldest first, regardless of minutes
-   * played — deliberately NOT filtered like qualifyingSeasons. For
-   * RELIABILITY specifically, a low-minutes season is exactly the signal
-   * that matters (see minutesReliabilityBlend.ts); excluding it the same
-   * way a performance metric would is what let a single strong season
-   * mask several weak ones and produce an inflated reliability figure.
+   * played — the same array windowAverage above is now computed from.
+   * Also what RELIABILITY uses (see minutesReliabilityBlend.ts): a
+   * low-minutes season is exactly the signal that matters there too, so
+   * it was never filtered for that purpose either.
    */
   allSeasonsInWindow: PlayerSeasonHistory[];
 }
@@ -84,7 +112,7 @@ export function buildHistoricPlayerProfile(seasons: PlayerSeasonHistory[], refer
   return {
     lastCompletedSeason,
     qualifyingSeasons,
-    qualifyingAverage: qualifyingSeasons.length > 0 ? computeCareerAverages(qualifyingSeasons) : null,
+    windowAverage: allSeasonsInWindow.length > 0 ? computeCareerAverages(allSeasonsInWindow) : null,
     allSeasonsInWindow,
   };
 }

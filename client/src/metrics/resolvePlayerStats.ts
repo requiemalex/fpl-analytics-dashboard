@@ -187,7 +187,7 @@ export function resolvePlayerStats(
   }
 
   // historicAverage
-  const avg = historicProfile?.qualifyingAverage;
+  const avg = historicProfile?.windowAverage;
   if (!avg) return nullPerformanceFields(player);
   return {
     ...player,

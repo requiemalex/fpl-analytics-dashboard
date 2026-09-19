@@ -3,6 +3,7 @@ import type { UpcomingFixture } from "./fixtureTicker";
 import type { HistoricPlayerProfile } from "./historicAnalysis";
 import { fixtureMultiplier, FDR_SENSITIVITY, type ExpectedPointsWindow } from "./expectedPoints";
 import { per90 } from "./calculations";
+import { computeCareerAverages } from "./careerMetrics";
 
 /**
  * Expected Points — Tier 2: an independent, per-scoring-event estimate,
@@ -274,7 +275,14 @@ export function computeExpectedPointsV2ForFixture(
   }
 
   let bonus = 0;
-  const qualifyingAvg = historicProfile?.qualifyingAverage;
+  // Deliberately still built from qualifyingSeasons (≥900 minutes), not
+  // the app-wide windowAverage (every season, unfiltered) introduced
+  // when Historic Average stopped excluding light seasons — Expected
+  // Points modeling is being revisited separately, so this keeps its
+  // prior qualifying-only basis unchanged for now rather than picking up
+  // that change incidentally. See <no_survivorship_bias> in
+  // historicAnalysis.ts.
+  const qualifyingAvg = historicProfile?.qualifyingSeasons.length ? computeCareerAverages(historicProfile.qualifyingSeasons) : null;
   if (qualifyingAvg && qualifyingAvg.avgBonusPerSeason !== null && qualifyingAvg.avgMinutesPerSeason !== null && qualifyingAvg.avgMinutesPerSeason > 0) {
     const bonusPer90 = (qualifyingAvg.avgBonusPerSeason / qualifyingAvg.avgMinutesPerSeason) * 90;
     bonus = bonusPer90 * minutesModel.expectedMinutesFraction * attackMultiplier;
