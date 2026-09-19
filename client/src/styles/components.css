@@ -18,12 +18,18 @@
 
 .card-grid {
   display: grid;
-  /* Capped at 340px so cards don't stretch into oversized, mostly-empty
-     boxes on a fullscreen wide monitor — auto-fit still adds more columns
-     as width allows, and justify-content spreads any leftover row width
-     out as even spacing between cards instead of pooling it on one side. */
-  grid-template-columns: repeat(auto-fit, minmax(260px, 340px));
-  justify-content: space-between;
+  /* Fixed max (400px, no fr) so cards don't stretch into oversized,
+     mostly-empty boxes on a fullscreen wide monitor, while auto-fit still
+     adds more columns as width allows (mixing fr inside minmax()'s max
+     via min() looked appealing but broke Chromium's auto-fit column
+     count entirely — collapsed multi-card rows to one full-width column
+     when tested live, so plain px only). Deliberately NOT using
+     justify-content:space-between here either: with only 1-2 cards in a
+     row (several sections on Underlying Numbers only ever render 2),
+     that spreads them to opposite edges of the screen with a huge dead
+     gap between — the default packs cards together from the left
+     instead, leaving any leftover width as normal trailing space. */
+  grid-template-columns: repeat(auto-fit, minmax(260px, 400px));
   gap: 16px;
   margin-bottom: 22px;
 }
@@ -968,6 +974,8 @@ table.data-table tbody tr:hover td {
 }
 .dialog {
   width: min(440px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
