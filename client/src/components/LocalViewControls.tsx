@@ -1,8 +1,10 @@
 import React from "react";
-import { useAppState, type GlobalScoutingFilters } from "../state/AppStateContext";
+import { useAppState } from "../state/AppStateContext";
+import { FiltersBar } from "./FiltersBar";
+import { createDefaultLocalViewState, type LocalViewState } from "../state/scoutingFilters";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 
-const MINUTES_STEP = 90;
+export { createDefaultLocalViewState, type LocalViewState } from "../state/scoutingFilters";
 
 const MODE_OPTIONS: { mode: AnalysisMode; label: string }[] = [
   { mode: "lastSeason", label: "Last Completed Season" },
@@ -10,32 +12,17 @@ const MODE_OPTIONS: { mode: AnalysisMode; label: string }[] = [
   { mode: "live", label: "Current Season" },
 ];
 
-export const DEFAULT_LOCAL_FILTERS: GlobalScoutingFilters = {
-  search: "",
-  position: "ALL",
-  teamId: "ALL",
-  minMinutes: 0,
-};
-
-/** One section/graph's own analysis-mode + filter selection — deliberately the same shape as the app-wide GlobalScoutingFilters/AnalysisMode pairing, just not threaded through AppStateContext, so it can be duplicated per section without one section's changes leaking into another's. */
-export interface LocalViewState {
-  analysisMode: AnalysisMode;
-  filters: GlobalScoutingFilters;
-}
-
-export function createDefaultLocalViewState(): LocalViewState {
-  return { analysisMode: "lastSeason", filters: { ...DEFAULT_LOCAL_FILTERS } };
-}
-
 /**
  * A self-contained, locally-scoped equivalent of AnalysisModeToggle +
- * FiltersBar combined — same controls, same options, but reading/writing
- * the `state`/`onChange` passed in rather than AppStateContext's single
- * shared filters/analysisMode. Used wherever a section (or a saved
- * User Analysis graph) needs its own independent "view" that other
- * sections' equivalent controls can't affect — AppStateContext's real
- * global toggle+filters bar (still used by Expected vs Actual here, and
- * by every other page) is untouched by this component's existence.
+ * FiltersBar combined into one card — reads/writes the `state`/`onChange`
+ * passed in, never AppStateContext. Used wherever a section (or a saved
+ * User Analysis graph) needs its own independent "view". Composes the
+ * shared, controlled `FiltersBar` for the criteria row (both are
+ * controlled components now, so there's exactly one implementation of
+ * that markup); the mode-toggle buttons stay inline here rather than
+ * nesting a second `<AnalysisModeToggle>` card, since this wants them
+ * unwrapped inside its own single card alongside the filters row, not a
+ * card-within-a-card.
  *
  * `idPrefix` keeps form element ids unique when multiple instances of
  * this component render on the same page at once (Value section, plus
@@ -50,18 +37,10 @@ export function LocalViewControls({
   state: LocalViewState;
   onChange: (next: LocalViewState) => void;
 }) {
-  const { teams, historicStatus, historicErrorMessage, historicSkippedPlayerIds, refreshHistoricData, historicRefreshing } = useAppState();
+  const { historicStatus, historicErrorMessage, historicSkippedPlayerIds, refreshHistoricData, historicRefreshing } = useAppState();
 
   function setMode(mode: AnalysisMode) {
     onChange({ ...state, analysisMode: mode });
-  }
-
-  function updateFilter<K extends keyof GlobalScoutingFilters>(key: K, value: GlobalScoutingFilters[K]) {
-    onChange({ ...state, filters: { ...state.filters, [key]: value } });
-  }
-
-  function resetCriteria() {
-    onChange(createDefaultLocalViewState());
   }
 
   return (
@@ -102,76 +81,13 @@ export function LocalViewControls({
         </p>
       )}
 
-      <div className="filters-bar" style={{ marginBottom: 0 }}>
-        <div className="field">
-          <label htmlFor={`${idPrefix}-search`}>Search</label>
-          <input
-            id={`${idPrefix}-search`}
-            type="text"
-            placeholder="Player name…"
-            value={state.filters.search}
-            onChange={(e) => updateFilter("search", e.target.value)}
-          />
-        </div>
-
-        <div className="field">
-          <label htmlFor={`${idPrefix}-position`}>Position</label>
-          <select
-            id={`${idPrefix}-position`}
-            value={state.filters.position}
-            onChange={(e) => updateFilter("position", e.target.value as GlobalScoutingFilters["position"])}
-          >
-            <option value="ALL">All</option>
-            <option value="GKP">Goalkeeper</option>
-            <option value="DEF">Defender</option>
-            <option value="MID">Midfielder</option>
-            <option value="FWD">Forward</option>
-          </select>
-        </div>
-
-        <div className="field">
-          <label htmlFor={`${idPrefix}-team`}>Team</label>
-          <select
-            id={`${idPrefix}-team`}
-            value={state.filters.teamId}
-            onChange={(e) => updateFilter("teamId", e.target.value === "ALL" ? "ALL" : Number(e.target.value))}
-          >
-            <option value="ALL">All</option>
-            {teams
-              .slice()
-              .sort((a, b) => a.name.localeCompare(b.name))
-              .map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-          </select>
-        </div>
-
-        <div className="field">
-          <label htmlFor={`${idPrefix}-min-minutes`}>
-            Min minutes {state.analysisMode === "live" && <span style={{ color: "var(--text-muted)" }}>(bypassed)</span>}
-          </label>
-          <input
-            id={`${idPrefix}-min-minutes`}
-            type="number"
-            step={MINUTES_STEP}
-            min={0}
-            value={state.filters.minMinutes}
-            disabled={state.analysisMode === "live"}
-            title={
-              state.analysisMode === "live"
-                ? "Not applied in Current Season mode — everyone has low or zero minutes until real gameweeks accumulate"
-                : undefined
-            }
-            onChange={(e) => updateFilter("minMinutes", Math.max(0, Math.round(Number(e.target.value) / MINUTES_STEP) * MINUTES_STEP))}
-          />
-        </div>
-
-        <button className="btn" onClick={resetCriteria} type="button">
-          Reset Criteria
-        </button>
-      </div>
+      <FiltersBar
+        idPrefix={idPrefix}
+        filters={state.filters}
+        analysisMode={state.analysisMode}
+        onChange={(filters) => onChange({ ...state, filters })}
+        onReset={() => onChange(createDefaultLocalViewState())}
+      />
     </div>
   );
 }

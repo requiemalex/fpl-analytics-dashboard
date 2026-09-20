@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
-import { resolvePlayerStatsList } from "../metrics/resolvePlayerStats";
+import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { TeamBadge } from "../components/primitives";
 import { useSortSpec, compareSortValues } from "../state/useSortSpec";
@@ -38,9 +38,12 @@ function getTeamSortValue(team: TeamAggregate, key: string): number | string | n
 }
 
 export function Teams() {
-  const { players, teams, analysisMode, historicProfiles, currentSeasonHasStarted, setFilters } = useAppState();
+  const { players, teams, historicProfiles, currentSeasonHasStarted } = useAppState();
   const navigate = useNavigate();
   const [comparativeColouring, setComparativeColouring] = useState(true);
+  // This page's own analysis-mode — deliberately not shared with any
+  // other page (see state/scoutingFilters.ts).
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("lastSeason");
   const { sort, handleHeaderClick } = useSortSpec([{ key: "points", direction: "desc" }]);
 
   const { resolved: resolvedPlayers, noDataCount } = useMemo(
@@ -96,10 +99,9 @@ export function Teams() {
     return relativeCellTint(v, range.min, range.max, true);
   }
 
-  /** Jumps to Player Explorer pre-filtered to this club, so its players are immediately sortable/rankable by any column there — a discoverability shortcut into functionality that already exists, not a new ranking system of its own. */
+  /** Jumps to Player Explorer pre-filtered to this club, so its players are immediately sortable/rankable by any column there — a discoverability shortcut into functionality that already exists, not a new ranking system of its own. Handed off via a URL query param, not shared state — Player Explorer reads `?team=` once on mount to seed its own independent filters (see PlayerExplorer.tsx), never kept in sync afterwards. */
   function goToPlayerRankings(teamId: number) {
-    setFilters((f) => ({ ...f, teamId }));
-    navigate("/players");
+    navigate(`/players?team=${teamId}`);
   }
 
   return (
@@ -110,7 +112,7 @@ export function Teams() {
         </div>
       </div>
 
-      <AnalysisModeToggle />
+      <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
 
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
         <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "var(--text-secondary)" }}>

@@ -11,8 +11,9 @@ import { PlayingTimeIcon } from "./playerProfile/PlayingTimeIcon";
 import { computeSeasonAverageMinutes, computeGameweekTotals, computeGameweekAverages } from "../metrics/rotationIndicators";
 import { computeSeasonTrend } from "../metrics/careerMetrics";
 import { buildHistoricPlayerProfile, nextSeasonName, HISTORIC_WINDOW_SEASONS } from "../metrics/historicAnalysis";
-import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode } from "../metrics/resolvePlayerStats";
+import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { effectiveMinMinutes } from "../state/useFilteredPlayers";
+import { DEFAULT_FILTERS } from "../state/scoutingFilters";
 import { AnalysisModeToggle } from "./AnalysisModeToggle";
 import { PositionBadge } from "./primitives";
 import { fmtDecimal, fmtPrice, fmtPercent, fmtSigned, DASH } from "../utils/format";
@@ -78,11 +79,18 @@ function CompareIcon() {
 }
 
 export function PlayerDetailOverlay() {
-  const { players, teamsById, filters, historicReferenceSeason, historicStatus, analysisMode, historicProfiles, currentSeasonHasStarted } =
-    useAppState();
+  const { players, teamsById, historicReferenceSeason, historicStatus, historicProfiles, currentSeasonHasStarted } = useAppState();
   const [player, setPlayerId] = useSelectedPlayer();
   const [showAllColumns, setShowAllColumns] = useState(false);
   const [showFullCareerTable, setShowFullCareerTable] = useState(false);
+  // The profile's own analysis-mode — deliberately independent of
+  // whatever mode happens to be selected on the page underneath it (see
+  // state/scoutingFilters.ts). No Min Minutes control of its own, so
+  // `filters` below is a fixed, never-mutated default — purely to
+  // satisfy effectiveMinMinutes' signature for the radar's small-sample
+  // threshold, not a hidden knob.
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("lastSeason");
+  const filters = DEFAULT_FILTERS;
 
   const history = usePlayerHistory(player?.id ?? null);
 
@@ -256,7 +264,7 @@ export function PlayerDetailOverlay() {
 
         {player.status !== "a" && player.news && <div className="banner stale">{player.news}</div>}
 
-        <AnalysisModeToggle />
+        <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
 
         {smallSample && !hasDataForMode(resolvedPlayer) && (
           <div className="banner info" style={{ marginBottom: 16 }}>

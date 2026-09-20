@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { NormalizedPlayer } from "../types/normalized";
-import type { GlobalScoutingFilters } from "./AppStateContext";
+import type { GlobalScoutingFilters } from "./scoutingFilters";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import { matchesPlayerSearch } from "../utils/playerSearch";
 

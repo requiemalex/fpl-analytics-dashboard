@@ -34,14 +34,22 @@ Raw FPL API -> Express proxy (cache/timeout/retry) -> Zod validation
   serves the built client too, via `createApp()`'s static-serving
   fallback) — see `DEPLOYMENT.md`.
 - `AppStateContext.tsx` is the single source of truth for players,
-  teams, fixtures, and historic data. Historic data (`historicProfiles`,
-  `allTimeSeasonsByPlayerId`) is fetched **lazily** (only when
-  `analysisMode` first moves off `"live"`) and **shared** — never
-  re-fetch it per-page.
-- Three-way analysis-mode toggle (Last Completed Season / Historic
-  Average / Current Season) resolved through `resolvePlayerStats.ts`.
-  Team Building is the one page that doesn't use it — see README's
-  "Team Building: a predictive model" for why.
+  teams, fixtures, and historic data (`historicProfiles`,
+  `allTimeSeasonsByPlayerId`) — fetched once, shortly after app load,
+  and **shared**, never re-fetched per-page.
+- **Analysis-mode + filters are per-page, not shared.** Every page holds
+  its own local `analysisMode` (+ `GlobalScoutingFilters` where it has a
+  criteria bar) in `useState`, rendering the controlled
+  `AnalysisModeToggle`/`FiltersBar` components — never a shared context
+  value. Changing one page's mode/criteria must never change what
+  another page shows; this was a real, user-reported bug (Player
+  Explorer's Min Minutes affecting the Dashboard) before the fix. See
+  `state/scoutingFilters.ts` and README's "Per-page filter/analysis-mode
+  state" for the full story. Three-way toggle (Last Completed Season /
+  Historic Average / Current Season) resolved through
+  `resolvePlayerStats.ts` either way. Team Building is the one page that
+  doesn't use it at all — see README's "Team Building: a predictive
+  model" for why.
 
 ## A recurring bug class in this codebase: stale closures in `useCallback([])`
 

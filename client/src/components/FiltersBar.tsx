@@ -1,25 +1,62 @@
 import React from "react";
-import { useAppState, type GlobalScoutingFilters } from "../state/AppStateContext";
+import { useAppState } from "../state/AppStateContext";
+import type { GlobalScoutingFilters } from "../state/scoutingFilters";
+import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 
 const MINUTES_STEP = 90;
 
-export function FiltersBar() {
-  const { filters, setFilters, resetFilters, teams, analysisMode } = useAppState();
+/**
+ * Fully controlled — no page-independent state of its own. Every page
+ * that renders this owns its own `filters` (and passes its own
+ * `analysisMode`, needed only to grey out Min Minutes in Current Season
+ * mode) and reacts to `onChange`/`onReset` by updating its own local
+ * state. This used to read a single global `filters` straight out of
+ * `AppStateContext`, which meant changing Min Minutes on one page
+ * silently changed what every other page showed too — the exact bug
+ * this component's move to local-per-page state fixes. `idPrefix` keeps
+ * form element ids unique when this renders more than once on the same
+ * page (e.g. composed inside `LocalViewControls`, several of which can
+ * be on screen at once on Underlying Numbers).
+ */
+export function FiltersBar({
+  idPrefix = "f",
+  filters,
+  onChange,
+  onReset,
+  analysisMode,
+}: {
+  idPrefix?: string;
+  filters: GlobalScoutingFilters;
+  onChange: (next: GlobalScoutingFilters) => void;
+  onReset: () => void;
+  analysisMode: AnalysisMode;
+}) {
+  const { teams } = useAppState();
 
   function update<K extends keyof GlobalScoutingFilters>(key: K, value: GlobalScoutingFilters[K]) {
-    setFilters((f) => ({ ...f, [key]: value }));
+    onChange({ ...filters, [key]: value });
   }
 
   return (
     <div className="filters-bar">
       <div className="field">
-        <label htmlFor="f-search">Search</label>
-        <input id="f-search" type="text" placeholder="Player name…" value={filters.search} onChange={(e) => update("search", e.target.value)} />
+        <label htmlFor={`${idPrefix}-search`}>Search</label>
+        <input
+          id={`${idPrefix}-search`}
+          type="text"
+          placeholder="Player name…"
+          value={filters.search}
+          onChange={(e) => update("search", e.target.value)}
+        />
       </div>
 
       <div className="field">
-        <label htmlFor="f-position">Position</label>
-        <select id="f-position" value={filters.position} onChange={(e) => update("position", e.target.value as GlobalScoutingFilters["position"])}>
+        <label htmlFor={`${idPrefix}-position`}>Position</label>
+        <select
+          id={`${idPrefix}-position`}
+          value={filters.position}
+          onChange={(e) => update("position", e.target.value as GlobalScoutingFilters["position"])}
+        >
           <option value="ALL">All</option>
           <option value="GKP">Goalkeeper</option>
           <option value="DEF">Defender</option>
@@ -29,9 +66,9 @@ export function FiltersBar() {
       </div>
 
       <div className="field">
-        <label htmlFor="f-team">Team</label>
+        <label htmlFor={`${idPrefix}-team`}>Team</label>
         <select
-          id="f-team"
+          id={`${idPrefix}-team`}
           value={filters.teamId}
           onChange={(e) => update("teamId", e.target.value === "ALL" ? "ALL" : Number(e.target.value))}
         >
@@ -48,9 +85,11 @@ export function FiltersBar() {
       </div>
 
       <div className="field">
-        <label htmlFor="f-min-minutes">Min minutes {analysisMode === "live" && <span style={{ color: "var(--text-muted)" }}>(bypassed)</span>}</label>
+        <label htmlFor={`${idPrefix}-min-minutes`}>
+          Min minutes {analysisMode === "live" && <span style={{ color: "var(--text-muted)" }}>(bypassed)</span>}
+        </label>
         <input
-          id="f-min-minutes"
+          id={`${idPrefix}-min-minutes`}
           type="number"
           step={MINUTES_STEP}
           min={0}
@@ -61,7 +100,7 @@ export function FiltersBar() {
         />
       </div>
 
-      <button className="btn" onClick={resetFilters} type="button">
+      <button className="btn" onClick={onReset} type="button">
         Reset Criteria
       </button>
     </div>

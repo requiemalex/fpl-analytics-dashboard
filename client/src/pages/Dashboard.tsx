@@ -2,9 +2,11 @@ import React, { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
-import { resolvePlayerStatsList } from "../metrics/resolvePlayerStats";
-import { effectiveMinMinutes } from "../state/useFilteredPlayers";
+import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
+import { filterPlayers } from "../state/useFilteredPlayers";
+import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFilters";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
+import { FiltersBar } from "../components/FiltersBar";
 import { TopList, type TopListRow } from "../components/TopList";
 import { TeamTopList, type TeamTopListRow } from "../components/TeamTopList";
 import {
@@ -36,24 +38,34 @@ function tileTitle(metricLabel: string, direction: TileDirection): string {
 }
 
 export function Dashboard() {
-  const { players, teams, gameweekState, events, lastUpdated, filters, analysisMode, historicProfiles, historicStatus, currentSeasonHasStarted } =
-    useAppState();
+  const { players, teams, gameweekState, events, lastUpdated, historicProfiles, historicStatus, currentSeasonHasStarted } = useAppState();
   const [, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  // This page's own analysis-mode — deliberately not shared with any
+  // other page (see state/scoutingFilters.ts) — governs the Gameweek
+  // Status cards and both tile scopes below (a squad total needs some
+  // season basis too). `tileFilters` is separate again: the criteria
+  // search/position/team/min-minutes bar shown alongside the PLAYER
+  // summary tiles specifically — it narrows which individual players
+  // feed those leaderboards, and deliberately has no effect on team
+  // tiles at all, which already aggregate a team's whole squad
+  // regardless of any player-level filter (see teamAggregates below).
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("lastSeason");
+  const [tileFilters, setTileFilters] = useState<GlobalScoutingFilters>(DEFAULT_FILTERS);
+  const resetTileFilters = () => setTileFilters(DEFAULT_FILTERS);
 
   const { resolved: resolvedPlayers } = useMemo(
     () => resolvePlayerStatsList(players, analysisMode, historicProfiles, currentSeasonHasStarted),
     [players, analysisMode, historicProfiles, currentSeasonHasStarted],
   );
 
-  // A player with no data for this mode (minutes null) can't clear any
-  // minutes bar, so they're correctly excluded from these Top-5
-  // leaderboards specifically — same as before, just via a null check
-  // instead of the whole player having already been dropped upstream.
-  const eligible = useMemo(
-    () => resolvedPlayers.filter((p) => p.minutes !== null && p.minutes >= effectiveMinMinutes(filters, analysisMode)),
-    [resolvedPlayers, filters.minMinutes, analysisMode],
-  );
+  // The full search/position/team/min-minutes criteria — same shared
+  // filterPlayers() every other page uses — narrows which players feed
+  // the PLAYER-scope Top-5 leaderboards below. A player with no data for
+  // this mode (minutes null) can't clear the minutes bar, so they're
+  // correctly excluded here too — never surfaced as a misleading zero.
+  const eligible = useMemo(() => filterPlayers(resolvedPlayers, tileFilters, analysisMode), [resolvedPlayers, tileFilters, analysisMode]);
 
   const rows = useMemo(() => eligible.map((p) => ({ player: p, derived: getPlayerDerivedMetrics(p) })), [eligible]);
 
@@ -81,14 +93,16 @@ export function Dashboard() {
   // Completed Season / Historic Average keep the stricter ~5-games bar,
   // reusing the same threshold Underlying Numbers' defensive-reward
   // chart already enforces for genuine ranking confidence over a
-  // completed season's full data.
+  // completed season's full data. Filters `eligible` (not
+  // `resolvedPlayers` directly) so the criteria bar's search/position/
+  // team narrowing still applies on top of this stricter floor — the
+  // two are complementary, not alternatives.
   const LIVE_RATE_STAT_MIN_MINUTES = 90;
   const RATE_STAT_MIN_MINUTES = 450;
   const rateEligible = useMemo(() => {
     const floor = analysisMode === "live" ? LIVE_RATE_STAT_MIN_MINUTES : RATE_STAT_MIN_MINUTES;
-    const minMinutes = Math.max(effectiveMinMinutes(filters, analysisMode), floor);
-    return resolvedPlayers.filter((p) => p.minutes !== null && p.minutes >= minMinutes);
-  }, [resolvedPlayers, filters.minMinutes, analysisMode]);
+    return eligible.filter((p) => p.minutes !== null && p.minutes >= floor);
+  }, [eligible, analysisMode]);
 
   const rateRows = useMemo(() => rateEligible.map((p) => ({ player: p, derived: getPlayerDerivedMetrics(p) })), [rateEligible]);
 
@@ -148,6 +162,15 @@ export function Dashboard() {
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
   }, [tilesState.tiles, rows, rateRows, teamAggregates]);
+
+  // Split for rendering only — reordering still operates on the one
+  // underlying `tilesState.tiles` array regardless of scope (drag-drop
+  // is id-based, not index-based, so filtering the rendered view here
+  // doesn't affect it), this just keeps player and team tiles visually
+  // separated with their own heading, since the criteria bar above only
+  // ever applies to the player ones.
+  const playerTileRows = useMemo(() => tileRows.filter((t) => t.kind === "player"), [tileRows]);
+  const teamTileRows = useMemo(() => tileRows.filter((t) => t.kind === "team"), [tileRows]);
 
   function openAddTileModal() {
     setNewTileScope("player");
@@ -232,7 +255,7 @@ export function Dashboard() {
         </div>
       </div>
 
-      <AnalysisModeToggle />
+      <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
 
       <div className="card-grid">
         <div className="card">
@@ -265,41 +288,66 @@ export function Dashboard() {
           Reset to Defaults
         </button>
       </div>
-      <div className="card-grid">
-        {tileRows.map(({ tile, metric, kind, topRows }) =>
-          kind === "player" ? (
-            <TopList
-              key={tile.id}
-              title={tileTitle(metric.label, tile.direction)}
-              rows={topRows as TopListRow[]}
-              format={metric.format}
-              onSelect={select}
-              draggable
-              isDragOver={dragOverTileId === tile.id}
-              onDragStart={(e) => handleTileDragStart(e, tile.id)}
-              onDragOver={(e) => handleTileDragOver(e, tile.id)}
-              onDragLeave={() => setDragOverTileId((k) => (k === tile.id ? null : k))}
-              onDrop={(e) => handleTileDrop(e, tile.id)}
-              onRemove={() => tilesState.removeTile(tile.id)}
-            />
-          ) : (
-            <TeamTopList
-              key={tile.id}
-              title={tileTitle(metric.label, tile.direction)}
-              rows={topRows as TeamTopListRow[]}
-              format={metric.format}
-              onSelect={selectTeam}
-              draggable
-              isDragOver={dragOverTileId === tile.id}
-              onDragStart={(e) => handleTileDragStart(e, tile.id)}
-              onDragOver={(e) => handleTileDragOver(e, tile.id)}
-              onDragLeave={() => setDragOverTileId((k) => (k === tile.id ? null : k))}
-              onDrop={(e) => handleTileDrop(e, tile.id)}
-              onRemove={() => tilesState.removeTile(tile.id)}
-            />
-          ),
-        )}
-      </div>
+
+      {playerTileRows.length > 0 && (
+        <>
+          <div className="stat-group-title">Player Tiles</div>
+          <FiltersBar
+            idPrefix="dash-tiles"
+            filters={tileFilters}
+            onChange={setTileFilters}
+            onReset={resetTileFilters}
+            analysisMode={analysisMode}
+          />
+          <div className="card-grid">
+            {playerTileRows.map(({ tile, metric, topRows }) => (
+              <TopList
+                key={tile.id}
+                title={tileTitle(metric.label, tile.direction)}
+                rows={topRows as TopListRow[]}
+                format={metric.format}
+                onSelect={select}
+                draggable
+                isDragOver={dragOverTileId === tile.id}
+                onDragStart={(e) => handleTileDragStart(e, tile.id)}
+                onDragOver={(e) => handleTileDragOver(e, tile.id)}
+                onDragLeave={() => setDragOverTileId((k) => (k === tile.id ? null : k))}
+                onDrop={(e) => handleTileDrop(e, tile.id)}
+                onRemove={() => tilesState.removeTile(tile.id)}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {playerTileRows.length > 0 && teamTileRows.length > 0 && <hr className="section-divider" />}
+
+      {teamTileRows.length > 0 && (
+        <>
+          <div className="stat-group-title team">
+            Team Tiles <span className="page-subtitle" style={{ display: "inline", margin: 0 }}>— unaffected by the criteria above</span>
+          </div>
+          <div className="card-grid">
+            {teamTileRows.map(({ tile, metric, topRows }) => (
+              <TeamTopList
+                key={tile.id}
+                title={tileTitle(metric.label, tile.direction)}
+                rows={topRows as TeamTopListRow[]}
+                format={metric.format}
+                onSelect={selectTeam}
+                draggable
+                isDragOver={dragOverTileId === tile.id}
+                onDragStart={(e) => handleTileDragStart(e, tile.id)}
+                onDragOver={(e) => handleTileDragOver(e, tile.id)}
+                onDragLeave={() => setDragOverTileId((k) => (k === tile.id ? null : k))}
+                onDrop={(e) => handleTileDrop(e, tile.id)}
+                onRemove={() => tilesState.removeTile(tile.id)}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
       {tileRows.length === 0 && <p className="page-subtitle">No summary tiles yet — add one above.</p>}
 
       {showAddTileModal && (

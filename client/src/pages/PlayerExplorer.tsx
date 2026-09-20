@@ -7,10 +7,11 @@ import { useSortSpec, compareSortValues } from "../state/useSortSpec";
 import { useColumnFilters, isColumnFilterActive } from "../state/useColumnFilters";
 import { ColumnFilterControl } from "../components/ColumnFilterControl";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
-import { resolvePlayerStatsList } from "../metrics/resolvePlayerStats";
+import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { getUpcomingFixtures, formatFixturesForCsv, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { FiltersBar } from "../components/FiltersBar";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
+import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFilters";
 import { PositionBadge, SignedNum, AvailabilityFlag, availabilityTextClass, FixtureChips } from "../components/primitives";
 import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, columnByKey, isStaticColumn, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { fmtPrice, fmtSigned, DASH } from "../utils/format";
@@ -23,8 +24,20 @@ const GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE
 const FIXTURES_COLUMN_KEY = "fixtures";
 
 export function PlayerExplorer() {
-  const { players, teamsById, fixtures, advancedFieldAvailability, filters, resetFilters, analysisMode, historicProfiles, historicStatus, currentSeasonHasStarted } =
-    useAppState();
+  const { players, teamsById, fixtures, advancedFieldAvailability, historicProfiles, historicStatus, currentSeasonHasStarted } = useAppState();
+
+  // This page's own analysis-mode + filter state — deliberately not
+  // shared with any other page (see state/scoutingFilters.ts). `?team=`
+  // is a one-time seed from Teams.tsx's "View Players" hand-off (read
+  // once at mount only, never kept in sync afterwards) — the only
+  // cross-page link left, carried via the URL rather than shared state.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("lastSeason");
+  const [filters, setFilters] = useState<GlobalScoutingFilters>(() => {
+    const teamParam = searchParams.get("team");
+    return teamParam ? { ...DEFAULT_FILTERS, teamId: Number(teamParam) } : DEFAULT_FILTERS;
+  });
+  const resetFilters = () => setFilters(DEFAULT_FILTERS);
 
   const { resolved: resolvedPlayers } = useMemo(
     () => resolvePlayerStatsList(players, analysisMode, historicProfiles, currentSeasonHasStarted),
@@ -51,7 +64,6 @@ export function PlayerExplorer() {
   }, [teamsById, fixtures]);
 
   const filtered = useFilteredPlayers(resolvedPlayers, filters, analysisMode);
-  const [, setSearchParams] = useSearchParams();
 
   const [showColumnPopover, setShowColumnPopover] = useState(false);
   const [compact, setCompact] = useState(false);
@@ -202,9 +214,9 @@ export function PlayerExplorer() {
         </div>
       </div>
 
-      <AnalysisModeToggle />
+      <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
 
-      <FiltersBar />
+      <FiltersBar idPrefix="pe" filters={filters} onChange={setFilters} onReset={resetFilters} analysisMode={analysisMode} />
 
       <div className="chip-row" style={{ marginBottom: 12 }}>
         <button type="button" className="chip" onClick={() => setCompact((c) => !c)}>

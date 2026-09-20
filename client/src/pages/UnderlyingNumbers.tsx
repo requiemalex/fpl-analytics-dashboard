@@ -4,7 +4,8 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tool
 import { useAppState } from "../state/AppStateContext";
 import { useFilteredPlayers, effectiveMinMinutes } from "../state/useFilteredPlayers";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
-import { resolvePlayerStatsList } from "../metrics/resolvePlayerStats";
+import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
+import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFilters";
 import { defensiveRewardPerGame } from "../metrics/defensiveReward";
 import { buildThematicTrends } from "../metrics/thematicTrends";
 import { FiltersBar } from "../components/FiltersBar";
@@ -24,7 +25,15 @@ function topN(rows: TopListRow[], n: number): TopListRow[] {
 }
 
 export function UnderlyingNumbers() {
-  const { players, teamsById, filters, analysisMode, historicProfiles, currentSeasonHasStarted, allTimeSeasonsByPlayerId } = useAppState();
+  const { players, teamsById, historicProfiles, currentSeasonHasStarted, allTimeSeasonsByPlayerId } = useAppState();
+  // This page's top section (Expected vs Actual) has its own independent
+  // analysis-mode + filter state — deliberately not shared with any
+  // other page (see state/scoutingFilters.ts), and separate again from
+  // the Value section's and each saved User Analysis graph's own
+  // LocalViewState below.
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("lastSeason");
+  const [filters, setFilters] = useState<GlobalScoutingFilters>(DEFAULT_FILTERS);
+  const resetFilters = () => setFilters(DEFAULT_FILTERS);
   const { resolved: resolvedPlayers, noDataCount } = useMemo(
     () => resolvePlayerStatsList(players, analysisMode, historicProfiles, currentSeasonHasStarted),
     [players, analysisMode, historicProfiles, currentSeasonHasStarted],
@@ -217,9 +226,9 @@ export function UnderlyingNumbers() {
         </div>
       </div>
 
-      <AnalysisModeToggle />
+      <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
 
-      <FiltersBar />
+      <FiltersBar idPrefix="un" filters={filters} onChange={setFilters} onReset={resetFilters} analysisMode={analysisMode} />
 
       <h2 className="section-heading">Expected vs Actual</h2>
       <div className="card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))" }}>

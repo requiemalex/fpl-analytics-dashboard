@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
-import { resolvePlayerStatsList } from "../metrics/resolvePlayerStats";
+import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { PositionBadge, TeamBadge, AvailabilityFlag, availabilityTextClass } from "../components/primitives";
 import { columnByKey, isStaticColumn } from "../components/playerColumns";
@@ -12,10 +12,13 @@ const TEAM_RANKING_METRICS = ["totalPoints", "xG", "xA", "xGI", "xGIPerGame", "g
 
 export function TeamDetail() {
   const { teamId } = useParams<{ teamId: string }>();
-  const { players, teamsById, analysisMode, historicProfiles, currentSeasonHasStarted } = useAppState();
+  const { players, teamsById, historicProfiles, currentSeasonHasStarted } = useAppState();
   const navigate = useNavigate();
   const [, setSearchParams] = useSearchParams();
   const [metricKey, setMetricKey] = useState("totalPoints");
+  // This page's own analysis-mode — deliberately not shared with any
+  // other page (see state/scoutingFilters.ts).
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("lastSeason");
 
   const team = teamId ? teamsById.get(Number(teamId)) : undefined;
   const column = columnByKey(metricKey)!;
@@ -70,7 +73,7 @@ export function TeamDetail() {
         </button>
       </div>
 
-      <AnalysisModeToggle />
+      <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
 
       <div className="filters-bar">
         <div className="field">

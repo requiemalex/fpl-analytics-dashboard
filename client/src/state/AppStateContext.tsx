@@ -9,28 +9,11 @@ import { deriveGameweekState, normalizeEvents } from "../normalize/gameweek";
 import { normalizeChips } from "../normalize/normalizeChips";
 import { runMetricValidation, type ValidationReport } from "../metrics/validation";
 import { buildAllHistoricProfiles, type HistoricPlayerProfile } from "../metrics/historicAnalysis";
-import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import { SchemaValidationError } from "../validation/schema";
 import type { NormalizedPlayer, NormalizedTeam, NormalizedFixture, NormalizedEvent, GameweekState, ChipWindow, PlayerSeasonHistory } from "../types/normalized";
 import type { AdvancedFieldAvailability } from "../normalize/fieldAvailability";
 
 export type DataStatus = "loading" | "ready" | "error";
-
-export interface GlobalScoutingFilters {
-  search: string;
-  position: "ALL" | "GKP" | "DEF" | "MID" | "FWD";
-  teamId: number | "ALL";
-  minMinutes: number;
-}
-
-const DEFAULT_MIN_MINUTES = 0;
-
-const DEFAULT_FILTERS: GlobalScoutingFilters = {
-  search: "",
-  position: "ALL",
-  teamId: "ALL",
-  minMinutes: DEFAULT_MIN_MINUTES,
-};
 
 export type HistoricDataStatus = "idle" | "loading" | "ready" | "error";
 
@@ -58,18 +41,7 @@ interface AppState {
   validationReport: ValidationReport | null;
   refreshing: boolean;
   refresh: () => Promise<void>;
-  filters: GlobalScoutingFilters;
-  setFilters: React.Dispatch<React.SetStateAction<GlobalScoutingFilters>>;
-  resetFilters: () => void;
 
-  /**
-   * Which season's data "the player" means across most of the app. Kept
-   * global (not per-page) so switching it anywhere is consistent
-   * everywhere — see metrics/resolvePlayerStats.ts.
-   */
-  analysisMode: AnalysisMode;
-  /** Lazily triggers the historic bulk load the first time it's needed — a no-op if already loading/loaded. */
-  setAnalysisMode: (mode: AnalysisMode) => void;
   historicStatus: HistoricDataStatus;
   /** The most recently COMPLETED season, derived from the data itself — null until historicStatus is "ready". */
   historicReferenceSeason: string | null;
@@ -101,9 +73,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [skippedPlayerCount, setSkippedPlayerCount] = useState(0);
   const [validationReport, setValidationReport] = useState<ValidationReport | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [filters, setFilters] = useState<GlobalScoutingFilters>(DEFAULT_FILTERS);
 
-  const [analysisMode, setAnalysisModeState] = useState<AnalysisMode>("lastSeason");
   const [historicStatus, setHistoricStatus] = useState<HistoricDataStatus>("idle");
   const [historicReferenceSeason, setHistoricReferenceSeason] = useState<string | null>(null);
   const [historicProfiles, setHistoricProfiles] = useState<Map<number, HistoricPlayerProfile>>(new Map());
@@ -196,13 +166,17 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     await load(true);
   }, [load, refreshing]);
 
-  const resetFilters = useCallback(() => setFilters(DEFAULT_FILTERS), []);
-
-  // Loaded lazily — the first time any page actually needs historic data
-  // (switching analysisMode away from "live") — rather than blocking the
-  // whole app behind a cold build that costs the server several hundred
-  // upstream requests. Once loaded, it's shared by every consumer via
-  // this context, never re-fetched per page.
+  // Fetched once, shortly after the app loads, and shared by every page
+  // via this context — never re-fetched per page. This used to be
+  // lazily gated behind "the first time any page's analysisMode moves
+  // off live", back when analysisMode was a single value shared
+  // app-wide; now that every page holds its own independent
+  // analysisMode (see state/scoutingFilters.ts), there's no single
+  // shared toggle left to gate on, and every page has always defaulted
+  // to "lastSeason" anyway (never "live"), so that lazy gate was already
+  // firing on essentially every app load in practice. Simplified to an
+  // unconditional one-time fetch on mount, matching that de facto
+  // behaviour exactly rather than reintroducing a per-page trigger.
   const loadHistoric = useCallback(async (forceRefresh: boolean) => {
     if (forceRefresh) setHistoricRefreshing(true);
     else setHistoricStatus("loading");
@@ -236,29 +210,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const setAnalysisMode = useCallback(
-    (mode: AnalysisMode) => {
-      setAnalysisModeState(mode);
-      if (mode !== "live" && !historicRequestedRef.current) {
-        historicRequestedRef.current = true;
-        loadHistoric(false);
-      }
-    },
-    [loadHistoric],
-  );
-
   const refreshHistoricData = useCallback(() => {
     if (historicRefreshing) return;
     historicRequestedRef.current = true;
     loadHistoric(true);
   }, [loadHistoric, historicRefreshing]);
 
-  // The default analysisMode is "lastSeason", not "live" — live-season
-  // bootstrap data is empty before a season's first gameweek, so the app
-  // would otherwise open on an all-zero view. This mirrors the manual
-  // trigger in setAnalysisMode for that "already non-live at mount" case.
   useEffect(() => {
-    if (analysisMode !== "live" && !historicRequestedRef.current) {
+    if (!historicRequestedRef.current) {
       historicRequestedRef.current = true;
       loadHistoric(false);
     }
@@ -273,12 +232,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const teamsById = useMemo(() => new Map(teamsWithRealStandings.map((t) => [t.id, t])), [teamsWithRealStandings]);
 
   // Memoized: without this, a brand-new object is created on every render
-  // of this provider — which wraps the ENTIRE app — so setting `filters`
-  // from a single keystroke in Player Explorer's search box (or any other
-  // context state update, anywhere) was invalidating the context value
-  // and re-rendering every consumer in the whole tree, including
-  // unrelated pages/components that don't even read the field that
-  // changed. Confirmed as the main cause of app-wide click/typing lag.
+  // of this provider — which wraps the ENTIRE app — so any context state
+  // update anywhere was invalidating the context value and re-rendering
+  // every consumer in the whole tree, including unrelated pages/
+  // components that don't even read the field that changed. Confirmed as
+  // the main cause of app-wide click/typing lag (back when per-keystroke
+  // filter state lived here too — it's since moved to per-page local
+  // state, see state/scoutingFilters.ts, but this memoization still
+  // matters for the data fields that remain).
   const value: AppState = useMemo(
     () => ({
       status,
@@ -302,11 +263,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       validationReport,
       refreshing,
       refresh,
-      filters,
-      setFilters,
-      resetFilters,
-      analysisMode,
-      setAnalysisMode,
       historicStatus,
       historicReferenceSeason,
       historicProfiles,
@@ -334,11 +290,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       validationReport,
       refreshing,
       refresh,
-      filters,
-      setFilters,
-      resetFilters,
-      analysisMode,
-      setAnalysisMode,
       historicStatus,
       historicReferenceSeason,
       historicProfiles,

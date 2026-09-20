@@ -140,7 +140,7 @@ function isStaticPredictiveColumn(c: PredictiveColumnDef): boolean {
 }
 
 export function TeamBuilder() {
-  const { players, teams, teamsById, fixtures, filters, historicProfiles, historicStatus, currentSeasonHasStarted, gameweekState } = useAppState();
+  const { players, teams, teamsById, fixtures, historicProfiles, historicStatus, currentSeasonHasStarted, gameweekState } = useAppState();
   const { squads, upsert, remove } = useSavedSquads();
   const [, setSearchParams] = useSearchParams();
   const [activeId, setActiveId] = useState<string | null>(squads[0]?.id ?? null);

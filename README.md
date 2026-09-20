@@ -395,6 +395,32 @@ floor at all, while Last Completed Season / Historic Average keep the
 stricter `RATE_STAT_MIN_MINUTES = 450` (~5 games) for genuine ranking
 confidence over a completed season's full data.
 
+## Dashboard: Player Tiles get their own criteria bar, split from Team Tiles
+
+Two changes, both by request. First, alongside the modularity fix (see
+"Per-page filter/analysis-mode state" above): Dashboard's Top-5 tiles
+now have a real, visible Search/Position/Team/Min Minutes criteria bar
+of their own, shown above the player-scope tiles specifically — this
+page previously had no such control at all, so its rate-based tiles'
+minimum-minutes floor (above) was the only thing standing between a
+tiny-sample outlier and the top of a leaderboard; now the same bar
+every other filtered page has lets a user narrow it directly (to one
+position, one club, a higher minutes bar, a name search), same as
+Player Explorer or Underlying Numbers.
+
+Second: tiles now render under two headings, **Player Tiles** and
+**Team Tiles**, separated by a divider once both exist — the criteria
+bar only ever narrows `eligible`/`rateEligible` (the player-scope
+leaderboard inputs), never `teamAggregates`, which has always summed a
+club's *whole* squad regardless of any player-level filter (confirmed
+by reading the aggregation code, not just assumed — it was already true
+before this change, just not visually obvious with every tile mixed
+into one grid). The split makes that behavioural difference legible at
+a glance instead of implicit. Reordering (drag-and-drop) is unaffected
+— it's id-based against the one underlying `tilesState.tiles` array
+regardless of scope, so filtering the *rendered* view into two grids
+doesn't touch how tiles are actually stored or reordered.
+
 ## Known limitations
 
 - Historic ownership isn't available. Confirmed directly against the raw
@@ -502,16 +528,76 @@ most recently completed season, by construction, since a season only
 appears in `history_past` once it's over. No date arithmetic, no yearly
 maintenance.
 
-**Price in historic modes** is that season's (or the qualifying
-average's) end-of-season price, not today's live price — comparing a
-past season's points against today's price would be a mismatched,
-misleading Points/£m. See `<historic_price_choice>` in
+**Price in historic modes** is that season's (or the window average's)
+end-of-season price, not today's live price — comparing a past season's
+points against today's price would be a mismatched, misleading
+Points/£m. See `<historic_price_choice>` in
 `client/src/metrics/resolvePlayerStats.ts`.
 
 **A player with nothing to show for the selected mode is omitted, not
-zeroed.** No entry for the reference season, or zero qualifying seasons,
-means they don't appear in that view at all — pages show how many were
+zeroed.** No entry for the reference season, or an empty window, means
+they don't appear in that view at all — pages show how many were
 omitted rather than rendering misleading all-zero rows.
+
+### Per-page filter/analysis-mode state
+
+**Every page holds its own independent `analysisMode` + (where it has a
+criteria bar) `GlobalScoutingFilters`, in plain `useState` — never a
+value shared via `AppStateContext`.** This wasn't the original design:
+`filters`/`analysisMode` used to live in `AppStateContext` as one value
+shared by the whole app, on the reasoning that "switching it anywhere
+should be consistent everywhere." That turned out to be a real bug, not
+a feature — reported directly: changing Min Minutes on Player Explorer
+silently changed what the Dashboard's Top-5 leaderboards showed, since
+both read the same global `filters.minMinutes`, and Player Explorer was
+the only one of the two with a visible control for it. No page should
+ever be able to change what another page displays.
+
+**What changed**: `AppStateContext.tsx` no longer holds `filters`,
+`setFilters`, `resetFilters`, `analysisMode`, or `setAnalysisMode` at
+all — only genuinely shared, expensive-to-fetch DATA remains there
+(players, teams, fixtures, `historicProfiles`, etc.). The historic bulk
+dataset used to be fetched lazily, gated behind "the first time any
+page's analysisMode moves off live" — with a single shared toggle
+removed, there's no one trigger left to gate on, and every page already
+defaulted to `"lastSeason"` (never `"live"`) anyway, so that lazy gate
+was firing on essentially every app load in practice already. Simplified
+to an unconditional one-time fetch shortly after the app loads, matching
+that de facto behaviour exactly.
+
+`GlobalScoutingFilters`/`LocalViewState`/`createDefaultLocalViewState`
+moved to a new `client/src/state/scoutingFilters.ts` — a shape shared by
+every page's local filters, not a piece of shared state itself. Every
+page that needs both a mode toggle and a criteria bar (Player Explorer,
+Underlying Numbers' top section) composes the now-**controlled**
+`AnalysisModeToggle`/`FiltersBar` components (`{ mode, onChange }` /
+`{ filters, onChange, onReset, analysisMode }` props — no more direct
+context reads inside either), each backed by that page's own
+`useState`. `LocalViewControls` (the combined one-card version already
+used by Underlying Numbers' Value section and every saved User Analysis
+graph) now composes the controlled `FiltersBar` internally too, instead
+of duplicating its markup.
+
+Pages with no visible criteria bar of their own (Player Comparison, Team
+Detail, Teams, the Player Profile overlay) still need *some*
+`analysisMode`/`filters` value to resolve player stats against — each
+holds its own local `analysisMode` (defaulting to `"lastSeason"`, fully
+independent of whatever mode is active on the page underneath, including
+for the profile overlay opened over another page) and, where a
+`GlobalScoutingFilters` value is needed only internally (e.g. a radar
+chart's minutes-eligibility threshold, never exposed as a control), a
+fixed, never-mutated `DEFAULT_FILTERS` constant rather than new dead
+state.
+
+**The one genuine cross-page hand-off** (Teams' "Player Rankings"
+button, jumping to Player Explorer pre-filtered to a club) is now
+carried via a `?team=<id>` URL query param rather than a shared-state
+write — Player Explorer reads it once, on mount, to seed its own local
+`filters.teamId`, and never re-syncs afterwards. Dashboard's Top-5
+Player Tiles now have their own visible Search/Position/Team/Min
+Minutes criteria bar too (previously this page had none at all,
+silently inheriting whatever the old shared global filter happened to
+be) — see "Dashboard: Player Tiles get their own criteria bar" below.
 
 ### How the whole-pool historic dataset is fetched
 
@@ -1515,11 +1601,14 @@ same class.
 
 Teams' table is now sortable like every other table in the app (reused
 `useSortSpec`, not a new implementation). Each row also has a "Player
-Rankings" button, contained within the Team cell — clicking it sets the
-global team filter and navigates to Player Explorer, landing already
-filtered to that club's players. It's a discoverability shortcut into
-functionality that already existed (Player Explorer's own column
-sorting), not a second ranking system.
+Rankings" button, contained within the Team cell — clicking it navigates
+to Player Explorer with `?team=<id>` in the URL, landing already filtered
+to that club's players (Player Explorer reads that param once on mount
+to seed its own local filters — see "Per-page filter/analysis-mode
+state" below; not a shared-state write, since each page's filters are
+independent). It's a discoverability shortcut into functionality that
+already existed (Player Explorer's own column sorting), not a second
+ranking system.
 
 ## Metric Definitions → User Guide
 
@@ -2286,7 +2375,7 @@ fpl-dashboard/
       normalize/             Raw -> normalised mapping, gameweek logic, field-availability detection
       metrics/               Calculations, dictionary, percentiles, validation, rotation indicators
       api/                  Frontend fetch client
-      state/                 App-wide React Context (data + global filters)
+      state/                 App-wide React Context (shared data only — see scoutingFilters.ts for why filters/analysis-mode are per-page, not here)
       components/            Reusable UI pieces (table, filters, charts, overlay)
       pages/                 One file per navigation section
       styles/                Design tokens + component CSS

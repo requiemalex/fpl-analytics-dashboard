@@ -3,10 +3,11 @@ import { useSearchParams } from "react-router-dom";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { useAppState } from "../state/AppStateContext";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
-import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode } from "../metrics/resolvePlayerStats";
+import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { computeRadarData } from "../metrics/radarStats";
 import { buildMultiSeriesTrend, playerMetricTrendDataKey, type TrendMetricKey } from "../metrics/careerTrends";
 import { effectiveMinMinutes } from "../state/useFilteredPlayers";
+import { DEFAULT_FILTERS } from "../state/scoutingFilters";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { PlayerRadarChart } from "../components/PlayerRadarChart";
 import { PlayerSearch } from "../components/PlayerSearch";
@@ -117,9 +118,15 @@ function useComparisonIds(): [number[], (ids: number[]) => void] {
 }
 
 export function PlayerComparison() {
-  const { players, filters, analysisMode, historicProfiles, currentSeasonHasStarted, allTimeSeasonsByPlayerId } = useAppState();
+  const { players, historicProfiles, currentSeasonHasStarted, allTimeSeasonsByPlayerId } = useAppState();
   const [ids, setIds] = useComparisonIds();
   const [, setSearchParams] = useSearchParams();
+  // This page's own analysis-mode — deliberately not shared with any
+  // other page (see state/scoutingFilters.ts). No Min Minutes control of
+  // its own, so `filters` below is a fixed, never-mutated default —
+  // purely to satisfy effectiveMinMinutes' signature, not a hidden knob.
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("lastSeason");
+  const filters = DEFAULT_FILTERS;
 
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
 
@@ -238,7 +245,7 @@ export function PlayerComparison() {
         </div>
       </div>
 
-      <AnalysisModeToggle />
+      <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
 
       <div className="card" style={{ marginBottom: 22 }}>
         <div className="card-title">

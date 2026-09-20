@@ -1019,6 +1019,15 @@ table.data-table tbody tr:hover td {
   border-top: 1px solid var(--border-strong);
   margin: 28px 0;
 }
+/* Generic thin rule for separating two visually-distinct groups within
+   a page (e.g. Dashboard's player vs. team summary tiles) — same look
+   as .profile-divider, kept as its own class since it isn't specific to
+   the player profile despite that one's name. */
+.section-divider {
+  border: none;
+  border-top: 1px solid var(--border-strong);
+  margin: 20px 0;
+}
 
 /* Actual vs Expected bars */
 .avx-bars {

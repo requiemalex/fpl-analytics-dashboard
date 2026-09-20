@@ -160,8 +160,10 @@ export function UserGuide() {
 
       <Section id="modes" title="Analysis modes: Last Completed Season / Historic Average / Current Season">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Most sections (Player Explorer, Underlying Numbers, Player Comparison, Teams, Team Detail, the profile) share the same toggle,
-          near the top of the page:
+          Most sections (Dashboard, Player Explorer, Underlying Numbers, Player Comparison, Teams, Team Detail, the profile) show the
+          same toggle near the top of the page — the options are identical everywhere, but each page's toggle is independent: changing
+          one page's mode (or its Search/Position/Team/Min Minutes criteria, where a page has that too) never changes what any other
+          page shows. Switching Player Explorer to Historic Average, for instance, has no effect on the Dashboard open in another tab:
         </p>
         <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
           <li>
@@ -170,8 +172,10 @@ export function UserGuide() {
             specifically "what happened last season."
           </li>
           <li>
-            <strong>Historic Average</strong> — averaged across whichever of the last 4 completed seasons meet a minimum-minutes bar
-            (roughly 10 full matches), so one small sample doesn't distort the average.
+            <strong>Historic Average</strong> — averaged across every one of the last 4 completed seasons a player has, light or
+            injury-hit ones included: excluding a bad season used to flatter the average by only ever counting the good ones, so it no
+            longer filters by minutes at all here (a separate, much narrower minutes bar still exists just to flag a season as "light"
+            in the Career History chart, and for Expected Points' own forward-looking reliability check).
           </li>
           <li>
             <strong>Current Season</strong> — this season's live figures. Pre-season, or before a player's team has played, the
@@ -189,10 +193,13 @@ export function UserGuide() {
 
       <Section id="dashboard" title="Dashboard">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          A snapshot, not a workspace — Top-5 leaderboards split under two colour-coded headings, <strong>Player Summary Statistics</strong>{" "}
-          (Points, xGI, Value, Goals Above/Below xG, xGI/£m, Goals + Assists Above xGI) and <strong>Team Summary Statistics</strong> (Team
-          Points, Team xGI, Team Clean Sheets), plus gameweek status and a players-tracked count. Click any row to jump straight to that
-          player's profile or that team's page.
+          A snapshot, not a workspace — fully customisable Top-5 leaderboard tiles (+ Add Tile / Reset to Defaults), split under two
+          headings once both exist: <strong>Player Tiles</strong> and <strong>Team Tiles</strong>, separated by a divider so it's clear
+          they behave differently. A Search/Position/Team/Min Minutes criteria bar sits above Player Tiles and narrows which individual
+          players feed those leaderboards specifically — Team Tiles are deliberately unaffected by it, since a team tile always
+          aggregates that club's whole squad regardless of any player-level filter. This page's own analysis-mode toggle, criteria bar,
+          gameweek status, and players-tracked count are all independent of every other page's, same as everywhere else in this app.
+          Click any row to jump straight to that player's profile or that team's page.
         </p>
         <Try>Use it as a starting point, not a destination — spot a name in a leaderboard, click through, then dig deeper in Player Explorer or the profile.</Try>
       </Section>
