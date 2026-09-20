@@ -2356,6 +2356,37 @@ everything else chip- and price-watch-specific was deleted, not just
 unrouted). Championship was removed as "pointless" per direct feedback.
 All three still exist in git history.
 
+## User customisation survives app updates: versioned localStorage
+
+This app has no accounts and no server-side storage — every piece of
+user customisation (Dashboard summary tiles, saved User Analysis
+graphs, saved squads) already lived in the browser's `localStorage`,
+keyed to whichever machine/browser profile the app runs in. That
+storage is a separate Chromium storage partition from the installed
+app bundle, so it was already untouched by an auto-update in practice —
+the open question was what happens when a *future* version changes the
+shape of what's stored (a renamed field, a new required property) and
+an existing user's saved data no longer matches it.
+
+Each of those three localStorage keys now wraps its data in a small
+versioned envelope (`{ version, data }`, via the new
+`state/persistentStorage.ts`) instead of writing the raw value
+directly. On load, a per-store `migrate(data, storedVersion)` function
+gets the raw payload plus the version it was written under (`null` for
+every key written before this change — read once, treated as legacy
+unversioned data, exactly like today) and returns either something
+shaped like the current version or `null` to fall back to the default/
+empty state. This replaces three near-identical hand-rolled try/catch/
+`JSON.parse` blocks with one shared implementation, and gives future
+shape changes (adding a field, renaming one) a real place to add a
+version-gated migration instead of an ad-hoc `?? fallback` sprinkled at
+the read site — see `useSavedSquads.ts`'s `usedChips`/`importedFrom`
+backfill for the kind of case-by-case fix this is meant to generalise.
+
+Saving still degrades the same way as before if `localStorage` throws
+(private browsing, quota) — the customisation still works for the rest
+of that session, it just won't persist across a reload.
+
 ## Project structure
 
 ```

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { createDefaultLocalViewState, type LocalViewState } from "../components/LocalViewControls";
+import { loadVersioned, saveVersioned, type VersionedStore } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:underlying-numbers:user-graphs:v1";
+const STORAGE_VERSION = 1;
 
 /** Hard cap on saved User Analysis graphs — a UI/localStorage-hygiene limit, matching the same idea (and number) as Team Building's saved-squad cap. */
 export const MAX_USER_GRAPHS = 5;
@@ -19,25 +21,21 @@ export interface SavedUserGraph {
   view: LocalViewState;
 }
 
+const USER_GRAPHS_STORE: VersionedStore<SavedUserGraph[]> = {
+  version: STORAGE_VERSION,
+  fallback: [],
+  migrate(data) {
+    if (!Array.isArray(data)) return null;
+    return data as SavedUserGraph[];
+  },
+};
+
 function loadFromStorage(): SavedUserGraph[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed as SavedUserGraph[];
-  } catch {
-    return [];
-  }
+  return loadVersioned(STORAGE_KEY, USER_GRAPHS_STORE);
 }
 
 function saveToStorage(graphs: SavedUserGraph[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(graphs));
-  } catch {
-    // localStorage can throw (private browsing, quota) — graphs still work
-    // for the rest of this session, they just won't persist on reload.
-  }
+  saveVersioned(STORAGE_KEY, STORAGE_VERSION, graphs);
 }
 
 export function createUserGraph(name: string, chartType: UserGraphType, xMetricKey: string, yMetricKey: string): SavedUserGraph {

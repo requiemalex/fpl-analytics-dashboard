@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type { SummaryTileScope } from "../components/summaryTileMetrics";
+import { loadVersioned, saveVersioned, type VersionedStore } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:dashboard:summary-tiles:v1";
+const STORAGE_VERSION = 1;
 
 /** A UI/localStorage-hygiene limit, matching the same idea as Team Building's saved-squad cap and User Analysis's saved-graph cap. */
 export const MAX_SUMMARY_TILES = 20;
@@ -34,25 +36,21 @@ export const DEFAULT_SUMMARY_TILES: SummaryTileConfig[] = [
   { id: "default-team-clean-sheets", scope: "team", metricKey: "cleanSheets", direction: "desc" },
 ];
 
+const SUMMARY_TILES_STORE: VersionedStore<SummaryTileConfig[]> = {
+  version: STORAGE_VERSION,
+  fallback: DEFAULT_SUMMARY_TILES,
+  migrate(data) {
+    if (!Array.isArray(data) || data.length === 0) return null;
+    return data as SummaryTileConfig[];
+  },
+};
+
 function loadFromStorage(): SummaryTileConfig[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_SUMMARY_TILES;
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_SUMMARY_TILES;
-    return parsed as SummaryTileConfig[];
-  } catch {
-    return DEFAULT_SUMMARY_TILES;
-  }
+  return loadVersioned(STORAGE_KEY, SUMMARY_TILES_STORE);
 }
 
 function saveToStorage(tiles: SummaryTileConfig[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(tiles));
-  } catch {
-    // localStorage can throw (private browsing, quota) — tiles still work
-    // for the rest of this session, they just won't persist on reload.
-  }
+  saveVersioned(STORAGE_KEY, STORAGE_VERSION, tiles);
 }
 
 export function createSummaryTile(scope: SummaryTileScope, metricKey: string, direction: TileDirection): SummaryTileConfig {
