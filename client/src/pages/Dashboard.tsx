@@ -17,7 +17,7 @@ import {
   type SummaryTileScope,
   type TeamAggregate,
 } from "../components/summaryTileMetrics";
-import { useSummaryTiles, createSummaryTile, MAX_SUMMARY_TILES, type TileDirection } from "../state/useSummaryTiles";
+import { useSummaryTiles, createSummaryTile, MAX_SUMMARY_TILES, type TileDirection, type SummaryTileConfig } from "../state/useSummaryTiles";
 import { useSavedDashboardViews, MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE, type SavedDashboardView } from "../state/useSavedDashboardViews";
 import { fmtDate, fmtTimeAgo } from "../utils/format";
 import type { NormalizedTeam } from "../types/normalized";
@@ -41,6 +41,11 @@ function nullSafeSum(values: (number | null)[]): number | null {
 
 function tileTitle(metricLabel: string, direction: TileDirection): string {
   return `${direction === "desc" ? "Top" : "Bottom"} 5 — ${metricLabel}`;
+}
+
+/** A tile's custom name (set once at creation) if it has one, else the auto-generated "Top/Bottom 5 — <metric>" title. */
+function displayTileTitle(tile: SummaryTileConfig, metricLabel: string): string {
+  return tile.name && tile.name.trim() ? tile.name : tileTitle(metricLabel, tile.direction);
 }
 
 /** % of the way from `startISO` to `endISO` the current moment is, clamped to [0, 100] — null if the window is malformed (end <= start), so the caller can just hide the bar rather than showing something nonsensical. */
@@ -107,14 +112,6 @@ export function Dashboard() {
   // stacked sections.
   const [tileView, setTileView] = useState<SummaryTileScope>("player");
 
-  // The search/position/team/min-minutes criteria bar shown above Player
-  // Tiles — same shared filterPlayers() every other page uses, narrowing
-  // which individual players feed the PLAYER-scope leaderboards. Team
-  // Tiles always aggregate a club's whole squad regardless of this (see
-  // teamAggregatesByMode below), so it's only ever shown in Player view.
-  const [tileFilters, setTileFilters] = useState<GlobalScoutingFilters>(DEFAULT_FILTERS);
-  const resetTileFilters = () => setTileFilters(DEFAULT_FILTERS);
-
   // ---------- Per-mode data, computed once for all three modes ----------
   //
   // Tiles used to share one dashboard-wide analysis mode. Now each tile
@@ -130,31 +127,16 @@ export function Dashboard() {
     return map;
   }, [players, historicProfiles, currentSeasonHasStarted]);
 
-  const eligibleByMode = useMemo(() => {
-    const map = {} as Record<AnalysisMode, (typeof resolvedByMode)["live"]>;
-    for (const mode of MODES) map[mode] = filterPlayers(resolvedByMode[mode], tileFilters, mode);
-    return map;
-  }, [resolvedByMode, tileFilters]);
-
   // A rate-per-game metric (PPG, Goals/Game, Assists/Game, DC/Game — see
   // PlayerTileMetric.ratePerMinutes) still needs a real sample to mean
   // anything, even with the estimated-games basis (see
   // <per_game_not_per_90> in metrics/calculations.ts). Current Season gets
   // its own, much lower floor (one full match) rather than being exempted
   // entirely, since everyone genuinely has low minutes for only the first
-  // couple of gameweeks. Filters `eligibleByMode` (not the raw resolved
-  // list) so the criteria bar's search/position/team narrowing still
-  // applies on top of this stricter floor.
+  // couple of gameweeks. Applied per-tile below, on top of that tile's own
+  // criteria filter.
   const LIVE_RATE_STAT_MIN_MINUTES = 90;
   const RATE_STAT_MIN_MINUTES = 450;
-  const rateEligibleByMode = useMemo(() => {
-    const map = {} as Record<AnalysisMode, (typeof resolvedByMode)["live"]>;
-    for (const mode of MODES) {
-      const floor = mode === "live" ? LIVE_RATE_STAT_MIN_MINUTES : RATE_STAT_MIN_MINUTES;
-      map[mode] = eligibleByMode[mode].filter((p) => p.minutes !== null && p.minutes >= floor);
-    }
-    return map;
-  }, [eligibleByMode]);
 
   // Team snapshot — same aggregation basis as the Teams page (every
   // resolved player attributed to their current club, not minutes- or
@@ -192,6 +174,12 @@ export function Dashboard() {
   const [newTileMetricKey, setNewTileMetricKey] = useState<string>(PLAYER_TILE_METRICS[0].key);
   const [newTileDirection, setNewTileDirection] = useState<TileDirection>("desc");
   const [newTileDataView, setNewTileDataView] = useState<AnalysisMode>("lastSeason");
+  const [newTileName, setNewTileName] = useState("");
+  // This tile's own Search/Position/Team/Min Minutes criteria — set once
+  // here at creation (like every other tile property), not shared with
+  // any other tile. Only meaningful for scope "player"; a team tile
+  // always aggregates a club's whole squad regardless of this.
+  const [newTileCriteria, setNewTileCriteria] = useState<GlobalScoutingFilters>(DEFAULT_FILTERS);
   const [newTileError, setNewTileError] = useState<string | null>(null);
 
   // ---------- Saved Dashboard Views ----------
@@ -266,7 +254,12 @@ export function Dashboard() {
         if (tile.scope === "player") {
           const metric = playerTileMetricByKey(tile.metricKey);
           if (!metric) return null;
-          const sourcePlayers = metric.ratePerMinutes ? rateEligibleByMode[tile.dataView] : eligibleByMode[tile.dataView];
+          const criteria = tile.criteria ?? DEFAULT_FILTERS;
+          let sourcePlayers = filterPlayers(resolvedByMode[tile.dataView], criteria, tile.dataView);
+          if (metric.ratePerMinutes) {
+            const floor = tile.dataView === "live" ? LIVE_RATE_STAT_MIN_MINUTES : RATE_STAT_MIN_MINUTES;
+            sourcePlayers = sourcePlayers.filter((p) => p.minutes !== null && p.minutes >= floor);
+          }
           const rows = sourcePlayers.map((p) => ({ player: p, derived: getPlayerDerivedMetrics(p) }));
           const valueRows: TopListRow[] = rows.map((r) => ({ player: r.player, value: metric.getValue(r.player, r.derived) }));
           return { tile, metric, kind: "player" as const, topRows: topN(valueRows, 5, tile.direction === "asc") };
@@ -282,7 +275,7 @@ export function Dashboard() {
         return { tile, metric, kind: "team" as const, topRows: topN(valueRows, 5, tile.direction === "asc") };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
-  }, [tilesState.tiles, eligibleByMode, rateEligibleByMode, teamAggregatesByMode]);
+  }, [tilesState.tiles, resolvedByMode, teamAggregatesByMode]);
 
   // Split for rendering only — reordering still operates on the one
   // underlying `tilesState.tiles` array regardless of scope (drag-drop
@@ -303,6 +296,8 @@ export function Dashboard() {
     setNewTileMetricKey(firstMetric.key);
     setNewTileDirection(firstMetric.higherIsBetter ? "desc" : "asc");
     setNewTileDataView("lastSeason");
+    setNewTileName("");
+    setNewTileCriteria(DEFAULT_FILTERS);
     setNewTileError(null);
     setShowAddTileModal(true);
   }
@@ -322,7 +317,16 @@ export function Dashboard() {
       setNewTileError(`You already have ${MAX_SUMMARY_TILES} tiles — the maximum allowed. Remove one first.`);
       return;
     }
-    tilesState.addTile(createSummaryTile(tileView, newTileMetricKey, newTileDirection, newTileDataView));
+    tilesState.addTile(
+      createSummaryTile({
+        scope: tileView,
+        metricKey: newTileMetricKey,
+        direction: newTileDirection,
+        dataView: newTileDataView,
+        name: newTileName.trim() || null,
+        criteria: tileView === "player" ? newTileCriteria : null,
+      }),
+    );
     setShowAddTileModal(false);
   }
 
@@ -499,10 +503,6 @@ export function Dashboard() {
         </div>
       )}
 
-      {tileView === "player" && (
-        <FiltersBar idPrefix="dash-tiles" filters={tileFilters} onChange={setTileFilters} onReset={resetTileFilters} analysisMode="lastSeason" />
-      )}
-
       {visibleTileRows.length === 0 ? (
         <p className="page-subtitle">No {tileView} tiles yet — add one above.</p>
       ) : tileView === "player" ? (
@@ -510,7 +510,7 @@ export function Dashboard() {
           {playerTileRows.map(({ tile, metric, topRows }) => (
             <TopList
               key={tile.id}
-              title={tileTitle(metric.label, tile.direction)}
+              title={displayTileTitle(tile, metric.label)}
               rows={topRows as TopListRow[]}
               format={metric.format}
               onSelect={select}
@@ -531,7 +531,7 @@ export function Dashboard() {
           {teamTileRows.map(({ tile, metric, topRows }) => (
             <TeamTopList
               key={tile.id}
-              title={tileTitle(metric.label, tile.direction)}
+              title={displayTileTitle(tile, metric.label)}
               rows={topRows as TeamTopListRow[]}
               format={metric.format}
               onSelect={selectTeam}
@@ -552,6 +552,16 @@ export function Dashboard() {
         <div className="dialog-backdrop" onClick={closeAddTileModal}>
           <div className="dialog" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-title">Add {tileView === "player" ? "Player" : "Team"} Tile</div>
+            <div className="field">
+              <label htmlFor="new-tile-name">Name (optional)</label>
+              <input
+                id="new-tile-name"
+                type="text"
+                placeholder="Auto-generated from statistic + order"
+                value={newTileName}
+                onChange={(e) => setNewTileName(e.target.value)}
+              />
+            </div>
             <div className="field">
               <label htmlFor="new-tile-metric">Statistic</label>
               <select id="new-tile-metric" value={newTileMetricKey} onChange={(e) => handleMetricChange(e.target.value)}>
@@ -579,6 +589,15 @@ export function Dashboard() {
                 <option value="asc">Lowest first</option>
               </select>
             </div>
+            {tileView === "player" && (
+              <FiltersBar
+                idPrefix="new-tile-criteria"
+                filters={newTileCriteria}
+                onChange={setNewTileCriteria}
+                onReset={() => setNewTileCriteria(DEFAULT_FILTERS)}
+                analysisMode={newTileDataView}
+              />
+            )}
             {newTileError && <div className="banner error">{newTileError}</div>}
             <div className="dialog-actions">
               <button type="button" className="btn" onClick={closeAddTileModal}>

@@ -366,8 +366,10 @@ table.data-table tbody tr:hover td {
   font-weight: 600;
 }
 
-.field input,
-.field select {
+/* Base themed look for every select in the app, not just ones inside a
+   .field wrapper — a bare <select> (e.g. Dashboard's Saved Views picker)
+   would otherwise fall back to the browser's default white control. */
+select {
   background: var(--surface-raised);
   border: 1px solid var(--border-strong);
   color: var(--text-primary);
@@ -375,10 +377,26 @@ table.data-table tbody tr:hover td {
   padding: 6px 8px;
   font-size: 12.5px;
   font-family: inherit;
+}
+select:focus {
+  border-color: var(--accent-focus);
+  outline: none;
+}
+
+.field input,
+.field select {
   min-width: 90px;
 }
-.field input:focus,
-.field select:focus {
+.field input {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font-size: 12.5px;
+  font-family: inherit;
+}
+.field input:focus {
   border-color: var(--accent-focus);
 }
 

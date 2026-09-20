@@ -398,14 +398,13 @@ confidence over a completed season's full data.
 ## Dashboard: Player Tiles get their own criteria bar, split from Team Tiles
 
 Alongside the modularity fix (see "Per-page filter/analysis-mode state"
-above): Dashboard's Top-5 tiles have a real, visible Search/Position/
-Team/Min Minutes criteria bar of their own, shown above the
-player-scope tiles specifically — this page previously had no such
-control at all, so its rate-based tiles' minimum-minutes floor (below)
-was the only thing standing between a tiny-sample outlier and the top
-of a leaderboard; now the same bar every other filtered page has lets a
-user narrow it directly (to one position, one club, a higher minutes
-bar, a name search), same as Player Explorer or Underlying Numbers.
+above): Dashboard's Top-5 tiles gained real Search/Position/Team/Min
+Minutes criteria — this page previously had no such control at all, so
+its rate-based tiles' minimum-minutes floor (below) was the only thing
+standing between a tiny-sample outlier and the top of a leaderboard.
+(This started as one shared bar above every Player Tile; see "Dashboard:
+per-tile criteria and tile naming" further down for why that later
+became a per-tile setting instead.)
 
 Player and Team tiles are shown one scope at a time, switched with a
 **Players / Teams** toggle top-right of the page (not stacked with a
@@ -428,20 +427,17 @@ other page still does. A small two-letter badge in each tile's header
 shows which one a given tile is built from, since with several tiles on
 screen there's no longer one page-level control to read that off.
 
-Internally, Dashboard.tsx resolves the player pool, criteria-filtered
-eligibility, rate-stat-floored eligibility, and team aggregates **once
-per mode** (three small `Record<AnalysisMode, …>` maps — `MODES` is
-just `["live", "lastSeason", "historicAverage"]`) instead of once for a
-single shared mode, and each tile reads from whichever map entry
-matches its own `dataView` when building its Top-5. The criteria bar
-(Search/Position/Team/Min Minutes) is still one shared control across
-every Player Tile regardless of each tile's own data view — narrowing
-by name/position/club/minutes is a reasonable thing to want applied
-uniformly, and `filterPlayers()` already resolves Min Minutes to 0
-under Current Season per-mode internally (see `effectiveMinMinutes()`,
-`useFilteredPlayers.ts`) regardless of what the shared bar's value is
-set to, so a tile using Current Season is never wrongly filtered out by
-a Min Minutes value meant for the others.
+Internally, Dashboard.tsx resolves the player pool **once per mode**
+(one small `Record<AnalysisMode, …>` map — `MODES` is just `["live",
+"lastSeason", "historicAverage"]`) instead of once for a single shared
+mode, and each tile filters from whichever map entry matches its own
+`dataView` when building its Top-5 (see "Dashboard: per-tile criteria
+and tile naming" below for how the filtering itself now works —
+criteria moved from one shared bar to a per-tile setting shortly after
+this). `filterPlayers()` already resolves Min Minutes to 0 under Current
+Season per-mode internally (see `effectiveMinMinutes()`,
+`useFilteredPlayers.ts`), so a Current Season tile is never wrongly
+filtered out by a Min Minutes value meant for a different tile.
 
 Existing tiles saved before this change (no `dataView` field yet) are
 migrated to `"lastSeason"` on load — the same default every other page
@@ -536,6 +532,48 @@ deliberately left alone — they're already green/red by their own sign,
 which is a comparison against this player's own expected numbers, not
 against the rest of the player pool, so applying a second tint on top
 would be a different (and confusing) comparison layered onto the first.
+
+## Dashboard: per-tile criteria and tile naming
+
+Every Player Tile now carries its own `criteria` (`SummaryTileConfig`,
+`useSummaryTiles.ts`) — the same `GlobalScoutingFilters` shape
+(Search/Position/Team/Min Minutes) every filtered page already uses —
+set once in the "Add Tile" dialog via the existing `FiltersBar`
+component (reused as-is, bound to the dialog's own draft state instead
+of a page-level one), replacing the single shared criteria bar that
+used to sit above every Player Tile at once. Two tiles can now watch
+completely different slices of the player pool (e.g. one restricted to
+Defenders on a specific club, another unrestricted) side by side — a
+capability that was needed once Data View, colouring, and now saved
+views could all differ per tile, but the criteria feeding a tile's
+numbers still couldn't. Passing the dialog's own `newTileDataView` as
+the `FiltersBar`'s `analysisMode` prop also means Min Minutes correctly
+greys itself out when building a Current Season tile specifically,
+without needing the fixed `"lastSeason"` sentinel the old shared bar
+required (there's no longer one bar serving tiles on several different
+data views at once, so the prop's original purpose — matching *this*
+tile's own mode — works exactly as designed again). Every tile — Player
+or Team — also gets an optional **Name** field in the same dialog;
+leaving it blank keeps the auto-generated "Top/Bottom 5 — &lt;metric&gt;"
+title exactly as before. Team Tiles have no criteria field (unchanged —
+a team tile always aggregates a club's whole squad).
+
+Existing tiles saved before this change (no `criteria`/`name` fields
+yet) migrate on load: `name` defaults to `null` (auto-generated title),
+`criteria` defaults to the same `DEFAULT_FILTERS` (no filtering) the old
+shared bar itself started on for player tiles, and stays `null` for
+team tiles — nothing resets or breaks for anyone with tiles already
+saved. `STORAGE_VERSION` bumped 2 → 3.
+
+## Fixed: bare `<select>` elements rendering with the browser's default white styling
+
+The Dashboard's Saved Views dropdown (not wrapped in a `.field`
+container the way every other `<select>` in the app is) rendered with
+the unstyled browser-default white control, clashing badly with the
+dark theme. The themed look (`.field select`) is now a base `select`
+rule in `components.css`, applied to every select in the app whether or
+not it's inside a `.field` wrapper, so this can't recur for a future
+standalone dropdown either.
 
 ## Known limitations
 

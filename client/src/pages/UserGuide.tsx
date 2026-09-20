@@ -199,12 +199,14 @@ export function UserGuide() {
         </p>
         <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
           <li>
-            <strong>Data View, per tile</strong> — each tile picks its own Last Completed Season / Historic Average / Current Season
-            when it's created (not one shared toggle for the whole page), shown as a small <code>LS</code>/<code>HA</code>/<code>CS</code>{" "}
-            badge in its header. The Search/Position/Team/Min Minutes criteria bar above Player Tiles narrows which individual players
-            feed every player tile at once, regardless of each tile's own data view — but Min Minutes specifically has no effect on a
-            tile whose own data view is Current Season, since everyone genuinely has low minutes early in a live season. Team Tiles
-            always aggregate a club's whole squad and ignore this bar entirely.
+            <strong>Data View and criteria, per tile</strong> — a Player Tile picks its own Last Completed Season / Historic Average /
+            Current Season, and its own Search/Position/Team/Min Minutes criteria, when it's created in "+ Add Tile" — not one shared
+            setting for the whole page, so two tiles can watch completely different slices of the player pool side by side. The data
+            view shows as a small <code>LS</code>/<code>HA</code>/<code>CS</code> badge in the tile's header (hover for the full name).
+            Min Minutes has no effect on a tile whose own data view is Current Season, since everyone genuinely has low minutes early
+            in a live season. Team Tiles always aggregate a club's whole squad and have no criteria of their own. Every tile can also
+            be given a custom name in the same dialog — leave it blank to keep the auto-generated "Top/Bottom 5 — &lt;statistic&gt;"
+            title.
           </li>
           <li>Each row's bar shows its value's size relative to the other rows in that tile — green/red by above/below-expected for the three "vs xG/xA/xGI" tiles, one flat colour for everything else.</li>
           <li>
