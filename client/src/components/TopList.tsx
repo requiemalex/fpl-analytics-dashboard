@@ -1,10 +1,18 @@
 import React from "react";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass } from "./primitives";
+import { DataViewBadge } from "./DataViewBadge";
+import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import type { NormalizedPlayer } from "../types/normalized";
 
 export interface TopListRow {
   player: NormalizedPlayer;
   value: number | null;
+}
+
+/** Bar width as a % of this row's value relative to the largest |value| among the rows shown — the tile's own top row is always full-width, everything else scaled relative to it. */
+function barWidthPercent(value: number | null, maxAbs: number): number {
+  if (value === null || maxAbs <= 0) return 0;
+  return Math.max(4, (Math.abs(value) / maxAbs) * 100);
 }
 
 export function TopList({
@@ -20,6 +28,8 @@ export function TopList({
   onDragOver,
   onDragLeave,
   onDrop,
+  dataView,
+  signed,
 }: {
   title: string;
   rows: TopListRow[];
@@ -34,7 +44,13 @@ export function TopList({
   onDragOver?: (e: React.DragEvent) => void;
   onDragLeave?: () => void;
   onDrop?: (e: React.DragEvent) => void;
+  /** Dashboard-only: which analysis mode this tile was built from — shown as a small badge in the header. Omitted (no badge) for every other TopList usage, which has no per-tile mode of its own. */
+  dataView?: AnalysisMode;
+  /** True for a +/- comparison metric (Goals vs xG, etc.) — colours each row's bar green/red by its own sign instead of one accent colour for the whole tile. */
+  signed?: boolean;
 }) {
+  const maxAbs = Math.max(0, ...rows.map((r) => Math.abs(r.value ?? 0)));
+
   return (
     <div
       className="card"
@@ -51,11 +67,14 @@ export function TopList({
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div className="card-title">{title}</div>
-        {onRemove && (
-          <button type="button" className="btn" onClick={onRemove} title="Remove this tile">
-            Remove
-          </button>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {dataView && <DataViewBadge mode={dataView} />}
+          {onRemove && (
+            <button type="button" className="btn" onClick={onRemove} title="Remove this tile">
+              Remove
+            </button>
+          )}
+        </div>
       </div>
       {rows.length === 0 ? (
         <p className="page-subtitle" style={{ margin: 0 }}>
@@ -69,6 +88,15 @@ export function TopList({
               <span className={availabilityTextClass(player.status)}>{player.name}</span>
               <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />
               <span className="team">{player.teamShortName}</span>
+            </span>
+            <span className="stat-row-bar-track">
+              <span
+                className="stat-row-bar-fill"
+                style={{
+                  width: `${barWidthPercent(value, maxAbs)}%`,
+                  background: signed ? (value !== null && value < 0 ? "var(--accent-negative)" : "var(--accent-positive)") : "var(--accent-focus)",
+                }}
+              />
             </span>
             <span className="stat-row-value">{format(value)}</span>
           </div>

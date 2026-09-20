@@ -5,7 +5,7 @@ import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { filterPlayers } from "../state/useFilteredPlayers";
 import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFilters";
-import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
+import { ANALYSIS_MODE_OPTIONS } from "../components/AnalysisModeToggle";
 import { FiltersBar } from "../components/FiltersBar";
 import { TopList, type TopListRow } from "../components/TopList";
 import { TeamTopList, type TeamTopListRow } from "../components/TeamTopList";
@@ -20,6 +20,11 @@ import {
 import { useSummaryTiles, createSummaryTile, MAX_SUMMARY_TILES, type TileDirection } from "../state/useSummaryTiles";
 import { fmtDate, fmtTimeAgo } from "../utils/format";
 import type { NormalizedTeam } from "../types/normalized";
+
+const ACTIVE_TOGGLE_STYLE = { borderColor: "var(--accent-positive)", color: "var(--accent-positive)" };
+
+/** Every mode a tile can be built from — used to pre-compute one resolved/eligible/aggregate bucket per mode (see below), since tiles now each carry their own data view rather than sharing one page-wide mode. */
+const MODES: AnalysisMode[] = ["live", "lastSeason", "historicAverage"];
 
 function topN<T extends { value: number | null }>(rowsIn: T[], n: number, ascending = false): T[] {
   const eligible = rowsIn.filter((r) => r.value !== null);
@@ -37,95 +42,143 @@ function tileTitle(metricLabel: string, direction: TileDirection): string {
   return `${direction === "desc" ? "Top" : "Bottom"} 5 — ${metricLabel}`;
 }
 
+/** % of the way from `startISO` to `endISO` the current moment is, clamped to [0, 100] — null if the window is malformed (end <= start), so the caller can just hide the bar rather than showing something nonsensical. */
+function timeProgressPercent(startISO: string, endISO: string): number | null {
+  const start = new Date(startISO).getTime();
+  const end = new Date(endISO).getTime();
+  if (!(end > start)) return null;
+  return Math.min(100, Math.max(0, ((Date.now() - start) / (end - start)) * 100));
+}
+
+function CalendarIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="summary-card-icon">
+      <rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+      <line x1="2" y1="6.5" x2="14" y2="6.5" stroke="currentColor" strokeWidth="1.3" />
+      <line x1="5" y1="1.5" x2="5" y2="4.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <line x1="11" y1="1.5" x2="11" y2="4.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function UsersIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="summary-card-icon">
+      <circle cx="6" cy="5.5" r="2.3" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M1.6 14c0-2.4 2-4 4.4-4s4.4 1.6 4.4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <circle cx="11.6" cy="6.2" r="1.8" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M10.3 9.3c1.9-.2 3.7.9 4 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="summary-card-icon">
+      <circle cx="8" cy="8" r="6.2" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M8 4.6V8l2.6 1.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function Dashboard() {
-  const { players, teams, gameweekState, events, lastUpdated, historicProfiles, historicStatus, currentSeasonHasStarted } = useAppState();
+  const {
+    players,
+    teams,
+    gameweekState,
+    events,
+    lastUpdated,
+    historicProfiles,
+    historicStatus,
+    historicErrorMessage,
+    historicSkippedPlayerIds,
+    refreshHistoricData,
+    historicRefreshing,
+    currentSeasonHasStarted,
+  } = useAppState();
   const [, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  // This page's own analysis-mode — deliberately not shared with any
-  // other page (see state/scoutingFilters.ts) — governs the Gameweek
-  // Status cards and both tile scopes below (a squad total needs some
-  // season basis too). `tileFilters` is separate again: the criteria
-  // search/position/team/min-minutes bar shown alongside the PLAYER
-  // summary tiles specifically — it narrows which individual players
-  // feed those leaderboards, and deliberately has no effect on team
-  // tiles at all, which already aggregate a team's whole squad
-  // regardless of any player-level filter (see teamAggregates below).
-  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("lastSeason");
+  // Which set of tiles is on screen — Player or Team. Each scope has its
+  // own tiles (tilesState.tiles already carries a `scope` per tile); this
+  // just controls which are rendered/added at once, matching the same
+  // split Add Tile always had, but as a toggle instead of two permanently
+  // stacked sections.
+  const [tileView, setTileView] = useState<SummaryTileScope>("player");
+
+  // The search/position/team/min-minutes criteria bar shown above Player
+  // Tiles — same shared filterPlayers() every other page uses, narrowing
+  // which individual players feed the PLAYER-scope leaderboards. Team
+  // Tiles always aggregate a club's whole squad regardless of this (see
+  // teamAggregatesByMode below), so it's only ever shown in Player view.
   const [tileFilters, setTileFilters] = useState<GlobalScoutingFilters>(DEFAULT_FILTERS);
   const resetTileFilters = () => setTileFilters(DEFAULT_FILTERS);
 
-  const { resolved: resolvedPlayers } = useMemo(
-    () => resolvePlayerStatsList(players, analysisMode, historicProfiles, currentSeasonHasStarted),
-    [players, analysisMode, historicProfiles, currentSeasonHasStarted],
-  );
+  // ---------- Per-mode data, computed once for all three modes ----------
+  //
+  // Tiles used to share one dashboard-wide analysis mode. Now each tile
+  // picks its own "data view" at creation time (see useSummaryTiles.ts),
+  // so instead of resolving the player pool once, it's resolved once PER
+  // MODE — there are only three, and this keeps every tile's own pipeline
+  // (resolve -> criteria filter -> rate-stat floor -> aggregate) exactly
+  // as correct per-mode as the old single-mode version was, just indexed
+  // by AnalysisMode instead of implicit in one shared variable.
+  const resolvedByMode = useMemo(() => {
+    const map = {} as Record<AnalysisMode, ReturnType<typeof resolvePlayerStatsList>["resolved"]>;
+    for (const mode of MODES) map[mode] = resolvePlayerStatsList(players, mode, historicProfiles, currentSeasonHasStarted).resolved;
+    return map;
+  }, [players, historicProfiles, currentSeasonHasStarted]);
 
-  // The full search/position/team/min-minutes criteria — same shared
-  // filterPlayers() every other page uses — narrows which players feed
-  // the PLAYER-scope Top-5 leaderboards below. A player with no data for
-  // this mode (minutes null) can't clear the minutes bar, so they're
-  // correctly excluded here too — never surfaced as a misleading zero.
-  const eligible = useMemo(() => filterPlayers(resolvedPlayers, tileFilters, analysisMode), [resolvedPlayers, tileFilters, analysisMode]);
-
-  const rows = useMemo(() => eligible.map((p) => ({ player: p, derived: getPlayerDerivedMetrics(p) })), [eligible]);
+  const eligibleByMode = useMemo(() => {
+    const map = {} as Record<AnalysisMode, (typeof resolvedByMode)["live"]>;
+    for (const mode of MODES) map[mode] = filterPlayers(resolvedByMode[mode], tileFilters, mode);
+    return map;
+  }, [resolvedByMode, tileFilters]);
 
   // A rate-per-game metric (PPG, Goals/Game, Assists/Game, DC/Game — see
   // PlayerTileMetric.ratePerMinutes) still needs a real sample to mean
-  // anything, even now that the underlying calculation itself is
-  // per-game rather than per-90-minutes (see <per_game_not_per_90> in
-  // metrics/calculations.ts, which fixed the raw amplification bug this
-  // was originally written to guard against). A one-or-two-appearance
-  // sample can still read as a better rate than a player's normal
-  // output. This page has no Min Minutes control of its own (unlike
-  // Player Explorer/Underlying Numbers/Team Building), and the shared
-  // global filter defaults to 0, so without this a tiny-sample outlier
-  // could silently top one of these Top-5 leaderboards. `Math.max`
-  // against the shared filter means a stricter min-minutes set
-  // elsewhere is never loosened.
-  //
-  // Current Season gets its own, much lower floor (one full match)
-  // rather than being exempted entirely, since everyone genuinely has
-  // low minutes for only the first couple of gameweeks — by gameweek 5+
-  // a bench cameo and a genuine starter both count as "low minutes"
-  // under a 450-minute bar, and only the former deserves excluding. 90
-  // minutes is never too strict to be reachable — any player who's
-  // started and finished a single match already clears it. Last
-  // Completed Season / Historic Average keep the stricter ~5-games bar,
-  // reusing the same threshold Underlying Numbers' defensive-reward
-  // chart already enforces for genuine ranking confidence over a
-  // completed season's full data. Filters `eligible` (not
-  // `resolvedPlayers` directly) so the criteria bar's search/position/
-  // team narrowing still applies on top of this stricter floor — the
-  // two are complementary, not alternatives.
+  // anything, even with the estimated-games basis (see
+  // <per_game_not_per_90> in metrics/calculations.ts). Current Season gets
+  // its own, much lower floor (one full match) rather than being exempted
+  // entirely, since everyone genuinely has low minutes for only the first
+  // couple of gameweeks. Filters `eligibleByMode` (not the raw resolved
+  // list) so the criteria bar's search/position/team narrowing still
+  // applies on top of this stricter floor.
   const LIVE_RATE_STAT_MIN_MINUTES = 90;
   const RATE_STAT_MIN_MINUTES = 450;
-  const rateEligible = useMemo(() => {
-    const floor = analysisMode === "live" ? LIVE_RATE_STAT_MIN_MINUTES : RATE_STAT_MIN_MINUTES;
-    return eligible.filter((p) => p.minutes !== null && p.minutes >= floor);
-  }, [eligible, analysisMode]);
-
-  const rateRows = useMemo(() => rateEligible.map((p) => ({ player: p, derived: getPlayerDerivedMetrics(p) })), [rateEligible]);
+  const rateEligibleByMode = useMemo(() => {
+    const map = {} as Record<AnalysisMode, (typeof resolvedByMode)["live"]>;
+    for (const mode of MODES) {
+      const floor = mode === "live" ? LIVE_RATE_STAT_MIN_MINUTES : RATE_STAT_MIN_MINUTES;
+      map[mode] = eligibleByMode[mode].filter((p) => p.minutes !== null && p.minutes >= floor);
+    }
+    return map;
+  }, [eligibleByMode]);
 
   // Team snapshot — same aggregation basis as the Teams page (every
-  // resolved player attributed to their current club, not minutes-
-  // filtered), so these numbers match what you'd see if you clicked
-  // through to Teams rather than looking like a second, different total.
-  const teamAggregates: TeamAggregate[] = useMemo(() => {
-    return teams.map((team: NormalizedTeam) => {
-      const squad = resolvedPlayers.filter((p) => p.teamId === team.id);
-      return {
-        teamId: team.id,
-        name: team.name,
-        shortName: team.shortName,
-        points: nullSafeSum(squad.map((p) => p.totalPoints)),
-        xGI: nullSafeSum(squad.map((p) => p.xGI)),
-        cleanSheets: nullSafeSum(squad.map((p) => p.cleanSheets)),
-        goals: nullSafeSum(squad.map((p) => p.goals)),
-        assists: nullSafeSum(squad.map((p) => p.assists)),
-        bonus: nullSafeSum(squad.map((p) => p.bonus)),
-      };
-    });
-  }, [resolvedPlayers, teams]);
+  // resolved player attributed to their current club, not minutes- or
+  // criteria-filtered), computed per mode since a squad total needs its
+  // own season basis too.
+  const teamAggregatesByMode = useMemo(() => {
+    const map = {} as Record<AnalysisMode, TeamAggregate[]>;
+    for (const mode of MODES) {
+      map[mode] = teams.map((team: NormalizedTeam) => {
+        const squad = resolvedByMode[mode].filter((p) => p.teamId === team.id);
+        return {
+          teamId: team.id,
+          name: team.name,
+          shortName: team.shortName,
+          points: nullSafeSum(squad.map((p) => p.totalPoints)),
+          xGI: nullSafeSum(squad.map((p) => p.xGI)),
+          cleanSheets: nullSafeSum(squad.map((p) => p.cleanSheets)),
+          goals: nullSafeSum(squad.map((p) => p.goals)),
+          assists: nullSafeSum(squad.map((p) => p.assists)),
+          bonus: nullSafeSum(squad.map((p) => p.bonus)),
+        };
+      });
+    }
+    return map;
+  }, [resolvedByMode, teams]);
 
   // ---------- Summary Tiles ----------
   //
@@ -135,9 +188,9 @@ export function Dashboard() {
   const tilesState = useSummaryTiles();
   const [dragOverTileId, setDragOverTileId] = useState<string | null>(null);
   const [showAddTileModal, setShowAddTileModal] = useState(false);
-  const [newTileScope, setNewTileScope] = useState<SummaryTileScope>("player");
   const [newTileMetricKey, setNewTileMetricKey] = useState<string>(PLAYER_TILE_METRICS[0].key);
   const [newTileDirection, setNewTileDirection] = useState<TileDirection>("desc");
+  const [newTileDataView, setNewTileDataView] = useState<AnalysisMode>("lastSeason");
   const [newTileError, setNewTileError] = useState<string | null>(null);
 
   const tileRows = useMemo(() => {
@@ -146,13 +199,14 @@ export function Dashboard() {
         if (tile.scope === "player") {
           const metric = playerTileMetricByKey(tile.metricKey);
           if (!metric) return null;
-          const sourceRows = metric.ratePerMinutes ? rateRows : rows;
-          const valueRows: TopListRow[] = sourceRows.map((r) => ({ player: r.player, value: metric.getValue(r.player, r.derived) }));
+          const sourcePlayers = metric.ratePerMinutes ? rateEligibleByMode[tile.dataView] : eligibleByMode[tile.dataView];
+          const rows = sourcePlayers.map((p) => ({ player: p, derived: getPlayerDerivedMetrics(p) }));
+          const valueRows: TopListRow[] = rows.map((r) => ({ player: r.player, value: metric.getValue(r.player, r.derived) }));
           return { tile, metric, kind: "player" as const, topRows: topN(valueRows, 5, tile.direction === "asc") };
         }
         const metric = teamTileMetricByKey(tile.metricKey);
         if (!metric) return null;
-        const valueRows: TeamTopListRow[] = teamAggregates.map((t) => ({
+        const valueRows: TeamTopListRow[] = teamAggregatesByMode[tile.dataView].map((t) => ({
           teamId: t.teamId,
           name: t.name,
           shortName: t.shortName,
@@ -161,21 +215,27 @@ export function Dashboard() {
         return { tile, metric, kind: "team" as const, topRows: topN(valueRows, 5, tile.direction === "asc") };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
-  }, [tilesState.tiles, rows, rateRows, teamAggregates]);
+  }, [tilesState.tiles, eligibleByMode, rateEligibleByMode, teamAggregatesByMode]);
 
   // Split for rendering only — reordering still operates on the one
   // underlying `tilesState.tiles` array regardless of scope (drag-drop
-  // is id-based, not index-based, so filtering the rendered view here
-  // doesn't affect it), this just keeps player and team tiles visually
-  // separated with their own heading, since the criteria bar above only
-  // ever applies to the player ones.
+  // is id-based, not index-based), this just picks out whichever scope
+  // `tileView` currently has selected.
   const playerTileRows = useMemo(() => tileRows.filter((t) => t.kind === "player"), [tileRows]);
   const teamTileRows = useMemo(() => tileRows.filter((t) => t.kind === "team"), [tileRows]);
+  const visibleTileRows = tileView === "player" ? playerTileRows : teamTileRows;
+
+  // Whether any current tile needs the bulk historic dataset at all — only
+  // "lastSeason"/"historicAverage" do (see resolvePlayerStats.ts); a
+  // dashboard built entirely from Current Season tiles never needs to wait
+  // on it.
+  const usesHistoricData = tilesState.tiles.some((t) => t.dataView !== "live");
 
   function openAddTileModal() {
-    setNewTileScope("player");
-    setNewTileMetricKey(PLAYER_TILE_METRICS[0].key);
-    setNewTileDirection(PLAYER_TILE_METRICS[0].higherIsBetter ? "desc" : "asc");
+    const firstMetric = tileView === "player" ? PLAYER_TILE_METRICS[0] : TEAM_TILE_METRICS[0];
+    setNewTileMetricKey(firstMetric.key);
+    setNewTileDirection(firstMetric.higherIsBetter ? "desc" : "asc");
+    setNewTileDataView("lastSeason");
     setNewTileError(null);
     setShowAddTileModal(true);
   }
@@ -184,16 +244,9 @@ export function Dashboard() {
     setShowAddTileModal(false);
   }
 
-  function handleScopeChange(scope: SummaryTileScope) {
-    setNewTileScope(scope);
-    const firstMetric = scope === "player" ? PLAYER_TILE_METRICS[0] : TEAM_TILE_METRICS[0];
-    setNewTileMetricKey(firstMetric.key);
-    setNewTileDirection(firstMetric.higherIsBetter ? "desc" : "asc");
-  }
-
   function handleMetricChange(key: string) {
     setNewTileMetricKey(key);
-    const metric = newTileScope === "player" ? playerTileMetricByKey(key) : teamTileMetricByKey(key);
+    const metric = tileView === "player" ? playerTileMetricByKey(key) : teamTileMetricByKey(key);
     if (metric) setNewTileDirection(metric.higherIsBetter ? "desc" : "asc");
   }
 
@@ -202,7 +255,7 @@ export function Dashboard() {
       setNewTileError(`You already have ${MAX_SUMMARY_TILES} tiles — the maximum allowed. Remove one first.`);
       return;
     }
-    tilesState.addTile(createSummaryTile(newTileScope, newTileMetricKey, newTileDirection));
+    tilesState.addTile(createSummaryTile(tileView, newTileMetricKey, newTileDirection, newTileDataView));
     setShowAddTileModal(false);
   }
 
@@ -235,17 +288,28 @@ export function Dashboard() {
   // "current" until the NEXT one's deadline passes, even after this one's
   // own matches have all finished — so once finished, switch to showing
   // the next gameweek's deadline instead (never the one that just ended).
-  const gwLabel =
-    gameweekState?.kind === "current"
-      ? gameweekState.event.finished
-        ? (() => {
-            const next = events.find((e) => e.isNext);
-            return next ? `${next.name} deadline ${fmtDate(next.deadlineTime)}` : `${gameweekState.event.name} finished`;
-          })()
-        : `${gameweekState.event.name} deadline ${fmtDate(gameweekState.event.deadlineTime)}`
-      : gameweekState?.kind === "last-completed"
-        ? `Last completed: ${gameweekState.event.name}`
-        : "Pre-season / No active gameweek";
+  // The progress bar tracks time elapsed across whichever deadline window
+  // is currently "live" — the previous deadline to this one if it hasn't
+  // passed yet, or this (just-passed) deadline to the next one if it has.
+  const gwDisplay = useMemo(() => {
+    if (gameweekState?.kind === "current") {
+      if (gameweekState.event.finished) {
+        const next = events.find((e) => e.isNext);
+        if (!next) return { heading: gameweekState.event.name, sub: "Finished — awaiting next gameweek", progress: null as number | null };
+        return { heading: next.name, sub: `Deadline ${fmtDate(next.deadlineTime)}`, progress: timeProgressPercent(gameweekState.event.deadlineTime, next.deadlineTime) };
+      }
+      const previous = events.find((e) => e.isPrevious);
+      return {
+        heading: gameweekState.event.name,
+        sub: `Deadline ${fmtDate(gameweekState.event.deadlineTime)}`,
+        progress: previous ? timeProgressPercent(previous.deadlineTime, gameweekState.event.deadlineTime) : null,
+      };
+    }
+    if (gameweekState?.kind === "last-completed") {
+      return { heading: gameweekState.event.name, sub: "Last completed gameweek", progress: null as number | null };
+    }
+    return { heading: "Pre-season", sub: "No active gameweek yet", progress: null as number | null };
+  }, [gameweekState, events]);
 
   return (
     <div>
@@ -253,30 +317,75 @@ export function Dashboard() {
         <div>
           <h1>Dashboard</h1>
         </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button
+            type="button"
+            className="btn"
+            aria-pressed={tileView === "player"}
+            style={tileView === "player" ? ACTIVE_TOGGLE_STYLE : undefined}
+            onClick={() => setTileView("player")}
+          >
+            Players
+          </button>
+          <button
+            type="button"
+            className="btn"
+            aria-pressed={tileView === "team"}
+            style={tileView === "team" ? ACTIVE_TOGGLE_STYLE : undefined}
+            onClick={() => setTileView("team")}
+          >
+            Teams
+          </button>
+        </div>
       </div>
-
-      <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
 
       <div className="card-grid">
         <div className="card">
-          <div className="card-title">Gameweek Status</div>
-          <div style={{ fontSize: 15, fontWeight: 600 }}>{gwLabel}</div>
+          <CalendarIcon />
+          <div className="summary-card-label">Gameweek Status</div>
+          <div className="summary-card-value" style={{ fontSize: 17 }}>
+            {gwDisplay.heading}
+          </div>
+          <div className="summary-card-sub">{gwDisplay.sub}</div>
+          {gwDisplay.progress !== null && (
+            <div className="summary-card-progress-track" title={`${gwDisplay.progress.toFixed(0)}% of the way to this deadline`}>
+              <div className="summary-card-progress-fill" style={{ width: `${gwDisplay.progress}%` }} />
+            </div>
+          )}
         </div>
         <div className="card">
-          <div className="card-title">Players Tracked</div>
-          <div style={{ fontSize: 22, fontFamily: "var(--font-mono)" }}>{resolvedPlayers.length.toLocaleString("en-GB")}</div>
+          <UsersIcon />
+          <div className="summary-card-label">Players Tracked</div>
+          <div className="summary-card-value">{players.length.toLocaleString("en-GB")}</div>
         </div>
         <div className="card">
-          <div className="card-title">Data Last Updated</div>
-          <div style={{ fontSize: 15, fontWeight: 600 }}>{fmtTimeAgo(lastUpdated)}</div>
+          <ClockIcon />
+          <div className="summary-card-label">Data Last Updated</div>
+          <div className="summary-card-value" style={{ fontSize: 17 }}>
+            {fmtTimeAgo(lastUpdated)}
+          </div>
         </div>
       </div>
 
-      {eligible.length === 0 && analysisMode !== "live" && historicStatus === "loading" && (
+      {usesHistoricData && historicStatus === "loading" && (
         <div className="empty-state">
           <h3>Building the historic dataset…</h3>
-          <p>This runs once per session and can take up to a minute — it'll be quick after that.</p>
+          <p>This runs once per session and can take up to a minute — it'll be quick after that. Needed because at least one tile's data view is Last Completed Season or Historic Average.</p>
         </div>
+      )}
+      {usesHistoricData && historicStatus === "error" && (
+        <p className="page-subtitle" style={{ color: "var(--accent-negative)" }}>
+          Couldn't load historic data: {historicErrorMessage}
+          <button type="button" className="chip" style={{ marginLeft: 8 }} onClick={refreshHistoricData} disabled={historicRefreshing}>
+            {historicRefreshing ? "Retrying…" : "Retry"}
+          </button>
+        </p>
+      )}
+      {usesHistoricData && historicStatus === "ready" && historicSkippedPlayerIds.length > 0 && (
+        <p className="page-subtitle">
+          {historicSkippedPlayerIds.length} player(s) had no historic data available this session (a transient fetch issue) — everyone else
+          is unaffected.
+        </p>
       )}
 
       <div className="stat-group-title">Summary Tiles</div>
@@ -289,84 +398,80 @@ export function Dashboard() {
         </button>
       </div>
 
-      {playerTileRows.length > 0 && (
+      {tileView === "player" && (
         <>
-          <div className="stat-group-title">Player Tiles</div>
-          <FiltersBar
-            idPrefix="dash-tiles"
-            filters={tileFilters}
-            onChange={setTileFilters}
-            onReset={resetTileFilters}
-            analysisMode={analysisMode}
-          />
-          <div className="card-grid">
-            {playerTileRows.map(({ tile, metric, topRows }) => (
-              <TopList
-                key={tile.id}
-                title={tileTitle(metric.label, tile.direction)}
-                rows={topRows as TopListRow[]}
-                format={metric.format}
-                onSelect={select}
-                draggable
-                isDragOver={dragOverTileId === tile.id}
-                onDragStart={(e) => handleTileDragStart(e, tile.id)}
-                onDragOver={(e) => handleTileDragOver(e, tile.id)}
-                onDragLeave={() => setDragOverTileId((k) => (k === tile.id ? null : k))}
-                onDrop={(e) => handleTileDrop(e, tile.id)}
-                onRemove={() => tilesState.removeTile(tile.id)}
-              />
-            ))}
-          </div>
+          <FiltersBar idPrefix="dash-tiles" filters={tileFilters} onChange={setTileFilters} onReset={resetTileFilters} analysisMode="lastSeason" />
+          <p className="page-subtitle" style={{ marginTop: -6 }}>
+            Min Minutes has no effect on a tile whose own data view is Current Season — see the small badge in each tile's header.
+          </p>
         </>
       )}
 
-      {playerTileRows.length > 0 && teamTileRows.length > 0 && <hr className="section-divider" />}
-
-      {teamTileRows.length > 0 && (
-        <>
-          <div className="stat-group-title team">
-            Team Tiles <span className="page-subtitle" style={{ display: "inline", margin: 0 }}>— unaffected by the criteria above</span>
-          </div>
-          <div className="card-grid">
-            {teamTileRows.map(({ tile, metric, topRows }) => (
-              <TeamTopList
-                key={tile.id}
-                title={tileTitle(metric.label, tile.direction)}
-                rows={topRows as TeamTopListRow[]}
-                format={metric.format}
-                onSelect={selectTeam}
-                draggable
-                isDragOver={dragOverTileId === tile.id}
-                onDragStart={(e) => handleTileDragStart(e, tile.id)}
-                onDragOver={(e) => handleTileDragOver(e, tile.id)}
-                onDragLeave={() => setDragOverTileId((k) => (k === tile.id ? null : k))}
-                onDrop={(e) => handleTileDrop(e, tile.id)}
-                onRemove={() => tilesState.removeTile(tile.id)}
-              />
-            ))}
-          </div>
-        </>
+      {visibleTileRows.length === 0 ? (
+        <p className="page-subtitle">No {tileView} tiles yet — add one above.</p>
+      ) : tileView === "player" ? (
+        <div className="card-grid">
+          {playerTileRows.map(({ tile, metric, topRows }) => (
+            <TopList
+              key={tile.id}
+              title={tileTitle(metric.label, tile.direction)}
+              rows={topRows as TopListRow[]}
+              format={metric.format}
+              onSelect={select}
+              dataView={tile.dataView}
+              signed={metric.signed}
+              draggable
+              isDragOver={dragOverTileId === tile.id}
+              onDragStart={(e) => handleTileDragStart(e, tile.id)}
+              onDragOver={(e) => handleTileDragOver(e, tile.id)}
+              onDragLeave={() => setDragOverTileId((k) => (k === tile.id ? null : k))}
+              onDrop={(e) => handleTileDrop(e, tile.id)}
+              onRemove={() => tilesState.removeTile(tile.id)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="card-grid">
+          {teamTileRows.map(({ tile, metric, topRows }) => (
+            <TeamTopList
+              key={tile.id}
+              title={tileTitle(metric.label, tile.direction)}
+              rows={topRows as TeamTopListRow[]}
+              format={metric.format}
+              onSelect={selectTeam}
+              dataView={tile.dataView}
+              draggable
+              isDragOver={dragOverTileId === tile.id}
+              onDragStart={(e) => handleTileDragStart(e, tile.id)}
+              onDragOver={(e) => handleTileDragOver(e, tile.id)}
+              onDragLeave={() => setDragOverTileId((k) => (k === tile.id ? null : k))}
+              onDrop={(e) => handleTileDrop(e, tile.id)}
+              onRemove={() => tilesState.removeTile(tile.id)}
+            />
+          ))}
+        </div>
       )}
-
-      {tileRows.length === 0 && <p className="page-subtitle">No summary tiles yet — add one above.</p>}
 
       {showAddTileModal && (
         <div className="dialog-backdrop" onClick={closeAddTileModal}>
           <div className="dialog" onClick={(e) => e.stopPropagation()}>
-            <div className="dialog-title">Add Tile</div>
-            <div className="field">
-              <label htmlFor="new-tile-scope">Scope</label>
-              <select id="new-tile-scope" value={newTileScope} onChange={(e) => handleScopeChange(e.target.value as SummaryTileScope)}>
-                <option value="player">Player</option>
-                <option value="team">Team (squad totals)</option>
-              </select>
-            </div>
+            <div className="dialog-title">Add {tileView === "player" ? "Player" : "Team"} Tile</div>
             <div className="field">
               <label htmlFor="new-tile-metric">Statistic</label>
               <select id="new-tile-metric" value={newTileMetricKey} onChange={(e) => handleMetricChange(e.target.value)}>
-                {(newTileScope === "player" ? PLAYER_TILE_METRICS : TEAM_TILE_METRICS).map((m) => (
+                {(tileView === "player" ? PLAYER_TILE_METRICS : TEAM_TILE_METRICS).map((m) => (
                   <option key={m.key} value={m.key}>
                     {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="new-tile-dataview">Data View</label>
+              <select id="new-tile-dataview" value={newTileDataView} onChange={(e) => setNewTileDataView(e.target.value as AnalysisMode)}>
+                {ANALYSIS_MODE_OPTIONS.map((o) => (
+                  <option key={o.mode} value={o.mode}>
+                    {o.label}
                   </option>
                 ))}
               </select>

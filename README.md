@@ -397,29 +397,82 @@ confidence over a completed season's full data.
 
 ## Dashboard: Player Tiles get their own criteria bar, split from Team Tiles
 
-Two changes, both by request. First, alongside the modularity fix (see
-"Per-page filter/analysis-mode state" above): Dashboard's Top-5 tiles
-now have a real, visible Search/Position/Team/Min Minutes criteria bar
-of their own, shown above the player-scope tiles specifically — this
-page previously had no such control at all, so its rate-based tiles'
-minimum-minutes floor (above) was the only thing standing between a
-tiny-sample outlier and the top of a leaderboard; now the same bar
-every other filtered page has lets a user narrow it directly (to one
-position, one club, a higher minutes bar, a name search), same as
-Player Explorer or Underlying Numbers.
+Alongside the modularity fix (see "Per-page filter/analysis-mode state"
+above): Dashboard's Top-5 tiles have a real, visible Search/Position/
+Team/Min Minutes criteria bar of their own, shown above the
+player-scope tiles specifically — this page previously had no such
+control at all, so its rate-based tiles' minimum-minutes floor (below)
+was the only thing standing between a tiny-sample outlier and the top
+of a leaderboard; now the same bar every other filtered page has lets a
+user narrow it directly (to one position, one club, a higher minutes
+bar, a name search), same as Player Explorer or Underlying Numbers.
 
-Second: tiles now render under two headings, **Player Tiles** and
-**Team Tiles**, separated by a divider once both exist — the criteria
-bar only ever narrows `eligible`/`rateEligible` (the player-scope
-leaderboard inputs), never `teamAggregates`, which has always summed a
-club's *whole* squad regardless of any player-level filter (confirmed
-by reading the aggregation code, not just assumed — it was already true
-before this change, just not visually obvious with every tile mixed
-into one grid). The split makes that behavioural difference legible at
-a glance instead of implicit. Reordering (drag-and-drop) is unaffected
-— it's id-based against the one underlying `tilesState.tiles` array
-regardless of scope, so filtering the *rendered* view into two grids
-doesn't touch how tiles are actually stored or reordered.
+Player and Team tiles are shown one scope at a time, switched with a
+**Players / Teams** toggle top-right of the page (not stacked with a
+divider any more — see the per-tile data view change just below for
+why a toggle reads better once tiles can each be on a different data
+view). "+ Add Tile" always adds to whichever scope is currently
+selected. Reordering (drag-and-drop) is unaffected either way — it's
+id-based against the one underlying `tilesState.tiles` array regardless
+of scope, so which scope is currently rendered doesn't touch how tiles
+are actually stored or reordered.
+
+## Dashboard: per-tile data view, instead of one dashboard-wide mode
+
+Every summary tile now carries its own `dataView` (`SummaryTileConfig`,
+`useSummaryTiles.ts`) — Last Completed Season / Historic Average /
+Current Season — chosen once in the "Add Tile" dialog, rather than the
+whole Dashboard sharing a single analysis-mode toggle the way every
+other page still does. A small two-letter badge in each tile's header
+(`CS`/`LS`/`HA`, hover for the full name — `components/DataViewBadge.tsx`)
+shows which one a given tile is built from, since with several tiles on
+screen there's no longer one page-level control to read that off.
+
+Internally, Dashboard.tsx resolves the player pool, criteria-filtered
+eligibility, rate-stat-floored eligibility, and team aggregates **once
+per mode** (three small `Record<AnalysisMode, …>` maps — `MODES` is
+just `["live", "lastSeason", "historicAverage"]`) instead of once for a
+single shared mode, and each tile reads from whichever map entry
+matches its own `dataView` when building its Top-5. The criteria bar
+(Search/Position/Team/Min Minutes) is still one shared control across
+every Player Tile regardless of each tile's own data view — narrowing
+by name/position/club/minutes is a reasonable thing to want applied
+uniformly, and `filterPlayers()` already resolves Min Minutes to 0
+under Current Season per-mode internally (see `effectiveMinMinutes()`,
+`useFilteredPlayers.ts`) regardless of what the shared bar's value is
+set to, so a tile using Current Season is never wrongly filtered out by
+a Min Minutes value meant for the others.
+
+Existing tiles saved before this change (no `dataView` field yet) are
+migrated to `"lastSeason"` on load — the same default every other page
+already starts on — via the versioned-localStorage machinery added
+just before this (`state/persistentStorage.ts`); nothing resets or
+breaks for anyone with tiles already saved.
+
+## Dashboard: tile bars, and real club colours for the Team Badge pill
+
+Each tile row now shows a small horizontal bar alongside its value,
+sized relative to the largest value in that tile's Top-5/Bottom-5 (the
+top row is always full-width) — a plain accent colour for most metrics,
+green/red by sign for the three "vs expected" comparison metrics (Goals
+vs xG, Assists vs xA, G+A vs xGI — see `PlayerTileMetric.signed`).
+`TopList`/`TeamTopList` are shared components, so Underlying Numbers'
+own Top-5 lists picked up the same bars automatically, for the same
+plain-accent treatment.
+
+Separately: the `TeamBadge` pill (used anywhere a team is a row's own
+subject — Teams, Team Detail, Dashboard's Team Tiles) now colours
+itself from a hand-picked table of each club's real primary/kit colour
+(`CLUB_COLORS`, `utils/teamColors.ts`), not the old generated
+per-team-id colour. A few clubs whose true primary is itself very dark
+(Newcastle's black, several clubs' claret) are represented by a
+lightened shade or their prominent trim colour instead of the literal
+brand hex, since a near-black pill is simply invisible against this
+app's dark background regardless of accuracy. The table only covers
+clubs that have appeared in the Premier League in roughly the last
+decade — anything it doesn't have falls back to the old generated
+colour (`teamAccentColor()`, still exported, still used as the
+fallback), so no club ever goes uncoloured.
 
 ## Known limitations
 

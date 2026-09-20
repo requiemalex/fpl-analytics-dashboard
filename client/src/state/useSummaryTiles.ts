@@ -1,9 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
 import type { SummaryTileScope } from "../components/summaryTileMetrics";
+import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import { loadVersioned, saveVersioned, type VersionedStore } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:dashboard:summary-tiles:v1";
-const STORAGE_VERSION = 1;
+/**
+ * Bumped 1 -> 2 when `dataView` was added below (each tile's own analysis
+ * mode, replacing one dashboard-wide mode — see Dashboard.tsx). Every tile
+ * saved under version 1 (or with no envelope at all, i.e. `storedVersion`
+ * null) is missing that field — migrate() backfills it to "lastSeason" so
+ * existing users' tiles keep behaving exactly as they did before this
+ * change, rather than crashing or silently rendering with an undefined
+ * data view.
+ */
+const STORAGE_VERSION = 2;
+const DEFAULT_DATA_VIEW: AnalysisMode = "lastSeason";
 
 /** A UI/localStorage-hygiene limit, matching the same idea as Team Building's saved-squad cap and User Analysis's saved-graph cap. */
 export const MAX_SUMMARY_TILES = 20;
@@ -15,6 +26,8 @@ export interface SummaryTileConfig {
   scope: SummaryTileScope;
   metricKey: string;
   direction: TileDirection;
+  /** This tile's own analysis mode — set once at creation (Add Tile modal), independent of every other tile's. See Dashboard.tsx / README's "Per-tile data view". */
+  dataView: AnalysisMode;
 }
 
 /**
@@ -24,16 +37,16 @@ export interface SummaryTileConfig {
  * layout change forced on everyone.
  */
 export const DEFAULT_SUMMARY_TILES: SummaryTileConfig[] = [
-  { id: "default-points", scope: "player", metricKey: "totalPoints", direction: "desc" },
-  { id: "default-xgi", scope: "player", metricKey: "xGI", direction: "desc" },
-  { id: "default-value", scope: "player", metricKey: "pointsPerMillion", direction: "desc" },
-  { id: "default-goals-above-xg", scope: "player", metricKey: "goalsMinusXG", direction: "desc" },
-  { id: "default-xg-above-goals", scope: "player", metricKey: "goalsMinusXG", direction: "asc" },
-  { id: "default-xgi-per-million", scope: "player", metricKey: "xGIPerMillion", direction: "desc" },
-  { id: "default-ga-above-xgi", scope: "player", metricKey: "goalInvolvementsMinusXGI", direction: "desc" },
-  { id: "default-team-points", scope: "team", metricKey: "points", direction: "desc" },
-  { id: "default-team-xgi", scope: "team", metricKey: "xGI", direction: "desc" },
-  { id: "default-team-clean-sheets", scope: "team", metricKey: "cleanSheets", direction: "desc" },
+  { id: "default-points", scope: "player", metricKey: "totalPoints", direction: "desc", dataView: DEFAULT_DATA_VIEW },
+  { id: "default-xgi", scope: "player", metricKey: "xGI", direction: "desc", dataView: DEFAULT_DATA_VIEW },
+  { id: "default-value", scope: "player", metricKey: "pointsPerMillion", direction: "desc", dataView: DEFAULT_DATA_VIEW },
+  { id: "default-goals-above-xg", scope: "player", metricKey: "goalsMinusXG", direction: "desc", dataView: DEFAULT_DATA_VIEW },
+  { id: "default-xg-above-goals", scope: "player", metricKey: "goalsMinusXG", direction: "asc", dataView: DEFAULT_DATA_VIEW },
+  { id: "default-xgi-per-million", scope: "player", metricKey: "xGIPerMillion", direction: "desc", dataView: DEFAULT_DATA_VIEW },
+  { id: "default-ga-above-xgi", scope: "player", metricKey: "goalInvolvementsMinusXGI", direction: "desc", dataView: DEFAULT_DATA_VIEW },
+  { id: "default-team-points", scope: "team", metricKey: "points", direction: "desc", dataView: DEFAULT_DATA_VIEW },
+  { id: "default-team-xgi", scope: "team", metricKey: "xGI", direction: "desc", dataView: DEFAULT_DATA_VIEW },
+  { id: "default-team-clean-sheets", scope: "team", metricKey: "cleanSheets", direction: "desc", dataView: DEFAULT_DATA_VIEW },
 ];
 
 const SUMMARY_TILES_STORE: VersionedStore<SummaryTileConfig[]> = {
@@ -41,7 +54,7 @@ const SUMMARY_TILES_STORE: VersionedStore<SummaryTileConfig[]> = {
   fallback: DEFAULT_SUMMARY_TILES,
   migrate(data) {
     if (!Array.isArray(data) || data.length === 0) return null;
-    return data as SummaryTileConfig[];
+    return (data as Partial<SummaryTileConfig>[]).map((t) => ({ ...t, dataView: t.dataView ?? DEFAULT_DATA_VIEW })) as SummaryTileConfig[];
   },
 };
 
@@ -53,8 +66,8 @@ function saveToStorage(tiles: SummaryTileConfig[]) {
   saveVersioned(STORAGE_KEY, STORAGE_VERSION, tiles);
 }
 
-export function createSummaryTile(scope: SummaryTileScope, metricKey: string, direction: TileDirection): SummaryTileConfig {
-  return { id: `tile-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, scope, metricKey, direction };
+export function createSummaryTile(scope: SummaryTileScope, metricKey: string, direction: TileDirection, dataView: AnalysisMode): SummaryTileConfig {
+  return { id: `tile-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, scope, metricKey, direction, dataView };
 }
 
 export interface UseSummaryTiles {

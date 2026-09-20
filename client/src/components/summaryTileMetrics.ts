@@ -38,6 +38,8 @@ export interface PlayerTileMetric {
    * way — ungated by anything beyond the page's own Min Minutes setting.
    */
   ratePerMinutes?: boolean;
+  /** True for a +/- comparison metric (Goals vs xG, etc.) — Dashboard's tile bar colours these green/red per row by sign, rather than a single accent colour for the whole tile. */
+  signed?: boolean;
 }
 
 /** See `PlayerTileMetric.ratePerMinutes` — the set of PLAYER_COLUMNS keys that need the flag, since those are spread in below rather than declared with it directly. */
@@ -68,14 +70,22 @@ export const PLAYER_TILE_METRICS: PlayerTileMetric[] = [
     higherIsBetter: c.higherIsBetter ?? true,
     ratePerMinutes: RATE_PER_MINUTES_COLUMN_KEYS.has(c.key),
   })),
-  { key: "goalsMinusXG", label: "Goals vs xG (Goals − xG)", getValue: (_p, d) => d.goalsMinusXG, format: fmtSigned, higherIsBetter: true },
-  { key: "assistsMinusXA", label: "Assists vs xA (Assists − xA)", getValue: (_p, d) => d.assistsMinusXA, format: fmtSigned, higherIsBetter: true },
+  { key: "goalsMinusXG", label: "Goals vs xG (Goals − xG)", getValue: (_p, d) => d.goalsMinusXG, format: fmtSigned, higherIsBetter: true, signed: true },
+  {
+    key: "assistsMinusXA",
+    label: "Assists vs xA (Assists − xA)",
+    getValue: (_p, d) => d.assistsMinusXA,
+    format: fmtSigned,
+    higherIsBetter: true,
+    signed: true,
+  },
   {
     key: "goalInvolvementsMinusXGI",
     label: "G+A vs xGI (G+A − xGI)",
     getValue: (_p, d) => d.goalInvolvementsMinusXGI,
     format: fmtSigned,
     higherIsBetter: true,
+    signed: true,
   },
   // No separate "Points/Game" tile — that's just PPG (already above, via
   // PLAYER_COLUMNS' "pointsPerGame"/"PPG" entry), not a distinct metric.

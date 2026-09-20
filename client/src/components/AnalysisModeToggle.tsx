@@ -2,11 +2,13 @@ import React from "react";
 import { useAppState } from "../state/AppStateContext";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 
-const OPTIONS: { mode: AnalysisMode; label: string }[] = [
+/** Exported so anything else needing these exact labels (Dashboard's per-tile Data View select, DataViewBadge's tooltips) stays in sync with what this toggle itself shows, rather than re-typing the strings. */
+export const ANALYSIS_MODE_OPTIONS: { mode: AnalysisMode; label: string }[] = [
   { mode: "lastSeason", label: "Last Completed Season" },
   { mode: "historicAverage", label: "Historic Average" },
   { mode: "live", label: "Current Season" },
 ];
+const OPTIONS = ANALYSIS_MODE_OPTIONS;
 
 /**
  * Fully controlled — every page holds its own `analysisMode` in local
