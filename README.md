@@ -474,6 +474,69 @@ decade — anything it doesn't have falls back to the old generated
 colour (`teamAccentColor()`, still exported, still used as the
 fallback), so no club ever goes uncoloured.
 
+## Dashboard: saved views, per scope
+
+Same idea as Team Building's saved squads, applied to Dashboard tiles:
+"Save View" snapshots whichever scope (Player or Team) is currently
+selected — its tiles, in order, each with its own data view — as a
+named entry, up to 5 per scope (`MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE`,
+`state/useSavedDashboardViews.ts`). A "Saved views" dropdown next to it
+lists whichever scope is active; **Load** replaces the live tiles for
+that scope only (the other scope's tiles are untouched — a saved Team
+view can't clobber your Player tiles or vice versa), **Delete** removes
+the selection. A view is a plain snapshot, not a live-linked entity —
+editing tiles after loading a view doesn't update the saved view itself;
+save again under the same or a new name to capture the change. Loading
+a view that would push the combined Player+Team tile count past
+`MAX_SUMMARY_TILES` (20) is refused with an inline error rather than
+silently truncating it. Persisted the same versioned-localStorage way
+as everything else in this section.
+
+## Team Badge: two-colour club pills, not one flat colour
+
+Several Premier League clubs share close to the same primary colour
+(Arsenal/Nottingham Forest/Brentford are all red; Chelsea/Man City are
+both blue), which made the single-colour `TeamBadge` pill introduced
+above hard to tell apart at a glance. `TeamBadge` now renders a small
+two-colour swatch — that club's real primary colour on top, its real
+secondary/trim colour below (`CLUB_SECONDARY_COLORS`,
+`utils/teamColors.ts`, `teamDisplayColors()`) — instead of a single flat
+fill. Where two clubs are *also* genuinely the same secondary colour in
+real life (Aston Villa and West Ham are both claret-and-blue; Aston
+Villa and Burnley are both claret-and-blue too), that secondary's exact
+shade is nudged apart deliberately (Villa's steel blue vs. West Ham's
+cyan; Villa's blue vs. Burnley's teal) — still recognisably the same
+colour family, just not pixel-identical to the other club wearing it.
+Clubs not in either table still render (both halves fall back to the
+same generated per-id colour), so nothing goes uncoloured.
+
+## Player Profile: comparative colouring on every stat tile
+
+Underlying Numbers and Value's stat tiles (`StatTile`,
+`PlayerDetailOverlay.tsx`) are now lightly tinted green/red — same
+green-better/red-worse language and colour scale as Player Explorer's
+Comparative Colouring and Player Comparison's cell tints
+(`utils/colorScale.ts`), extended with a new `percentileTint()` that
+takes a percentile directly rather than a value-plus-range. A single
+player card has no "other rows on screen" to compare against the way a
+table does, so the tint is driven by this player's within-**position**
+percentile (`computePositionPercentiles`, `metrics/percentiles.ts`) —
+the same population and minutes-eligibility threshold the Percentile
+Radar above it already uses, computed once per stat
+(`statPercentiles`, `PlayerDetailOverlay.tsx`) so both sections can
+never disagree about where a player ranks. A small-sample player (below
+the eligibility threshold) gets `null` back from
+`computePositionPercentiles` for every stat, same as the radar already
+nulling itself out for that case, so no tile is misleadingly tinted.
+Metrics where a lower raw number is actually better (xGC, xGC/Game,
+Min/Goal) have their percentile flipped before tinting, same convention
+as the radar's own `higherIsBetter` axes. The three "Actual vs Expected"
+bars (Goals/Assists/Goal Involvements vs. their expected figures) were
+deliberately left alone — they're already green/red by their own sign,
+which is a comparison against this player's own expected numbers, not
+against the rest of the player pool, so applying a second tint on top
+would be a different (and confusing) comparison layered onto the first.
+
 ## Known limitations
 
 - Historic ownership isn't available. Confirmed directly against the raw

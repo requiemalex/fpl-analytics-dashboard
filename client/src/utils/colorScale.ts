@@ -50,3 +50,21 @@ export function relativeCellTint(value: number, min: number, max: number, higher
   const rgb = t > 0.5 ? GREEN_RGB : RED_RGB;
   return `rgba(${rgb.join(",")}, ${(intensity * maxAlpha).toFixed(3)})`;
 }
+
+/**
+ * Same idea as relativeCellTint, but for a value that's already a
+ * percentile (0-100, already flipped so higher = better) rather than a
+ * raw value plus a min/max range — the shape a within-position percentile
+ * (computePositionPercentiles) comes in. Used for the Player Profile's
+ * stat tiles, where "relative to the row currently on screen" doesn't
+ * apply (there's only one row) — relative to the whole eligible
+ * population is the meaningful comparison there instead.
+ */
+export function percentileTint(percentile: number | null, maxAlpha = 0.14): string | undefined {
+  if (percentile === null) return undefined;
+  const t = percentile / 100;
+  const intensity = Math.abs(t - 0.5) * 2;
+  if (intensity < 0.03) return undefined;
+  const rgb = t > 0.5 ? GREEN_RGB : RED_RGB;
+  return `rgba(${rgb.join(",")}, ${(intensity * maxAlpha).toFixed(3)})`;
+}

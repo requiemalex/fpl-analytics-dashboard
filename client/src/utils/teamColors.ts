@@ -85,3 +85,67 @@ const CLUB_COLORS: Record<string, string> = {
 export function teamDisplayColor(teamId: number, shortName: string): string {
   return CLUB_COLORS[shortName] ?? teamAccentColor(teamId);
 }
+
+/**
+ * <club_secondary_colour_table>: each club's real secondary/trim colour,
+ * same legibility-first hand-picking as CLUB_COLORS above (a literal
+ * near-black or near-white trim is swapped for a visible representative
+ * shade). Exists so TeamBadge can show a two-colour swatch instead of one
+ * flat pill — several Premier League clubs share a near-identical primary
+ * (e.g. Arsenal/Nottingham Forest/Brentford are all red; Chelsea/Man City
+ * are both blue), and the single-colour pill made those hard to tell
+ * apart at a glance. Where two clubs are ALSO genuinely the same
+ * secondary colour in real life (Aston Villa and West Ham are both
+ * claret-and-blue; Aston Villa and Burnley are both claret-and-blue too),
+ * the shade of that secondary is nudged apart deliberately — still
+ * recognisably "that colour family", just not pixel-identical to the
+ * other club wearing it.
+ */
+const CLUB_SECONDARY_COLORS: Record<string, string> = {
+  ARS: "#F5F5F5", // Arsenal (white)
+  AVL: "#5B9BD5", // Aston Villa (sky blue — nudged from West Ham's cyan below)
+  BOU: "#6B6B6B", // Bournemouth (black trim, lightened)
+  BRE: "#F5F5F5", // Brentford (white stripes)
+  BHA: "#F5F5F5", // Brighton (white)
+  BUR: "#2EC4B6", // Burnley (blue trim, shifted teal so it isn't Villa's blue)
+  CAR: "#D71920", // Cardiff (red trim)
+  CHE: "#F5F5F5", // Chelsea (white)
+  CRY: "#1B458F", // Crystal Palace (navy stripe)
+  EVE: "#F5F5F5", // Everton (white)
+  FUL: "#707070", // Fulham (black trim, lightened)
+  HUD: "#F2A93B", // Huddersfield (orange trim)
+  HUL: "#707070", // Hull City (black trim, lightened)
+  IPS: "#F5F5F5", // Ipswich (white)
+  LEE: "#FFCD00", // Leeds (yellow/blue trim)
+  LEI: "#FDB913", // Leicester (gold trim)
+  LIV: "#E2B33C", // Liverpool (gold trim)
+  LUT: "#1B458F", // Luton (navy)
+  MCI: "#1B3E6F", // Man City (navy trim)
+  MUN: "#D4AF37", // Man United (gold trim — keeps it apart from Bournemouth's red)
+  NEW: "#8C8C8C", // Newcastle (black stripe, lightened)
+  NFO: "#F2E9DC", // Nottingham Forest (white, warmed slightly off Arsenal's)
+  NOR: "#00A650", // Norwich (green)
+  QPR: "#F5F5F5", // QPR (white hoops)
+  SHU: "#F5F5F5", // Sheffield United (white stripe)
+  SOU: "#6B6B6B", // Southampton (black trim, lightened)
+  STK: "#F5F5F5", // Stoke (white stripe)
+  SUN: "#F5F5F5", // Sunderland (white stripe)
+  SWA: "#707070", // Swansea (black trim, lightened)
+  TOT: "#1B2A5E", // Tottenham (navy trim)
+  WAT: "#ED2939", // Watford (red trim)
+  WBA: "#F5F5F5", // West Brom (white stripe)
+  WHU: "#4FC3E8", // West Ham (sky/cyan blue — nudged from Villa's steel blue)
+  WOL: "#6B6B6B", // Wolves (black trim, lightened)
+};
+
+/**
+ * Primary + secondary colour pair for TeamBadge's two-tone swatch. Falls
+ * back to the same generated accent for both halves when a club isn't in
+ * either table, so the swatch still renders (just as one flat colour)
+ * rather than needing a third fallback path.
+ */
+export function teamDisplayColors(teamId: number, shortName: string): { primary: string; secondary: string } {
+  const primary = teamDisplayColor(teamId, shortName);
+  const secondary = CLUB_SECONDARY_COLORS[shortName] ?? primary;
+  return { primary, secondary };
+}

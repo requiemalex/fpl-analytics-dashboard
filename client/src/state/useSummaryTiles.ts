@@ -76,6 +76,8 @@ export interface UseSummaryTiles {
   removeTile: (id: string) => void;
   reorderTile: (draggedId: string, targetId: string) => void;
   resetTiles: () => void;
+  /** Wholesale-replaces every tile of one scope (e.g. loading a saved Dashboard view) — the other scope's tiles are untouched. Caller is responsible for checking the MAX_SUMMARY_TILES cap against the combined result first. */
+  replaceScopeTiles: (scope: SummaryTileScope, scopeTiles: SummaryTileConfig[]) => void;
 }
 
 /** Saved Dashboard summary tiles, persisted to localStorage only — same no-account, no-server-storage model as Team Building's saved squads and Underlying Numbers' saved User Analysis graphs. */
@@ -108,5 +110,9 @@ export function useSummaryTiles(): UseSummaryTiles {
 
   const resetTiles = useCallback(() => setTiles(DEFAULT_SUMMARY_TILES), []);
 
-  return { tiles, addTile, removeTile, reorderTile, resetTiles };
+  const replaceScopeTiles = useCallback((scope: SummaryTileScope, scopeTiles: SummaryTileConfig[]) => {
+    setTiles((prev) => [...prev.filter((t) => t.scope !== scope), ...scopeTiles]);
+  }, []);
+
+  return { tiles, addTile, removeTile, reorderTile, resetTiles, replaceScopeTiles };
 }

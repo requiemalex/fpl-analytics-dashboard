@@ -193,14 +193,26 @@ export function UserGuide() {
 
       <Section id="dashboard" title="Dashboard">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          A snapshot, not a workspace — fully customisable Top-5 leaderboard tiles (+ Add Tile / Reset to Defaults), split under two
-          headings once both exist: <strong>Player Tiles</strong> and <strong>Team Tiles</strong>, separated by a divider so it's clear
-          they behave differently. A Search/Position/Team/Min Minutes criteria bar sits above Player Tiles and narrows which individual
-          players feed those leaderboards specifically — Team Tiles are deliberately unaffected by it, since a team tile always
-          aggregates that club's whole squad regardless of any player-level filter. This page's own analysis-mode toggle, criteria bar,
-          gameweek status, and players-tracked count are all independent of every other page's, same as everywhere else in this app.
-          Click any row to jump straight to that player's profile or that team's page.
+          A snapshot, not a workspace — fully customisable Top-5 leaderboard tiles (+ Add Tile / Reset to Defaults). A{" "}
+          <strong>Players / Teams</strong> toggle (top right) switches which set of tiles is on screen; "+ Add Tile" always adds to
+          whichever is currently selected. Click any row to jump straight to that player's profile or that team's page.
         </p>
+        <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
+          <li>
+            <strong>Data View, per tile</strong> — each tile picks its own Last Completed Season / Historic Average / Current Season
+            when it's created (not one shared toggle for the whole page), shown as a small <code>LS</code>/<code>HA</code>/<code>CS</code>{" "}
+            badge in its header. The Search/Position/Team/Min Minutes criteria bar above Player Tiles narrows which individual players
+            feed every player tile at once, regardless of each tile's own data view — but Min Minutes specifically has no effect on a
+            tile whose own data view is Current Season, since everyone genuinely has low minutes early in a live season. Team Tiles
+            always aggregate a club's whole squad and ignore this bar entirely.
+          </li>
+          <li>Each row's bar shows its value's size relative to the other rows in that tile — green/red by above/below-expected for the three "vs xG/xA/xGI" tiles, one flat colour for everything else.</li>
+          <li>
+            <strong>Save View / Saved views dropdown</strong> — save the tiles currently on screen (for whichever of Players/Teams is
+            selected) as a named view, up to 5 each for Player and Team. Loading a saved view replaces the live tiles for that scope
+            only; the other scope is untouched.
+          </li>
+        </ul>
         <Try>Use it as a starting point, not a destination — spot a name in a leaderboard, click through, then dig deeper in Player Explorer or the profile.</Try>
       </Section>
 
@@ -378,7 +390,9 @@ export function UserGuide() {
           Teams aggregates every club's <em>current</em> squad — a transferred player's full total goes to their new club here, not the
           one they earned it at, which the banner on that page states explicitly every time. Sortable like every other table here, with
           a "Player Rankings" shortcut next to each club name that jumps straight into Player Explorer pre-filtered to that team. Team
-          Detail (click through from a team name) shows that club's individual players.
+          Detail (click through from a team name) shows that club's individual players. A team's coloured pill (here, Team Detail, and
+          the Dashboard's team tiles) is a two-colour swatch of that club's real primary and secondary kit colours where known, so
+          same-coloured clubs (several Premier League sides share red or blue as a primary) are still distinguishable at a glance.
         </p>
       </Section>
 
@@ -391,7 +405,9 @@ export function UserGuide() {
           completed season's record). The Percentile Radar chart is position-specific — a goalkeeper's axes share almost nothing with a
           forward's — and also resolves per mode. Defenders and midfielders get two radars ("Defense" and "Offense"), since both facets
           genuinely drive their points; goalkeepers and forwards keep one combined radar. A "Compare" button in the header links into
-          Player Comparison, pre-filled.
+          Player Comparison, pre-filled. Every figure in Underlying Numbers and Value is also lightly tinted green/red — same idea as
+          Player Explorer's Comparative Colouring, but relative to this player's percentile against others in their own position
+          (the same population the Percentile Radar uses) rather than a visible table's rows.
         </p>
         <p className="page-subtitle">
           <strong>Current Season Log</strong> is a gameweek-by-gameweek breakdown of the live season — one row per gameweek played,

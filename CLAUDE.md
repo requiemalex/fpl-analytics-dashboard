@@ -20,6 +20,11 @@ changes.** `DEPLOYMENT.md` has hosting/build/Electron details.
   or unrecognised value produces a warning, not a broken page. Server
   routes fall back to stale cache on upstream failure rather than
   erroring outright.
+- **No inline explanatory captions on new features.** Don't add a
+  `page-subtitle`/help paragraph under a control just to explain how it
+  works — if a feature genuinely needs explaining, that explanation goes
+  in the User Guide page (`pages/UserGuide.tsx`) only, not in the UI
+  itself. The UI should be self-explanatory or not need the explanation.
 
 ## Architecture
 

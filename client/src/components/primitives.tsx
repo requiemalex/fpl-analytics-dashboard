@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { fmtDecimal, fmtSigned, DASH } from "../utils/format";
 import { getMetricDefinition } from "../metrics/dictionary";
 import { fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
-import { teamDisplayColor } from "../utils/teamColors";
+import { teamDisplayColors } from "../utils/teamColors";
 import type { Position } from "../types/normalized";
 
 export function PositionBadge({ position }: { position: Position }) {
@@ -11,19 +11,24 @@ export function PositionBadge({ position }: { position: Position }) {
 
 /**
  * Same visual language as PositionBadge (flush-left flag shape, ~12%
- * tinted fill) but for a team — colour comes from teamDisplayColor()
- * (that club's real primary colour where known, else a generated per-id
- * fallback — see utils/teamColors.ts) as an inline style rather than a
- * fixed --pos-* token, since the team list isn't a small fixed set the
- * way positions are. Used only where a team is a row's own primary
- * subject (Teams, Team Detail, the Dashboard's team tiles) — the small
- * team abbreviation shown next to a player's name elsewhere stays plain
- * text, deliberately subdued relative to the player.
+ * tinted fill) but for a team — colours come from teamDisplayColors()
+ * (that club's real primary/secondary colours where known, else a
+ * generated per-id fallback for both — see utils/teamColors.ts) as inline
+ * styles rather than a fixed --pos-* token, since the team list isn't a
+ * small fixed set the way positions are. The two-colour swatch (primary
+ * on top, secondary below) exists because several clubs share close to
+ * the same primary colour (e.g. Arsenal/Forest/Brentford are all red) —
+ * one flat colour made those hard to tell apart at a glance. Used only
+ * where a team is a row's own primary subject (Teams, Team Detail, the
+ * Dashboard's team tiles) — the small team abbreviation shown next to a
+ * player's name elsewhere stays plain text, deliberately subdued relative
+ * to the player.
  */
 export function TeamBadge({ teamId, shortName }: { teamId: number; shortName: string }) {
-  const color = teamDisplayColor(teamId, shortName);
+  const { primary, secondary } = teamDisplayColors(teamId, shortName);
   return (
-    <span className="badge team-badge" style={{ color, background: `color-mix(in srgb, ${color} 12%, transparent)`, borderLeft: `3px solid ${color}` }}>
+    <span className="badge team-badge" style={{ color: primary, background: `color-mix(in srgb, ${primary} 12%, transparent)` }}>
+      <span className="team-badge-swatch" style={{ background: `linear-gradient(180deg, ${primary} 50%, ${secondary} 50%)` }} />
       {shortName}
     </span>
   );

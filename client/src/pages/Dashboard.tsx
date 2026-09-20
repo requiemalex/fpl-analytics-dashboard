@@ -18,6 +18,7 @@ import {
   type TeamAggregate,
 } from "../components/summaryTileMetrics";
 import { useSummaryTiles, createSummaryTile, MAX_SUMMARY_TILES, type TileDirection } from "../state/useSummaryTiles";
+import { useSavedDashboardViews, MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE, type SavedDashboardView } from "../state/useSavedDashboardViews";
 import { fmtDate, fmtTimeAgo } from "../utils/format";
 import type { NormalizedTeam } from "../types/normalized";
 
@@ -193,6 +194,72 @@ export function Dashboard() {
   const [newTileDataView, setNewTileDataView] = useState<AnalysisMode>("lastSeason");
   const [newTileError, setNewTileError] = useState<string | null>(null);
 
+  // ---------- Saved Dashboard Views ----------
+  //
+  // A named snapshot of the CURRENT scope's tiles, up to
+  // MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE each for Player and Team — same
+  // no-account, localStorage-only model as saved squads. Loading a view
+  // replaces the live tiles for that scope only; the other scope is
+  // untouched.
+  const savedDashboardViews = useSavedDashboardViews();
+  const [selectedViewId, setSelectedViewId] = useState<string>("");
+  const [showSaveViewModal, setShowSaveViewModal] = useState(false);
+  const [newViewName, setNewViewName] = useState("");
+  const [saveViewError, setSaveViewError] = useState<string | null>(null);
+  const [loadViewError, setLoadViewError] = useState<string | null>(null);
+
+  const visibleSavedViews = useMemo(
+    () => savedDashboardViews.views.filter((v) => v.scope === tileView),
+    [savedDashboardViews.views, tileView],
+  );
+
+  function changeTileView(scope: SummaryTileScope) {
+    setTileView(scope);
+    setSelectedViewId("");
+    setLoadViewError(null);
+  }
+
+  function openSaveViewModal() {
+    setNewViewName("");
+    setSaveViewError(null);
+    setShowSaveViewModal(true);
+  }
+
+  function closeSaveViewModal() {
+    setShowSaveViewModal(false);
+  }
+
+  function handleSaveView() {
+    const name = newViewName.trim();
+    if (!name) {
+      setSaveViewError("Enter a name for this view.");
+      return;
+    }
+    if (visibleSavedViews.length >= MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE) {
+      setSaveViewError(`You already have ${MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE} saved ${tileView} views — the maximum allowed. Delete one first.`);
+      return;
+    }
+    const scopeTiles = tilesState.tiles.filter((t) => t.scope === tileView);
+    savedDashboardViews.save(tileView, name, scopeTiles);
+    setShowSaveViewModal(false);
+  }
+
+  function handleLoadView(view: SavedDashboardView) {
+    const otherScopeCount = tilesState.tiles.filter((t) => t.scope !== tileView).length;
+    if (otherScopeCount + view.tiles.length > MAX_SUMMARY_TILES) {
+      setLoadViewError(`Loading "${view.name}" would push you past the ${MAX_SUMMARY_TILES}-tile limit — remove some tiles first.`);
+      return;
+    }
+    setLoadViewError(null);
+    tilesState.replaceScopeTiles(tileView, view.tiles);
+  }
+
+  function handleDeleteSelectedView() {
+    if (!selectedViewId) return;
+    savedDashboardViews.remove(selectedViewId);
+    setSelectedViewId("");
+  }
+
   const tileRows = useMemo(() => {
     return tilesState.tiles
       .map((tile) => {
@@ -323,7 +390,7 @@ export function Dashboard() {
             className="btn"
             aria-pressed={tileView === "player"}
             style={tileView === "player" ? ACTIVE_TOGGLE_STYLE : undefined}
-            onClick={() => setTileView("player")}
+            onClick={() => changeTileView("player")}
           >
             Players
           </button>
@@ -332,7 +399,7 @@ export function Dashboard() {
             className="btn"
             aria-pressed={tileView === "team"}
             style={tileView === "team" ? ACTIVE_TOGGLE_STYLE : undefined}
-            onClick={() => setTileView("team")}
+            onClick={() => changeTileView("team")}
           >
             Teams
           </button>
@@ -396,15 +463,44 @@ export function Dashboard() {
         <button type="button" className="chip" onClick={tilesState.resetTiles} title="Restore the default tiles and order">
           Reset to Defaults
         </button>
+        <button type="button" className="chip" onClick={openSaveViewModal}>
+          Save View
+        </button>
+        {visibleSavedViews.length > 0 && (
+          <>
+            <select value={selectedViewId} onChange={(e) => setSelectedViewId(e.target.value)}>
+              <option value="">Saved views…</option>
+              {visibleSavedViews.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="chip"
+              disabled={!selectedViewId}
+              onClick={() => {
+                const view = visibleSavedViews.find((v) => v.id === selectedViewId);
+                if (view) handleLoadView(view);
+              }}
+            >
+              Load
+            </button>
+            <button type="button" className="chip" disabled={!selectedViewId} onClick={handleDeleteSelectedView}>
+              Delete
+            </button>
+          </>
+        )}
       </div>
+      {loadViewError && (
+        <div className="banner error" style={{ marginBottom: 12 }}>
+          {loadViewError}
+        </div>
+      )}
 
       {tileView === "player" && (
-        <>
-          <FiltersBar idPrefix="dash-tiles" filters={tileFilters} onChange={setTileFilters} onReset={resetTileFilters} analysisMode="lastSeason" />
-          <p className="page-subtitle" style={{ marginTop: -6 }}>
-            Min Minutes has no effect on a tile whose own data view is Current Season — see the small badge in each tile's header.
-          </p>
-        </>
+        <FiltersBar idPrefix="dash-tiles" filters={tileFilters} onChange={setTileFilters} onReset={resetTileFilters} analysisMode="lastSeason" />
       )}
 
       {visibleTileRows.length === 0 ? (
@@ -490,6 +586,36 @@ export function Dashboard() {
               </button>
               <button type="button" className="btn primary" onClick={handleAddTile}>
                 Add Tile
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSaveViewModal && (
+        <div className="dialog-backdrop" onClick={closeSaveViewModal}>
+          <div className="dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-title">Save {tileView === "player" ? "Player" : "Team"} View</div>
+            <div className="field">
+              <label htmlFor="new-view-name">Name</label>
+              <input
+                id="new-view-name"
+                type="text"
+                placeholder="e.g. Attacking Threats"
+                value={newViewName}
+                onChange={(e) => setNewViewName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveView();
+                }}
+              />
+            </div>
+            {saveViewError && <div className="banner error">{saveViewError}</div>}
+            <div className="dialog-actions">
+              <button type="button" className="btn" onClick={closeSaveViewModal}>
+                Cancel
+              </button>
+              <button type="button" className="btn primary" onClick={handleSaveView}>
+                Save
               </button>
             </div>
           </div>

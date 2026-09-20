@@ -4,6 +4,8 @@ import { useAppState } from "../state/AppStateContext";
 import { usePlayerHistory } from "../state/usePlayerHistory";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { computeRadarDataForAxes, getRadarAxisGroupsForPosition } from "../metrics/radarStats";
+import { computePositionPercentiles } from "../metrics/percentiles";
+import { percentileTint } from "../utils/colorScale";
 import { PlayerRadarChart } from "./PlayerRadarChart";
 import { ActualVsExpectedBars } from "./playerProfile/ActualVsExpectedBars";
 import { CareerHistoryChart } from "./playerProfile/CareerHistoryChart";
@@ -41,9 +43,11 @@ function useSelectedPlayer(): [NormalizedPlayer | null, (id: number | null) => v
  * only has room to breathe in a full-width card; this is for the narrow
  * multi-column grids (Underlying Numbers, Value) where that would
  * otherwise visually collide (e.g. "xG/Game" and "0.78" running together). */
-function StatTile({ label, value }: { label: string; value: React.ReactNode }) {
+/** `percentile` is this player's within-position percentile for whatever stat `value` shows (already flipped so higher = better) — omitted (or null) shows no tint, e.g. for a small-sample player computePositionPercentiles has nothing to place them against. */
+function StatTile({ label, value, percentile }: { label: string; value: React.ReactNode; percentile?: number | null }) {
+  const tint = percentileTint(percentile ?? null);
   return (
-    <div className="stat-tile">
+    <div className="stat-tile" style={tint ? { background: tint } : undefined}>
       <span className="stat-tile-label">{label}</span>
       <span className="stat-tile-value num">{value}</span>
     </div>
@@ -149,6 +153,44 @@ export function PlayerDetailOverlay() {
       data: computeRadarDataForAxes(group.axes, resolved, resolvedPlayers, minMinutes),
     }));
   }, [player, analysisMode, historicProfiles, currentSeasonHasStarted, resolvedPlayers, filters.minMinutes]);
+
+  // Comparative colouring for the Underlying Numbers / Value stat tiles —
+  // same green-better/red-worse language as Player Explorer's Comparative
+  // Colouring and Player Comparison's cell tints, but relative to this
+  // player's within-POSITION percentile (computePositionPercentiles, the
+  // same population/threshold the Percentile Radar above already uses)
+  // rather than a visible row range, since a single-player card has no
+  // "rows on screen" to compare against. A small-sample player (below the
+  // minutes threshold) naturally gets `null` back from
+  // computePositionPercentiles here — same as the radar already nulling
+  // itself out — so no tint is shown rather than a misleading one.
+  const statPercentiles = useMemo(() => {
+    if (!player) return {} as Record<string, number | null>;
+    const minMinutes = effectiveMinMinutes(filters, analysisMode);
+    const metrics: Record<string, { fn: (p: NormalizedPlayer) => number | null; higherIsBetter: boolean }> = {
+      cleanSheets: { fn: (p) => p.cleanSheets, higherIsBetter: true },
+      xGC: { fn: (p) => p.xGC, higherIsBetter: false },
+      defensiveContributions: { fn: (p) => p.defensiveContributions, higherIsBetter: true },
+      xGCPerGame: { fn: (p) => p.xGCPerGame, higherIsBetter: false },
+      defensiveContributionsPerGame: { fn: (p) => p.defensiveContributionsPerGame, higherIsBetter: true },
+      bps: { fn: (p) => p.bps, higherIsBetter: true },
+      xG: { fn: (p) => p.xG, higherIsBetter: true },
+      xA: { fn: (p) => p.xA, higherIsBetter: true },
+      xGI: { fn: (p) => p.xGI, higherIsBetter: true },
+      xGPerGame: { fn: (p) => p.xGPerGame, higherIsBetter: true },
+      xAPerGame: { fn: (p) => p.xAPerGame, higherIsBetter: true },
+      xGIPerGame: { fn: (p) => p.xGIPerGame, higherIsBetter: true },
+      pointsPerGame: { fn: (p) => p.pointsPerGame, higherIsBetter: true },
+      pointsPerMillion: { fn: (p) => getPlayerDerivedMetrics(p).pointsPerMillion, higherIsBetter: true },
+      minutesPerGoal: { fn: (p) => getPlayerDerivedMetrics(p).minutesPerGoal, higherIsBetter: false },
+    };
+    const result: Record<string, number | null> = {};
+    for (const [key, { fn, higherIsBetter }] of Object.entries(metrics)) {
+      const raw = computePositionPercentiles(resolvedPlayers, fn, minMinutes).get(player.id) ?? null;
+      result[key] = raw === null ? null : higherIsBetter ? raw : 100 - raw;
+    }
+    return result;
+  }, [player, resolvedPlayers, analysisMode, filters.minMinutes]);
 
   if (!player) return null;
 
@@ -310,51 +352,51 @@ export function PlayerDetailOverlay() {
                 <>
                   <div className="card-title" style={{ marginBottom: 8 }}>Defensive</div>
                   <div className="stat-tile-grid">
-                    <StatTile label="Clean Sheets" value={fmtDecimal(resolvedPlayer.cleanSheets)} />
-                    <StatTile label="xGC" value={fmtDecimal(resolvedPlayer.xGC, 2)} />
-                    <StatTile label="Def. Contrib." value={fmtDecimal(resolvedPlayer.defensiveContributions)} />
+                    <StatTile label="Clean Sheets" value={fmtDecimal(resolvedPlayer.cleanSheets)} percentile={statPercentiles.cleanSheets} />
+                    <StatTile label="xGC" value={fmtDecimal(resolvedPlayer.xGC, 2)} percentile={statPercentiles.xGC} />
+                    <StatTile label="Def. Contrib." value={fmtDecimal(resolvedPlayer.defensiveContributions)} percentile={statPercentiles.defensiveContributions} />
                   </div>
                   <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                    <StatTile label="xGC/Game" value={fmtDecimal(resolvedPlayer.xGCPerGame, 2)} />
-                    <StatTile label="DC/Game" value={fmtDecimal(resolvedPlayer.defensiveContributionsPerGame, 2)} />
-                    <StatTile label="BPS" value={fmtDecimal(resolvedPlayer.bps)} />
+                    <StatTile label="xGC/Game" value={fmtDecimal(resolvedPlayer.xGCPerGame, 2)} percentile={statPercentiles.xGCPerGame} />
+                    <StatTile label="DC/Game" value={fmtDecimal(resolvedPlayer.defensiveContributionsPerGame, 2)} percentile={statPercentiles.defensiveContributionsPerGame} />
+                    <StatTile label="BPS" value={fmtDecimal(resolvedPlayer.bps)} percentile={statPercentiles.bps} />
                   </div>
                   <div className="card-title" style={{ marginTop: 16, marginBottom: 8 }}>Offensive</div>
                   <div className="stat-tile-grid">
-                    <StatTile label="xG" value={fmtDecimal(resolvedPlayer.xG, 2)} />
-                    <StatTile label="xA" value={fmtDecimal(resolvedPlayer.xA, 2)} />
-                    <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} />
+                    <StatTile label="xG" value={fmtDecimal(resolvedPlayer.xG, 2)} percentile={statPercentiles.xG} />
+                    <StatTile label="xA" value={fmtDecimal(resolvedPlayer.xA, 2)} percentile={statPercentiles.xA} />
+                    <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} percentile={statPercentiles.xGI} />
                   </div>
                   <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                    <StatTile label="xG/Game" value={fmtDecimal(resolvedPlayer.xGPerGame, 2)} />
-                    <StatTile label="xA/Game" value={fmtDecimal(resolvedPlayer.xAPerGame, 2)} />
-                    <StatTile label="xGI/Game" value={fmtDecimal(resolvedPlayer.xGIPerGame, 2)} />
+                    <StatTile label="xG/Game" value={fmtDecimal(resolvedPlayer.xGPerGame, 2)} percentile={statPercentiles.xGPerGame} />
+                    <StatTile label="xA/Game" value={fmtDecimal(resolvedPlayer.xAPerGame, 2)} percentile={statPercentiles.xAPerGame} />
+                    <StatTile label="xGI/Game" value={fmtDecimal(resolvedPlayer.xGIPerGame, 2)} percentile={statPercentiles.xGIPerGame} />
                   </div>
                 </>
               ) : player.position === "GKP" ? (
                 <>
                   <div className="stat-tile-grid">
-                    <StatTile label="Clean Sheets" value={fmtDecimal(resolvedPlayer.cleanSheets)} />
-                    <StatTile label="xGC" value={fmtDecimal(resolvedPlayer.xGC, 2)} />
-                    <StatTile label="Def. Contrib." value={fmtDecimal(resolvedPlayer.defensiveContributions)} />
+                    <StatTile label="Clean Sheets" value={fmtDecimal(resolvedPlayer.cleanSheets)} percentile={statPercentiles.cleanSheets} />
+                    <StatTile label="xGC" value={fmtDecimal(resolvedPlayer.xGC, 2)} percentile={statPercentiles.xGC} />
+                    <StatTile label="Def. Contrib." value={fmtDecimal(resolvedPlayer.defensiveContributions)} percentile={statPercentiles.defensiveContributions} />
                   </div>
                   <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                    <StatTile label="xGC/Game" value={fmtDecimal(resolvedPlayer.xGCPerGame, 2)} />
-                    <StatTile label="DC/Game" value={fmtDecimal(resolvedPlayer.defensiveContributionsPerGame, 2)} />
-                    <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} />
+                    <StatTile label="xGC/Game" value={fmtDecimal(resolvedPlayer.xGCPerGame, 2)} percentile={statPercentiles.xGCPerGame} />
+                    <StatTile label="DC/Game" value={fmtDecimal(resolvedPlayer.defensiveContributionsPerGame, 2)} percentile={statPercentiles.defensiveContributionsPerGame} />
+                    <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} percentile={statPercentiles.xGI} />
                   </div>
                 </>
               ) : (
                 <>
                   <div className="stat-tile-grid">
-                    <StatTile label="xG" value={fmtDecimal(resolvedPlayer.xG, 2)} />
-                    <StatTile label="xA" value={fmtDecimal(resolvedPlayer.xA, 2)} />
-                    <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} />
+                    <StatTile label="xG" value={fmtDecimal(resolvedPlayer.xG, 2)} percentile={statPercentiles.xG} />
+                    <StatTile label="xA" value={fmtDecimal(resolvedPlayer.xA, 2)} percentile={statPercentiles.xA} />
+                    <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} percentile={statPercentiles.xGI} />
                   </div>
                   <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                    <StatTile label="xG/Game" value={fmtDecimal(resolvedPlayer.xGPerGame, 2)} />
-                    <StatTile label="xA/Game" value={fmtDecimal(resolvedPlayer.xAPerGame, 2)} />
-                    <StatTile label="xGI/Game" value={fmtDecimal(resolvedPlayer.xGIPerGame, 2)} />
+                    <StatTile label="xG/Game" value={fmtDecimal(resolvedPlayer.xGPerGame, 2)} percentile={statPercentiles.xGPerGame} />
+                    <StatTile label="xA/Game" value={fmtDecimal(resolvedPlayer.xAPerGame, 2)} percentile={statPercentiles.xAPerGame} />
+                    <StatTile label="xGI/Game" value={fmtDecimal(resolvedPlayer.xGIPerGame, 2)} percentile={statPercentiles.xGIPerGame} />
                   </div>
                 </>
               )}
@@ -363,9 +405,9 @@ export function PlayerDetailOverlay() {
             <div className="card">
               <div className="card-title">Value</div>
               <div className="stat-tile-grid">
-                <StatTile label="Pts/£m" value={fmtDecimal(derived.pointsPerMillion, 1)} />
-                <StatTile label="PPG" value={fmtDecimal(resolvedPlayer.pointsPerGame, 1)} />
-                <StatTile label="Min/Goal" value={fmtDecimal(derived.minutesPerGoal, 0)} />
+                <StatTile label="Pts/£m" value={fmtDecimal(derived.pointsPerMillion, 1)} percentile={statPercentiles.pointsPerMillion} />
+                <StatTile label="PPG" value={fmtDecimal(resolvedPlayer.pointsPerGame, 1)} percentile={statPercentiles.pointsPerGame} />
+                <StatTile label="Min/Goal" value={fmtDecimal(derived.minutesPerGoal, 0)} percentile={statPercentiles.minutesPerGoal} />
               </div>
             </div>
           </div>
