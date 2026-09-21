@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
@@ -27,11 +27,10 @@ const ACTIVE_TOGGLE_STYLE = { borderColor: "var(--accent-positive)", color: "var
 /** Every mode a tile can be built from — used to pre-compute one resolved/eligible/aggregate bucket per mode (see below), since tiles now each carry their own data view rather than sharing one page-wide mode. */
 const MODES: AnalysisMode[] = ["live", "lastSeason", "historicAverage"];
 
-function topN<T extends { value: number | null }>(rowsIn: T[], n: number, ascending = false): T[] {
-  const eligible = rowsIn.filter((r) => r.value !== null);
-  eligible.sort((a, b) => ((a.value as number) < (b.value as number) ? 1 : -1));
-  const sorted = ascending ? eligible.slice().reverse() : eligible;
-  return sorted.slice(0, n);
+export function topN<T extends { value: number | null }>(rowsIn: T[], n: number, ascending = false): T[] {
+  const eligible = rowsIn.filter((r) => r.value !== null) as (T & { value: number })[];
+  eligible.sort((a, b) => (ascending ? a.value - b.value : b.value - a.value));
+  return eligible.slice(0, n);
 }
 
 function nullSafeSum(values: (number | null)[]): number | null {
@@ -101,9 +100,18 @@ export function Dashboard() {
     refreshHistoricData,
     historicRefreshing,
     currentSeasonHasStarted,
+    requestHistoricData,
   } = useAppState();
   const [, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  // Tiles resolve lastSeason/historicAverage data for every mode up front
+  // (see resolvedByMode below), so this page always needs the whole-pool
+  // historic dataset — request it on mount rather than relying on
+  // AppStateContext to fetch it unconditionally for every page.
+  useEffect(() => {
+    requestHistoricData();
+  }, [requestHistoricData]);
 
   // Which set of tiles is on screen — Player or Team. Each scope has its
   // own tiles (tilesState.tiles already carries a `scope` per tile); this

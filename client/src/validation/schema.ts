@@ -127,9 +127,15 @@ export const elementStatSchema = z
   })
   .passthrough();
 
+// `elements` is deliberately validated as z.unknown() at this top level, not
+// z.array(elementSchema) — a single malformed player record must not fail
+// the whole bootstrap-static parse closed (see parseBootstrapStatic below,
+// which validates each element individually and skips only the bad ones,
+// matching normalizePlayers.ts's own per-record skippedCount mechanism and
+// CLAUDE.md's "graceful degradation over crashes" principle).
 export const bootstrapStaticSchema = z
   .object({
-    elements: z.array(elementSchema),
+    elements: z.array(z.unknown()),
     teams: z.array(teamSchema),
     element_types: z.array(elementTypeSchema),
     events: z.array(eventSchema),
@@ -307,4 +313,40 @@ export function validate<T>(schema: z.ZodType<T>, data: unknown, context: string
     throw new SchemaValidationError(context, result.error.issues);
   }
   return result.data;
+}
+
+export interface BootstrapStaticParseResult {
+  /** Structurally RawBootstrapStatic-shaped — elements is already filtered to schema-valid records only. Left untyped here since types/raw.ts's RawElement is the canonical shape callers should cast to. */
+  bootstrap: { elements: z.infer<typeof elementSchema>[] } & Record<string, unknown>;
+  /** Player records dropped because they failed elementSchema validation (e.g. a required field was null/missing) — distinct from normalizePlayers.ts's skippedCount, which counts schema-valid records that fail semantic normalisation (unknown team/position id). Both should be surfaced together to the user. */
+  skippedElementCount: number;
+}
+
+/**
+ * Validates bootstrap-static's top-level shape strictly (teams/element_types/
+ * events/element_stats are still fail-closed — a broken shape there really
+ * does mean the response can't be trusted at all), but validates `elements`
+ * per-record: one malformed player must not take down the whole pool.
+ */
+export function parseBootstrapStatic(data: unknown, context = "bootstrap-static"): BootstrapStaticParseResult {
+  const result = bootstrapStaticSchema.safeParse(data);
+  if (!result.success) {
+    throw new SchemaValidationError(context, result.error.issues);
+  }
+
+  const validElements: z.infer<typeof elementSchema>[] = [];
+  let skippedElementCount = 0;
+  for (const rawElement of result.data.elements) {
+    const parsedElement = elementSchema.safeParse(rawElement);
+    if (parsedElement.success) {
+      validElements.push(parsedElement.data);
+    } else {
+      skippedElementCount += 1;
+    }
+  }
+
+  return {
+    bootstrap: { ...result.data, elements: validElements },
+    skippedElementCount,
+  };
 }

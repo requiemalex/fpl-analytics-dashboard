@@ -24,12 +24,16 @@ interface BulkResult {
 // cold) from each kicking off their own several-hundred-request build.
 let inFlightBuild: Promise<BulkResult> | null = null;
 
-async function buildBulkHistoricData(): Promise<BulkResult> {
+// Exported for testing (L10 regression — see historicBulk.test.ts): whether
+// a "force refresh" build actually bypasses every cache it touches, not
+// just the top-level historic-bulk entry.
+export async function buildBulkHistoricData(bypassCache: boolean): Promise<BulkResult> {
   const bootstrap = await cachedFetch({
     cache: bootstrapCache,
     cacheKey: "bootstrap-static",
     ttlMs: CACHE_TTL_MS.bootstrapStatic,
     url: `${FPL_BASE_URL}/bootstrap-static/`,
+    bypassCache,
   });
 
   if (!bootstrap.ok) {
@@ -42,12 +46,16 @@ async function buildBulkHistoricData(): Promise<BulkResult> {
   const results = await mapWithConcurrency(playerIds, HISTORIC_BULK_CONCURRENCY, async (playerId) => {
     // Reuses the same per-player cache the lazy profile fetch uses, so a
     // player whose profile was recently opened doesn't cost a second
-    // upstream request here.
+    // upstream request here — unless this build was itself explicitly
+    // requested as a refresh (bypassCache), in which case "force refresh"
+    // means force refresh all the way down, not just the top-level
+    // historic-bulk entry (L10 in the Phase 1 audit).
     const summary = await cachedFetch({
       cache: elementSummaryCache,
       cacheKey: `element-summary:${playerId}`,
       ttlMs: CACHE_TTL_MS.elementSummary,
       url: `${FPL_BASE_URL}/element-summary/${playerId}/`,
+      bypassCache,
     });
     if (!summary.ok) {
       throw new Error(summary.error);
@@ -88,7 +96,7 @@ async function handle(bypassCache: boolean) {
   }
 
   if (!inFlightBuild) {
-    inFlightBuild = buildBulkHistoricData().finally(() => {
+    inFlightBuild = buildBulkHistoricData(bypassCache).finally(() => {
       inFlightBuild = null;
     });
   }

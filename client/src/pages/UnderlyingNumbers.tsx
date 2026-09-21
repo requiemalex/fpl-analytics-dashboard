@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { useAppState } from "../state/AppStateContext";
@@ -18,14 +18,17 @@ import { useSavedUserGraphs, createUserGraph, MAX_USER_GRAPHS, type UserGraphTyp
 import { PLAYER_COLUMNS } from "../components/playerColumns";
 import { fmtDecimal, DASH } from "../utils/format";
 
-function topN(rows: TopListRow[], n: number): TopListRow[] {
-  const eligible = rows.filter((r) => r.value !== null);
-  eligible.sort((a, b) => ((a.value as number) < (b.value as number) ? 1 : -1));
+export function topN(rows: TopListRow[], n: number): TopListRow[] {
+  const eligible = rows.filter((r) => r.value !== null) as (TopListRow & { value: number })[];
+  eligible.sort((a, b) => b.value - a.value);
   return eligible.slice(0, n);
 }
 
 export function UnderlyingNumbers() {
-  const { players, teamsById, historicProfiles, currentSeasonHasStarted, allTimeSeasonsByPlayerId } = useAppState();
+  const { players, teamsById, historicProfiles, currentSeasonHasStarted, allTimeSeasonsByPlayerId, requestHistoricData } = useAppState();
+  useEffect(() => {
+    requestHistoricData();
+  }, [requestHistoricData]);
   // This page's top section (Expected vs Actual) has its own independent
   // analysis-mode + filter state — deliberately not shared with any
   // other page (see state/scoutingFilters.ts), and separate again from

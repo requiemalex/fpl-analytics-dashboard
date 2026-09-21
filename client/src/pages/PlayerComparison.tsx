@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { useAppState } from "../state/AppStateContext";
@@ -118,7 +118,10 @@ function useComparisonIds(): [number[], (ids: number[]) => void] {
 }
 
 export function PlayerComparison() {
-  const { players, historicProfiles, currentSeasonHasStarted, allTimeSeasonsByPlayerId } = useAppState();
+  const { players, historicProfiles, currentSeasonHasStarted, allTimeSeasonsByPlayerId, requestHistoricData } = useAppState();
+  useEffect(() => {
+    requestHistoricData();
+  }, [requestHistoricData]);
   const [ids, setIds] = useComparisonIds();
   const [, setSearchParams] = useSearchParams();
   // This page's own analysis-mode — deliberately not shared with any

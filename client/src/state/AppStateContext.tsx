@@ -53,6 +53,8 @@ interface AppState {
   historicErrorMessage: string | null;
   historicRefreshing: boolean;
   refreshHistoricData: () => void;
+  /** Call from any page/component that actually needs historicProfiles/allTimeSeasonsByPlayerId (i.e. is resolving stats in a non-"live" analysisMode). Triggers the one-time whole-pool historic fetch on first real demand rather than unconditionally at app mount — safe to call on every render, a no-op after the first successful trigger. See loadHistoric below. */
+  requestHistoricData: () => void;
 }
 
 const AppStateCtx = createContext<AppState | null>(null);
@@ -105,8 +107,16 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       else setStatus("loading");
     }
 
+    // Fired together, not one after the other (L8 in the Phase 1 audit) —
+    // fixtures genuinely doesn't depend on bootstrap finishing first (see
+    // the comment below), so starting both requests up front lets total
+    // load latency be max(bootstrap, fixtures) instead of their sum. Each
+    // is still awaited and error-handled independently right below.
+    const bootstrapPromise = fetchBootstrap({ forceRefresh });
+    const fixturesPromise = fetchFixtures({ forceRefresh });
+
     try {
-      const result = await fetchBootstrap({ forceRefresh });
+      const result = await bootstrapPromise;
       const {
         players: normalizedPlayers,
         skippedCount,
@@ -127,7 +137,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setChips(normalizedChips);
       setTotalPlayers(totalPlayersCount);
       setAdvancedFieldAvailability(availability);
-      setSkippedPlayerCount(skippedCount);
+      // Combines two distinct skip reasons into one user-facing count: records
+      // dropped for failing raw schema validation (result.skippedElementCount
+      // — see parseBootstrapStatic) and schema-valid records dropped for
+      // referencing an unknown team/position id (skippedCount, from
+      // normalizePlayers itself). See UserGuide.tsx's explanatory copy.
+      setSkippedPlayerCount(skippedCount + result.skippedElementCount);
       setValidationReport(report);
       setLastUpdated(result.fetchedAt);
       setIsStale(result.source === "stale-cache");
@@ -157,9 +172,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     // Fixtures load independently of bootstrap — used for the Team
     // Building fixture ticker. A failure here never blocks the rest of
     // the app; consumers already treat an empty fixtures list gracefully
-    // (no ticker shown, nothing else depends on it).
+    // (no ticker shown, nothing else depends on it). Already in flight
+    // (fixturesPromise, started above alongside bootstrap) — just awaited
+    // here.
     try {
-      const fixturesResult = await fetchFixtures({ forceRefresh });
+      const fixturesResult = await fixturesPromise;
       setFixtures(normalizeFixtures(fixturesResult.data));
     } catch {
       // leave fixtures as-is (empty on first failure) — not fatal.
@@ -199,17 +216,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     await load(true);
   }, [load, refreshing]);
 
-  // Fetched once, shortly after the app loads, and shared by every page
-  // via this context — never re-fetched per page. This used to be
-  // lazily gated behind "the first time any page's analysisMode moves
-  // off live", back when analysisMode was a single value shared
-  // app-wide; now that every page holds its own independent
-  // analysisMode (see state/scoutingFilters.ts), there's no single
-  // shared toggle left to gate on, and every page has always defaulted
-  // to "lastSeason" anyway (never "live"), so that lazy gate was already
-  // firing on essentially every app load in practice. Simplified to an
-  // unconditional one-time fetch on mount, matching that de facto
-  // behaviour exactly rather than reintroducing a per-page trigger.
+  // Fetched at most once per session, shared by every page via this
+  // context — never re-fetched per page. Gated behind real demand: each
+  // page/component that actually resolves stats in a non-"live"
+  // analysisMode calls requestHistoricData() (below) on mount, which
+  // triggers this the first time any of them do so, rather than firing
+  // unconditionally regardless of what the user ever views (CLAUDE.md's
+  // lazy-loading rule).
   const loadHistoric = useCallback(async (forceRefresh: boolean) => {
     if (forceRefresh) setHistoricRefreshing(true);
     else setHistoricStatus("loading");
@@ -249,13 +262,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     loadHistoric(true);
   }, [loadHistoric, historicRefreshing]);
 
-  useEffect(() => {
-    if (!historicRequestedRef.current) {
-      historicRequestedRef.current = true;
-      loadHistoric(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const requestHistoricData = useCallback(() => {
+    if (historicRequestedRef.current) return;
+    historicRequestedRef.current = true;
+    loadHistoric(false);
+  }, [loadHistoric]);
 
   // bootstrap-static's own team.played/wins/draws/losses are confirmed
   // unreliable this season (see deriveTeamStandings.ts) — every consumer
@@ -304,6 +315,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       historicErrorMessage,
       historicRefreshing,
       refreshHistoricData,
+      requestHistoricData,
     }),
     [
       status,
@@ -331,6 +343,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       historicErrorMessage,
       historicRefreshing,
       refreshHistoricData,
+      requestHistoricData,
     ],
   );
 

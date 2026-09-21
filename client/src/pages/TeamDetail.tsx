@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
@@ -12,7 +12,10 @@ const TEAM_RANKING_METRICS = ["totalPoints", "xG", "xA", "xGI", "xGIPerGame", "g
 
 export function TeamDetail() {
   const { teamId } = useParams<{ teamId: string }>();
-  const { players, teamsById, historicProfiles, currentSeasonHasStarted } = useAppState();
+  const { players, teamsById, historicProfiles, currentSeasonHasStarted, requestHistoricData } = useAppState();
+  useEffect(() => {
+    requestHistoricData();
+  }, [requestHistoricData]);
   const navigate = useNavigate();
   const [, setSearchParams] = useSearchParams();
   const [metricKey, setMetricKey] = useState("totalPoints");

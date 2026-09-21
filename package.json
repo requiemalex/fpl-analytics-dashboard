@@ -12,6 +12,7 @@
     "dev": "concurrently -n SERVER,CLIENT -c blue,green \"npm run dev -w server\" \"npm run dev -w client\"",
     "build": "npm run build -w server && npm run build -w client",
     "start": "node server/dist/index.js",
+    "test": "npm run test -w server && npm run test -w client",
     "server": "npm run dev -w server",
     "client": "npm run dev -w client",
     "build:electron-server": "esbuild server/src/app.ts --bundle --platform=node --format=cjs --log-override:empty-import-meta=silent --outfile=server/dist/app.bundle.cjs",

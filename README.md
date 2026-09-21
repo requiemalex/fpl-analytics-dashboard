@@ -88,9 +88,13 @@ Raw FPL API
 | `GET /api/fixtures/` | Fixture list | Fetched when needed, cached |
 | `GET /api/element-summary/{id}/` | Per-player current-season gameweek history | Fetched **lazily**, only when a player profile is opened |
 | `GET /api/event/{gw}/live/` | Live current-gameweek data | Only used if live-gameweek functionality is invoked |
+| `GET /api/historic-bulk` | Whole-pool `history_past` (every player's prior-seasons data), aggregated server-side from several hundred individual `element-summary/{id}/` calls | Requested the first time any page/component actually needs lastSeason/historicAverage analysis (see "How the whole-pool historic dataset is fetched" below) — cached 12 hours |
+| `GET /api/entry/{teamId}/` | A real manager's team identity, bank, squad value | Team Building's squad-import feature |
+| `GET /api/entry/{teamId}/history/` | A real manager's chips-used record and per-gameweek bank/value/transfers | Team Building's squad-import feature |
+| `GET /api/entry/{teamId}/event/{eventId}/picks/` | A real manager's actual 15 picks for one gameweek | Team Building's squad-import feature |
 
-All four are proxied through the local Express server at matching paths
-under `/api/`.
+All of the above are proxied through the local Express server at
+matching paths under `/api/`.
 
 ## API caching behaviour
 
@@ -100,6 +104,8 @@ under `/api/`.
 | `fixtures` | 30 minutes | |
 | `element-summary/{id}` | 30 minutes | Cached per player id |
 | `event/{gw}/live` | 60 seconds | |
+| `historic-bulk` | 12 hours | `history_past` can't change mid-season — see "How the whole-pool historic dataset is fetched" |
+| `entry/{teamId}` (identity, history, picks) | 2 minutes | Short-lived — a real manager's bank/picks/chips can change the moment they make a transfer, unlike the shared pool data above |
 
 TTLs are centralised in `server/src/config.ts` — change them in one place.
 Every outbound request has an 8-second timeout and retries up to twice
@@ -235,18 +241,21 @@ xA-vs-Assists pair:
   a 45° "expected output" line would be meaningless when the axes aren't
   commensurate. It shows correlation/pattern only, and says so on the
   card.
-- **Defensive Contribution/90 vs Defensive Reward/90** — the defensive
-  equivalent of the xG/Goals charts, and the hardest of the three to get
-  right honestly:
-  - X-axis is `defensive_contribution_per_90` (the FPL-supplied rate of
-    qualifying actions).
-  - Y-axis is **clean-sheet points/90 + total bonus/90**
+- **Defensive Contribution/Game vs Defensive Reward/Game** — the
+  defensive equivalent of the xG/Goals charts, and the hardest of the
+  three to get right honestly:
+  - X-axis is `defensiveContributionsPerGame` — this app's own
+    per-game derivation (`perGame()`, see "Per-game, not per-90"
+    above), **not** FPL's raw `defensive_contribution_per_90` field
+    directly; a different, app-derived denominator (estimated games
+    played, not literal per-90-minutes).
+  - Y-axis is **clean-sheet points/game + total bonus/game**
     (`client/src/metrics/defensiveReward.ts`). Clean-sheet points use a
     hard-coded position table (GKP/DEF 4, MID 1, FWD 0) — confirmed
     against current official FPL scoring rules, since the API returns
     raw clean-sheet counts, not the points they're worth.
   - Bubble size (third dimension, not merged into an axis) is
-    **Expected Goals Conceded/90** — bigger bubble means a leakier
+    **Expected Goals Conceded/Game** — bigger bubble means a leakier
     expected defence.
   - Goalkeepers are excluded — the Defensive Contribution mechanic
     (2 points for reaching a per-match action threshold: 10 combined
@@ -273,9 +282,10 @@ null-safe functions — division by zero or a null input always returns
 ```
 Points / £m        = totalPoints / priceInMillions
 xG / £m, xA / £m, xGI / £m  = (xG | xA | xGI) / priceInMillions
-Points / 90         = totalPoints / minutes * 90
-Goals / 90          = goals / minutes * 90
-Assists / 90        = assists / minutes * 90
+Points / Game       = totalPoints / estimatedGames   (perGame(); see "Per-game, not per-90" above)
+Goals / Game        = goals / estimatedGames
+Assists / Game      = assists / estimatedGames
+  where estimatedGames = minutes > 0 ? max(1, ceil(minutes / 90)) : 0
 Minutes / Point     = minutes / totalPoints
 Minutes / Goal      = minutes / goals
 Minutes / Assist    = minutes / assists
@@ -283,6 +293,11 @@ Goals − xG           = goals - xG
 Assists − xA         = assists - xA
 Goal Involvements − xGI = (goals + assists) - xGI
 ```
+
+(This section used to show `Points/90`/`Goals/90`/`Assists/90` formulas —
+retired app-wide alongside the per-90 → per-game migration; see "Per-game,
+not per-90" above. `per90()` still exists in `calculations.ts` but only for
+Expected Points Tier 2's internal minute-projection use, never for display.)
 
 ## xGI validation
 
@@ -595,10 +610,16 @@ standalone dropdown either.
 - No authentication and no persistent server-side storage, by design —
   restarting the server clears its in-memory cache (the live API is the
   source of truth, so this is inexpensive).
-- Team `strength_*` fields were observed as `0` on the live pre-season
-  bootstrap-static response used during development (before gameweek 1)
-  — the app does not use them for any ranking or metric, so this doesn't
-  affect anything currently displayed.
+- Team `strength_attack_*`/`strength_defence_*` fields were observed as
+  `0` on the live pre-season bootstrap-static response used during
+  development (before gameweek 1) and still read `0` for every team —
+  the app does not use these two specifically for any ranking or metric,
+  so this doesn't affect anything currently displayed. `strength_overall_home`/
+  `strength_overall_away` are a separate pair of fields that ARE
+  populated and ARE used — by Expected Points Tier 2's clean-sheet
+  probability model (`expectedPointsV2.ts`) — see the "Two small data
+  gaps filled in to support this" note under Expected Points — Tier 2
+  below.
 - The Express proxy requires outbound internet access to
   `fantasy.premierleague.com`. If your network blocks that, the app will
   show the API error state rather than fabricated data.
@@ -642,9 +663,13 @@ Two caveats worth knowing (also stated directly under the table):
   the string `"0.00"` rather than the key being omitted, so treat
   exact-zero xG figures in older seasons (roughly pre-2022/23) with
   caution.
-- **`defensive_contribution` is always 0 in `history_past`**, regardless
-  of season, even where the related raw counters are non-zero — typed
-  and passed through, never used for historical analysis.
+- **`defensive_contribution` in `history_past` is real from 2024/25
+  onward** (the season FPL introduced the stat) — confirmed non-zero
+  against the live API and genuinely used in Last Completed Season /
+  Historic Average analysis, gated by
+  `DEFENSIVE_CONTRIBUTION_TRACKING_START_YEAR` in
+  `normalizeElementSummary.ts` so seasons before it are correctly left
+  `null` rather than a misleading 0.
 
 ### Analysis mode: Last Completed Season / Historic Average / Current Season
 
@@ -722,11 +747,15 @@ all — only genuinely shared, expensive-to-fetch DATA remains there
 (players, teams, fixtures, `historicProfiles`, etc.). The historic bulk
 dataset used to be fetched lazily, gated behind "the first time any
 page's analysisMode moves off live" — with a single shared toggle
-removed, there's no one trigger left to gate on, and every page already
-defaulted to `"lastSeason"` (never `"live"`) anyway, so that lazy gate
-was firing on essentially every app load in practice already. Simplified
-to an unconditional one-time fetch shortly after the app loads, matching
-that de facto behaviour exactly.
+removed, an earlier version of this simplified to firing unconditionally
+on every app mount, which technically violated this project's own
+lazy-loading rule even though every page defaulted to `"lastSeason"`
+anyway and needed it almost immediately regardless (Phase 1 audit,
+finding C1). Fixed by exposing `requestHistoricData()` from
+`AppStateContext` — an idempotent, demand-driven trigger — and having
+each page/component that actually resolves stats in a non-`"live"`
+mode call it on mount, rather than the context assuming every consumer
+needs it.
 
 `GlobalScoutingFilters`/`LocalViewState`/`createDefaultLocalViewState`
 moved to a new `client/src/state/scoutingFilters.ts` — a shape shared by
@@ -942,10 +971,15 @@ this figure and Expected Points Tier 2 (below) show that single
 fixture's estimate — on the pitch cards and in the Add Players table —
 recomputed live as the navigator moves.
 `computeExpectedPointsForSingleFixture` is the single-fixture building
-block; `computeExpectedPointsForWindow` (still exported, used only by
-a few now-orphaned exploratory modules — `optimalDraft.ts`,
-`squadRating.ts`, `transferSolver.ts`, none currently referenced from
-any page) sums it across a window for anything that still wants that shape.
+block; `computeExpectedPointsForWindow` still exists for anything that
+wants that shape, but its only two callers — `optimalDraft.ts` and
+`transferSolver.ts` — were themselves confirmed fully orphaned (zero
+importers from any page) during the Phase 2 remediation pass and have
+since been deleted outright, the same way `squadRating.ts` was earlier
+(see "Archetype system removal" above). Don't confuse any of these with
+the separate, unrelated, and very much live `squadRules.ts`, which
+holds squad-legality validation (`validateSquad`/`validateStartingXI`/
+`canAddPlayer`) imported by `TeamBuilder.tsx` and `SquadPitch.tsx`.
 
 No separate "team defence" / "opponent attack" buckets: FDR is already
 substantially derived from team strength by FPL, so weighting both
@@ -1002,18 +1036,22 @@ overlay (`?player=id`), so it doesn't also trigger the card's
 captain-assign click or interfere with the drag gesture. The rest of
 the card keeps its existing behaviour untouched.
 
-## Expected Points — Tier 2 (experimental, not wired into any page yet)
+## Expected Points — Tier 2 (now shipped: live in Team Building's Add Players table, labelled "Exp. Pts (Model Predicted)")
 
 A second, independent Expected Points estimate, built alongside — not
 instead of — the existing model above. Where Tier 1 trusts FPL's own
 `ep_next` outright, Tier 2 never looks at `ep_next` at all: it estimates
 each of FPL's actual scoring events separately from this app's own
 normalized stats, using FPL's real scoring rules, and sums them.
-`client/src/metrics/expectedPointsV2.ts` — a new module, deliberately
-not touching `expectedPoints.ts` and not replacing any figure shown
-anywhere in the app yet. Whether it ever does depends on the backtest
-results below, per this app's own "never replace a working, documented
-feature with an unvalidated one" rule.
+`client/src/metrics/expectedPointsV2.ts` — a separate module, deliberately
+not touching `expectedPoints.ts`. It started experimental, not replacing
+any figure shown anywhere in the app, pending the backtest results
+below; once that backtest supported it (per this app's own "never
+replace a working, documented feature with an unvalidated one" rule),
+`TeamBuilder.tsx` wired it in alongside Tier 1's figure — see "Now
+wired into Team Building, alongside — not instead of — Tier 1" further
+down — with a tooltip that self-discloses its experimental nature to
+end users.
 
 ### Scoring rules used (2026/27, cross-checked directly, not assumed)
 
@@ -1155,12 +1193,19 @@ The old three-way Last Completed Season / Historic Average / Overall
 Average breakdown and the 1/3/5-gameweek window toggle are both gone
 from the Add Players table — replaced by the single-fixture gameweek
 navigator described above, which now drives both Expected Points
-columns together. `optimalDraft.ts`, `squadRating.ts`, and
-`transferSolver.ts` still reference the old window-summing shape
-(`computeExpectedPointsForWindow`/`ExpPointsBreakdown`) but aren't
-imported from any page any more — orphaned by an earlier Team Building
-simplification, left alone rather than touched as part of this change,
-still fully functional if ever reconnected.
+columns together. `optimalDraft.ts` and `transferSolver.ts` still
+referenced the old window-summing shape (`computeExpectedPointsForWindow`/
+`ExpPointsBreakdown`) but weren't imported from any page any more at
+the time this was written — orphaned by an earlier Team Building
+simplification, left alone rather than touched as part of this change.
+(`squadRating.ts` was in the same "orphaned" position at the time; it
+was later deleted outright, not left orphaned — see "Archetype system
+removal" above. Both `optimalDraft.ts` and `transferSolver.ts` were
+likewise confirmed still-orphaned and deleted outright during the
+Phase 2 remediation pass — see the note under "Team Building: a
+predictive model" above. `squadRules.ts` is a different, unrelated
+module and remains live squad-legality validation, imported by
+`TeamBuilder.tsx`/`SquadPitch.tsx` — not dead code.)
 
 Re-running the backtest with more depth (more gameweeks, the full
 player pool rather than the top 20 per position) as the season
@@ -2656,6 +2701,95 @@ Default entries on every load rather than only across that one version
 transition, and adds back whichever is missing — a cheap, idempotent
 check that's a no-op once both are present, which self-heals this case
 and any equivalent one rather than needing a fix release each time.
+
+## Forensic audit and remediation pass
+
+A systematic bug/efficiency review, run as its own fresh session with fixes
+explicitly not allowed during the audit itself — findings only, then a
+separate remediation session against that report. Checked against the live
+app and the real FPL API (2026/27 season). Full detail in `docs/audits/`
+(`FULL_AUDIT_REPORT.md`, `REMEDIATION_REPORT.md`).
+
+- **Fixed — the whole player pool's historic career data was being fetched
+  unconditionally on every app launch**, regardless of whether any page
+  actually needed it yet — several hundred `element-summary` requests to
+  the live FPL API before the user had done anything but load the
+  Dashboard, a direct violation of this project's own lazy-loading rule.
+  Replaced with `requestHistoricData()`, called on mount by every
+  page/component that actually resolves stats in a non-"live" mode.
+- **Fixed — a single malformed player record (e.g. a null `now_cost`) could
+  take down the entire app**, 0 players anywhere, instead of just that one
+  record. Bootstrap data is now validated per-record; a bad one is skipped
+  and counted (surfaced in the User Guide), not fatal to everyone else.
+- **Fixed — the server's stale-cache fallback was dead code on the normal
+  request path.** An expired cache entry was being deleted as a side effect
+  of the routine cache-hit check, before the fallback logic ever got a
+  chance to serve it if the upstream FPL API then failed — silently
+  defeating the documented "serve stale data rather than error outright"
+  resilience guarantee for every ordinary request.
+- **Fixed — Dashboard/Underlying Numbers "Top 5"/"Bottom 5" tiles used a
+  broken sort comparator** that never resolved ties correctly, so which
+  player appeared at a tied boundary (common on integer stats like 0
+  assists/bonus) wasn't guaranteed stable.
+- **Fixed — Team Building's Add Players Min Minutes filter was missing the
+  live-mode bypass every other page's equivalent filter has**, so setting a
+  threshold and switching to Current Season mid-season could silently
+  collapse the candidate pool with no explanation.
+- **Fixed — deliberately emptying every Dashboard tile didn't stick** — the
+  saved-tiles migration treated a genuinely empty tile list as invalid and
+  silently reseeded the packaged defaults on next load.
+- **Fixed — "Refresh Historic Data" didn't force-refresh all the way
+  down.** The top-level rebuild honoured a forced refresh, but the nested
+  per-player and bootstrap fetches it depends on didn't, so a refresh could
+  still silently serve already-cached data.
+- **Fixed** a handful of smaller issues from the same audit: a
+  floating-point false positive in the xGI validation check right at its
+  tolerance boundary; `bootstrap-static` and `fixtures` fetching
+  sequentially despite being independent; a narrow-viewport (~480px)
+  sidebar/content overlap; 469 lines of confirmed-dead code
+  (`optimalDraft.ts`, `transferSolver.ts`) removed; several README sections
+  that had drifted from what the shipped code actually does.
+- **Added** a real automated test suite from zero — Vitest across both
+  workspaces, 185 tests covering the metrics/calculation layer, normalize/,
+  state persistence, the server cache/proxy/concurrency layer, and
+  regression tests for every bug fixed above (see `CLAUDE.md`'s Test
+  section for what's covered and what's deliberately still out of scope).
+- **Checked and confirmed correct, actively trying to break each one**:
+  race-condition-safe rapid player-profile switching; per-page filter/
+  analysis-mode isolation (zero shared state, zero extra API calls across
+  in-app navigation); clean, non-crashing error states for both a fresh-load
+  API failure and a failed manual refresh; the core calculation layer
+  end to end (per-90→per-game migration, percentile methodology, price
+  conversion, xGI validation, Expected Points, Minutes Reliability blend) —
+  no defect found anywhere in it, across either audit pass.
+
+## Adversarial regression pass: one real defect found in the remediation itself
+
+A third, independent session with one job: don't trust the remediation pass
+above — try to break it. Re-read every changed file's diff, re-ran the full
+build and test suite independently, and drove the real dev servers with a
+headless browser against live data. Full detail in
+`docs/audits/REGRESSION_AUDIT.md`.
+
+- **Fixed — the previous entry's own "Refresh Historic Data" fix introduced
+  a race condition.** If an explicit refresh request arrived while an
+  ordinary (non-refresh) historic-data build was already in flight — e.g.
+  two browser tabs, one loading cold and one retrying after an earlier
+  error — the refresh silently rode the in-progress non-refresh build
+  instead of forcing its own, quietly losing its "force fresh" guarantee.
+  Reproduced directly against the real route handler before fixing. Fixed
+  by keying the in-flight build tracker by whether it's a refresh,
+  mirroring the pattern the single-resource proxy cache already used
+  correctly — plus two new regression tests exercising the real route
+  handlers together, not just the build function in isolation (the
+  isolation gap that let this one through the first time).
+- **Confirmed correct, everything else from the remediation pass above** —
+  re-verified live, not just re-read: the malformed-record handling (fed it
+  two corrupted player records through a real browser, app loaded fine with
+  the rest of the pool and reported exactly what was skipped), the Team
+  Building Min Minutes live-mode bypass, deterministic tile tie-breaking
+  across repeat loads, the 480px layout fix, zero extra API calls across
+  in-app navigation, and a clean error state on a full API failure.
 
 ## Testing performed
 

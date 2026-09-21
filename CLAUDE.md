@@ -29,11 +29,18 @@ npm run build            # type-checks (tsc -b / tsc -p) + builds both for produ
 npm start                # runs the production build (node server/dist/index.js)
 ```
 
-- **Test:** no automated test suite exists in any package (root/server/client
-  all lack a `test` script). Verification is manual (type-check + running the
-  app). Playwright is not an installed dependency but works via
-  `npx playwright install chromium` + a small driver script for browser
-  checks; nothing Playwright-related is committed to the repo.
+- **Test:** `npm test` runs Vitest across both workspaces (`npm run test -w
+  server && npm run test -w client`) — added during the Phase 1/2 audit
+  process (see docs/audits/), 185 tests covering the metrics/calculation
+  layer, normalize/, state/persistence, the server cache/proxy/concurrency
+  layer, and a handful of page-level regression tests for specific fixed
+  bugs. Not exhaustive (expectedPoints.ts/expectedPointsV2.ts and most of
+  TeamBuilder.tsx's own logic are still untested) — extend it rather than
+  treating "no test suite" as still true. Beyond that, verification is
+  still manual (type-check + running the app). Playwright is not an
+  installed dependency but works via `npx playwright install chromium` + a
+  small driver script for browser checks; nothing Playwright-related is
+  committed to the repo.
 - **Build/typecheck:** `npm run build` is the closest thing to a check
   suite — it runs `tsc -b`/`tsc --noEmit` for both packages before bundling,
   so a type error fails the build.

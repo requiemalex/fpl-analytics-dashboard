@@ -139,8 +139,25 @@ function isStaticPredictiveColumn(c: PredictiveColumnDef): boolean {
   return c.varies === false;
 }
 
+/**
+ * The same live-mode bypass every other page's effectiveMinMinutes()
+ * applies (see state/useFilteredPlayers.ts) — extracted as its own function
+ * here since the Add Players picker's Min Minutes is a standalone number,
+ * not part of a GlobalScoutingFilters object. Mid-season, most players
+ * haven't accumulated many live-season minutes yet, so a minutes floor in
+ * "live" mode would silently collapse the candidate pool rather than narrow
+ * it — this control used to be the one exception to that rule (M6 in the
+ * Phase 1 audit).
+ */
+export function pickerEffectiveMinMinutes(mode: AnalysisMode, minMinutes: number | null): number | null {
+  return mode === "live" ? null : minMinutes;
+}
+
 export function TeamBuilder() {
-  const { players, teams, teamsById, fixtures, historicProfiles, historicStatus, currentSeasonHasStarted, gameweekState } = useAppState();
+  const { players, teams, teamsById, fixtures, historicProfiles, historicStatus, currentSeasonHasStarted, gameweekState, requestHistoricData } = useAppState();
+  useEffect(() => {
+    requestHistoricData();
+  }, [requestHistoricData]);
   const { squads, upsert, remove } = useSavedSquads();
   const [, setSearchParams] = useSearchParams();
   const [activeId, setActiveId] = useState<string | null>(squads[0]?.id ?? null);
@@ -600,10 +617,11 @@ export function TeamBuilder() {
   }
 
   // Memoized deliberately, unlike an earlier version of this file: this
-  // computation runs computeExpPointsBreakdown and
-  // computeBlendedMinutesReliability (each several resolvePlayerStats-
-  // equivalent calls) for every candidate — up to the whole unfiltered
-  // player base if no filters are applied. Without memoization, every
+  // computation runs computeBlendedMinutesReliability,
+  // computeExpectedPointsForSingleFixture, and computeExpectedPointsV2ForFixture
+  // (each several resolvePlayerStats-equivalent calls) for every candidate —
+  // up to the whole unfiltered player base if no filters are applied. Without
+  // memoization, every
   // state update anywhere in this component re-ran all of that,
   // including the state update fired on EVERY pointermove event while
   // dragging a column's resize handle — meaning a resize drag could
@@ -649,9 +667,13 @@ export function TeamBuilder() {
       // excluded whenever the user has explicitly set a minimum, same as
       // "doesn't meet the bar" would be — this is a deliberate, opt-in
       // narrowing filter for finding squad-building candidates (only
-      // applies once pickerMinMinutes is actually set), not the kind of
+      // applies once pickerMinMinutes is actually set, and never in "live"
+      // mode — see pickerEffectiveMinMinutes above), not the kind of
       // always-on default exclusion resolvePlayerStats.ts moved away from.
-      .filter((row) => pickerMinMinutes === null || (row.historicRaw.minutes !== null && row.historicRaw.minutes >= pickerMinMinutes))
+      .filter((row) => {
+        const threshold = pickerEffectiveMinMinutes(pickerHistoricMode, pickerMinMinutes);
+        return threshold === null || (row.historicRaw.minutes !== null && row.historicRaw.minutes >= threshold);
+      })
       .filter(passesColumnFilters)
       .sort((a, b) => {
         for (const s of pickerSort) {
@@ -948,7 +970,12 @@ export function TeamBuilder() {
               min={0}
               value={pickerMinMinutes ?? ""}
               placeholder="Any"
-              title="Minutes in whichever Historic/Raw mode is selected below — a player with no data at all for that mode is excluded once a minimum is set"
+              disabled={pickerHistoricMode === "live"}
+              title={
+                pickerHistoricMode === "live"
+                  ? "Not applied in Current Season mode — everyone has low or zero minutes until real gameweeks accumulate"
+                  : "Minutes in whichever Historic/Raw mode is selected below — a player with no data at all for that mode is excluded once a minimum is set"
+              }
               onChange={(e) => setPickerMinMinutes(e.target.value === "" ? null : Number(e.target.value))}
             />
           </div>

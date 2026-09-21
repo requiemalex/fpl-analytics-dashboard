@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
@@ -38,7 +38,10 @@ function getTeamSortValue(team: TeamAggregate, key: string): number | string | n
 }
 
 export function Teams() {
-  const { players, teams, historicProfiles, currentSeasonHasStarted } = useAppState();
+  const { players, teams, historicProfiles, currentSeasonHasStarted, requestHistoricData } = useAppState();
+  useEffect(() => {
+    requestHistoricData();
+  }, [requestHistoricData]);
   const navigate = useNavigate();
   const [comparativeColouring, setComparativeColouring] = useState(true);
   // This page's own analysis-mode — deliberately not shared with any

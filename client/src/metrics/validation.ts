@@ -25,7 +25,11 @@ function compare(
   discrepancies: ValidationDiscrepancy[],
 ) {
   if (apiValue === null || derivedValue === null) return;
-  const diff = Math.abs(apiValue - derivedValue);
+  // Rounded to 6dp before comparing against TOLERANCE — without this, IEEE-754
+  // representation error can push a genuinely-exact value's diff just past
+  // the boundary (e.g. 0.4 - 0.39 === 0.010000000000000009 in JS, > 0.01),
+  // producing a false positive on real, correct data (L4 in the audit).
+  const diff = Math.round(Math.abs(apiValue - derivedValue) * 1e6) / 1e6;
   if (diff > TOLERANCE) {
     discrepancies.push({ playerId: player.id, playerName: player.name, metric, apiValue, derivedValue, diff });
   }

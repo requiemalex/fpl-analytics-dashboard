@@ -24,7 +24,10 @@ const GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE
 const FIXTURES_COLUMN_KEY = "fixtures";
 
 export function PlayerExplorer() {
-  const { players, teamsById, fixtures, advancedFieldAvailability, historicProfiles, historicStatus, currentSeasonHasStarted } = useAppState();
+  const { players, teamsById, fixtures, advancedFieldAvailability, historicProfiles, historicStatus, currentSeasonHasStarted, requestHistoricData } = useAppState();
+  useEffect(() => {
+    requestHistoricData();
+  }, [requestHistoricData]);
 
   // This page's own analysis-mode + filter state — deliberately not
   // shared with any other page (see state/scoutingFilters.ts). `?team=`

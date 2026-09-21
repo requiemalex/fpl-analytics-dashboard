@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { usePlayerHistory } from "../state/usePlayerHistory";
@@ -83,7 +83,10 @@ function CompareIcon() {
 }
 
 export function PlayerDetailOverlay() {
-  const { players, teamsById, historicReferenceSeason, historicStatus, historicProfiles, currentSeasonHasStarted } = useAppState();
+  const { players, teamsById, historicReferenceSeason, historicStatus, historicProfiles, currentSeasonHasStarted, requestHistoricData } = useAppState();
+  useEffect(() => {
+    requestHistoricData();
+  }, [requestHistoricData]);
   const [player, setPlayerId] = useSelectedPlayer();
   const [showAllColumns, setShowAllColumns] = useState(false);
   const [showFullCareerTable, setShowFullCareerTable] = useState(false);

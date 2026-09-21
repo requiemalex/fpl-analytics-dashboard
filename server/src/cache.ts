@@ -19,8 +19,13 @@ export class TtlCache<T = unknown> {
   get(key: string): { value: T; fetchedAt: number } | undefined {
     const entry = this.store.get(key);
     if (!entry) return undefined;
+    // Deliberately does NOT delete an expired entry — callers that hit an
+    // upstream failure right after a cache miss fall back to getStale() for
+    // graceful degradation (see proxy.ts's cachedFetch), which needs the
+    // expired entry to still be there. A fresh set() naturally overwrites
+    // it later; there's no unbounded-growth risk since cache keys are drawn
+    // from a bounded set of data domains/player IDs, not arbitrary input.
     if (Date.now() > entry.expiresAt) {
-      this.store.delete(key);
       return undefined;
     }
     return { value: entry.value, fetchedAt: entry.fetchedAt };

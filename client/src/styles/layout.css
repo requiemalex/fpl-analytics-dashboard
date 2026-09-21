@@ -19,9 +19,18 @@
   }
   .sidebar {
     flex-direction: row !important;
+    flex-wrap: nowrap;
     overflow-x: auto;
     border-right: none !important;
     border-bottom: 1px solid var(--border);
+    /* Without this, a grid item's default min-width is its content's
+       intrinsic (unwrapped) width, not the track's actual width — so this
+       row's own overflow-x: auto above never actually engages; instead the
+       whole grid track (and the row below it, "main") gets forced wider
+       than the viewport / squeezed, which is what produced the reported
+       overlap at narrow widths (L5, Phase 1 audit). Same fix already
+       applied to .topbar-left above for the identical reason. */
+    min-width: 0;
   }
   .sidebar-brand {
     display: none;

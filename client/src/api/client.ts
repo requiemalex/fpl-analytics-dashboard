@@ -1,5 +1,5 @@
 import type { ApiEnvelope, RawBootstrapStatic, RawElementSummary, RawFixture, RawHistoricBulk, RawEntryTeam, RawEntryHistory, RawEntryPicks } from "../types/raw";
-import { bootstrapStaticSchema, elementSummarySchema, fixturesSchema, historicBulkSchema, entryTeamSchema, entryHistorySchema, entryPicksSchema, validate } from "../validation/schema";
+import { elementSummarySchema, fixturesSchema, historicBulkSchema, entryTeamSchema, entryHistorySchema, entryPicksSchema, validate, parseBootstrapStatic } from "../validation/schema";
 
 export class ApiRequestError extends Error {
   status: number;
@@ -35,12 +35,15 @@ export interface FetchResult<T> {
   fetchedAt: number;
 }
 
-export async function fetchBootstrap(opts?: { forceRefresh?: boolean }): Promise<FetchResult<RawBootstrapStatic>> {
+export async function fetchBootstrap(opts?: { forceRefresh?: boolean }): Promise<FetchResult<RawBootstrapStatic> & { skippedElementCount: number }> {
   const envelope = opts?.forceRefresh
     ? await postEnvelope<unknown>("/api/refresh/bootstrap-static")
     : await getEnvelope<unknown>("/api/bootstrap-static");
-  const data = validate(bootstrapStaticSchema, envelope.data, "bootstrap-static") as unknown as RawBootstrapStatic;
-  return { data, source: envelope.meta.source, fetchedAt: envelope.meta.fetchedAt };
+  // Per-element validation: one malformed player record is dropped and
+  // counted, not a whole-app failure — see parseBootstrapStatic's doc comment.
+  const { bootstrap, skippedElementCount } = parseBootstrapStatic(envelope.data);
+  const data = bootstrap as unknown as RawBootstrapStatic;
+  return { data, source: envelope.meta.source, fetchedAt: envelope.meta.fetchedAt, skippedElementCount };
 }
 
 export async function fetchFixtures(opts?: { forceRefresh?: boolean }): Promise<FetchResult<RawFixture[]>> {

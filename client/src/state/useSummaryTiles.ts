@@ -61,7 +61,13 @@ const SUMMARY_TILES_STORE: VersionedStore<SummaryTileConfig[]> = {
   version: STORAGE_VERSION,
   fallback: DEFAULT_SUMMARY_TILES,
   migrate(data) {
-    if (!Array.isArray(data) || data.length === 0) return null;
+    // A genuinely empty array is a legitimate, deliberate user state (every
+    // tile removed) — Dashboard.tsx already renders a clean "No tiles yet"
+    // empty state for it — not something to silently revert back to the
+    // packaged defaults. Matches useSavedSquads.ts's own handling of the
+    // same "is an empty array valid?" question. Only a non-array (or
+    // missing) payload means there's nothing usable to migrate.
+    if (!Array.isArray(data)) return null;
     return (data as Partial<SummaryTileConfig>[]).map((t) => ({
       ...t,
       dataView: t.dataView ?? DEFAULT_DATA_VIEW,

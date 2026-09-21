@@ -481,8 +481,8 @@ export function UserGuide() {
             </div>
             {skippedPlayerCount > 0 && (
               <p className="page-subtitle">
-                {skippedPlayerCount} player record(s) were excluded for referencing an unknown team or position id and could not be
-                normalised.
+                {skippedPlayerCount} player record(s) were excluded — either invalid/missing required data, or a reference to an
+                unknown team or position id — and could not be normalised.
               </p>
             )}
           </div>
