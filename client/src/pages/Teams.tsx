@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
@@ -43,6 +43,7 @@ export function Teams() {
     requestHistoricData();
   }, [requestHistoricData]);
   const navigate = useNavigate();
+  const [, setSearchParams] = useSearchParams();
   const [comparativeColouring, setComparativeColouring] = useState(true);
   // This page's own analysis-mode — deliberately not shared with any
   // other page (see state/scoutingFilters.ts).
@@ -107,6 +108,15 @@ export function Teams() {
     navigate(`/players?team=${teamId}`);
   }
 
+  /** Opens the team profile overlay (see TeamDetailOverlay.tsx) — same `?teamProfile=` param TeamBadge itself sets on click, kept here too so clicking anywhere else on the row does the same thing. */
+  function openTeamProfile(teamId: number) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("teamProfile", String(teamId));
+      return next;
+    });
+  }
+
   return (
     <div>
       <div className="page-header">
@@ -147,7 +157,7 @@ export function Teams() {
           </thead>
           <tbody>
             {aggregates.map((t) => (
-              <tr key={t.teamId} onClick={() => navigate(`/teams/${t.teamId}`)}>
+              <tr key={t.teamId} onClick={() => openTeamProfile(t.teamId)}>
                 <td style={{ textAlign: "left", fontFamily: "var(--font-body)", fontWeight: 600 }}>
                   <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <TeamBadge teamId={t.teamId} shortName={t.shortName} />

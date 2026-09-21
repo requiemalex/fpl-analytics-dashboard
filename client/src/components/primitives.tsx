@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { fmtDecimal, fmtSigned, DASH } from "../utils/format";
 import { getMetricDefinition } from "../metrics/dictionary";
 import { fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
@@ -23,11 +24,37 @@ export function PositionBadge({ position }: { position: Position }) {
  * Dashboard's team tiles) — the small team abbreviation shown next to a
  * player's name elsewhere stays plain text, deliberately subdued relative
  * to the player.
+ *
+ * Clicking it opens that club's team profile overlay (see
+ * TeamDetailOverlay.tsx) — the same `?teamProfile=` query-param pattern
+ * PlayerDetailOverlay uses for `?player=`, so it works from every page
+ * this badge appears on without each page wiring its own handler.
+ * stopPropagation keeps a badge click from also firing whatever the
+ * enclosing row does (e.g. Teams.tsx's row click, which opens the same
+ * overlay anyway).
  */
 export function TeamBadge({ teamId, shortName }: { teamId: number; shortName: string }) {
   const { primary, secondary } = teamDisplayColors(teamId, shortName);
+  const [, setSearchParams] = useSearchParams();
+
+  function openProfile(e: React.MouseEvent) {
+    e.stopPropagation();
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("teamProfile", String(teamId));
+      return next;
+    });
+  }
+
   return (
-    <span className="badge team-badge" style={{ color: primary, background: `color-mix(in srgb, ${primary} 12%, transparent)` }}>
+    <span
+      className="badge team-badge"
+      style={{ color: primary, background: `color-mix(in srgb, ${primary} 12%, transparent)`, cursor: "pointer" }}
+      onClick={openProfile}
+      role="button"
+      tabIndex={0}
+      title={`View ${shortName} team profile`}
+    >
       <span className="team-badge-swatch" style={{ background: `linear-gradient(180deg, ${primary} 50%, ${secondary} 50%)` }} />
       {shortName}
     </span>

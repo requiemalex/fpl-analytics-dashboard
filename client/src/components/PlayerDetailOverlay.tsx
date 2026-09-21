@@ -647,7 +647,7 @@ export function PlayerDetailOverlay() {
             {seasonLogRows && renderGwLogTable(supplementsColumns, seasonLogRows)}
           </div>
 
-          <div className="card" style={{ marginTop: 16 }}>
+          <div className="card" style={{ marginTop: 16, maxWidth: 360 }}>
             <div className="card-title">Playing Time</div>
             {history.status === "loading" && <p className="page-subtitle" style={{ margin: 0 }}>Loading…</p>}
             {history.status === "error" && <p className="page-subtitle" style={{ margin: 0 }}>Couldn't load gameweek history.</p>}

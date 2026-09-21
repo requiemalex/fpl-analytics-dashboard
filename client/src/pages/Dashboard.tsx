@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
@@ -137,7 +137,6 @@ export function Dashboard() {
     requestHistoricData,
   } = useAppState();
   const [, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
 
   // Tiles resolve lastSeason/historicAverage data for every mode up front
   // (see resolvedByMode below), so this page always needs the whole-pool
@@ -452,7 +451,7 @@ export function Dashboard() {
   }
 
   function selectTeam(teamId: number) {
-    navigate(`/teams/${teamId}`);
+    setSearchParams((prev) => ({ ...Object.fromEntries(prev), teamProfile: String(teamId) }));
   }
 
   // Same reasoning as AppShell's GameweekLabel: FPL keeps an event marked

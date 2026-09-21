@@ -2941,3 +2941,30 @@ be on screen, which read as confusing next to the "+ Add Tile" button.
   predictive/historic column split) is now a muted grey
   (`var(--border-strong)`) instead of the focus-accent blue, since it's a
   neutral visual separator rather than an interactive cue.
+
+## Team Profile overlay replaces Team Detail's ranking page; Playing Time gains a text summary and stops stretching full width
+
+- **Team Detail (the "rank players by attribute" page at `/teams/:teamId`)
+  removed.** It duplicated a metric-picker table that already exists — Teams'
+  own "Player Rankings" shortcut jumps into Player Explorer pre-filtered to
+  that club, which is fully sortable by every column already. Nothing was
+  gained by a second, narrower copy of the same idea.
+- **Team Profile overlay added** (`TeamDetailOverlay.tsx`), in the same
+  spirit as the player profile: a coloured team pill is now clickable
+  *everywhere* it appears in the app (Teams, the Dashboard's team tiles) and
+  opens an overlay (`?teamProfile=` query param, same pattern as the player
+  profile's `?player=`) showing that club's league standing, squad totals
+  (Points, Goals, Assists, xG, xA, xGI, Clean Sheets) under the same
+  Last Completed Season / Historic Average / Current Season toggle every
+  other page has, upcoming fixtures with FDR, and the current squad sorted
+  by points — with its own "Player Rankings" link through to Player
+  Explorer for anyone who wants the full sortable table. Clicking a player
+  in the squad list swaps the team overlay for that player's profile rather
+  than stacking both.
+- **Playing Time (player profile) gets a text summary next to the gauge** —
+  "Completed Gameweeks" and "Average Minutes Per Gameweek" spelled out
+  alongside the icon, since the gauge alone read as a lot of near-empty
+  space once Current Season Log was split into Prime/Supplements and
+  Playing Time became its own full-width card underneath. The card is now
+  capped at a sensible width instead of stretching edge-to-edge, while
+  keeping its place beneath Supplements and above Career History.

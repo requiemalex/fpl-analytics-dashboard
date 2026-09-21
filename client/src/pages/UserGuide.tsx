@@ -160,7 +160,7 @@ export function UserGuide() {
 
       <Section id="modes" title="Analysis modes: Last Completed Season / Historic Average / Current Season">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Most sections (Dashboard, Player Explorer, Underlying Numbers, Player Comparison, Teams, Team Detail, the profile) show the
+          Most sections (Dashboard, Player Explorer, Underlying Numbers, Player Comparison, Teams, Team Profile, the player profile) show the
           same toggle near the top of the page — the options are identical everywhere, but each page's toggle is independent: changing
           one page's mode (or its Search/Position/Team/Min Minutes criteria, where a page has that too) never changes what any other
           page shows. Switching Player Explorer to Historic Average, for instance, has no effect on the Dashboard open in another tab:
@@ -394,14 +394,16 @@ export function UserGuide() {
         </p>
       </Section>
 
-      <Section id="teams" title="Teams &amp; Team Detail">
+      <Section id="teams" title="Teams &amp; Team Profile">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
           Teams aggregates every club's <em>current</em> squad — a transferred player's full total goes to their new club here, not the
           one they earned it at, which the banner on that page states explicitly every time. Sortable like every other table here, with
-          a "Player Rankings" shortcut next to each club name that jumps straight into Player Explorer pre-filtered to that team. Team
-          Detail (click through from a team name) shows that club's individual players. A team's coloured pill (here, Team Detail, and
-          the Dashboard's team tiles) is a two-colour swatch of that club's real primary and secondary kit colours where known, so
-          same-coloured clubs (several Premier League sides share red or blue as a primary) are still distinguishable at a glance.
+          a "Player Rankings" shortcut next to each club name that jumps straight into Player Explorer pre-filtered to that team. A
+          team's coloured pill — here, in the Team Profile, and on the Dashboard's team tiles — is clickable anywhere it appears in the
+          app and opens that club's Team Profile: squad totals (Points, Goals, Assists, xG, xA, xGI, Clean Sheets), upcoming fixtures,
+          and the current squad by points, with its own "Player Rankings" link through to Player Explorer for anyone who wants the full
+          sortable table. It's a two-colour swatch of that club's real primary and secondary kit colours where known, so same-coloured
+          clubs (several Premier League sides share red or blue as a primary) are still distinguishable at a glance.
         </p>
       </Section>
 
@@ -430,7 +432,8 @@ export function UserGuide() {
           and Average rows are also tinted green/red — this player's percentile against others in their own position, live-season
           figures only, same as Underlying Numbers/Value above. Supplements stays untinted — those more granular defensive/discipline
           stats are only ever tracked per-gameweek for one player at a time, so there's no real population to compare them against.
-          <strong> Playing Time</strong> — the minutes-per-gameweek gauge — sits full-width below both tables and above Career History.
+          <strong> Playing Time</strong> — the minutes-per-gameweek gauge, with completed-gameweeks and average-minutes spelled out next
+          to it — sits below both tables and above Career History.
         </p>
         <p className="page-subtitle">
           Career History's season-by-season table (the chevron below the chart) is tinted the same green/red way, but relative to this

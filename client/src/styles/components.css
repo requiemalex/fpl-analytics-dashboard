@@ -1169,15 +1169,30 @@ select:focus {
   font-size: 12.5px;
 }
 
-/* A single color-tiered gauge (Playing Time card) — deliberately icon-only,
-   with the exact minutes figure left to the title tooltip rather than
-   printed on the card. */
+/* Icon + text side by side (Playing Time card) — the gauge stays the
+   at-a-glance summary (color tier, tooltip with the full sentence), the
+   text next to it spells out the two numbers behind it so the card reads
+   as more than an icon floating in empty space. */
+.playing-time-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.playing-time-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
 .playing-time-icon {
   display: flex;
   justify-content: center;
   align-items: center;
   padding: 6px 0 2px;
   cursor: default;
+  flex-shrink: 0;
 }
 .playing-time-icon.tier-high {
   color: var(--accent-positive);
