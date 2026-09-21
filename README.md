@@ -2895,3 +2895,26 @@ be on screen, which read as confusing next to the "+ Add Tile" button.
   seasons shown in the table (there's no cross-player population for a
   single player's career), the same per-column-range technique Player
   Explorer's Comparative Colouring uses.
+
+## Current Season Log: grouped into Prime/Supplements, position sense-check, fuller column names
+
+- **Grouped and labelled** — the 13 comparatively-coloured columns now sit
+  together right after GW/Opponent/Result under a "Prime" header label, a
+  divider, then the 9 uncoloured columns under "Supplements" — reusing the
+  app's existing column-group-divider styling (already used for Team
+  Building's predictive/historic column split) rather than a new pattern.
+- **Position sense-check** — Saves and Penalties Saved are now GKP-only
+  columns (hidden entirely for DEF/MID/FWD, rather than a row that can only
+  ever read zero for an outfield player). Defensive Contributions is hidden
+  for GKP instead, on the same basis already documented in this README's
+  "Defensive Contribution/Game vs Defensive Reward/Game" section:
+  goalkeepers are explicitly excluded from the DC mechanic under official
+  FPL scoring rules.
+- **Fuller column names** — Pts→Points, Min→Minutes, G→Goals, A→Assists,
+  CS→Clean Sheets, GC→Goals Conceded, T→Tackles, CBI→Clear/Blocks/Int,
+  R→Recoveries, OG→Own Goals, PS→Penalties Saved, PM→Penalties Missed,
+  YC→Yellow Cards, RC→Red Cards. xG/xA/xGI/xGC/BPS/DC were deliberately left
+  as their established short form — that's already how they're labelled
+  everywhere else in this app (and, for xG/xA/xGI/xGC, in football
+  analytics generally), so spelling them out here alone would make this one
+  table less consistent rather than clearer.

@@ -282,6 +282,8 @@ export function PlayerDetailOverlay() {
     setPlayerId(null);
   }
 
+  type GwColumn = { key: string; header: string; align?: "left"; cell: (g: PlayerGameweekHistory) => React.ReactNode };
+
   // <gw_log_is_always_live>: unlike every other figure on this page, a
   // gameweek-by-gameweek breakdown only ever exists for the live season
   // — historic seasons only have season-level totals (see
@@ -289,7 +291,7 @@ export function PlayerDetailOverlay() {
   // shows the real live-season log regardless of the analysis-mode
   // toggle above, and is headed generically rather than naming whichever
   // mode happens to be selected.
-  const gwColumns: { key: string; header: string; align?: "left"; cell: (g: PlayerGameweekHistory) => React.ReactNode }[] = [
+  const identityColumns: GwColumn[] = [
     { key: "gw", header: "GW", align: "left", cell: (g) => g.round },
     {
       key: "opp",
@@ -312,29 +314,65 @@ export function PlayerDetailOverlay() {
         return <span className={r.outcomeClass}>{r.label}</span>;
       },
     },
-    { key: "pts", header: "Pts", cell: (g) => fmtDecimal(g.totalPoints) },
-    { key: "min", header: "Min", cell: (g) => fmtDecimal(g.minutes) },
-    { key: "g", header: "G", cell: (g) => fmtDecimal(g.goals) },
-    { key: "a", header: "A", cell: (g) => fmtDecimal(g.assists) },
+  ];
+
+  // A goalkeeper never records a save or a penalty save while playing
+  // outfield — those two columns are structurally GKP-only, so they're
+  // hidden entirely rather than shown as an always-zero row for everyone
+  // else. Defensive Contributions is the opposite case: the mechanic
+  // itself (a per-match action-count threshold) explicitly excludes
+  // goalkeepers per official FPL scoring rules — see README's "Defensive
+  // Contribution/Game vs Defensive Reward/Game" — so it's hidden for GKP
+  // specifically rather than shown as a column that can never score them
+  // anything. Every other column here is at least possible for every
+  // position (however rare), so nothing else is pruned.
+  const isGoalkeeper = player.position === "GKP";
+
+  // Headers spelled close to their full name (space allowing — this table
+  // already scrolls horizontally) EXCEPT the handful that are already
+  // this app's (and football analytics generally, for xG/xA/xGI/xGC)
+  // established short form elsewhere — expanding those here alone would
+  // make this table LESS consistent with the rest of the app, not more
+  // readable.
+  const primeColumns: GwColumn[] = [
+    { key: "pts", header: "Points", cell: (g) => fmtDecimal(g.totalPoints) },
+    { key: "min", header: "Minutes", cell: (g) => fmtDecimal(g.minutes) },
+    { key: "st", header: "Starts", cell: (g) => (g.starts !== null ? fmtDecimal(g.starts) : DASH) },
+    { key: "g", header: "Goals", cell: (g) => fmtDecimal(g.goals) },
+    { key: "a", header: "Assists", cell: (g) => fmtDecimal(g.assists) },
     { key: "xg", header: "xG", cell: (g) => fmtDecimal(g.xG, 2) },
     { key: "xa", header: "xA", cell: (g) => fmtDecimal(g.xA, 2) },
     { key: "xgi", header: "xGI", cell: (g) => fmtDecimal(g.xGI, 2) },
-    { key: "cs", header: "CS", cell: (g) => fmtDecimal(g.cleanSheets) },
-    { key: "st", header: "ST", cell: (g) => (g.starts !== null ? fmtDecimal(g.starts) : DASH) },
-    { key: "gc", header: "GC", cell: (g) => fmtDecimal(g.goalsConceded) },
+    { key: "cs", header: "Clean Sheets", cell: (g) => fmtDecimal(g.cleanSheets) },
     { key: "xgc", header: "xGC", cell: (g) => fmtDecimal(g.xGC, 2) },
-    { key: "t", header: "T", cell: (g) => fmtDecimal(g.tackles) },
-    { key: "cbi", header: "CBI", cell: (g) => fmtDecimal(g.clearancesBlocksInterceptions) },
-    { key: "r", header: "R", cell: (g) => fmtDecimal(g.recoveries) },
-    { key: "dc", header: "DC", cell: (g) => fmtDecimal(g.defensiveContribution) },
-    { key: "og", header: "OG", cell: (g) => fmtDecimal(g.ownGoals) },
-    { key: "ps", header: "PS", cell: (g) => fmtDecimal(g.penaltiesSaved) },
-    { key: "pm", header: "PM", cell: (g) => fmtDecimal(g.penaltiesMissed) },
-    { key: "yc", header: "YC", cell: (g) => fmtDecimal(g.yellowCards) },
-    { key: "rc", header: "RC", cell: (g) => fmtDecimal(g.redCards) },
-    { key: "saves", header: "Saves", cell: (g) => fmtDecimal(g.saves) },
+    ...(isGoalkeeper ? [] : [{ key: "dc", header: "Defensive Contributions", cell: (g: PlayerGameweekHistory) => fmtDecimal(g.defensiveContribution) }]),
+    ...(isGoalkeeper ? [{ key: "saves", header: "Saves", cell: (g: PlayerGameweekHistory) => fmtDecimal(g.saves) }] : []),
     { key: "bps", header: "BPS", cell: (g) => fmtDecimal(g.bps) },
   ];
+
+  const supplementsColumns: GwColumn[] = [
+    { key: "gc", header: "Goals Conceded", cell: (g) => fmtDecimal(g.goalsConceded) },
+    { key: "t", header: "Tackles", cell: (g) => fmtDecimal(g.tackles) },
+    { key: "cbi", header: "Clear/Blocks/Int", cell: (g) => fmtDecimal(g.clearancesBlocksInterceptions) },
+    { key: "r", header: "Recoveries", cell: (g) => fmtDecimal(g.recoveries) },
+    { key: "og", header: "Own Goals", cell: (g) => fmtDecimal(g.ownGoals) },
+    ...(isGoalkeeper ? [{ key: "ps", header: "Penalties Saved", cell: (g: PlayerGameweekHistory) => fmtDecimal(g.penaltiesSaved) }] : []),
+    { key: "pm", header: "Penalties Missed", cell: (g) => fmtDecimal(g.penaltiesMissed) },
+    { key: "yc", header: "Yellow Cards", cell: (g) => fmtDecimal(g.yellowCards) },
+    { key: "rc", header: "Red Cards", cell: (g) => fmtDecimal(g.redCards) },
+  ];
+
+  const gwColumns: GwColumn[] = [...identityColumns, ...primeColumns, ...supplementsColumns];
+  // Where the Prime/Supplements group boundaries fall in the flat
+  // gwColumns list above — used to draw the divider line and render the
+  // "Prime"/"Supplements" subtitle row spanning the right columns,
+  // recomputed from the actual (position-filtered) group lengths rather
+  // than a fixed column count.
+  const primeStartIndex = identityColumns.length;
+  const supplementsStartIndex = identityColumns.length + primeColumns.length;
+  function groupDividerClass(i: number): string | undefined {
+    return i === primeStartIndex || i === supplementsStartIndex ? "column-group-divider" : undefined;
+  }
 
   return (
     <div className="profile-backdrop">
@@ -539,8 +577,17 @@ export function PlayerDetailOverlay() {
                       <table className="data-table compact">
                         <thead>
                           <tr>
-                            {gwColumns.map((c) => (
-                              <th key={c.key} style={c.align === "left" ? { textAlign: "left" } : undefined}>
+                            <th colSpan={identityColumns.length} style={{ position: "static" }} />
+                            <th colSpan={primeColumns.length} className="column-group-divider" style={{ position: "static" }}>
+                              Prime
+                            </th>
+                            <th colSpan={supplementsColumns.length} className="column-group-divider" style={{ position: "static" }}>
+                              Supplements
+                            </th>
+                          </tr>
+                          <tr>
+                            {gwColumns.map((c, i) => (
+                              <th key={c.key} className={groupDividerClass(i)} style={c.align === "left" ? { textAlign: "left" } : undefined}>
                                 {c.header}
                               </th>
                             ))}
@@ -549,8 +596,12 @@ export function PlayerDetailOverlay() {
                         <tbody>
                           {gameweeks.map((g) => (
                             <tr key={g.round}>
-                              {gwColumns.map((c) => (
-                                <td key={c.key} style={c.align === "left" ? { textAlign: "left", fontFamily: "var(--font-body)" } : undefined}>
+                              {gwColumns.map((c, i) => (
+                                <td
+                                  key={c.key}
+                                  className={groupDividerClass(i)}
+                                  style={c.align === "left" ? { textAlign: "left", fontFamily: "var(--font-body)" } : undefined}
+                                >
                                   {c.cell(g)}
                                 </td>
                               ))}
@@ -565,7 +616,7 @@ export function PlayerDetailOverlay() {
                                   Totals
                                 </td>
                               ) : i === 1 ? null : (
-                                <td key={c.key} style={{ background: percentileTint(seasonLogPercentiles[c.key] ?? null) }}>
+                                <td key={c.key} className={groupDividerClass(i)} style={{ background: percentileTint(seasonLogPercentiles[c.key] ?? null) }}>
                                   {totalsByKey[c.key] ?? ""}
                                 </td>
                               ),
@@ -578,7 +629,7 @@ export function PlayerDetailOverlay() {
                                   Average
                                 </td>
                               ) : i === 1 ? null : (
-                                <td key={c.key} style={{ background: percentileTint(seasonLogPercentiles[c.key] ?? null) }}>
+                                <td key={c.key} className={groupDividerClass(i)} style={{ background: percentileTint(seasonLogPercentiles[c.key] ?? null) }}>
                                   {averagesByKey[c.key] ?? ""}
                                 </td>
                               ),

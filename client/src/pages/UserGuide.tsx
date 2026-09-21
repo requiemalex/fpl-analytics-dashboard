@@ -420,15 +420,17 @@ export function UserGuide() {
         </p>
         <p className="page-subtitle">
           <strong>Current Season Log</strong> is a gameweek-by-gameweek breakdown of the live season — one row per gameweek played,
-          opponent and result, points, minutes, starts, and the same attacking/defensive/expected-stats columns used everywhere else in
-          this app (goals, assists, xG, xA, xGI, clean sheets, goals conceded, xGC, tackles, clearances/blocks/interceptions, recoveries,
-          Defensive Contributions, cards, saves, penalties, BPS), plus a Totals row and an Average row (total ÷ gameweeks played so far)
-          for every column. The table scrolls horizontally — there are more columns than fit on screen at once. Sourced from the same
-          element-summary request as Career History and Playing Time, so it shares their loading/error state. The Totals and Average
-          rows are also tinted green/red — this player's percentile against others in their own position, live-season figures only,
-          same as Underlying Numbers/Value above — for whichever columns have a real season-total figure to compare against across the
-          whole player pool (the more granular defensive/discipline columns are only ever tracked per-gameweek for one player at a
-          time, so those stay untinted rather than showing a comparison with nothing behind it).
+          opponent and result, then two column groups (labelled in the header, with a divider between them): "Prime" — Points,
+          Minutes, Starts, Goals, Assists, xG, xA, xGI, Clean Sheets, xGC, Defensive Contributions, Saves, BPS — and "Supplements" —
+          Goals Conceded, Tackles, Clearances/Blocks/Interceptions, Recoveries, Own Goals, Penalties Saved, Penalties Missed, Yellow
+          Cards, Red Cards. A goalkeeper's row swaps Defensive Contributions out for Saves and Penalties Saved (the only position that
+          can record either); every other position doesn't get those two columns at all, rather than a column that can only ever read
+          zero. A Totals row and an Average row (total ÷ gameweeks played so far) sit below every column. The table scrolls
+          horizontally — there are more columns than fit on screen at once. Sourced from the same element-summary request as Career
+          History and Playing Time, so it shares their loading/error state. The Totals and Average rows are also tinted green/red on
+          every Prime column — this player's percentile against others in their own position, live-season figures only, same as
+          Underlying Numbers/Value above. Supplements columns stay untinted — those more granular defensive/discipline stats are only
+          ever tracked per-gameweek for one player at a time, so there's no real population to compare them against.
         </p>
         <p className="page-subtitle">
           Career History's season-by-season table (the chevron below the chart) is tinted the same green/red way, but relative to this
