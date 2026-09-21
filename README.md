@@ -488,6 +488,15 @@ a view that would push the combined Player+Team tile count past
 silently truncating it. Persisted the same versioned-localStorage way
 as everything else in this section.
 
+There's no separate "Reset to Defaults" button. The tile layout the
+Dashboard always used to ship with is seeded as a saved view named
+"Default" (one for Player, one for Team) the first time the app ever
+runs with no saved-views data yet — it behaves exactly like any view a
+user saves themselves: **Load** it to get back to that layout, or
+**Delete** it for good if it's not wanted (it doesn't come back once
+deleted). This replaced a dedicated `resetTiles()` reset-to-hardcoded-
+defaults function with one unified saved-views mechanism.
+
 ## Team Badge: two-colour club pills, not one flat colour
 
 Several Premier League clubs share close to the same primary colour

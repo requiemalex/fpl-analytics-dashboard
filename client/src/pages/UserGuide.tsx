@@ -193,7 +193,7 @@ export function UserGuide() {
 
       <Section id="dashboard" title="Dashboard">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          A snapshot, not a workspace — fully customisable Top-5 leaderboard tiles (+ Add Tile / Reset to Defaults). A{" "}
+          A snapshot, not a workspace — fully customisable Top-5 leaderboard tiles (+ Add Tile). A{" "}
           <strong>Players / Teams</strong> toggle (top right) switches which set of tiles is on screen; "+ Add Tile" always adds to
           whichever is currently selected. Click any row to jump straight to that player's profile or that team's page.
         </p>
@@ -211,8 +211,9 @@ export function UserGuide() {
           <li>Each row's bar shows its value's size relative to the other rows in that tile — green/red by above/below-expected for the three "vs xG/xA/xGI" tiles, one flat colour for everything else.</li>
           <li>
             <strong>Save View / Saved views dropdown</strong> — save the tiles currently on screen (for whichever of Players/Teams is
-            selected) as a named view, up to 5 each for Player and Team. Loading a saved view replaces the live tiles for that scope
-            only; the other scope is untouched.
+            selected) as a named view, up to 5 each for Player and Team. The original tile layout is itself just a saved view named
+            "Default" — load it, or delete it, the same as any view you save yourself. Loading a saved view replaces the live tiles
+            for that scope only; the other scope is untouched.
           </li>
         </ul>
         <Try>Use it as a starting point, not a destination — spot a name in a leaderboard, click through, then dig deeper in Player Explorer or the profile.</Try>

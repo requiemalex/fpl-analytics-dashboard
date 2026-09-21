@@ -13,10 +13,6 @@ function ChartTooltip({ active, payload }: any) {
         {s.isLive ? " (live)" : !s.qualifies && " *"}
       </strong>
       <div className="mono">{fmtDecimal(s.totalPoints)} pts</div>
-      {s.isLive && <div style={{ color: "var(--text-muted)", marginTop: 2 }}>In progress — not yet counted in the average</div>}
-      {!s.isLive && !s.qualifies && (
-        <div style={{ color: "var(--text-muted)", marginTop: 2 }}>Light season (fewer minutes than usual) — still counted in the average</div>
-      )}
     </div>
   );
 }

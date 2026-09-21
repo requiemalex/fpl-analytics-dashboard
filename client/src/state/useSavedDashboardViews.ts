@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { SummaryTileScope } from "../components/summaryTileMetrics";
-import type { SummaryTileConfig } from "./useSummaryTiles";
+import { DEFAULT_SUMMARY_TILES, type SummaryTileConfig } from "./useSummaryTiles";
 import { loadVersioned, saveVersioned, type VersionedStore } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:dashboard:saved-views:v1";
@@ -17,9 +17,26 @@ export interface SavedDashboardView {
 /** Same idea as MAX_SAVED_SQUADS — a UI/localStorage-hygiene limit, applied per scope so filling up Player views doesn't block Team views. */
 export const MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE = 5;
 
+/**
+ * There's no separate "Reset to Defaults" mechanism any more — the tile
+ * layout the Dashboard always used to ship with is just a saved view named
+ * "Default", one per scope, exactly like any view a user saves themselves
+ * (deletable, loadable, counts toward the per-scope cap). This only seeds
+ * these two on a first-ever load (see `fallback` below) — once a user has
+ * saved/deleted anything, their real array is what's stored, and deleting
+ * "Default" deletes it for good rather than it reappearing.
+ */
+const DEFAULT_SAVED_DASHBOARD_VIEWS: SavedDashboardView[] = (["player", "team"] as const).map((scope) => ({
+  id: `default-view-${scope}`,
+  scope,
+  name: "Default",
+  tiles: DEFAULT_SUMMARY_TILES.filter((t) => t.scope === scope),
+  updatedAt: 0,
+}));
+
 const SAVED_VIEWS_STORE: VersionedStore<SavedDashboardView[]> = {
   version: STORAGE_VERSION,
-  fallback: [],
+  fallback: DEFAULT_SAVED_DASHBOARD_VIEWS,
   migrate(data) {
     if (!Array.isArray(data)) return null;
     return data as SavedDashboardView[];

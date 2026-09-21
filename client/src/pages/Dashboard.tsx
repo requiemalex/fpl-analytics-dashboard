@@ -464,9 +464,6 @@ export function Dashboard() {
         <button type="button" className="chip" onClick={openAddTileModal}>
           + Add Tile
         </button>
-        <button type="button" className="chip" onClick={tilesState.resetTiles} title="Restore the default tiles and order">
-          Reset to Defaults
-        </button>
         <button type="button" className="chip" onClick={openSaveViewModal}>
           Save View
         </button>
