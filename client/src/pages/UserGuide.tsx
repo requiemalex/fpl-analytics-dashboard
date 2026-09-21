@@ -193,28 +193,28 @@ export function UserGuide() {
 
       <Section id="dashboard" title="Dashboard">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          A snapshot, not a workspace — fully customisable Top-5 leaderboard tiles (+ Add Tile). A{" "}
-          <strong>Players / Teams</strong> toggle (top right) switches which set of tiles is on screen; "+ Add Tile" always adds to
-          whichever is currently selected. Click any row to jump straight to that player's profile or that team's page.
+          A snapshot, not a workspace — fully customisable Top-5 leaderboard tiles (+ icon to add one). A{" "}
+          <strong>Players / Teams</strong> toggle (top right) switches which set of tiles is on screen; the add-tile button always adds
+          to whichever is currently selected. Click any row to jump straight to that player's profile or that team's page.
         </p>
         <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
           <li>
             <strong>Data View and criteria, per tile</strong> — a Player Tile picks its own Last Completed Season / Historic Average /
-            Current Season, and its own Search/Position/Team/Min Minutes criteria, when it's created in "+ Add Tile" — not one shared
-            setting for the whole page, so two tiles can watch completely different slices of the player pool side by side. The data
-            view shows as a small <code>LS</code>/<code>HA</code>/<code>CS</code> badge in the tile's header (hover for the full name).
-            Min Minutes has no effect on a tile whose own data view is Current Season, since everyone genuinely has low minutes early
-            in a live season. Team Tiles always aggregate a club's whole squad and have no criteria of their own. Every tile can also
-            be given a custom name in the same dialog — leave it blank to keep the auto-generated "Top/Bottom 5 — &lt;statistic&gt;"
-            title.
+            Current Season, and its own Search/Position/Team/Min Minutes criteria, when it's created in the add-tile dialog — not one
+            shared setting for the whole page, so two tiles can watch completely different slices of the player pool side by side. The
+            data view shows as a small <code>LS</code>/<code>HA</code>/<code>CS</code> badge in the tile's header (hover for the full
+            name). Min Minutes has no effect on a tile whose own data view is Current Season, since everyone genuinely has low minutes
+            early in a live season. Team Tiles always aggregate a club's whole squad and have no criteria of their own. Every tile can
+            also be given a custom name in the same dialog — leave it blank to keep the auto-generated "Top/Bottom 5 —
+            &lt;statistic&gt;" title.
           </li>
           <li>Each row's bar shows its value's size relative to the other rows in that tile — green/red by above/below-expected for the three "vs xG/xA/xGI" tiles, one flat colour for everything else.</li>
           <li>
-            <strong>Save View / Saved views dropdown</strong> — save the tiles currently on screen (for whichever of Players/Teams is
-            selected) as a named view, up to 5 each for Player and Team. The original tile layout is itself just a saved view named
-            "Default" — load it any time to get back to it, though unlike a view you save yourself it can't be deleted, so there's
-            always one to fall back on. Loading a saved view replaces the live tiles for that scope only; the other scope is
-            untouched.
+            <strong>Saved view dropdown</strong> — picking a view from the dropdown loads it immediately (for whichever of
+            Players/Teams is selected); the save icon snapshots the tiles currently on screen as a new named view, up to 5 each for
+            Player and Team. The original tile layout is itself just a saved view named "Default" — pick it any time to get back to
+            it, though unlike a view you save yourself it can't be deleted, so there's always one to fall back on. Loading a view
+            replaces the live tiles for that scope only; the other scope is untouched.
           </li>
         </ul>
         <Try>Use it as a starting point, not a destination — spot a name in a leaderboard, click through, then dig deeper in Player Explorer or the profile.</Try>

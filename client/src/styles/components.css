@@ -1314,3 +1314,15 @@ select:focus {
   border-color: var(--accent-positive);
   background: var(--accent-positive-dim);
 }
+.chip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+.chip-icon:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

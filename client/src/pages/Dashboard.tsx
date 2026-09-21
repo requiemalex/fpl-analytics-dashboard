@@ -86,6 +86,37 @@ function ClockIcon() {
   );
 }
 
+function PlusIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <line x1="8" y1="2.5" x2="8" y2="13.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <line x1="2.5" y1="8" x2="13.5" y2="8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function SaveIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M2.5 2.5h8l3 3v8a1 1 0 0 1-1 1h-10a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      <rect x="4.7" y="2.5" width="4.6" height="3.6" stroke="currentColor" strokeWidth="1.3" />
+      <rect x="4.7" y="9.4" width="6.6" height="4.1" stroke="currentColor" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <path d="M3 4.5h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M6 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4.5 4.5 5 13a1 1 0 0 0 1 .9h4a1 1 0 0 0 1-.9l.5-8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="6.5" y1="7" x2="6.7" y2="11.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+      <line x1="9.5" y1="7" x2="9.3" y2="11.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function Dashboard() {
   const {
     players,
@@ -198,7 +229,11 @@ export function Dashboard() {
   // replaces the live tiles for that scope only; the other scope is
   // untouched.
   const savedDashboardViews = useSavedDashboardViews();
-  const [selectedViewId, setSelectedViewId] = useState<string>("");
+  // Which saved view is picked per scope — persisted (see
+  // useSavedDashboardViews' selectedViewIds), so whichever view a user was
+  // last on for Player/Team tiles is still selected after a reload or
+  // reopening the desktop app, not reset back to Default every time.
+  const selectedViewId = savedDashboardViews.selectedViewIds[tileView];
   const [showSaveViewModal, setShowSaveViewModal] = useState(false);
   const [newViewName, setNewViewName] = useState("");
   const [saveViewError, setSaveViewError] = useState<string | null>(null);
@@ -215,7 +250,6 @@ export function Dashboard() {
 
   function changeTileView(scope: SummaryTileScope) {
     setTileView(scope);
-    setSelectedViewId("");
     setLoadViewError(null);
   }
 
@@ -256,8 +290,15 @@ export function Dashboard() {
 
   function handleDeleteSelectedView() {
     if (!selectedViewId) return;
+    // useSavedDashboardViews.remove() already falls the scope's selection
+    // back to Default when the deleted view was the one selected.
     savedDashboardViews.remove(selectedViewId);
-    setSelectedViewId("");
+  }
+
+  function handleSelectView(id: string) {
+    savedDashboardViews.setSelectedViewId(tileView, id);
+    const view = visibleSavedViews.find((v) => v.id === id);
+    if (view) handleLoadView(view);
   }
 
   const tileRows = useMemo(() => {
@@ -473,44 +514,33 @@ export function Dashboard() {
 
       <div className="stat-group-title">Summary Tiles</div>
       <div className="chip-row" style={{ marginBottom: 12 }}>
-        <button type="button" className="chip" onClick={openAddTileModal}>
-          + Add Tile
+        <select
+          aria-label="Saved view"
+          value={selectedViewId}
+          onChange={(e) => handleSelectView(e.target.value)}
+        >
+          {visibleSavedViews.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.name}
+            </option>
+          ))}
+        </select>
+        <button type="button" className="chip chip-icon" title="Add Tile" aria-label="Add Tile" onClick={openAddTileModal}>
+          <PlusIcon />
         </button>
-        <button type="button" className="chip" onClick={openSaveViewModal}>
-          Save View
+        <button type="button" className="chip chip-icon" title="Save View" aria-label="Save View" onClick={openSaveViewModal}>
+          <SaveIcon />
         </button>
-        {visibleSavedViews.length > 0 && (
-          <>
-            <select value={selectedViewId} onChange={(e) => setSelectedViewId(e.target.value)}>
-              <option value="">Saved views…</option>
-              {visibleSavedViews.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.name}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="chip"
-              disabled={!selectedViewId}
-              onClick={() => {
-                const view = visibleSavedViews.find((v) => v.id === selectedViewId);
-                if (view) handleLoadView(view);
-              }}
-            >
-              Load
-            </button>
-            <button
-              type="button"
-              className="chip"
-              disabled={!selectedViewId || selectedViewIsDefault}
-              title={selectedViewIsDefault ? "The Default view can't be deleted" : undefined}
-              onClick={handleDeleteSelectedView}
-            >
-              Delete
-            </button>
-          </>
-        )}
+        <button
+          type="button"
+          className="chip chip-icon"
+          disabled={!selectedViewId || selectedViewIsDefault}
+          title={selectedViewIsDefault ? "The Default view can't be deleted" : "Delete View"}
+          aria-label="Delete View"
+          onClick={handleDeleteSelectedView}
+        >
+          <TrashIcon />
+        </button>
       </div>
       {loadViewError && (
         <div className="banner error" style={{ marginBottom: 12 }}>

@@ -2810,3 +2810,24 @@ final "run it and fix what breaks" pass) still need to be performed by
 running `npm install && npm run dev` locally and clicking through the app
 once. Please treat that as the outstanding step before calling this
 "done" in the strictest sense of the brief's definition of done.
+
+## Dashboard: streamlined summary-tile view selector, and the selected view now persists
+
+The Dashboard's Summary Tiles controls (Players and Teams sections alike)
+were carrying more chrome than they needed: a "Saved views…" placeholder
+that meant the dropdown never actually pointed at what was on screen, a
+separate Load button after picking a view, and three fully-labelled text
+buttons. Reworked to match how it's actually used — picking a view in the
+dropdown now loads it immediately, the dropdown defaults to "Default" (the
+permanent built-in view) instead of an empty placeholder, and Add Tile/Save
+View/Delete are now icon-only buttons (+ / floppy disk / bin), ordered
+selector → add → save → delete.
+
+Which view is selected also now **persists per scope** (Player and Team
+tracked separately) across a reload or fully closing and reopening the
+desktop app — previously it reset to Default every time regardless of what
+was actually on screen, even after loading a different saved view. New
+small localStorage store (`useSavedDashboardViews`'s `selectedViewIds`),
+self-healing the same way the Default-view backfill already does; deleting
+the view currently selected for a scope falls that scope back to Default
+automatically rather than pointing at something that no longer exists.

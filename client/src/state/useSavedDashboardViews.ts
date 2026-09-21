@@ -39,6 +39,17 @@ export function isDefaultSavedView(view: Pick<SavedDashboardView, "id">): boolea
   return DEFAULT_SAVED_VIEW_IDS.has(view.id);
 }
 
+function defaultViewIdForScope(scope: SummaryTileScope): string {
+  return `default-view-${scope}`;
+}
+
+type SelectedViewIds = Record<SummaryTileScope, string>;
+
+const DEFAULT_SELECTED_VIEW_IDS: SelectedViewIds = {
+  player: defaultViewIdForScope("player"),
+  team: defaultViewIdForScope("team"),
+};
+
 const SAVED_VIEWS_STORE: VersionedStore<SavedDashboardView[]> = {
   version: STORAGE_VERSION,
   fallback: DEFAULT_SAVED_DASHBOARD_VIEWS,
@@ -65,10 +76,46 @@ function saveToStorage(views: SavedDashboardView[]) {
   saveVersioned(STORAGE_KEY, STORAGE_VERSION, views);
 }
 
+const SELECTED_VIEW_STORAGE_KEY = "fpl-dashboard:dashboard:selected-view:v1";
+const SELECTED_VIEW_STORAGE_VERSION = 1;
+
+/**
+ * Which saved view is currently picked in the dropdown, per scope — kept
+ * separate from `views` itself since it's "what the user last chose to look
+ * at", not saved-view data. Persisted so it survives a page reload or the
+ * desktop app being closed and reopened: whichever view (Default or a named
+ * one) a user leaves a scope on is the one they land back on, not always
+ * Default. Self-heals like SAVED_VIEWS_STORE — a missing/malformed scope key
+ * falls back to that scope's Default id rather than failing the whole load.
+ */
+const SELECTED_VIEW_STORE: VersionedStore<SelectedViewIds> = {
+  version: SELECTED_VIEW_STORAGE_VERSION,
+  fallback: DEFAULT_SELECTED_VIEW_IDS,
+  migrate(data) {
+    if (!data || typeof data !== "object") return null;
+    const raw = data as Partial<Record<SummaryTileScope, unknown>>;
+    return {
+      player: typeof raw.player === "string" ? raw.player : DEFAULT_SELECTED_VIEW_IDS.player,
+      team: typeof raw.team === "string" ? raw.team : DEFAULT_SELECTED_VIEW_IDS.team,
+    };
+  },
+};
+
+function loadSelectedViewIdsFromStorage(): SelectedViewIds {
+  return loadVersioned(SELECTED_VIEW_STORAGE_KEY, SELECTED_VIEW_STORE);
+}
+
+function saveSelectedViewIdsToStorage(ids: SelectedViewIds) {
+  saveVersioned(SELECTED_VIEW_STORAGE_KEY, SELECTED_VIEW_STORAGE_VERSION, ids);
+}
+
 export interface UseSavedDashboardViews {
   views: SavedDashboardView[];
   save: (scope: SummaryTileScope, name: string, tiles: SummaryTileConfig[]) => void;
   remove: (id: string) => void;
+  /** The dropdown's current selection for each scope — see SELECTED_VIEW_STORE. */
+  selectedViewIds: SelectedViewIds;
+  setSelectedViewId: (scope: SummaryTileScope, id: string) => void;
 }
 
 /**
@@ -81,10 +128,15 @@ export interface UseSavedDashboardViews {
  */
 export function useSavedDashboardViews(): UseSavedDashboardViews {
   const [views, setViews] = useState<SavedDashboardView[]>(loadFromStorage);
+  const [selectedViewIds, setSelectedViewIds] = useState<SelectedViewIds>(loadSelectedViewIdsFromStorage);
 
   useEffect(() => {
     saveToStorage(views);
   }, [views]);
+
+  useEffect(() => {
+    saveSelectedViewIdsToStorage(selectedViewIds);
+  }, [selectedViewIds]);
 
   const save = useCallback((scope: SummaryTileScope, name: string, tiles: SummaryTileConfig[]) => {
     setViews((prev) => [
@@ -93,10 +145,26 @@ export function useSavedDashboardViews(): UseSavedDashboardViews {
     ]);
   }, []);
 
-  const remove = useCallback((id: string) => {
-    if (DEFAULT_SAVED_VIEW_IDS.has(id)) return;
-    setViews((prev) => prev.filter((v) => v.id !== id));
+  const remove = useCallback(
+    (id: string) => {
+      if (DEFAULT_SAVED_VIEW_IDS.has(id)) return;
+      const removedView = views.find((v) => v.id === id);
+      setViews((prev) => prev.filter((v) => v.id !== id));
+      // Deleting the view currently selected for its scope falls that
+      // scope's selection back to Default rather than leaving it pointed at
+      // a saved view that no longer exists.
+      if (removedView) {
+        setSelectedViewIds((prev) =>
+          prev[removedView.scope] === id ? { ...prev, [removedView.scope]: defaultViewIdForScope(removedView.scope) } : prev,
+        );
+      }
+    },
+    [views],
+  );
+
+  const setSelectedViewId = useCallback((scope: SummaryTileScope, id: string) => {
+    setSelectedViewIds((prev) => (prev[scope] === id ? prev : { ...prev, [scope]: id }));
   }, []);
 
-  return { views, save, remove };
+  return { views, save, remove, selectedViewIds, setSelectedViewId };
 }
