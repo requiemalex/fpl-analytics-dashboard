@@ -424,7 +424,16 @@ export function UserGuide() {
           this app (goals, assists, xG, xA, xGI, clean sheets, goals conceded, xGC, tackles, clearances/blocks/interceptions, recoveries,
           Defensive Contributions, cards, saves, penalties, BPS), plus a Totals row and an Average row (total ÷ gameweeks played so far)
           for every column. The table scrolls horizontally — there are more columns than fit on screen at once. Sourced from the same
-          element-summary request as Career History and Playing Time, so it shares their loading/error state.
+          element-summary request as Career History and Playing Time, so it shares their loading/error state. The Totals and Average
+          rows are also tinted green/red — this player's percentile against others in their own position, live-season figures only,
+          same as Underlying Numbers/Value above — for whichever columns have a real season-total figure to compare against across the
+          whole player pool (the more granular defensive/discipline columns are only ever tracked per-gameweek for one player at a
+          time, so those stay untinted rather than showing a comparison with nothing behind it).
+        </p>
+        <p className="page-subtitle">
+          Career History's season-by-season table (the chevron below the chart) is tinted the same green/red way, but relative to this
+          player's own other seasons shown in the table, not the wider player pool — there's no "other players" comparison for a
+          single player's career.
         </p>
       </Section>
 

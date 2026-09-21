@@ -2866,3 +2866,32 @@ be on screen, which read as confusing next to the "+ Add Tile" button.
   sitting after the last tile (wrapping to its own row once a row is
   full, via the grid's own layout, not a hardcoded column count), replacing
   the old standalone "+ Add Tile" button above the grid.
+
+## Player Profile: Current Season Log always shows every column, comparative colouring added, Career History decluttered
+
+- **"Show all columns"/"Show fewer columns" removed** — the Current Season
+  Log always shows every column now (GW, Opponent, Result, Points, Minutes,
+  Goals, Assists, xG, xA, xGI, Clean Sheets, Starts, Goals Conceded, xGC,
+  Tackles, CBI, Recoveries, Defensive Contribution, Own Goals, Penalties
+  Saved/Missed, Cards, Saves, BPS) — it scrolls horizontally rather than
+  hiding most of it behind a toggle.
+- **Comparative colouring on the Totals/Average rows** — same green-better/
+  red-worse percentile tint already used on this page's Underlying Numbers
+  and Value stat tiles, computed against the live-season population (this
+  log is always live data, independent of the page's analysis-mode toggle)
+  rather than whatever mode happens to be selected. Limited to the 13
+  columns with a real season-aggregate figure on the whole player pool
+  (Points, Minutes, Goals, Assists, xG, xA, xGI, Clean Sheets, Starts, xGC,
+  Defensive Contribution, Saves, BPS) — the other 9 (Tackles, CBI,
+  Recoveries, Goals Conceded, Own Goals, Cards, Penalties) are only ever
+  tracked per-gameweek for the one player being viewed (this app never
+  bulk-fetches every player's full gameweek history just to build a
+  population average for a handful of columns), so those stay untinted
+  rather than showing a comparison with nothing real behind it.
+- **"Career History — Points by Season" renamed to "Career History".**
+- **Season-by-season detail is now an icon** — a chevron (flips up/down)
+  replaces the "Show/Hide season-by-season detail" text button. Its table
+  is comparatively coloured too, but relative to this player's own other
+  seasons shown in the table (there's no cross-player population for a
+  single player's career), the same per-column-range technique Player
+  Explorer's Comparative Colouring uses.

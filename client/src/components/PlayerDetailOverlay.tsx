@@ -5,7 +5,7 @@ import { usePlayerHistory } from "../state/usePlayerHistory";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { computeRadarDataForAxes, getRadarAxisGroupsForPosition } from "../metrics/radarStats";
 import { computePositionPercentiles } from "../metrics/percentiles";
-import { percentileTint } from "../utils/colorScale";
+import { percentileTint, relativeCellTint } from "../utils/colorScale";
 import { PlayerRadarChart } from "./PlayerRadarChart";
 import { ActualVsExpectedBars } from "./playerProfile/ActualVsExpectedBars";
 import { CareerHistoryChart } from "./playerProfile/CareerHistoryChart";
@@ -82,13 +82,21 @@ function CompareIcon() {
   );
 }
 
+/** Expand/collapse indicator for the season-by-season detail table — points down when collapsed (click to expand downward), flips to point up once expanded (click to retract). */
+function ChevronIcon({ direction }: { direction: "down" | "up" }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ transform: direction === "up" ? "rotate(180deg)" : undefined }}>
+      <path d="M3.5 6 8 10.5 12.5 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function PlayerDetailOverlay() {
   const { players, teamsById, historicReferenceSeason, historicStatus, historicProfiles, currentSeasonHasStarted, requestHistoricData } = useAppState();
   useEffect(() => {
     requestHistoricData();
   }, [requestHistoricData]);
   const [player, setPlayerId] = useSelectedPlayer();
-  const [showAllColumns, setShowAllColumns] = useState(false);
   const [showFullCareerTable, setShowFullCareerTable] = useState(false);
   // The profile's own analysis-mode — deliberately independent of
   // whatever mode happens to be selected on the page underneath it (see
@@ -195,6 +203,52 @@ export function PlayerDetailOverlay() {
     return result;
   }, [player, resolvedPlayers, analysisMode, filters.minMinutes]);
 
+  // The Current Season Log's Totals/Average rows are always live-season
+  // data regardless of the analysis-mode toggle above (see
+  // <gw_log_is_always_live> below), so their comparative colouring is
+  // always computed against the LIVE population too — never whichever
+  // mode happens to be selected elsewhere on the page.
+  const liveResolvedPlayers = useMemo(
+    () => resolvePlayerStatsList(players, "live", historicProfiles, currentSeasonHasStarted).resolved,
+    [players, historicProfiles, currentSeasonHasStarted],
+  );
+
+  // Limited to the columns whose season aggregate actually exists on
+  // NormalizedPlayer (this app's whole-pool bootstrap data) — tackles,
+  // CBI, recoveries, goals conceded, own goals, cards and penalties are
+  // only ever computed per-gameweek for the one player currently being
+  // viewed (usePlayerHistory is lazy-loaded per player, see CLAUDE.md),
+  // so there's no real population to compare those columns against; they
+  // stay untinted rather than showing something fabricated. The same
+  // percentile is used for both the Totals row and the Average row (both
+  // reflect the same underlying season-long standing, just as a sum vs. a
+  // per-game rate) rather than maintaining a second, mostly-unavailable
+  // per-game population for the Average row specifically.
+  const seasonLogPercentiles = useMemo(() => {
+    if (!player) return {} as Record<string, number | null>;
+    const metrics: Record<string, { fn: (p: NormalizedPlayer) => number | null; higherIsBetter: boolean }> = {
+      pts: { fn: (p) => p.totalPoints, higherIsBetter: true },
+      min: { fn: (p) => p.minutes, higherIsBetter: true },
+      g: { fn: (p) => p.goals, higherIsBetter: true },
+      a: { fn: (p) => p.assists, higherIsBetter: true },
+      xg: { fn: (p) => p.xG, higherIsBetter: true },
+      xa: { fn: (p) => p.xA, higherIsBetter: true },
+      xgi: { fn: (p) => p.xGI, higherIsBetter: true },
+      cs: { fn: (p) => p.cleanSheets, higherIsBetter: true },
+      st: { fn: (p) => p.starts, higherIsBetter: true },
+      xgc: { fn: (p) => p.xGC, higherIsBetter: false },
+      dc: { fn: (p) => p.defensiveContributions, higherIsBetter: true },
+      saves: { fn: (p) => p.saves, higherIsBetter: true },
+      bps: { fn: (p) => p.bps, higherIsBetter: true },
+    };
+    const result: Record<string, number | null> = {};
+    for (const [key, { fn, higherIsBetter }] of Object.entries(metrics)) {
+      const raw = computePositionPercentiles(liveResolvedPlayers, fn, 0).get(player.id) ?? null;
+      result[key] = raw === null ? null : higherIsBetter ? raw : 100 - raw;
+    }
+    return result;
+  }, [player, liveResolvedPlayers]);
+
   if (!player) return null;
 
   // The stat cards below use this — identity fields (name, team, position,
@@ -235,12 +289,11 @@ export function PlayerDetailOverlay() {
   // shows the real live-season log regardless of the analysis-mode
   // toggle above, and is headed generically rather than naming whichever
   // mode happens to be selected.
-  const gwColumns: { key: string; header: string; core: boolean; align?: "left"; cell: (g: PlayerGameweekHistory) => React.ReactNode }[] = [
-    { key: "gw", header: "GW", core: true, align: "left", cell: (g) => g.round },
+  const gwColumns: { key: string; header: string; align?: "left"; cell: (g: PlayerGameweekHistory) => React.ReactNode }[] = [
+    { key: "gw", header: "GW", align: "left", cell: (g) => g.round },
     {
       key: "opp",
       header: "Opponent",
-      core: true,
       align: "left",
       cell: (g) => {
         const opponent = teamsById.get(g.opponentTeamId);
@@ -254,36 +307,34 @@ export function PlayerDetailOverlay() {
     {
       key: "res",
       header: "Result",
-      core: true,
       cell: (g) => {
         const r = gameweekResult(g);
         return <span className={r.outcomeClass}>{r.label}</span>;
       },
     },
-    { key: "pts", header: "Pts", core: true, cell: (g) => fmtDecimal(g.totalPoints) },
-    { key: "min", header: "Min", core: true, cell: (g) => fmtDecimal(g.minutes) },
-    { key: "g", header: "G", core: true, cell: (g) => fmtDecimal(g.goals) },
-    { key: "a", header: "A", core: true, cell: (g) => fmtDecimal(g.assists) },
-    { key: "xg", header: "xG", core: true, cell: (g) => fmtDecimal(g.xG, 2) },
-    { key: "xa", header: "xA", core: true, cell: (g) => fmtDecimal(g.xA, 2) },
-    { key: "xgi", header: "xGI", core: true, cell: (g) => fmtDecimal(g.xGI, 2) },
-    { key: "cs", header: "CS", core: true, cell: (g) => fmtDecimal(g.cleanSheets) },
-    { key: "st", header: "ST", core: false, cell: (g) => (g.starts !== null ? fmtDecimal(g.starts) : DASH) },
-    { key: "gc", header: "GC", core: false, cell: (g) => fmtDecimal(g.goalsConceded) },
-    { key: "xgc", header: "xGC", core: false, cell: (g) => fmtDecimal(g.xGC, 2) },
-    { key: "t", header: "T", core: false, cell: (g) => fmtDecimal(g.tackles) },
-    { key: "cbi", header: "CBI", core: false, cell: (g) => fmtDecimal(g.clearancesBlocksInterceptions) },
-    { key: "r", header: "R", core: false, cell: (g) => fmtDecimal(g.recoveries) },
-    { key: "dc", header: "DC", core: false, cell: (g) => fmtDecimal(g.defensiveContribution) },
-    { key: "og", header: "OG", core: false, cell: (g) => fmtDecimal(g.ownGoals) },
-    { key: "ps", header: "PS", core: false, cell: (g) => fmtDecimal(g.penaltiesSaved) },
-    { key: "pm", header: "PM", core: false, cell: (g) => fmtDecimal(g.penaltiesMissed) },
-    { key: "yc", header: "YC", core: false, cell: (g) => fmtDecimal(g.yellowCards) },
-    { key: "rc", header: "RC", core: false, cell: (g) => fmtDecimal(g.redCards) },
-    { key: "saves", header: "Saves", core: false, cell: (g) => fmtDecimal(g.saves) },
-    { key: "bps", header: "BPS", core: false, cell: (g) => fmtDecimal(g.bps) },
+    { key: "pts", header: "Pts", cell: (g) => fmtDecimal(g.totalPoints) },
+    { key: "min", header: "Min", cell: (g) => fmtDecimal(g.minutes) },
+    { key: "g", header: "G", cell: (g) => fmtDecimal(g.goals) },
+    { key: "a", header: "A", cell: (g) => fmtDecimal(g.assists) },
+    { key: "xg", header: "xG", cell: (g) => fmtDecimal(g.xG, 2) },
+    { key: "xa", header: "xA", cell: (g) => fmtDecimal(g.xA, 2) },
+    { key: "xgi", header: "xGI", cell: (g) => fmtDecimal(g.xGI, 2) },
+    { key: "cs", header: "CS", cell: (g) => fmtDecimal(g.cleanSheets) },
+    { key: "st", header: "ST", cell: (g) => (g.starts !== null ? fmtDecimal(g.starts) : DASH) },
+    { key: "gc", header: "GC", cell: (g) => fmtDecimal(g.goalsConceded) },
+    { key: "xgc", header: "xGC", cell: (g) => fmtDecimal(g.xGC, 2) },
+    { key: "t", header: "T", cell: (g) => fmtDecimal(g.tackles) },
+    { key: "cbi", header: "CBI", cell: (g) => fmtDecimal(g.clearancesBlocksInterceptions) },
+    { key: "r", header: "R", cell: (g) => fmtDecimal(g.recoveries) },
+    { key: "dc", header: "DC", cell: (g) => fmtDecimal(g.defensiveContribution) },
+    { key: "og", header: "OG", cell: (g) => fmtDecimal(g.ownGoals) },
+    { key: "ps", header: "PS", cell: (g) => fmtDecimal(g.penaltiesSaved) },
+    { key: "pm", header: "PM", cell: (g) => fmtDecimal(g.penaltiesMissed) },
+    { key: "yc", header: "YC", cell: (g) => fmtDecimal(g.yellowCards) },
+    { key: "rc", header: "RC", cell: (g) => fmtDecimal(g.redCards) },
+    { key: "saves", header: "Saves", cell: (g) => fmtDecimal(g.saves) },
+    { key: "bps", header: "BPS", cell: (g) => fmtDecimal(g.bps) },
   ];
-  const visibleGwColumns = gwColumns.filter((c) => showAllColumns || c.core);
 
   return (
     <div className="profile-backdrop">
@@ -484,59 +535,58 @@ export function PlayerDetailOverlay() {
                     bps: fmtDecimal(averages.bps, 1),
                   };
                   return (
-                    <>
-                      <div className="table-wrap">
-                        <table className="data-table compact">
-                          <thead>
-                            <tr>
-                              {visibleGwColumns.map((c) => (
-                                <th key={c.key} style={c.align === "left" ? { textAlign: "left" } : undefined}>
-                                  {c.header}
-                                </th>
+                    <div className="table-wrap">
+                      <table className="data-table compact">
+                        <thead>
+                          <tr>
+                            {gwColumns.map((c) => (
+                              <th key={c.key} style={c.align === "left" ? { textAlign: "left" } : undefined}>
+                                {c.header}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {gameweeks.map((g) => (
+                            <tr key={g.round}>
+                              {gwColumns.map((c) => (
+                                <td key={c.key} style={c.align === "left" ? { textAlign: "left", fontFamily: "var(--font-body)" } : undefined}>
+                                  {c.cell(g)}
+                                </td>
                               ))}
                             </tr>
-                          </thead>
-                          <tbody>
-                            {gameweeks.map((g) => (
-                              <tr key={g.round}>
-                                {visibleGwColumns.map((c) => (
-                                  <td key={c.key} style={c.align === "left" ? { textAlign: "left", fontFamily: "var(--font-body)" } : undefined}>
-                                    {c.cell(g)}
-                                  </td>
-                                ))}
-                              </tr>
-                            ))}
-                          </tbody>
-                          <tfoot>
-                            <tr style={{ fontWeight: 600 }}>
-                              {visibleGwColumns.map((c, i) =>
-                                i === 0 ? (
-                                  <td key={c.key} style={{ textAlign: "left", fontFamily: "var(--font-body)" }} colSpan={2}>
-                                    Totals
-                                  </td>
-                                ) : i === 1 ? null : (
-                                  <td key={c.key}>{totalsByKey[c.key] ?? ""}</td>
-                                ),
-                              )}
-                            </tr>
-                            <tr>
-                              {visibleGwColumns.map((c, i) =>
-                                i === 0 ? (
-                                  <td key={c.key} style={{ textAlign: "left", fontFamily: "var(--font-body)" }} colSpan={2}>
-                                    Average
-                                  </td>
-                                ) : i === 1 ? null : (
-                                  <td key={c.key}>{averagesByKey[c.key] ?? ""}</td>
-                                ),
-                              )}
-                            </tr>
-                          </tfoot>
-                        </table>
-                      </div>
-                      <button type="button" className="chip" style={{ marginTop: 10 }} onClick={() => setShowAllColumns((v) => !v)}>
-                        {showAllColumns ? "Show fewer columns" : "Show all columns"}
-                      </button>
-                    </>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr style={{ fontWeight: 600 }}>
+                            {gwColumns.map((c, i) =>
+                              i === 0 ? (
+                                <td key={c.key} style={{ textAlign: "left", fontFamily: "var(--font-body)" }} colSpan={2}>
+                                  Totals
+                                </td>
+                              ) : i === 1 ? null : (
+                                <td key={c.key} style={{ background: percentileTint(seasonLogPercentiles[c.key] ?? null) }}>
+                                  {totalsByKey[c.key] ?? ""}
+                                </td>
+                              ),
+                            )}
+                          </tr>
+                          <tr>
+                            {gwColumns.map((c, i) =>
+                              i === 0 ? (
+                                <td key={c.key} style={{ textAlign: "left", fontFamily: "var(--font-body)" }} colSpan={2}>
+                                  Average
+                                </td>
+                              ) : i === 1 ? null : (
+                                <td key={c.key} style={{ background: percentileTint(seasonLogPercentiles[c.key] ?? null) }}>
+                                  {averagesByKey[c.key] ?? ""}
+                                </td>
+                              ),
+                            )}
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
                   );
                 })()}
             </div>
@@ -557,7 +607,7 @@ export function PlayerDetailOverlay() {
           </div>
 
         <div className="card" style={{ marginTop: 16 }}>
-          <div className="card-title">Career History — Points by Season</div>
+          <div className="card-title">Career History</div>
           {history.status === "loading" && <p className="page-subtitle">Loading career history…</p>}
           {history.status === "error" && (
             <p className="page-subtitle">
@@ -589,6 +639,38 @@ export function PlayerDetailOverlay() {
               const inWindowNames = new Set(allSeasonsInWindow.map((s) => s.seasonName));
               const trend = computeSeasonTrend(history.seasonHistory);
               const orderedSeasons = [...combinedSeasonHistory].sort((a, b) => a.seasonName.localeCompare(b.seasonName));
+
+              // Comparative colouring for the season-by-season table —
+              // each numeric column tinted relative to its OWN min/max
+              // across the seasons actually shown here (same technique as
+              // Player Explorer's Comparative Colouring: "how does this
+              // compare to what you're looking at right now"), since this
+              // is inherently a single-player, multi-season table rather
+              // than something with a cross-player population to lean on.
+              // Every column here is "higher is better" — there's no
+              // lower-is-better figure (like xGC) in this particular table.
+              const seasonTableColumns: { key: string; getValue: (s: PlayerSeasonHistory) => number | null }[] = [
+                { key: "minutes", getValue: (s) => s.minutes },
+                { key: "starts", getValue: (s) => s.starts },
+                { key: "totalPoints", getValue: (s) => s.totalPoints },
+                { key: "goals", getValue: (s) => s.goals },
+                { key: "assists", getValue: (s) => s.assists },
+                { key: "cleanSheets", getValue: (s) => s.cleanSheets },
+                { key: "xG", getValue: (s) => s.xG },
+                { key: "xA", getValue: (s) => s.xA },
+                { key: "xGI", getValue: (s) => s.xGI },
+              ];
+              const seasonTableRanges = new Map<string, { min: number; max: number }>();
+              for (const c of seasonTableColumns) {
+                const values = combinedSeasonHistory.map((s) => c.getValue(s)).filter((v): v is number => v !== null);
+                if (values.length > 0) seasonTableRanges.set(c.key, { min: Math.min(...values), max: Math.max(...values) });
+              }
+              function seasonCellTint(key: string, value: number | null): string | undefined {
+                const range = seasonTableRanges.get(key);
+                if (!range || value === null) return undefined;
+                return relativeCellTint(value, range.min, range.max, true);
+              }
+
               return (
                 <>
                   <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
@@ -626,8 +708,15 @@ export function PlayerDetailOverlay() {
                     </span>
                   </div>
 
-                  <button type="button" className="chip" style={{ marginTop: 10 }} onClick={() => setShowFullCareerTable((v) => !v)}>
-                    {showFullCareerTable ? "Hide season-by-season detail" : "Show season-by-season detail"}
+                  <button
+                    type="button"
+                    className="chip chip-icon"
+                    style={{ marginTop: 10 }}
+                    onClick={() => setShowFullCareerTable((v) => !v)}
+                    title={showFullCareerTable ? "Hide season-by-season detail" : "Show season-by-season detail"}
+                    aria-label={showFullCareerTable ? "Hide season-by-season detail" : "Show season-by-season detail"}
+                  >
+                    <ChevronIcon direction={showFullCareerTable ? "up" : "down"} />
                   </button>
 
                   {showFullCareerTable && (
@@ -680,15 +769,15 @@ export function PlayerDetailOverlay() {
                                         ? `${fmtPrice(s.startCost)}–${fmtPrice(s.endCost)}`
                                         : DASH}
                                   </td>
-                                  <td>{fmtDecimal(s.minutes)}</td>
-                                  <td>{s.starts !== null ? fmtDecimal(s.starts) : DASH}</td>
-                                  <td>{fmtDecimal(s.totalPoints)}</td>
-                                  <td>{fmtDecimal(s.goals)}</td>
-                                  <td>{fmtDecimal(s.assists)}</td>
-                                  <td>{fmtDecimal(s.cleanSheets)}</td>
-                                  <td>{fmtDecimal(s.xG, 2)}</td>
-                                  <td>{fmtDecimal(s.xA, 2)}</td>
-                                  <td>{fmtDecimal(s.xGI, 2)}</td>
+                                  <td style={{ background: seasonCellTint("minutes", s.minutes) }}>{fmtDecimal(s.minutes)}</td>
+                                  <td style={{ background: seasonCellTint("starts", s.starts) }}>{s.starts !== null ? fmtDecimal(s.starts) : DASH}</td>
+                                  <td style={{ background: seasonCellTint("totalPoints", s.totalPoints) }}>{fmtDecimal(s.totalPoints)}</td>
+                                  <td style={{ background: seasonCellTint("goals", s.goals) }}>{fmtDecimal(s.goals)}</td>
+                                  <td style={{ background: seasonCellTint("assists", s.assists) }}>{fmtDecimal(s.assists)}</td>
+                                  <td style={{ background: seasonCellTint("cleanSheets", s.cleanSheets) }}>{fmtDecimal(s.cleanSheets)}</td>
+                                  <td style={{ background: seasonCellTint("xG", s.xG) }}>{fmtDecimal(s.xG, 2)}</td>
+                                  <td style={{ background: seasonCellTint("xA", s.xA) }}>{fmtDecimal(s.xA, 2)}</td>
+                                  <td style={{ background: seasonCellTint("xGI", s.xGI) }}>{fmtDecimal(s.xGI, 2)}</td>
                                 </tr>
                               );
                             })}
