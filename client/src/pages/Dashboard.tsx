@@ -86,21 +86,24 @@ function ClockIcon() {
   );
 }
 
-function PlusIcon() {
+function PlusIcon({ size = 14 }: { size?: number }) {
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none">
       <line x1="8" y1="2.5" x2="8" y2="13.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
       <line x1="2.5" y1="8" x2="13.5" y2="8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
 }
 
-function SaveIcon() {
+/** A view (window) with a "+" badge — Create View, distinct from the bare "+" used for adding a single tile. */
+function CreateViewIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-      <path d="M2.5 2.5h8l3 3v8a1 1 0 0 1-1 1h-10a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
-      <rect x="4.7" y="2.5" width="4.6" height="3.6" stroke="currentColor" strokeWidth="1.3" />
-      <rect x="4.7" y="9.4" width="6.6" height="4.1" stroke="currentColor" strokeWidth="1.3" />
+      <rect x="1.3" y="2.3" width="10.4" height="8.4" rx="1.2" stroke="currentColor" strokeWidth="1.2" />
+      <line x1="1.3" y1="4.7" x2="11.7" y2="4.7" stroke="currentColor" strokeWidth="1" />
+      <circle cx="11.6" cy="11.6" r="3.2" fill="var(--surface-raised)" stroke="currentColor" strokeWidth="1.2" />
+      <line x1="11.6" y1="10.1" x2="11.6" y2="13.1" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+      <line x1="10.1" y1="11.6" x2="13.1" y2="11.6" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
     </svg>
   );
 }
@@ -223,20 +226,24 @@ export function Dashboard() {
 
   // ---------- Saved Dashboard Views ----------
   //
-  // A named snapshot of the CURRENT scope's tiles, up to
+  // A named set of the CURRENT scope's tiles, up to
   // MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE each for Player and Team — same
-  // no-account, localStorage-only model as saved squads. Loading a view
-  // replaces the live tiles for that scope only; the other scope is
-  // untouched.
+  // no-account, localStorage-only model as saved squads. "Default" (one per
+  // scope) is permanent and immutable: no adding, removing, or reordering
+  // its tiles — see selectedViewIsDefault below, used to gate every one of
+  // those controls. Every other view is created blank via Create View,
+  // which also selects it; from then on every tile change while it's
+  // selected live-syncs into its storage (see the effect below), so there's
+  // no separate Save step.
   const savedDashboardViews = useSavedDashboardViews();
   // Which saved view is picked per scope — persisted (see
   // useSavedDashboardViews' selectedViewIds), so whichever view a user was
   // last on for Player/Team tiles is still selected after a reload or
   // reopening the desktop app, not reset back to Default every time.
   const selectedViewId = savedDashboardViews.selectedViewIds[tileView];
-  const [showSaveViewModal, setShowSaveViewModal] = useState(false);
+  const [showCreateViewModal, setShowCreateViewModal] = useState(false);
   const [newViewName, setNewViewName] = useState("");
-  const [saveViewError, setSaveViewError] = useState<string | null>(null);
+  const [createViewError, setCreateViewError] = useState<string | null>(null);
   const [loadViewError, setLoadViewError] = useState<string | null>(null);
 
   const visibleSavedViews = useMemo(
@@ -248,44 +255,82 @@ export function Dashboard() {
     return view ? isDefaultSavedView(view) : false;
   }, [visibleSavedViews, selectedViewId]);
 
+  // Keeps the currently-selected non-Default view's storage in lock-step
+  // with whatever's actually on screen — every add/remove/reorder of a
+  // tile for this scope re-fires this (via tilesState.tiles changing) and
+  // writes straight through via updateTiles(), which is itself a no-op if
+  // the content hasn't actually changed (e.g. right after loading this same
+  // view). Never touches Default (updateTiles refuses, and this skips the
+  // call entirely while Default is selected).
+  useEffect(() => {
+    if (selectedViewIsDefault || !selectedViewId) return;
+    const scopeTiles = tilesState.tiles.filter((t) => t.scope === tileView);
+    savedDashboardViews.updateTiles(selectedViewId, scopeTiles);
+  }, [tilesState.tiles, tileView, selectedViewId, selectedViewIsDefault, savedDashboardViews.updateTiles]);
+
+  // One-off reset (self-correcting, so it also guards against any future
+  // regression, not just this one time) for anyone whose on-screen tiles
+  // for a Default-selected scope had already drifted from the packaged set
+  // — possible under the previous release, before Default became immutable
+  // here, if they'd added/removed a tile while Default was selected. The
+  // stored Default view itself is already always canonical (see
+  // useSavedDashboardViews' migrate()); this brings whatever's actually
+  // on screen back in sync with it whenever Default is selected and the two
+  // don't match, rather than leaving a stale, already-editable-in-the-past
+  // tile set on screen indefinitely. A no-op once reconciled, since nothing
+  // in the UI can diverge them again afterward.
+  useEffect(() => {
+    if (!selectedViewIsDefault) return;
+    const defaultView = visibleSavedViews.find((v) => v.id === selectedViewId);
+    if (!defaultView) return;
+    const currentScopeTiles = tilesState.tiles.filter((t) => t.scope === tileView);
+    if (JSON.stringify(currentScopeTiles) !== JSON.stringify(defaultView.tiles)) {
+      tilesState.replaceScopeTiles(tileView, defaultView.tiles);
+    }
+  }, [tileView, selectedViewIsDefault, selectedViewId, visibleSavedViews, tilesState.tiles, tilesState.replaceScopeTiles]);
+
   function changeTileView(scope: SummaryTileScope) {
     setTileView(scope);
     setLoadViewError(null);
   }
 
-  function openSaveViewModal() {
+  function openCreateViewModal() {
     setNewViewName("");
-    setSaveViewError(null);
-    setShowSaveViewModal(true);
+    setCreateViewError(null);
+    setShowCreateViewModal(true);
   }
 
-  function closeSaveViewModal() {
-    setShowSaveViewModal(false);
+  function closeCreateViewModal() {
+    setShowCreateViewModal(false);
   }
 
-  function handleSaveView() {
+  /** Starts a brand-new, blank view (no tiles) and switches to it — the only way to get an editable (non-Default) view onto screen. Tiles are then built up one at a time via the in-grid Add Tile card, live-syncing into this view's storage as you go (see the effect above). */
+  function handleCreateView() {
     const name = newViewName.trim();
     if (!name) {
-      setSaveViewError("Enter a name for this view.");
+      setCreateViewError("Enter a name for this view.");
       return;
     }
     if (visibleSavedViews.length >= MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE) {
-      setSaveViewError(`You already have ${MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE} saved ${tileView} views — the maximum allowed. Delete one first.`);
+      setCreateViewError(`You already have ${MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE} saved ${tileView} views — the maximum allowed. Delete one first.`);
       return;
     }
-    const scopeTiles = tilesState.tiles.filter((t) => t.scope === tileView);
-    savedDashboardViews.save(tileView, name, scopeTiles);
-    setShowSaveViewModal(false);
+    const id = savedDashboardViews.save(tileView, name, []);
+    tilesState.replaceScopeTiles(tileView, []);
+    savedDashboardViews.setSelectedViewId(tileView, id);
+    setShowCreateViewModal(false);
   }
 
-  function handleLoadView(view: SavedDashboardView) {
+  /** Returns whether the load actually happened — handleSelectView only moves the dropdown's selection on success, so a load blocked by the tile-limit check below can never leave the selection pointing at a view whose tiles never actually made it on screen (which the live-sync effect above would otherwise immediately overwrite with the wrong content). */
+  function handleLoadView(view: SavedDashboardView): boolean {
     const otherScopeCount = tilesState.tiles.filter((t) => t.scope !== tileView).length;
     if (otherScopeCount + view.tiles.length > MAX_SUMMARY_TILES) {
       setLoadViewError(`Loading "${view.name}" would push you past the ${MAX_SUMMARY_TILES}-tile limit — remove some tiles first.`);
-      return;
+      return false;
     }
     setLoadViewError(null);
     tilesState.replaceScopeTiles(tileView, view.tiles);
+    return true;
   }
 
   function handleDeleteSelectedView() {
@@ -296,9 +341,11 @@ export function Dashboard() {
   }
 
   function handleSelectView(id: string) {
-    savedDashboardViews.setSelectedViewId(tileView, id);
     const view = visibleSavedViews.find((v) => v.id === id);
-    if (view) handleLoadView(view);
+    if (!view) return;
+    if (handleLoadView(view)) {
+      savedDashboardViews.setSelectedViewId(tileView, id);
+    }
   }
 
   const tileRows = useMemo(() => {
@@ -525,11 +572,8 @@ export function Dashboard() {
             </option>
           ))}
         </select>
-        <button type="button" className="chip chip-icon" title="Add Tile" aria-label="Add Tile" onClick={openAddTileModal}>
-          <PlusIcon />
-        </button>
-        <button type="button" className="chip chip-icon" title="Save View" aria-label="Save View" onClick={openSaveViewModal}>
-          <SaveIcon />
+        <button type="button" className="chip chip-icon" title="Create View" aria-label="Create View" onClick={openCreateViewModal}>
+          <CreateViewIcon />
         </button>
         <button
           type="button"
@@ -548,8 +592,8 @@ export function Dashboard() {
         </div>
       )}
 
-      {visibleTileRows.length === 0 ? (
-        <p className="page-subtitle">No {tileView} tiles yet — add one above.</p>
+      {visibleTileRows.length === 0 && selectedViewIsDefault ? (
+        <p className="page-subtitle">No {tileView} tiles yet.</p>
       ) : tileView === "player" ? (
         <div className="card-grid">
           {playerTileRows.map(({ tile, metric, topRows }) => (
@@ -567,9 +611,14 @@ export function Dashboard() {
               onDragOver={(e) => handleTileDragOver(e, tile.id)}
               onDragLeave={() => setDragOverTileId((k) => (k === tile.id ? null : k))}
               onDrop={(e) => handleTileDrop(e, tile.id)}
-              onRemove={() => tilesState.removeTile(tile.id)}
+              onRemove={selectedViewIsDefault ? undefined : () => tilesState.removeTile(tile.id)}
             />
           ))}
+          {!selectedViewIsDefault && (
+            <button type="button" className="add-tile-card" onClick={openAddTileModal} title="Add Tile" aria-label="Add Tile">
+              <PlusIcon size={22} />
+            </button>
+          )}
         </div>
       ) : (
         <div className="card-grid">
@@ -587,9 +636,14 @@ export function Dashboard() {
               onDragOver={(e) => handleTileDragOver(e, tile.id)}
               onDragLeave={() => setDragOverTileId((k) => (k === tile.id ? null : k))}
               onDrop={(e) => handleTileDrop(e, tile.id)}
-              onRemove={() => tilesState.removeTile(tile.id)}
+              onRemove={selectedViewIsDefault ? undefined : () => tilesState.removeTile(tile.id)}
             />
           ))}
+          {!selectedViewIsDefault && (
+            <button type="button" className="add-tile-card" onClick={openAddTileModal} title="Add Tile" aria-label="Add Tile">
+              <PlusIcon size={22} />
+            </button>
+          )}
         </div>
       )}
 
@@ -656,10 +710,10 @@ export function Dashboard() {
         </div>
       )}
 
-      {showSaveViewModal && (
-        <div className="dialog-backdrop" onClick={closeSaveViewModal}>
+      {showCreateViewModal && (
+        <div className="dialog-backdrop" onClick={closeCreateViewModal}>
           <div className="dialog" onClick={(e) => e.stopPropagation()}>
-            <div className="dialog-title">Save {tileView === "player" ? "Player" : "Team"} View</div>
+            <div className="dialog-title">Create {tileView === "player" ? "Player" : "Team"} View</div>
             <div className="field">
               <label htmlFor="new-view-name">Name</label>
               <input
@@ -669,17 +723,17 @@ export function Dashboard() {
                 value={newViewName}
                 onChange={(e) => setNewViewName(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSaveView();
+                  if (e.key === "Enter") handleCreateView();
                 }}
               />
             </div>
-            {saveViewError && <div className="banner error">{saveViewError}</div>}
+            {createViewError && <div className="banner error">{createViewError}</div>}
             <div className="dialog-actions">
-              <button type="button" className="btn" onClick={closeSaveViewModal}>
+              <button type="button" className="btn" onClick={closeCreateViewModal}>
                 Cancel
               </button>
-              <button type="button" className="btn primary" onClick={handleSaveView}>
-                Save
+              <button type="button" className="btn primary" onClick={handleCreateView}>
+                Create
               </button>
             </div>
           </div>

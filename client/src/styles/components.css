@@ -1326,3 +1326,24 @@ select:focus {
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* A Dashboard summary-tile card grid's trailing "add a tile" slot — sits in
+   the grid itself (next to the last tile, or its own row once a row is
+   full) rather than as a separate control above it, and stretches to match
+   the row's tile-card height via the grid's own default item alignment. */
+.add-tile-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.add-tile-card:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-focus);
+  background: var(--surface-hover);
+}

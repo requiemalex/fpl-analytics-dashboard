@@ -2831,3 +2831,38 @@ small localStorage store (`useSavedDashboardViews`'s `selectedViewIds`),
 self-healing the same way the Default-view backfill already does; deleting
 the view currently selected for a scope falls that scope back to Default
 automatically rather than pointing at something that no longer exists.
+
+## Dashboard: Default is now truly immutable, and "Create View" replaces the old Save-View-then-edit flow
+
+Two problems with the previous round of Summary Tiles controls: "Default"
+could still be freely edited (add/remove a tile while it was selected),
+which meant its whole point — one always-known-good, never-broken layout
+to fall back on — didn't actually hold; and there was no clear way to
+*start* building your own view versus just poking at whatever happened to
+be on screen, which read as confusing next to the "+ Add Tile" button.
+
+- **Default is now fully immutable.** While a scope's Default view is
+  selected, every tile's per-card Remove button is hidden, and the "+ Add
+  Tile" card doesn't render at all — Default can be loaded and looked at,
+  never edited. `useSavedDashboardViews`'s Default entries are also now
+  force-resynced to the packaged tile set on every load (not just backfilled
+  when missing outright), which both performs a one-off reset for anyone
+  whose Default had already drifted under the previous release (when it
+  could still be freely edited) and guards against any future drift.
+- **New Create View button** (the icon between the dropdown and Delete)
+  replaces the old "Save View" flow. Instead of snapshotting whatever's
+  currently on screen under a new name, it starts a genuinely blank view —
+  name it, and the tile grid clears to just the + card, ready to build up
+  from nothing. This was the actual source of the "Add Tile vs. Save View"
+  confusion: there's now exactly one way to start a new view, and it's
+  unambiguous about what it does.
+- **No more separate Save step.** Once a non-Default view is selected,
+  every tile you add, remove, or reorder live-syncs straight into that
+  view's own storage as you go (`useSavedDashboardViews.updateTiles()`) —
+  the floppy-disk Save icon is gone, since there's nothing left for it to
+  do. Reloading the page, switching tabs, or fully closing and reopening
+  the app always shows exactly what you left on screen.
+- **Add Tile moved into the tile grid itself** — a dashed "+" card
+  sitting after the last tile (wrapping to its own row once a row is
+  full, via the grid's own layout, not a hardcoded column count), replacing
+  the old standalone "+ Add Tile" button above the grid.

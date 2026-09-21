@@ -193,11 +193,23 @@ export function UserGuide() {
 
       <Section id="dashboard" title="Dashboard">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          A snapshot, not a workspace — fully customisable Top-5 leaderboard tiles (+ icon to add one). A{" "}
-          <strong>Players / Teams</strong> toggle (top right) switches which set of tiles is on screen; the add-tile button always adds
-          to whichever is currently selected. Click any row to jump straight to that player's profile or that team's page.
+          A snapshot, not a workspace — fully customisable Top-5 leaderboard tiles. A <strong>Players / Teams</strong> toggle (top
+          right) switches which set of tiles is on screen. Click any row to jump straight to that player's profile or that team's
+          page.
         </p>
         <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
+          <li>
+            <strong>Default is fixed</strong> — the original tile layout is itself just a saved view named "Default" (one each for
+            Players/Teams), always there in the dropdown to come back to. It can't be deleted, and while it's selected its tiles
+            can't be added to or removed either, so there's always exactly one unmodified layout to fall back on.
+          </li>
+          <li>
+            <strong>Create View</strong> (the icon next to the dropdown) starts a new, blank, named view and switches to it
+            immediately — from there the + card at the end of the tile grid adds tiles to it one at a time, and each tile's own
+            Remove button takes one away. Every change saves itself as you make it, so there's nothing separate to save and nothing
+            lost by switching views, tabs, or closing the app — up to 5 views each for Player and Team. Picking a different view from
+            the dropdown loads it immediately, replacing the live tiles for that scope only; the other scope is untouched.
+          </li>
           <li>
             <strong>Data View and criteria, per tile</strong> — a Player Tile picks its own Last Completed Season / Historic Average /
             Current Season, and its own Search/Position/Team/Min Minutes criteria, when it's created in the add-tile dialog — not one
@@ -209,13 +221,6 @@ export function UserGuide() {
             &lt;statistic&gt;" title.
           </li>
           <li>Each row's bar shows its value's size relative to the other rows in that tile — green/red by above/below-expected for the three "vs xG/xA/xGI" tiles, one flat colour for everything else.</li>
-          <li>
-            <strong>Saved view dropdown</strong> — picking a view from the dropdown loads it immediately (for whichever of
-            Players/Teams is selected); the save icon snapshots the tiles currently on screen as a new named view, up to 5 each for
-            Player and Team. The original tile layout is itself just a saved view named "Default" — pick it any time to get back to
-            it, though unlike a view you save yourself it can't be deleted, so there's always one to fall back on. Loading a view
-            replaces the live tiles for that scope only; the other scope is untouched.
-          </li>
         </ul>
         <Try>Use it as a starting point, not a destination — spot a name in a leaderboard, click through, then dig deeper in Player Explorer or the profile.</Try>
       </Section>
