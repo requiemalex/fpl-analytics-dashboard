@@ -91,9 +91,19 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   // Same reasoning as playersRef, for loadHistoric's own stable useCallback below.
   const historicProfilesRef = useRef<Map<number, HistoricPlayerProfile>>(new Map());
 
-  const load = useCallback(async (forceRefresh: boolean) => {
-    if (forceRefresh) setRefreshing(true);
-    else setStatus("loading");
+  /**
+   * `silent` is used by the background poll below — it must not flip
+   * `status` to "loading" (LoadStateGate would blank the whole app behind
+   * a full-screen loader every ~10 minutes) or `refreshing` (the topbar's
+   * "Refresh Data" button would flash "Refreshing…" with no click behind
+   * it). It still updates `lastUpdated`/`isStale`/data on success exactly
+   * like a manual refresh — only the loading-state UI is suppressed.
+   */
+  const load = useCallback(async (forceRefresh: boolean, silent = false) => {
+    if (!silent) {
+      if (forceRefresh) setRefreshing(true);
+      else setStatus("loading");
+    }
 
     try {
       const result = await fetchBootstrap({ forceRefresh });
@@ -159,6 +169,29 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     load(false);
+  }, [load]);
+
+  /**
+   * Before this, bootstrap data was only ever fetched once per app launch —
+   * gameweek status, players tracked, and everything else derived from it
+   * would silently go stale for however long a session stayed open, only
+   * correcting itself on an app restart or a manually-clicked "Refresh
+   * Data" (e.g. a finished gameweek still showing as in-progress days
+   * later, reported directly against the Dashboard's Gameweek Status
+   * card). Polling on an interval matching the server's own
+   * bootstrap-static cache TTL (`CACHE_TTL_MS.bootstrapStatic`,
+   * server/src/config.ts) means every poll is likely to land on a
+   * genuinely re-fetched upstream snapshot rather than re-serving the same
+   * cached one, without hammering the FPL API any harder than that TTL
+   * already allows. `silent` keeps this invisible — no loading screen, no
+   * "Refreshing…" button state — the data just quietly catches up.
+   */
+  useEffect(() => {
+    const POLL_INTERVAL_MS = 10 * 60 * 1000;
+    const id = setInterval(() => {
+      load(false, true);
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(id);
   }, [load]);
 
   const refresh = useCallback(async () => {

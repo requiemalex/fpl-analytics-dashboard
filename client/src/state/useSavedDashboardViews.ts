@@ -48,6 +48,13 @@ const DEFAULT_SAVED_DASHBOARD_VIEWS: SavedDashboardView[] = (["player", "team"] 
   updatedAt: 0,
 }));
 
+const DEFAULT_SAVED_VIEW_IDS = new Set(DEFAULT_SAVED_DASHBOARD_VIEWS.map((v) => v.id));
+
+/** "Default" is a permanent fallback, not a regular saved view — always there to load, never deletable, so a user can never lose every saved view for a scope. */
+export function isDefaultSavedView(view: Pick<SavedDashboardView, "id">): boolean {
+  return DEFAULT_SAVED_VIEW_IDS.has(view.id);
+}
+
 const SAVED_VIEWS_STORE: VersionedStore<SavedDashboardView[]> = {
   version: STORAGE_VERSION,
   fallback: DEFAULT_SAVED_DASHBOARD_VIEWS,
@@ -98,6 +105,7 @@ export function useSavedDashboardViews(): UseSavedDashboardViews {
   }, []);
 
   const remove = useCallback((id: string) => {
+    if (DEFAULT_SAVED_VIEW_IDS.has(id)) return;
     setViews((prev) => prev.filter((v) => v.id !== id));
   }, []);
 

@@ -212,8 +212,9 @@ export function UserGuide() {
           <li>
             <strong>Save View / Saved views dropdown</strong> — save the tiles currently on screen (for whichever of Players/Teams is
             selected) as a named view, up to 5 each for Player and Team. The original tile layout is itself just a saved view named
-            "Default" — load it, or delete it, the same as any view you save yourself. Loading a saved view replaces the live tiles
-            for that scope only; the other scope is untouched.
+            "Default" — load it any time to get back to it, though unlike a view you save yourself it can't be deleted, so there's
+            always one to fall back on. Loading a saved view replaces the live tiles for that scope only; the other scope is
+            untouched.
           </li>
         </ul>
         <Try>Use it as a starting point, not a destination — spot a name in a leaderboard, click through, then dig deeper in Player Explorer or the profile.</Try>

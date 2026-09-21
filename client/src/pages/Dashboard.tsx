@@ -18,7 +18,7 @@ import {
   type TeamAggregate,
 } from "../components/summaryTileMetrics";
 import { useSummaryTiles, createSummaryTile, MAX_SUMMARY_TILES, type TileDirection, type SummaryTileConfig } from "../state/useSummaryTiles";
-import { useSavedDashboardViews, MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE, type SavedDashboardView } from "../state/useSavedDashboardViews";
+import { useSavedDashboardViews, isDefaultSavedView, MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE, type SavedDashboardView } from "../state/useSavedDashboardViews";
 import { fmtDate, fmtTimeAgo } from "../utils/format";
 import type { NormalizedTeam } from "../types/normalized";
 
@@ -200,6 +200,10 @@ export function Dashboard() {
     () => savedDashboardViews.views.filter((v) => v.scope === tileView),
     [savedDashboardViews.views, tileView],
   );
+  const selectedViewIsDefault = useMemo(() => {
+    const view = visibleSavedViews.find((v) => v.id === selectedViewId);
+    return view ? isDefaultSavedView(view) : false;
+  }, [visibleSavedViews, selectedViewId]);
 
   function changeTileView(scope: SummaryTileScope) {
     setTileView(scope);
@@ -488,7 +492,13 @@ export function Dashboard() {
             >
               Load
             </button>
-            <button type="button" className="chip" disabled={!selectedViewId} onClick={handleDeleteSelectedView}>
+            <button
+              type="button"
+              className="chip"
+              disabled={!selectedViewId || selectedViewIsDefault}
+              title={selectedViewIsDefault ? "The Default view can't be deleted" : undefined}
+              onClick={handleDeleteSelectedView}
+            >
               Delete
             </button>
           </>

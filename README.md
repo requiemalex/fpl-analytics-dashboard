@@ -2605,6 +2605,43 @@ skipping ones already present) into any array stored under the older
 version — see the `STORAGE_VERSION` comment in
 `state/useSavedDashboardViews.ts`.
 
+## Dashboard: "Default" saved view can't be deleted
+
+Every other saved Dashboard view can be deleted; "Default" (one per
+scope, see the section above) now can't — `useSavedDashboardViews`'s
+`remove()` refuses its two fixed ids, and the Dashboard's own Delete
+button is disabled with an explanatory hover title whenever "Default"
+is the one selected. The point is to guarantee there's always at least
+one view to fall back on for each scope, rather than a user being able
+to delete every saved view and have nothing left to load.
+
+## Fixed: bootstrap data never refreshed itself mid-session
+
+Before this, `bootstrap-static` (players, teams, gameweek state) was
+fetched exactly once per app launch — nothing polled for updates, so
+the Dashboard's Gameweek Status, Players Tracked, and "Data Last
+Updated" cards would silently go stale for as long as the app stayed
+open, only correcting on a restart or a manually-clicked "Refresh
+Data" (reported directly: a gameweek whose matches had already finished
+still showing as in progress days later, a recurring issue across
+several gameweeks rather than a one-off). `AppStateContext` now polls
+in the background every 10 minutes — matching the server's own
+`bootstrap-static` cache TTL (`CACHE_TTL_MS.bootstrapStatic`,
+`server/src/config.ts`), so each poll is likely to land on a genuinely
+re-fetched upstream snapshot — and applies the result the same way a
+manual refresh does, just without the loading screen or the button's
+"Refreshing…" state (`load(forceRefresh, silent)` in
+`state/AppStateContext.tsx`). "Players Tracked" and "Total Players"
+were also checked while investigating this: "Players Tracked" is
+`players.length`, the count of elements that normalized successfully
+(excluding any dropped for referencing an unknown team/position id,
+which is separately surfaced via `skippedPlayerCount` in the User
+Guide's data-quality panel) — a different, correct number from
+bootstrap-static's own `total_players`, which is the count of
+registered FPL managers, not footballers, and is used elsewhere only
+for ownership%-to-owner-count math (`totalPlayers`,
+`metrics/priceChange.ts`). No accuracy issue found there.
+
 ## Testing performed
 
 This app was developed and reviewed against the live 2026/27
