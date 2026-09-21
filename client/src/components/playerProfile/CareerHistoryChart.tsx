@@ -5,12 +5,12 @@ import { fmtDecimal } from "../../utils/format";
 
 function ChartTooltip({ active, payload }: any) {
   if (!active || !payload || payload.length === 0) return null;
-  const s = payload[0].payload as PlayerSeasonHistory & { isLive: boolean; qualifies: boolean };
+  const s = payload[0].payload as PlayerSeasonHistory & { isLive: boolean; counted: boolean };
   return (
     <div style={{ background: "var(--surface-raised)", border: "1px solid var(--border-strong)", borderRadius: 6, padding: "8px 10px", fontSize: 12 }}>
       <strong>
         {s.seasonName}
-        {s.isLive ? " (live)" : !s.qualifies && " *"}
+        {s.isLive ? " (live)" : !s.counted && " *"}
       </strong>
       <div className="mono">{fmtDecimal(s.totalPoints)} pts</div>
     </div>
@@ -18,31 +18,31 @@ function ChartTooltip({ active, payload }: any) {
 }
 
 /**
- * A qualifying season (enough minutes, within the rolling window) draws
- * as a solid bar; the live/in-progress season draws dashed-outline only
- * (it's real but not comparable to a full season yet, and isn't counted
- * in the average until it's complete); any other completed-but-light
- * season (an injury-hit year) draws muted-solid — still counted in the
- * average (see <no_survivorship_bias>, historicAnalysis.ts), just
- * visually flagged so a dip in the average line is legible rather than
- * mysterious. Same distinction the existing Career History table
- * already uses via row colour/asterisk, just carried over into the chart.
+ * Colour tracks whether a season is actually counted in the average shown
+ * on this chart, not minutes played: every season inside the rolling
+ * window counts (<no_survivorship_bias>, historicAnalysis.ts — a light,
+ * injury-hit season pulls the average down rather than being dropped from
+ * it), so it draws green/solid same as any other in-window season. Only a
+ * season outside the window (too old) draws muted-grey, since that's the
+ * one case genuinely excluded from the average. The live/in-progress
+ * season draws dashed-outline only — real, but not complete yet, so not
+ * counted until it is.
  */
 export function CareerHistoryChart({
   seasons,
-  qualifyingSeasonNames,
+  countedSeasonNames,
   currentSeasonName,
   averagePoints,
 }: {
   seasons: PlayerSeasonHistory[];
-  qualifyingSeasonNames: Set<string>;
+  countedSeasonNames: Set<string>;
   currentSeasonName: string | null;
   averagePoints: number | null;
 }) {
   const data = seasons.map((s) => ({
     ...s,
     isLive: s.seasonName === currentSeasonName,
-    qualifies: qualifyingSeasonNames.has(s.seasonName),
+    counted: countedSeasonNames.has(s.seasonName),
   }));
 
   return (
@@ -64,7 +64,7 @@ export function CareerHistoryChart({
           {data.map((d) => (
             <Cell
               key={d.seasonName}
-              fill={d.isLive ? "transparent" : d.qualifies ? "var(--accent-positive)" : "var(--text-muted)"}
+              fill={d.isLive ? "transparent" : d.counted ? "var(--accent-positive)" : "var(--text-muted)"}
               stroke={d.isLive ? "var(--accent-positive)" : "none"}
               strokeDasharray={d.isLive ? "4 3" : undefined}
               strokeWidth={d.isLive ? 1.5 : 0}

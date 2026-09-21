@@ -2575,6 +2575,36 @@ fpl-dashboard/
       styles/                Design tokens + component CSS
 ```
 
+## Fixed: Career History chart colour tracked minutes, not average inclusion
+
+`CareerHistoryChart` (the player profile's per-season points bar chart)
+originally coloured a bar green only if that season individually cleared
+`MIN_QUALIFYING_SEASON_MINUTES` (900), grey otherwise — a leftover from
+before `<no_survivorship_bias>` (`historicAnalysis.ts`) changed Historic
+Average to include every season in the rolling window regardless of
+minutes. The result: a genuinely light season still counted in the
+average line drew grey anyway, looking like it had been excluded when it
+hadn't. The chart's colour now tracks the same `allSeasonsInWindow` set
+the average is actually built from — green for every in-window season
+(light or not), grey only for a season outside the window (the one case
+genuinely excluded), dashed for the live/in-progress season. The
+season-by-season detail table underneath is unaffected — it already
+distinguished "light but counted" (asterisk) from "outside window, not
+counted" (dagger) via separate symbols and tooltips.
+
+## Fixed: seeded "Default" saved dashboard views didn't show up for existing installs
+
+The Dashboard's saved-views localStorage key already existed for anyone
+who'd opened the Dashboard under a prior version — its own save effect
+had already written an (empty) array to disk before "Default" views were
+introduced. Changing that store's `fallback` only matters on a
+key-doesn't-exist-yet load, so it silently never took effect for anyone
+upgrading rather than installing fresh. Fixed by bumping the store's
+version and having `migrate()` backfill the two "Default" entries (by id,
+skipping ones already present) into any array stored under the older
+version — see the `STORAGE_VERSION` comment in
+`state/useSavedDashboardViews.ts`.
+
 ## Testing performed
 
 This app was developed and reviewed against the live 2026/27

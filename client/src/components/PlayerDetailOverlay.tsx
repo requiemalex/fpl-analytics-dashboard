@@ -602,7 +602,7 @@ export function PlayerDetailOverlay() {
 
                   <CareerHistoryChart
                     seasons={orderedSeasons}
-                    qualifyingSeasonNames={qualifyingSeasonNames}
+                    countedSeasonNames={inWindowNames}
                     currentSeasonName={currentSeasonEntry?.seasonName ?? null}
                     averagePoints={windowAverage?.avgPointsPerSeason ?? null}
                   />
