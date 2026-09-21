@@ -30,11 +30,12 @@ npm start                # runs the production build (node server/dist/index.js)
 ```
 
 - **Test:** `npm test` runs Vitest across both workspaces (`npm run test -w
-  server && npm run test -w client`) — added during the Phase 1/2 audit
-  process (see docs/audits/), 185 tests covering the metrics/calculation
+  server && npm run test -w client`) — added during the Phase 1/2/3 audit
+  process (see docs/audits/), 187 tests covering the metrics/calculation
   layer, normalize/, state/persistence, the server cache/proxy/concurrency
-  layer, and a handful of page-level regression tests for specific fixed
-  bugs. Not exhaustive (expectedPoints.ts/expectedPointsV2.ts and most of
+  layer, a handful of page-level regression tests for specific fixed bugs,
+  and the historic-bulk refresh-coalescing race condition found in Phase 3
+  (R1). Not exhaustive (expectedPoints.ts/expectedPointsV2.ts and most of
   TeamBuilder.tsx's own logic are still untested) — extend it rather than
   treating "no test suite" as still true. Beyond that, verification is
   still manual (type-check + running the app). Playwright is not an

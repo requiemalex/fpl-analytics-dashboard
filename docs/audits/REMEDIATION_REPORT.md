@@ -461,15 +461,87 @@ group of changes, not just once at the end.
 
 ---
 
+## Addendum — R1 (Phase 3 regression): L10's own fix introduced a race condition
+
+**Date:** 2026-09-21 (follow-up pass, scoped only to this one issue per your
+request — everything else above was independently stress-tested in Phase 3
+and confirmed still correct, so it was left untouched here).
+
+**Input:** `docs/audits/REGRESSION_AUDIT.md` (Phase 3 adversarial regression
+audit), finding **R1**.
+
+**Issue:** L10's fix (above) correctly threaded a real `bypassCache`
+parameter down into `buildBulkHistoricData`'s two nested `cachedFetch` calls,
+but never updated the route-level de-duplication guard that decides whether
+to start a new build at all. `historicBulk.ts`'s `handle()` used a single
+module-level `inFlightBuild` variable shared by *every* caller regardless of
+`bypassCache`. If a normal (non-refresh) build was already in flight and an
+explicit "Refresh Historic Data" / Retry request arrived before it settled,
+the refresh request found `inFlightBuild` already set and simply awaited the
+existing **non-bypassed** build instead of starting its own — the user's
+explicit force-refresh silently degraded into an ordinary, potentially
+cache-serving load, with no signal to the client that anything was off (the
+response still reported `source: "live"`).
+
+**Root cause:** the exact same class of bug L10 itself fixed (a nested cache
+silently serving stale data despite an explicit refresh request) — just one
+layer further out, in the coalescing guard rather than the nested
+`cachedFetch` calls. `proxy.ts`'s own `cachedFetch` had already solved this
+identical problem correctly (its `inFlight` map is keyed by
+`bypassCache ? `refresh:${cacheKey}` : cacheKey`, so a bypass request never
+coalesces with a concurrent normal one) — `historicBulk.ts`'s own
+`inFlightBuild` singleton just didn't follow that same, already-established
+pattern.
+
+**Fix:** Replaced the single `inFlightBuild: Promise<BulkResult> | null`
+variable with `inFlightBuilds: Map<boolean, Promise<BulkResult>>`, keyed by
+`bypassCache` — mirroring `proxy.ts`'s own in-flight map exactly. Two
+concurrent normal requests still coalesce into one build (unchanged); two
+concurrent refresh requests still coalesce into one build (unchanged); but a
+refresh request and a normal request in flight at the same time now always
+get their own independent builds, so a refresh can never silently inherit a
+normal build's (potentially cache-serving) result.
+
+**Files changed:** `server/src/routes/historicBulk.ts` only.
+
+**Test added:** `server/src/historicBulk.test.ts` — two new tests in a new
+`describe` block, exercising the real route handlers pulled directly off
+`historicBulkRouter`'s own stack (not just `buildBulkHistoricData()` in
+isolation, which is exactly why R1 had no test coverage in the first place
+and went undetected during the original L10 fix):
+- Fires a normal `GET /historic-bulk`, lets it start and register its build,
+  then fires a `POST /refresh/historic-bulk` while the first is still
+  pending on an unresolved upstream call — confirms the refresh makes its
+  own bypassed `bootstrap-static` call rather than waiting on the
+  non-bypassed one, and that both builds' calls are individually
+  attributable (2 total `bootstrap-static` calls: one bypassed, one not).
+- Fires two concurrent normal `GET /historic-bulk` requests — confirms they
+  still coalesce into a single build (proves the fix didn't regress the
+  original de-duplication behaviour this guard exists for).
+
+**Verification performed:**
+- New tests pass (4/4 in `historicBulk.test.ts`, including the 2 pre-existing
+  L10 tests, which still pass unchanged).
+- Full suite: **server 33/33 passing** (was 31), **client 154/154 passing**
+  (unchanged) — 187 tests total, 0 failing.
+- `npm run build`: clean, zero type errors, both packages.
+- No production code outside `server/src/routes/historicBulk.ts` was
+  touched — this was a single-file, single-root-cause fix, as the audit's
+  own suggested fix shape anticipated.
+
+---
+
 ## What's still open
 
 - **L7, L9, L11** — explicitly deferred by your choice; still valid,
   Low-severity, "opportunistic" findings per the audit.
 - **NV1–NV10** — the audit's needs-verification appendix. None were
-  independently observed to occur during this pass, so per the audit's
-  own rule, none were treated as confirmed defects or touched.
-- **L5** — fixed but not visually re-verified (see caveat above) — please
-  check narrow-window behavior yourself.
-- Phase 3 (adversarial regression) is the next step in this project's
-  three-phase process, per `docs/audits/PHASE-3-ADVERSARIAL-REGRESSION-PROMPT.md`
-  — a fresh session, per your standing process.
+  independently observed to occur during either remediation pass, so per
+  the audit's own rule, none were treated as confirmed defects or touched.
+- **L5** — the Phase 3 regression audit visually re-verified this live at
+  exactly 480×800 with a real headless browser: no overlap, no horizontal
+  scroll. Confirmed fixed, no longer open.
+- **R1** — fixed above; this addendum is its record.
+- Phase 3 (adversarial regression) has now run and found only R1 (see
+  `docs/audits/REGRESSION_AUDIT.md`) — with R1 now fixed, everything from
+  both prior phases has been independently stress-tested and holds.

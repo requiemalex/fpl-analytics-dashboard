@@ -22,7 +22,15 @@ interface BulkResult {
 
 // Prevents two simultaneous callers (e.g. two browser tabs both loading
 // cold) from each kicking off their own several-hundred-request build.
-let inFlightBuild: Promise<BulkResult> | null = null;
+// Keyed by bypassCache, exactly like proxy.ts's own cachedFetch's `inFlight`
+// map (see its `refresh:` in-flight key) — a normal load and an explicit
+// "force refresh" must never coalesce into the same build, or the refresh
+// silently loses its force-refresh semantics if it lands while a normal
+// (non-bypassed) build is already in flight (Phase 3 audit, R1: two normal
+// loads still coalesce with each other, and two refreshes still coalesce
+// with each other, but a refresh always gets its own bypassed build rather
+// than riding whatever non-bypassed build happened to already be running).
+const inFlightBuilds = new Map<boolean, Promise<BulkResult>>();
 
 // Exported for testing (L10 regression — see historicBulk.test.ts): whether
 // a "force refresh" build actually bypasses every cache it touches, not
@@ -95,14 +103,16 @@ async function handle(bypassCache: boolean) {
     }
   }
 
-  if (!inFlightBuild) {
-    inFlightBuild = buildBulkHistoricData(bypassCache).finally(() => {
-      inFlightBuild = null;
+  let pending = inFlightBuilds.get(bypassCache);
+  if (!pending) {
+    pending = buildBulkHistoricData(bypassCache).finally(() => {
+      inFlightBuilds.delete(bypassCache);
     });
+    inFlightBuilds.set(bypassCache, pending);
   }
 
   try {
-    const data = await inFlightBuild;
+    const data = await pending;
     historicBulkCache.set("historic-bulk", data, CACHE_TTL_MS.historicBulk);
     return { ok: true as const, data, source: "live" as const, fetchedAt: Date.now() };
   } catch (err) {
