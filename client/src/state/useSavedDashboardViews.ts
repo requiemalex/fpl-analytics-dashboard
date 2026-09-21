@@ -4,19 +4,6 @@ import { DEFAULT_SUMMARY_TILES, type SummaryTileConfig } from "./useSummaryTiles
 import { loadVersioned, saveVersioned, type VersionedStore } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:dashboard:saved-views:v1";
-/**
- * Bumped 1 -> 2 to retroactively seed the two "Default" views (below) into
- * anyone's saved-views array, even one that's already empty. Just changing
- * `fallback` isn't enough on its own: this hook's own effect persists
- * whatever it loads right on mount, so anyone who'd ever opened the
- * Dashboard before "Default" existed already had `{version: 1, data: []}`
- * written to localStorage — `loadVersioned` sees that key exists and never
- * falls back to the new seed. `migrate()` below runs once for any array
- * stored under version < 2 and adds whichever Default entries aren't
- * already present (by id), so a version-1 array — empty or not — reliably
- * picks them up on the first load after upgrading, without duplicating
- * them on every subsequent load.
- */
 const STORAGE_VERSION = 2;
 
 export interface SavedDashboardView {
@@ -33,12 +20,9 @@ export const MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE = 5;
 /**
  * There's no separate "Reset to Defaults" mechanism any more — the tile
  * layout the Dashboard always used to ship with is just a saved view named
- * "Default", one per scope, exactly like any view a user saves themselves
- * (deletable, loadable, counts toward the per-scope cap). Seeded in by
- * `fallback` for a genuinely fresh install, and retroactively by
- * `migrate()` for anyone upgrading from before "Default" existed (see the
- * STORAGE_VERSION comment above) — either way, once seeded in, deleting
- * "Default" deletes it for good rather than it reappearing.
+ * "Default", one per scope: loadable, not deletable (see `remove()` and
+ * `isDefaultSavedView` below), always occupying one of the per-scope saved
+ * slots.
  */
 const DEFAULT_SAVED_DASHBOARD_VIEWS: SavedDashboardView[] = (["player", "team"] as const).map((scope) => ({
   id: `default-view-${scope}`,
@@ -58,13 +42,18 @@ export function isDefaultSavedView(view: Pick<SavedDashboardView, "id">): boolea
 const SAVED_VIEWS_STORE: VersionedStore<SavedDashboardView[]> = {
   version: STORAGE_VERSION,
   fallback: DEFAULT_SAVED_DASHBOARD_VIEWS,
-  migrate(data, storedVersion) {
+  // Runs on every load, not just once across a version bump: `remove()`
+  // only blocks deleting a Default view going forward, so anyone who
+  // deleted one before that guard existed (or any other way a Default
+  // entry ever went missing) gets it silently restored here instead of
+  // needing another version bump to repair. Cheap (two Set lookups) and a
+  // no-op once both are present, which is the steady-state case.
+  migrate(data) {
     if (!Array.isArray(data)) return null;
     const views = data as SavedDashboardView[];
-    if (storedVersion !== null && storedVersion >= STORAGE_VERSION) return views;
     const existingIds = new Set(views.map((v) => v.id));
     const missingDefaults = DEFAULT_SAVED_DASHBOARD_VIEWS.filter((d) => !existingIds.has(d.id));
-    return [...views, ...missingDefaults];
+    return missingDefaults.length > 0 ? [...views, ...missingDefaults] : views;
   },
 };
 

@@ -2642,6 +2642,21 @@ registered FPL managers, not footballers, and is used elsewhere only
 for ownership%-to-owner-count math (`totalPlayers`,
 `metrics/priceChange.ts`). No accuracy issue found there.
 
+## Fixed: a Default view deleted before the anti-delete guard existed never came back
+
+The Default-view backfill (see "Dashboard: 'Default' saved view can't be
+deleted" above) only ran once, gated behind a version bump — fine for
+seeding it in the first time, but it meant a Default view someone had
+already deleted under a version that still allowed deleting it (i.e.
+before that guard shipped) stayed gone forever afterwards, even for
+just one scope (reported: the Player-scope Default view, and with it
+the entire Saved Views dropdown for Players, had disappeared again
+while Team's was still fine). `migrate()` now re-checks for both
+Default entries on every load rather than only across that one version
+transition, and adds back whichever is missing — a cheap, idempotent
+check that's a no-op once both are present, which self-heals this case
+and any equivalent one rather than needing a fix release each time.
+
 ## Testing performed
 
 This app was developed and reviewed against the live 2026/27
