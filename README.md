@@ -2918,3 +2918,26 @@ be on screen, which read as confusing next to the "+ Add Tile" button.
   everywhere else in this app (and, for xG/xA/xGI/xGC, in football
   analytics generally), so spelling them out here alone would make this one
   table less consistent rather than clearer.
+
+## Live Data: Current Season Log split into Prime/Supplements tables, Playing Time full-width
+
+- **Two tables instead of one wide one** — the combined GW/Opponent/Result +
+  Prime + Supplements table ran wider than the card on typical screens,
+  scrolling the Playing Time gauge beside it off the page entirely. Prime and
+  Supplements now render as their own stacked tables (Prime on top), each
+  repeating GW/Opponent/Result so it stands alone — narrower, and no longer
+  dependent on how much horizontal room its neighbour leaves it. Per-gameweek
+  figures, Totals/Average rows and Prime's comparative colouring all work
+  exactly as before, just split across two tables instead of one.
+- **Playing Time moved below both tables** — previously squeezed into a
+  second column beside Current Season Log (which is what pushed it off
+  screen along with the overflow). It's now a full-width card underneath
+  both tables and above Career History, so it's never at the mercy of how
+  wide the tables above it happen to run.
+- **Totals/Average row label** — now spans the full GW/Opponent/Result block
+  instead of spanning just GW/Opponent and leaving Result blank next to it.
+- **Column-group-divider colour** — the divider between the identity columns
+  (GW/Opponent/Result) and the stat columns (also used for Team Building's
+  predictive/historic column split) is now a muted grey
+  (`var(--border-strong)`) instead of the focus-accent blue, since it's a
+  neutral visual separator rather than an interactive cue.

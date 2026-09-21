@@ -419,18 +419,18 @@ export function UserGuide() {
           (the same population the Percentile Radar uses) rather than a visible table's rows.
         </p>
         <p className="page-subtitle">
-          <strong>Current Season Log</strong> is a gameweek-by-gameweek breakdown of the live season — one row per gameweek played,
-          opponent and result, then two column groups (labelled in the header, with a divider between them): "Prime" — Points,
-          Minutes, Starts, Goals, Assists, xG, xA, xGI, Clean Sheets, xGC, Defensive Contributions, Saves, BPS — and "Supplements" —
-          Goals Conceded, Tackles, Clearances/Blocks/Interceptions, Recoveries, Own Goals, Penalties Saved, Penalties Missed, Yellow
-          Cards, Red Cards. A goalkeeper's row swaps Defensive Contributions out for Saves and Penalties Saved (the only position that
-          can record either); every other position doesn't get those two columns at all, rather than a column that can only ever read
-          zero. A Totals row and an Average row (total ÷ gameweeks played so far) sit below every column. The table scrolls
-          horizontally — there are more columns than fit on screen at once. Sourced from the same element-summary request as Career
-          History and Playing Time, so it shares their loading/error state. The Totals and Average rows are also tinted green/red on
-          every Prime column — this player's percentile against others in their own position, live-season figures only, same as
-          Underlying Numbers/Value above. Supplements columns stay untinted — those more granular defensive/discipline stats are only
-          ever tracked per-gameweek for one player at a time, so there's no real population to compare them against.
+          <strong>Current Season Log</strong> is a gameweek-by-gameweek breakdown of the live season, split into two stacked tables —
+          "Prime" and "Supplements" — each repeating GW/Opponent/Result so it stands alone. Prime covers Points, Minutes, Starts,
+          Goals, Assists, xG, xA, xGI, Clean Sheets, xGC, Defensive Contributions, Saves, BPS; Supplements covers Goals Conceded,
+          Tackles, Clearances/Blocks/Interceptions, Recoveries, Own Goals, Penalties Saved, Penalties Missed, Yellow Cards, Red Cards. A
+          goalkeeper's row swaps Defensive Contributions out for Saves and Penalties Saved (the only position that can record either);
+          every other position doesn't get those two columns at all, rather than a column that can only ever read zero. Each table gets
+          its own Totals row and Average row (total ÷ gameweeks played so far). Both tables scroll horizontally if needed. Sourced from
+          the same element-summary request as Career History and Playing Time, so they share its loading/error state. Prime's Totals
+          and Average rows are also tinted green/red — this player's percentile against others in their own position, live-season
+          figures only, same as Underlying Numbers/Value above. Supplements stays untinted — those more granular defensive/discipline
+          stats are only ever tracked per-gameweek for one player at a time, so there's no real population to compare them against.
+          <strong> Playing Time</strong> — the minutes-per-gameweek gauge — sits full-width below both tables and above Career History.
         </p>
         <p className="page-subtitle">
           Career History's season-by-season table (the chevron below the chart) is tinted the same green/red way, but relative to this

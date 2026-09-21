@@ -362,16 +362,136 @@ export function PlayerDetailOverlay() {
     { key: "rc", header: "Red Cards", cell: (g) => fmtDecimal(g.redCards) },
   ];
 
-  const gwColumns: GwColumn[] = [...identityColumns, ...primeColumns, ...supplementsColumns];
-  // Where the Prime/Supplements group boundaries fall in the flat
-  // gwColumns list above — used to draw the divider line and render the
-  // "Prime"/"Supplements" subtitle row spanning the right columns,
-  // recomputed from the actual (position-filtered) group lengths rather
-  // than a fixed column count.
-  const primeStartIndex = identityColumns.length;
-  const supplementsStartIndex = identityColumns.length + primeColumns.length;
-  function groupDividerClass(i: number): string | undefined {
-    return i === primeStartIndex || i === supplementsStartIndex ? "column-group-divider" : undefined;
+  // Prime and Supplements each render as their own table (see
+  // <live_data_split> below) rather than one wide table — computed once
+  // here so both tables' Totals/Average footer rows share the same
+  // gameweek list and aggregates.
+  const seasonLogRows =
+    history.status === "ready" && history.history.length > 0
+      ? (() => {
+          const gameweeks = [...history.history].sort((a, b) => b.round - a.round);
+          const totals = computeGameweekTotals(history.history);
+          const averages = computeGameweekAverages(totals);
+          const totalsByKey: Record<string, React.ReactNode> = {
+            pts: fmtDecimal(totals.points),
+            min: fmtDecimal(totals.minutes),
+            g: fmtDecimal(totals.goals),
+            a: fmtDecimal(totals.assists),
+            xg: fmtDecimal(totals.xG, 2),
+            xa: fmtDecimal(totals.xA, 2),
+            xgi: fmtDecimal(totals.xGI, 2),
+            cs: fmtDecimal(totals.cleanSheets),
+            st: fmtDecimal(totals.starts),
+            gc: fmtDecimal(totals.goalsConceded),
+            xgc: fmtDecimal(totals.xGC, 2),
+            t: fmtDecimal(totals.tackles),
+            cbi: fmtDecimal(totals.clearancesBlocksInterceptions),
+            r: fmtDecimal(totals.recoveries),
+            dc: fmtDecimal(totals.defensiveContribution),
+            og: fmtDecimal(totals.ownGoals),
+            ps: fmtDecimal(totals.penaltiesSaved),
+            pm: fmtDecimal(totals.penaltiesMissed),
+            yc: fmtDecimal(totals.yellowCards),
+            rc: fmtDecimal(totals.redCards),
+            saves: fmtDecimal(totals.saves),
+            bps: fmtDecimal(totals.bps),
+          };
+          const averagesByKey: Record<string, React.ReactNode> = {
+            pts: fmtDecimal(averages.points, 1),
+            min: fmtDecimal(averages.minutes, 0),
+            g: fmtDecimal(averages.goals, 2),
+            a: fmtDecimal(averages.assists, 2),
+            xg: fmtDecimal(averages.xG, 2),
+            xa: fmtDecimal(averages.xA, 2),
+            xgi: fmtDecimal(averages.xGI, 2),
+            cs: fmtDecimal(averages.cleanSheets, 2),
+            st: fmtDecimal(averages.starts, 2),
+            gc: fmtDecimal(averages.goalsConceded, 2),
+            xgc: fmtDecimal(averages.xGC, 2),
+            t: fmtDecimal(averages.tackles, 2),
+            cbi: fmtDecimal(averages.clearancesBlocksInterceptions, 2),
+            r: fmtDecimal(averages.recoveries, 2),
+            dc: fmtDecimal(averages.defensiveContribution, 2),
+            og: fmtDecimal(averages.ownGoals, 2),
+            ps: fmtDecimal(averages.penaltiesSaved, 2),
+            pm: fmtDecimal(averages.penaltiesMissed, 2),
+            yc: fmtDecimal(averages.yellowCards, 2),
+            rc: fmtDecimal(averages.redCards, 2),
+            saves: fmtDecimal(averages.saves, 2),
+            bps: fmtDecimal(averages.bps, 1),
+          };
+          return { gameweeks, totalsByKey, averagesByKey };
+        })()
+      : null;
+
+  // <live_data_split>: Prime and Supplements used to share one wide table
+  // (GW/Opponent/Result + all stat columns) with a two-row header — wide
+  // enough that it ran off the card and pushed the Playing Time gauge off
+  // screen. Split into two narrower tables instead, each repeating the
+  // identity columns (GW, Opponent, Result) so it stands alone; Playing
+  // Time now sits full-width beneath both rather than squeezed beside
+  // them.
+  function renderGwLogTable(statColumns: GwColumn[], rows: NonNullable<typeof seasonLogRows>) {
+    const columns = [...identityColumns, ...statColumns];
+    const statStart = identityColumns.length;
+    return (
+      <div className="table-wrap">
+        <table className="data-table compact">
+          <thead>
+            <tr>
+              {columns.map((c, i) => (
+                <th key={c.key} className={i === statStart ? "column-group-divider" : undefined} style={c.align === "left" ? { textAlign: "left" } : undefined}>
+                  {c.header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.gameweeks.map((g) => (
+              <tr key={g.round}>
+                {columns.map((c, i) => (
+                  <td
+                    key={c.key}
+                    className={i === statStart ? "column-group-divider" : undefined}
+                    style={c.align === "left" ? { textAlign: "left", fontFamily: "var(--font-body)" } : undefined}
+                  >
+                    {c.cell(g)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{ fontWeight: 600 }}>
+              {columns.map((c, i) =>
+                i === 0 ? (
+                  <td key={c.key} style={{ textAlign: "left", fontFamily: "var(--font-body)" }} colSpan={identityColumns.length}>
+                    Totals
+                  </td>
+                ) : i < identityColumns.length ? null : (
+                  <td key={c.key} className={i === statStart ? "column-group-divider" : undefined} style={{ background: percentileTint(seasonLogPercentiles[c.key] ?? null) }}>
+                    {rows.totalsByKey[c.key] ?? ""}
+                  </td>
+                ),
+              )}
+            </tr>
+            <tr>
+              {columns.map((c, i) =>
+                i === 0 ? (
+                  <td key={c.key} style={{ textAlign: "left", fontFamily: "var(--font-body)" }} colSpan={identityColumns.length}>
+                    Average
+                  </td>
+                ) : i < identityColumns.length ? null : (
+                  <td key={c.key} className={i === statStart ? "column-group-divider" : undefined} style={{ background: percentileTint(seasonLogPercentiles[c.key] ?? null) }}>
+                    {rows.averagesByKey[c.key] ?? ""}
+                  </td>
+                ),
+              )}
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    );
   }
 
   return (
@@ -511,150 +631,31 @@ export function PlayerDetailOverlay() {
           <div className="profile-section-heading">
             <h3>Live Data</h3>
           </div>
-          <div className="profile-columns">
-          <div className="profile-col">
-            <div className="card">
-              <div className="card-title">Current Season Log</div>
-              {history.status === "loading" && <p className="page-subtitle">Loading gameweek history…</p>}
-              {history.status === "error" && <p className="page-subtitle">Couldn't load gameweek history: {history.errorMessage}</p>}
-              {history.status === "ready" && history.history.length === 0 && <p className="page-subtitle">No gameweeks played yet this season.</p>}
-              {history.status === "ready" &&
-                history.history.length > 0 &&
-                (() => {
-                  const gameweeks = [...history.history].sort((a, b) => b.round - a.round);
-                  const totals = computeGameweekTotals(history.history);
-                  const averages = computeGameweekAverages(totals);
-                  const totalsByKey: Record<string, React.ReactNode> = {
-                    pts: fmtDecimal(totals.points),
-                    min: fmtDecimal(totals.minutes),
-                    g: fmtDecimal(totals.goals),
-                    a: fmtDecimal(totals.assists),
-                    xg: fmtDecimal(totals.xG, 2),
-                    xa: fmtDecimal(totals.xA, 2),
-                    xgi: fmtDecimal(totals.xGI, 2),
-                    cs: fmtDecimal(totals.cleanSheets),
-                    st: fmtDecimal(totals.starts),
-                    gc: fmtDecimal(totals.goalsConceded),
-                    xgc: fmtDecimal(totals.xGC, 2),
-                    t: fmtDecimal(totals.tackles),
-                    cbi: fmtDecimal(totals.clearancesBlocksInterceptions),
-                    r: fmtDecimal(totals.recoveries),
-                    dc: fmtDecimal(totals.defensiveContribution),
-                    og: fmtDecimal(totals.ownGoals),
-                    ps: fmtDecimal(totals.penaltiesSaved),
-                    pm: fmtDecimal(totals.penaltiesMissed),
-                    yc: fmtDecimal(totals.yellowCards),
-                    rc: fmtDecimal(totals.redCards),
-                    saves: fmtDecimal(totals.saves),
-                    bps: fmtDecimal(totals.bps),
-                  };
-                  const averagesByKey: Record<string, React.ReactNode> = {
-                    pts: fmtDecimal(averages.points, 1),
-                    min: fmtDecimal(averages.minutes, 0),
-                    g: fmtDecimal(averages.goals, 2),
-                    a: fmtDecimal(averages.assists, 2),
-                    xg: fmtDecimal(averages.xG, 2),
-                    xa: fmtDecimal(averages.xA, 2),
-                    xgi: fmtDecimal(averages.xGI, 2),
-                    cs: fmtDecimal(averages.cleanSheets, 2),
-                    st: fmtDecimal(averages.starts, 2),
-                    gc: fmtDecimal(averages.goalsConceded, 2),
-                    xgc: fmtDecimal(averages.xGC, 2),
-                    t: fmtDecimal(averages.tackles, 2),
-                    cbi: fmtDecimal(averages.clearancesBlocksInterceptions, 2),
-                    r: fmtDecimal(averages.recoveries, 2),
-                    dc: fmtDecimal(averages.defensiveContribution, 2),
-                    og: fmtDecimal(averages.ownGoals, 2),
-                    ps: fmtDecimal(averages.penaltiesSaved, 2),
-                    pm: fmtDecimal(averages.penaltiesMissed, 2),
-                    yc: fmtDecimal(averages.yellowCards, 2),
-                    rc: fmtDecimal(averages.redCards, 2),
-                    saves: fmtDecimal(averages.saves, 2),
-                    bps: fmtDecimal(averages.bps, 1),
-                  };
-                  return (
-                    <div className="table-wrap">
-                      <table className="data-table compact">
-                        <thead>
-                          <tr>
-                            <th colSpan={identityColumns.length} style={{ position: "static" }} />
-                            <th colSpan={primeColumns.length} className="column-group-divider" style={{ position: "static" }}>
-                              Prime
-                            </th>
-                            <th colSpan={supplementsColumns.length} className="column-group-divider" style={{ position: "static" }}>
-                              Supplements
-                            </th>
-                          </tr>
-                          <tr>
-                            {gwColumns.map((c, i) => (
-                              <th key={c.key} className={groupDividerClass(i)} style={c.align === "left" ? { textAlign: "left" } : undefined}>
-                                {c.header}
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {gameweeks.map((g) => (
-                            <tr key={g.round}>
-                              {gwColumns.map((c, i) => (
-                                <td
-                                  key={c.key}
-                                  className={groupDividerClass(i)}
-                                  style={c.align === "left" ? { textAlign: "left", fontFamily: "var(--font-body)" } : undefined}
-                                >
-                                  {c.cell(g)}
-                                </td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                        <tfoot>
-                          <tr style={{ fontWeight: 600 }}>
-                            {gwColumns.map((c, i) =>
-                              i === 0 ? (
-                                <td key={c.key} style={{ textAlign: "left", fontFamily: "var(--font-body)" }} colSpan={2}>
-                                  Totals
-                                </td>
-                              ) : i === 1 ? null : (
-                                <td key={c.key} className={groupDividerClass(i)} style={{ background: percentileTint(seasonLogPercentiles[c.key] ?? null) }}>
-                                  {totalsByKey[c.key] ?? ""}
-                                </td>
-                              ),
-                            )}
-                          </tr>
-                          <tr>
-                            {gwColumns.map((c, i) =>
-                              i === 0 ? (
-                                <td key={c.key} style={{ textAlign: "left", fontFamily: "var(--font-body)" }} colSpan={2}>
-                                  Average
-                                </td>
-                              ) : i === 1 ? null : (
-                                <td key={c.key} className={groupDividerClass(i)} style={{ background: percentileTint(seasonLogPercentiles[c.key] ?? null) }}>
-                                  {averagesByKey[c.key] ?? ""}
-                                </td>
-                              ),
-                            )}
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
-                  );
-                })()}
-            </div>
+          <div className="card">
+            <div className="card-title">Prime</div>
+            {history.status === "loading" && <p className="page-subtitle">Loading gameweek history…</p>}
+            {history.status === "error" && <p className="page-subtitle">Couldn't load gameweek history: {history.errorMessage}</p>}
+            {history.status === "ready" && history.history.length === 0 && <p className="page-subtitle">No gameweeks played yet this season.</p>}
+            {seasonLogRows && renderGwLogTable(primeColumns, seasonLogRows)}
           </div>
 
-          <div className="profile-col">
-            <div className="card">
-              <div className="card-title">Playing Time</div>
-              {history.status === "loading" && <p className="page-subtitle" style={{ margin: 0 }}>Loading…</p>}
-              {history.status === "error" && <p className="page-subtitle" style={{ margin: 0 }}>Couldn't load gameweek history.</p>}
-              {history.status === "ready" &&
-                (() => {
-                  const { averageMinutes, gameweeksPlayed } = computeSeasonAverageMinutes(history.history);
-                  return <PlayingTimeIcon averageMinutes={averageMinutes} gameweeksPlayed={gameweeksPlayed} />;
-                })()}
-            </div>
+          <div className="card" style={{ marginTop: 16 }}>
+            <div className="card-title">Supplements</div>
+            {history.status === "loading" && <p className="page-subtitle">Loading gameweek history…</p>}
+            {history.status === "error" && <p className="page-subtitle">Couldn't load gameweek history: {history.errorMessage}</p>}
+            {history.status === "ready" && history.history.length === 0 && <p className="page-subtitle">No gameweeks played yet this season.</p>}
+            {seasonLogRows && renderGwLogTable(supplementsColumns, seasonLogRows)}
           </div>
+
+          <div className="card" style={{ marginTop: 16 }}>
+            <div className="card-title">Playing Time</div>
+            {history.status === "loading" && <p className="page-subtitle" style={{ margin: 0 }}>Loading…</p>}
+            {history.status === "error" && <p className="page-subtitle" style={{ margin: 0 }}>Couldn't load gameweek history.</p>}
+            {history.status === "ready" &&
+              (() => {
+                const { averageMinutes, gameweeksPlayed } = computeSeasonAverageMinutes(history.history);
+                return <PlayingTimeIcon averageMinutes={averageMinutes} gameweeksPlayed={gameweeksPlayed} />;
+              })()}
           </div>
 
         <div className="card" style={{ marginTop: 16 }}>

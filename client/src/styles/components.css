@@ -221,10 +221,12 @@ table.data-table td.picker-sticky-player {
   z-index: 1;
 }
 
-/* Divider between the predictive and historic/raw column groups. */
+/* Divider between column groups (e.g. predictive vs. historic/raw, or
+   identity vs. stat columns) — muted grey rather than the focus-accent
+   blue so it reads as a neutral separator, not an interactive cue. */
 table.data-table th.column-group-divider,
 table.data-table td.column-group-divider {
-  border-left: 2px solid var(--accent-focus);
+  border-left: 2px solid var(--border-strong);
 }
 
 .column-resize-handle {
