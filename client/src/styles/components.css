@@ -1374,8 +1374,8 @@ select:focus {
   height: 15px;
   padding: 0 3px;
   border-radius: 999px;
-  background: var(--accent-focus);
-  color: #fff;
+  background: var(--accent-positive);
+  color: #06170f;
   font-size: 9px;
   font-weight: 700;
   line-height: 15px;
