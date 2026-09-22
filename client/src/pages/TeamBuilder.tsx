@@ -21,6 +21,7 @@ import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, columnByKey, isStaticColumn, t
 import { SquadPitch } from "../components/SquadPitch";
 import { AnalysisModeIcon } from "../components/AnalysisModeIcon";
 import { PositionBadge, AvailabilityFlag, SignedNum, availabilityTextClass } from "../components/primitives";
+import { IconChipButton, ResetIcon, SparkleIcon, ClockIcon, FilterIcon, DownloadIcon } from "../components/IconToolbar";
 import { fmtPrice, fmtDecimal, fmtPercent, fmtSigned, DASH } from "../utils/format";
 import { relativeCellTint } from "../utils/colorScale";
 import { downloadCsv } from "../utils/csvExport";
@@ -177,7 +178,6 @@ export function TeamBuilder() {
   const [importError, setImportError] = useState<string | null>(null);
   const [pickerHistoricMode, setPickerHistoricMode] = useState<AnalysisMode>("lastSeason");
   const [showPredictiveColumnPopover, setShowPredictiveColumnPopover] = useState(false);
-  const [comparativeColouring, setComparativeColouring] = useState(true);
   const columnFiltersState = useColumnFilters();
   const [showHistoricRawColumnPopover, setShowHistoricRawColumnPopover] = useState(false);
   const predictiveCols = useColumnCustomization(DEFAULT_PREDICTIVE_COLUMN_KEYS);
@@ -460,20 +460,34 @@ export function TeamBuilder() {
     columnFiltersState.resetAllFilters();
   }
 
-  // Runs Fit to Box automatically the first time the picker table has
-  // actually mounted, so the default view isn't cramped/overflowing on a
-  // narrower screen before anyone's touched the button. No dependency
-  // array: rather than depend on `pickerRows` (which is now computed
+  // Column widths auto-fit the picker table's available width — on first
+  // mount, whenever either column group's visible-column count changes (so
+  // toggling a column on/off never leaves the table overflowing or oddly
+  // narrow), and on window resize. No dependency on `pickerRows` (computed
   // further down, before the early-return guard — see <hooks_before_
-  // early_return> below) just to know when there's real content, this
-  // simply checks the ref directly on every render until it succeeds,
-  // then the ref flag makes every render after that a no-op.
+  // early_return> below): this just checks the ref directly on every
+  // render until the table has actually mounted, then the ref flag makes
+  // every render after that a no-op for the "first mount" case.
   const hasAutoFitPickerRef = useRef(false);
   useEffect(() => {
     if (hasAutoFitPickerRef.current || !pickerTableWrapRef.current) return;
     hasAutoFitPickerRef.current = true;
     handlePickerFitToBox();
   });
+  useEffect(() => {
+    if (!hasAutoFitPickerRef.current) return;
+    handlePickerFitToBox();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [predictiveCols.visibleColumns.length, historicRawCols.visibleColumns.length]);
+
+  useEffect(() => {
+    function onResize() {
+      handlePickerFitToBox();
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /**
    * With a tile armed, clicking a starting player assigns them. Otherwise,
@@ -725,7 +739,6 @@ export function TeamBuilder() {
   }, [historicRawColumnsInOrder, pickerRows]);
 
   function predictiveTint(row: PickerRowData, c: PredictiveColumnDef): string | undefined {
-    if (!comparativeColouring) return undefined;
     const range = predictiveColumnRanges.get(c.key);
     const v = c.getValue(row);
     if (!range || v === null) return undefined;
@@ -733,7 +746,6 @@ export function TeamBuilder() {
   }
 
   function historicRawTint(row: PickerRowData, c: PlayerColumn): string | undefined {
-    if (!comparativeColouring) return undefined;
     const range = historicRawColumnRanges.get(c.key);
     if (!range || !row.historicRaw) return undefined;
     const v = c.getValue(row.historicRaw, getPlayerDerivedMetrics(row.historicRaw));
@@ -982,17 +994,15 @@ export function TeamBuilder() {
           </div>
         </div>
 
-        <div className="chip-row" style={{ marginBottom: 12 }}>
-          <button type="button" className="chip" onClick={handlePickerFitToBox} title="Compress all visible columns to fit the table width">
-            Fit to Box
-          </button>
-          <button type="button" className="chip" onClick={handleResetPickerColumns} title="Restore default columns, order, and natural widths">
-            Reset Columns
-          </button>
+        <div className="icon-toolbar" style={{ marginBottom: 12 }}>
+          <IconChipButton icon={<ResetIcon />} label="Restore default columns, order, and natural widths" onClick={handleResetPickerColumns} />
           <div style={{ position: "relative" }}>
-            <button type="button" className="chip" onClick={() => setShowPredictiveColumnPopover((v) => !v)}>
-              Predictive Columns ({predictiveCols.visibleColumns.length})
-            </button>
+            <IconChipButton
+              icon={<SparkleIcon />}
+              label={`Predictive Columns (${predictiveCols.visibleColumns.length} shown)`}
+              badge={predictiveCols.visibleColumns.length}
+              onClick={() => setShowPredictiveColumnPopover((v) => !v)}
+            />
             {showPredictiveColumnPopover && (
               <div className="popover">
                 {PREDICTIVE_COLUMNS.map((c) => (
@@ -1005,9 +1015,12 @@ export function TeamBuilder() {
             )}
           </div>
           <div style={{ position: "relative" }}>
-            <button type="button" className="chip" onClick={() => setShowHistoricRawColumnPopover((v) => !v)}>
-              Historic/Raw Columns ({historicRawCols.visibleColumns.length})
-            </button>
+            <IconChipButton
+              icon={<ClockIcon />}
+              label={`Historic/Raw Columns (${historicRawCols.visibleColumns.length} shown)`}
+              badge={historicRawCols.visibleColumns.length}
+              onClick={() => setShowHistoricRawColumnPopover((v) => !v)}
+            />
             {showHistoricRawColumnPopover && (
               <div className="popover">
                 {HISTORIC_RAW_GROUPS.map((group) => (
@@ -1030,21 +1043,12 @@ export function TeamBuilder() {
               </div>
             )}
           </div>
-          <button
-            type="button"
-            className="chip"
+          <IconChipButton
+            icon={<FilterIcon />}
+            label="Clear every picker filter — search, position, team, price, minutes, and any per-column filters"
             onClick={handleClearPickerFilters}
-            title="Clear every picker filter — search, position, team, price, minutes, and any per-column filters"
-          >
-            Clear Filters
-          </button>
-          <button type="button" className="chip" onClick={handleExportPickerCsv} title="Export the visible columns and current rows to a CSV file">
-            Export CSV
-          </button>
-          <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "var(--text-secondary)" }}>
-            <input type="checkbox" checked={comparativeColouring} onChange={(e) => setComparativeColouring(e.target.checked)} />
-            Comparative Colouring
-          </label>
+          />
+          <IconChipButton icon={<DownloadIcon />} label="Export the visible columns and current rows to a CSV file" onClick={handleExportPickerCsv} />
         </div>
 
         <div style={{ display: "flex", gap: 28, flexWrap: "wrap", marginBottom: 12 }}>

@@ -253,6 +253,33 @@
   }
 }
 
+/* Lets a page fill the main-content area's exact height and hand any
+   overflow to one internal scrollable region, instead of the whole page
+   scrolling past its own bottom controls (Player Explorer's count pill,
+   for example, sitting below the table). `.page-fill-body` is the flexible
+   region between the page's fixed-height header controls and its
+   fixed-height footer; any `.table-wrap` inside it stretches to fill the
+   remaining space and scrolls internally (sticky header included) rather
+   than growing the page past the viewport. `min-height: 0` on every level
+   is required — without it a flex item won't shrink below its content's
+   natural size, and the intended internal scrolling never engages. */
+.page-fill {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.page-fill-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.page-fill-body .table-wrap {
+  flex: 1;
+  min-height: 0;
+}
+
 .page-header {
   display: flex;
   align-items: baseline;

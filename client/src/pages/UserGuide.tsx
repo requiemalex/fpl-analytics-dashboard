@@ -242,9 +242,9 @@ export function UserGuide() {
             <strong>Filter</strong> — click the ▾ on a header's edge for an Excel-style filter (Less than or equal to / Greater than or
             equal to / Equal to). Confirm with Enter, discard with Cancel.
           </li>
-          <li><strong>Fit to Box</strong> compresses every visible column to the available width — runs automatically on first load, too.</li>
+          <li>Column widths auto-fit the table to the available space — on load and whenever the visible columns change.</li>
           <li><strong>Reset Columns</strong> restores the packaged defaults — order, visibility, and width.</li>
-          <li><strong>Comparative Colouring</strong> (top right) tints each cell green/red relative to what's currently on screen — turn it off if it's too busy.</li>
+          <li><strong>Comparative Colouring</strong> tints each cell green/red relative to what's currently on screen.</li>
           <li>
             The filter bar above the table (search, position, team, min minutes) narrows the whole table at once. Every
             other column — Starts, Own%, Price, and the rest — has its own filter (click the ▾ icon on that column's header) with
@@ -362,7 +362,7 @@ export function UserGuide() {
             trim the squad back down whenever you're ready.
           </li>
           <li>
-            The <strong>Add Players table</strong> has the same reorder/resize/sort/filter/Fit-to-Box/Export-CSV toolkit as Player
+            The <strong>Add Players table</strong> has the same reorder/resize/sort/filter/Export-CSV toolkit as Player
             Explorer, split into two independently-toggled groups: <strong>Predictive</strong> (the two Expected Points columns above,
             plus Minutes Reliability and a fixture ticker) and <strong>Historic/Raw</strong> (its own Last Completed Season / Historic
             Average / Current Season toggle) — the two can't be reordered into each other, marked by the vertical divider line. Price

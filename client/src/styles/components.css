@@ -1330,6 +1330,7 @@ select:focus {
   background: var(--accent-positive-dim);
 }
 .chip-icon {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1340,6 +1341,46 @@ select:focus {
 .chip-icon:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* Wraps a related group of icon-only chip buttons (table toolbar controls —
+   reset/columns/filter/export) in one bordered pill, in place of the old
+   text-label chip row. */
+.icon-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.icon-toolbar .chip {
+  border: none;
+  background: transparent;
+}
+.icon-toolbar .chip:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+/* Small count bubble in an icon button's corner (visible-column count,
+   etc.) — same role the old "Columns (11)" text suffix played. */
+.chip-icon-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--accent-focus);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+  border: 1.5px solid var(--surface);
 }
 
 /* A Dashboard summary-tile card grid's trailing "add a tile" slot — sits in

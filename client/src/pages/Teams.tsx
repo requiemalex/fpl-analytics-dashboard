@@ -44,7 +44,6 @@ export function Teams() {
   }, [requestHistoricData]);
   const navigate = useNavigate();
   const [, setSearchParams] = useSearchParams();
-  const [comparativeColouring, setComparativeColouring] = useState(true);
   // This page's own analysis-mode — deliberately not shared with any
   // other page (see state/scoutingFilters.ts).
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("lastSeason");
@@ -96,7 +95,6 @@ export function Teams() {
   }, [aggregates]);
 
   function teamCellTint(team: TeamAggregate, key: string): string | undefined {
-    if (!comparativeColouring) return undefined;
     const range = columnRanges.get(key);
     const v = team[key as keyof TeamAggregate];
     if (!range || typeof v !== "number") return undefined;
@@ -126,13 +124,6 @@ export function Teams() {
       </div>
 
       <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
-
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "var(--text-secondary)" }}>
-          <input type="checkbox" checked={comparativeColouring} onChange={(e) => setComparativeColouring(e.target.checked)} />
-          Comparative Colouring
-        </label>
-      </div>
 
       <div className="table-wrap">
         <table className="data-table">

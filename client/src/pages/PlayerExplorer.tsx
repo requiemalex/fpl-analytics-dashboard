@@ -14,6 +14,7 @@ import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFilters";
 import { PositionBadge, SignedNum, AvailabilityFlag, availabilityTextClass, FixtureChips } from "../components/primitives";
 import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, columnByKey, isStaticColumn, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
+import { IconChipButton, ResetIcon, ColumnsIcon, FilterIcon, DownloadIcon } from "../components/IconToolbar";
 import { fmtPrice, fmtSigned, DASH } from "../utils/format";
 import { relativeCellTint } from "../utils/colorScale";
 import { downloadCsv } from "../utils/csvExport";
@@ -69,8 +70,6 @@ export function PlayerExplorer() {
   const filtered = useFilteredPlayers(resolvedPlayers, filters, analysisMode);
 
   const [showColumnPopover, setShowColumnPopover] = useState(false);
-  const [compact, setCompact] = useState(false);
-  const [comparativeColouring, setComparativeColouring] = useState(true);
   const { sort, handleHeaderClick } = useSortSpec([{ key: "totalPoints", direction: "desc" }]);
 
   const {
@@ -134,19 +133,27 @@ export function PlayerExplorer() {
     fitToBox(container.clientWidth - stickyWidth - 4);
   }
 
-  // Runs Fit to Box automatically the first time the table actually has
-  // rows to measure against (not on every render — a ref flag, not a
-  // dependency on row content, stops this from re-firing every time
-  // filters/sort change the row count later). Without this, the default
-  // natural-width columns can overflow badly on a narrower screen before
-  // anyone's touched the Fit to Box button.
-  const hasAutoFitRef = useRef(false);
+  // Column widths auto-fit the table's available width — on first load
+  // (once there are rows to measure against), whenever the set of visible
+  // columns changes (so toggling a column on/off never leaves the table
+  // overflowing or oddly narrow), and on window resize. Deliberately keyed
+  // on visibleColumns.length rather than the array itself: a plain reorder
+  // (drag-and-drop) doesn't change the column count, so it shouldn't
+  // re-trigger this and wipe out a manual per-column resize.
   useEffect(() => {
-    if (hasAutoFitRef.current || sortedRows.length === 0) return;
-    hasAutoFitRef.current = true;
+    if (sortedRows.length === 0) return;
     handleFitToBox();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortedRows.length > 0]);
+  }, [sortedRows.length > 0, visibleColumns.length]);
+
+  useEffect(() => {
+    function onResize() {
+      handleFitToBox();
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // A column is either a real PLAYER_COLUMNS entry or the special Fixtures
   // string key above — that one doesn't render a plain number, so
@@ -177,7 +184,6 @@ export function PlayerExplorer() {
   }, [columnsInOrder, sortedRows]);
 
   function columnTint(player: NormalizedPlayer, derived: PlayerDerivedMetrics, c: PlayerColumn): string | undefined {
-    if (!comparativeColouring) return undefined;
     const range = columnRanges.get(c.key);
     const v = c.getValue(player, derived);
     if (!range || v === null) return undefined;
@@ -210,7 +216,7 @@ export function PlayerExplorer() {
   }
 
   return (
-    <div>
+    <div className="page-fill">
       <div className="page-header">
         <div>
           <h1>Player Explorer</h1>
@@ -221,20 +227,15 @@ export function PlayerExplorer() {
 
       <FiltersBar idPrefix="pe" filters={filters} onChange={setFilters} onReset={resetFilters} analysisMode={analysisMode} />
 
-      <div className="chip-row" style={{ marginBottom: 12 }}>
-        <button type="button" className="chip" onClick={() => setCompact((c) => !c)}>
-          {compact ? "Comfortable rows" : "Compact rows"}
-        </button>
-        <button type="button" className="chip" onClick={handleFitToBox} title="Compress all visible columns to fit the table width">
-          Fit to Box
-        </button>
-        <button type="button" className="chip" onClick={resetColumns} title="Restore the default columns, order, and natural widths">
-          Reset Columns
-        </button>
+      <div className="icon-toolbar" style={{ marginBottom: 12 }}>
+        <IconChipButton icon={<ResetIcon />} label="Restore the default columns, order, and natural widths" onClick={resetColumns} />
         <div style={{ position: "relative" }}>
-          <button type="button" className="chip" onClick={() => setShowColumnPopover((v) => !v)}>
-            Columns ({visibleColumns.length})
-          </button>
+          <IconChipButton
+            icon={<ColumnsIcon />}
+            label={`Columns (${visibleColumns.length} shown)`}
+            badge={visibleColumns.length}
+            onClick={() => setShowColumnPopover((v) => !v)}
+          />
           {showColumnPopover && (
             <div className="popover">
               <div style={{ marginBottom: 8 }}>
@@ -266,24 +267,15 @@ export function PlayerExplorer() {
             </div>
           )}
         </div>
-        <button
-          type="button"
-          className="chip"
+        <IconChipButton
+          icon={<FilterIcon />}
+          label="Clear every filter — the filter bar above and any per-column filters"
           onClick={() => {
             resetFilters();
             columnFiltersState.resetAllFilters();
           }}
-          title="Clear every filter — the filter bar above and any per-column filters"
-        >
-          Clear Filters
-        </button>
-        <button type="button" className="chip" onClick={handleExportCsv} title="Export the visible columns and current rows to a CSV file">
-          Export CSV
-        </button>
-        <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12.5, color: "var(--text-secondary)" }}>
-          <input type="checkbox" checked={comparativeColouring} onChange={(e) => setComparativeColouring(e.target.checked)} />
-          Comparative Colouring
-        </label>
+        />
+        <IconChipButton icon={<DownloadIcon />} label="Export the visible columns and current rows to a CSV file" onClick={handleExportCsv} />
       </div>
 
       {advancedFieldAvailability && !advancedFieldAvailability.defensive_contribution && (
@@ -293,19 +285,20 @@ export function PlayerExplorer() {
         </div>
       )}
 
-      {sortedRows.length === 0 && analysisMode !== "live" && historicStatus === "loading" ? (
-        <div className="empty-state">
-          <h3>Building the historic dataset…</h3>
-          <p>This runs once per session and can take up to a minute — it'll be quick after that.</p>
-        </div>
-      ) : sortedRows.length === 0 ? (
-        <div className="empty-state">
-          <h3>No players match your filters</h3>
-          <p>Try widening the minimum-minutes threshold or clearing a filter. This is a filter result, not an API error.</p>
-        </div>
-      ) : (
-        <div className="table-wrap" ref={tableWrapRef} style={{ maxHeight: "70vh" }}>
-          <table className={`data-table${compact ? " compact" : ""}`}>
+      <div className="page-fill-body">
+        {sortedRows.length === 0 && analysisMode !== "live" && historicStatus === "loading" ? (
+          <div className="empty-state">
+            <h3>Building the historic dataset…</h3>
+            <p>This runs once per session and can take up to a minute — it'll be quick after that.</p>
+          </div>
+        ) : sortedRows.length === 0 ? (
+          <div className="empty-state">
+            <h3>No players match your filters</h3>
+            <p>Try widening the minimum-minutes threshold or clearing a filter. This is a filter result, not an API error.</p>
+          </div>
+        ) : (
+        <div className="table-wrap" ref={tableWrapRef}>
+          <table className="data-table">
             <thead>
               <tr>
                 <th className="sticky-col" ref={stickyColRef} onClick={() => handleHeaderClick("name", false)}>
@@ -429,7 +422,8 @@ export function PlayerExplorer() {
             </tbody>
           </table>
         </div>
-      )}
+        )}
+      </div>
       <div className="count-pill" style={{ marginTop: 10 }}>
         {sortedRows.length.toLocaleString("en-GB")}/{resolvedPlayers.length.toLocaleString("en-GB")} Players
       </div>
