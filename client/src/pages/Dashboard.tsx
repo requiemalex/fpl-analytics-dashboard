@@ -7,6 +7,8 @@ import { filterPlayers } from "../state/useFilteredPlayers";
 import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFilters";
 import { ANALYSIS_MODE_OPTIONS } from "../components/AnalysisModeToggle";
 import { FiltersBar } from "../components/FiltersBar";
+import { PlayerSearch } from "../components/PlayerSearch";
+import { TeamPicker } from "../components/TeamPicker";
 import { TopList, type TopListRow } from "../components/TopList";
 import { TeamTopList, type TeamTopListRow } from "../components/TeamTopList";
 import {
@@ -20,9 +22,13 @@ import {
 import { useSummaryTiles, createSummaryTile, MAX_SUMMARY_TILES, type TileDirection, type SummaryTileConfig } from "../state/useSummaryTiles";
 import { useSavedDashboardViews, isDefaultSavedView, MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE, type SavedDashboardView } from "../state/useSavedDashboardViews";
 import { fmtDate, fmtTimeAgo } from "../utils/format";
-import type { NormalizedTeam } from "../types/normalized";
+import type { NormalizedPlayer, NormalizedTeam } from "../types/normalized";
 
 const ACTIVE_TOGGLE_STYLE = { borderColor: "var(--accent-positive)", color: "var(--accent-positive)" };
+
+/** Same cap for both — a tile tracking a handful of specific players/teams is meant for close comparison, not a second way to build a big list. */
+const MAX_TILE_PLAYERS = 5;
+const MAX_TILE_TEAMS = 5;
 
 /** Every mode a tile can be built from — used to pre-compute one resolved/eligible/aggregate bucket per mode (see below), since tiles now each carry their own data view rather than sharing one page-wide mode. */
 const MODES: AnalysisMode[] = ["live", "lastSeason", "historicAverage"];
@@ -221,6 +227,17 @@ export function Dashboard() {
   // any other tile. Only meaningful for scope "player"; a team tile
   // always aggregates a club's whole squad regardless of this.
   const [newTileCriteria, setNewTileCriteria] = useState<GlobalScoutingFilters>(DEFAULT_FILTERS);
+  // Player Tile only — toggles between the Filters criteria above and
+  // tracking up to MAX_TILE_PLAYERS specific players by id. Switching back
+  // to "filters" clears newTilePlayerIds (see togglePlayerTileMode) so
+  // half-built player picks never silently linger into a filter-based tile.
+  const [newTilePlayerMode, setNewTilePlayerMode] = useState<"filters" | "players">("filters");
+  const [newTilePlayerIds, setNewTilePlayerIds] = useState<number[]>([]);
+  // Team Tile only — same idea as newTilePlayerMode/newTilePlayerIds above,
+  // but for tracking up to MAX_TILE_TEAMS specific teams instead of every
+  // team.
+  const [newTileTeamMode, setNewTileTeamMode] = useState<"all" | "selected">("all");
+  const [newTileTeamIds, setNewTileTeamIds] = useState<number[]>([]);
   const [newTileError, setNewTileError] = useState<string | null>(null);
 
   // ---------- Saved Dashboard Views ----------
@@ -353,11 +370,21 @@ export function Dashboard() {
         if (tile.scope === "player") {
           const metric = playerTileMetricByKey(tile.metricKey);
           if (!metric) return null;
-          const criteria = tile.criteria ?? DEFAULT_FILTERS;
-          let sourcePlayers = filterPlayers(resolvedByMode[tile.dataView], criteria, tile.dataView);
-          if (metric.ratePerMinutes) {
-            const floor = tile.dataView === "live" ? LIVE_RATE_STAT_MIN_MINUTES : RATE_STAT_MIN_MINUTES;
-            sourcePlayers = sourcePlayers.filter((p) => p.minutes !== null && p.minutes >= floor);
+          let sourcePlayers: NormalizedPlayer[];
+          if (tile.playerIds && tile.playerIds.length > 0) {
+            // Tracking specific players — sort/rank exactly those (up to
+            // MAX_TILE_PLAYERS), skipping the criteria filter and the
+            // rate-stat minutes floor entirely, since the user explicitly
+            // picked these players by name rather than by a threshold.
+            const idSet = new Set(tile.playerIds);
+            sourcePlayers = resolvedByMode[tile.dataView].filter((p) => idSet.has(p.id));
+          } else {
+            const criteria = tile.criteria ?? DEFAULT_FILTERS;
+            sourcePlayers = filterPlayers(resolvedByMode[tile.dataView], criteria, tile.dataView);
+            if (metric.ratePerMinutes) {
+              const floor = tile.dataView === "live" ? LIVE_RATE_STAT_MIN_MINUTES : RATE_STAT_MIN_MINUTES;
+              sourcePlayers = sourcePlayers.filter((p) => p.minutes !== null && p.minutes >= floor);
+            }
           }
           const rows = sourcePlayers.map((p) => ({ player: p, derived: getPlayerDerivedMetrics(p) }));
           const valueRows: TopListRow[] = rows.map((r) => ({ player: r.player, value: metric.getValue(r.player, r.derived) }));
@@ -365,7 +392,12 @@ export function Dashboard() {
         }
         const metric = teamTileMetricByKey(tile.metricKey);
         if (!metric) return null;
-        const valueRows: TeamTopListRow[] = teamAggregatesByMode[tile.dataView].map((t) => ({
+        let teamPool = teamAggregatesByMode[tile.dataView];
+        if (tile.teamIds && tile.teamIds.length > 0) {
+          const idSet = new Set(tile.teamIds);
+          teamPool = teamPool.filter((t) => idSet.has(t.teamId));
+        }
+        const valueRows: TeamTopListRow[] = teamPool.map((t) => ({
           teamId: t.teamId,
           name: t.name,
           shortName: t.shortName,
@@ -397,6 +429,10 @@ export function Dashboard() {
     setNewTileDataView("lastSeason");
     setNewTileName("");
     setNewTileCriteria(DEFAULT_FILTERS);
+    setNewTilePlayerMode("filters");
+    setNewTilePlayerIds([]);
+    setNewTileTeamMode("all");
+    setNewTileTeamIds([]);
     setNewTileError(null);
     setShowAddTileModal(true);
   }
@@ -411,7 +447,48 @@ export function Dashboard() {
     if (metric) setNewTileDirection(metric.higherIsBetter ? "desc" : "asc");
   }
 
+  /** Switching away from "players" clears any in-progress player picks — picking up to 5 players is only meaningful within that mode, so it shouldn't silently carry over if the user goes back to Filters. */
+  function togglePlayerTileMode(mode: "filters" | "players") {
+    setNewTilePlayerMode(mode);
+    if (mode === "filters") setNewTilePlayerIds([]);
+  }
+
+  function addNewTilePlayer(id: number) {
+    setNewTilePlayerIds((prev) => (prev.length >= MAX_TILE_PLAYERS || prev.includes(id) ? prev : [...prev, id]));
+  }
+
+  function removeNewTilePlayer(id: number) {
+    setNewTilePlayerIds((prev) => prev.filter((x) => x !== id));
+  }
+
+  function toggleTeamTileMode(mode: "all" | "selected") {
+    setNewTileTeamMode(mode);
+    if (mode === "all") setNewTileTeamIds([]);
+  }
+
+  function addNewTileTeam(id: number) {
+    setNewTileTeamIds((prev) => (prev.length >= MAX_TILE_TEAMS || prev.includes(id) ? prev : [...prev, id]));
+  }
+
+  function removeNewTileTeam(id: number) {
+    setNewTileTeamIds((prev) => prev.filter((x) => x !== id));
+  }
+
+  const trimmedNewTileName = newTileName.trim();
+  const newTileNameMissing = trimmedNewTileName.length === 0;
+  const newTilePlayersMissing = tileView === "player" && newTilePlayerMode === "players" && newTilePlayerIds.length === 0;
+  const newTileTeamsMissing = tileView === "team" && newTileTeamMode === "selected" && newTileTeamIds.length === 0;
+  const addTileDisabled = newTileNameMissing || newTilePlayersMissing || newTileTeamsMissing;
+  const addTileDisabledReason = newTileNameMissing
+    ? "Name is required"
+    : newTilePlayersMissing
+      ? "Select at least one player to track"
+      : newTileTeamsMissing
+        ? "Select at least one team to track"
+        : undefined;
+
   function handleAddTile() {
+    if (addTileDisabled) return;
     if (tilesState.tiles.length >= MAX_SUMMARY_TILES) {
       setNewTileError(`You already have ${MAX_SUMMARY_TILES} tiles — the maximum allowed. Remove one first.`);
       return;
@@ -422,8 +499,10 @@ export function Dashboard() {
         metricKey: newTileMetricKey,
         direction: newTileDirection,
         dataView: newTileDataView,
-        name: newTileName.trim() || null,
-        criteria: tileView === "player" ? newTileCriteria : null,
+        name: trimmedNewTileName,
+        criteria: tileView === "player" && newTilePlayerMode === "filters" ? newTileCriteria : null,
+        playerIds: tileView === "player" && newTilePlayerMode === "players" ? newTilePlayerIds : null,
+        teamIds: tileView === "team" && newTileTeamMode === "selected" ? newTileTeamIds : null,
       }),
     );
     setShowAddTileModal(false);
@@ -651,11 +730,10 @@ export function Dashboard() {
           <div className="dialog" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-title">Add {tileView === "player" ? "Player" : "Team"} Tile</div>
             <div className="field">
-              <label htmlFor="new-tile-name">Name (optional)</label>
+              <label htmlFor="new-tile-name">Name</label>
               <input
                 id="new-tile-name"
                 type="text"
-                placeholder="Auto-generated from statistic + order"
                 value={newTileName}
                 onChange={(e) => setNewTileName(e.target.value)}
               />
@@ -688,20 +766,129 @@ export function Dashboard() {
               </select>
             </div>
             {tileView === "player" && (
-              <FiltersBar
-                idPrefix="new-tile-criteria"
-                filters={newTileCriteria}
-                onChange={setNewTileCriteria}
-                onReset={() => setNewTileCriteria(DEFAULT_FILTERS)}
-                analysisMode={newTileDataView}
-              />
+              <>
+                <div className="chip-row" style={{ marginBottom: 12 }}>
+                  <button
+                    type="button"
+                    className={`chip${newTilePlayerMode === "filters" ? " active" : ""}`}
+                    aria-pressed={newTilePlayerMode === "filters"}
+                    onClick={() => togglePlayerTileMode("filters")}
+                  >
+                    Filters
+                  </button>
+                  <button
+                    type="button"
+                    className={`chip${newTilePlayerMode === "players" ? " active" : ""}`}
+                    aria-pressed={newTilePlayerMode === "players"}
+                    onClick={() => togglePlayerTileMode("players")}
+                  >
+                    Player Search
+                  </button>
+                </div>
+                {newTilePlayerMode === "filters" ? (
+                  <FiltersBar
+                    idPrefix="new-tile-criteria"
+                    filters={newTileCriteria}
+                    onChange={setNewTileCriteria}
+                    onReset={() => setNewTileCriteria(DEFAULT_FILTERS)}
+                    analysisMode={newTileDataView}
+                    showSearch={false}
+                  />
+                ) : (
+                  <>
+                    {newTilePlayerIds.length > 0 && (
+                      <div className="chip-row" style={{ marginBottom: 8 }}>
+                        {newTilePlayerIds.map((id) => {
+                          const p = players.find((pl) => pl.id === id);
+                          if (!p) return null;
+                          return (
+                            <span key={id} className="chip" style={{ display: "flex", alignItems: "center", gap: 6, cursor: "default" }}>
+                              {p.name}
+                              <button
+                                type="button"
+                                onClick={() => removeNewTilePlayer(id)}
+                                style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0, fontSize: 13, lineHeight: 1 }}
+                                title="Remove"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <PlayerSearch
+                      excludeIds={newTilePlayerIds}
+                      onPick={addNewTilePlayer}
+                      disabled={newTilePlayerIds.length >= MAX_TILE_PLAYERS}
+                      label={`Search players (${newTilePlayerIds.length}/${MAX_TILE_PLAYERS})`}
+                      disabledLabel={`Search players (${MAX_TILE_PLAYERS}/${MAX_TILE_PLAYERS})`}
+                    />
+                  </>
+                )}
+              </>
+            )}
+            {tileView === "team" && (
+              <>
+                <div className="chip-row" style={{ marginBottom: 12 }}>
+                  <button
+                    type="button"
+                    className={`chip${newTileTeamMode === "all" ? " active" : ""}`}
+                    aria-pressed={newTileTeamMode === "all"}
+                    onClick={() => toggleTeamTileMode("all")}
+                  >
+                    All Teams
+                  </button>
+                  <button
+                    type="button"
+                    className={`chip${newTileTeamMode === "selected" ? " active" : ""}`}
+                    aria-pressed={newTileTeamMode === "selected"}
+                    onClick={() => toggleTeamTileMode("selected")}
+                  >
+                    Team Selection
+                  </button>
+                </div>
+                {newTileTeamMode === "selected" && (
+                  <>
+                    {newTileTeamIds.length > 0 && (
+                      <div className="chip-row" style={{ marginBottom: 8 }}>
+                        {newTileTeamIds.map((id) => {
+                          const t = teams.find((tm) => tm.id === id);
+                          if (!t) return null;
+                          return (
+                            <span key={id} className="chip" style={{ display: "flex", alignItems: "center", gap: 6, cursor: "default" }}>
+                              {t.name}
+                              <button
+                                type="button"
+                                onClick={() => removeNewTileTeam(id)}
+                                style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0, fontSize: 13, lineHeight: 1 }}
+                                title="Remove"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <TeamPicker
+                      teams={teams}
+                      excludeIds={newTileTeamIds}
+                      onPick={addNewTileTeam}
+                      disabled={newTileTeamIds.length >= MAX_TILE_TEAMS}
+                      label={`Search teams (${newTileTeamIds.length}/${MAX_TILE_TEAMS})`}
+                      disabledLabel={`Search teams (${MAX_TILE_TEAMS}/${MAX_TILE_TEAMS})`}
+                    />
+                  </>
+                )}
+              </>
             )}
             {newTileError && <div className="banner error">{newTileError}</div>}
             <div className="dialog-actions">
               <button type="button" className="btn" onClick={closeAddTileModal}>
                 Cancel
               </button>
-              <button type="button" className="btn primary" onClick={handleAddTile}>
+              <button type="button" className="btn primary" onClick={handleAddTile} disabled={addTileDisabled} title={addTileDisabledReason}>
                 Add Tile
               </button>
             </div>

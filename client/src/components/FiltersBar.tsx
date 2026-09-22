@@ -26,6 +26,7 @@ export function FiltersBar({
   onReset,
   analysisMode,
   showMinMinutes = true,
+  showSearch = true,
 }: {
   idPrefix?: string;
   filters: GlobalScoutingFilters;
@@ -34,6 +35,8 @@ export function FiltersBar({
   analysisMode: AnalysisMode;
   /** Off on Player Explorer only — its MINS column has its own per-column filter, making this redundant there. Everywhere else (Dashboard tiles, Player Comparison/Detail radars, Underlying Numbers charts) has no equivalent, so Min Minutes stays the only way to set a minutes threshold. */
   showMinMinutes?: boolean;
+  /** Off for the Dashboard Add Tile modal's "Filters" mode only — that modal now has a separate "Player Search" mode (pick up to 5 specific players) covering the same job the free-text Search field used to, so showing both would be redundant/confusing. */
+  showSearch?: boolean;
 }) {
   const { teams } = useAppState();
 
@@ -43,16 +46,18 @@ export function FiltersBar({
 
   return (
     <div className="filters-bar">
-      <div className="field">
-        <label htmlFor={`${idPrefix}-search`}>Search</label>
-        <input
-          id={`${idPrefix}-search`}
-          type="text"
-          placeholder="Player name…"
-          value={filters.search}
-          onChange={(e) => update("search", e.target.value)}
-        />
-      </div>
+      {showSearch && (
+        <div className="field">
+          <label htmlFor={`${idPrefix}-search`}>Search</label>
+          <input
+            id={`${idPrefix}-search`}
+            type="text"
+            placeholder="Player name…"
+            value={filters.search}
+            onChange={(e) => update("search", e.target.value)}
+          />
+        </div>
+      )}
 
       <div className="field">
         <label htmlFor={`${idPrefix}-position`}>Position</label>

@@ -86,3 +86,36 @@ describe("useSummaryTiles — <update_safety> version 2 -> 3 migration", () => {
     expect(result.current.tiles).toEqual([]);
   });
 });
+
+describe("useSummaryTiles — <update_safety> version 3 -> 4 migration (playerIds/teamIds)", () => {
+  it("migrates version-3 (pre playerIds/teamIds) tiles forward: both backfill to null, preserving existing filter-based behaviour", () => {
+    const v3ShapeTiles = [
+      { id: "t1", scope: "player", metricKey: "totalPoints", direction: "desc", dataView: "lastSeason", name: null, criteria: DEFAULT_FILTERS },
+      { id: "t2", scope: "team", metricKey: "points", direction: "desc", dataView: "lastSeason", name: null, criteria: null },
+    ];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 3, data: v3ShapeTiles }));
+
+    const { result } = renderHook(() => useSummaryTiles());
+
+    expect(result.current.tiles).toHaveLength(2);
+    const [playerTile, teamTile] = result.current.tiles;
+    expect(playerTile.playerIds).toBeNull();
+    expect(playerTile.teamIds).toBeNull();
+    expect(playerTile.criteria).toEqual(DEFAULT_FILTERS);
+    expect(teamTile.playerIds).toBeNull();
+    expect(teamTile.teamIds).toBeNull();
+  });
+
+  it("leaves already-current-shape (v4) tiles' playerIds/teamIds untouched", () => {
+    const v4ShapeTiles = [
+      { id: "t1", scope: "player", metricKey: "totalPoints", direction: "desc", dataView: "lastSeason", name: "Tracked players", criteria: null, playerIds: [1, 2, 3], teamIds: null },
+      { id: "t2", scope: "team", metricKey: "points", direction: "desc", dataView: "lastSeason", name: "Tracked teams", criteria: null, playerIds: null, teamIds: [10, 20] },
+    ];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 4, data: v4ShapeTiles }));
+
+    const { result } = renderHook(() => useSummaryTiles());
+    const [playerTile, teamTile] = result.current.tiles;
+    expect(playerTile.playerIds).toEqual([1, 2, 3]);
+    expect(teamTile.teamIds).toEqual([10, 20]);
+  });
+});

@@ -16,8 +16,16 @@ const STORAGE_KEY = "fpl-dashboard:dashboard:summary-tiles:v1";
  * bar's own starting value) / null for team tiles (which never filtered),
  * so existing users' tiles keep behaving exactly as before rather than
  * crashing or silently showing zero rows.
+ *
+ * Bumped 3 -> 4 when `playerIds` and `teamIds` were added below (a Player
+ * Tile can now track up to 5 specific players instead of a criteria-filtered
+ * pool, and a Team Tile up to 5 specific teams instead of every team — see
+ * the Add Tile modal in Dashboard.tsx). A tile saved under version 3 (or
+ * earlier) has neither field — migrate() backfills both to null, which
+ * means "use the existing criteria/all-teams behaviour", so every
+ * previously-saved tile keeps rendering exactly as it did before.
  */
-const STORAGE_VERSION = 3;
+const STORAGE_VERSION = 4;
 const DEFAULT_DATA_VIEW: AnalysisMode = "lastSeason";
 
 /** A UI/localStorage-hygiene limit, matching the same idea as Team Building's saved-squad cap and User Analysis's saved-graph cap. */
@@ -34,8 +42,37 @@ export interface SummaryTileConfig {
   dataView: AnalysisMode;
   /** Custom title, set once at creation — null/"" falls back to the auto-generated "Top 5 — <metric>" title. */
   name: string | null;
-  /** This tile's own Search/Position/Team/Min Minutes criteria, set once at creation — independent of every other tile's. Always null for scope "team" (a team tile aggregates a club's whole squad regardless of any player-level filter, same as before this existed). */
+  /** This tile's own Search/Position/Team/Min Minutes criteria, set once at creation — independent of every other tile's. Always null for scope "team" (a team tile aggregates a club's whole squad regardless of any player-level filter, same as before this existed). Ignored when `playerIds` is set (see below). */
   criteria: GlobalScoutingFilters | null;
+  /**
+   * Scope "player" only: up to 5 specific player ids to track, chosen via
+   * the Add Tile modal's "Player Search" toggle instead of "Filters". When
+   * set (always non-empty — validated at creation), this tile's Top/Bottom
+   * 5 sorts only these players and `criteria` is ignored entirely. Null
+   * means "use `criteria`" (the original filter-based behaviour). Always
+   * null for scope "team".
+   */
+  playerIds: number[] | null;
+  /**
+   * Scope "team" only: up to 5 specific team ids to track, chosen via the
+   * Add Tile modal's "Team Selection" toggle instead of "All Teams". When
+   * set (always non-empty — validated at creation), this tile's Top/Bottom
+   * 5 sorts only these teams instead of every team. Null means "all teams"
+   * (the original behaviour). Always null for scope "player".
+   */
+  teamIds: number[] | null;
+}
+
+/** Backfills a possibly-older-shaped stored tile to the current SummaryTileConfig shape — shared by this store's own migrate() below and by useSavedDashboardViews' (which embeds this same tile shape inside each saved view's `tiles` array and needs to stay in sync with it). */
+export function normalizeSummaryTile(t: Partial<SummaryTileConfig>): SummaryTileConfig {
+  return {
+    ...t,
+    dataView: t.dataView ?? DEFAULT_DATA_VIEW,
+    name: t.name ?? null,
+    criteria: t.criteria ?? (t.scope === "player" ? DEFAULT_FILTERS : null),
+    playerIds: t.playerIds ?? null,
+    teamIds: t.teamIds ?? null,
+  } as SummaryTileConfig;
 }
 
 /**
@@ -45,16 +82,16 @@ export interface SummaryTileConfig {
  * layout change forced on everyone.
  */
 export const DEFAULT_SUMMARY_TILES: SummaryTileConfig[] = [
-  { id: "default-points", scope: "player", metricKey: "totalPoints", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS },
-  { id: "default-xgi", scope: "player", metricKey: "xGI", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS },
-  { id: "default-value", scope: "player", metricKey: "pointsPerMillion", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS },
-  { id: "default-goals-above-xg", scope: "player", metricKey: "goalsMinusXG", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS },
-  { id: "default-xg-above-goals", scope: "player", metricKey: "goalsMinusXG", direction: "asc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS },
-  { id: "default-xgi-per-million", scope: "player", metricKey: "xGIPerMillion", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS },
-  { id: "default-ga-above-xgi", scope: "player", metricKey: "goalInvolvementsMinusXGI", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS },
-  { id: "default-team-points", scope: "team", metricKey: "points", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: null },
-  { id: "default-team-xgi", scope: "team", metricKey: "xGI", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: null },
-  { id: "default-team-clean-sheets", scope: "team", metricKey: "cleanSheets", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: null },
+  { id: "default-points", scope: "player", metricKey: "totalPoints", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS, playerIds: null, teamIds: null },
+  { id: "default-xgi", scope: "player", metricKey: "xGI", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS, playerIds: null, teamIds: null },
+  { id: "default-value", scope: "player", metricKey: "pointsPerMillion", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS, playerIds: null, teamIds: null },
+  { id: "default-goals-above-xg", scope: "player", metricKey: "goalsMinusXG", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS, playerIds: null, teamIds: null },
+  { id: "default-xg-above-goals", scope: "player", metricKey: "goalsMinusXG", direction: "asc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS, playerIds: null, teamIds: null },
+  { id: "default-xgi-per-million", scope: "player", metricKey: "xGIPerMillion", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS, playerIds: null, teamIds: null },
+  { id: "default-ga-above-xgi", scope: "player", metricKey: "goalInvolvementsMinusXGI", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS, playerIds: null, teamIds: null },
+  { id: "default-team-points", scope: "team", metricKey: "points", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: null, playerIds: null, teamIds: null },
+  { id: "default-team-xgi", scope: "team", metricKey: "xGI", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: null, playerIds: null, teamIds: null },
+  { id: "default-team-clean-sheets", scope: "team", metricKey: "cleanSheets", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: null, playerIds: null, teamIds: null },
 ];
 
 const SUMMARY_TILES_STORE: VersionedStore<SummaryTileConfig[]> = {
@@ -68,12 +105,7 @@ const SUMMARY_TILES_STORE: VersionedStore<SummaryTileConfig[]> = {
     // same "is an empty array valid?" question. Only a non-array (or
     // missing) payload means there's nothing usable to migrate.
     if (!Array.isArray(data)) return null;
-    return (data as Partial<SummaryTileConfig>[]).map((t) => ({
-      ...t,
-      dataView: t.dataView ?? DEFAULT_DATA_VIEW,
-      name: t.name ?? null,
-      criteria: t.criteria ?? (t.scope === "player" ? DEFAULT_FILTERS : null),
-    })) as SummaryTileConfig[];
+    return (data as Partial<SummaryTileConfig>[]).map(normalizeSummaryTile);
   },
 };
 
@@ -92,6 +124,8 @@ export function createSummaryTile(config: {
   dataView: AnalysisMode;
   name: string | null;
   criteria: GlobalScoutingFilters | null;
+  playerIds: number[] | null;
+  teamIds: number[] | null;
 }): SummaryTileConfig {
   return { id: `tile-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, ...config };
 }

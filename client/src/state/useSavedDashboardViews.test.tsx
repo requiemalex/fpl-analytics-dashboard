@@ -102,7 +102,9 @@ describe("useSavedDashboardViews — save()/updateTiles() (backing Create View a
     act(() => {
       id = result.current.save("player", "My View", []);
     });
-    const newTiles = [{ id: "t1", scope: "player" as const, metricKey: "xGI", direction: "desc" as const, dataView: "live" as const, name: null, criteria: null }];
+    const newTiles = [
+      { id: "t1", scope: "player" as const, metricKey: "xGI", direction: "desc" as const, dataView: "live" as const, name: null, criteria: null, playerIds: null, teamIds: null },
+    ];
     act(() => {
       result.current.updateTiles(id, newTiles);
     });
