@@ -405,6 +405,13 @@ export function UserGuide() {
           sortable table. It's a two-colour swatch of that club's real primary and secondary kit colours where known, so same-coloured
           clubs (several Premier League sides share red or blue as a primary) are still distinguishable at a glance.
         </p>
+        <p className="page-subtitle">
+          <strong>Squad Points History</strong> is the same bar-chart idea as the player profile's Career History, applied to the
+          current squad: each bar is the sum of FPL points every player currently at that club personally scored in that season,
+          including this one in progress (dashed). It carries the same simplification as the rest of Teams — the FPL API has no
+          record of which club a player was actually at in a past season, so a summer signing's points from their old club land in
+          this club's bar too, not held back for wherever they were at the time.
+        </p>
       </Section>
 
       <Section id="player-profile" title="Player Profile">

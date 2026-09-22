@@ -5,13 +5,17 @@ import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePla
 import { getUpcomingFixtures, averageFixtureDifficulty } from "../metrics/fixtureTicker";
 import { computePositionPercentiles } from "../metrics/percentiles";
 import { computeTeamAggregates, computeTeamRadarData, TEAM_DEFENSE_AXES, TEAM_OFFENSE_AXES, type TeamAggregate } from "../metrics/teamStats";
+import { computeSquadSeasonHistory, computeSquadSeasonAverage } from "../metrics/teamSeasonHistory";
+import { computeSeasonTrend } from "../metrics/careerMetrics";
+import { nextSeasonName } from "../metrics/historicAnalysis";
 import { relativeCellTint, percentileTint } from "../utils/colorScale";
 import { effectiveMinMinutes } from "../state/useFilteredPlayers";
 import { DEFAULT_FILTERS } from "../state/scoutingFilters";
 import { AnalysisModeToggle } from "./AnalysisModeToggle";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass, FixtureChips } from "./primitives";
 import { PercentileRadarChart } from "./PlayerRadarChart";
-import { fmtDecimal, fmtPrice, DASH } from "../utils/format";
+import { CareerHistoryChart } from "./playerProfile/CareerHistoryChart";
+import { fmtDecimal, fmtPrice, fmtSigned, DASH } from "../utils/format";
 import type { NormalizedPlayer, NormalizedTeam } from "../types/normalized";
 
 function useSelectedTeam(): [NormalizedTeam | null, (id: number | null) => void] {
@@ -52,7 +56,18 @@ function StatTile({ label, value, tint }: { label: string; value: React.ReactNod
 }
 
 export function TeamDetailOverlay() {
-  const { players, teams, teamsById, fixtures, historicProfiles, currentSeasonHasStarted, requestHistoricData } = useAppState();
+  const {
+    players,
+    teams,
+    teamsById,
+    fixtures,
+    historicProfiles,
+    currentSeasonHasStarted,
+    historicReferenceSeason,
+    historicStatus,
+    allTimeSeasonsByPlayerId,
+    requestHistoricData,
+  } = useAppState();
   useEffect(() => {
     requestHistoricData();
   }, [requestHistoricData]);
@@ -92,6 +107,30 @@ export function TeamDetailOverlay() {
     () => (team ? (allTeamAggregates.find((t) => t.teamId === team.id) ?? null) : null),
     [allTeamAggregates, team],
   );
+
+  // Full squad membership, independent of analysisMode (who's on the
+  // team doesn't change with the toggle, only their stats do) — drives
+  // the Squad Points History chart, which (like the player profile's own
+  // Career History) always shows real full-career figures regardless of
+  // the mode toggle above.
+  const squadPlayerIds = useMemo(() => (team ? players.filter((p) => p.teamId === team.id).map((p) => p.id) : []), [players, team]);
+
+  const squadSeasonHistory = useMemo(() => computeSquadSeasonHistory(squadPlayerIds, allTimeSeasonsByPlayerId), [squadPlayerIds, allTimeSeasonsByPlayerId]);
+  const squadSeasonAverage = useMemo(() => computeSquadSeasonAverage(squadSeasonHistory), [squadSeasonHistory]);
+  const squadSeasonTrend = useMemo(() => computeSeasonTrend(squadSeasonHistory), [squadSeasonHistory]);
+
+  // Always the live/raw season total, never resolved-mode-dependent —
+  // same reasoning PlayerDetailOverlay's own currentSeasonEntry uses raw
+  // player.totalPoints rather than a resolved figure: the "(live)" bar on
+  // this chart shows today's actual number regardless of which analysis
+  // mode the toggle above is set to.
+  const liveSquadPoints = useMemo(() => (team ? players.filter((p) => p.teamId === team.id).reduce((acc, p) => acc + (p.totalPoints ?? 0), 0) : 0), [players, team]);
+  const currentSquadSeasonEntry = useMemo(
+    () => (historicReferenceSeason ? { seasonName: nextSeasonName(historicReferenceSeason), totalPoints: liveSquadPoints } : null),
+    [historicReferenceSeason, liveSquadPoints],
+  );
+  const combinedSquadSeasonHistory = currentSquadSeasonEntry ? [...squadSeasonHistory, currentSquadSeasonEntry] : squadSeasonHistory;
+  const squadSeasonNames = useMemo(() => new Set(squadSeasonHistory.map((s) => s.seasonName)), [squadSeasonHistory]);
 
   const squadTotalRanges = useMemo(() => {
     const ranges = new Map<string, { min: number; max: number }>();
@@ -235,6 +274,41 @@ export function TeamDetailOverlay() {
                 <FixtureChips fixtures={upcomingFixtures} avgTint={avgFdrTint} />
               )}
             </div>
+          </div>
+
+          <div className="card" style={{ marginTop: 16 }}>
+            <div className="card-title">Squad Points History</div>
+            {historicStatus === "loading" && combinedSquadSeasonHistory.length === 0 ? (
+              <p className="page-subtitle">Loading squad points history…</p>
+            ) : squadSeasonHistory.length === 0 && !currentSquadSeasonEntry ? (
+              <p className="page-subtitle">No season data for the current squad.</p>
+            ) : (
+              <>
+                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
+                  {squadSeasonTrend.direction !== "unknown" && (
+                    <span
+                      className={`num ${squadSeasonTrend.direction === "up" ? "value-positive" : squadSeasonTrend.direction === "down" ? "value-negative" : "value-muted"}`}
+                      style={{ fontSize: 12.5 }}
+                    >
+                      {squadSeasonTrend.direction === "up" ? "▲" : squadSeasonTrend.direction === "down" ? "▼" : "≈"} {fmtSigned(squadSeasonTrend.pointsDelta, 0)} pts,{" "}
+                      {squadSeasonTrend.previousSeason} → {squadSeasonTrend.latestSeason}
+                    </span>
+                  )}
+                </div>
+
+                <CareerHistoryChart
+                  seasons={combinedSquadSeasonHistory}
+                  countedSeasonNames={squadSeasonNames}
+                  currentSeasonName={currentSquadSeasonEntry?.seasonName ?? null}
+                  averagePoints={squadSeasonAverage}
+                />
+
+                <div className="stat-row" style={{ marginTop: 10 }}>
+                  <span className="stat-row-name">Season average ({squadSeasonHistory.length} season{squadSeasonHistory.length === 1 ? "" : "s"})</span>
+                  <span className="stat-row-value">{squadSeasonAverage !== null ? `${fmtDecimal(squadSeasonAverage, 0)} pts` : DASH}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

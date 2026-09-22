@@ -92,8 +92,12 @@ export interface SeasonTrend {
  * seasons only — the simplest honest read of "which way is this trending",
  * not a projection. Needs at least two prior seasons; a player with 0 or 1
  * gets "unknown", never a fabricated direction.
+ *
+ * Only reads seasonName/totalPoints, so it also works for a
+ * squad-aggregated season total (see metrics/teamSeasonHistory.ts) — not
+ * just a single player's real PlayerSeasonHistory.
  */
-export function computeSeasonTrend(seasons: PlayerSeasonHistory[]): SeasonTrend {
+export function computeSeasonTrend(seasons: Pick<PlayerSeasonHistory, "seasonName" | "totalPoints">[]): SeasonTrend {
   if (seasons.length < 2) {
     return { direction: "unknown", pointsDelta: null, latestSeason: seasons[0]?.seasonName ?? null, previousSeason: null };
   }

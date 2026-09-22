@@ -1,11 +1,22 @@
 import React from "react";
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from "recharts";
-import type { PlayerSeasonHistory } from "../../types/normalized";
 import { fmtDecimal } from "../../utils/format";
+
+/**
+ * Deliberately narrower than PlayerSeasonHistory — this chart only ever
+ * reads seasonName/totalPoints, so it works equally for a single player's
+ * real season history and for a squad-aggregated season total (Team
+ * Profile's Squad Points History, see metrics/teamSeasonHistory.ts),
+ * without either caller needing to pad out fields it doesn't have.
+ */
+export interface SeasonPointsEntry {
+  seasonName: string;
+  totalPoints: number;
+}
 
 function ChartTooltip({ active, payload }: any) {
   if (!active || !payload || payload.length === 0) return null;
-  const s = payload[0].payload as PlayerSeasonHistory & { isLive: boolean; counted: boolean };
+  const s = payload[0].payload as SeasonPointsEntry & { isLive: boolean; counted: boolean };
   return (
     <div style={{ background: "var(--surface-raised)", border: "1px solid var(--border-strong)", borderRadius: 6, padding: "8px 10px", fontSize: 12 }}>
       <strong>
@@ -34,7 +45,7 @@ export function CareerHistoryChart({
   currentSeasonName,
   averagePoints,
 }: {
-  seasons: PlayerSeasonHistory[];
+  seasons: SeasonPointsEntry[];
   countedSeasonNames: Set<string>;
   currentSeasonName: string | null;
   averagePoints: number | null;
