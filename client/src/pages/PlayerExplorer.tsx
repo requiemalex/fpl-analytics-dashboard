@@ -225,7 +225,7 @@ export function PlayerExplorer() {
 
       <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
 
-      <FiltersBar idPrefix="pe" filters={filters} onChange={setFilters} onReset={resetFilters} analysisMode={analysisMode} />
+      <FiltersBar idPrefix="pe" filters={filters} onChange={setFilters} onReset={resetFilters} analysisMode={analysisMode} showMinMinutes={false} />
 
       <div className="icon-toolbar" style={{ marginBottom: 12 }}>
         <IconChipButton icon={<ResetIcon />} label="Restore the default columns, order, and natural widths" onClick={resetColumns} />
@@ -294,7 +294,7 @@ export function PlayerExplorer() {
         ) : sortedRows.length === 0 ? (
           <div className="empty-state">
             <h3>No players match your filters</h3>
-            <p>Try widening the minimum-minutes threshold or clearing a filter. This is a filter result, not an API error.</p>
+            <p>Try clearing a filter — the criteria bar above or a per-column filter. This is a filter result, not an API error.</p>
           </div>
         ) : (
         <div className="table-wrap" ref={tableWrapRef}>

@@ -2,6 +2,7 @@ import React from "react";
 import { useAppState } from "../state/AppStateContext";
 import type { GlobalScoutingFilters } from "../state/scoutingFilters";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
+import { ResetIcon } from "./IconToolbar";
 
 const MINUTES_STEP = 90;
 
@@ -24,12 +25,15 @@ export function FiltersBar({
   onChange,
   onReset,
   analysisMode,
+  showMinMinutes = true,
 }: {
   idPrefix?: string;
   filters: GlobalScoutingFilters;
   onChange: (next: GlobalScoutingFilters) => void;
   onReset: () => void;
   analysisMode: AnalysisMode;
+  /** Off on Player Explorer only — its MINS column has its own per-column filter, making this redundant there. Everywhere else (Dashboard tiles, Player Comparison/Detail radars, Underlying Numbers charts) has no equivalent, so Min Minutes stays the only way to set a minutes threshold. */
+  showMinMinutes?: boolean;
 }) {
   const { teams } = useAppState();
 
@@ -84,24 +88,26 @@ export function FiltersBar({
         </select>
       </div>
 
-      <div className="field">
-        <label htmlFor={`${idPrefix}-min-minutes`}>
-          Min minutes {analysisMode === "live" && <span style={{ color: "var(--text-muted)" }}>(bypassed)</span>}
-        </label>
-        <input
-          id={`${idPrefix}-min-minutes`}
-          type="number"
-          step={MINUTES_STEP}
-          min={0}
-          value={filters.minMinutes}
-          disabled={analysisMode === "live"}
-          title={analysisMode === "live" ? "Not applied in Current Season mode — everyone has low or zero minutes until real gameweeks accumulate" : undefined}
-          onChange={(e) => update("minMinutes", Math.max(0, Math.round(Number(e.target.value) / MINUTES_STEP) * MINUTES_STEP))}
-        />
-      </div>
+      {showMinMinutes && (
+        <div className="field">
+          <label htmlFor={`${idPrefix}-min-minutes`}>
+            Min minutes {analysisMode === "live" && <span style={{ color: "var(--text-muted)" }}>(bypassed)</span>}
+          </label>
+          <input
+            id={`${idPrefix}-min-minutes`}
+            type="number"
+            step={MINUTES_STEP}
+            min={0}
+            value={filters.minMinutes}
+            disabled={analysisMode === "live"}
+            title={analysisMode === "live" ? "Not applied in Current Season mode — everyone has low or zero minutes until real gameweeks accumulate" : undefined}
+            onChange={(e) => update("minMinutes", Math.max(0, Math.round(Number(e.target.value) / MINUTES_STEP) * MINUTES_STEP))}
+          />
+        </div>
+      )}
 
-      <button className="btn" onClick={onReset} type="button">
-        Reset Criteria
+      <button className="chip chip-icon" title="Reset Criteria" aria-label="Reset Criteria" onClick={onReset} type="button">
+        <ResetIcon />
       </button>
     </div>
   );
