@@ -122,17 +122,15 @@
 /* Small per-tile marker of which analysis mode ("data view") a Dashboard
    tile was built from — see components/DataViewBadge.tsx. */
 .data-view-badge {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--text-muted);
   background: color-mix(in srgb, var(--text-muted) 16%, transparent);
   border-radius: 4px;
-  padding: 2px 6px;
-  line-height: 1.4;
+  padding: 3px;
+  line-height: 0;
   cursor: default;
-  white-space: nowrap;
 }
 
 /* ---------- Tables ---------- */

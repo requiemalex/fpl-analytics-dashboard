@@ -19,6 +19,7 @@ import { computeBlendedMinutesReliability } from "../metrics/minutesReliabilityB
 import { getUpcomingFixtures, fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, columnByKey, isStaticColumn, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { SquadPitch } from "../components/SquadPitch";
+import { AnalysisModeIcon } from "../components/AnalysisModeIcon";
 import { PositionBadge, AvailabilityFlag, SignedNum, availabilityTextClass } from "../components/primitives";
 import { fmtPrice, fmtDecimal, fmtPercent, fmtSigned, DASH } from "../utils/format";
 import { relativeCellTint } from "../utils/colorScale";
@@ -1060,12 +1061,14 @@ export function TeamBuilder() {
                 <button
                   key={o.mode}
                   type="button"
-                  className="btn"
+                  className="btn btn-icon"
                   aria-pressed={pickerHistoricMode === o.mode}
+                  title={o.label}
+                  aria-label={o.label}
                   style={pickerHistoricMode === o.mode ? { borderColor: "var(--accent-positive)", color: "var(--accent-positive)" } : undefined}
                   onClick={() => setPickerHistoricMode(o.mode)}
                 >
-                  {o.label}
+                  <AnalysisModeIcon mode={o.mode} />
                 </button>
               ))}
             </div>

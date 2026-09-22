@@ -1,6 +1,7 @@
 import React from "react";
 import { useAppState } from "../state/AppStateContext";
 import { FiltersBar } from "./FiltersBar";
+import { AnalysisModeIcon } from "./AnalysisModeIcon";
 import { createDefaultLocalViewState, type LocalViewState } from "../state/scoutingFilters";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 
@@ -51,12 +52,14 @@ export function LocalViewControls({
             <button
               key={o.mode}
               type="button"
-              className="btn"
+              className="btn btn-icon"
               aria-pressed={state.analysisMode === o.mode}
+              title={o.label}
+              aria-label={o.label}
               style={state.analysisMode === o.mode ? { borderColor: "var(--accent-positive)", color: "var(--accent-positive)" } : undefined}
               onClick={() => setMode(o.mode)}
             >
-              {o.label}
+              <AnalysisModeIcon mode={o.mode} />
             </button>
           ))}
         </div>

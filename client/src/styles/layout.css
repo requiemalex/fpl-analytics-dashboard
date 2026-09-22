@@ -295,6 +295,14 @@
   border-color: var(--accent-positive);
   color: var(--text-primary);
 }
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 34px;
+  padding: 0;
+}
 
 .banner {
   padding: 10px 14px;

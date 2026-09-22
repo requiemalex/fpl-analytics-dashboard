@@ -1,5 +1,6 @@
 import React from "react";
 import { useAppState } from "../state/AppStateContext";
+import { AnalysisModeIcon } from "./AnalysisModeIcon";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 
 /** Exported so anything else needing these exact labels (Dashboard's per-tile Data View select, DataViewBadge's tooltips) stays in sync with what this toggle itself shows, rather than re-typing the strings. */
@@ -30,12 +31,14 @@ export function AnalysisModeToggle({ mode, onChange }: { mode: AnalysisMode; onC
             <button
               key={o.mode}
               type="button"
-              className="btn"
+              className="btn btn-icon"
               aria-pressed={mode === o.mode}
+              title={o.label}
+              aria-label={o.label}
               style={mode === o.mode ? { borderColor: "var(--accent-positive)", color: "var(--accent-positive)" } : undefined}
               onClick={() => onChange(o.mode)}
             >
-              {o.label}
+              <AnalysisModeIcon mode={o.mode} />
             </button>
           ))}
         </div>

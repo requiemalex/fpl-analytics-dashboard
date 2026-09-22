@@ -1,12 +1,7 @@
 import React from "react";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import { ANALYSIS_MODE_OPTIONS } from "./AnalysisModeToggle";
-
-const SHORT_CODE: Record<AnalysisMode, string> = {
-  live: "CS",
-  lastSeason: "LS",
-  historicAverage: "HA",
-};
+import { AnalysisModeIcon } from "./AnalysisModeIcon";
 
 /**
  * A small per-tile marker of which analysis mode ("data view") a Dashboard
@@ -17,8 +12,8 @@ const SHORT_CODE: Record<AnalysisMode, string> = {
 export function DataViewBadge({ mode }: { mode: AnalysisMode }) {
   const label = ANALYSIS_MODE_OPTIONS.find((o) => o.mode === mode)?.label ?? mode;
   return (
-    <span className="data-view-badge" title={`Data view: ${label}`}>
-      {SHORT_CODE[mode]}
+    <span className="data-view-badge" title={`Data view: ${label}`} aria-label={`Data view: ${label}`}>
+      <AnalysisModeIcon mode={mode} size={13} />
     </span>
   );
 }
