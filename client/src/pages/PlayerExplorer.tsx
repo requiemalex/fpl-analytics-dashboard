@@ -397,7 +397,7 @@ export function PlayerExplorer() {
           <table className="data-table">
             <thead>
               <tr>
-                <th className="sticky-col" ref={stickyColRef} onClick={() => handleHeaderClick("name", false)}>
+                <th className="sticky-col" ref={stickyColRef} onClick={() => handleHeaderClick("name", false)} style={{ paddingRight: 6 }}>
                   Player
                 </th>
                 {IDENTITY_COLUMNS.map((c, idx) => {
@@ -407,17 +407,23 @@ export function PlayerExplorer() {
                   const width = columnWidths[key];
                   const categoryOptions =
                     c === TEAM_COLUMN_KEY ? teamCategoryOptions : c === POSITION_COLUMN_KEY ? POSITION_OPTIONS : undefined;
+                  // A second grey divider, tighter-spaced (6px either side rather than
+                  // the standard 10px), separates the sticky Player column from this
+                  // whole identity block — distinct from the one between this block
+                  // and the user-configurable columns further along.
+                  const isFirst = idx === 0;
                   return (
                     <th
                       key={key}
                       ref={idx === IDENTITY_COLUMNS.length - 1 ? identityEndRef : undefined}
-                      className="col-static"
+                      className={isFirst ? "col-static column-group-divider" : "col-static"}
                       onClick={(e) => handleHeaderClick(key, e.shiftKey)}
                       title="Always today's live figure, regardless of the toggle above · Click to sort · Shift-click to add secondary sort · Drag the right edge to resize"
                       style={{
                         position: "relative",
                         width: width ? `${width}px` : undefined,
                         maxWidth: width ? `${width}px` : undefined,
+                        paddingLeft: isFirst ? 6 : undefined,
                       }}
                     >
                       {label}
@@ -516,7 +522,7 @@ export function PlayerExplorer() {
             <tbody>
               {sortedRows.map(({ player, derived }) => (
                 <tr key={player.id} onClick={() => setSearchParams((prev) => ({ ...Object.fromEntries(prev), player: String(player.id) }))}>
-                  <td className="sticky-col">
+                  <td className="sticky-col" style={{ paddingRight: 6 }}>
                     <div className="player-name-cell">
                       <span className={`name ${availabilityTextClass(player.status)}`}>
                         {player.name}
@@ -529,19 +535,24 @@ export function PlayerExplorer() {
                       </span>
                     </div>
                   </td>
-                  {IDENTITY_COLUMNS.map((c) => {
+                  {IDENTITY_COLUMNS.map((c, idx) => {
                     const width = columnWidths[typeof c === "string" ? c : c.key];
-                    const widthStyle = width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const } : {};
+                    const isFirst = idx === 0;
+                    const widthStyle = {
+                      ...(width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const } : {}),
+                      ...(isFirst ? { paddingLeft: 6 } : {}),
+                    };
+                    const className = isFirst ? "column-group-divider" : undefined;
                     if (c === TEAM_COLUMN_KEY || c === POSITION_COLUMN_KEY) {
                       return (
-                        <td key={c} style={widthStyle}>
+                        <td key={c} className={className} style={widthStyle}>
                           {c === TEAM_COLUMN_KEY ? <TeamBadge teamId={player.teamId} shortName={player.teamShortName} /> : <PositionBadge position={player.position} />}
                         </td>
                       );
                     }
                     const value = c.getValue(player, derived);
                     return (
-                      <td key={c.key} style={{ ...widthStyle, backgroundColor: columnTint(player, derived, c) }}>
+                      <td key={c.key} className={className} style={{ ...widthStyle, backgroundColor: columnTint(player, derived, c) }}>
                         {c.format(value)}
                       </td>
                     );
