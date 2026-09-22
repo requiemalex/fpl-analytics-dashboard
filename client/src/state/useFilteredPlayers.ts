@@ -26,6 +26,13 @@ export function filterPlayers(players: NormalizedPlayer[], filters: GlobalScouti
     if (search && !matchesPlayerSearch(p, search)) return false;
     if (filters.position !== "ALL" && p.position !== filters.position) return false;
     if (filters.teamId !== "ALL" && p.teamId !== filters.teamId) return false;
+    // Live price, always today's real price regardless of analysis mode
+    // (see resolvePlayerStats.ts's <price_always_live>) — `!= null` (not
+    // `!== null`) deliberately treats an old stored filter object that
+    // predates these two fields (undefined) the same as "not set", so a
+    // pre-existing saved tile/view never gets a phantom price filter.
+    if (filters.minPrice != null && p.price < filters.minPrice) return false;
+    if (filters.maxPrice != null && p.price > filters.maxPrice) return false;
     // A player with no data for this mode (minutes null) isn't "a noisy
     // small sample" — they're not applicable to this bar at all. Retained,
     // not filtered out, matching <retained_not_omitted> in

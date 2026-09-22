@@ -235,7 +235,11 @@ export function PlayerDetailOverlay() {
       xa: { fn: (p) => p.xA, higherIsBetter: true },
       xgi: { fn: (p) => p.xGI, higherIsBetter: true },
       cs: { fn: (p) => p.cleanSheets, higherIsBetter: true },
-      st: { fn: (p) => p.starts, higherIsBetter: true },
+      // Starts deliberately has no entry here — it moved from Prime to
+      // Supplements (a less load-bearing metric there) and lost its
+      // comparative colouring in the same change; seasonLogPercentiles["st"]
+      // is now always undefined, so percentileTint(undefined ?? null)
+      // renders no tint for its Totals/Average rows.
       xgc: { fn: (p) => p.xGC, higherIsBetter: false },
       dc: { fn: (p) => p.defensiveContributions, higherIsBetter: true },
       saves: { fn: (p) => p.saves, higherIsBetter: true },
@@ -337,7 +341,6 @@ export function PlayerDetailOverlay() {
   const primeColumns: GwColumn[] = [
     { key: "pts", header: "Points", cell: (g) => fmtDecimal(g.totalPoints) },
     { key: "min", header: "Minutes", cell: (g) => fmtDecimal(g.minutes) },
-    { key: "st", header: "Starts", cell: (g) => (g.starts !== null ? fmtDecimal(g.starts) : DASH) },
     { key: "g", header: "Goals", cell: (g) => fmtDecimal(g.goals) },
     { key: "a", header: "Assists", cell: (g) => fmtDecimal(g.assists) },
     { key: "xg", header: "xG", cell: (g) => fmtDecimal(g.xG, 2) },
@@ -351,6 +354,7 @@ export function PlayerDetailOverlay() {
   ];
 
   const supplementsColumns: GwColumn[] = [
+    { key: "st", header: "Starts", cell: (g) => (g.starts !== null ? fmtDecimal(g.starts) : DASH) },
     { key: "gc", header: "Goals Conceded", cell: (g) => fmtDecimal(g.goalsConceded) },
     { key: "t", header: "Tackles", cell: (g) => fmtDecimal(g.tackles) },
     { key: "cbi", header: "Clear/Blocks/Int", cell: (g) => fmtDecimal(g.clearancesBlocksInterceptions) },

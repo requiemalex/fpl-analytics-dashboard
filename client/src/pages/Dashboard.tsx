@@ -830,6 +830,7 @@ export function Dashboard() {
                     onReset={() => setNewTileCriteria(DEFAULT_FILTERS)}
                     analysisMode={newTileDataView}
                     showSearch={false}
+                    showPrice
                   />
                 ) : (
                   <>

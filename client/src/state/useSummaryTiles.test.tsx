@@ -45,7 +45,7 @@ describe("useSummaryTiles — <update_safety> version 2 -> 3 migration", () => {
     expect(result.current.tiles[0].criteria).toEqual(DEFAULT_FILTERS);
   });
 
-  it("leaves already-current-shape (v3) tiles untouched, preserving a custom name/criteria rather than overwriting them", () => {
+  it("leaves already-current-shape (v3) tiles' name/criteria fields untouched, only backfilling fields missing from criteria", () => {
     const currentShapeTiles = [
       {
         id: "t1",
@@ -61,7 +61,8 @@ describe("useSummaryTiles — <update_safety> version 2 -> 3 migration", () => {
 
     const { result } = renderHook(() => useSummaryTiles());
     expect(result.current.tiles[0].name).toBe("My custom tile");
-    expect(result.current.tiles[0].criteria).toEqual({ search: "salah", position: "MID", teamId: "ALL", minMinutes: 900 });
+    // minPrice/maxPrice didn't exist on this pre-v5 criteria object — backfilled to null (no-op), every other field preserved exactly.
+    expect(result.current.tiles[0].criteria).toEqual({ search: "salah", position: "MID", teamId: "ALL", minMinutes: 900, minPrice: null, maxPrice: null });
   });
 
   it("falls back to defaults for genuinely unsalvageable data (not an array at all)", () => {
@@ -117,5 +118,47 @@ describe("useSummaryTiles — <update_safety> version 3 -> 4 migration (playerId
     const [playerTile, teamTile] = result.current.tiles;
     expect(playerTile.playerIds).toEqual([1, 2, 3]);
     expect(teamTile.teamIds).toEqual([10, 20]);
+  });
+});
+
+describe("useSummaryTiles — <update_safety> version 4 -> 5 migration (criteria.minPrice/maxPrice)", () => {
+  it("migrates a version-4 tile whose criteria predates minPrice/maxPrice: those two fields backfill to null, every other criteria field is preserved", () => {
+    const v4ShapeTiles = [
+      {
+        id: "t1",
+        scope: "player",
+        metricKey: "totalPoints",
+        direction: "desc",
+        dataView: "lastSeason",
+        name: "Cheap enganche",
+        criteria: { search: "", position: "MID", teamId: "ALL", minMinutes: 450 },
+        playerIds: null,
+        teamIds: null,
+      },
+    ];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 4, data: v4ShapeTiles }));
+
+    const { result } = renderHook(() => useSummaryTiles());
+    expect(result.current.tiles[0].criteria).toEqual({ search: "", position: "MID", teamId: "ALL", minMinutes: 450, minPrice: null, maxPrice: null });
+  });
+
+  it("leaves already-current-shape (v5) criteria untouched, including a real minPrice/maxPrice", () => {
+    const v5ShapeTiles = [
+      {
+        id: "t1",
+        scope: "player",
+        metricKey: "totalPoints",
+        direction: "desc",
+        dataView: "lastSeason",
+        name: "Best £5m players",
+        criteria: { search: "", position: "ALL", teamId: "ALL", minMinutes: 0, minPrice: 4.5, maxPrice: 5.0 },
+        playerIds: null,
+        teamIds: null,
+      },
+    ];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 5, data: v5ShapeTiles }));
+
+    const { result } = renderHook(() => useSummaryTiles());
+    expect(result.current.tiles[0].criteria).toEqual({ search: "", position: "ALL", teamId: "ALL", minMinutes: 0, minPrice: 4.5, maxPrice: 5.0 });
   });
 });

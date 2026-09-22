@@ -24,8 +24,18 @@ const STORAGE_KEY = "fpl-dashboard:dashboard:summary-tiles:v1";
  * earlier) has neither field — migrate() backfills both to null, which
  * means "use the existing criteria/all-teams behaviour", so every
  * previously-saved tile keeps rendering exactly as it did before.
+ *
+ * Bumped 4 -> 5 when `minPrice`/`maxPrice` were added to
+ * GlobalScoutingFilters (scoutingFilters.ts) for the Add Tile modal's new
+ * live-price criteria. A tile saved under version 4 (or earlier) has a
+ * `criteria` object that predates those two fields — migrate() now
+ * per-field-merges a present `criteria` onto DEFAULT_FILTERS (not just
+ * substituting DEFAULT_FILTERS wholesale when `criteria` is entirely
+ * missing, as before) so an old criteria object picks up `minPrice`/
+ * `maxPrice: null` (no-op) instead of silently carrying `undefined` for
+ * fields the rest of the app now expects to exist.
  */
-const STORAGE_VERSION = 4;
+const STORAGE_VERSION = 5;
 const DEFAULT_DATA_VIEW: AnalysisMode = "lastSeason";
 
 /** A UI/localStorage-hygiene limit, matching the same idea as Team Building's saved-squad cap and User Analysis's saved-graph cap. */
@@ -69,7 +79,7 @@ export function normalizeSummaryTile(t: Partial<SummaryTileConfig>): SummaryTile
     ...t,
     dataView: t.dataView ?? DEFAULT_DATA_VIEW,
     name: t.name ?? null,
-    criteria: t.criteria ?? (t.scope === "player" ? DEFAULT_FILTERS : null),
+    criteria: t.criteria ? { ...DEFAULT_FILTERS, ...t.criteria } : t.scope === "player" ? DEFAULT_FILTERS : null,
     playerIds: t.playerIds ?? null,
     teamIds: t.teamIds ?? null,
   } as SummaryTileConfig;

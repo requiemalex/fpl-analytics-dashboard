@@ -4,17 +4,20 @@ export interface ColumnFilterSpec {
   lte: number | null;
   gte: number | null;
   eq: number | null;
+  /** Excel-style "show only this value" filter for a categorical column (Team, Position) — mutually exclusive with the three numeric fields above, which stay null when this is set. See ColumnFilterControl's `categoryOptions` prop for which columns use this. */
+  category: string | null;
 }
 
-export const EMPTY_COLUMN_FILTER: ColumnFilterSpec = { lte: null, gte: null, eq: null };
+export const EMPTY_COLUMN_FILTER: ColumnFilterSpec = { lte: null, gte: null, eq: null, category: null };
 
 export function isColumnFilterActive(spec: ColumnFilterSpec | undefined): boolean {
-  return !!spec && (spec.lte !== null || spec.gte !== null || spec.eq !== null);
+  return !!spec && (spec.lte !== null || spec.gte !== null || spec.eq !== null || spec.category !== null);
 }
 
-/** A column with no numeric value for this row fails any active filter on it — "doesn't meet the bar", same convention used everywhere else a value might be missing. */
+/** A column with no value for this row fails any active filter on it — "doesn't meet the bar", same convention used everywhere else a value might be missing. */
 export function columnFilterPasses(value: number | string | null, spec: ColumnFilterSpec | undefined): boolean {
   if (!isColumnFilterActive(spec)) return true;
+  if (spec!.category !== null) return value === spec!.category;
   if (typeof value !== "number") return false;
   if (spec!.eq !== null && value !== spec!.eq) return false;
   if (spec!.gte !== null && value < spec!.gte) return false;

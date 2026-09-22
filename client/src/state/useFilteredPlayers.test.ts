@@ -25,7 +25,7 @@ describe("filterPlayers — combination filtering", () => {
   ];
 
   it("applies search, position, team, and minMinutes together (AND, not OR)", () => {
-    const filters: GlobalScoutingFilters = { search: "", position: "MID", teamId: 1, minMinutes: 500 };
+    const filters: GlobalScoutingFilters = { ...DEFAULT_FILTERS, search: "", position: "MID", teamId: 1, minMinutes: 500 };
     const result = filterPlayers(players, filters, "lastSeason");
     // Saka is MID+team1 but under 500 minutes -> excluded. NoMinutes has null minutes -> retained.
     expect(result.map((p) => p.id).sort()).toEqual([1, 4]);
@@ -71,5 +71,46 @@ describe("filterPlayers — combination filtering", () => {
     const filters: GlobalScoutingFilters = { ...DEFAULT_FILTERS, minMinutes: 1800 };
     const result = filterPlayers(players, filters, "lastSeason");
     expect(result.map((p) => p.id)).toContain(2); // Haaland at exactly 1800
+  });
+});
+
+describe("filterPlayers — live price range (minPrice/maxPrice)", () => {
+  const players = [
+    makePlayer({ id: 1, name: "Cheap", position: "MID", price: 4.5 }),
+    makePlayer({ id: 2, name: "Mid", position: "MID", price: 8.0 }),
+    makePlayer({ id: 3, name: "Expensive", position: "FWD", price: 15.0 }),
+  ];
+
+  it("null minPrice/maxPrice (the default) applies no price filtering at all", () => {
+    const result = filterPlayers(players, DEFAULT_FILTERS, "lastSeason");
+    expect(result.map((p) => p.id).sort()).toEqual([1, 2, 3]);
+  });
+
+  it("minPrice excludes anyone strictly below it", () => {
+    const filters: GlobalScoutingFilters = { ...DEFAULT_FILTERS, minPrice: 5 };
+    const result = filterPlayers(players, filters, "lastSeason");
+    expect(result.map((p) => p.id).sort()).toEqual([2, 3]);
+  });
+
+  it("maxPrice excludes anyone strictly above it", () => {
+    const filters: GlobalScoutingFilters = { ...DEFAULT_FILTERS, maxPrice: 10 };
+    const result = filterPlayers(players, filters, "lastSeason");
+    expect(result.map((p) => p.id).sort()).toEqual([1, 2]);
+  });
+
+  it("minPrice and maxPrice together narrow to a band (e.g. “only the best £5m players”)", () => {
+    const filters: GlobalScoutingFilters = { ...DEFAULT_FILTERS, minPrice: 4, maxPrice: 5 };
+    const result = filterPlayers(players, filters, "lastSeason");
+    expect(result.map((p) => p.id)).toEqual([1]);
+  });
+
+  it("a stored filters object that predates minPrice/maxPrice (undefined, not null) is treated as unset, not as a phantom filter", () => {
+    const staleFilters = { ...DEFAULT_FILTERS } as GlobalScoutingFilters;
+    // @ts-expect-error simulating an old localStorage payload from before these fields existed
+    delete staleFilters.minPrice;
+    // @ts-expect-error same as above
+    delete staleFilters.maxPrice;
+    const result = filterPlayers(players, staleFilters, "lastSeason");
+    expect(result.map((p) => p.id).sort()).toEqual([1, 2, 3]);
   });
 });

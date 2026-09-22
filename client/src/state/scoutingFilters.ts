@@ -17,6 +17,9 @@ export interface GlobalScoutingFilters {
   position: "ALL" | "GKP" | "DEF" | "MID" | "FWD";
   teamId: number | "ALL";
   minMinutes: number;
+  /** Live price (£m) range — null means unbounded on that side. Always today's real live price, same as every other live-identity field (see resolvePlayerStats.ts's <price_always_live>), never a per-analysis-mode figure. Currently only surfaced in the Dashboard Add Tile modal (FiltersBar's `showPrice`); harmless elsewhere since it defaults to no-op. */
+  minPrice: number | null;
+  maxPrice: number | null;
 }
 
 export const DEFAULT_MIN_MINUTES = 0;
@@ -26,6 +29,8 @@ export const DEFAULT_FILTERS: GlobalScoutingFilters = {
   position: "ALL",
   teamId: "ALL",
   minMinutes: DEFAULT_MIN_MINUTES,
+  minPrice: null,
+  maxPrice: null,
 };
 
 /** One page's (or one saved graph's) own analysis-mode + filter selection — see `GlobalScoutingFilters` above for why this is deliberately local, never shared via AppStateContext. */

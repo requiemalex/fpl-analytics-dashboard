@@ -27,6 +27,7 @@ export function FiltersBar({
   analysisMode,
   showMinMinutes = true,
   showSearch = true,
+  showPrice = false,
 }: {
   idPrefix?: string;
   filters: GlobalScoutingFilters;
@@ -37,6 +38,8 @@ export function FiltersBar({
   showMinMinutes?: boolean;
   /** Off for the Dashboard Add Tile modal's "Filters" mode only — that modal now has a separate "Player Search" mode (pick up to 5 specific players) covering the same job the free-text Search field used to, so showing both would be redundant/confusing. */
   showSearch?: boolean;
+  /** On for the Dashboard Add Tile modal's "Filters" mode only — a live-price (£m) range, e.g. "only the best £5m players". Off everywhere else, matching showMinMinutes/showSearch's per-page opt-in pattern. */
+  showPrice?: boolean;
 }) {
   const { teams } = useAppState();
 
@@ -92,6 +95,36 @@ export function FiltersBar({
             ))}
         </select>
       </div>
+
+      {showPrice && (
+        <div className="field">
+          <label htmlFor={`${idPrefix}-min-price`}>Min price</label>
+          <input
+            id={`${idPrefix}-min-price`}
+            type="number"
+            step={0.1}
+            min={0}
+            placeholder="£4.0m"
+            value={filters.minPrice ?? ""}
+            onChange={(e) => update("minPrice", e.target.value === "" ? null : Number(e.target.value))}
+          />
+        </div>
+      )}
+
+      {showPrice && (
+        <div className="field">
+          <label htmlFor={`${idPrefix}-max-price`}>Max price</label>
+          <input
+            id={`${idPrefix}-max-price`}
+            type="number"
+            step={0.1}
+            min={0}
+            placeholder="£15m"
+            value={filters.maxPrice ?? ""}
+            onChange={(e) => update("maxPrice", e.target.value === "" ? null : Number(e.target.value))}
+          />
+        </div>
+      )}
 
       {showMinMinutes && (
         <div className="field">
