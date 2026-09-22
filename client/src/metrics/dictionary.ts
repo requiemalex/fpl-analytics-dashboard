@@ -290,6 +290,20 @@ export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
     caveats: "Games played is estimated from cumulative minutes, not counted directly \u2014 see <estimation_limit> in calculations.ts.",
     availabilityNote: "\u2014 if Defensive Contributions is unavailable for this player, or they have 0 minutes.",
   }),
+  defensiveRewardPerGame: def({
+    displayName: "Defensive Reward / Game",
+    internalName: "defensiveRewardPerGame",
+    source: "Derived",
+    apiFields: ["clean_sheets", "bonus", "minutes"],
+    suppliedByFPL: false,
+    derived: true,
+    formula:
+      "(Clean sheets \u00d7 clean-sheet points for this player's position) / estimated games played, plus total Bonus / estimated games played (see <per_game_not_per_90>, calculations.ts).",
+    units: "points per game",
+    caveats:
+      "The closest honest read of \u201cdefensive reward rate\u201d available from the public API, not an isolation of it \u2014 total bonus is used as-is because the API never breaks bonus down by contributing factor (goals, assists, clean sheets, saves, and defensive actions all feed the same Bonus Points System).",
+    availabilityNote: "\u2014 if clean sheets, bonus, or minutes is unavailable for this player, or they have 0 minutes.",
+  }),
   pointsPerMillion: def({
     displayName: "Points / \u00a3m",
     internalName: "pointsPerMillion",

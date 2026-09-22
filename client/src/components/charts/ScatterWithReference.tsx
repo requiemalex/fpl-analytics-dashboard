@@ -60,6 +60,7 @@ export function ScatterWithReference({
   height = 360,
   xTickStep,
   xTickFormatter,
+  emptyMessage = "No eligible players have data for this chart with the current filters.",
 }: {
   data: ScatterPoint[];
   xLabel: string;
@@ -75,6 +76,8 @@ export function ScatterWithReference({
   xTickStep?: number;
   /** How to render each x-axis tick's label — e.g. (v) => v.toFixed(1). Only used together with xTickStep. */
   xTickFormatter?: (v: number) => string;
+  /** Shown in place of the chart when `data` is empty — defaults to the player-scoped wording every existing caller wants; Dashboard's team graphs pass their own. */
+  emptyMessage?: string;
 }) {
   const hasZ = useMemo(() => data.some((d) => d.z !== undefined && d.z !== null), [data]);
   const useBubbleSize = hasZ && !colorScale;
@@ -113,7 +116,7 @@ export function ScatterWithReference({
   if (data.length === 0) {
     return (
       <div className="empty-state" style={{ padding: "40px 20px" }}>
-        <p>No eligible players have data for this chart with the current filters.</p>
+        <p>{emptyMessage}</p>
       </div>
     );
   }

@@ -2,10 +2,10 @@ import type { NormalizedPlayer } from "../types/normalized";
 
 /**
  * Shared player-name search, used everywhere a player search box exists
- * (Player Explorer/Underlying Numbers/Teams' filter bar, Team Building's
- * Add Players search, and the PlayerSearch autocomplete used by Player
- * Comparison and Player Trends) — one implementation so "can I find this
- * player" doesn't quietly depend on which page you're on.
+ * (Player Explorer/Teams' filter bar, Team Building's Add Players search,
+ * and the PlayerSearch autocomplete used by Dashboard's Add Tile/Add Graph
+ * modals, Player Comparison, and Player Trends) — one implementation so
+ * "can I find this player" doesn't quietly depend on which page you're on.
  *
  * Beyond a plain substring check, this:
  * - Strips accents on both sides (Unicode NFD decomposition), so typing

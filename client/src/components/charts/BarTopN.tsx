@@ -37,12 +37,15 @@ export function BarTopN({
   format,
   onBarClick,
   height = 420,
+  emptyMessage = "No eligible players have data for this chart with the current filters.",
 }: {
   data: BarDatum[];
   valueLabel: string;
   format?: (v: number) => string;
   onBarClick?: (id: number) => void;
   height?: number;
+  /** Shown in place of the chart when `data` is empty — defaults to the player-scoped wording every existing caller wants; Dashboard's team graphs pass their own. */
+  emptyMessage?: string;
 }) {
   const top = data
     .slice()
@@ -52,7 +55,7 @@ export function BarTopN({
   if (top.length === 0) {
     return (
       <div className="empty-state" style={{ padding: "40px 20px" }}>
-        <p>No eligible players have data for this chart with the current filters.</p>
+        <p>{emptyMessage}</p>
       </div>
     );
   }

@@ -1,5 +1,6 @@
 import type { NormalizedPlayer } from "../types/normalized";
 import type { PlayerDerivedMetrics } from "../metrics/playerMetrics";
+import { defensiveRewardPerGame } from "../metrics/defensiveReward";
 import { fmtDecimal, fmtPrice, fmtPercent, fmtSigned, DASH } from "../utils/format";
 
 export type ColumnGroup = "ACTUAL OUTPUT" | "UNDERLYING PERFORMANCE" | "VALUE" | "ADVANCED";
@@ -48,6 +49,7 @@ export const PLAYER_COLUMNS: PlayerColumn[] = [
   { key: "xAPerGame", label: "xA/Game", group: "UNDERLYING PERFORMANCE", metricKey: "xAPerGame", getValue: (p) => p.xAPerGame, format: num(2) },
   { key: "xGIPerGame", label: "xGI/Game", group: "UNDERLYING PERFORMANCE", metricKey: "xGIPerGame", getValue: (p) => p.xGIPerGame, format: num(2) },
   { key: "xGC", label: "xGC", group: "UNDERLYING PERFORMANCE", metricKey: "xGC", getValue: (p) => p.xGC, format: num(2), higherIsBetter: false },
+  { key: "xGCPerGame", label: "xGC/Game", group: "UNDERLYING PERFORMANCE", metricKey: "xGCPerGame", getValue: (p) => p.xGCPerGame, format: num(2), higherIsBetter: false },
 
   // VALUE
   { key: "price", label: "Price", group: "VALUE", metricKey: "price", getValue: (p) => p.price, format: (v) => fmtPrice(v), higherIsBetter: false, varies: false },
@@ -75,6 +77,14 @@ export const PLAYER_COLUMNS: PlayerColumn[] = [
     group: "ADVANCED",
     metricKey: "defensiveContributionsPerGame",
     getValue: (p) => p.defensiveContributionsPerGame,
+    format: num(2),
+  },
+  {
+    key: "defensiveRewardPerGame",
+    label: "Def. Reward/Game",
+    group: "ADVANCED",
+    metricKey: "defensiveRewardPerGame",
+    getValue: (p) => defensiveRewardPerGame(p),
     format: num(2),
   },
   {

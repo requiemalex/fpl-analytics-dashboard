@@ -227,51 +227,59 @@ is unchanged in spirit and still applies on top of this — the
 calculation fix and the leaderboard-ranking-confidence floor address
 two different, complementary concerns.
 
-## Underlying Numbers — chart methodology
+## Underlying Numbers (retired page) — chart methodology still behind Defensive Reward/Game
 
-Three charts were added alongside the original xG-vs-Goals and
-xA-vs-Assists pair:
+The Underlying Numbers page itself is gone (see "Underlying Numbers
+removed" further down) — graph building moved to the Dashboard's Graphs
+section, built around a generic "pick any X metric, any Y metric" model
+rather than a fixed set of hardcoded charts. This section is kept for the
+one piece of methodology that didn't just become an ordinary column:
+`defensiveRewardPerGame`, still selectable as a Y (or X) metric on any
+Player Graph.
 
-- **xGI vs Goals + Assists** — same treatment as xG/xA: xGI and
-  Goals+Assists are the same underlying concept (expected vs actual goal
-  involvements), so the dashed 45° reference line means the same thing.
-- **ICT Index vs Goals + Assists** — ICT Index is a composite
+- **xGI vs Goals + Assists** and **ICT Index vs Goals + Assists** were
+  two of the page's hardcoded charts, not distinct metrics — xGI, Goals,
+  Assists, and ICT Index are all ordinary PLAYER_COLUMNS today, buildable
+  as any Player Graph. The reasoning behind them lives on as the Dashboard
+  Graphs' optional reference-line checkbox: xGI and Goals+Assists are the
+  same underlying concept (expected vs actual goal involvements), so a
+  dashed 45° line means something there; ICT Index is a composite
   influence/creativity/threat score on its own scale, not the same unit
-  as Goals+Assists. This chart intentionally has **no reference line**:
-  a 45° "expected output" line would be meaningless when the axes aren't
-  commensurate. It shows correlation/pattern only, and says so on the
-  card.
-- **Defensive Contribution/Game vs Defensive Reward/Game** — the
-  defensive equivalent of the xG/Goals charts, and the hardest of the
-  three to get right honestly:
+  as Goals+Assists, so a reference line would be meaningless on that pair
+  — the checkbox is opt-in per graph specifically so this is a choice, not
+  a guess.
+- **Defensive Contribution/Game vs Defensive Reward/Game** was the
+  hardest of the old page's charts to get right honestly, and the one
+  metric pair whose Y-axis (`defensiveRewardPerGame`,
+  `client/src/metrics/defensiveReward.ts`) is now a genuinely new
+  PLAYER_COLUMN rather than just a retired chart:
   - X-axis is `defensiveContributionsPerGame` — this app's own
     per-game derivation (`perGame()`, see "Per-game, not per-90"
     above), **not** FPL's raw `defensive_contribution_per_90` field
     directly; a different, app-derived denominator (estimated games
     played, not literal per-90-minutes).
-  - Y-axis is **clean-sheet points/game + total bonus/game**
-    (`client/src/metrics/defensiveReward.ts`). Clean-sheet points use a
-    hard-coded position table (GKP/DEF 4, MID 1, FWD 0) — confirmed
-    against current official FPL scoring rules, since the API returns
-    raw clean-sheet counts, not the points they're worth.
-  - Bubble size (third dimension, not merged into an axis) is
-    **Expected Goals Conceded/Game** — bigger bubble means a leakier
-    expected defence.
-  - Goalkeepers are excluded — the Defensive Contribution mechanic
-    (2 points for reaching a per-match action threshold: 10 combined
-    clearances/blocks/interceptions/tackles for defenders, 12 including
-    recoveries for midfielders/forwards, capped at 2 points regardless of
-    how far over the threshold) doesn't apply to them.
-  - **Important caveat, stated on the card itself**: "bonus/90" here is
-    **total** bonus, not bonus isolated to defensive actions. The public
-    API has no breakdown of the Bonus Points System by contributing
-    factor — defensive actions are confirmed to feed into it, but so do
-    goals, assists, clean sheets, and saves. This is the most honest
-    proxy available, not an attribution, and it's labelled as such rather
-    than presented as more precise than it is.
+  - Y-axis (`defensiveRewardPerGame`) is **clean-sheet points/game +
+    total bonus/game**. Clean-sheet points use a hard-coded position
+    table (GKP/DEF 4, MID 1, FWD 0) — confirmed against current official
+    FPL scoring rules, since the API returns raw clean-sheet counts, not
+    the points they're worth.
+  - **Important caveat** (in the metric dictionary — `defensiveReward
+    PerGame` entry, `metrics/dictionary.ts` — surfaced in the User Guide's
+    Metric Reference table): this is **total** bonus, not bonus isolated
+    to defensive actions. The public API has no breakdown of the Bonus
+    Points System by contributing factor — defensive actions are
+    confirmed to feed into it, but so do goals, assists, clean sheets, and
+    saves. This is the most honest proxy available, not an attribution.
   - Because Defensive Contribution points are a per-match threshold
     capped at 2 (not points-per-action), the x-axis rate does not convert
-    to points linearly — also stated on the card.
+    to points linearly.
+  - Not carried over into the generic graph builder: the old chart's
+    colour-coded third dimension (Expected Goals Conceded/Game as a
+    bubble-colour gradient), its goalkeeper exclusion, and its bespoke
+    450-minute floor override. Those were specific to that one hardcoded
+    card, not something a "pick any X, pick any Y" builder generalises —
+    a user building this pair today gets the two core axes, plotted for
+    whoever their own Filters/Min Minutes criteria include.
 
 ## Calculation formulas
 
@@ -643,6 +651,19 @@ is explicitly a **current-squad aggregate**, not a historical
 "who scored while playing for this club" breakdown — a player transferred
 mid-season contributes their entire season total to whichever club they
 are registered with today. This is labelled directly in the UI.
+
+The same aggregation (`computeTeamAggregates()`, `metrics/teamStats.ts`)
+backs Team Profile (`TeamDetailOverlay`) and the Dashboard's Team Tiles/
+Graphs, so all three agree on what a team stat means. Not every team
+metric is a squad aggregate, though: `TeamAggregate`'s LEAGUE STANDING
+fields (League Position, League Points, Played/Wins/Draws/Losses, Goals
+For/Against/Difference — `components/teamColumns.tsx`) are this season's
+real table and match results, read straight off `NormalizedTeam`/
+fixtures rather than summed from the current squad, and don't change
+depending on a tile/graph's own Data View (`TeamColumn.varies`) — the
+current-squad-attribution caveat above applies only to the squad-sum
+metrics (Squad Points, Goals, Assists, xG, xA, xGI, xGC, Def.
+Contributions, Clean Sheets, Bonus).
 
 ## Career history and historic analysis mode
 
@@ -2968,3 +2989,87 @@ be on screen, which read as confusing next to the "+ Add Tile" button.
   Playing Time became its own full-width card underneath. The card is now
   capped at a sensible width instead of stretching edge-to-edge, while
   keeping its place beneath Supplements and above Career History.
+
+## Underlying Numbers removed — graph building moved into the Dashboard
+
+Underlying Numbers had drifted into duplicating leaderboards the Dashboard
+already showed, and graph building (its one genuinely distinct capability)
+had no real reason to live on a separate page from the Dashboard's tiles.
+That page is gone; graph building now lives alongside Summary Tiles.
+
+- **Dashboard gains a Graphs section**, under a divider below the tile
+  grid — a graph needs a lot more room than a tile to be readable, so it
+  gets its own section rather than sharing the tile grid's compact card
+  size. Both Player and Team scopes get a couple of packaged default
+  graphs (see below), and every saved Dashboard view (Default and custom)
+  now carries its own `graphs` array alongside its `tiles` — built,
+  removed, reordered (drag-and-drop, same as tiles), and live-synced into
+  that view's storage exactly the way tiles already were
+  (`useSavedDashboardViews.updateView()`, replacing the old `updateTiles()`
+  now that a view is more than just its tiles).
+- **Graphs are built once, like tiles — not left permanently editable.**
+  The old Underlying Numbers "User Analysis" graphs each carried their own
+  live-editable analysis-mode toggle and filter bar
+  (`LocalViewControls`/`UserAnalysisGraphCard`) that stayed on screen
+  forever. A Dashboard graph instead picks its Data View, chart type
+  (Scatter Plot or Bar Chart), X/Y metrics, and — for a Player Graph —
+  Filters or up to 5 specific players (Player Search), or — for a Team
+  Graph — All Teams or up to 5 specific teams, once in the **+ Add Graph**
+  dialog, the same "configure once, remove-and-recreate to change" model
+  `SummaryTileConfig` already used. New: `useDashboardGraphs.ts`
+  (`DashboardGraphConfig`, mirroring `SummaryTileConfig`) and
+  `DashboardGraphCard.tsx` (a presentational chart card mirroring
+  `TopList`/`TeamTopList`'s header conventions — title, `DataViewBadge`,
+  drag handle, Remove). `UserAnalysisGraphCard.tsx` and
+  `useSavedUserGraphs.ts` are deleted.
+- **An optional 45° reference line, settable per graph.** Carried over from
+  the old Expected vs Actual charts' dashed "expected output" line —
+  meaningful only when X and Y are on a comparable scale (xG vs Goals, xA
+  vs Assists), so it's a checkbox in Add Graph rather than always-on or
+  always-off. `ScatterWithReference`/`BarTopN` also gained an `emptyMessage`
+  prop so a Team Graph's empty state reads "teams," not "players."
+- **Packaged default graphs**: Players get `xG vs Goals` and
+  `xA vs Assists` (reference line on) plus `Price vs Points` (off — price
+  and points aren't on a comparable scale); Teams get `Team xG vs Goals`
+  and `Team xGC vs Goals Against` (both on). The old page's **Thematic
+  Analysis** charts (average points by position/price tier across every
+  season on record) are deliberately NOT among them — those are genuine
+  multi-season time series built on `thematicTrends.ts`'s own pipeline, not
+  a single-Data-View metric-vs-metric graph, so they don't fit this
+  per-graph model. Rather than force a special case into it, they were
+  retired along with the rest of the page; `thematicTrends.ts` is deleted.
+- **Team metrics catalogue expanded** (`components/teamColumns.tsx`, new —
+  the team-scope counterpart to `playerColumns.tsx`, now the one place both
+  Team Tiles and Team Graphs pick their metrics from instead of a
+  Dashboard-only hardcoded list). Previously six squad-sum metrics (Squad
+  Points, xGI, Clean Sheets, Goals, Assists, Bonus); now also xG, xA, xGC,
+  and Defensive Contributions (squad sums, same as the others — all now
+  computed via the shared `computeTeamAggregates()`, TeamDetailOverlay's
+  own function, rather than Dashboard.tsx's own duplicate inline version),
+  plus a genuinely new **LEAGUE STANDING** group read straight from this
+  season's real table and match results rather than a squad sum — League
+  Position, League Points, Played, Wins, Draws, Losses, Goals For, Goals
+  Against, Goal Difference — always live regardless of a tile/graph's own
+  Data View, same "always live" convention as a player's price
+  (`TeamAggregate`/`TeamColumn.varies`, `metrics/teamStats.ts`).
+- **Two leaderboard tiles' worth of leftover useful stats also moved to
+  the Dashboard's defaults**, folded in as new default Player Tiles rather
+  than as graphs, since a ranked top-5 list is what a tile is for: xG, xA,
+  xGI/Game, Assists vs xA (Above and Below), xG/£m, and xA/£m — Underlying
+  Numbers' "Top xG"/"Top xA"/etc. leaderboards, none of which the Dashboard
+  already covered.
+- **Two new player metrics, available anywhere PLAYER_COLUMNS is (tiles,
+  graphs, Player Explorer)**: `xGC/Game` (existed in the metric dictionary
+  already, just never exposed as a pickable column) and
+  `Defensive Reward/Game` (`defensiveRewardPerGame`, from
+  `metrics/defensiveReward.ts`) — the two axes of the old page's
+  "Defensive Contribution/Game vs Defensive Reward/Game" chart, now
+  buildable as an ordinary two-metric graph. The old chart's colour-coded
+  third dimension (xGC/Game as a green→red gradient) and its bespoke
+  goalkeeper-exclusion/minutes-floor logic aren't reproduced — those were
+  specific to that one hardcoded chart, not something the generic "pick any
+  X, pick any Y" graph builder tries to generalise.
+- **Nav entry, route (`/underlying`), and page deleted.** `App.tsx`,
+  `AppShell.tsx`, and the User Guide's "Underlying Numbers" section are
+  updated/removed accordingly; the Dashboard's User Guide section now
+  documents Graphs alongside Summary Tiles.

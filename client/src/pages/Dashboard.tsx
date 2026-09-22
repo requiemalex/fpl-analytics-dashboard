@@ -4,6 +4,7 @@ import { useAppState } from "../state/AppStateContext";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { filterPlayers } from "../state/useFilteredPlayers";
+import { computeTeamAggregates, type TeamAggregate } from "../metrics/teamStats";
 import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFilters";
 import { ANALYSIS_MODE_OPTIONS } from "../components/AnalysisModeToggle";
 import { FiltersBar } from "../components/FiltersBar";
@@ -12,20 +13,31 @@ import { PlayerSearch } from "../components/PlayerSearch";
 import { TeamPicker } from "../components/TeamPicker";
 import { TopList, type TopListRow } from "../components/TopList";
 import { TeamTopList, type TeamTopListRow } from "../components/TeamTopList";
+import { DashboardGraphCard } from "../components/DashboardGraphCard";
+import type { ScatterPoint } from "../components/charts/ScatterWithReference";
+import type { BarDatum } from "../components/charts/BarTopN";
+import { PLAYER_COLUMNS, columnByKey as playerColumnByKey } from "../components/playerColumns";
+import { TEAM_COLUMNS, teamColumnByKey } from "../components/teamColumns";
 import {
   PLAYER_TILE_METRICS,
   TEAM_TILE_METRICS,
   playerTileMetricByKey,
   teamTileMetricByKey,
   type SummaryTileScope,
-  type TeamAggregate,
 } from "../components/summaryTileMetrics";
 import { useSummaryTiles, createSummaryTile, MAX_SUMMARY_TILES, type TileDirection, type SummaryTileConfig } from "../state/useSummaryTiles";
+import {
+  useDashboardGraphs,
+  createDashboardGraph,
+  MAX_DASHBOARD_GRAPHS,
+  type DashboardGraphType,
+  type DashboardGraphConfig,
+} from "../state/useDashboardGraphs";
 import { useSavedDashboardViews, isDefaultSavedView, MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE, type SavedDashboardView } from "../state/useSavedDashboardViews";
 import { fmtDate, fmtTimeAgo } from "../utils/format";
-import type { NormalizedPlayer, NormalizedTeam } from "../types/normalized";
+import type { NormalizedPlayer } from "../types/normalized";
 
-/** Same cap for both — a tile tracking a handful of specific players/teams is meant for close comparison, not a second way to build a big list. */
+/** Same cap for both, and reused for graphs too (see MAX_TILE_PLAYERS/MAX_TILE_TEAMS usage below) — a tile or graph tracking a handful of specific players/teams is meant for close comparison, not a second way to build a big list. */
 const MAX_TILE_PLAYERS = 5;
 const MAX_TILE_TEAMS = 5;
 
@@ -38,11 +50,6 @@ export function topN<T extends { value: number | null }>(rowsIn: T[], n: number,
   return eligible.slice(0, n);
 }
 
-function nullSafeSum(values: (number | null)[]): number | null {
-  const nonNull = values.filter((v): v is number => v !== null);
-  return nonNull.length > 0 ? nonNull.reduce((a, b) => a + b, 0) : null;
-}
-
 function tileTitle(metricLabel: string, direction: TileDirection): string {
   return `${direction === "desc" ? "Top" : "Bottom"} 5 — ${metricLabel}`;
 }
@@ -50,6 +57,15 @@ function tileTitle(metricLabel: string, direction: TileDirection): string {
 /** A tile's custom name (set once at creation) if it has one, else the auto-generated "Top/Bottom 5 — <metric>" title. */
 function displayTileTitle(tile: SummaryTileConfig, metricLabel: string): string {
   return tile.name && tile.name.trim() ? tile.name : tileTitle(metricLabel, tile.direction);
+}
+
+function graphTitle(chartType: DashboardGraphType, xLabel: string, yLabel: string): string {
+  return chartType === "scatter" ? `${xLabel} vs ${yLabel}` : `Top 15 — ${yLabel}`;
+}
+
+/** A graph's custom name (set once at creation) if it has one, else the auto-generated "<X> vs <Y>" / "Top 15 — <Y>" title. */
+function displayGraphTitle(graph: DashboardGraphConfig, xLabel: string, yLabel: string): string {
+  return graph.name && graph.name.trim() ? graph.name : graphTitle(graph.chartType, xLabel, yLabel);
 }
 
 /** % of the way from `startISO` to `endISO` the current moment is, clamped to [0, 100] — null if the window is malformed (end <= start), so the caller can just hide the bar rather than showing something nonsensical. */
@@ -187,6 +203,7 @@ export function Dashboard() {
   const {
     players,
     teams,
+    fixtures,
     gameweekState,
     events,
     lastUpdated,
@@ -242,30 +259,18 @@ export function Dashboard() {
   const LIVE_RATE_STAT_MIN_MINUTES = 90;
   const RATE_STAT_MIN_MINUTES = 450;
 
-  // Team snapshot — same aggregation basis as the Teams page (every
+  // Team snapshot — same shared aggregation TeamDetailOverlay uses (every
   // resolved player attributed to their current club, not minutes- or
-  // criteria-filtered), computed per mode since a squad total needs its
-  // own season basis too.
+  // criteria-filtered, plus this season's real league standing and match
+  // results), computed per mode since a squad total needs its own season
+  // basis too. League-standing fields (goalsFor/goalsAgainst, leaguePosition,
+  // etc.) come from `teams`/`fixtures` directly, so they read identically
+  // across every mode — same "always live" convention as a player's price.
   const teamAggregatesByMode = useMemo(() => {
     const map = {} as Record<AnalysisMode, TeamAggregate[]>;
-    for (const mode of MODES) {
-      map[mode] = teams.map((team: NormalizedTeam) => {
-        const squad = resolvedByMode[mode].filter((p) => p.teamId === team.id);
-        return {
-          teamId: team.id,
-          name: team.name,
-          shortName: team.shortName,
-          points: nullSafeSum(squad.map((p) => p.totalPoints)),
-          xGI: nullSafeSum(squad.map((p) => p.xGI)),
-          cleanSheets: nullSafeSum(squad.map((p) => p.cleanSheets)),
-          goals: nullSafeSum(squad.map((p) => p.goals)),
-          assists: nullSafeSum(squad.map((p) => p.assists)),
-          bonus: nullSafeSum(squad.map((p) => p.bonus)),
-        };
-      });
-    }
+    for (const mode of MODES) map[mode] = computeTeamAggregates(teams, resolvedByMode[mode], fixtures);
     return map;
-  }, [resolvedByMode, teams]);
+  }, [resolvedByMode, teams, fixtures]);
 
   // ---------- Summary Tiles ----------
   //
@@ -296,6 +301,29 @@ export function Dashboard() {
   const [newTileTeamMode, setNewTileTeamMode] = useState<"all" | "selected">("all");
   const [newTileTeamIds, setNewTileTeamIds] = useState<number[]>([]);
   const [newTileError, setNewTileError] = useState<string | null>(null);
+
+  // ---------- Graphs ----------
+  //
+  // Same idea as Summary Tiles above (user-built, user-ordered, persisted
+  // to localStorage via useDashboardGraphs), one screen-space size class up
+  // — a graph is configured once in the Add Graph modal, same as a tile,
+  // not left permanently editable the way the old Underlying Numbers "User
+  // Analysis" graphs were.
+  const graphsState = useDashboardGraphs();
+  const [dragOverGraphId, setDragOverGraphId] = useState<string | null>(null);
+  const [showAddGraphModal, setShowAddGraphModal] = useState(false);
+  const [newGraphName, setNewGraphName] = useState("");
+  const [newGraphChartType, setNewGraphChartType] = useState<DashboardGraphType>("scatter");
+  const [newGraphXKey, setNewGraphXKey] = useState<string>(PLAYER_COLUMNS[0].key);
+  const [newGraphYKey, setNewGraphYKey] = useState<string>(PLAYER_COLUMNS[0].key);
+  const [newGraphDataView, setNewGraphDataView] = useState<AnalysisMode>("lastSeason");
+  const [newGraphShowReferenceLine, setNewGraphShowReferenceLine] = useState(false);
+  const [newGraphCriteria, setNewGraphCriteria] = useState<GlobalScoutingFilters>(DEFAULT_FILTERS);
+  const [newGraphPlayerMode, setNewGraphPlayerMode] = useState<"filters" | "players">("filters");
+  const [newGraphPlayerIds, setNewGraphPlayerIds] = useState<number[]>([]);
+  const [newGraphTeamMode, setNewGraphTeamMode] = useState<"all" | "selected">("all");
+  const [newGraphTeamIds, setNewGraphTeamIds] = useState<number[]>([]);
+  const [newGraphError, setNewGraphError] = useState<string | null>(null);
 
   // ---------- Saved Dashboard Views ----------
   //
@@ -330,28 +358,30 @@ export function Dashboard() {
 
   // Keeps the currently-selected non-Default view's storage in lock-step
   // with whatever's actually on screen — every add/remove/reorder of a
-  // tile for this scope re-fires this (via tilesState.tiles changing) and
-  // writes straight through via updateTiles(), which is itself a no-op if
-  // the content hasn't actually changed (e.g. right after loading this same
-  // view). Never touches Default (updateTiles refuses, and this skips the
-  // call entirely while Default is selected).
+  // tile OR a graph for this scope re-fires this (via tilesState.tiles or
+  // graphsState.graphs changing) and writes straight through via
+  // updateView(), which is itself a no-op if neither actually changed
+  // (e.g. right after loading this same view). Never touches Default
+  // (updateView refuses, and this skips the call entirely while Default is
+  // selected).
   useEffect(() => {
     if (selectedViewIsDefault || !selectedViewId) return;
     const scopeTiles = tilesState.tiles.filter((t) => t.scope === tileView);
-    savedDashboardViews.updateTiles(selectedViewId, scopeTiles);
-  }, [tilesState.tiles, tileView, selectedViewId, selectedViewIsDefault, savedDashboardViews.updateTiles]);
+    const scopeGraphs = graphsState.graphs.filter((g) => g.scope === tileView);
+    savedDashboardViews.updateView(selectedViewId, scopeTiles, scopeGraphs);
+  }, [tilesState.tiles, graphsState.graphs, tileView, selectedViewId, selectedViewIsDefault, savedDashboardViews.updateView]);
 
   // One-off reset (self-correcting, so it also guards against any future
-  // regression, not just this one time) for anyone whose on-screen tiles
-  // for a Default-selected scope had already drifted from the packaged set
-  // — possible under the previous release, before Default became immutable
-  // here, if they'd added/removed a tile while Default was selected. The
-  // stored Default view itself is already always canonical (see
-  // useSavedDashboardViews' migrate()); this brings whatever's actually
-  // on screen back in sync with it whenever Default is selected and the two
-  // don't match, rather than leaving a stale, already-editable-in-the-past
-  // tile set on screen indefinitely. A no-op once reconciled, since nothing
-  // in the UI can diverge them again afterward.
+  // regression, not just this one time) for anyone whose on-screen tiles or
+  // graphs for a Default-selected scope had already drifted from the
+  // packaged set — possible under the previous release, before Default
+  // became immutable here, if they'd added/removed a tile while Default was
+  // selected. The stored Default view itself is already always canonical
+  // (see useSavedDashboardViews' migrate()); this brings whatever's actually
+  // on screen back in sync with it whenever Default is selected and either
+  // differs, rather than leaving a stale, already-editable-in-the-past set
+  // on screen indefinitely. A no-op once reconciled, since nothing in the UI
+  // can diverge them again afterward.
   useEffect(() => {
     if (!selectedViewIsDefault) return;
     const defaultView = visibleSavedViews.find((v) => v.id === selectedViewId);
@@ -360,7 +390,20 @@ export function Dashboard() {
     if (JSON.stringify(currentScopeTiles) !== JSON.stringify(defaultView.tiles)) {
       tilesState.replaceScopeTiles(tileView, defaultView.tiles);
     }
-  }, [tileView, selectedViewIsDefault, selectedViewId, visibleSavedViews, tilesState.tiles, tilesState.replaceScopeTiles]);
+    const currentScopeGraphs = graphsState.graphs.filter((g) => g.scope === tileView);
+    if (JSON.stringify(currentScopeGraphs) !== JSON.stringify(defaultView.graphs)) {
+      graphsState.replaceScopeGraphs(tileView, defaultView.graphs);
+    }
+  }, [
+    tileView,
+    selectedViewIsDefault,
+    selectedViewId,
+    visibleSavedViews,
+    tilesState.tiles,
+    tilesState.replaceScopeTiles,
+    graphsState.graphs,
+    graphsState.replaceScopeGraphs,
+  ]);
 
   function changeTileView(scope: SummaryTileScope) {
     setTileView(scope);
@@ -377,7 +420,7 @@ export function Dashboard() {
     setShowCreateViewModal(false);
   }
 
-  /** Starts a brand-new, blank view (no tiles) and switches to it — the only way to get an editable (non-Default) view onto screen. Tiles are then built up one at a time via the in-grid Add Tile card, live-syncing into this view's storage as you go (see the effect above). */
+  /** Starts a brand-new, blank view (no tiles, no graphs) and switches to it — the only way to get an editable (non-Default) view onto screen. Tiles and graphs are then built up one at a time via their own in-grid Add cards, live-syncing into this view's storage as you go (see the effect above). */
   function handleCreateView() {
     const name = newViewName.trim();
     if (!name) {
@@ -388,21 +431,28 @@ export function Dashboard() {
       setCreateViewError(`You already have ${MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE} saved ${tileView} views — the maximum allowed. Delete one first.`);
       return;
     }
-    const id = savedDashboardViews.save(tileView, name, []);
+    const id = savedDashboardViews.save(tileView, name, [], []);
     tilesState.replaceScopeTiles(tileView, []);
+    graphsState.replaceScopeGraphs(tileView, []);
     savedDashboardViews.setSelectedViewId(tileView, id);
     setShowCreateViewModal(false);
   }
 
-  /** Returns whether the load actually happened — handleSelectView only moves the dropdown's selection on success, so a load blocked by the tile-limit check below can never leave the selection pointing at a view whose tiles never actually made it on screen (which the live-sync effect above would otherwise immediately overwrite with the wrong content). */
+  /** Returns whether the load actually happened — handleSelectView only moves the dropdown's selection on success, so a load blocked by either limit check below can never leave the selection pointing at a view whose tiles/graphs never actually made it on screen (which the live-sync effect above would otherwise immediately overwrite with the wrong content). */
   function handleLoadView(view: SavedDashboardView): boolean {
-    const otherScopeCount = tilesState.tiles.filter((t) => t.scope !== tileView).length;
-    if (otherScopeCount + view.tiles.length > MAX_SUMMARY_TILES) {
+    const otherScopeTileCount = tilesState.tiles.filter((t) => t.scope !== tileView).length;
+    if (otherScopeTileCount + view.tiles.length > MAX_SUMMARY_TILES) {
       setLoadViewError(`Loading "${view.name}" would push you past the ${MAX_SUMMARY_TILES}-tile limit — remove some tiles first.`);
+      return false;
+    }
+    const otherScopeGraphCount = graphsState.graphs.filter((g) => g.scope !== tileView).length;
+    if (otherScopeGraphCount + view.graphs.length > MAX_DASHBOARD_GRAPHS) {
+      setLoadViewError(`Loading "${view.name}" would push you past the ${MAX_DASHBOARD_GRAPHS}-graph limit — remove a graph first.`);
       return false;
     }
     setLoadViewError(null);
     tilesState.replaceScopeTiles(tileView, view.tiles);
+    graphsState.replaceScopeGraphs(tileView, view.graphs);
     return true;
   }
 
@@ -473,11 +523,95 @@ export function Dashboard() {
   const teamTileRows = useMemo(() => tileRows.filter((t) => t.kind === "team"), [tileRows]);
   const visibleTileRows = tileView === "player" ? playerTileRows : teamTileRows;
 
-  // Whether any current tile needs the bulk historic dataset at all — only
-  // "lastSeason"/"historicAverage" do (see resolvePlayerStats.ts); a
-  // dashboard built entirely from Current Season tiles never needs to wait
-  // on it.
-  const usesHistoricData = tilesState.tiles.some((t) => t.dataView !== "live");
+  // Same shape as tileRows above, one per saved graph — resolves each
+  // graph's own scope/dataView/criteria (or specific player/team picks)
+  // into chart-ready data, computed in one pass here rather than as
+  // per-graph hooks (DashboardGraphCard is purely presentational), for the
+  // same "variable number of hook calls" reason tiles already avoid it.
+  const graphRows = useMemo(() => {
+    return graphsState.graphs
+      .map((graph) => {
+        if (graph.scope === "player") {
+          const yColumn = playerColumnByKey(graph.yMetricKey);
+          if (!yColumn) return null;
+          const xColumn = graph.chartType === "scatter" ? playerColumnByKey(graph.xMetricKey) : undefined;
+          if (graph.chartType === "scatter" && !xColumn) return null;
+          let sourcePlayers: NormalizedPlayer[];
+          if (graph.playerIds && graph.playerIds.length > 0) {
+            const idSet = new Set(graph.playerIds);
+            sourcePlayers = resolvedByMode[graph.dataView].filter((p) => idSet.has(p.id));
+          } else {
+            const criteria = graph.criteria ?? DEFAULT_FILTERS;
+            sourcePlayers = filterPlayers(resolvedByMode[graph.dataView], criteria, graph.dataView);
+          }
+          const scatterData: ScatterPoint[] = [];
+          const barData: BarDatum[] = [];
+          for (const p of sourcePlayers) {
+            const derived = getPlayerDerivedMetrics(p);
+            const y = yColumn.getValue(p, derived);
+            if (graph.chartType === "scatter") {
+              const x = xColumn!.getValue(p, derived);
+              if (x === null || y === null) continue;
+              scatterData.push({ id: p.id, label: p.name, x, y });
+            } else {
+              if (y === null) continue;
+              barData.push({ id: p.id, label: p.name, value: y });
+            }
+          }
+          return {
+            graph,
+            kind: "player" as const,
+            xLabel: xColumn?.label ?? "",
+            yLabel: yColumn.label,
+            format: yColumn.format,
+            scatterData,
+            barData,
+          };
+        }
+        const yColumn = teamColumnByKey(graph.yMetricKey);
+        if (!yColumn) return null;
+        const xColumn = graph.chartType === "scatter" ? teamColumnByKey(graph.xMetricKey) : undefined;
+        if (graph.chartType === "scatter" && !xColumn) return null;
+        let teamPool = teamAggregatesByMode[graph.dataView];
+        if (graph.teamIds && graph.teamIds.length > 0) {
+          const idSet = new Set(graph.teamIds);
+          teamPool = teamPool.filter((t) => idSet.has(t.teamId));
+        }
+        const scatterData: ScatterPoint[] = [];
+        const barData: BarDatum[] = [];
+        for (const t of teamPool) {
+          const y = yColumn.getValue(t);
+          if (graph.chartType === "scatter") {
+            const x = xColumn!.getValue(t);
+            if (x === null || y === null) continue;
+            scatterData.push({ id: t.teamId, label: t.name, x, y });
+          } else {
+            if (y === null) continue;
+            barData.push({ id: t.teamId, label: t.name, value: y });
+          }
+        }
+        return {
+          graph,
+          kind: "team" as const,
+          xLabel: xColumn?.label ?? "",
+          yLabel: yColumn.label,
+          format: yColumn.format,
+          scatterData,
+          barData,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+  }, [graphsState.graphs, resolvedByMode, teamAggregatesByMode]);
+
+  const playerGraphRows = useMemo(() => graphRows.filter((g) => g.kind === "player"), [graphRows]);
+  const teamGraphRows = useMemo(() => graphRows.filter((g) => g.kind === "team"), [graphRows]);
+  const visibleGraphRows = tileView === "player" ? playerGraphRows : teamGraphRows;
+
+  // Whether any current tile or graph needs the bulk historic dataset at
+  // all — only "lastSeason"/"historicAverage" do (see
+  // resolvePlayerStats.ts); a dashboard built entirely from Current Season
+  // tiles/graphs never needs to wait on it.
+  const usesHistoricData = tilesState.tiles.some((t) => t.dataView !== "live") || graphsState.graphs.some((g) => g.dataView !== "live");
 
   function openAddTileModal() {
     const firstMetric = tileView === "player" ? PLAYER_TILE_METRICS[0] : TEAM_TILE_METRICS[0];
@@ -580,6 +714,107 @@ export function Dashboard() {
     setDragOverTileId(null);
     const draggedId = e.dataTransfer.getData("text/plain");
     if (draggedId && draggedId !== id) tilesState.reorderTile(draggedId, id);
+  }
+
+  function openAddGraphModal() {
+    const columns = tileView === "player" ? PLAYER_COLUMNS : TEAM_COLUMNS;
+    setNewGraphName("");
+    setNewGraphChartType("scatter");
+    setNewGraphXKey(columns[0].key);
+    setNewGraphYKey(columns.length > 1 ? columns[1].key : columns[0].key);
+    setNewGraphDataView("lastSeason");
+    setNewGraphShowReferenceLine(false);
+    setNewGraphCriteria(DEFAULT_FILTERS);
+    setNewGraphPlayerMode("filters");
+    setNewGraphPlayerIds([]);
+    setNewGraphTeamMode("all");
+    setNewGraphTeamIds([]);
+    setNewGraphError(null);
+    setShowAddGraphModal(true);
+  }
+
+  function closeAddGraphModal() {
+    setShowAddGraphModal(false);
+  }
+
+  /** Switching away from "players" clears any in-progress player picks — same reasoning as togglePlayerTileMode above. */
+  function togglePlayerGraphMode(mode: "filters" | "players") {
+    setNewGraphPlayerMode(mode);
+    if (mode === "filters") setNewGraphPlayerIds([]);
+  }
+
+  function addNewGraphPlayer(id: number) {
+    setNewGraphPlayerIds((prev) => (prev.length >= MAX_TILE_PLAYERS || prev.includes(id) ? prev : [...prev, id]));
+  }
+
+  function removeNewGraphPlayer(id: number) {
+    setNewGraphPlayerIds((prev) => prev.filter((x) => x !== id));
+  }
+
+  function toggleTeamGraphMode(mode: "all" | "selected") {
+    setNewGraphTeamMode(mode);
+    if (mode === "all") setNewGraphTeamIds([]);
+  }
+
+  function addNewGraphTeam(id: number) {
+    setNewGraphTeamIds((prev) => (prev.length >= MAX_TILE_TEAMS || prev.includes(id) ? prev : [...prev, id]));
+  }
+
+  function removeNewGraphTeam(id: number) {
+    setNewGraphTeamIds((prev) => prev.filter((x) => x !== id));
+  }
+
+  const trimmedNewGraphName = newGraphName.trim();
+  const newGraphNameMissing = trimmedNewGraphName.length === 0;
+  const newGraphPlayersMissing = tileView === "player" && newGraphPlayerMode === "players" && newGraphPlayerIds.length === 0;
+  const newGraphTeamsMissing = tileView === "team" && newGraphTeamMode === "selected" && newGraphTeamIds.length === 0;
+  const addGraphDisabled = newGraphNameMissing || newGraphPlayersMissing || newGraphTeamsMissing;
+  const addGraphDisabledReason = newGraphNameMissing
+    ? "Name is required"
+    : newGraphPlayersMissing
+      ? "Select at least one player to plot"
+      : newGraphTeamsMissing
+        ? "Select at least one team to plot"
+        : undefined;
+
+  function handleAddGraph() {
+    if (addGraphDisabled) return;
+    if (graphsState.graphs.length >= MAX_DASHBOARD_GRAPHS) {
+      setNewGraphError(`You already have ${MAX_DASHBOARD_GRAPHS} graphs — the maximum allowed. Remove one first.`);
+      return;
+    }
+    graphsState.addGraph(
+      createDashboardGraph({
+        scope: tileView,
+        name: trimmedNewGraphName,
+        chartType: newGraphChartType,
+        xMetricKey: newGraphXKey,
+        yMetricKey: newGraphYKey,
+        dataView: newGraphDataView,
+        showReferenceLine: newGraphChartType === "scatter" && newGraphShowReferenceLine,
+        criteria: tileView === "player" && newGraphPlayerMode === "filters" ? newGraphCriteria : null,
+        playerIds: tileView === "player" && newGraphPlayerMode === "players" ? newGraphPlayerIds : null,
+        teamIds: tileView === "team" && newGraphTeamMode === "selected" ? newGraphTeamIds : null,
+      }),
+    );
+    setShowAddGraphModal(false);
+  }
+
+  function handleGraphDragStart(e: React.DragEvent, id: string) {
+    e.dataTransfer.setData("text/plain", id);
+    e.dataTransfer.effectAllowed = "move";
+  }
+
+  function handleGraphDragOver(e: React.DragEvent, id: string) {
+    e.preventDefault();
+    if (dragOverGraphId !== id) setDragOverGraphId(id);
+  }
+
+  function handleGraphDrop(e: React.DragEvent, id: string) {
+    e.preventDefault();
+    setDragOverGraphId(null);
+    const draggedId = e.dataTransfer.getData("text/plain");
+    if (draggedId && draggedId !== id) graphsState.reorderGraph(draggedId, id);
   }
 
   function select(id: number) {
@@ -784,6 +1019,51 @@ export function Dashboard() {
         </div>
       )}
 
+      <hr className="section-divider" />
+      <div className="stat-group-title">Graphs</div>
+
+      {visibleGraphRows.length === 0 && selectedViewIsDefault ? (
+        <p className="page-subtitle">No {tileView} graphs yet.</p>
+      ) : (
+        <div className="card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(440px, 1fr))" }}>
+          {visibleGraphRows.map(({ graph, kind, xLabel, yLabel, format, scatterData, barData }) => (
+            <DashboardGraphCard
+              key={graph.id}
+              title={displayGraphTitle(graph, xLabel, yLabel)}
+              kind={kind}
+              chartType={graph.chartType}
+              scatterData={scatterData}
+              barData={barData}
+              xLabel={xLabel}
+              yLabel={yLabel}
+              format={format}
+              showReferenceLine={graph.showReferenceLine}
+              dataView={graph.dataView}
+              onSelect={kind === "player" ? select : selectTeam}
+              draggable
+              isDragOver={dragOverGraphId === graph.id}
+              onDragStart={(e) => handleGraphDragStart(e, graph.id)}
+              onDragOver={(e) => handleGraphDragOver(e, graph.id)}
+              onDragLeave={() => setDragOverGraphId((k) => (k === graph.id ? null : k))}
+              onDrop={(e) => handleGraphDrop(e, graph.id)}
+              onRemove={selectedViewIsDefault ? undefined : () => graphsState.removeGraph(graph.id)}
+            />
+          ))}
+          {!selectedViewIsDefault && (
+            <button
+              type="button"
+              className="add-tile-card"
+              style={{ minHeight: 360 }}
+              onClick={openAddGraphModal}
+              title="Add Graph"
+              aria-label="Add Graph"
+            >
+              <PlusIcon size={22} />
+            </button>
+          )}
+        </div>
+      )}
+
       {showAddTileModal && (
         <div className="dialog-backdrop" onClick={closeAddTileModal}>
           <div className="dialog" onClick={(e) => e.stopPropagation()}>
@@ -958,6 +1238,212 @@ export function Dashboard() {
               </button>
               <button type="button" className="btn primary" onClick={handleAddTile} disabled={addTileDisabled} title={addTileDisabledReason}>
                 Add Tile
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddGraphModal && (
+        <div className="dialog-backdrop" onClick={closeAddGraphModal}>
+          <div className="dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-title">Add {tileView === "player" ? "Player" : "Team"} Graph</div>
+            <div className="field">
+              <label htmlFor="new-graph-name">Name</label>
+              <input
+                id="new-graph-name"
+                type="text"
+                value={newGraphName}
+                onChange={(e) => setNewGraphName(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="new-graph-type">Graph Type</label>
+              <select id="new-graph-type" value={newGraphChartType} onChange={(e) => setNewGraphChartType(e.target.value as DashboardGraphType)}>
+                <option value="scatter">Scatter Plot (metric vs metric)</option>
+                <option value="bar">Bar Chart (top 15 by metric)</option>
+              </select>
+            </div>
+            {newGraphChartType === "scatter" && (
+              <div className="field">
+                <label htmlFor="new-graph-x">X axis metric</label>
+                <select id="new-graph-x" value={newGraphXKey} onChange={(e) => setNewGraphXKey(e.target.value)}>
+                  {(tileView === "player" ? PLAYER_COLUMNS : TEAM_COLUMNS).map((c) => (
+                    <option key={c.key} value={c.key}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div className="field">
+              <label htmlFor="new-graph-y">{newGraphChartType === "scatter" ? "Y axis metric" : "Metric"}</label>
+              <select id="new-graph-y" value={newGraphYKey} onChange={(e) => setNewGraphYKey(e.target.value)}>
+                {(tileView === "player" ? PLAYER_COLUMNS : TEAM_COLUMNS).map((c) => (
+                  <option key={c.key} value={c.key}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="new-graph-dataview">Data View</label>
+              <select id="new-graph-dataview" value={newGraphDataView} onChange={(e) => setNewGraphDataView(e.target.value as AnalysisMode)}>
+                {ANALYSIS_MODE_OPTIONS.map((o) => (
+                  <option key={o.mode} value={o.mode}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {newGraphChartType === "scatter" && (
+              <label style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, margin: "10px 0" }} htmlFor="new-graph-reference-line">
+                <input
+                  id="new-graph-reference-line"
+                  type="checkbox"
+                  checked={newGraphShowReferenceLine}
+                  onChange={(e) => setNewGraphShowReferenceLine(e.target.checked)}
+                  style={{ width: "auto", minWidth: "auto" }}
+                />
+                <span title="Draws a dashed 45° line — meaningful only when X and Y are on the same scale, e.g. an expected-vs-actual pair like xG and Goals.">
+                  Show expected-output reference line
+                </span>
+              </label>
+            )}
+            {tileView === "player" && (
+              <>
+                <div className="chip-row" style={{ marginTop: 14, marginBottom: 12 }}>
+                  <button
+                    type="button"
+                    className={`chip chip-icon${newGraphPlayerMode === "filters" ? " active" : ""}`}
+                    title="Filters — narrow by position, team, and minutes"
+                    aria-label="Filters"
+                    aria-pressed={newGraphPlayerMode === "filters"}
+                    onClick={() => togglePlayerGraphMode("filters")}
+                  >
+                    <FilterIcon />
+                  </button>
+                  <button
+                    type="button"
+                    className={`chip chip-icon${newGraphPlayerMode === "players" ? " active" : ""}`}
+                    title="Player Search — plot up to 5 specific players"
+                    aria-label="Player Search"
+                    aria-pressed={newGraphPlayerMode === "players"}
+                    onClick={() => togglePlayerGraphMode("players")}
+                  >
+                    <PlayerSearchIcon />
+                  </button>
+                </div>
+                {newGraphPlayerMode === "filters" ? (
+                  <FiltersBar
+                    idPrefix="new-graph-criteria"
+                    filters={newGraphCriteria}
+                    onChange={setNewGraphCriteria}
+                    onReset={() => setNewGraphCriteria(DEFAULT_FILTERS)}
+                    analysisMode={newGraphDataView}
+                    showSearch={false}
+                    showPrice
+                  />
+                ) : (
+                  <>
+                    {newGraphPlayerIds.length > 0 && (
+                      <div className="chip-row" style={{ marginBottom: 8 }}>
+                        {newGraphPlayerIds.map((id) => {
+                          const p = players.find((pl) => pl.id === id);
+                          if (!p) return null;
+                          return (
+                            <span key={id} className="chip" style={{ display: "flex", alignItems: "center", gap: 6, cursor: "default" }}>
+                              {p.name}
+                              <button
+                                type="button"
+                                onClick={() => removeNewGraphPlayer(id)}
+                                style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0, fontSize: 13, lineHeight: 1 }}
+                                title="Remove"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <PlayerSearch
+                      excludeIds={newGraphPlayerIds}
+                      onPick={addNewGraphPlayer}
+                      disabled={newGraphPlayerIds.length >= MAX_TILE_PLAYERS}
+                      label={`Search players (${newGraphPlayerIds.length}/${MAX_TILE_PLAYERS})`}
+                      disabledLabel={`Search players (${MAX_TILE_PLAYERS}/${MAX_TILE_PLAYERS})`}
+                    />
+                  </>
+                )}
+              </>
+            )}
+            {tileView === "team" && (
+              <>
+                <div className="chip-row" style={{ marginTop: 14, marginBottom: 12 }}>
+                  <button
+                    type="button"
+                    className={`chip chip-icon${newGraphTeamMode === "all" ? " active" : ""}`}
+                    title="All Teams — plot every team"
+                    aria-label="All Teams"
+                    aria-pressed={newGraphTeamMode === "all"}
+                    onClick={() => toggleTeamGraphMode("all")}
+                  >
+                    <AllTeamsIcon />
+                  </button>
+                  <button
+                    type="button"
+                    className={`chip chip-icon${newGraphTeamMode === "selected" ? " active" : ""}`}
+                    title="Team Selection — plot up to 5 specific teams"
+                    aria-label="Team Selection"
+                    aria-pressed={newGraphTeamMode === "selected"}
+                    onClick={() => toggleTeamGraphMode("selected")}
+                  >
+                    <TeamSelectionIcon />
+                  </button>
+                </div>
+                {newGraphTeamMode === "selected" && (
+                  <>
+                    {newGraphTeamIds.length > 0 && (
+                      <div className="chip-row" style={{ marginBottom: 8 }}>
+                        {newGraphTeamIds.map((id) => {
+                          const t = teams.find((tm) => tm.id === id);
+                          if (!t) return null;
+                          return (
+                            <span key={id} className="chip" style={{ display: "flex", alignItems: "center", gap: 6, cursor: "default" }}>
+                              {t.name}
+                              <button
+                                type="button"
+                                onClick={() => removeNewGraphTeam(id)}
+                                style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0, fontSize: 13, lineHeight: 1 }}
+                                title="Remove"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <TeamPicker
+                      teams={teams}
+                      excludeIds={newGraphTeamIds}
+                      onPick={addNewGraphTeam}
+                      disabled={newGraphTeamIds.length >= MAX_TILE_TEAMS}
+                      label={`Search teams (${newGraphTeamIds.length}/${MAX_TILE_TEAMS})`}
+                      disabledLabel={`Search teams (${MAX_TILE_TEAMS}/${MAX_TILE_TEAMS})`}
+                    />
+                  </>
+                )}
+              </>
+            )}
+            {newGraphError && <div className="banner error">{newGraphError}</div>}
+            <div className="dialog-actions">
+              <button type="button" className="btn" onClick={closeAddGraphModal}>
+                Cancel
+              </button>
+              <button type="button" className="btn primary" onClick={handleAddGraph} disabled={addGraphDisabled} title={addGraphDisabledReason}>
+                Add Graph
               </button>
             </div>
           </div>

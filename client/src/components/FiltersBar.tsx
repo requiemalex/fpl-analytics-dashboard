@@ -16,8 +16,8 @@ const MINUTES_STEP = 90;
  * silently changed what every other page showed too — the exact bug
  * this component's move to local-per-page state fixes. `idPrefix` keeps
  * form element ids unique when this renders more than once on the same
- * page (e.g. composed inside `LocalViewControls`, several of which can
- * be on screen at once on Underlying Numbers).
+ * page (e.g. Dashboard's Add Tile and Add Graph modals, or composed
+ * inside `LocalViewControls`).
  */
 export function FiltersBar({
   idPrefix = "f",
@@ -34,11 +34,11 @@ export function FiltersBar({
   onChange: (next: GlobalScoutingFilters) => void;
   onReset: () => void;
   analysisMode: AnalysisMode;
-  /** Off on Player Explorer only — its MINS column has its own per-column filter, making this redundant there. Everywhere else (Dashboard tiles, Player Comparison/Detail radars, Underlying Numbers charts) has no equivalent, so Min Minutes stays the only way to set a minutes threshold. */
+  /** Off on Player Explorer only — its MINS column has its own per-column filter, making this redundant there. Everywhere else (Dashboard tiles/graphs, Player Comparison/Detail radars) has no equivalent, so Min Minutes stays the only way to set a minutes threshold. */
   showMinMinutes?: boolean;
-  /** Off for the Dashboard Add Tile modal's "Filters" mode only — that modal now has a separate "Player Search" mode (pick up to 5 specific players) covering the same job the free-text Search field used to, so showing both would be redundant/confusing. */
+  /** Off for the Dashboard Add Tile/Add Graph modals' "Filters" mode only — those modals have a separate "Player Search" mode (pick up to 5 specific players) covering the same job the free-text Search field used to, so showing both would be redundant/confusing. */
   showSearch?: boolean;
-  /** On for the Dashboard Add Tile modal's "Filters" mode only — a live-price (£m) range, e.g. "only the best £5m players". Off everywhere else, matching showMinMinutes/showSearch's per-page opt-in pattern. */
+  /** On for the Dashboard Add Tile/Add Graph modals' "Filters" mode only — a live-price (£m) range, e.g. "only the best £5m players". Off everywhere else, matching showMinMinutes/showSearch's per-page opt-in pattern. */
   showPrice?: boolean;
 }) {
   const { teams } = useAppState();

@@ -1,22 +1,13 @@
 import type { NormalizedPlayer } from "../types/normalized";
 import type { PlayerDerivedMetrics } from "../metrics/playerMetrics";
+import type { TeamAggregate } from "../metrics/teamStats";
 import { PLAYER_COLUMNS } from "./playerColumns";
+import { TEAM_COLUMNS } from "./teamColumns";
 import { fmtDecimal, fmtSigned } from "../utils/format";
 
 export type SummaryTileScope = "player" | "team";
 
-/** Same shape Dashboard.tsx has always aggregated per team from the resolved player list — exported here so it's the one place both the tile catalogue and Dashboard.tsx agree on what a team stat actually is (a sum across that team's current squad, not FPL's own league-table `points`). */
-export interface TeamAggregate {
-  teamId: number;
-  name: string;
-  shortName: string;
-  points: number | null;
-  xGI: number | null;
-  cleanSheets: number | null;
-  goals: number | null;
-  assists: number | null;
-  bonus: number | null;
-}
+export type { TeamAggregate };
 
 export interface PlayerTileMetric {
   key: string;
@@ -93,14 +84,14 @@ export const PLAYER_TILE_METRICS: PlayerTileMetric[] = [
   { key: "assistsPerGame", label: "Assists/Game", getValue: (_p, d) => d.assistsPerGame, format: num(2), higherIsBetter: true, ratePerMinutes: true },
 ];
 
-export const TEAM_TILE_METRICS: TeamTileMetric[] = [
-  { key: "points", label: "Squad Points", getValue: (t) => t.points, format: num(0), higherIsBetter: true },
-  { key: "xGI", label: "Squad xGI", getValue: (t) => t.xGI, format: num(2), higherIsBetter: true },
-  { key: "cleanSheets", label: "Clean Sheets", getValue: (t) => t.cleanSheets, format: num(0), higherIsBetter: true },
-  { key: "goals", label: "Goals", getValue: (t) => t.goals, format: num(0), higherIsBetter: true },
-  { key: "assists", label: "Assists", getValue: (t) => t.assists, format: num(0), higherIsBetter: true },
-  { key: "bonus", label: "Bonus Points", getValue: (t) => t.bonus, format: num(0), higherIsBetter: true },
-];
+/** Every TEAM_COLUMNS metric (Squad Points, xG/xA/xGI/xGC, League Position, Goals For/Against, etc. — the same catalogue Dashboard's team graphs use) — the full set a user can build a Dashboard Team Tile from. */
+export const TEAM_TILE_METRICS: TeamTileMetric[] = TEAM_COLUMNS.map((c) => ({
+  key: c.key,
+  label: c.label,
+  getValue: c.getValue,
+  format: c.format,
+  higherIsBetter: c.higherIsBetter ?? true,
+}));
 
 export function playerTileMetricByKey(key: string): PlayerTileMetric | undefined {
   return PLAYER_TILE_METRICS.find((m) => m.key === key);

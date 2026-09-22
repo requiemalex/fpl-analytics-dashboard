@@ -5,9 +5,11 @@ export interface TeamAggregate {
   teamId: number;
   name: string;
   shortName: string;
+  /** Sum of the current squad's FPL fantasy points — NOT the real league table's points (see `leaguePoints` below), same "current-squad, mode-resolved" basis as every other field down to `cleanSheets`. */
   points: number | null;
   goals: number | null;
   assists: number | null;
+  bonus: number | null;
   xG: number | null;
   xA: number | null;
   xGI: number | null;
@@ -17,6 +19,22 @@ export interface TeamAggregate {
   /** Actual goals scored/conceded from finished fixture results — a genuinely different number from xG/xGC, not a duplicate. */
   goalsFor: number | null;
   goalsAgainst: number | null;
+  /**
+   * Real league standing, read straight off `NormalizedTeam` — genuinely
+   * independent of the resolved-player mode used for every field above
+   * (this season's actual table position never changes because a tile or
+   * graph is looking at Last Completed Season data), same "always live"
+   * convention as a player's price/ownership. `leaguePoints` is named
+   * distinctly from the squad-sum `points` above specifically so the two
+   * (real league points vs. summed fantasy points) are never confused for
+   * each other in a metric picker.
+   */
+  leaguePosition: number | null;
+  leaguePoints: number | null;
+  played: number | null;
+  wins: number | null;
+  draws: number | null;
+  losses: number | null;
 }
 
 function sum(values: (number | null)[]): number | null {
@@ -47,6 +65,7 @@ export function computeTeamAggregates(teams: NormalizedTeam[], resolvedPlayers: 
       points: sum(squad.map((p) => p.totalPoints)),
       goals: sum(squad.map((p) => p.goals)),
       assists: sum(squad.map((p) => p.assists)),
+      bonus: sum(squad.map((p) => p.bonus)),
       xG: sum(squad.map((p) => p.xG)),
       xA: sum(squad.map((p) => p.xA)),
       xGI: sum(squad.map((p) => p.xGI)),
@@ -55,6 +74,12 @@ export function computeTeamAggregates(teams: NormalizedTeam[], resolvedPlayers: 
       cleanSheets: sum(squad.map((p) => p.cleanSheets)),
       goalsFor,
       goalsAgainst,
+      leaguePosition: team.position,
+      leaguePoints: team.points,
+      played: team.played,
+      wins: team.wins,
+      draws: team.draws,
+      losses: team.losses,
     };
   });
 }

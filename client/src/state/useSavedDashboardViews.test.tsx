@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useSavedDashboardViews, isDefaultSavedView } from "./useSavedDashboardViews";
 import { DEFAULT_SUMMARY_TILES } from "./useSummaryTiles";
+import { DEFAULT_DASHBOARD_GRAPHS } from "./useDashboardGraphs";
 
 const STORAGE_KEY = "fpl-dashboard:dashboard:saved-views:v1";
 const SELECTED_VIEW_STORAGE_KEY = "fpl-dashboard:dashboard:selected-view:v1";
@@ -21,10 +22,10 @@ describe("useSavedDashboardViews — Default-view self-healing migration", () =>
   it("restores a missing Default view (e.g. deleted before the delete-guard existed) rather than requiring another version bump", () => {
     // Old data with the player-scope Default view missing, plus one real user view.
     const existing = [
-      { id: "default-view-team", scope: "team", name: "Default", tiles: [], updatedAt: 0 },
-      { id: "view-custom-1", scope: "player", name: "My View", tiles: [], updatedAt: 123 },
+      { id: "default-view-team", scope: "team", name: "Default", tiles: [], graphs: [], updatedAt: 0 },
+      { id: "view-custom-1", scope: "player", name: "My View", tiles: [], graphs: [], updatedAt: 123 },
     ];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, data: existing }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 3, data: existing }));
 
     const { result } = renderHook(() => useSavedDashboardViews());
     const ids = result.current.views.map((v) => v.id);
@@ -35,10 +36,10 @@ describe("useSavedDashboardViews — Default-view self-healing migration", () =>
 
   it("is a no-op (doesn't duplicate) when both Default views are already present", () => {
     const existing = [
-      { id: "default-view-player", scope: "player", name: "Default", tiles: [], updatedAt: 0 },
-      { id: "default-view-team", scope: "team", name: "Default", tiles: [], updatedAt: 0 },
+      { id: "default-view-player", scope: "player", name: "Default", tiles: [], graphs: [], updatedAt: 0 },
+      { id: "default-view-team", scope: "team", name: "Default", tiles: [], graphs: [], updatedAt: 0 },
     ];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, data: existing }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 3, data: existing }));
     const { result } = renderHook(() => useSavedDashboardViews());
     expect(result.current.views).toHaveLength(2);
   });
@@ -55,84 +56,122 @@ describe("useSavedDashboardViews — Default-view self-healing migration", () =>
 
   // Default is now permanent AND immutable (Dashboard.tsx blocks every
   // add/remove/edit control while it's selected) — nothing in the UI can
-  // legitimately make a stored Default entry's tiles differ from the
+  // legitimately make a stored Default entry's tiles/graphs differ from the
   // packaged set any more, so migrate() force-resyncs it unconditionally
   // rather than only backfilling when the entry is missing outright. This
   // is the "one-off fresh reset" for anyone whose Default view had already
   // drifted from a pre-upgrade install where it could still be freely
   // edited, and it also guards against any future drift the same way.
-  it("force-resyncs an existing Default entry's tiles to the packaged set, even if they'd drifted (e.g. a pre-upgrade install)", () => {
+  it("force-resyncs an existing Default entry's tiles/graphs to the packaged set, even if they'd drifted (e.g. a pre-upgrade install)", () => {
     const staleDefaultTiles = [{ id: "some-old-tile", scope: "player", metricKey: "totalPoints", direction: "desc", dataView: "lastSeason", name: null, criteria: null }];
     const existing = [
-      { id: "default-view-player", scope: "player", name: "Default", tiles: staleDefaultTiles, updatedAt: 999 },
-      { id: "default-view-team", scope: "team", name: "Default", tiles: [], updatedAt: 999 },
+      { id: "default-view-player", scope: "player", name: "Default", tiles: staleDefaultTiles, graphs: [], updatedAt: 999 },
+      { id: "default-view-team", scope: "team", name: "Default", tiles: [], graphs: [], updatedAt: 999 },
     ];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, data: existing }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 3, data: existing }));
 
     const { result } = renderHook(() => useSavedDashboardViews());
     const playerDefault = result.current.views.find((v) => v.id === "default-view-player");
     const teamDefault = result.current.views.find((v) => v.id === "default-view-team");
     expect(playerDefault?.tiles).toEqual(DEFAULT_SUMMARY_TILES.filter((t) => t.scope === "player"));
     expect(teamDefault?.tiles).toEqual(DEFAULT_SUMMARY_TILES.filter((t) => t.scope === "team"));
+    expect(playerDefault?.graphs).toEqual(DEFAULT_DASHBOARD_GRAPHS.filter((g) => g.scope === "player"));
+    expect(teamDefault?.graphs).toEqual(DEFAULT_DASHBOARD_GRAPHS.filter((g) => g.scope === "team"));
   });
 
   it("leaves non-Default entries completely untouched by the Default resync", () => {
-    const existing = [{ id: "view-custom-1", scope: "player", name: "My View", tiles: [{ id: "t1", scope: "player", metricKey: "xGI", direction: "desc", dataView: "live", name: null, criteria: null }], updatedAt: 5 }];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, data: existing }));
+    const existing = [
+      {
+        id: "view-custom-1",
+        scope: "player",
+        name: "My View",
+        tiles: [{ id: "t1", scope: "player", metricKey: "xGI", direction: "desc", dataView: "live", name: null, criteria: null }],
+        graphs: [],
+        updatedAt: 5,
+      },
+    ];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 3, data: existing }));
     const { result } = renderHook(() => useSavedDashboardViews());
     const custom = result.current.views.find((v) => v.id === "view-custom-1");
     expect(custom?.tiles).toEqual(existing[0].tiles);
   });
+
+  // Bumped 2 -> 3 when `graphs` was added — a view saved before that has no
+  // such field at all, distinct from the `existing` fixtures above (which
+  // already carry an explicit `graphs: []`).
+  it("backfills `graphs` to an empty list for a non-Default view saved before it existed (version 2)", () => {
+    const existing = [{ id: "view-custom-1", scope: "player", name: "My View", tiles: [], updatedAt: 5 }];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, data: existing }));
+    const { result } = renderHook(() => useSavedDashboardViews());
+    const custom = result.current.views.find((v) => v.id === "view-custom-1");
+    expect(custom?.graphs).toEqual([]);
+  });
 });
 
-describe("useSavedDashboardViews — save()/updateTiles() (backing Create View and its live-sync)", () => {
+describe("useSavedDashboardViews — save()/updateView() (backing Create View and its live-sync)", () => {
   it("save() returns the new view's id", () => {
     const { result } = renderHook(() => useSavedDashboardViews());
     let newId = "";
     act(() => {
-      newId = result.current.save("player", "My New View", []);
+      newId = result.current.save("player", "My New View", [], []);
     });
     expect(newId).toMatch(/^view-/);
-    expect(result.current.views.find((v) => v.id === newId)).toMatchObject({ name: "My New View", scope: "player", tiles: [] });
+    expect(result.current.views.find((v) => v.id === newId)).toMatchObject({ name: "My New View", scope: "player", tiles: [], graphs: [] });
   });
 
-  it("updateTiles() overwrites an existing view's tiles in place and bumps updatedAt", () => {
+  it("updateView() overwrites an existing view's tiles and graphs in place and bumps updatedAt", () => {
     const { result } = renderHook(() => useSavedDashboardViews());
     let id = "";
     act(() => {
-      id = result.current.save("player", "My View", []);
+      id = result.current.save("player", "My View", [], []);
     });
     const newTiles = [
       { id: "t1", scope: "player" as const, metricKey: "xGI", direction: "desc" as const, dataView: "live" as const, name: null, criteria: null, playerIds: null, teamIds: null },
     ];
+    const newGraphs = [
+      {
+        id: "g1",
+        scope: "player" as const,
+        name: "xG vs Goals",
+        chartType: "scatter" as const,
+        xMetricKey: "xG",
+        yMetricKey: "goals",
+        dataView: "live" as const,
+        showReferenceLine: true,
+        criteria: null,
+        playerIds: null,
+        teamIds: null,
+      },
+    ];
     act(() => {
-      result.current.updateTiles(id, newTiles);
+      result.current.updateView(id, newTiles, newGraphs);
     });
     const view = result.current.views.find((v) => v.id === id);
     expect(view?.tiles).toEqual(newTiles);
+    expect(view?.graphs).toEqual(newGraphs);
     expect(view?.updatedAt).toBeGreaterThan(0);
   });
 
-  it("updateTiles() refuses to touch a Default view", () => {
+  it("updateView() refuses to touch a Default view", () => {
     const { result } = renderHook(() => useSavedDashboardViews());
     const before = result.current.views.find((v) => v.id === "default-view-player")?.tiles;
     act(() => {
-      result.current.updateTiles("default-view-player", []);
+      result.current.updateView("default-view-player", [], []);
     });
     const after = result.current.views.find((v) => v.id === "default-view-player")?.tiles;
     expect(after).toEqual(before);
     expect(after).not.toEqual([]);
   });
 
-  it("updateTiles() is a no-op when the tiles haven't actually changed", () => {
+  it("updateView() is a no-op when neither tiles nor graphs actually changed", () => {
     const { result } = renderHook(() => useSavedDashboardViews());
     let id = "";
     act(() => {
-      id = result.current.save("player", "My View", []);
+      id = result.current.save("player", "My View", [], []);
     });
     const viewsBeforeRef = result.current.views;
     act(() => {
-      result.current.updateTiles(id, []); // same (empty) content it was created with
+      result.current.updateView(id, [], []); // same (empty) content it was created with
     });
     expect(result.current.views).toBe(viewsBeforeRef); // same array reference — no state update fired
   });
@@ -186,7 +225,7 @@ describe("useSavedDashboardViews — selectedViewIds persistence (which view the
   });
 
   it("removing the currently-selected view falls that scope back to Default rather than pointing at a deleted view", () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, data: [{ id: "view-custom-1", scope: "player", name: "My View", tiles: [], updatedAt: 1 }] }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 3, data: [{ id: "view-custom-1", scope: "player", name: "My View", tiles: [], graphs: [], updatedAt: 1 }] }));
     localStorage.setItem(
       SELECTED_VIEW_STORAGE_KEY,
       JSON.stringify({ version: 1, data: { player: "view-custom-1", team: "default-view-team" } }),
@@ -204,10 +243,10 @@ describe("useSavedDashboardViews — selectedViewIds persistence (which view the
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        version: 2,
+        version: 3,
         data: [
-          { id: "view-custom-1", scope: "player", name: "My View", tiles: [], updatedAt: 1 },
-          { id: "view-custom-2", scope: "player", name: "Other View", tiles: [], updatedAt: 2 },
+          { id: "view-custom-1", scope: "player", name: "My View", tiles: [], graphs: [], updatedAt: 1 },
+          { id: "view-custom-2", scope: "player", name: "Other View", tiles: [], graphs: [], updatedAt: 2 },
         ],
       }),
     );

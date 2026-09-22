@@ -40,7 +40,6 @@ const SECTION_META = [
   { id: "modes", label: "Analysis modes", accent: "var(--accent-value)" },
   { id: "dashboard", label: "Dashboard", accent: "var(--accent-positive)" },
   { id: "player-explorer", label: "Player Explorer", accent: "var(--accent-focus)" },
-  { id: "underlying-numbers", label: "Underlying Numbers", accent: "var(--accent-value)" },
   { id: "team-building", label: "Team Building", accent: "var(--accent-positive)" },
   { id: "player-comparison", label: "Player Comparison", accent: "var(--accent-focus)" },
   { id: "teams", label: "Teams", accent: "var(--accent-value)" },
@@ -160,7 +159,7 @@ export function UserGuide() {
 
       <Section id="modes" title="Analysis modes: Last Completed Season / Historic Average / Current Season">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Most sections (Dashboard, Player Explorer, Underlying Numbers, Player Comparison, Teams, Team Profile, the player profile) show the
+          Most sections (Dashboard, Player Explorer, Player Comparison, Teams, Team Profile, the player profile) show the
           same toggle near the top of the page — the options are identical everywhere, but each page's toggle is independent: changing
           one page's mode (or its Search/Position/Team/Min Minutes criteria, where a page has that too) never changes what any other
           page shows. Switching Player Explorer to Historic Average, for instance, has no effect on the Dashboard open in another tab:
@@ -193,22 +192,23 @@ export function UserGuide() {
 
       <Section id="dashboard" title="Dashboard">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          A snapshot, not a workspace — fully customisable Top-5 leaderboard tiles. A <strong>Players / Teams</strong> toggle (top
-          right) switches which set of tiles is on screen. Click any row to jump straight to that player's profile or that team's
-          page.
+          A snapshot, not a workspace — fully customisable Top-5 leaderboard tiles, plus a set of summary graphs underneath. A{" "}
+          <strong>Players / Teams</strong> toggle (top right) switches which set of tiles and graphs is on screen. Click any row or
+          chart point to jump straight to that player's profile or that team's page.
         </p>
         <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
           <li>
-            <strong>Default is fixed</strong> — the original tile layout is itself just a saved view named "Default" (one each for
-            Players/Teams), always there in the dropdown to come back to. It can't be deleted, and while it's selected its tiles
-            can't be added to or removed either, so there's always exactly one unmodified layout to fall back on.
+            <strong>Default is fixed</strong> — the original tile/graph layout is itself just a saved view named "Default" (one each
+            for Players/Teams), always there in the dropdown to come back to. It can't be deleted, and while it's selected nothing in
+            it can be added to or removed either, so there's always exactly one unmodified layout to fall back on.
           </li>
           <li>
             <strong>Create View</strong> (the icon next to the dropdown) starts a new, blank, named view and switches to it
-            immediately — from there the + card at the end of the tile grid adds tiles to it one at a time, and each tile's own
-            Remove button takes one away. Every change saves itself as you make it, so there's nothing separate to save and nothing
-            lost by switching views, tabs, or closing the app — up to 5 views each for Player and Team. Picking a different view from
-            the dropdown loads it immediately, replacing the live tiles for that scope only; the other scope is untouched.
+            immediately — from there the + cards at the end of the tile grid and the graph grid add tiles/graphs to it one at a
+            time, and each one's own Remove button takes it away. Every change saves itself as you make it, so there's nothing
+            separate to save and nothing lost by switching views, tabs, or closing the app — up to 5 views each for Player and Team.
+            Picking a different view from the dropdown loads it immediately, replacing the live tiles and graphs for that scope only;
+            the other scope is untouched.
           </li>
           <li>
             <strong>Data View and criteria, per tile</strong> — a Player Tile picks its own Last Completed Season / Historic Average /
@@ -216,13 +216,40 @@ export function UserGuide() {
             shared setting for the whole page, so two tiles can watch completely different slices of the player pool side by side. The
             data view shows as a small <code>LS</code>/<code>HA</code>/<code>CS</code> badge in the tile's header (hover for the full
             name). Min Minutes has no effect on a tile whose own data view is Current Season, since everyone genuinely has low minutes
-            early in a live season. Team Tiles always aggregate a club's whole squad and have no criteria of their own. Every tile can
-            also be given a custom name in the same dialog — leave it blank to keep the auto-generated "Top/Bottom 5 —
-            &lt;statistic&gt;" title.
+            early in a live season. Team Tiles aggregate a club's whole squad (or, for league-standing metrics like League Position,
+            Wins, and Goals Against, this season's real table — see below) and have no criteria of their own. Every tile can also be
+            given a custom name in the same dialog — leave it blank to keep the auto-generated "Top/Bottom 5 — &lt;statistic&gt;"
+            title.
           </li>
           <li>Each row's bar shows its value's size relative to the other rows in that tile — green/red by above/below-expected for the three "vs xG/xA/xGI" tiles, one flat colour for everything else.</li>
         </ul>
-        <Try>Use it as a starting point, not a destination — spot a name in a leaderboard, click through, then dig deeper in Player Explorer or the profile.</Try>
+        <p className="page-subtitle">
+          <strong>Graphs</strong>, below the tile grid (past the divider), work the same way tiles do — built once via{" "}
+          <strong>+ Add Graph</strong> rather than left permanently editable, so changing one means removing and re-adding it. Pick a
+          name, a chart type (a <strong>Scatter Plot</strong> comparing two metrics, or a <strong>Bar Chart</strong> ranking the top 15
+          by one), the metric(s) to plot from the full Player Explorer/Team metric catalogue, a Data View, and — for a scatter graph —
+          whether to draw a dashed 45° reference line (meaningful only when X and Y are on the same scale, e.g. an expected-vs-actual
+          pair like xG and Goals; leave it off for anything else, like Price vs Points). A Player Graph can be scoped the same two ways
+          a Player Tile can — Filters, or up to 5 specific players via Player Search — and a Team Graph the same way a Team Tile can —
+          All Teams, or up to 5 specific teams via Team Selection.
+        </p>
+        <p className="page-subtitle">
+          The packaged default graphs carry over the most broadly useful charts from the old Underlying Numbers page: for Players,{" "}
+          <strong>xG vs Goals</strong> and <strong>xA vs Assists</strong> (both with the reference line on, showing finishing/creativity
+          over- or under-performance) and <strong>Price vs Points</strong> (no reference line — price and points aren't on a
+          comparable scale); for Teams, <strong>Team xG vs Goals</strong> and <strong>Team xGC vs Goals Against</strong>, the same
+          idea applied to a club's whole squad. The old page's Thematic Analysis charts (average points by position/price tier across
+          every season on record) deliberately aren't among them — they're genuine multi-season time series, not a single-analysis-mode
+          metric-vs-metric graph, so they don't fit this per-graph model and were retired rather than forced in.
+        </p>
+        <p className="page-subtitle">
+          Team metrics go well beyond the current squad's summed output now — <strong>League Position</strong>,{" "}
+          <strong>League Points</strong>, <strong>Played/Wins/Draws/Losses</strong>, and <strong>Goals For/Against/Difference</strong>{" "}
+          are this season's real table and match results, always live regardless of a tile or graph's own Data View — same "always
+          live" idea as a player's price — alongside the existing squad-sum metrics (Squad Points, xG/xA/xGI/xGC, Def. Contributions,
+          Clean Sheets, Bonus).
+        </p>
+        <Try>Use it as a starting point, not a destination — spot a name in a leaderboard or an outlier on a chart, click through, then dig deeper in Player Explorer or the profile.</Try>
       </Section>
 
       <Section id="player-explorer" title="Player Explorer">
@@ -266,57 +293,6 @@ export function UserGuide() {
           Looking for undervalued midfielders? Set Position to MID, add the "Points/£m" column, click its header to sort descending, and
           use the Price column's own ▾ filter to cap it at a budget you're working within.
         </Try>
-      </Section>
-
-      <Section id="underlying-numbers" title="Underlying Numbers">
-        <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Charts, not tables — expected-vs-actual scatter plots (xG vs Goals, xA vs Assists, xGI vs Goals+Assists, ICT vs Goals+Assists,
-          and a defensive equivalent with a colour-coded third dimension for xGC/Game), a Value section (Price vs Points — with gridlines
-          at every £0.5m — plus xG/£m and xA/£m leaderboards), and a User Analysis tool for saving your own graphs. Leaderboards that
-          already exist on the Dashboard (Points, xGI, Points/£m, xGI/£m, Goals Above/Below xG) aren't repeated here — see the Dashboard
-          for those.
-        </p>
-        <p className="page-subtitle">
-          <strong>Expected vs Actual</strong>, <strong>Value</strong>, and each graph inside <strong>User Analysis</strong> each carry
-          their own analysis-mode toggle and search/filter bar — changing one section's (or one saved graph's) toggle, search, position,
-          team, or minutes filter only ever recomputes that section's own charts and summary tiles, never another section's.
-          Setting Value's toggle to Historic Average, say, has no effect on Expected vs Actual's charts or "Top xG"/"Top xA" tiles above
-          it, and vice versa.
-        </p>
-        <p className="page-subtitle">
-          <strong>Thematic Analysis</strong>, further down the page, is deliberately built outside the Last Completed Season / Historic
-          Average / Current Season toggle everything above uses — it needs a genuine multi-season time series, which that single-season
-          toggle can't represent. It shows average points by position and by price tier across every season on record, injury-hit or
-          light seasons included — the same reasoning Historic Average uses; price tier uses each
-          season's own price (not today's), and position uses each player's current position, since this app has no record of
-          historical position changes — a position-switcher's older seasons are grouped under where they play now. (<strong>Player
-          Trends</strong>, which uses the same multi-season data, now lives under Player Comparison, further down this guide.)
-        </p>
-        <p className="page-subtitle">
-          Two of the five expected-vs-actual charts intentionally have no dashed reference line, for different reasons. <strong>ICT Index
-          vs Goals + Assists</strong>: ICT is a composite influence/creativity/threat score on its own scale, not the same unit as
-          Goals + Assists, so a 45° "expected output" line would be meaningless — it shows pattern and correlation only.{" "}
-          <strong>Defensive Contribution/Game vs Defensive Reward/Game</strong> is the other, for the reason spelled out below.
-        </p>
-        <p className="page-subtitle">
-          <strong>User Analysis</strong> starts empty — nothing is created for you. Click <strong>+ Add Graph</strong> and pick a name, a
-          graph type (a Scatter Plot comparing two metrics, or a Bar Chart ranking the top 15 players by one), and the metric(s) to plot,
-          then Create (or Cancel to back out without saving anything). Up to 5 graphs can be saved at once, kept in your browser for
-          future visits; each gets its own analysis-mode toggle and filter bar, and a Remove button on its own card. An arbitrary pair of
-          metrics usually isn't an expected-vs-actual relationship, so a scatter graph here never draws a 45° reference line.
-        </p>
-        <p className="page-subtitle">
-          <strong>Defensive Contribution/Game vs Defensive Reward/Game</strong> is the hardest of the five to read honestly, so it's spelled
-          out here: the x-axis is the qualifying-action rate that earns Defensive Contribution points (CBIT for defenders, CBIRT for
-          midfielders/forwards) — capped at 2 points per match, so the rate doesn't convert to points linearly. The y-axis is
-          clean-sheet points/game plus <em>total</em> bonus/game — bonus isn't isolated to defensive actions specifically, since goals,
-          assists, clean sheets and saves all feed the same Bonus Points System, so treat it as a proxy, not an attribution. Dot colour
-          is Expected Goals Conceded/Game (green = tighter expected defence, red = leakier), scaled to the range actually present in the
-          current view. Goalkeepers are excluded, since the Defensive Contribution mechanic doesn't apply to them, and in historic
-          modes, seasons before 2024/25 (when the FPL API started tracking it) are excluded from the average rather than diluting it
-          with an untracked zero.
-        </p>
-        <Try>Click any dot on a chart to open that player's profile directly — the charts aren't just for looking, they're a navigation shortcut too.</Try>
       </Section>
 
       <Section id="team-building" title="Team Building — the one predictive section">

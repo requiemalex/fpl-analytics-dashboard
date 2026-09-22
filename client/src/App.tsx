@@ -12,7 +12,6 @@ import { TeamDetailOverlay } from "./components/TeamDetailOverlay";
 // on first visit only.
 const Dashboard = lazy(() => import("./pages/Dashboard").then((m) => ({ default: m.Dashboard })));
 const PlayerExplorer = lazy(() => import("./pages/PlayerExplorer").then((m) => ({ default: m.PlayerExplorer })));
-const UnderlyingNumbers = lazy(() => import("./pages/UnderlyingNumbers").then((m) => ({ default: m.UnderlyingNumbers })));
 const Teams = lazy(() => import("./pages/Teams").then((m) => ({ default: m.Teams })));
 const TeamBuilder = lazy(() => import("./pages/TeamBuilder").then((m) => ({ default: m.TeamBuilder })));
 const PlayerComparison = lazy(() => import("./pages/PlayerComparison").then((m) => ({ default: m.PlayerComparison })));
@@ -28,7 +27,6 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/players" element={<PlayerExplorer />} />
-                <Route path="/underlying" element={<UnderlyingNumbers />} />
                 <Route path="/teams" element={<Teams />} />
                 <Route path="/player-comparison" element={<PlayerComparison />} />
                 <Route path="/team-building" element={<TeamBuilder />} />
