@@ -7,6 +7,7 @@ import { filterPlayers } from "../state/useFilteredPlayers";
 import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFilters";
 import { ANALYSIS_MODE_OPTIONS } from "../components/AnalysisModeToggle";
 import { FiltersBar } from "../components/FiltersBar";
+import { FilterIcon } from "../components/IconToolbar";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { TeamPicker } from "../components/TeamPicker";
 import { TopList, type TopListRow } from "../components/TopList";
@@ -110,6 +111,38 @@ function CreateViewIcon() {
       <circle cx="11.6" cy="11.6" r="3.2" fill="var(--surface-raised)" stroke="currentColor" strokeWidth="1.2" />
       <line x1="11.6" y1="10.1" x2="11.6" y2="13.1" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
       <line x1="10.1" y1="11.6" x2="13.1" y2="11.6" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Add Player Tile's "Player Search" toggle icon — plain magnifying glass, paired with FilterIcon's funnel for "Filters". */
+function PlayerSearchIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <circle cx="6.8" cy="6.8" r="4.3" stroke="currentColor" strokeWidth="1.3" />
+      <line x1="9.9" y1="9.9" x2="13.5" y2="13.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Add Team Tile's "All Teams" toggle icon — a 2x2 grid standing for "every team", paired with TargetIcon for "Team Selection". */
+function AllTeamsIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.2" />
+      <rect x="9" y="1.5" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.2" />
+      <rect x="1.5" y="9" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.2" />
+      <rect x="9" y="9" width="5.5" height="5.5" rx="1" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  );
+}
+
+/** Add Team Tile's "Team Selection" toggle icon — a target, standing for picking specific ones out of the full set above. */
+function TeamSelectionIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2" />
+      <circle cx="8" cy="8" r="2.3" fill="currentColor" />
     </svg>
   );
 }
@@ -767,22 +800,26 @@ export function Dashboard() {
             </div>
             {tileView === "player" && (
               <>
-                <div className="chip-row" style={{ marginBottom: 12 }}>
+                <div className="chip-row" style={{ marginTop: 14, marginBottom: 12 }}>
                   <button
                     type="button"
-                    className={`chip${newTilePlayerMode === "filters" ? " active" : ""}`}
+                    className={`chip chip-icon${newTilePlayerMode === "filters" ? " active" : ""}`}
+                    title="Filters — narrow by position, team, and minutes"
+                    aria-label="Filters"
                     aria-pressed={newTilePlayerMode === "filters"}
                     onClick={() => togglePlayerTileMode("filters")}
                   >
-                    Filters
+                    <FilterIcon />
                   </button>
                   <button
                     type="button"
-                    className={`chip${newTilePlayerMode === "players" ? " active" : ""}`}
+                    className={`chip chip-icon${newTilePlayerMode === "players" ? " active" : ""}`}
+                    title="Player Search — track up to 5 specific players"
+                    aria-label="Player Search"
                     aria-pressed={newTilePlayerMode === "players"}
                     onClick={() => togglePlayerTileMode("players")}
                   >
-                    Player Search
+                    <PlayerSearchIcon />
                   </button>
                 </div>
                 {newTilePlayerMode === "filters" ? (
@@ -830,22 +867,26 @@ export function Dashboard() {
             )}
             {tileView === "team" && (
               <>
-                <div className="chip-row" style={{ marginBottom: 12 }}>
+                <div className="chip-row" style={{ marginTop: 14, marginBottom: 12 }}>
                   <button
                     type="button"
-                    className={`chip${newTileTeamMode === "all" ? " active" : ""}`}
+                    className={`chip chip-icon${newTileTeamMode === "all" ? " active" : ""}`}
+                    title="All Teams — rank every team"
+                    aria-label="All Teams"
                     aria-pressed={newTileTeamMode === "all"}
                     onClick={() => toggleTeamTileMode("all")}
                   >
-                    All Teams
+                    <AllTeamsIcon />
                   </button>
                   <button
                     type="button"
-                    className={`chip${newTileTeamMode === "selected" ? " active" : ""}`}
+                    className={`chip chip-icon${newTileTeamMode === "selected" ? " active" : ""}`}
+                    title="Team Selection — track up to 5 specific teams"
+                    aria-label="Team Selection"
                     aria-pressed={newTileTeamMode === "selected"}
                     onClick={() => toggleTeamTileMode("selected")}
                   >
-                    Team Selection
+                    <TeamSelectionIcon />
                   </button>
                 </div>
                 {newTileTeamMode === "selected" && (
