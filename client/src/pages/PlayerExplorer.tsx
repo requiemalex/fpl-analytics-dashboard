@@ -11,10 +11,10 @@ import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePla
 import { getUpcomingFixtures, formatFixturesForCsv, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFilters";
-import { PositionBadge, SignedNum, AvailabilityFlag, availabilityTextClass, FixtureChips } from "../components/primitives";
+import { PositionBadge, TeamBadge, SignedNum, AvailabilityFlag, availabilityTextClass, FixtureChips } from "../components/primitives";
 import { PLAYER_COLUMNS, columnByKey, isStaticColumn, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { IconChipButton, ResetIcon, ColumnsIcon, FilterIcon, DownloadIcon } from "../components/IconToolbar";
-import { fmtSigned, DASH } from "../utils/format";
+import { fmtSigned, fmtPercent, fmtPrice, DASH } from "../utils/format";
 import { relativeCellTint } from "../utils/colorScale";
 import { downloadCsv } from "../utils/csvExport";
 import type { NormalizedPlayer, Position } from "../types/normalized";
@@ -39,27 +39,30 @@ const FIXTURES_COLUMN_KEY = "fixtures";
  */
 const TEAM_COLUMN_KEY = "team";
 const POSITION_COLUMN_KEY = "position";
-const IDENTITY_COLUMN_KEYS = [TEAM_COLUMN_KEY, POSITION_COLUMN_KEY] as const;
-const SPECIAL_COLUMN_KEYS = new Set<string>([FIXTURES_COLUMN_KEY, ...IDENTITY_COLUMN_KEYS]);
-type SpecialColumnKey = typeof FIXTURES_COLUMN_KEY | (typeof IDENTITY_COLUMN_KEYS)[number];
+/** Team/Position's own key type — narrower than SpecialColumnKey below, so IDENTITY_COLUMNS (which never contains "fixtures") type-narrows fully after excluding just these two. */
+type IdentityColumnKey = typeof TEAM_COLUMN_KEY | typeof POSITION_COLUMN_KEY;
+/** The broader union — every special string key across the whole page — used only by columnLabel/cellValue, which handle all three and are shared by both the identity block and the flexible columns. */
+type SpecialColumnKey = typeof FIXTURES_COLUMN_KEY | IdentityColumnKey;
 const POSITION_OPTIONS: Position[] = ["GKP", "DEF", "MID", "FWD"];
 
-/** This page's own default visible-column order — deliberately NOT the shared DEFAULT_VISIBLE_COLUMNS (Team Building also uses that one; changing it would silently change Team Building's defaults too). Ownership, Price, Team, Position lead as one "always live" identity cluster, matching their shared red header styling; everything else follows in the same order DEFAULT_VISIBLE_COLUMNS always has. */
-const EXPLORER_DEFAULT_VISIBLE_COLUMNS = [
-  "ownership",
-  "price",
-  TEAM_COLUMN_KEY,
-  POSITION_COLUMN_KEY,
-  "totalPoints",
-  "pointsPerGame",
-  "goals",
-  "assists",
-  "pointsPerMillion",
-  "xG",
-  "xA",
-  "xGI",
-  "minutes",
-];
+/**
+ * Ownership, Price, Team, Position — a fixed, non-toggleable, non-reorderable
+ * block that always renders immediately after the sticky Player column, in
+ * this exact order, separated from the user-configurable columns by a grey
+ * divider (see the `column-group-divider` class below). Ownership and Price
+ * are real PLAYER_COLUMNS entries (columnByKey below is a lookup, not a
+ * redefinition); Team/Position are the same special string keys used
+ * elsewhere on this page. Excluded from `EXPLORER_DEFAULT_VISIBLE_COLUMNS`,
+ * the column picker popover, and the reorder/toggle machinery entirely —
+ * still sortable (click header), filterable (numeric for Ownership/Price,
+ * category dropdown for Team/Position), and individually resizable, just
+ * never removable or draggable out of place.
+ */
+const IDENTITY_COLUMNS: (PlayerColumn | IdentityColumnKey)[] = [columnByKey("ownership")!, columnByKey("price")!, TEAM_COLUMN_KEY, POSITION_COLUMN_KEY];
+const FIXED_COLUMN_KEYS = new Set<string>(["ownership", "price", TEAM_COLUMN_KEY, POSITION_COLUMN_KEY]);
+
+/** This page's own default visible-column order for the user-configurable columns only — deliberately NOT the shared DEFAULT_VISIBLE_COLUMNS (Team Building also uses that one; changing it would silently change Team Building's defaults too). Ownership/Price/Team/Position are never part of this list — see IDENTITY_COLUMNS above. */
+const EXPLORER_DEFAULT_VISIBLE_COLUMNS = ["totalPoints", "pointsPerGame", "goals", "assists", "pointsPerMillion", "xG", "xA", "xGI", "minutes"];
 
 export function PlayerExplorer() {
   const { players, teamsById, fixtures, advancedFieldAvailability, historicProfiles, historicStatus, currentSeasonHasStarted, requestHistoricData } = useAppState();
@@ -115,6 +118,8 @@ export function PlayerExplorer() {
   } = useColumnCustomization(EXPLORER_DEFAULT_VISIBLE_COLUMNS);
   const tableWrapRef = useRef<HTMLDivElement>(null);
   const stickyColRef = useRef<HTMLTableCellElement>(null);
+  /** The last (Position) identity column's cell — combined with stickyColRef, gives the fixed identity block's total rendered width (Player column's right edge to Position column's right edge), so handleFitToBox can hand the flexible engine only the width that's actually left over for it. */
+  const identityEndRef = useRef<HTMLTableCellElement>(null);
 
   const rows = useMemo(
     () =>
@@ -170,12 +175,16 @@ export function PlayerExplorer() {
     return arr;
   }, [filteredRows, sort]);
 
-  /** Measures the sticky Player column actually rendered, then hands the remaining width to the shared engine. */
+  /** Measures the sticky Player column and the fixed identity block (Ownership/Price/Team/Position) actually rendered, then hands only what's left over to the shared engine for the user-configurable columns. */
   function handleFitToBox() {
     const container = tableWrapRef.current;
     if (!container) return;
     const stickyWidth = stickyColRef.current?.getBoundingClientRect().width ?? 170;
-    fitToBox(container.clientWidth - stickyWidth - 4);
+    const identityWidth =
+      identityEndRef.current && stickyColRef.current
+        ? identityEndRef.current.getBoundingClientRect().right - stickyColRef.current.getBoundingClientRect().right
+        : 0;
+    fitToBox(container.clientWidth - stickyWidth - identityWidth - 4);
   }
 
   // Column widths auto-fit the table's available width — on first load
@@ -200,30 +209,31 @@ export function PlayerExplorer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // A column is either a real PLAYER_COLUMNS entry or one of the special
-  // string keys above (Fixtures, Team, Position) — those don't derive from
-  // a PlayerColumn, so `typeof c === "string"` is used throughout as the
-  // generic "is this a special column" check. FIXTURES_COLUMN_KEY alone is
-  // further distinguished from Team/Position where sort/filter behaviour
-  // differs (see the header/cell rendering below).
+  // The user-configurable columns — a real PLAYER_COLUMNS entry, or the
+  // special Fixtures key (renders fixture chips, not a number). Team/Position
+  // never appear here — they're part of the fixed IDENTITY_COLUMNS block
+  // above, never toggled into `visibleColumns` at all (see toggleColumn's
+  // call sites: only Fixtures and the PLAYER_COLUMNS checkboxes call it).
   const columnsInOrder = useMemo(
     () =>
       visibleColumns
-        .map((key) => (SPECIAL_COLUMN_KEYS.has(key) ? (key as SpecialColumnKey) : columnByKey(key)))
-        .filter((c): c is PlayerColumn | SpecialColumnKey => !!c),
+        .map((key) => (key === FIXTURES_COLUMN_KEY ? key : columnByKey(key)))
+        .filter((c): c is PlayerColumn | typeof FIXTURES_COLUMN_KEY => !!c),
     [visibleColumns],
   );
 
   // Per-column min/max across the rows currently shown (post-filter,
   // post-sort) — same scoping as Team Building's tint: "how does this
   // compare to what you're looking at right now", not an absolute scale.
-  // Special columns are skipped here entirely — Fixtures already has its
-  // own per-chip FDR colour, and Team/Position are categorical (a min/max
-  // comparative tint would be meaningless for a team name or position) —
-  // a second tint layered on top would just be noise either way.
+  // Covers IDENTITY_COLUMNS too (Ownership/Price keep their comparative
+  // tint even though they're now a fixed block) — special columns are
+  // skipped either way: Fixtures already has its own per-chip FDR colour,
+  // and Team/Position are categorical (a min/max comparative tint would be
+  // meaningless for a team name or position) — a second tint layered on
+  // top would just be noise either way.
   const columnRanges = useMemo(() => {
     const ranges = new Map<string, { min: number; max: number }>();
-    for (const c of columnsInOrder) {
+    for (const c of [...IDENTITY_COLUMNS, ...columnsInOrder]) {
       if (typeof c === "string") continue;
       const values = sortedRows.map((r) => c.getValue(r.player, r.derived)).filter((v): v is number => v !== null);
       if (values.length > 0) ranges.set(c.key, { min: Math.min(...values), max: Math.max(...values) });
@@ -246,24 +256,27 @@ export function PlayerExplorer() {
     return c.label;
   }
 
+  /** Shared by the CSV export for both the fixed identity block and the flexible columns. */
+  function cellValue(c: PlayerColumn | SpecialColumnKey, player: NormalizedPlayer, derived: PlayerDerivedMetrics): string {
+    if (c === FIXTURES_COLUMN_KEY) return formatFixturesForCsv(fixturesByTeamId.get(player.teamId) ?? []);
+    if (c === TEAM_COLUMN_KEY) return player.teamShortName;
+    if (c === POSITION_COLUMN_KEY) return player.position;
+    const value = c.getValue(player, derived);
+    if (c.key === "goalsMinusXG" || c.key === "assistsMinusXA") return value !== null ? fmtSigned(value, 2) : DASH;
+    return c.format(value);
+  }
+
   // Matches exactly what's on screen — same rows (filtered/sorted), same
-  // visible columns in the same order (Player's name is the only column
-  // that's always exported regardless of the toggleable set, since it's
-  // the permanent sticky identity column), same formatted values (— for
-  // unavailable) — so the export is never a surprise relative to the
-  // table it was taken from.
+  // columns in the same order (Player's name, then the fixed Ownership/
+  // Price/Team/Position block, then the user-configurable columns), same
+  // formatted values (— for unavailable) — so the export is never a
+  // surprise relative to the table it was taken from.
   function handleExportCsv() {
-    const headers = ["Player", ...columnsInOrder.map(columnLabel)];
+    const headers = ["Player", ...IDENTITY_COLUMNS.map(columnLabel), ...columnsInOrder.map(columnLabel)];
     const rows = sortedRows.map(({ player, derived }) => {
-      const cells = columnsInOrder.map((c) => {
-        if (c === FIXTURES_COLUMN_KEY) return formatFixturesForCsv(fixturesByTeamId.get(player.teamId) ?? []);
-        if (c === TEAM_COLUMN_KEY) return player.teamShortName;
-        if (c === POSITION_COLUMN_KEY) return player.position;
-        const value = c.getValue(player, derived);
-        if (c.key === "goalsMinusXG" || c.key === "assistsMinusXA") return value !== null ? fmtSigned(value, 2) : DASH;
-        return c.format(value);
-      });
-      return [player.name, ...cells];
+      const identityCells = IDENTITY_COLUMNS.map((c) => cellValue(c, player, derived));
+      const cells = columnsInOrder.map((c) => cellValue(c, player, derived));
+      return [player.name, ...identityCells, ...cells];
     });
     downloadCsv(`player-explorer-${analysisMode}-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
   }
@@ -309,23 +322,7 @@ export function PlayerExplorer() {
             />
             {showColumnPopover && (
               <div className="popover" style={{ left: 0, right: "auto" }}>
-                <div style={{ marginBottom: 8 }}>
-                  <div style={{ fontSize: 10.5, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600, marginBottom: 2 }}>
-                    Identity
-                  </div>
-                  <label>
-                    <input type="checkbox" checked={visibleColumns.includes(TEAM_COLUMN_KEY)} onChange={() => toggleColumn(TEAM_COLUMN_KEY)} />
-                    Team
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={visibleColumns.includes(POSITION_COLUMN_KEY)}
-                      onChange={() => toggleColumn(POSITION_COLUMN_KEY)}
-                    />
-                    Position
-                  </label>
-                </div>
+                {/* Ownership/Price/Team/Position aren't listed here at all — they're the fixed identity block (IDENTITY_COLUMNS), always shown, never toggleable. */}
                 <div style={{ marginBottom: 8 }}>
                   <div style={{ fontSize: 10.5, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600, marginBottom: 2 }}>
                     Other
@@ -344,7 +341,7 @@ export function PlayerExplorer() {
                     <div style={{ fontSize: 10.5, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600, marginBottom: 2 }}>
                       {group}
                     </div>
-                    {PLAYER_COLUMNS.filter((c) => c.group === group).map((c) => (
+                    {PLAYER_COLUMNS.filter((c) => c.group === group && !FIXED_COLUMN_KEYS.has(c.key)).map((c) => (
                       <label key={c.key}>
                         <input type="checkbox" checked={visibleColumns.includes(c.key)} onChange={() => toggleColumn(c.key)} />
                         {c.label}
@@ -403,26 +400,65 @@ export function PlayerExplorer() {
                 <th className="sticky-col" ref={stickyColRef} onClick={() => handleHeaderClick("name", false)}>
                   Player
                 </th>
-                {columnsInOrder.map((c) => {
-                  const isSpecial = typeof c === "string";
-                  const key = isSpecial ? c : c.key;
+                {IDENTITY_COLUMNS.map((c, idx) => {
+                  const key = typeof c === "string" ? c : c.key;
                   const label = columnLabel(c);
-                  // Fixtures alone stays unsortable/unfilterable — it renders a row of
-                  // fixture chips, not a single comparable value. Team/Position ARE
-                  // sortable and filterable (via a category dropdown), despite also
-                  // being special string-keyed columns.
-                  const isFixtures = c === FIXTURES_COLUMN_KEY;
-                  const sortEntry = isFixtures ? undefined : sort.find((s) => s.key === key);
+                  const sortEntry = sort.find((s) => s.key === key);
                   const width = columnWidths[key];
-                  // Fixtures/Team/Position are always the player's live figures, regardless of analysis mode.
-                  const isStatic = isSpecial || isStaticColumn(c as PlayerColumn);
                   const categoryOptions =
                     c === TEAM_COLUMN_KEY ? teamCategoryOptions : c === POSITION_COLUMN_KEY ? POSITION_OPTIONS : undefined;
                   return (
                     <th
                       key={key}
+                      ref={idx === IDENTITY_COLUMNS.length - 1 ? identityEndRef : undefined}
+                      className="col-static"
+                      onClick={(e) => handleHeaderClick(key, e.shiftKey)}
+                      title="Always today's live figure, regardless of the toggle above · Click to sort · Shift-click to add secondary sort · Drag the right edge to resize"
+                      style={{
+                        position: "relative",
+                        width: width ? `${width}px` : undefined,
+                        maxWidth: width ? `${width}px` : undefined,
+                      }}
+                    >
+                      {label}
+                      {sortEntry && <span className="sort-indicator">{sortEntry.direction === "asc" ? "↑" : "↓"}</span>}
+                      <ColumnFilterControl
+                        isOpen={columnFiltersState.openFilterKey === key}
+                        isActive={isColumnFilterActive(columnFiltersState.columnFilters[key])}
+                        filterDraft={columnFiltersState.filterDraft}
+                        onOpen={() => columnFiltersState.openFilter(key)}
+                        onCancel={columnFiltersState.cancelFilter}
+                        onConfirm={columnFiltersState.confirmFilter}
+                        onDraftChange={columnFiltersState.setFilterDraft}
+                        categoryOptions={categoryOptions}
+                      />
+                      <span
+                        className={`column-resize-handle${resizingKey === key ? " resizing" : ""}`}
+                        draggable={false}
+                        onPointerDown={(e) => startResize(e, key)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </th>
+                  );
+                })}
+                {columnsInOrder.map((c, idx) => {
+                  const isSpecial = typeof c === "string";
+                  const key = isSpecial ? c : c.key;
+                  const label = columnLabel(c);
+                  // Fixtures alone stays unsortable/unfilterable — it renders a row of
+                  // fixture chips, not a single comparable value.
+                  const isFixtures = c === FIXTURES_COLUMN_KEY;
+                  const sortEntry = isFixtures ? undefined : sort.find((s) => s.key === key);
+                  const width = columnWidths[key];
+                  // Fixtures is always the player's live figure, regardless of analysis mode.
+                  const isStatic = isFixtures || isStaticColumn(c as PlayerColumn);
+                  // Grey divider between the fixed Ownership/Price/Team/Position block and these user-configurable columns — only the first one carries it.
+                  const className = [isStatic && "col-static", idx === 0 && "column-group-divider"].filter(Boolean).join(" ") || undefined;
+                  return (
+                    <th
+                      key={key}
                       draggable
-                      className={isStatic ? "col-static" : undefined}
+                      className={className}
                       onDragStart={(e) => e.dataTransfer.setData("text/plain", key)}
                       onDragOver={(e) => {
                         e.preventDefault();
@@ -464,7 +500,6 @@ export function PlayerExplorer() {
                           onCancel={columnFiltersState.cancelFilter}
                           onConfirm={columnFiltersState.confirmFilter}
                           onDraftChange={columnFiltersState.setFilterDraft}
-                          categoryOptions={categoryOptions}
                         />
                       )}
                       <span
@@ -488,16 +523,37 @@ export function PlayerExplorer() {
                         <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />
                       </span>
                       <span className="meta">
+                        {fmtPercent(player.ownership)} · {fmtPrice(player.price)}
+                        <TeamBadge teamId={player.teamId} shortName={player.teamShortName} />
                         <PositionBadge position={player.position} />
                       </span>
                     </div>
                   </td>
-                  {columnsInOrder.map((c) => {
+                  {IDENTITY_COLUMNS.map((c) => {
+                    const width = columnWidths[typeof c === "string" ? c : c.key];
+                    const widthStyle = width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const } : {};
+                    if (c === TEAM_COLUMN_KEY || c === POSITION_COLUMN_KEY) {
+                      return (
+                        <td key={c} style={widthStyle}>
+                          {c === TEAM_COLUMN_KEY ? <TeamBadge teamId={player.teamId} shortName={player.teamShortName} /> : <PositionBadge position={player.position} />}
+                        </td>
+                      );
+                    }
+                    const value = c.getValue(player, derived);
+                    return (
+                      <td key={c.key} style={{ ...widthStyle, backgroundColor: columnTint(player, derived, c) }}>
+                        {c.format(value)}
+                      </td>
+                    );
+                  })}
+                  {columnsInOrder.map((c, idx) => {
+                    const dividerClass = idx === 0 ? "column-group-divider" : undefined;
                     if (c === FIXTURES_COLUMN_KEY) {
                       const width = columnWidths[FIXTURES_COLUMN_KEY];
                       return (
                         <td
                           key={FIXTURES_COLUMN_KEY}
+                          className={dividerClass}
                           style={{
                             textAlign: "left",
                             ...(width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden" } : {}),
@@ -507,23 +563,13 @@ export function PlayerExplorer() {
                         </td>
                       );
                     }
-                    if (c === TEAM_COLUMN_KEY || c === POSITION_COLUMN_KEY) {
-                      const width = columnWidths[c];
-                      return (
-                        <td
-                          key={c}
-                          style={width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } : undefined}
-                        >
-                          {c === TEAM_COLUMN_KEY ? player.teamShortName : <PositionBadge position={player.position} />}
-                        </td>
-                      );
-                    }
                     const value = c.getValue(player, derived);
                     const isSignedMetric = c.key === "goalsMinusXG" || c.key === "assistsMinusXA";
                     const width = columnWidths[c.key];
                     return (
                       <td
                         key={c.key}
+                        className={dividerClass}
                         style={{
                           ...(width
                             ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }
