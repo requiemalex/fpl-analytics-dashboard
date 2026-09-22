@@ -2,11 +2,17 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
-import { getUpcomingFixtures } from "../metrics/fixtureTicker";
+import { getUpcomingFixtures, averageFixtureDifficulty } from "../metrics/fixtureTicker";
+import { computePositionPercentiles } from "../metrics/percentiles";
+import { computeTeamAggregates, computeTeamRadarData, TEAM_DEFENSE_AXES, TEAM_OFFENSE_AXES, type TeamAggregate } from "../metrics/teamStats";
+import { relativeCellTint, percentileTint } from "../utils/colorScale";
+import { effectiveMinMinutes } from "../state/useFilteredPlayers";
+import { DEFAULT_FILTERS } from "../state/scoutingFilters";
 import { AnalysisModeToggle } from "./AnalysisModeToggle";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass, FixtureChips } from "./primitives";
+import { PercentileRadarChart } from "./PlayerRadarChart";
 import { fmtDecimal, fmtPrice, DASH } from "../utils/format";
-import type { NormalizedTeam } from "../types/normalized";
+import type { NormalizedPlayer, NormalizedTeam } from "../types/normalized";
 
 function useSelectedTeam(): [NormalizedTeam | null, (id: number | null) => void] {
   const { teamsById } = useAppState();
@@ -35,10 +41,10 @@ function CloseIcon() {
   );
 }
 
-/** Label-above-value tile — same visual language as the player profile's StatTile, without the percentile tint (there's no cross-team population computed here for a first-draft team profile). */
-function StatTile({ label, value }: { label: string; value: React.ReactNode }) {
+/** Label-above-value tile — same visual language as the player profile's StatTile. `tint` is a pre-computed CSS colour (from relativeCellTint, comparing this team against every other team) rather than a percentile, since the range here is a simple league-wide min/max, not a within-position percentile. */
+function StatTile({ label, value, tint }: { label: string; value: React.ReactNode; tint?: string }) {
   return (
-    <div className="stat-tile">
+    <div className="stat-tile" style={tint ? { background: tint } : undefined}>
       <span className="stat-tile-label">{label}</span>
       <span className="stat-tile-value num">{value}</span>
     </div>
@@ -46,7 +52,7 @@ function StatTile({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function TeamDetailOverlay() {
-  const { players, teamsById, fixtures, historicProfiles, currentSeasonHasStarted, requestHistoricData } = useAppState();
+  const { players, teams, teamsById, fixtures, historicProfiles, currentSeasonHasStarted, requestHistoricData } = useAppState();
   useEffect(() => {
     requestHistoricData();
   }, [requestHistoricData]);
@@ -77,26 +83,87 @@ export function TeamDetailOverlay() {
       });
   }, [resolvedPlayers, team]);
 
-  const squadTotals = useMemo(() => {
-    const sum = (values: (number | null)[]): number | null => {
-      const nonNull = values.filter((v): v is number => v !== null);
-      if (nonNull.length === 0) return null;
-      return nonNull.reduce((a, b) => a + b, 0);
-    };
-    return {
-      points: sum(squad.map((p) => p.totalPoints)),
-      goals: sum(squad.map((p) => p.goals)),
-      assists: sum(squad.map((p) => p.assists)),
-      xG: sum(squad.map((p) => p.xG)),
-      xA: sum(squad.map((p) => p.xA)),
-      xGI: sum(squad.map((p) => p.xGI)),
-      cleanSheets: sum(squad.map((p) => p.cleanSheets)),
-    };
-  }, [squad]);
+  // Comparative colouring needs the full team pool, never just this squad
+  // — same <percentile_population> rule the rest of the app follows for
+  // players. Shared computeTeamAggregates (metrics/teamStats.ts) also
+  // backs the new Team Radar section below.
+  const allTeamAggregates = useMemo(() => computeTeamAggregates(teams, resolvedPlayers, fixtures), [teams, resolvedPlayers, fixtures]);
+  const squadTotals: TeamAggregate | null = useMemo(
+    () => (team ? (allTeamAggregates.find((t) => t.teamId === team.id) ?? null) : null),
+    [allTeamAggregates, team],
+  );
+
+  const squadTotalRanges = useMemo(() => {
+    const ranges = new Map<string, { min: number; max: number }>();
+    const keys: (keyof TeamAggregate)[] = ["points", "goals", "assists", "xG", "xA", "xGI", "cleanSheets"];
+    for (const key of keys) {
+      const values = allTeamAggregates.map((t) => t[key]).filter((v): v is number => typeof v === "number");
+      if (values.length > 0) ranges.set(key, { min: Math.min(...values), max: Math.max(...values) });
+    }
+    return ranges;
+  }, [allTeamAggregates]);
+
+  function totalsTint(key: keyof TeamAggregate): string | undefined {
+    const range = squadTotalRanges.get(key);
+    const v = squadTotals?.[key];
+    if (!range || typeof v !== "number") return undefined;
+    return relativeCellTint(v, range.min, range.max, true);
+  }
 
   const upcomingFixtures = useMemo(() => (team ? getUpcomingFixtures(team.id, fixtures, teamsById) : []), [team, fixtures, teamsById]);
 
-  if (!team) return null;
+  // Average upcoming-fixture difficulty, for every team, so this team's own
+  // average can be tinted relative to the whole league — lower average
+  // difficulty is easier, hence "better" (higherIsBetter: false below).
+  const avgFdrRange = useMemo(() => {
+    const values = teams
+      .map((t) => averageFixtureDifficulty(getUpcomingFixtures(t.id, fixtures, teamsById)))
+      .filter((v): v is number => v !== null);
+    if (values.length === 0) return null;
+    return { min: Math.min(...values), max: Math.max(...values) };
+  }, [teams, fixtures, teamsById]);
+
+  const avgFdrTint = useMemo(() => {
+    const avg = averageFixtureDifficulty(upcomingFixtures);
+    if (avg === null || !avgFdrRange) return undefined;
+    return relativeCellTint(avg, avgFdrRange.min, avgFdrRange.max, false);
+  }, [upcomingFixtures, avgFdrRange]);
+
+  // Per-player comparative colouring for the Squad Summary table — same
+  // within-position percentile population/threshold PlayerDetailOverlay
+  // uses for its own stat tiles (never squad-filtered — see
+  // <percentile_population>).
+  const minMinutes = effectiveMinMinutes(DEFAULT_FILTERS, analysisMode);
+  const squadPercentiles = useMemo(() => {
+    const metrics: Record<string, { fn: (p: NormalizedPlayer) => number | null; higherIsBetter: boolean }> = {
+      totalPoints: { fn: (p) => p.totalPoints, higherIsBetter: true },
+      xGI: { fn: (p) => p.xGI, higherIsBetter: true },
+      xGC: { fn: (p) => p.xGC, higherIsBetter: false },
+      defensiveContributions: { fn: (p) => p.defensiveContributions, higherIsBetter: true },
+    };
+    const result = new Map<string, Map<number, number | null>>();
+    for (const [key, { fn, higherIsBetter }] of Object.entries(metrics)) {
+      const raw = computePositionPercentiles(resolvedPlayers, fn, minMinutes);
+      const flipped = new Map<number, number | null>();
+      for (const [playerId, percentile] of raw) flipped.set(playerId, percentile === null ? null : higherIsBetter ? percentile : 100 - percentile);
+      result.set(key, flipped);
+    }
+    return result;
+  }, [resolvedPlayers, minMinutes]);
+
+  function squadCellTint(playerId: number, key: string): string | undefined {
+    return percentileTint(squadPercentiles.get(key)?.get(playerId) ?? null);
+  }
+
+  const teamRadarGroups = useMemo(() => {
+    if (!squadTotals) return [];
+    return [
+      { label: "Defense", data: computeTeamRadarData(TEAM_DEFENSE_AXES, squadTotals, allTeamAggregates) },
+      { label: "Offense", data: computeTeamRadarData(TEAM_OFFENSE_AXES, squadTotals, allTeamAggregates) },
+    ];
+  }, [squadTotals, allTeamAggregates]);
+
+  if (!team || !squadTotals) return null;
 
   function close() {
     setTeamId(null);
@@ -138,23 +205,23 @@ export function TeamDetailOverlay() {
 
         <div className="profile-section">
           <div className="profile-section-heading">
-            <h3>Squad Overview</h3>
+            <h3>Views</h3>
           </div>
           <div className="profile-columns">
             <div className="card">
               <div className="card-title">Squad Totals</div>
               <div className="stat-tile-grid">
-                <StatTile label="Points" value={fmtDecimal(squadTotals.points, 0)} />
-                <StatTile label="Goals" value={fmtDecimal(squadTotals.goals, 0)} />
-                <StatTile label="Assists" value={fmtDecimal(squadTotals.assists, 0)} />
+                <StatTile label="Points" value={fmtDecimal(squadTotals.points, 0)} tint={totalsTint("points")} />
+                <StatTile label="Goals" value={fmtDecimal(squadTotals.goals, 0)} tint={totalsTint("goals")} />
+                <StatTile label="Assists" value={fmtDecimal(squadTotals.assists, 0)} tint={totalsTint("assists")} />
               </div>
               <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                <StatTile label="xG" value={fmtDecimal(squadTotals.xG, 2)} />
-                <StatTile label="xA" value={fmtDecimal(squadTotals.xA, 2)} />
-                <StatTile label="xGI" value={fmtDecimal(squadTotals.xGI, 2)} />
+                <StatTile label="xG" value={fmtDecimal(squadTotals.xG, 2)} tint={totalsTint("xG")} />
+                <StatTile label="xA" value={fmtDecimal(squadTotals.xA, 2)} tint={totalsTint("xA")} />
+                <StatTile label="xGI" value={fmtDecimal(squadTotals.xGI, 2)} tint={totalsTint("xGI")} />
               </div>
               <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                <StatTile label="Clean Sheets" value={fmtDecimal(squadTotals.cleanSheets, 0)} />
+                <StatTile label="Clean Sheets" value={fmtDecimal(squadTotals.cleanSheets, 0)} tint={totalsTint("cleanSheets")} />
               </div>
             </div>
 
@@ -165,7 +232,7 @@ export function TeamDetailOverlay() {
                   No fixtures scheduled.
                 </p>
               ) : (
-                <FixtureChips fixtures={upcomingFixtures} />
+                <FixtureChips fixtures={upcomingFixtures} avgTint={avgFdrTint} />
               )}
             </div>
           </div>
@@ -174,9 +241,6 @@ export function TeamDetailOverlay() {
         <hr className="profile-divider" />
 
         <div className="profile-section">
-          <div className="profile-section-heading">
-            <h3>Squad</h3>
-          </div>
           <div className="card">
             <div className="table-wrap">
               <table className="data-table">
@@ -184,6 +248,9 @@ export function TeamDetailOverlay() {
                   <tr>
                     <th style={{ textAlign: "left" }}>Player</th>
                     <th>Points</th>
+                    <th>xGI</th>
+                    <th>xGC</th>
+                    <th>DC</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -200,12 +267,31 @@ export function TeamDetailOverlay() {
                           </span>
                         </div>
                       </td>
-                      <td>{player.totalPoints !== null ? fmtDecimal(player.totalPoints, 0) : DASH}</td>
+                      <td style={{ backgroundColor: squadCellTint(player.id, "totalPoints") }}>
+                        {player.totalPoints !== null ? fmtDecimal(player.totalPoints, 0) : DASH}
+                      </td>
+                      <td style={{ backgroundColor: squadCellTint(player.id, "xGI") }}>{fmtDecimal(player.xGI, 2)}</td>
+                      <td style={{ backgroundColor: squadCellTint(player.id, "xGC") }}>{fmtDecimal(player.xGC, 2)}</td>
+                      <td style={{ backgroundColor: squadCellTint(player.id, "defensiveContributions") }}>{fmtDecimal(player.defensiveContributions, 0)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+
+        <div className="profile-section">
+          <div className="profile-section-heading">
+            <h3>Team Radar</h3>
+          </div>
+          <div className="profile-columns">
+            {teamRadarGroups.map((group) => (
+              <div className="card" key={group.label}>
+                <div className="card-title">Team Radar — {group.label}</div>
+                <PercentileRadarChart data={group.data} />
+              </div>
+            ))}
           </div>
         </div>
       </div>

@@ -6,7 +6,7 @@ import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { computeRadarDataForAxes, getRadarAxisGroupsForPosition } from "../metrics/radarStats";
 import { computePositionPercentiles } from "../metrics/percentiles";
 import { percentileTint, relativeCellTint } from "../utils/colorScale";
-import { PlayerRadarChart } from "./PlayerRadarChart";
+import { PercentileRadarChart } from "./PlayerRadarChart";
 import { ActualVsExpectedBars } from "./playerProfile/ActualVsExpectedBars";
 import { CareerHistoryChart } from "./playerProfile/CareerHistoryChart";
 import { PlayingTimeIcon } from "./playerProfile/PlayingTimeIcon";
@@ -538,7 +538,7 @@ export function PlayerDetailOverlay() {
                   Percentile Radar{group.label ? ` — ${group.label}` : ` — ${player.position}`}
                   {smallSample && <span style={{ color: "var(--accent-value)" }}> (below eligibility threshold)</span>}
                 </div>
-                <PlayerRadarChart data={smallSample ? group.data.map((d) => ({ ...d, percentile: null })) : group.data} />
+                <PercentileRadarChart data={smallSample ? group.data.map((d) => ({ ...d, percentile: null })) : group.data} />
               </div>
             ))}
 

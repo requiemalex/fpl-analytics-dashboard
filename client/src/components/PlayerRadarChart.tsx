@@ -30,10 +30,10 @@ function RadarTooltip({ active, payload }: any) {
  * being skipped — recharts' RadarChart needs one value per axis to draw
  * a closed shape, and 0 reads correctly here since "no data" and "worst
  * possible" land in the same visual place anyway for a stat that isn't
- * being tracked for this player. The tooltip still says "No data"
+ * being tracked for this player/team. The tooltip still says "No data"
  * explicitly rather than implying an actual bottom-percentile value.
  */
-export function PlayerRadarChart({ data }: { data: RadarDataPoint[] }) {
+export function PercentileRadarChart({ data }: { data: RadarDataPoint[] }) {
   const chartData = data.map((d) => ({ ...d, percentileValue: d.percentile ?? 0 }));
   return (
     <ResponsiveContainer width="100%" height={300}>

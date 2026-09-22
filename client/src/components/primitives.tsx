@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { fmtDecimal, fmtSigned, DASH } from "../utils/format";
 import { getMetricDefinition } from "../metrics/dictionary";
 import { fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
-import { teamDisplayColors } from "../utils/teamColors";
+import { teamDisplayColors, teamIdentityColor } from "../utils/teamColors";
 import type { Position } from "../types/normalized";
 
 export function PositionBadge({ position }: { position: Position }) {
@@ -32,9 +32,18 @@ export function PositionBadge({ position }: { position: Position }) {
  * stopPropagation keeps a badge click from also firing whatever the
  * enclosing row does (e.g. Teams.tsx's row click, which opens the same
  * overlay anyway).
+ *
+ * The badge's dominant colour (text/border/background tint) comes from
+ * teamIdentityColor() — a primary/secondary blend — rather than the plain
+ * primary alone. Several clubs share a near-identical primary (see
+ * <red_cluster_fix> in utils/teamColors.ts), so colouring the dominant,
+ * most-visible part of the badge by primary alone made those clubs read as
+ * "the same colour"; the swatch stripe below stays literal primary/
+ * secondary, unblended, so it still shows each club's real colours too.
  */
 export function TeamBadge({ teamId, shortName }: { teamId: number; shortName: string }) {
   const { primary, secondary } = teamDisplayColors(teamId, shortName);
+  const identity = teamIdentityColor(teamId, shortName);
   const [, setSearchParams] = useSearchParams();
 
   function openProfile(e: React.MouseEvent) {
@@ -49,7 +58,7 @@ export function TeamBadge({ teamId, shortName }: { teamId: number; shortName: st
   return (
     <span
       className="badge team-badge"
-      style={{ color: primary, background: `color-mix(in srgb, ${primary} 12%, transparent)`, cursor: "pointer" }}
+      style={{ color: identity, background: `color-mix(in srgb, ${identity} 12%, transparent)`, cursor: "pointer" }}
       onClick={openProfile}
       role="button"
       tabIndex={0}
@@ -118,8 +127,8 @@ export function SignedNum({ value, decimals = 2 }: { value: number | null | unde
   return <span className={`num ${cls}`}>{fmtSigned(value, decimals)}</span>;
 }
 
-/** A team's upcoming fixtures as coloured FDR chips plus the average difficulty — shared by every table that offers a fixtures column (Team Building's picker, Player Explorer), so the visual reads identically wherever it appears. */
-export function FixtureChips({ fixtures }: { fixtures: UpcomingFixture[] }) {
+/** A team's upcoming fixtures as coloured FDR chips plus the average difficulty — shared by every table that offers a fixtures column (Team Building's picker, Player Explorer), so the visual reads identically wherever it appears. `avgTint` is an optional pre-computed background colour (relativeCellTint, lower-is-better) for the average-difficulty figure — comparative colouring against every other team, used by the team profile's Upcoming Fixtures card; every other caller omits it and gets the plain untinted figure unchanged. */
+export function FixtureChips({ fixtures, avgTint }: { fixtures: UpcomingFixture[]; avgTint?: string }) {
   const avgFdr = averageFixtureDifficulty(fixtures);
   if (fixtures.length === 0 || avgFdr === null) return <span className="value-muted">{DASH}</span>;
   return (
@@ -137,7 +146,7 @@ export function FixtureChips({ fixtures }: { fixtures: UpcomingFixture[] }) {
         ))}
       </div>
       <span
-        style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}
+        style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)", background: avgTint, borderRadius: 3, padding: avgTint ? "1px 4px" : 0 }}
         title="Average fixture difficulty across the fixtures shown (1 = easiest, 5 = hardest)"
       >
         {avgFdr.toFixed(1)}

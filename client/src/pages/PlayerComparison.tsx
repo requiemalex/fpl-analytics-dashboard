@@ -9,7 +9,7 @@ import { buildMultiSeriesTrend, playerMetricTrendDataKey, type TrendMetricKey } 
 import { effectiveMinMinutes } from "../state/useFilteredPlayers";
 import { DEFAULT_FILTERS } from "../state/scoutingFilters";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
-import { PlayerRadarChart } from "../components/PlayerRadarChart";
+import { PercentileRadarChart } from "../components/PlayerRadarChart";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass } from "../components/primitives";
 import { PLAYER_COLUMNS, isStaticColumn, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
@@ -388,7 +388,7 @@ export function PlayerComparison() {
                         {isSmallSample && " (below eligibility threshold)"}
                       </span>
                     </div>
-                    <PlayerRadarChart data={isSmallSample ? radarData.map((d) => ({ ...d, percentile: null })) : radarData} />
+                    <PercentileRadarChart data={isSmallSample ? radarData.map((d) => ({ ...d, percentile: null })) : radarData} />
                   </div>
                 );
               })}

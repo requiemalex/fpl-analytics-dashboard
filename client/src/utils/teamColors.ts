@@ -101,11 +101,25 @@ export function teamDisplayColor(teamId: number, shortName: string): string {
  * recognisably "that colour family", just not pixel-identical to the
  * other club wearing it.
  */
+/**
+ * <red_cluster_fix>: eleven clubs here (ARS, BOU, BRE, CRY, LIV, MUN, NFO,
+ * SHU, SOU, STK, SUN) share a near-identical red-family CLUB_COLORS primary
+ * — that's the direct cause of a real reported bug where Arsenal/Man Utd/
+ * Brentford (and others in that set) all read as "the same red" wherever a
+ * team's colour is shown as text, not just a small swatch. Six of them
+ * ALSO used to share the same neutral white/grey secondary, which didn't
+ * help. Every one of those eleven now gets its own distinct, saturated hue
+ * (spread across teal/green/blue/amber/pink/violet/tan) — same "nudged for
+ * legibility, not necessarily the literal kit colour" precedent already
+ * used below for Villa/Burnley/West Ham, just applied to a bigger cluster.
+ * See teamIdentityColor() below for where this actually gets used as the
+ * dominant colour, not just a thin swatch stripe.
+ */
 const CLUB_SECONDARY_COLORS: Record<string, string> = {
-  ARS: "#F5F5F5", // Arsenal (white)
+  ARS: "#F5F5F5", // Arsenal (white — kept; the one club in the red cluster that stays neutral)
   AVL: "#5B9BD5", // Aston Villa (sky blue — nudged from West Ham's cyan below)
-  BOU: "#6B6B6B", // Bournemouth (black trim, lightened)
-  BRE: "#F5F5F5", // Brentford (white stripes)
+  BOU: "#4A5A78", // Bournemouth (muted slate-blue — was grey, collided with Southampton's old grey)
+  BRE: "#C4D94A", // Brentford (lime — was white, collided with Arsenal/Sheffield Utd/Stoke/Sunderland)
   BHA: "#F5F5F5", // Brighton (white)
   BUR: "#2EC4B6", // Burnley (blue trim, shifted teal so it isn't Villa's blue)
   CAR: "#D71920", // Cardiff (red trim)
@@ -118,18 +132,18 @@ const CLUB_SECONDARY_COLORS: Record<string, string> = {
   IPS: "#F5F5F5", // Ipswich (white)
   LEE: "#FFCD00", // Leeds (yellow/blue trim)
   LEI: "#FDB913", // Leicester (gold trim)
-  LIV: "#E2B33C", // Liverpool (gold trim)
+  LIV: "#2F9E6E", // Liverpool (jade green — was gold, too close to Man Utd's gold)
   LUT: "#1B458F", // Luton (navy)
   MCI: "#1B3E6F", // Man City (navy trim)
   MUN: "#D4AF37", // Man United (gold trim — keeps it apart from Bournemouth's red)
   NEW: "#8C8C8C", // Newcastle (black stripe, lightened)
-  NFO: "#F2E9DC", // Nottingham Forest (white, warmed slightly off Arsenal's)
+  NFO: "#8FA24D", // Nottingham Forest (muted olive — was near-white, collided with Arsenal's)
   NOR: "#00A650", // Norwich (green)
   QPR: "#F5F5F5", // QPR (white hoops)
-  SHU: "#F5F5F5", // Sheffield United (white stripe)
-  SOU: "#6B6B6B", // Southampton (black trim, lightened)
-  STK: "#F5F5F5", // Stoke (white stripe)
-  SUN: "#F5F5F5", // Sunderland (white stripe)
+  SHU: "#6B8CAE", // Sheffield United (steel blue — was white, collided with Arsenal/Brentford/Stoke/Sunderland)
+  SOU: "#D6598C", // Southampton (pink — was grey, collided with Bournemouth's old grey)
+  STK: "#A6987A", // Stoke (sandy tan — was white, collided with Arsenal/Brentford/Sheffield Utd/Sunderland)
+  SUN: "#8B5FBF", // Sunderland (violet — was white, collided with Arsenal/Brentford/Sheffield Utd/Stoke)
   SWA: "#707070", // Swansea (black trim, lightened)
   TOT: "#1B2A5E", // Tottenham (navy trim)
   WAT: "#ED2939", // Watford (red trim)
@@ -148,4 +162,38 @@ export function teamDisplayColors(teamId: number, shortName: string): { primary:
   const primary = teamDisplayColor(teamId, shortName);
   const secondary = CLUB_SECONDARY_COLORS[shortName] ?? primary;
   return { primary, secondary };
+}
+
+function hexToRgb(hex: string): RGB {
+  const clean = hex.replace("#", "");
+  return [parseInt(clean.substring(0, 2), 16), parseInt(clean.substring(2, 4), 16), parseInt(clean.substring(4, 6), 16)];
+}
+
+function mixHex(a: string, b: string, t: number): string {
+  const [ar, ag, ab] = hexToRgb(a);
+  const [br, bg, bb] = hexToRgb(b);
+  const mix = (x: number, y: number) => Math.round(x + (y - x) * t);
+  return `#${[mix(ar, br), mix(ag, bg), mix(ab, bb)].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+}
+
+type RGB = [number, number, number];
+
+/**
+ * A club's actual dominant/identity colour — the one thing that has to
+ * carry differentiation between clubs at a glance, since it's used for
+ * TeamBadge's text/border, not just a thin swatch stripe. Blending primary
+ * toward secondary (rather than using primary alone) is what fixes the
+ * <red_cluster_fix> problem above: eleven clubs share close to the same
+ * primary red, but each now has its own distinct secondary, so the BLEND
+ * ends up distinct per club even though the primary component doesn't.
+ * Falls back to the plain generated accent for any club CLUB_COLORS
+ * doesn't cover — teamAccentColor() already guarantees good hue separation
+ * there via golden-angle rotation, so no blending is needed (or possible,
+ * with no real secondary to blend toward).
+ */
+export function teamIdentityColor(teamId: number, shortName: string): string {
+  const primary = CLUB_COLORS[shortName];
+  if (!primary) return teamAccentColor(teamId);
+  const secondary = CLUB_SECONDARY_COLORS[shortName] ?? primary;
+  return mixHex(primary, secondary, 0.38);
 }
