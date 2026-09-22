@@ -1363,22 +1363,28 @@ select:focus {
   background: var(--surface-hover);
   color: var(--text-primary);
 }
+/* Bigger than the base .chip-icon (28px, used elsewhere by Dashboard's
+   view controls) so these table-toolbar icons read more clearly. */
+.icon-toolbar .chip-icon {
+  width: 34px;
+  height: 34px;
+}
 
 /* Small count bubble in an icon button's corner (visible-column count,
    etc.) — same role the old "Columns (11)" text suffix played. */
 .chip-icon-badge {
   position: absolute;
-  top: -5px;
-  right: -5px;
-  min-width: 15px;
-  height: 15px;
+  top: -6px;
+  right: -6px;
+  min-width: 16px;
+  height: 16px;
   padding: 0 3px;
   border-radius: 999px;
   background: var(--accent-positive);
   color: #06170f;
-  font-size: 9px;
+  font-size: 9.5px;
   font-weight: 700;
-  line-height: 15px;
+  line-height: 16px;
   text-align: center;
   border: 1.5px solid var(--surface);
 }

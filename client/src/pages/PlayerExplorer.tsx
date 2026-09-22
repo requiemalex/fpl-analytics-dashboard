@@ -237,7 +237,7 @@ export function PlayerExplorer() {
             onClick={() => setShowColumnPopover((v) => !v)}
           />
           {showColumnPopover && (
-            <div className="popover">
+            <div className="popover" style={{ left: 0, right: "auto" }}>
               <div style={{ marginBottom: 8 }}>
                 <div style={{ fontSize: 10.5, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600, marginBottom: 2 }}>
                   Other

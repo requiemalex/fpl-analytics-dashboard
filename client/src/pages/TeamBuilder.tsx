@@ -1004,7 +1004,7 @@ export function TeamBuilder() {
               onClick={() => setShowPredictiveColumnPopover((v) => !v)}
             />
             {showPredictiveColumnPopover && (
-              <div className="popover">
+              <div className="popover" style={{ left: 0, right: "auto" }}>
                 {PREDICTIVE_COLUMNS.map((c) => (
                   <label key={c.key}>
                     <input type="checkbox" checked={predictiveCols.visibleColumns.includes(c.key)} onChange={() => predictiveCols.toggleColumn(c.key)} />
@@ -1022,7 +1022,7 @@ export function TeamBuilder() {
               onClick={() => setShowHistoricRawColumnPopover((v) => !v)}
             />
             {showHistoricRawColumnPopover && (
-              <div className="popover">
+              <div className="popover" style={{ left: 0, right: "auto" }}>
                 {HISTORIC_RAW_GROUPS.map((group) => (
                   <div key={group} style={{ marginBottom: 8 }}>
                     <div style={{ fontSize: 10.5, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600, marginBottom: 2 }}>
