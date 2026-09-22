@@ -153,7 +153,11 @@ table.data-table th {
   top: 0;
   background: var(--surface-raised);
   text-align: center;
-  padding: 8px 10px;
+  /* Extra right padding (vs. the 10px every other side gets) reserves room
+     for the absolutely-positioned column-filter-icon (right: 12px, 14px
+     wide — see below), which otherwise overlaps a centered label + its
+     sort-indicator arrow in anything but the widest columns. */
+  padding: 8px 26px 8px 10px;
   font-weight: 600;
   color: var(--text-secondary);
   font-size: 11px;

@@ -25,8 +25,6 @@ import { useSavedDashboardViews, isDefaultSavedView, MAX_SAVED_DASHBOARD_VIEWS_P
 import { fmtDate, fmtTimeAgo } from "../utils/format";
 import type { NormalizedPlayer, NormalizedTeam } from "../types/normalized";
 
-const ACTIVE_TOGGLE_STYLE = { borderColor: "var(--accent-positive)", color: "var(--accent-positive)" };
-
 /** Same cap for both — a tile tracking a handful of specific players/teams is meant for close comparison, not a second way to build a big list. */
 const MAX_TILE_PLAYERS = 5;
 const MAX_TILE_TEAMS = 5;
@@ -80,6 +78,32 @@ function UsersIcon() {
       <path d="M1.6 14c0-2.4 2-4 4.4-4s4.4 1.6 4.4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
       <circle cx="11.6" cy="6.2" r="1.8" stroke="currentColor" strokeWidth="1.2" />
       <path d="M10.3 9.3c1.9-.2 3.7.9 4 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Header view toggle — same two-person mark as UsersIcon above (the "Players Tracked" summary tile), just without that component's summary-card-icon styling (margin/colour meant for a card corner, not a button). */
+function PlayersViewIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <circle cx="6" cy="5.5" r="2.3" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M1.6 14c0-2.4 2-4 4.4-4s4.4 1.6 4.4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <circle cx="11.6" cy="6.2" r="1.8" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M10.3 9.3c1.9-.2 3.7.9 4 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Header view toggle — a club-badge/shield silhouette, pairing with PlayersViewIcon above for "Teams". */
+function TeamsViewIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M8 1.5 13.5 3.5V7.5C13.5 11 11.2 13.4 8 14.5C4.8 13.4 2.5 11 2.5 7.5V3.5L8 1.5Z"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -596,28 +620,30 @@ export function Dashboard() {
   return (
     <div>
       <div className="page-header">
-        <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <h1>Dashboard</h1>
-        </div>
-        <div style={{ display: "flex", gap: 6 }}>
-          <button
-            type="button"
-            className="btn"
-            aria-pressed={tileView === "player"}
-            style={tileView === "player" ? ACTIVE_TOGGLE_STYLE : undefined}
-            onClick={() => changeTileView("player")}
-          >
-            Players
-          </button>
-          <button
-            type="button"
-            className="btn"
-            aria-pressed={tileView === "team"}
-            style={tileView === "team" ? ACTIVE_TOGGLE_STYLE : undefined}
-            onClick={() => changeTileView("team")}
-          >
-            Teams
-          </button>
+          <div className="icon-toolbar">
+            <button
+              type="button"
+              className={`chip chip-icon${tileView === "player" ? " active" : ""}`}
+              title="Players — track player-based leaderboards"
+              aria-label="Players"
+              aria-pressed={tileView === "player"}
+              onClick={() => changeTileView("player")}
+            >
+              <PlayersViewIcon />
+            </button>
+            <button
+              type="button"
+              className={`chip chip-icon${tileView === "team" ? " active" : ""}`}
+              title="Teams — track team-based leaderboards"
+              aria-label="Teams"
+              aria-pressed={tileView === "team"}
+              onClick={() => changeTileView("team")}
+            >
+              <TeamsViewIcon />
+            </button>
+          </div>
         </div>
       </div>
 
