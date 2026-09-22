@@ -167,10 +167,53 @@
 .topbar-status {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   font-size: 12.5px;
   color: var(--text-secondary);
   white-space: nowrap;
+}
+.topbar-status-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: default;
+}
+.topbar-divider {
+  width: 1px;
+  height: 14px;
+  background: var(--border-strong);
+}
+
+/* Circular icon-only refresh button, replacing the old "Refresh Data" text
+   button — solid accent fill so it reads at a glance against the topbar's
+   otherwise low-key icon+text status groups. */
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent-positive);
+  color: #06170f;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+}
+.refresh-btn:hover {
+  filter: brightness(1.08);
+}
+.refresh-btn:disabled {
+  cursor: default;
+}
+.refresh-btn.spinning svg {
+  animation: refresh-spin 0.8s linear infinite;
+}
+@keyframes refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .status-dot {
@@ -178,7 +221,7 @@
   height: 7px;
   border-radius: 50%;
   display: inline-block;
-  margin-right: 6px;
+  flex-shrink: 0;
 }
 .status-dot.live {
   background: var(--accent-positive);

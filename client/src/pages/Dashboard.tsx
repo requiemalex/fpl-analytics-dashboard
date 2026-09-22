@@ -454,7 +454,7 @@ export function Dashboard() {
     setSearchParams((prev) => ({ ...Object.fromEntries(prev), teamProfile: String(teamId) }));
   }
 
-  // Same reasoning as AppShell's GameweekLabel: FPL keeps an event marked
+  // Same reasoning as AppShell's getGameweekInfo: FPL keeps an event marked
   // "current" until the NEXT one's deadline passes, even after this one's
   // own matches have all finished — so once finished, switch to showing
   // the next gameweek's deadline instead (never the one that just ended).

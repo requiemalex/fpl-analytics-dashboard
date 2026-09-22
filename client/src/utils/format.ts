@@ -44,6 +44,19 @@ export function fmtDate(iso: string | null | undefined): string {
   }
 }
 
+/** Compact numeric date for the topbar's icon-based deadline display — "10/10/26 11:00" rather than fmtDate's spelled-out "Sat, 10 Oct, 11:00". */
+export function fmtDateShort(iso: string | null | undefined): string {
+  if (!iso) return DASH;
+  try {
+    const d = new Date(iso);
+    const datePart = d.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" });
+    const timePart = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    return `${datePart} ${timePart}`;
+  } catch {
+    return DASH;
+  }
+}
+
 export function fmtTimeAgo(epochMs: number | null | undefined): string {
   if (!epochMs) return DASH;
   const diffSec = Math.max(0, Math.round((Date.now() - epochMs) / 1000));
