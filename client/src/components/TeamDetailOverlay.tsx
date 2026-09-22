@@ -5,14 +5,14 @@ import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePla
 import { getUpcomingFixtures, averageFixtureDifficulty } from "../metrics/fixtureTicker";
 import { computePositionPercentiles } from "../metrics/percentiles";
 import { computeTeamAggregates, computeTeamRadarData, TEAM_DEFENSE_AXES, TEAM_OFFENSE_AXES, type TeamAggregate } from "../metrics/teamStats";
-import { computeSquadSeasonHistory, computeSquadSeasonAverage } from "../metrics/teamSeasonHistory";
+import { computeSquadSeasonHistory, computeSquadSeasonWindow } from "../metrics/teamSeasonHistory";
 import { computeSeasonTrend } from "../metrics/careerMetrics";
 import { nextSeasonName } from "../metrics/historicAnalysis";
 import { relativeCellTint, percentileTint } from "../utils/colorScale";
 import { effectiveMinMinutes } from "../state/useFilteredPlayers";
 import { DEFAULT_FILTERS } from "../state/scoutingFilters";
 import { AnalysisModeToggle } from "./AnalysisModeToggle";
-import { PositionBadge, AvailabilityFlag, availabilityTextClass, FixtureChips } from "./primitives";
+import { PositionBadge, AvailabilityFlag, availabilityTextClass, FixtureChips, Tooltip } from "./primitives";
 import { PercentileRadarChart } from "./PlayerRadarChart";
 import { CareerHistoryChart } from "./playerProfile/CareerHistoryChart";
 import { fmtDecimal, fmtPrice, fmtSigned, DASH } from "../utils/format";
@@ -116,7 +116,13 @@ export function TeamDetailOverlay() {
   const squadPlayerIds = useMemo(() => (team ? players.filter((p) => p.teamId === team.id).map((p) => p.id) : []), [players, team]);
 
   const squadSeasonHistory = useMemo(() => computeSquadSeasonHistory(squadPlayerIds, allTimeSeasonsByPlayerId), [squadPlayerIds, allTimeSeasonsByPlayerId]);
-  const squadSeasonAverage = useMemo(() => computeSquadSeasonAverage(squadSeasonHistory), [squadSeasonHistory]);
+  // Same 4-season rolling window (HISTORIC_WINDOW_SEASONS) the player
+  // profile's own Career History average uses — a season outside it
+  // draws muted-grey on the chart, same treatment as there.
+  const { inWindowNames: squadSeasonNames, windowAverage: squadSeasonAverage } = useMemo(
+    () => computeSquadSeasonWindow(squadSeasonHistory, historicReferenceSeason),
+    [squadSeasonHistory, historicReferenceSeason],
+  );
   const squadSeasonTrend = useMemo(() => computeSeasonTrend(squadSeasonHistory), [squadSeasonHistory]);
 
   // Always the live/raw season total, never resolved-mode-dependent —
@@ -130,7 +136,6 @@ export function TeamDetailOverlay() {
     [historicReferenceSeason, liveSquadPoints],
   );
   const combinedSquadSeasonHistory = currentSquadSeasonEntry ? [...squadSeasonHistory, currentSquadSeasonEntry] : squadSeasonHistory;
-  const squadSeasonNames = useMemo(() => new Set(squadSeasonHistory.map((s) => s.seasonName)), [squadSeasonHistory]);
 
   const squadTotalRanges = useMemo(() => {
     const ranges = new Map<string, { min: number; max: number }>();
@@ -246,7 +251,14 @@ export function TeamDetailOverlay() {
           <div className="profile-section-heading">
             <h3>Views</h3>
           </div>
-          <div className="profile-columns">
+          <div className="profile-columns profile-columns-balanced">
+            {teamRadarGroups.map((group) => (
+              <div className="card" key={group.label}>
+                <div className="card-title">Team Radar — {group.label}</div>
+                <PercentileRadarChart data={group.data} />
+              </div>
+            ))}
+
             <div className="card">
               <div className="card-title">Squad Totals</div>
               <div className="stat-tile-grid">
@@ -274,41 +286,6 @@ export function TeamDetailOverlay() {
                 <FixtureChips fixtures={upcomingFixtures} avgTint={avgFdrTint} />
               )}
             </div>
-          </div>
-
-          <div className="card" style={{ marginTop: 16 }}>
-            <div className="card-title">Squad Points History</div>
-            {historicStatus === "loading" && combinedSquadSeasonHistory.length === 0 ? (
-              <p className="page-subtitle">Loading squad points history…</p>
-            ) : squadSeasonHistory.length === 0 && !currentSquadSeasonEntry ? (
-              <p className="page-subtitle">No season data for the current squad.</p>
-            ) : (
-              <>
-                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
-                  {squadSeasonTrend.direction !== "unknown" && (
-                    <span
-                      className={`num ${squadSeasonTrend.direction === "up" ? "value-positive" : squadSeasonTrend.direction === "down" ? "value-negative" : "value-muted"}`}
-                      style={{ fontSize: 12.5 }}
-                    >
-                      {squadSeasonTrend.direction === "up" ? "▲" : squadSeasonTrend.direction === "down" ? "▼" : "≈"} {fmtSigned(squadSeasonTrend.pointsDelta, 0)} pts,{" "}
-                      {squadSeasonTrend.previousSeason} → {squadSeasonTrend.latestSeason}
-                    </span>
-                  )}
-                </div>
-
-                <CareerHistoryChart
-                  seasons={combinedSquadSeasonHistory}
-                  countedSeasonNames={squadSeasonNames}
-                  currentSeasonName={currentSquadSeasonEntry?.seasonName ?? null}
-                  averagePoints={squadSeasonAverage}
-                />
-
-                <div className="stat-row" style={{ marginTop: 10 }}>
-                  <span className="stat-row-name">Season average ({squadSeasonHistory.length} season{squadSeasonHistory.length === 1 ? "" : "s"})</span>
-                  <span className="stat-row-value">{squadSeasonAverage !== null ? `${fmtDecimal(squadSeasonAverage, 0)} pts` : DASH}</span>
-                </div>
-              </>
-            )}
           </div>
         </div>
 
@@ -355,17 +332,55 @@ export function TeamDetailOverlay() {
           </div>
         </div>
 
+        <hr className="profile-divider" />
+
         <div className="profile-section">
-          <div className="profile-section-heading">
-            <h3>Team Radar</h3>
-          </div>
-          <div className="profile-columns">
-            {teamRadarGroups.map((group) => (
-              <div className="card" key={group.label}>
-                <div className="card-title">Team Radar — {group.label}</div>
-                <PercentileRadarChart data={group.data} />
-              </div>
-            ))}
+          <div className="card">
+            <div className="card-title">Squad Points History</div>
+            {historicStatus === "loading" && combinedSquadSeasonHistory.length === 0 ? (
+              <p className="page-subtitle">Loading squad points history…</p>
+            ) : squadSeasonHistory.length === 0 && !currentSquadSeasonEntry ? (
+              <p className="page-subtitle">No season data for the current squad.</p>
+            ) : (
+              <>
+                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
+                  {squadSeasonTrend.direction !== "unknown" && (
+                    <span
+                      className={`num ${squadSeasonTrend.direction === "up" ? "value-positive" : squadSeasonTrend.direction === "down" ? "value-negative" : "value-muted"}`}
+                      style={{ fontSize: 12.5 }}
+                    >
+                      {squadSeasonTrend.direction === "up" ? "▲" : squadSeasonTrend.direction === "down" ? "▼" : "≈"} {fmtSigned(squadSeasonTrend.pointsDelta, 0)} pts,{" "}
+                      {squadSeasonTrend.previousSeason} → {squadSeasonTrend.latestSeason}
+                    </span>
+                  )}
+                </div>
+
+                <CareerHistoryChart
+                  seasons={combinedSquadSeasonHistory}
+                  countedSeasonNames={squadSeasonNames}
+                  currentSeasonName={currentSquadSeasonEntry?.seasonName ?? null}
+                  averagePoints={squadSeasonAverage}
+                />
+
+                <div style={{ display: "flex", justifyContent: "center", marginTop: 4 }}>
+                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                    <Tooltip label="?">
+                      Each bar sums the FPL points every player currently at {team.name} personally scored that season — not points earned specifically for
+                      this club. The FPL API doesn't record which club a player was at in a past season, so a summer signing's points from their old club
+                      count here too, and a season can appear even from before {team.name} were themselves in the Premier League, since it reflects a
+                      squad member's own career rather than the club's history.
+                    </Tooltip>
+                  </span>
+                </div>
+
+                <div className="stat-row" style={{ marginTop: 10 }}>
+                  <span className="stat-row-name">
+                    Season average ({squadSeasonNames.size} season{squadSeasonNames.size === 1 ? "" : "s"})
+                  </span>
+                  <span className="stat-row-value">{squadSeasonAverage !== null ? `${fmtDecimal(squadSeasonAverage, 0)} pts` : DASH}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

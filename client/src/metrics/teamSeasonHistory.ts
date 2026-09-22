@@ -1,4 +1,5 @@
 import type { PlayerSeasonHistory } from "../types/normalized";
+import { HISTORIC_WINDOW_SEASONS } from "./historicAnalysis";
 
 export interface TeamSeasonPoints {
   seasonName: string;
@@ -35,16 +36,25 @@ export function computeSquadSeasonHistory(squadPlayerIds: number[], allTimeSeaso
     .map(([seasonName, v]) => ({ seasonName, ...v }));
 }
 
+function seasonStartYear(seasonName: string): number {
+  return parseInt(seasonName.split("/")[0], 10);
+}
+
 /**
- * Plain mean across whichever completed seasons are present. Deliberately
- * NOT the same rolling-window average historicAnalysis.ts computes for a
- * single player (HISTORIC_WINDOW_SEASONS) — that window exists to keep a
- * player's own recency-weighted average from being dragged down by an
- * ancient season; a squad-level total has no equivalent "too old to
- * count" case, since it's a different group of contributing players each
- * season regardless of how far back it goes.
+ * Same rolling window historicAnalysis.ts uses for a single player's own
+ * Historic Average (HISTORIC_WINDOW_SEASONS, anchored to the most
+ * recently COMPLETED season across the whole pool) — applied here to the
+ * squad-aggregated total instead, so "Season average" means the same
+ * thing in both places: the last 4 completed seasons, not the squad's
+ * entire recorded history. Every season inside the window counts equally
+ * toward the average (no minutes-qualifying filter), same
+ * <no_survivorship_bias> reasoning historicAnalysis.ts uses.
  */
-export function computeSquadSeasonAverage(seasons: TeamSeasonPoints[]): number | null {
-  if (seasons.length === 0) return null;
-  return seasons.reduce((acc, s) => acc + s.totalPoints, 0) / seasons.length;
+export function computeSquadSeasonWindow(seasons: TeamSeasonPoints[], referenceSeasonName: string | null): { inWindowNames: Set<string>; windowAverage: number | null } {
+  if (!referenceSeasonName) return { inWindowNames: new Set(), windowAverage: null };
+  const cutoffYear = seasonStartYear(referenceSeasonName) - (HISTORIC_WINDOW_SEASONS - 1);
+  const inWindow = seasons.filter((s) => seasonStartYear(s.seasonName) >= cutoffYear);
+  const inWindowNames = new Set(inWindow.map((s) => s.seasonName));
+  const windowAverage = inWindow.length > 0 ? inWindow.reduce((acc, s) => acc + s.totalPoints, 0) / inWindow.length : null;
+  return { inWindowNames, windowAverage };
 }

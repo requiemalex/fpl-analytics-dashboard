@@ -406,11 +406,14 @@ export function UserGuide() {
           clubs (several Premier League sides share red or blue as a primary) are still distinguishable at a glance.
         </p>
         <p className="page-subtitle">
-          <strong>Squad Points History</strong> is the same bar-chart idea as the player profile's Career History, applied to the
-          current squad: each bar is the sum of FPL points every player currently at that club personally scored in that season,
-          including this one in progress (dashed). It carries the same simplification as the rest of Teams — the FPL API has no
-          record of which club a player was actually at in a past season, so a summer signing's points from their old club land in
-          this club's bar too, not held back for wherever they were at the time.
+          <strong>Squad Points History</strong>, below the squad table, is the same bar-chart idea as the player profile's Career
+          History, applied to the current squad: each bar is the sum of FPL points every player currently at that club personally
+          scored in that season, including this one in progress (dashed), and the average line/figure uses the same rolling 4-season
+          window the player profile does — a season older than that draws muted-grey rather than counting toward the average. It
+          carries the same simplification as the rest of Teams — the FPL API has no record of which club a player was actually at in
+          a past season, so a summer signing's points from their old club land in this club's bar too, not held back for wherever
+          they were at the time, and a bar can appear for a season before that club was even in the Premier League for the same
+          reason. The small "?" under the chart repeats this for anyone who lands on it without reading here first.
         </p>
       </Section>
 
