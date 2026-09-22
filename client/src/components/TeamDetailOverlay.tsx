@@ -251,7 +251,7 @@ export function TeamDetailOverlay() {
           <div className="profile-section-heading">
             <h3>Views</h3>
           </div>
-          <div className="profile-columns profile-columns-balanced">
+          <div className="profile-columns">
             {teamRadarGroups.map((group) => (
               <div className="card" key={group.label}>
                 <div className="card-title">Team Radar — {group.label}</div>
