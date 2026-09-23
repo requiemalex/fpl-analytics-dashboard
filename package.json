@@ -17,7 +17,10 @@
     "client": "npm run dev -w client",
     "build:electron-server": "esbuild server/src/app.ts --bundle --platform=node --format=cjs --log-override:empty-import-meta=silent --outfile=server/dist/app.bundle.cjs",
     "electron:build": "npm run build -w client && npm run build:electron-server && electron-builder",
-    "electron:start": "npm run build -w client && npm run build:electron-server && electron ."
+    "electron:start": "npm run build -w client && npm run build:electron-server && electron .",
+    "club-history:backfill": "tsx scripts/club-history/backfill-vaastav.ts",
+    "club-history:archive": "tsx scripts/club-history/archive-current.ts",
+    "club-history:build": "tsx scripts/club-history/build-aggregates.ts"
   },
   "devDependencies": {
     "concurrently": "^9.0.1",

@@ -1,0 +1,53 @@
+name: Archive club history
+
+# Saves the live season's match-level data from the official FPL API into
+# data/club-history/ before FPL deletes it at the end of the season (see
+# scripts/club-history/archive-current.ts). Twice a week so a weekend
+# round and a midweek round are each caught soon after they finish; the
+# archive is cumulative, so a missed run loses nothing. Once a season's
+# last fixture has finished, build-aggregates.ts moves it into the app's
+# bundled completed seasons — the next tagged release then ships it.
+
+on:
+  schedule:
+    - cron: "0 5 * * 2" # Tuesday 05:00 UTC, after Monday night football
+    - cron: "0 5 * * 5" # Friday 05:00 UTC, after a midweek round
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: club-history-archive
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # The scripts only use Node built-ins plus server/src/clubHistory
+      # (dependency-free), so tsx is all they need — no full npm ci.
+      - name: Archive the live season
+        run: npx --yes tsx@4 scripts/club-history/archive-current.ts
+
+      - name: Rebuild completed-season aggregates
+        run: npx --yes tsx@4 scripts/club-history/build-aggregates.ts
+
+      - name: Commit if anything changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/club-history server/src/clubHistory/completedSeasons.generated.ts
+          if git diff --cached --quiet; then
+            echo "No changes to archive."
+            exit 0
+          fi
+          git commit -m "Archive club history ($(date -u +%Y-%m-%d))"
+          git pull --rebase
+          git push
