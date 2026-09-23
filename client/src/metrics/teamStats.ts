@@ -1,37 +1,40 @@
-import type { NormalizedFixture, NormalizedPlayer, NormalizedTeam } from "../types/normalized";
+import type { ClubPlayerSeason, ClubSeason, NormalizedTeam } from "../types/normalized";
+import type { AnalysisMode } from "./resolvePlayerStats";
 import type { RadarDataPoint } from "./radarStats";
+import { HISTORIC_WINDOW_SEASONS, nextSeasonName } from "./historicAnalysis";
 
+/**
+ * One club's figures for whichever season(s) a view's Data View selects.
+ *
+ * <club_not_squad>: every field is what the CLUB did in that season —
+ * attributed by the club each player was actually playing for in each
+ * match (see server/src/clubHistory) — never what the club's current
+ * players did wherever they were. A summer signing's previous season
+ * stays with his previous club; a player's contribution this season stays
+ * with this club even after he leaves. Team analysis and player analysis
+ * are deliberately separate: "what would this signing bring?" belongs in
+ * player analysis.
+ */
 export interface TeamAggregate {
   teamId: number;
   name: string;
   shortName: string;
-  /** Sum of the current squad's FPL fantasy points — NOT the real league table's points (see `leaguePoints` below), same "current-squad, mode-resolved" basis as every other field down to `cleanSheets`. */
+  /** FPL points scored by the club's players while playing for it — NOT league points (see `leaguePoints`). */
   points: number | null;
+  /** Goals scored by the club's own players (excludes opponents' own goals — the like-for-like partner for xG). */
   goals: number | null;
   assists: number | null;
   bonus: number | null;
   xG: number | null;
   xA: number | null;
   xGI: number | null;
-  /** Summed over the current squad's goalkeepers only, not the whole squad — see <team_xgc_from_goalkeepers> on computeTeamAggregates. */
+  /** The club's real xGC, summed per match — see <club_xgc_per_match> in server/src/clubHistory/aggregate.ts. */
   xGC: number | null;
-  /** Goals conceded, same goalkeeper-only basis and same mode-resolved season as `xGC` — the like-for-like partner for it. Distinct from `goalsAgainst` below, which is always this season's real results. */
-  goalsConceded: number | null;
   defensiveContributions: number | null;
+  /** Matches conceding 0. */
   cleanSheets: number | null;
-  /** Actual goals scored/conceded from finished fixture results — a genuinely different number from xG/xGC, not a duplicate. */
   goalsFor: number | null;
   goalsAgainst: number | null;
-  /**
-   * Real league standing, read straight off `NormalizedTeam` — genuinely
-   * independent of the resolved-player mode used for every field above
-   * (this season's actual table position never changes because a tile or
-   * graph is looking at Last Completed Season data), same "always live"
-   * convention as a player's price/ownership. `leaguePoints` is named
-   * distinctly from the squad-sum `points` above specifically so the two
-   * (real league points vs. summed fantasy points) are never confused for
-   * each other in a metric picker.
-   */
   leaguePosition: number | null;
   leaguePoints: number | null;
   played: number | null;
@@ -40,65 +43,175 @@ export interface TeamAggregate {
   losses: number | null;
 }
 
-function sum(values: (number | null)[]): number | null {
-  const nonNull = values.filter((v): v is number => v !== null);
-  if (nonNull.length === 0) return null;
-  return nonNull.reduce((a, b) => a + b, 0);
+/** Everything computeTeamAggregates needs beyond the teams themselves — straight off AppStateContext. */
+export interface ClubHistoryContext {
+  clubSeasons: ClubSeason[];
+  /** The last COMPLETED season (AppStateContext.historicReferenceSeason). Null until historic data has loaded. */
+  referenceSeason: string | null;
+  currentSeasonHasStarted: boolean;
+}
+
+function seasonStartYear(seasonName: string): number {
+  return parseInt(seasonName.split("/")[0], 10);
+}
+
+function seasonNameFromStartYear(year: number): string {
+  return `${year}/${String((year + 1) % 100).padStart(2, "0")}`;
 }
 
 /**
- * One aggregate per team, built by summing the current squad's
- * mode-resolved player figures — same current-squad-attribution convention
- * already used by Teams.tsx and TeamDetailOverlay (a transferred player's
- * full total counts for their CURRENT club, not whoever they played for
- * when the points were scored). Shared here so both pages (and the new
- * team radar/colouring) agree on one computation instead of two
- * independently-maintained copies.
- *
- * <team_xgc_from_goalkeepers>: a player's xGC (and goals conceded) is
- * what his team conceded *while he was on the pitch* — every player on
- * the pitch carries the same figure, so summing it across the whole squad
- * counts each chance ~11 times (confirmed against live data: squad-summed
- * xGC ≈ 11x the goalkeepers' xGC for every club). Goals/xG/assists don't
- * have this problem — each belongs to exactly one player. Goalkeepers are
- * on the pitch for effectively every minute, so the squad's goalkeepers'
- * own xGC/goals conceded is the club's real team figure, read straight
- * off the API rather than estimated (e.g. dividing the squad sum by 11).
- * Same current-squad-attribution caveat as every other field here: a
- * keeper who changed clubs brings his previous club's figures with him.
+ * The season(s) a Data View covers for a club: the live season, the last
+ * completed one, or the same HISTORIC_WINDOW_SEASONS-season window a
+ * player's Historic Average uses (anchored to the last completed season).
  */
-export function computeTeamAggregates(teams: NormalizedTeam[], resolvedPlayers: NormalizedPlayer[], fixtures: NormalizedFixture[]): TeamAggregate[] {
+export function clubSeasonsForMode(mode: AnalysisMode, referenceSeason: string | null): string[] {
+  if (!referenceSeason) return [];
+  if (mode === "live") return [nextSeasonName(referenceSeason)];
+  if (mode === "lastSeason") return [referenceSeason];
+  const start = seasonStartYear(referenceSeason);
+  return Array.from({ length: HISTORIC_WINDOW_SEASONS }, (_, i) => seasonNameFromStartYear(start - i));
+}
+
+/** The club-season records a Data View covers for one club, most recent first — empty for a season the club wasn't in the Premier League. */
+export function clubRecordsForMode(clubCode: number | null, mode: AnalysisMode, ctx: ClubHistoryContext): ClubSeason[] {
+  if (clubCode === null) return [];
+  const wanted = clubSeasonsForMode(mode, ctx.referenceSeason);
+  return wanted
+    .map((season) => ctx.clubSeasons.find((c) => c.season === season && c.code === clubCode))
+    .filter((c): c is ClubSeason => c !== undefined);
+}
+
+/** Mean of the non-null values; null if there are none — a Historic Average over the seasons a club actually has, never padded with zeros for seasons it wasn't in the league. */
+function mean(values: (number | null)[]): number | null {
+  const present = values.filter((v): v is number => v !== null);
+  return present.length === 0 ? null : present.reduce((a, b) => a + b, 0) / present.length;
+}
+
+function emptyAggregate(team: NormalizedTeam, fill: number | null): TeamAggregate {
+  return {
+    teamId: team.id,
+    name: team.name,
+    shortName: team.shortName,
+    points: fill,
+    goals: fill,
+    assists: fill,
+    bonus: fill,
+    xG: fill,
+    xA: fill,
+    xGI: fill,
+    xGC: fill,
+    defensiveContributions: fill,
+    cleanSheets: fill,
+    goalsFor: fill,
+    goalsAgainst: fill,
+    leaguePosition: null,
+    leaguePoints: fill,
+    played: fill,
+    wins: fill,
+    draws: fill,
+    losses: fill,
+  };
+}
+
+/**
+ * One TeamAggregate per current Premier League club, for the given Data
+ * View. A single season (Current / Last Completed) reads that season's
+ * record directly; Historic Average takes the mean of each field over the
+ * window seasons the club was actually in the league. A club with no
+ * record for the view (e.g. promoted this season, looking at last season)
+ * gets nulls — shown as "—", never 0.
+ *
+ * Current Season before a ball is kicked is genuinely zero across the
+ * board (same convention as resolvePlayerStats' <live_mode_preseason_fix>).
+ */
+export function computeTeamAggregates(teams: NormalizedTeam[], mode: AnalysisMode, ctx: ClubHistoryContext): TeamAggregate[] {
   return teams.map((team) => {
-    const squad = resolvedPlayers.filter((p) => p.teamId === team.id);
-    const goalkeepers = squad.filter((p) => p.position === "GKP");
-    const finishedFixtures = fixtures.filter((f) => f.finished && (f.homeTeamId === team.id || f.awayTeamId === team.id));
-    const goalsFor = sum(finishedFixtures.map((f) => (f.homeTeamId === team.id ? f.homeScore : f.awayScore)));
-    const goalsAgainst = sum(finishedFixtures.map((f) => (f.homeTeamId === team.id ? f.awayScore : f.homeScore)));
+    const records = clubRecordsForMode(team.code, mode, ctx);
+    if (records.length === 0) {
+      const preseasonZero = mode === "live" && !ctx.currentSeasonHasStarted && ctx.referenceSeason !== null;
+      return emptyAggregate(team, preseasonZero ? 0 : null);
+    }
+    const pick = (fn: (c: ClubSeason) => number | null) => mean(records.map(fn));
     return {
       teamId: team.id,
       name: team.name,
       shortName: team.shortName,
-      points: sum(squad.map((p) => p.totalPoints)),
-      goals: sum(squad.map((p) => p.goals)),
-      assists: sum(squad.map((p) => p.assists)),
-      bonus: sum(squad.map((p) => p.bonus)),
-      xG: sum(squad.map((p) => p.xG)),
-      xA: sum(squad.map((p) => p.xA)),
-      xGI: sum(squad.map((p) => p.xGI)),
-      xGC: sum(goalkeepers.map((p) => p.xGC)),
-      goalsConceded: sum(goalkeepers.map((p) => p.goalsConceded)),
-      defensiveContributions: sum(squad.map((p) => p.defensiveContributions)),
-      cleanSheets: sum(squad.map((p) => p.cleanSheets)),
-      goalsFor,
-      goalsAgainst,
-      leaguePosition: team.position,
-      leaguePoints: team.points,
-      played: team.played,
-      wins: team.wins,
-      draws: team.draws,
-      losses: team.losses,
+      points: pick((c) => c.fantasyPoints),
+      goals: pick((c) => c.goals),
+      assists: pick((c) => c.assists),
+      bonus: pick((c) => c.bonus),
+      xG: pick((c) => c.xG),
+      xA: pick((c) => c.xA),
+      xGI: pick((c) => c.xGI),
+      xGC: pick((c) => c.xGC),
+      defensiveContributions: pick((c) => c.dc),
+      cleanSheets: pick((c) => c.cleanSheets),
+      goalsFor: pick((c) => c.goalsFor),
+      goalsAgainst: pick((c) => c.goalsAgainst),
+      leaguePosition: pick((c) => c.leaguePosition),
+      leaguePoints: pick((c) => c.leaguePoints),
+      played: pick((c) => c.played),
+      wins: pick((c) => c.wins),
+      draws: pick((c) => c.draws),
+      losses: pick((c) => c.losses),
     };
   });
+}
+
+/** One player's figures for one club under a Data View — averaged over the seasons he played for it (Historic Average), never including time at other clubs. */
+export type ClubPlayerFigures = Omit<ClubPlayerSeason, "code">;
+
+/**
+ * Per-player figures FOR THIS CLUB under a Data View, keyed by player code.
+ * A player only appears for seasons he actually played for the club — a
+ * summer signing has no entry for last season here, however well he did
+ * elsewhere (that's player analysis, not club analysis).
+ */
+export function clubPlayerFigures(clubCode: number | null, mode: AnalysisMode, ctx: ClubHistoryContext): Map<number, ClubPlayerFigures> {
+  const byCode = new Map<number, ClubPlayerSeason[]>();
+  for (const record of clubRecordsForMode(clubCode, mode, ctx)) {
+    for (const p of record.players) {
+      const list = byCode.get(p.code);
+      if (list) list.push(p);
+      else byCode.set(p.code, [p]);
+    }
+  }
+  const result = new Map<number, ClubPlayerFigures>();
+  for (const [code, seasons] of byCode) {
+    const avg = (fn: (p: ClubPlayerSeason) => number | null) => mean(seasons.map(fn));
+    result.set(code, {
+      minutes: avg((p) => p.minutes) ?? 0,
+      starts: avg((p) => p.starts),
+      totalPoints: avg((p) => p.totalPoints) ?? 0,
+      goals: avg((p) => p.goals) ?? 0,
+      assists: avg((p) => p.assists) ?? 0,
+      cleanSheets: avg((p) => p.cleanSheets) ?? 0,
+      bonus: avg((p) => p.bonus) ?? 0,
+      xG: avg((p) => p.xG),
+      xA: avg((p) => p.xA),
+      xGI: avg((p) => p.xGI),
+      xGC: avg((p) => p.xGC),
+      dc: avg((p) => p.dc),
+    });
+  }
+  return result;
+}
+
+export interface ClubSeasonPoints {
+  seasonName: string;
+  /** FPL points scored by the club's players while playing for it that season. */
+  totalPoints: number;
+  /** False for the live season. */
+  complete: boolean;
+}
+
+/** Every season on record for one club, oldest first — seasons it wasn't in the Premier League simply aren't there. */
+export function clubSeasonHistory(clubCode: number | null, clubSeasons: ClubSeason[]): ClubSeasonPoints[] {
+  if (clubCode === null) return [];
+  return clubSeasons
+    .filter((c) => c.code === clubCode)
+    .sort((a, b) => a.season.localeCompare(b.season))
+    .map((c) => ({ seasonName: c.season, totalPoints: c.fantasyPoints, complete: c.complete }));
 }
 
 /**

@@ -18,6 +18,8 @@ export interface RawElementType {
 
 export interface RawTeam {
   id: number;
+  /** FPL's stable club identifier — unlike `id`, the same every season. Keys club history (see ClubSeason). Optional+detected, never assumed. */
+  code?: number | null;
   name: string;
   short_name: string;
   strength: number | null;
@@ -60,6 +62,8 @@ export interface RawEvent {
  */
 export interface RawElement {
   id: number;
+  /** FPL's stable player identifier — unlike `id`, the same every season. Keys a player's club-history records. Optional+detected, never assumed. */
+  code?: number | null;
   first_name: string;
   second_name: string;
   web_name: string;
@@ -306,9 +310,56 @@ export interface RawHistoricBulkPlayer {
  * requests (no bulk endpoint exists on the official API for this). See
  * server/src/routes/historicBulk.ts.
  */
+/** One player's totals for one club in one season — see server/src/clubHistory/types.ts (ClubPlayerSeason), which this mirrors field for field. */
+export interface RawClubPlayerSeason {
+  code: number;
+  minutes: number;
+  starts: number | null;
+  totalPoints: number;
+  goals: number;
+  assists: number;
+  cleanSheets: number;
+  bonus: number;
+  xG: number | null;
+  xA: number | null;
+  xGI: number | null;
+  xGC: number | null;
+  dc: number | null;
+}
+
+/** One club's figures for one season — mirrors server/src/clubHistory/types.ts (ClubSeason). */
+export interface RawClubSeason {
+  season: string;
+  code: number;
+  name: string;
+  shortName: string;
+  complete: boolean;
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  cleanSheets: number;
+  leaguePoints: number;
+  leaguePosition: number;
+  fantasyPoints: number;
+  goals: number;
+  assists: number;
+  bonus: number;
+  xG: number | null;
+  xA: number | null;
+  xGI: number | null;
+  xGC: number | null;
+  dc: number | null;
+  players: RawClubPlayerSeason[];
+}
+
 export interface RawHistoricBulk {
   players: RawHistoricBulkPlayer[];
   totalPlayers: number;
+  /** Every club's figures for every season on record, live season included. Absent from an older server build — treated as []. */
+  clubSeasons: RawClubSeason[];
   /** Player IDs the server couldn't fetch history for (a transient upstream failure) — present but not treated as an error unless it's a large fraction of totalPlayers. */
   skippedPlayerIds: number[];
 }

@@ -3,6 +3,7 @@ import type { NormalizedPlayer, NormalizedTeam, Position, PlayerSeasonHistory } 
 /** Shared builder for a fully-populated NormalizedPlayer, so individual test files only need to specify the fields they care about. Not imported by any production code. */
 export function makePlayer(overrides: Partial<NormalizedPlayer> & { id: number; position: Position }): NormalizedPlayer {
   return {
+    code: 1000 + overrides.id,
     name: `Player ${overrides.id}`,
     firstName: "First",
     lastName: "Last",
@@ -52,6 +53,7 @@ export function makePlayer(overrides: Partial<NormalizedPlayer> & { id: number; 
 
 export function makeTeam(overrides: Partial<NormalizedTeam> & { id: number }): NormalizedTeam {
   return {
+    code: 100 + overrides.id,
     name: `Team ${overrides.id}`,
     shortName: `T${overrides.id}`,
     position: null,

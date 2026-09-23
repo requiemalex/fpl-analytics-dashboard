@@ -2,7 +2,7 @@ import type { NormalizedPlayer } from "../types/normalized";
 import type { PlayerDerivedMetrics } from "../metrics/playerMetrics";
 import type { TeamAggregate } from "../metrics/teamStats";
 import { PLAYER_COLUMNS } from "./playerColumns";
-import { TEAM_COLUMNS } from "./teamColumns";
+import { TEAM_COLUMNS, currentTeamMetricKey } from "./teamColumns";
 import { fmtDecimal, fmtSigned } from "../utils/format";
 
 export type SummaryTileScope = "player" | "team";
@@ -84,7 +84,7 @@ export const PLAYER_TILE_METRICS: PlayerTileMetric[] = [
   { key: "assistsPerGame", label: "Assists/Game", getValue: (_p, d) => d.assistsPerGame, format: num(2), higherIsBetter: true, ratePerMinutes: true },
 ];
 
-/** Every TEAM_COLUMNS metric (Squad Points, xG/xA/xGI/xGC, League Position, Goals For/Against, etc. — the same catalogue Dashboard's team graphs use) — the full set a user can build a Dashboard Team Tile from. */
+/** Every TEAM_COLUMNS metric (League Position, Goals For/Against, FPL Points, xG/xA/xGI/xGC, etc. — the same club-figure catalogue Dashboard's team graphs use) — the full set a user can build a Dashboard Team Tile from. */
 export const TEAM_TILE_METRICS: TeamTileMetric[] = TEAM_COLUMNS.map((c) => ({
   key: c.key,
   label: c.label,
@@ -98,5 +98,6 @@ export function playerTileMetricByKey(key: string): PlayerTileMetric | undefined
 }
 
 export function teamTileMetricByKey(key: string): TeamTileMetric | undefined {
-  return TEAM_TILE_METRICS.find((m) => m.key === key);
+  const current = currentTeamMetricKey(key);
+  return TEAM_TILE_METRICS.find((m) => m.key === current);
 }

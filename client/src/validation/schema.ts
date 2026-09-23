@@ -24,6 +24,7 @@ export const elementTypeSchema = z
 export const teamSchema = z
   .object({
     id: z.number(),
+    code: z.number().nullable().optional(),
     name: z.string(),
     short_name: z.string(),
     strength: z.number().nullable().optional(),
@@ -54,6 +55,7 @@ export const eventSchema = z
 export const elementSchema = z
   .object({
     id: z.number(),
+    code: z.number().nullable().optional(),
     first_name: z.string(),
     second_name: z.string(),
     web_name: z.string(),
@@ -239,10 +241,58 @@ export const historicBulkPlayerSchema = z
   })
   .passthrough();
 
+const clubPlayerSeasonSchema = z
+  .object({
+    code: z.number(),
+    minutes: z.number(),
+    starts: z.number().nullable(),
+    totalPoints: z.number(),
+    goals: z.number(),
+    assists: z.number(),
+    cleanSheets: z.number(),
+    bonus: z.number(),
+    xG: z.number().nullable(),
+    xA: z.number().nullable(),
+    xGI: z.number().nullable(),
+    xGC: z.number().nullable(),
+    dc: z.number().nullable(),
+  })
+  .passthrough();
+
+export const clubSeasonSchema = z
+  .object({
+    season: z.string(),
+    code: z.number(),
+    name: z.string(),
+    shortName: z.string(),
+    complete: z.boolean(),
+    played: z.number(),
+    wins: z.number(),
+    draws: z.number(),
+    losses: z.number(),
+    goalsFor: z.number(),
+    goalsAgainst: z.number(),
+    cleanSheets: z.number(),
+    leaguePoints: z.number(),
+    leaguePosition: z.number(),
+    fantasyPoints: z.number(),
+    goals: z.number(),
+    assists: z.number(),
+    bonus: z.number(),
+    xG: z.number().nullable(),
+    xA: z.number().nullable(),
+    xGI: z.number().nullable(),
+    xGC: z.number().nullable(),
+    dc: z.number().nullable(),
+    players: z.array(clubPlayerSeasonSchema),
+  })
+  .passthrough();
+
 export const historicBulkSchema = z
   .object({
     players: z.array(historicBulkPlayerSchema),
     totalPlayers: z.number(),
+    clubSeasons: z.array(clubSeasonSchema).optional().default([]),
     skippedPlayerIds: z.array(z.number()).optional().default([]),
   })
   .passthrough();

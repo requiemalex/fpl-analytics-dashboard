@@ -10,7 +10,7 @@ import { normalizeChips } from "../normalize/normalizeChips";
 import { runMetricValidation, type ValidationReport } from "../metrics/validation";
 import { buildAllHistoricProfiles, type HistoricPlayerProfile } from "../metrics/historicAnalysis";
 import { SchemaValidationError } from "../validation/schema";
-import type { NormalizedPlayer, NormalizedTeam, NormalizedFixture, NormalizedEvent, GameweekState, ChipWindow, PlayerSeasonHistory } from "../types/normalized";
+import type { NormalizedPlayer, NormalizedTeam, NormalizedFixture, NormalizedEvent, GameweekState, ChipWindow, PlayerSeasonHistory, ClubSeason } from "../types/normalized";
 import type { AdvancedFieldAvailability } from "../normalize/fieldAvailability";
 
 export type DataStatus = "loading" | "ready" | "error";
@@ -50,6 +50,14 @@ interface AppState {
   allTimeSeasonsByPlayerId: Map<number, PlayerSeasonHistory[]>;
   /** Player IDs the server couldn't build historic data for (a transient upstream blip) — informational, not an error unless it's most of the pool. */
   historicSkippedPlayerIds: number[];
+  /**
+   * Every club's figures for every season on record, live season included
+   * — the single source for every team-level figure in the app (see
+   * metrics/teamStats.ts). Arrives with the same historic load as
+   * historicProfiles (the server builds the live season from the same
+   * per-player requests), so it's empty until historicStatus is "ready".
+   */
+  clubSeasons: ClubSeason[];
   historicErrorMessage: string | null;
   historicRefreshing: boolean;
   refreshHistoricData: () => void;
@@ -81,6 +89,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [historicProfiles, setHistoricProfiles] = useState<Map<number, HistoricPlayerProfile>>(new Map());
   const [allTimeSeasonsByPlayerId, setAllTimeSeasonsByPlayerId] = useState<Map<number, PlayerSeasonHistory[]>>(new Map());
   const [historicSkippedPlayerIds, setHistoricSkippedPlayerIds] = useState<number[]>([]);
+  const [clubSeasons, setClubSeasons] = useState<ClubSeason[]>([]);
   const [historicErrorMessage, setHistoricErrorMessage] = useState<string | null>(null);
   const [historicRefreshing, setHistoricRefreshing] = useState(false);
   const historicRequestedRef = useRef(false);
@@ -237,6 +246,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       historicProfilesRef.current = profiles;
       setAllTimeSeasonsByPlayerId(seasonsByPlayer);
       setHistoricSkippedPlayerIds(result.data.skippedPlayerIds);
+      setClubSeasons(result.data.clubSeasons ?? []);
       setHistoricStatus("ready");
       setHistoricErrorMessage(null);
     } catch (err) {
@@ -312,6 +322,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       historicProfiles,
       allTimeSeasonsByPlayerId,
       historicSkippedPlayerIds,
+      clubSeasons,
       historicErrorMessage,
       historicRefreshing,
       refreshHistoricData,
@@ -340,6 +351,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       historicProfiles,
       allTimeSeasonsByPlayerId,
       historicSkippedPlayerIds,
+      clubSeasons,
       historicErrorMessage,
       historicRefreshing,
       refreshHistoricData,

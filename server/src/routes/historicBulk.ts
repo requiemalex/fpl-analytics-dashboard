@@ -1,8 +1,12 @@
 import { Router } from "express";
 import { cachedFetch } from "../proxy.js";
-import { bootstrapCache, elementSummaryCache, historicBulkCache } from "../cache.js";
+import { bootstrapCache, elementSummaryCache, fixturesCache, historicBulkCache } from "../cache.js";
 import { CACHE_TTL_MS, FPL_BASE_URL, HISTORIC_BULK_CONCURRENCY } from "../config.js";
 import { mapWithConcurrency } from "../concurrency.js";
+import { aggregateClubSeason } from "../clubHistory/aggregate.js";
+import { COMPLETED_CLUB_SEASONS } from "../clubHistory/completedSeasons.generated.js";
+import { fixturesFromOfficial, ledgerRowsFromOfficial, seasonNameFromBootstrap, teamsFromBootstrap } from "../clubHistory/official.js";
+import type { ClubSeason } from "../clubHistory/types.js";
 
 export const historicBulkRouter = Router();
 
@@ -18,6 +22,36 @@ interface BulkResult {
   players: BulkPlayerHistory[];
   totalPlayers: number;
   skippedPlayerIds: number[];
+  /**
+   * Every club's figures for every season on record — the bundled completed
+   * seasons (see clubHistory/types.ts) plus the live season, built here
+   * from the very same element-summary responses this build already
+   * fetches for history_past (each carries this season's per-fixture
+   * `history`), so it costs no extra per-player requests.
+   */
+  clubSeasons: ClubSeason[];
+}
+
+/**
+ * The live season's club figures, or [] if they can't be built (fixtures
+ * unavailable, pre-season) — never fails the whole historic build, which
+ * players' history_past doesn't depend on.
+ */
+function buildLiveClubSeasons(bootstrap: unknown, fixturesData: unknown, historyByElement: Map<number, unknown[]>): ClubSeason[] {
+  try {
+    const season = seasonNameFromBootstrap(bootstrap);
+    if (!season) return [];
+    const fixtures = fixturesFromOfficial(fixturesData);
+    return aggregateClubSeason(season, teamsFromBootstrap(bootstrap), fixtures, ledgerRowsFromOfficial(bootstrap, fixtures, historyByElement));
+  } catch {
+    return [];
+  }
+}
+
+/** Live season first; a bundled copy of the same season (possible right after a season ends) gives way to it. */
+function mergeClubSeasons(live: ClubSeason[]): ClubSeason[] {
+  const liveSeasons = new Set(live.map((c) => c.season));
+  return [...COMPLETED_CLUB_SEASONS.filter((c) => !liveSeasons.has(c.season)), ...live];
 }
 
 // Prevents two simultaneous callers (e.g. two browser tabs both loading
@@ -51,6 +85,16 @@ export async function buildBulkHistoricData(bypassCache: boolean): Promise<BulkR
   const bootstrapData = bootstrap.data as { elements: { id: number }[] };
   const playerIds = bootstrapData.elements.map((e) => e.id);
 
+  // Only needed for the live season's club figures (which club each
+  // fixture's sides are) — a failure here just leaves the live season out.
+  const fixtures = await cachedFetch({
+    cache: fixturesCache,
+    cacheKey: "fixtures",
+    ttlMs: CACHE_TTL_MS.fixtures,
+    url: `${FPL_BASE_URL}/fixtures/`,
+    bypassCache,
+  });
+
   const results = await mapWithConcurrency(playerIds, HISTORIC_BULK_CONCURRENCY, async (playerId) => {
     // Reuses the same per-player cache the lazy profile fetch uses, so a
     // player whose profile was recently opened doesn't cost a second
@@ -68,19 +112,21 @@ export async function buildBulkHistoricData(bypassCache: boolean): Promise<BulkR
     if (!summary.ok) {
       throw new Error(summary.error);
     }
-    const summaryData = summary.data as { history_past?: unknown[] };
-    return summaryData.history_past ?? [];
+    const summaryData = summary.data as { history_past?: unknown[]; history?: unknown[] };
+    return { historyPast: summaryData.history_past ?? [], history: summaryData.history ?? [] };
   });
 
   const players: BulkPlayerHistory[] = [];
   const skippedPlayerIds: number[] = [];
+  const historyByElement = new Map<number, unknown[]>();
 
   for (const r of results) {
     if (r.error || r.result === null) {
       skippedPlayerIds.push(r.item);
       continue;
     }
-    players.push({ playerId: r.item, historyPast: r.result });
+    players.push({ playerId: r.item, historyPast: r.result.historyPast });
+    historyByElement.set(r.item, r.result.history);
   }
 
   // A handful of stragglers (a rate-limit blip, one slow request) is
@@ -92,7 +138,8 @@ export async function buildBulkHistoricData(bypassCache: boolean): Promise<BulkR
     throw new Error(`Historic bulk build failed for ${skippedPlayerIds.length}/${playerIds.length} players — the upstream API may be unavailable`);
   }
 
-  return { players, totalPlayers: playerIds.length, skippedPlayerIds };
+  const liveClubSeasons = fixtures.ok ? buildLiveClubSeasons(bootstrap.data, fixtures.data, historyByElement) : [];
+  return { players, totalPlayers: playerIds.length, skippedPlayerIds, clubSeasons: mergeClubSeasons(liveClubSeasons) };
 }
 
 async function handle(bypassCache: boolean) {

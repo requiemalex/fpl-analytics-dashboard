@@ -643,41 +643,114 @@ the Metric Definitions page (`/definitions`) shows exactly which fields
 were and weren't found on the current API response. Nothing is ever
 substituted from a different statistic to fill the gap.
 
-## Current-season team aggregation methodology
+## Club history: team figures are club figures, season by season
 
-The Teams page sums each currently-rostered player's **full-season**
-totals (points, goals, assists, xG, xA, xGI, clean sheets) per club. This
-is explicitly a **current-squad aggregate**, not a historical
-"who scored while playing for this club" breakdown — a player transferred
-mid-season contributes their entire season total to whichever club they
-are registered with today. This is labelled directly in the UI.
+**Every team-level figure is what the CLUB did in a given season,
+whoever was playing for it** — never a sum over its current squad.
+Teams, Team Profile, and the Dashboard's team tiles/graphs all read the
+same computation (`computeTeamAggregates()`, `metrics/teamStats.ts`). A
+summer signing's previous season stays with his previous club; a player
+who leaves mid-season keeps what he did for the club counted for it.
+"What would this signing bring?" is deliberately player analysis, not
+team analysis.
 
-The same aggregation (`computeTeamAggregates()`, `metrics/teamStats.ts`)
-backs Team Profile (`TeamDetailOverlay`) and the Dashboard's Team Tiles/
-Graphs, so all three agree on what a team stat means. Not every team
-metric is a squad aggregate, though: `TeamAggregate`'s LEAGUE STANDING
-fields (League Position, League Points, Played/Wins/Draws/Losses, Goals
-For/Against/Difference — `components/teamColumns.tsx`) are this season's
-real table and match results, read straight off `NormalizedTeam`/
-fixtures rather than summed from the current squad, and don't change
-depending on a tile/graph's own Data View (`TeamColumn.varies`) — the
-current-squad-attribution caveat above applies only to the squad-sum
-metrics (Squad Points, Goals, Assists, xG, xA, xGI, xGC, Goals Conceded,
-Def. Contributions, Clean Sheets, Bonus).
+This replaced the old current-squad aggregate, which summed each
+current player's mode-resolved totals — so a transfer dragged a player's
+past output to his new club (e.g. Dubravka's full 2025/26 Burnley season
+landing in Spurs' 2025/26 figures), and team xGC was ~11x too high
+(every player on the pitch carries the same on-pitch xGC).
 
-**Team xGC and Goals Conceded are goalkeeper-only, not squad sums.** A
-player's `expected_goals_conceded`/`goals_conceded` is what his team
-conceded *while he was on the pitch*, so every player on the pitch carries
-the same figure — summing across the squad counts each chance ~11 times
-(checked against live GW5 2026/27 data: squad-summed xGC was 44.4 for
-Arsenal against 4.0 for their goalkeepers, and the same ~11x for all 20
-clubs). Goalkeepers play effectively every minute, so the squad's
-keepers' own figures are the club's real team numbers, read straight off
-the API rather than estimated. Same current-squad caveat: a keeper who
-changed clubs brings his old club's figures. Goals Conceded is
-mode-resolved (it follows a tile/graph's Data View) and is the
-like-for-like partner for xGC; Goals Against stays the live-season real
-result.
+### The record: a match-level ledger
+
+`data/club-history/<season>/` holds, per season:
+
+- `ledger.csv` — one row per player per fixture (unused squad listings
+  included): the club he was registered to **for that fixture** (read off
+  the fixture's home/away side, never his current club), plus minutes,
+  points, goals, assists, xG/xA/xGI/xGC, DC, etc.
+- `fixtures.csv`, `teams.csv` — that season's fixtures and team ids.
+
+Players are keyed by FPL's stable `code` (element ids change every
+season), clubs by their stable team `code`. Because rows are per
+fixture, a mid-season move splits correctly between clubs.
+
+**Sources.**
+
+- **2016/17–2025/26: one-off backfill from the vaastav/Fantasy-Premier-League
+  community archive** (`npm run club-history:backfill`) — a mirror of
+  FPL's own API data. The official API doesn't serve past seasons' match
+  data at all, and its per-season player history carries no club, so this
+  is a deliberate, one-time exception to the official-API-only rule,
+  approved for this purpose only. Checks run on the backfill: every
+  finished fixture's goals (player goals + opponent own goals) equal its
+  real score, in all 3,800 fixtures across all 10 seasons; and a random
+  213 player-seasons matched FPL's official `history_past` totals
+  (minutes, points, goals, xGC) exactly. Archive quirks handled: exact
+  duplicate rows (10 in 2025/26) are dropped; a postponed fixture's
+  placeholder row from its original gameweek (no score, 0 minutes — e.g.
+  2019/20's COVID-postponed games) gives way to the real one; 2016/17 and
+  2017/18 have no fixture list, so each fixture's sides are rebuilt from
+  the rows themselves (a home row's opponent is the away side).
+- **2026/27 on: archived from the official API** by
+  `.github/workflows/club-history-archive.yml` (Tuesdays and Fridays,
+  05:00 UTC, plus manual runs) via `scripts/club-history/archive-current.ts`.
+  Append-only: a fresh fetch overwrites a (fixture, player) row, so late
+  corrections flow in, but never deletes one — a player removed from the
+  game mid-season keeps his archived appearances. A run where more than
+  5% of element-summary requests fail writes nothing.
+
+**Data gaps.** Club xG/xA/xGI/xGC exist from 2022/23 (FPL didn't track
+them before — null, shown as "—"). Club DC is 2025/26 on: the vaastav
+archive has no defensive-contribution column for 2024/25, even though FPL
+tracked it that season.
+
+### From ledger to app
+
+`server/src/clubHistory/aggregate.ts` turns a season's ledger into one
+`ClubSeason` per club, from finished fixtures only: results (W/D/L, goals
+for/against, club clean sheets = matches conceding 0, league points,
+position by points → goal difference → goals scored), FPL points scored
+for the club, goals (excluding opponents' own goals — the like-for-like
+partner for xG), xG/xA/xGI, DC, and per-player club records.
+
+<club_xgc_per_match>: club xGC is summed per match as the highest xGC
+among the club's players in that match — i.e. that of a player on for
+the whole game (xGC only accumulates with time on the pitch). All 760
+club-matches in 2025/26 had at least one player on for 90+ minutes, so
+this is the real club figure, not an estimate.
+
+- **Completed seasons** are pre-aggregated into
+  `server/src/clubHistory/completedSeasons.generated.ts`
+  (`npm run club-history:build`; the archive workflow reruns it, so a
+  season lands there automatically once its last fixture finishes).
+- **The live season** is aggregated on the fly by the server's
+  `/api/historic-bulk` build, from the same element-summary responses it
+  already fetches for `history_past` (each carries this season's
+  per-fixture `history`) — no extra per-player requests. The response's
+  `clubSeasons` carries every season, live included.
+
+**Data View mapping** (`clubSeasonsForMode()`): Current Season = the live
+season; Last Completed Season = the season the player data calls the
+last completed one (`historicReferenceSeason`); Historic Average = the
+mean of each field over the last 4 completed seasons **the club was in
+the Premier League** (never padded with zeros). A club with no record for
+the view (e.g. promoted this season, viewed at Last Completed Season)
+shows "—". Results metrics (League Position, Goals For/Against, …) follow
+the Data View too — a Last Completed Season team tile shows that season's
+table.
+
+**Players not selectable in FPL.** Team figures include every player who
+played for the club, including ones no longer in the FPL game — but
+nothing is shown about them at player level. Team Profile's roster lists
+the club's current (selectable) players only, each with what he did **for
+this club** in the selected season. If a player returns to the game, his
+player-level data comes back through the official API as normal; his
+club rows were never lost.
+
+**End of season.** Once a season's last fixture has finished, the next
+scheduled archive run moves it into `completedSeasons.generated.ts`. Cut
+a release after that so installed copies get it bundled before FPL
+resets the live API for the new season (usually mid-July).
 
 ## Career history and historic analysis mode
 
@@ -3088,19 +3161,8 @@ That page is gone; graph building now lives alongside Summary Tiles.
   updated/removed accordingly; the Dashboard's User Guide section now
   documents Graphs alongside Summary Tiles.
 
-## Dashboard graphs: readability and team defensive accuracy fixes
+## Dashboard graphs: readability fixes
 
-- **Team xGC was ~11x too high.** It summed every squad player's on-pitch
-  xGC; it's now the goalkeepers' xGC — see "Current-season team
-  aggregation methodology" above. Also fixes the same inflated figure on
-  any Team Tile built from xGC.
-- **New team metric: Goals Conceded** (goalkeeper-based, follows the Data
-  View). The default "Team xGC vs Goals Against" graph plotted a full
-  prior season of xGC against this season's handful of real results; it's
-  now "Team xGC vs Goals Conceded", both from the same season.
-  `goalsConceded` is plumbed through `NormalizedPlayer`,
-  `PlayerSeasonHistory`, `computeCareerAverages` and `resolvePlayerStats`
-  for every analysis mode.
 - **Default player graphs get a 900-minute floor**
   (`DEFAULT_GRAPH_MIN_MINUTES`, `useDashboardGraphs.ts`) so fringe players
   no longer bury the chart at 0,0.
@@ -3109,7 +3171,9 @@ That page is gone; graph building now lives alongside Summary Tiles.
   0. Fixed-size dots are smaller and semi-transparent so dense clusters
   read as darker patches.
 - **Graphs sit 2 per row** (`.graph-grid`), 1 per row under 900px wide.
-- `useDashboardGraphs` storage bumped to version 2: a stored copy of a
-  packaged default is replaced in place by its current definition; a
-  removed default stays removed. Default saved views already re-sync to
-  the packaged defaults on every load.
+- A short-lived goalkeeper-based team xGC/"Goals Conceded" (v1.57.0) was
+  superseded by club history (above) — "Goals Conceded" is now exactly
+  the club's Goals Against for the view's season, so the key is retired:
+  a stored tile/graph carrying it resolves to `goalsAgainst`
+  (`currentTeamMetricKey()`, `teamColumns.tsx`), and the default team
+  graph is "Team xGC vs Goals Against" again (graphs store v3).

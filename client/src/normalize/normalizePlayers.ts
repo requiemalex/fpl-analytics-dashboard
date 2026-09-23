@@ -64,6 +64,7 @@ function normalizeOnePlayer(
 
   return {
     id: el.id,
+    code: el.code ?? null,
     name: el.web_name,
     firstName: el.first_name,
     lastName: el.second_name,

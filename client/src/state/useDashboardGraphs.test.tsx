@@ -45,19 +45,20 @@ describe("useDashboardGraphs — <update_safety> defaults and migration", () => 
     expect(result.current.graphs).toEqual([]);
   });
 
-  it("re-syncs a pre-v2 stored default graph to its current packaged definition, in place", () => {
+  it("re-syncs an older stored default graph to its current packaged definition, in place", () => {
     const oldTeamDefault = {
       ...DEFAULT_DASHBOARD_GRAPHS.find((g) => g.id === "default-graph-team-xgc-goals-against")!,
-      name: "Team xGC vs Goals Against",
-      yMetricKey: "goalsAgainst",
+      name: "Team xGC vs Goals Conceded",
+      yMetricKey: "goalsConceded",
     };
     const userGraph = { ...createDashboardGraph({ ...oldTeamDefault, name: "Mine" }), id: "graph-user" };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, data: [userGraph, oldTeamDefault] }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, data: [userGraph, oldTeamDefault] }));
 
     const { result } = renderHook(() => useDashboardGraphs());
     expect(result.current.graphs.map((g) => g.id)).toEqual(["graph-user", "default-graph-team-xgc-goals-against"]);
-    expect(result.current.graphs[0].yMetricKey).toBe("goalsAgainst");
-    expect(result.current.graphs[1].yMetricKey).toBe("goalsConceded");
+    // A user's own graph is never rewritten — its retired key is mapped at lookup time (teamColumnByKey).
+    expect(result.current.graphs[0].yMetricKey).toBe("goalsConceded");
+    expect(result.current.graphs[1].yMetricKey).toBe("goalsAgainst");
   });
 
   it("doesn't re-add a default the user removed before v2", () => {

@@ -40,7 +40,8 @@ export function teamsFromBootstrap(bootstrap: unknown): LedgerTeam[] {
 }
 
 export function fixturesFromOfficial(fixtures: unknown): LedgerFixture[] {
-  return ((fixtures as RawFixtureLike[]) ?? [])
+  if (!Array.isArray(fixtures)) return [];
+  return (fixtures as RawFixtureLike[])
     .filter((f) => f.event !== null)
     .map((f) => ({
       id: f.id,

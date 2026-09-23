@@ -2,6 +2,8 @@ export type Position = "GKP" | "DEF" | "MID" | "FWD";
 
 export interface NormalizedTeam {
   id: number;
+  /** Stable club identifier across seasons (FPL's team `code`) — the key into club history. Null only if the live build omits it. */
+  code: number | null;
   name: string;
   shortName: string;
   position: number | null;
@@ -32,6 +34,8 @@ export interface NormalizedTeam {
  */
 export interface NormalizedPlayer {
   id: number;
+  /** Stable player identifier across seasons (FPL's element `code`) — the key into a club's per-player history. Null only if the live build omits it. */
+  code: number | null;
   name: string;
   firstName: string;
   lastName: string;
@@ -233,3 +237,11 @@ export interface PlayerSeasonHistory {
   /** Null for seasons before 2024/25, when this stat was introduced — never a placeholder 0. See normalizeElementSummary.ts. */
   defensiveContribution: number | null;
 }
+
+/**
+ * One club's figures for one season, attributed by the club each player
+ * was actually playing for in each match — never by where a player is
+ * now. See server/src/clubHistory/types.ts for how it's built and
+ * sourced. Every team-level figure in the app comes from these.
+ */
+export type { RawClubSeason as ClubSeason, RawClubPlayerSeason as ClubPlayerSeason } from "./raw";

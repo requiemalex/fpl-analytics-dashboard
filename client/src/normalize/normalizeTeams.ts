@@ -5,6 +5,7 @@ import type { NormalizedTeam } from "../types/normalized";
 export function normalizeTeams(rawTeams: RawTeam[]): NormalizedTeam[] {
   return rawTeams.map((t) => ({
     id: t.id,
+    code: t.code ?? null,
     name: t.name,
     shortName: t.short_name,
     position: t.position || null,

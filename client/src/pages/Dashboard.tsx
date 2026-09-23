@@ -203,7 +203,6 @@ export function Dashboard() {
   const {
     players,
     teams,
-    fixtures,
     gameweekState,
     events,
     lastUpdated,
@@ -215,6 +214,8 @@ export function Dashboard() {
     historicRefreshing,
     currentSeasonHasStarted,
     requestHistoricData,
+    clubSeasons,
+    historicReferenceSeason,
   } = useAppState();
   const [, setSearchParams] = useSearchParams();
 
@@ -259,18 +260,16 @@ export function Dashboard() {
   const LIVE_RATE_STAT_MIN_MINUTES = 90;
   const RATE_STAT_MIN_MINUTES = 450;
 
-  // Team snapshot — same shared aggregation TeamDetailOverlay uses (every
-  // resolved player attributed to their current club, not minutes- or
-  // criteria-filtered, plus this season's real league standing and match
-  // results), computed per mode since a squad total needs its own season
-  // basis too. League-standing fields (goalsFor/goalsAgainst, leaguePosition,
-  // etc.) come from `teams`/`fixtures` directly, so they read identically
-  // across every mode — same "always live" convention as a player's price.
+  // Club figures per mode — same shared computation Teams and Team Profile
+  // use (<club_not_squad>, metrics/teamStats.ts): what each club did in
+  // the season(s) a tile/graph's own Data View selects, league table
+  // included, never a sum over today's squad.
   const teamAggregatesByMode = useMemo(() => {
+    const ctx = { clubSeasons, referenceSeason: historicReferenceSeason, currentSeasonHasStarted };
     const map = {} as Record<AnalysisMode, TeamAggregate[]>;
-    for (const mode of MODES) map[mode] = computeTeamAggregates(teams, resolvedByMode[mode], fixtures);
+    for (const mode of MODES) map[mode] = computeTeamAggregates(teams, mode, ctx);
     return map;
-  }, [resolvedByMode, teams, fixtures]);
+  }, [teams, clubSeasons, historicReferenceSeason, currentSeasonHasStarted]);
 
   // ---------- Summary Tiles ----------
   //
@@ -611,7 +610,10 @@ export function Dashboard() {
   // all — only "lastSeason"/"historicAverage" do (see
   // resolvePlayerStats.ts); a dashboard built entirely from Current Season
   // tiles/graphs never needs to wait on it.
-  const usesHistoricData = tilesState.tiles.some((t) => t.dataView !== "live") || graphsState.graphs.some((g) => g.dataView !== "live");
+  // Team figures come from club history in every mode, live included (it
+  // arrives with the historic load), so any team tile/graph needs it too.
+  const usesHistoricData =
+    tilesState.tiles.some((t) => t.dataView !== "live" || t.scope === "team") || graphsState.graphs.some((g) => g.dataView !== "live" || g.scope === "team");
 
   function openAddTileModal() {
     const firstMetric = tileView === "player" ? PLAYER_TILE_METRICS[0] : TEAM_TILE_METRICS[0];

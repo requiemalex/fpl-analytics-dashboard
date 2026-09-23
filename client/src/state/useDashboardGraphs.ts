@@ -8,11 +8,14 @@ const STORAGE_KEY = "fpl-dashboard:dashboard:graphs:v1";
 /**
  * Bumped 1 -> 2 when the packaged defaults changed (player defaults gained
  * a DEFAULT_GRAPH_MIN_MINUTES floor; the team xGC graph's Y axis moved from
- * this-season "Goals Against" to same-season "Goals Conceded"). migrate()
- * re-syncs any stored graph carrying a default id to its current packaged
- * definition when loading data stored under version < 2.
+ * this-season "Goals Against" to same-season "Goals Conceded"). Bumped
+ * 2 -> 3 when club history made every team metric season-aware: "Goals
+ * Against" is now the club's real goals conceded in the graph's own season,
+ * so the team xGC default goes back to it. migrate() re-syncs any stored
+ * graph carrying a default id to its current packaged definition when
+ * loading data stored under an older version.
  */
-const STORAGE_VERSION = 2;
+const STORAGE_VERSION = 3;
 const DEFAULT_DATA_VIEW: AnalysisMode = "lastSeason";
 
 /**
@@ -135,11 +138,10 @@ export const DEFAULT_DASHBOARD_GRAPHS: DashboardGraphConfig[] = [
   {
     id: "default-graph-team-xgc-goals-against",
     scope: "team",
-    name: "Team xGC vs Goals Conceded",
+    name: "Team xGC vs Goals Against",
     chartType: "scatter",
     xMetricKey: "xGC",
-    // Same-season, same-basis partner for xGC (see TeamAggregate.goalsConceded) — never "goalsAgainst", which is always this season's real results regardless of dataView.
-    yMetricKey: "goalsConceded",
+    yMetricKey: "goalsAgainst",
     dataView: DEFAULT_DATA_VIEW,
     showReferenceLine: true,
     criteria: null,
@@ -158,8 +160,8 @@ const DASHBOARD_GRAPHS_STORE: VersionedStore<DashboardGraphConfig[]> = {
     // there's nothing usable to migrate.
     if (!Array.isArray(data)) return null;
     const graphs = (data as Partial<DashboardGraphConfig>[]).map(normalizeDashboardGraph);
-    if (storedVersion !== null && storedVersion >= 2) return graphs;
-    // Pre-v2 copies of a packaged default are replaced in place (same
+    if (storedVersion !== null && storedVersion >= STORAGE_VERSION) return graphs;
+    // Older copies of a packaged default are replaced in place (same
     // position) by the current definition. Safe because a graph is never
     // edited after creation — a stored graph with a default id can only
     // ever be an unmodified default. A default the user removed stays

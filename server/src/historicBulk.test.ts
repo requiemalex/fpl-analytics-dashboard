@@ -71,8 +71,8 @@ describe("buildBulkHistoricData — L10 regression: a force-refresh build must b
     for (const call of cachedFetchMock.mock.calls) {
       expect(call[0].bypassCache).toBe(false);
     }
-    // One bootstrap call + one per player.
-    expect(cachedFetchMock).toHaveBeenCalledTimes(3);
+    // One bootstrap call + one fixtures call (for the live season's club figures) + one per player.
+    expect(cachedFetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("passes bypassCache=true through to BOTH the nested bootstrap-static call and every per-player element-summary call when the build was requested as a refresh", async () => {
@@ -83,12 +83,14 @@ describe("buildBulkHistoricData — L10 regression: a force-refresh build must b
 
     await buildBulkHistoricData(true);
 
-    expect(cachedFetchMock).toHaveBeenCalledTimes(4); // 1 bootstrap + 3 players
+    expect(cachedFetchMock).toHaveBeenCalledTimes(5); // 1 bootstrap + 1 fixtures + 3 players
     for (const call of cachedFetchMock.mock.calls) {
       expect(call[0].bypassCache).toBe(true);
     }
     const bootstrapCall = cachedFetchMock.mock.calls.find((c) => c[0].cacheKey === "bootstrap-static");
     expect(bootstrapCall?.[0].bypassCache).toBe(true);
+    const fixturesCall = cachedFetchMock.mock.calls.find((c) => c[0].cacheKey === "fixtures");
+    expect(fixturesCall?.[0].bypassCache).toBe(true);
     const playerCalls = cachedFetchMock.mock.calls.filter((c) => c[0].cacheKey.startsWith("element-summary:"));
     expect(playerCalls).toHaveLength(3);
     for (const call of playerCalls) {
@@ -159,5 +161,56 @@ describe("handle() in-flight coalescing — Phase 3 audit regression R1: a refre
 
     const bootstrapCalls = cachedFetchMock.mock.calls.filter((c) => c[0].cacheKey === "bootstrap-static");
     expect(bootstrapCalls).toHaveLength(1); // still coalesced — this fix only separates refresh from non-refresh, not normal-from-normal
+  });
+});
+
+describe("buildBulkHistoricData — club seasons", () => {
+  it("returns the bundled completed seasons plus the live season built from this season's per-fixture history", async () => {
+    cachedFetchMock.mockImplementation(async (opts: { cacheKey: string }) => {
+      if (opts.cacheKey === "bootstrap-static") {
+        return {
+          ok: true,
+          data: {
+            elements: [
+              { id: 1, code: 501, element_type: 1 },
+              { id: 2, code: 502, element_type: 1 },
+            ],
+            teams: [
+              { id: 1, code: 3, name: "Arsenal", short_name: "ARS" },
+              { id: 2, code: 14, name: "Liverpool", short_name: "LIV" },
+            ],
+            events: [{ id: 1, deadline_time: "2026-08-14T17:30:00Z" }],
+          },
+          source: "cache",
+          fetchedAt: Date.now(),
+        };
+      }
+      if (opts.cacheKey === "fixtures") {
+        return {
+          ok: true,
+          data: [{ id: 10, event: 1, team_h: 1, team_a: 2, team_h_score: 1, team_a_score: 0, finished: true }],
+          source: "cache",
+          fetchedAt: Date.now(),
+        };
+      }
+      const home = opts.cacheKey === "element-summary:1";
+      return {
+        ok: true,
+        data: {
+          history_past: [],
+          history: [{ fixture: 10, was_home: home, minutes: 90, total_points: 6, goals_scored: home ? 1 : 0, expected_goals_conceded: home ? "0.40" : "1.30" }],
+        },
+        source: "cache",
+        fetchedAt: Date.now(),
+      };
+    });
+
+    const result = await buildBulkHistoricData(false);
+    const live = result.clubSeasons.filter((c) => c.season === "2026/27");
+    expect(live.map((c) => [c.shortName, c.goalsFor, c.goalsAgainst, c.xGC])).toEqual([
+      ["ARS", 1, 0, 0.4],
+      ["LIV", 0, 1, 1.3],
+    ]);
+    expect(result.clubSeasons.some((c) => c.season === "2025/26" && c.complete)).toBe(true);
   });
 });

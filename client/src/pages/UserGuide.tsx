@@ -237,22 +237,18 @@ export function UserGuide() {
           The packaged default graphs carry over the most broadly useful charts from the old Underlying Numbers page: for Players,{" "}
           <strong>xG vs Goals</strong> and <strong>xA vs Assists</strong> (both with the reference line on, showing finishing/creativity
           over- or under-performance) and <strong>Price vs Points</strong> (no reference line — price and points aren't on a
-          comparable scale); for Teams, <strong>Team xG vs Goals</strong> and <strong>Team xGC vs Goals Conceded</strong>, the same
-          idea applied to a club's whole squad. The default Player graphs only include players with at least 900 minutes in the
+          comparable scale); for Teams, <strong>Team xG vs Goals</strong> and <strong>Team xGC vs Goals Against</strong>, the same
+          idea applied to each club. The default Player graphs only include players with at least 900 minutes in the
           graph's Data View — without that floor, hundreds of fringe players pile up at zero and hide everyone else. Graphs without
           the reference line fit their axes to the data's own range (so Price vs Points starts near £4m, not £0). The old page's Thematic Analysis charts (average points by position/price tier across
           every season on record) deliberately aren't among them — they're genuine multi-season time series, not a single-analysis-mode
           metric-vs-metric graph, so they don't fit this per-graph model and were retired rather than forced in.
         </p>
         <p className="page-subtitle">
-          Team metrics go well beyond the current squad's summed output now — <strong>League Position</strong>,{" "}
-          <strong>League Points</strong>, <strong>Played/Wins/Draws/Losses</strong>, and <strong>Goals For/Against/Difference</strong>{" "}
-          are this season's real table and match results, always live regardless of a tile or graph's own Data View — same "always
-          live" idea as a player's price — alongside the existing squad-sum metrics (Squad Points, xG/xA/xGI, Def. Contributions,
-          Clean Sheets, Bonus). Team <strong>xGC</strong> and <strong>Goals Conceded</strong> are the exception: they come from the
-          club's goalkeepers only, since every player on the pitch carries the same conceded figure — adding them up across the squad
-          would count each chance about eleven times. Goals Conceded follows the graph's Data View, so it's the like-for-like partner
-          for xGC; Goals Against is always this season's real results.
+          Every team metric is a <em>club</em> figure for the season(s) the tile or graph's own Data View picks — see Teams &amp; Team
+          Profile below. That includes the results: a team tile set to Last Completed Season shows that season's final{" "}
+          <strong>League Position</strong>, <strong>League Points</strong>, <strong>Goals For/Against</strong> and so on, not today's
+          table.
         </p>
         <Try>Use it as a starting point, not a destination — spot a name in a leaderboard or an outlier on a chart, click through, then dig deeper in Player Explorer or the profile.</Try>
       </Section>
@@ -377,24 +373,37 @@ export function UserGuide() {
 
       <Section id="teams" title="Teams &amp; Team Profile">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Teams aggregates every club's <em>current</em> squad — a transferred player's full total goes to their new club here, not the
-          one they earned it at, which the banner on that page states explicitly every time. Sortable like every other table here, with
-          a "Player Rankings" shortcut next to each club name that jumps straight into Player Explorer pre-filtered to that team. A
-          team's coloured pill — here, in the Team Profile, and on the Dashboard's team tiles — is clickable anywhere it appears in the
-          app and opens that club's Team Profile: squad totals (Points, Goals, Assists, xG, xA, xGI, Clean Sheets), upcoming fixtures,
-          and the current squad by points, with its own "Player Rankings" link through to Player Explorer for anyone who wants the full
-          sortable table. It's a two-colour swatch of that club's real primary and secondary kit colours where known, so same-coloured
+          Team analysis is always <em>what the club did</em> in a given season — whoever was playing for it at the time — never what its
+          current players did elsewhere. Every figure comes from a match-by-match record of which club each player was playing for in
+          each game, so a summer signing's previous season stays with his previous club, and a player who leaves mid-season keeps
+          what he did for the club counted for it. "What would this new signing bring?" is player analysis — look at him in Player
+          Explorer or his profile. The Data View picks the season: Current Season, the Last Completed Season, or a Historic Average
+          over the last four completed seasons (only the ones the club was actually in the Premier League — a promoted club shows "—"
+          for a season it was in the Championship, never zero).
+        </p>
+        <p className="page-subtitle">
+          Teams is a league-table view of that season — position, points, goals for and against, clean sheets, xG, xGC, xA and FPL
+          points scored — sortable like every other table here, with a "Player Rankings" shortcut next to each club name that jumps
+          straight into Player Explorer pre-filtered to that team. A team's coloured pill — here, in the Team Profile, and on the
+          Dashboard's team tiles — is clickable anywhere it appears in the app and opens that club's Team Profile: season totals, the
+          team radars, upcoming fixtures, and the current squad with what each player did <em>for this club</em> in the selected
+          season (a new signing shows "—" for last season), with its own "Player Rankings" link through to Player Explorer for the
+          full sortable table. It's a two-colour swatch of that club's real primary and secondary kit colours where known, so same-coloured
           clubs (several Premier League sides share red or blue as a primary) are still distinguishable at a glance.
         </p>
         <p className="page-subtitle">
-          <strong>Squad Points History</strong>, below the squad table, is the same bar-chart idea as the player profile's Career
-          History, applied to the current squad: each bar is the sum of FPL points every player currently at that club personally
-          scored in that season, including this one in progress (dashed), and the average line/figure uses the same rolling 4-season
-          window the player profile does — a season older than that draws muted-grey rather than counting toward the average. It
-          carries the same simplification as the rest of Teams — the FPL API has no record of which club a player was actually at in
-          a past season, so a summer signing's points from their old club land in this club's bar too, not held back for wherever
-          they were at the time, and a bar can appear for a season before that club was even in the Premier League for the same
-          reason. The small "?" under the chart repeats this for anyone who lands on it without reading here first.
+          <strong>FPL Points History</strong>, below the squad table, is the same bar-chart idea as the player profile's Career
+          History, applied to the club: each bar is the FPL points scored for that club in that season, including this one in
+          progress (dashed), back to 2016/17. The average line/figure uses the same rolling 4-season window the player profile does —
+          a season older than that draws muted-grey rather than counting toward the average. Seasons the club wasn't in the Premier
+          League simply have no bar.
+        </p>
+        <p className="page-subtitle">
+          Where the club record comes from: the official FPL API only serves the current season's match-by-match data and wipes it
+          every summer, so 2016/17 to 2025/26 were filled in once from a well-known community archive of FPL's own data (checked
+          against FPL's official season totals, and every match's goals against its real score). From 2026/27 on, the app keeps its
+          own copy straight from the official API, saved twice a week through the season. Club xG, xA and xGC exist from 2022/23
+          (when FPL started tracking them); club Defensive Contributions exist for 2025/26 on.
         </p>
       </Section>
 
@@ -436,9 +445,10 @@ export function UserGuide() {
       <Section id="limitations" title="Data sourcing & known limitations">
         <ul style={{ margin: 0, paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
           <li>
-            <strong>No historic team-level data.</strong> The API's per-season player history has no club attribution at all — there's no
-            way to know which team a player was at for a past season, so "what did this club do in 2022/23" can't be reconstructed
-            accurately. Teams' current-squad aggregate sidesteps this by design (see the banner on that page) rather than guessing.
+            <strong>Club history before 2026/27 comes from a community archive.</strong> The official API's per-season player history
+            has no club attribution, and it doesn't serve past seasons' match data at all, so 2016/17–2025/26 club figures were
+            backfilled from the vaastav/Fantasy-Premier-League archive (a mirror of FPL's own data) — see Teams &amp; Team Profile.
+            From 2026/27 on it's archived straight from the official API.
           </li>
           <li>
             <strong>xG-family stats are placeholder zeros before 2022/23</strong> and <strong>Defensive Contribution before 2024/25</strong> —
