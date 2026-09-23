@@ -5,8 +5,25 @@ import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "./scoutingFilters";
 import { loadVersioned, saveVersioned, type VersionedStore } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:dashboard:graphs:v1";
-const STORAGE_VERSION = 1;
+/**
+ * Bumped 1 -> 2 when the packaged defaults changed (player defaults gained
+ * a DEFAULT_GRAPH_MIN_MINUTES floor; the team xGC graph's Y axis moved from
+ * this-season "Goals Against" to same-season "Goals Conceded"). migrate()
+ * re-syncs any stored graph carrying a default id to its current packaged
+ * definition when loading data stored under version < 2.
+ */
+const STORAGE_VERSION = 2;
 const DEFAULT_DATA_VIEW: AnalysisMode = "lastSeason";
+
+/**
+ * Minimum minutes for the packaged player default graphs — about ten full
+ * games. With no floor, every player in the game is plotted (~670), and
+ * the hundreds with a handful of minutes pile up at 0,0 and hide the
+ * players worth reading. Only the defaults carry this; a user-built graph
+ * keeps whatever Min Minutes it was created with.
+ */
+const DEFAULT_GRAPH_MIN_MINUTES = 900;
+const DEFAULT_GRAPH_PLAYER_CRITERIA: GlobalScoutingFilters = { ...DEFAULT_FILTERS, minMinutes: DEFAULT_GRAPH_MIN_MINUTES };
 
 /**
  * A graph takes a lot more screen space than a tile to be useful (see the
@@ -58,9 +75,9 @@ export function normalizeDashboardGraph(g: Partial<DashboardGraphConfig>): Dashb
  * scope, ported over from the old Underlying Numbers page's most broadly
  * useful "expected vs actual" and "value" charts (never its Thematic
  * Analysis line charts, which don't fit this per-graph, single-analysis-
- * mode model). Player defaults use DEFAULT_FILTERS (no criteria narrowing)
- * same as every other player default; team defaults have no criteria at
- * all, same as every other team tile/graph.
+ * mode model). Player defaults use DEFAULT_FILTERS plus a
+ * DEFAULT_GRAPH_MIN_MINUTES floor; team defaults have no criteria at all,
+ * same as every other team tile/graph.
  */
 export const DEFAULT_DASHBOARD_GRAPHS: DashboardGraphConfig[] = [
   {
@@ -72,7 +89,7 @@ export const DEFAULT_DASHBOARD_GRAPHS: DashboardGraphConfig[] = [
     yMetricKey: "goals",
     dataView: DEFAULT_DATA_VIEW,
     showReferenceLine: true,
-    criteria: DEFAULT_FILTERS,
+    criteria: DEFAULT_GRAPH_PLAYER_CRITERIA,
     playerIds: null,
     teamIds: null,
   },
@@ -85,7 +102,7 @@ export const DEFAULT_DASHBOARD_GRAPHS: DashboardGraphConfig[] = [
     yMetricKey: "assists",
     dataView: DEFAULT_DATA_VIEW,
     showReferenceLine: true,
-    criteria: DEFAULT_FILTERS,
+    criteria: DEFAULT_GRAPH_PLAYER_CRITERIA,
     playerIds: null,
     teamIds: null,
   },
@@ -98,7 +115,7 @@ export const DEFAULT_DASHBOARD_GRAPHS: DashboardGraphConfig[] = [
     yMetricKey: "totalPoints",
     dataView: DEFAULT_DATA_VIEW,
     showReferenceLine: false,
-    criteria: DEFAULT_FILTERS,
+    criteria: DEFAULT_GRAPH_PLAYER_CRITERIA,
     playerIds: null,
     teamIds: null,
   },
@@ -118,10 +135,11 @@ export const DEFAULT_DASHBOARD_GRAPHS: DashboardGraphConfig[] = [
   {
     id: "default-graph-team-xgc-goals-against",
     scope: "team",
-    name: "Team xGC vs Goals Against",
+    name: "Team xGC vs Goals Conceded",
     chartType: "scatter",
     xMetricKey: "xGC",
-    yMetricKey: "goalsAgainst",
+    // Same-season, same-basis partner for xGC (see TeamAggregate.goalsConceded) — never "goalsAgainst", which is always this season's real results regardless of dataView.
+    yMetricKey: "goalsConceded",
     dataView: DEFAULT_DATA_VIEW,
     showReferenceLine: true,
     criteria: null,
@@ -133,13 +151,20 @@ export const DEFAULT_DASHBOARD_GRAPHS: DashboardGraphConfig[] = [
 const DASHBOARD_GRAPHS_STORE: VersionedStore<DashboardGraphConfig[]> = {
   version: STORAGE_VERSION,
   fallback: DEFAULT_DASHBOARD_GRAPHS,
-  migrate(data) {
+  migrate(data, storedVersion) {
     // A genuinely empty array is a legitimate, deliberate user state (every
     // graph removed) — same "is an empty array valid?" handling as
     // useSummaryTiles.ts. Only a non-array (or missing) payload means
     // there's nothing usable to migrate.
     if (!Array.isArray(data)) return null;
-    return (data as Partial<DashboardGraphConfig>[]).map(normalizeDashboardGraph);
+    const graphs = (data as Partial<DashboardGraphConfig>[]).map(normalizeDashboardGraph);
+    if (storedVersion !== null && storedVersion >= 2) return graphs;
+    // Pre-v2 copies of a packaged default are replaced in place (same
+    // position) by the current definition. Safe because a graph is never
+    // edited after creation — a stored graph with a default id can only
+    // ever be an unmodified default. A default the user removed stays
+    // removed; nothing is re-added.
+    return graphs.map((g) => DEFAULT_DASHBOARD_GRAPHS.find((d) => d.id === g.id) ?? g);
   },
 };
 

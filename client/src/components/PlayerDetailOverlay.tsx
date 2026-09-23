@@ -125,6 +125,7 @@ export function PlayerDetailOverlay() {
       goals: player.goals ?? 0,
       assists: player.assists ?? 0,
       cleanSheets: player.cleanSheets ?? 0,
+      goalsConceded: player.goalsConceded,
       bonus: player.bonus ?? 0,
       bps: player.bps ?? 0,
       ictIndex: player.ictIndex,

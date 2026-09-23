@@ -62,6 +62,8 @@ export interface NormalizedPlayer {
   goals: number | null;
   assists: number | null;
   cleanSheets: number | null;
+  /** Goals conceded while this player was on the pitch — same on-pitch basis as xGC, so summing it across a squad over-counts (see metrics/teamStats.ts). Null if the live build omits the field. */
+  goalsConceded: number | null;
   bonus: number | null;
   bps: number | null;
   ictIndex: number | null;
@@ -213,6 +215,8 @@ export interface PlayerSeasonHistory {
   goals: number;
   assists: number;
   cleanSheets: number;
+  /** Null only if history_past omits the field for this season — never a guessed 0. */
+  goalsConceded: number | null;
   bonus: number;
   bps: number;
   ictIndex: number | null;

@@ -71,6 +71,19 @@
   margin-bottom: 22px;
 }
 
+/* Dashboard graphs: a fixed 2 per row rather than auto-fit — at 3 per row
+   a scatter of a few hundred players was too cramped to read. Plain
+   minmax(0, 1fr) (no min()/max() mixing — see .card-grid above). */
+.graph-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .graph-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .stat-row {
   display: flex;
   align-items: center;

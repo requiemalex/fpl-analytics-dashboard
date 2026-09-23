@@ -113,6 +113,13 @@ export function ScatterWithReference({
     ];
   }, [data, showReferenceLine]);
 
+  // Recharts' default number-axis domain is [0, auto] — fine with the 45°
+  // reference line (which needs both axes anchored at 0 to mean anything),
+  // but wasteful otherwise: e.g. every price is >= £3.9m, so a 0-based
+  // price axis spends a quarter of the chart on empty space. Without the
+  // line, both axes fit the data's own range, still rounded to nice ticks.
+  const fitDomain = showReferenceLine ? undefined : (["auto", "auto"] as [string, string]);
+
   if (data.length === 0) {
     return (
       <div className="empty-state" style={{ padding: "40px 20px" }}>
@@ -132,20 +139,21 @@ export function ScatterWithReference({
             name={xLabel}
             stroke="var(--text-muted)"
             tick={{ fontSize: 11, fill: "var(--text-secondary)" }}
-            {...(xTicks ? { ticks: xTicks, domain: [xTicks[0], xTicks[xTicks.length - 1]] } : {})}
+            {...(xTicks ? { ticks: xTicks, domain: [xTicks[0], xTicks[xTicks.length - 1]] } : fitDomain ? { domain: fitDomain } : {})}
             tickFormatter={xTickFormatter}
           >
             <Label value={xLabel} position="bottom" offset={0} style={{ fill: "var(--text-muted)", fontSize: 11 }} />
           </XAxis>
-          <YAxis type="number" dataKey="y" name={yLabel} stroke="var(--text-muted)" tick={{ fontSize: 11, fill: "var(--text-secondary)" }}>
+          <YAxis type="number" dataKey="y" name={yLabel} stroke="var(--text-muted)" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} domain={fitDomain}>
             <Label value={yLabel} angle={-90} position="left" style={{ fill: "var(--text-muted)", fontSize: 11, textAnchor: "middle" }} />
           </YAxis>
-          <ZAxis dataKey={useBubbleSize ? "z" : undefined} range={useBubbleSize ? [30, 160] : [40, 40]} name={zLabel} />
+          {/* Fixed-size dots are kept small and semi-transparent so a dense cluster (many players on the same whole-number goals/price value) reads as a darker patch rather than one solid blob. */}
+          <ZAxis dataKey={useBubbleSize ? "z" : undefined} range={useBubbleSize ? [30, 160] : [22, 22]} name={zLabel} />
           <Tooltip content={<CustomTooltip zLabel={zLabel} />} cursor={{ stroke: "var(--border-strong)" }} />
           {showReferenceLine && (
             <Line data={referenceLineData} dataKey="y" stroke="var(--text-muted)" strokeDasharray="4 4" dot={false} legendType="none" isAnimationActive={false} />
           )}
-          <Scatter data={data} fillOpacity={0.8} onClick={(point: any) => onPointClick?.(point.id)} cursor={onPointClick ? "pointer" : "default"}>
+          <Scatter data={data} fillOpacity={useBubbleSize ? 0.8 : 0.55} onClick={(point: any) => onPointClick?.(point.id)} cursor={onPointClick ? "pointer" : "default"}>
             {data.map((d) => {
               let fill = "var(--accent-positive)";
               if (colorScale && zRange && d.z !== undefined && d.z !== null) {

@@ -83,6 +83,7 @@ function normalizeOnePlayer(
     goals: el.goals_scored,
     assists: el.assists,
     cleanSheets: el.clean_sheets,
+    goalsConceded: parseNumberOrNull(el.goals_conceded),
     bonus: el.bonus,
     bps: el.bps,
     ictIndex: parseNumericString(el.ict_index),

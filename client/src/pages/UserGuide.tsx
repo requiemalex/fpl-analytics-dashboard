@@ -237,8 +237,10 @@ export function UserGuide() {
           The packaged default graphs carry over the most broadly useful charts from the old Underlying Numbers page: for Players,{" "}
           <strong>xG vs Goals</strong> and <strong>xA vs Assists</strong> (both with the reference line on, showing finishing/creativity
           over- or under-performance) and <strong>Price vs Points</strong> (no reference line — price and points aren't on a
-          comparable scale); for Teams, <strong>Team xG vs Goals</strong> and <strong>Team xGC vs Goals Against</strong>, the same
-          idea applied to a club's whole squad. The old page's Thematic Analysis charts (average points by position/price tier across
+          comparable scale); for Teams, <strong>Team xG vs Goals</strong> and <strong>Team xGC vs Goals Conceded</strong>, the same
+          idea applied to a club's whole squad. The default Player graphs only include players with at least 900 minutes in the
+          graph's Data View — without that floor, hundreds of fringe players pile up at zero and hide everyone else. Graphs without
+          the reference line fit their axes to the data's own range (so Price vs Points starts near £4m, not £0). The old page's Thematic Analysis charts (average points by position/price tier across
           every season on record) deliberately aren't among them — they're genuine multi-season time series, not a single-analysis-mode
           metric-vs-metric graph, so they don't fit this per-graph model and were retired rather than forced in.
         </p>
@@ -246,8 +248,11 @@ export function UserGuide() {
           Team metrics go well beyond the current squad's summed output now — <strong>League Position</strong>,{" "}
           <strong>League Points</strong>, <strong>Played/Wins/Draws/Losses</strong>, and <strong>Goals For/Against/Difference</strong>{" "}
           are this season's real table and match results, always live regardless of a tile or graph's own Data View — same "always
-          live" idea as a player's price — alongside the existing squad-sum metrics (Squad Points, xG/xA/xGI/xGC, Def. Contributions,
-          Clean Sheets, Bonus).
+          live" idea as a player's price — alongside the existing squad-sum metrics (Squad Points, xG/xA/xGI, Def. Contributions,
+          Clean Sheets, Bonus). Team <strong>xGC</strong> and <strong>Goals Conceded</strong> are the exception: they come from the
+          club's goalkeepers only, since every player on the pitch carries the same conceded figure — adding them up across the squad
+          would count each chance about eleven times. Goals Conceded follows the graph's Data View, so it's the like-for-like partner
+          for xGC; Goals Against is always this season's real results.
         </p>
         <Try>Use it as a starting point, not a destination — spot a name in a leaderboard or an outlier on a chart, click through, then dig deeper in Player Explorer or the profile.</Try>
       </Section>

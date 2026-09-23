@@ -9,6 +9,8 @@ export interface CareerAverages {
   /** Averaged only over seasons where starts is known (see PlayerSeasonHistory.starts nullability). */
   avgStartsPerSeason: number | null;
   avgCleanSheetsPerSeason: number | null;
+  /** Averaged only over seasons where goals conceded is known (see PlayerSeasonHistory.goalsConceded). */
+  avgGoalsConcededPerSeason: number | null;
   avgBonusPerSeason: number | null;
   avgBpsPerSeason: number | null;
   avgIctIndex: number | null;
@@ -39,6 +41,7 @@ export function computeCareerAverages(seasons: PlayerSeasonHistory[]): CareerAve
       avgStartsPerSeason: null,
       avgAssistsPerSeason: null,
       avgCleanSheetsPerSeason: null,
+      avgGoalsConcededPerSeason: null,
       avgBonusPerSeason: null,
       avgBpsPerSeason: null,
       avgIctIndex: null,
@@ -64,6 +67,7 @@ export function computeCareerAverages(seasons: PlayerSeasonHistory[]): CareerAve
     avgStartsPerSeason: avgOrNull((s) => s.starts),
     avgAssistsPerSeason: sum((s) => s.assists) / n,
     avgCleanSheetsPerSeason: sum((s) => s.cleanSheets) / n,
+    avgGoalsConcededPerSeason: avgOrNull((s) => s.goalsConceded),
     avgBonusPerSeason: sum((s) => s.bonus) / n,
     avgBpsPerSeason: sum((s) => s.bps) / n,
     avgIctIndex: avgOrNull((s) => s.ictIndex),

@@ -73,6 +73,7 @@ function normalizePastSeasons(historyPast: RawElementSummaryPastSeason[]): Playe
       goals: s.goals_scored,
       assists: s.assists,
       cleanSheets: s.clean_sheets,
+      goalsConceded: s.goals_conceded ?? null,
       bonus: s.bonus,
       bps: s.bps,
       ictIndex: parseNumericString(s.ict_index ?? null),

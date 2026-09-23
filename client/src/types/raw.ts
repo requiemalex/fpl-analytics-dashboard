@@ -77,6 +77,8 @@ export interface RawElement {
   goals_scored: number;
   assists: number;
   clean_sheets: number;
+  /** Season-to-date goals conceded while this player was on the pitch. Optional+nullable (detected, never assumed) — see validation/schema.ts. */
+  goals_conceded?: number | null;
   bonus: number;
   bps: number;
   ict_index: string;
@@ -260,7 +262,7 @@ export interface RawElementSummaryPastSeason {
   goals_scored: number;
   assists: number;
   clean_sheets: number;
-  goals_conceded?: number;
+  goals_conceded?: number | null;
   own_goals?: number;
   penalties_saved?: number;
   penalties_missed?: number;

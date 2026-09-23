@@ -1025,7 +1025,7 @@ export function Dashboard() {
       {visibleGraphRows.length === 0 && selectedViewIsDefault ? (
         <p className="page-subtitle">No {tileView} graphs yet.</p>
       ) : (
-        <div className="card-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(440px, 1fr))" }}>
+        <div className="card-grid graph-grid">
           {visibleGraphRows.map(({ graph, kind, xLabel, yLabel, format, scatterData, barData }) => (
             <DashboardGraphCard
               key={graph.id}

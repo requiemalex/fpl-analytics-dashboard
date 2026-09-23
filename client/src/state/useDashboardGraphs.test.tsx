@@ -44,6 +44,34 @@ describe("useDashboardGraphs — <update_safety> defaults and migration", () => 
     const { result } = renderHook(() => useDashboardGraphs());
     expect(result.current.graphs).toEqual([]);
   });
+
+  it("re-syncs a pre-v2 stored default graph to its current packaged definition, in place", () => {
+    const oldTeamDefault = {
+      ...DEFAULT_DASHBOARD_GRAPHS.find((g) => g.id === "default-graph-team-xgc-goals-against")!,
+      name: "Team xGC vs Goals Against",
+      yMetricKey: "goalsAgainst",
+    };
+    const userGraph = { ...createDashboardGraph({ ...oldTeamDefault, name: "Mine" }), id: "graph-user" };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, data: [userGraph, oldTeamDefault] }));
+
+    const { result } = renderHook(() => useDashboardGraphs());
+    expect(result.current.graphs.map((g) => g.id)).toEqual(["graph-user", "default-graph-team-xgc-goals-against"]);
+    expect(result.current.graphs[0].yMetricKey).toBe("goalsAgainst");
+    expect(result.current.graphs[1].yMetricKey).toBe("goalsConceded");
+  });
+
+  it("doesn't re-add a default the user removed before v2", () => {
+    const kept = DEFAULT_DASHBOARD_GRAPHS[0];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, data: [{ ...kept, criteria: DEFAULT_FILTERS }] }));
+    const { result } = renderHook(() => useDashboardGraphs());
+    expect(result.current.graphs).toEqual([kept]);
+  });
+
+  it("player default graphs carry a 900-minute floor", () => {
+    for (const g of DEFAULT_DASHBOARD_GRAPHS.filter((g) => g.scope === "player")) {
+      expect(g.criteria?.minMinutes).toBe(900);
+    }
+  });
 });
 
 describe("useDashboardGraphs — addGraph/removeGraph/replaceScopeGraphs", () => {

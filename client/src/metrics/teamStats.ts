@@ -13,7 +13,10 @@ export interface TeamAggregate {
   xG: number | null;
   xA: number | null;
   xGI: number | null;
+  /** Summed over the current squad's goalkeepers only, not the whole squad — see <team_xgc_from_goalkeepers> on computeTeamAggregates. */
   xGC: number | null;
+  /** Goals conceded, same goalkeeper-only basis and same mode-resolved season as `xGC` — the like-for-like partner for it. Distinct from `goalsAgainst` below, which is always this season's real results. */
+  goalsConceded: number | null;
   defensiveContributions: number | null;
   cleanSheets: number | null;
   /** Actual goals scored/conceded from finished fixture results — a genuinely different number from xG/xGC, not a duplicate. */
@@ -51,10 +54,23 @@ function sum(values: (number | null)[]): number | null {
  * when the points were scored). Shared here so both pages (and the new
  * team radar/colouring) agree on one computation instead of two
  * independently-maintained copies.
+ *
+ * <team_xgc_from_goalkeepers>: a player's xGC (and goals conceded) is
+ * what his team conceded *while he was on the pitch* — every player on
+ * the pitch carries the same figure, so summing it across the whole squad
+ * counts each chance ~11 times (confirmed against live data: squad-summed
+ * xGC ≈ 11x the goalkeepers' xGC for every club). Goals/xG/assists don't
+ * have this problem — each belongs to exactly one player. Goalkeepers are
+ * on the pitch for effectively every minute, so the squad's goalkeepers'
+ * own xGC/goals conceded is the club's real team figure, read straight
+ * off the API rather than estimated (e.g. dividing the squad sum by 11).
+ * Same current-squad-attribution caveat as every other field here: a
+ * keeper who changed clubs brings his previous club's figures with him.
  */
 export function computeTeamAggregates(teams: NormalizedTeam[], resolvedPlayers: NormalizedPlayer[], fixtures: NormalizedFixture[]): TeamAggregate[] {
   return teams.map((team) => {
     const squad = resolvedPlayers.filter((p) => p.teamId === team.id);
+    const goalkeepers = squad.filter((p) => p.position === "GKP");
     const finishedFixtures = fixtures.filter((f) => f.finished && (f.homeTeamId === team.id || f.awayTeamId === team.id));
     const goalsFor = sum(finishedFixtures.map((f) => (f.homeTeamId === team.id ? f.homeScore : f.awayScore)));
     const goalsAgainst = sum(finishedFixtures.map((f) => (f.homeTeamId === team.id ? f.awayScore : f.homeScore)));
@@ -69,7 +85,8 @@ export function computeTeamAggregates(teams: NormalizedTeam[], resolvedPlayers: 
       xG: sum(squad.map((p) => p.xG)),
       xA: sum(squad.map((p) => p.xA)),
       xGI: sum(squad.map((p) => p.xGI)),
-      xGC: sum(squad.map((p) => p.xGC)),
+      xGC: sum(goalkeepers.map((p) => p.xGC)),
+      goalsConceded: sum(goalkeepers.map((p) => p.goalsConceded)),
       defensiveContributions: sum(squad.map((p) => p.defensiveContributions)),
       cleanSheets: sum(squad.map((p) => p.cleanSheets)),
       goalsFor,

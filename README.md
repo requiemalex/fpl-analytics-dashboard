@@ -662,8 +662,22 @@ real table and match results, read straight off `NormalizedTeam`/
 fixtures rather than summed from the current squad, and don't change
 depending on a tile/graph's own Data View (`TeamColumn.varies`) — the
 current-squad-attribution caveat above applies only to the squad-sum
-metrics (Squad Points, Goals, Assists, xG, xA, xGI, xGC, Def.
-Contributions, Clean Sheets, Bonus).
+metrics (Squad Points, Goals, Assists, xG, xA, xGI, xGC, Goals Conceded,
+Def. Contributions, Clean Sheets, Bonus).
+
+**Team xGC and Goals Conceded are goalkeeper-only, not squad sums.** A
+player's `expected_goals_conceded`/`goals_conceded` is what his team
+conceded *while he was on the pitch*, so every player on the pitch carries
+the same figure — summing across the squad counts each chance ~11 times
+(checked against live GW5 2026/27 data: squad-summed xGC was 44.4 for
+Arsenal against 4.0 for their goalkeepers, and the same ~11x for all 20
+clubs). Goalkeepers play effectively every minute, so the squad's
+keepers' own figures are the club's real team numbers, read straight off
+the API rather than estimated. Same current-squad caveat: a keeper who
+changed clubs brings his old club's figures. Goals Conceded is
+mode-resolved (it follows a tile/graph's Data View) and is the
+like-for-like partner for xGC; Goals Against stays the live-season real
+result.
 
 ## Career history and historic analysis mode
 
@@ -3073,3 +3087,29 @@ That page is gone; graph building now lives alongside Summary Tiles.
   `AppShell.tsx`, and the User Guide's "Underlying Numbers" section are
   updated/removed accordingly; the Dashboard's User Guide section now
   documents Graphs alongside Summary Tiles.
+
+## Dashboard graphs: readability and team defensive accuracy fixes
+
+- **Team xGC was ~11x too high.** It summed every squad player's on-pitch
+  xGC; it's now the goalkeepers' xGC — see "Current-season team
+  aggregation methodology" above. Also fixes the same inflated figure on
+  any Team Tile built from xGC.
+- **New team metric: Goals Conceded** (goalkeeper-based, follows the Data
+  View). The default "Team xGC vs Goals Against" graph plotted a full
+  prior season of xGC against this season's handful of real results; it's
+  now "Team xGC vs Goals Conceded", both from the same season.
+  `goalsConceded` is plumbed through `NormalizedPlayer`,
+  `PlayerSeasonHistory`, `computeCareerAverages` and `resolvePlayerStats`
+  for every analysis mode.
+- **Default player graphs get a 900-minute floor**
+  (`DEFAULT_GRAPH_MIN_MINUTES`, `useDashboardGraphs.ts`) so fringe players
+  no longer bury the chart at 0,0.
+- **Scatter axes fit the data** when there's no reference line
+  (`domain={["auto","auto"]}`); with the 45° line both axes still start at
+  0. Fixed-size dots are smaller and semi-transparent so dense clusters
+  read as darker patches.
+- **Graphs sit 2 per row** (`.graph-grid`), 1 per row under 900px wide.
+- `useDashboardGraphs` storage bumped to version 2: a stored copy of a
+  packaged default is replaced in place by its current definition; a
+  removed default stays removed. Default saved views already re-sync to
+  the packaged defaults on every load.

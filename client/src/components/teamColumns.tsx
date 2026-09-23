@@ -41,6 +41,7 @@ export const TEAM_COLUMNS: TeamColumn[] = [
   { key: "goals", label: "Goals", group: "SQUAD OUTPUT", getValue: (t) => t.goals, format: num(0) },
   { key: "assists", label: "Assists", group: "SQUAD OUTPUT", getValue: (t) => t.assists, format: num(0) },
   { key: "cleanSheets", label: "Clean Sheets", group: "SQUAD OUTPUT", getValue: (t) => t.cleanSheets, format: num(0) },
+  { key: "goalsConceded", label: "Goals Conceded", group: "SQUAD OUTPUT", getValue: (t) => t.goalsConceded, format: num(0), higherIsBetter: false },
   { key: "bonus", label: "Bonus Points", group: "SQUAD OUTPUT", getValue: (t) => t.bonus, format: num(0) },
 
   // UNDERLYING PERFORMANCE
