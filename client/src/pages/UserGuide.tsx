@@ -243,13 +243,16 @@ export function UserGuide() {
           the reference line fit their axes to the data's own range (so Price vs Points starts near £4m, not £0).
         </p>
         <p className="page-subtitle">
-          Every scatter graph also follows two automatic rules so any pair of metrics stays readable. If one axis is five or more
-          times the size of the other (Price against Points, or a club's xG against its FPL points), the reference line is left out
-          even if it was ticked — it would squash the smaller metric into a sliver — and a note under the chart says so. And if most
-          points are crammed into a narrow band of an axis by a few big values (most players cost £4.5–6m while a handful cost
-          £10m+), that axis is stretched onto a log scale (or a square-root one, if it has zeros) to spread the crowd out — the axis
-          title says "(log scale)" or "(√ scale)" when this happens, and hovering a point always shows its real values. Neither rule
-          ever changes a graph that draws the reference line on two like-for-like metrics.
+          Every scatter graph also follows a few automatic rules so any pair of metrics stays readable. Each axis runs from just below
+          its lowest value to just above its highest, rather than from 0 by default — clubs concede between roughly 27 and 58 goals a
+          season, so that's what the axis shows — and starts at 0 only when the data is already close to it. If one axis is five or
+          more times the size of the other (Price against Points, or a club's xG against its FPL points), the reference line is left
+          out even if it was ticked — it would squash the smaller metric into a sliver — and a note under the chart says so. And if
+          most points are crammed into a narrow band of an axis by a few big values (most players cost £4.5–6m while a handful cost
+          £10m+; most players score 0–3 goals while a few score 20+), that axis is stretched onto a log scale (or a square-root one, if
+          it has zeros) to spread the crowd out; the axis title says "(log scale)" or "(√ scale)", and hovering a point always shows
+          its real values. On a graph with the reference line, both axes always share the same range and stretch, so the line keeps
+          meaning "exactly as expected".
         </p>
         <p className="page-subtitle">
           The old page's Thematic Analysis charts (average points by position/price tier across

@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { ResponsiveContainer, ComposedChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Line, ZAxis, Cell, Label } from "recharts";
-import { chooseAxisScale, scalesMismatched, type AxisScale } from "./axisScaling";
+import { planScatterAxes, type AxisScale } from "./axisScaling";
 
 export interface ScatterPoint {
   id: number;
@@ -30,9 +30,9 @@ function interpolateColor(t: number, low: [number, number, number], high: [numbe
 
 const SCALE_SUFFIX: Record<AxisScale["kind"], string> = { linear: "", log: " (log scale)", sqrt: " (√ scale)" };
 
-/** Recharts props for a log/√ axis — explicit domain and ticks, since Recharts' own "nice" ticks assume a linear axis. */
-function transformedAxisProps(scale: AxisScale) {
-  return scale.kind === "linear" ? null : { scale: scale.kind, domain: scale.domain, ticks: scale.ticks };
+/** Recharts props for a planned axis — explicit scale, domain and ticks (Recharts' own "nice" ticks assume a linear, 0-based axis). */
+function axisProps(scale: AxisScale) {
+  return { scale: scale.kind, domain: scale.domain, ticks: scale.ticks };
 }
 
 function CustomTooltip({ active, payload, zLabel }: any) {
@@ -112,41 +112,28 @@ export function ScatterWithReference({
     return { min: Math.min(...values), max: Math.max(...values) };
   }, [data, colorScale]);
 
-  // <axis_scaling> (axisScaling.ts): the reference line only when both
-  // axes are on comparable scales; log/√ axes only when no line is drawn
-  // (y = x is a straight 45° line on matching linear axes only).
-  const { lineSuppressed, drawReferenceLine, xScale, yScale } = useMemo(() => {
-    const xs = data.map((d) => d.x);
-    const ys = data.map((d) => d.y);
-    const suppressed = !!showReferenceLine && scalesMismatched(xs, ys);
-    const draw = !!showReferenceLine && !suppressed;
-    const linear: AxisScale = { kind: "linear" };
-    return {
-      lineSuppressed: suppressed,
-      drawReferenceLine: draw,
-      xScale: draw || xTickStep ? linear : chooseAxisScale(xs),
-      yScale: draw ? linear : chooseAxisScale(ys),
-    };
-  }, [data, showReferenceLine, xTickStep]);
+  // <axis_scaling> (axisScaling.ts): every axis fits its data with a small
+  // margin, a crowded long-tailed axis is stretched (log/√), and the
+  // reference line is drawn only when x and y are on comparable scales —
+  // then both axes share one planned axis, so y = x stays the diagonal.
+  const plan = useMemo(
+    () =>
+      planScatterAxes(
+        data.map((d) => d.x),
+        data.map((d) => d.y),
+        !!showReferenceLine,
+      ),
+    [data, showReferenceLine],
+  );
 
   const referenceLineData = useMemo(() => {
-    if (!drawReferenceLine || data.length === 0) return [];
-    const max = Math.max(...data.map((d) => Math.max(d.x, d.y)), 1);
+    if (!plan.drawReferenceLine) return [];
+    const [lo, hi] = plan.x.domain;
     return [
-      { x: 0, y: 0 },
-      { x: max, y: max },
+      { x: lo, y: lo },
+      { x: hi, y: hi },
     ];
-  }, [data, drawReferenceLine]);
-
-  // Recharts' default number-axis domain is [0, auto] — fine with the 45°
-  // reference line (which needs both axes anchored at 0 to mean anything),
-  // but wasteful otherwise: e.g. every price is >= £3.9m, so a 0-based
-  // price axis spends a quarter of the chart on empty space. Without the
-  // line, both axes fit the data's own range, still rounded to nice ticks.
-  const fitDomain = drawReferenceLine ? undefined : (["auto", "auto"] as [string, string]);
-  const xTransformed = transformedAxisProps(xScale);
-  const yTransformed = transformedAxisProps(yScale);
-  const scaledAxes = [xScale.kind !== "linear" ? xLabel : null, yScale.kind !== "linear" ? yLabel : null].filter((l): l is string => l !== null);
+  }, [plan]);
 
   if (data.length === 0) {
     return (
@@ -167,10 +154,10 @@ export function ScatterWithReference({
             name={xLabel}
             stroke="var(--text-muted)"
             tick={{ fontSize: 11, fill: "var(--text-secondary)" }}
-            {...(xTicks ? { ticks: xTicks, domain: [xTicks[0], xTicks[xTicks.length - 1]] } : xTransformed ?? (fitDomain ? { domain: fitDomain } : {}))}
+            {...(xTicks && !plan.drawReferenceLine ? { ticks: xTicks, domain: [xTicks[0], xTicks[xTicks.length - 1]] } : axisProps(plan.x))}
             tickFormatter={xTickFormatter}
           >
-            <Label value={xLabel + SCALE_SUFFIX[xScale.kind]} position="bottom" offset={0} style={{ fill: "var(--text-muted)", fontSize: 11 }} />
+            <Label value={xLabel + SCALE_SUFFIX[xTicks && !plan.drawReferenceLine ? "linear" : plan.x.kind]} position="bottom" offset={0} style={{ fill: "var(--text-muted)", fontSize: 11 }} />
           </XAxis>
           <YAxis
             type="number"
@@ -178,14 +165,14 @@ export function ScatterWithReference({
             name={yLabel}
             stroke="var(--text-muted)"
             tick={{ fontSize: 11, fill: "var(--text-secondary)" }}
-            {...(yTransformed ?? { domain: fitDomain })}
+            {...axisProps(plan.y)}
           >
-            <Label value={yLabel + SCALE_SUFFIX[yScale.kind]} angle={-90} position="left" style={{ fill: "var(--text-muted)", fontSize: 11, textAnchor: "middle" }} />
+            <Label value={yLabel + SCALE_SUFFIX[plan.y.kind]} angle={-90} position="left" style={{ fill: "var(--text-muted)", fontSize: 11, textAnchor: "middle" }} />
           </YAxis>
           {/* Fixed-size dots are kept small and semi-transparent so a dense cluster (many players on the same whole-number goals/price value) reads as a darker patch rather than one solid blob. */}
           <ZAxis dataKey={useBubbleSize ? "z" : undefined} range={useBubbleSize ? [30, 160] : [22, 22]} name={zLabel} />
           <Tooltip content={<CustomTooltip zLabel={zLabel} />} cursor={{ stroke: "var(--border-strong)" }} />
-          {drawReferenceLine && (
+          {plan.drawReferenceLine && (
             <Line data={referenceLineData} dataKey="y" stroke="var(--text-muted)" strokeDasharray="4 4" dot={false} legendType="none" isAnimationActive={false} />
           )}
           <Scatter data={data} fillOpacity={useBubbleSize ? 0.8 : 0.55} onClick={(point: any) => onPointClick?.(point.id)} cursor={onPointClick ? "pointer" : "default"}>
@@ -200,11 +187,9 @@ export function ScatterWithReference({
           </Scatter>
         </ComposedChart>
       </ResponsiveContainer>
-      {(lineSuppressed || scaledAxes.length > 0) && (
+      {plan.lineSuppressed && (
         <p style={{ fontSize: 10.5, color: "var(--text-muted)", textAlign: "center", margin: "2px 0 0" }}>
-          {lineSuppressed && `Reference line hidden: ${xLabel} and ${yLabel} are on different scales. `}
-          {scaledAxes.length > 0 &&
-            `${scaledAxes.join(" and ")} ${scaledAxes.length > 1 ? "axes are" : "axis is"} stretched so a crowded range spreads out; hover a point for its real values.`}
+          Reference line hidden: {xLabel} and {yLabel} are on different scales.
         </p>
       )}
       {colorScale && zRange && (

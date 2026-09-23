@@ -3186,22 +3186,32 @@ That page is gone; graph building now lives alongside Summary Tiles.
   0. Fixed-size dots are smaller and semi-transparent so dense clusters
   read as darker patches.
 - **Graphs sit 2 per row** (`.graph-grid`), 1 per row under 900px wide.
-- **<axis_scaling>: two blanket rules for every scatter**
-  (`client/src/components/charts/axisScaling.ts`, applied inside
-  `ScatterWithReference`):
+- **<axis_scaling>: blanket rules for every scatter**
+  (`client/src/components/charts/axisScaling.ts`, `planScatterAxes()`,
+  applied inside `ScatterWithReference`, which now always passes an
+  explicit scale, domain and ticks):
   1. *Different scales* — if one axis's largest absolute value is ≥5×
      the other's (`SCALE_MISMATCH_FACTOR`; Price vs Points is ~16×), the
-     45° reference line isn't drawn even if ticked (it would put both on
-     one 0-based scale), a note under the chart says so, and each axis
-     fits its own data.
+     45° reference line isn't drawn even if ticked, a note under the chart
+     says so, and each axis is planned alone.
   2. *Long tail* — if the middle half of an axis's points (25th–75th
      percentile) spans under 20% of it (`CROWDED_SHARE`), the axis goes
      log (all values > 0) or √ (zeros present), but only if that widens
-     the middle half by ≥30% (`MIN_SPREAD_GAIN`), there are ≥8 points, and
-     no reference line is drawn. Explicit round ticks spaced evenly in the
-     transformed axis; the axis title gets "(log scale)"/"(√ scale)".
-     Price (2025/26, 900+ min: middle half £4.5–5.7m of £3.7–14.7m, 11%)
-     goes log (17%); Points (24%) stays linear.
+     the middle half by ≥30% (`MIN_SPREAD_GAIN`) and there are ≥8 points.
+     Ticks are spaced evenly in the stretched axis, taking the roundest
+     value each step (Price: 4, 5, 7.5, 10, 15); the axis title gets
+     "(log scale)"/"(√ scale)".
+  3. *Fit the data* — the axis runs 5% (`AXIS_PAD`, measured in the
+     axis's own spacing) beyond the data at each end, not from 0 (club
+     goals against 27–58 → axis ~25–60); it starts at 0 only when the
+     lowest value is within 15% of the range of it (`ZERO_SNAP_SHARE`;
+     Points from 19 of 0–239 → 0), and never crosses 0 unless the data
+     does.
+
+  With the reference line drawn, x and y are planned as ONE axis over
+  both sets of values and share it — range, ticks and stretch — so y = x
+  stays the diagonal. That is how xG vs Goals / xA vs Assists get √ on
+  both axes (most players 0–3, a few 20+), spreading the pile-up at 0.
 - A short-lived goalkeeper-based team xGC/"Goals Conceded" (v1.57.0) was
   superseded by club history (above) — "Goals Conceded" is now exactly
   the club's Goals Against for the view's season, so the key is retired:
