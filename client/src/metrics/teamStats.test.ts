@@ -82,6 +82,22 @@ describe("computeTeamAggregates — <club_not_squad>", () => {
     expect(club.xGC).toBe((42 + 30 + 50) / 3);
   });
 
+  it("averages each metric only over the window seasons that have a value for it — a blank season isn't counted", () => {
+    // DC tracked in 2025/26 only; xG in 2024/25 and 2025/26 only.
+    const partial: ClubHistoryContext = {
+      ...ctx,
+      clubSeasons: [
+        clubSeason(101, "2023/24", { xG: null, dc: null, leaguePoints: 60 }),
+        clubSeason(101, "2024/25", { xG: 50, dc: null, leaguePoints: 80 }),
+        clubSeason(101, "2025/26", { xG: 70, dc: 3000, leaguePoints: 70 }),
+      ],
+    };
+    const [club] = computeTeamAggregates(teams, "historicAverage", partial);
+    expect(club.leaguePoints).toBe(70); // (60 + 80 + 70) / 3
+    expect(club.xG).toBe(60); // (50 + 70) / 2 — not / 3
+    expect(club.defensiveContributions).toBe(3000); // 2025/26 alone — not / 3
+  });
+
   it("gives a club with no record for the view nulls (—), never 0", () => {
     const [, promoted] = computeTeamAggregates(teams, "lastSeason", ctx);
     expect(promoted.leaguePoints).toBeNull();

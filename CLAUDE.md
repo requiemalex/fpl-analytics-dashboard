@@ -50,6 +50,13 @@ npm start                # runs the production build (node server/dist/index.js)
 
 ## Data
 - The official FPL API is the only authoritative source for player data.
+  One deliberate, one-off exception: club history for 2016/17-2025/26
+  (`data/club-history/`) was backfilled from the vaastav/Fantasy-Premier-League
+  community archive (a mirror of FPL's own data), because the official API
+  doesn't serve past seasons' match data at all. It was checked against
+  official totals before use. From 2026/27 on, club history is archived
+  from the official API only — don't extend the exception to anything else.
+  See README → "Club history".
 - **Inspect the live API, never assume a field's shape.** Advanced/
   expected-stats field availability is detected at runtime
   (`client/src/normalize/fieldAvailability.ts`), not hard-coded.
