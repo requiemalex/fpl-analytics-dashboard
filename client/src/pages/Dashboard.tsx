@@ -1307,7 +1307,7 @@ export function Dashboard() {
                   onChange={(e) => setNewGraphShowReferenceLine(e.target.checked)}
                   style={{ width: "auto", minWidth: "auto" }}
                 />
-                <span title="Draws a dashed 45° line — meaningful only when X and Y are on the same scale, e.g. an expected-vs-actual pair like xG and Goals.">
+                <span title="Draws a dashed 45° line — meaningful only when X and Y are on the same scale, e.g. an expected-vs-actual pair like xG and Goals. Left out automatically when they aren't (one is 5× the size of the other or more).">
                   Show expected-output reference line
                 </span>
               </label>

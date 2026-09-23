@@ -240,7 +240,19 @@ export function UserGuide() {
           comparable scale); for Teams, <strong>Team xG vs Goals</strong> and <strong>Team xGC vs Goals Against</strong>, the same
           idea applied to each club. The default Player graphs only include players with at least 900 minutes in the
           graph's Data View — without that floor, hundreds of fringe players pile up at zero and hide everyone else. Graphs without
-          the reference line fit their axes to the data's own range (so Price vs Points starts near £4m, not £0). The old page's Thematic Analysis charts (average points by position/price tier across
+          the reference line fit their axes to the data's own range (so Price vs Points starts near £4m, not £0).
+        </p>
+        <p className="page-subtitle">
+          Every scatter graph also follows two automatic rules so any pair of metrics stays readable. If one axis is five or more
+          times the size of the other (Price against Points, or a club's xG against its FPL points), the reference line is left out
+          even if it was ticked — it would squash the smaller metric into a sliver — and a note under the chart says so. And if most
+          points are crammed into a narrow band of an axis by a few big values (most players cost £4.5–6m while a handful cost
+          £10m+), that axis is stretched onto a log scale (or a square-root one, if it has zeros) to spread the crowd out — the axis
+          title says "(log scale)" or "(√ scale)" when this happens, and hovering a point always shows its real values. Neither rule
+          ever changes a graph that draws the reference line on two like-for-like metrics.
+        </p>
+        <p className="page-subtitle">
+          The old page's Thematic Analysis charts (average points by position/price tier across
           every season on record) deliberately aren't among them — they're genuine multi-season time series, not a single-analysis-mode
           metric-vs-metric graph, so they don't fit this per-graph model and were retired rather than forced in.
         </p>
