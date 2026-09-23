@@ -5,59 +5,56 @@
  * match-level data at all. Every season from 2026/27 on comes from the
  * official API via archive-current.ts instead. See README → "Club history".
  *
+ * Reads only the project's own frozen copy of the archive
+ * (data/vaastav-snapshot, see vaastavSnapshot.ts) — never the network — so
+ * it reproduces the same ledger whatever happens to the online repository.
+ *
  *   npx tsx scripts/club-history/backfill-vaastav.ts [2016-17 2017-18 ...]
  *
  * Writes data/club-history/<season>/{teams,fixtures,ledger}.csv, then
  * checks every finished fixture's score against the ledger's goals.
  */
 import { join } from "node:path";
-import { parseCsv, numOrNull, numOrZero, boolField } from "../../server/src/clubHistory/csv.js";
+import { numOrNull, numOrZero, boolField } from "../../server/src/clubHistory/csv.js";
 import { writeSeasonLedger, seasonFromFolderName } from "../../server/src/clubHistory/ledgerFiles.js";
 import { checkLedgerAgainstScores } from "../../server/src/clubHistory/aggregate.js";
 import type { LedgerFixture, LedgerRow, LedgerTeam } from "../../server/src/clubHistory/types.js";
+import { SNAPSHOT_SEASONS, readSnapshotCsv } from "./vaastavSnapshot.js";
 
-const BASE = "https://raw.githubusercontent.com/vaastav/Fantasy-Premier-League/master/data";
 const ROOT = join(process.cwd(), "data", "club-history");
-const DEFAULT_SEASONS = ["2016-17", "2017-18", "2018-19", "2019-20", "2020-21", "2021-22", "2022-23", "2023-24", "2024-25", "2025-26"];
 
-async function fetchCsv(path: string, optional = false): Promise<Record<string, string>[] | null> {
-  const res = await fetch(`${BASE}/${path}`);
-  if (res.status === 404 && optional) return null;
-  if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
-  return parseCsv(await res.text());
+function requiredCsv(path: string): Record<string, string>[] {
+  const rows = readSnapshotCsv(path);
+  if (!rows) throw new Error(`vaastav snapshot has no ${path}`);
+  return rows;
 }
 
 async function main() {
-  const seasons = process.argv.slice(2).length > 0 ? process.argv.slice(2) : DEFAULT_SEASONS;
-  const masterTeams = (await fetchCsv("master_team_list.csv"))!;
+  const seasons = process.argv.slice(2).length > 0 ? process.argv.slice(2) : SNAPSHOT_SEASONS;
+  const masterTeams = requiredCsv("master_team_list.csv");
 
   // Short names keyed by stable club code, from every archived season that
   // has a teams.csv (2019-20 on, most recent wins) plus today's live
-  // bootstrap — collected up front so an older season picks up a club's
-  // real short name from a later one. Clubs only ever in the PL before
-  // 2019-20 fall back to their first three letters.
+  // bootstrap (as saved with the snapshot) — collected up front so an older
+  // season picks up a club's real short name from a later one. Clubs only
+  // ever in the PL before 2019-20 fall back to their first three letters.
   const shortNameByCode = new Map<number, string>();
-  for (const folder of DEFAULT_SEASONS) {
-    for (const t of (await fetchCsv(`${folder}/teams.csv`, true)) ?? []) shortNameByCode.set(numOrZero(t.code), t.short_name);
+  for (const folder of SNAPSHOT_SEASONS) {
+    for (const t of readSnapshotCsv(`${folder}/teams.csv`) ?? []) shortNameByCode.set(numOrZero(t.code), t.short_name);
   }
-  const bootstrap = (await (await fetch("https://fantasy.premierleague.com/api/bootstrap-static/")).json()) as {
-    teams: { code: number; short_name: string }[];
-  };
-  for (const t of bootstrap.teams) shortNameByCode.set(t.code, t.short_name);
+  for (const t of requiredCsv("fpl-team-short-names.csv")) shortNameByCode.set(numOrZero(t.code), t.short_name);
 
   const results: string[] = [];
   for (const folder of seasons) {
     const season = seasonFromFolderName(folder);
-    const [playersRaw, merged, fixturesCsv, teamsCsv] = await Promise.all([
-      fetchCsv(`${folder}/players_raw.csv`),
-      fetchCsv(`${folder}/gws/merged_gw.csv`),
-      fetchCsv(`${folder}/fixtures.csv`, true),
-      fetchCsv(`${folder}/teams.csv`, true),
-    ]);
+    const playersRaw = requiredCsv(`${folder}/players_raw.csv`);
+    const merged = requiredCsv(`${folder}/merged_gw.csv`);
+    const fixturesCsv = readSnapshotCsv(`${folder}/fixtures.csv`);
+    const teamsCsv = readSnapshotCsv(`${folder}/teams.csv`);
 
-    const elementInfo = new Map(playersRaw!.map((p) => [numOrZero(p.id), { code: numOrZero(p.code), position: numOrNull(p.element_type) }]));
+    const elementInfo = new Map(playersRaw.map((p) => [numOrZero(p.id), { code: numOrZero(p.code), position: numOrNull(p.element_type) }]));
     const teamCodeById = new Map<number, number>();
-    for (const p of playersRaw!) teamCodeById.set(numOrZero(p.team), numOrZero(p.team_code));
+    for (const p of playersRaw) teamCodeById.set(numOrZero(p.team), numOrZero(p.team_code));
     for (const t of teamsCsv ?? []) teamCodeById.set(numOrZero(t.id), numOrZero(t.code));
 
     // teams.csv (2019-20 on) is the season's own team list; older seasons
@@ -77,7 +74,7 @@ async function main() {
     // (2016-17, 2017-18) rebuilt from the rows themselves — a home-side
     // row's opponent is the away team and vice versa.
     const derived = new Map<number, { teamH?: number; teamA?: number; h: number | null; a: number | null; event: number | null }>();
-    for (const r of merged!) {
+    for (const r of merged) {
       const id = numOrZero(r.fixture);
       const d = derived.get(id) ?? { h: null, a: null, event: null };
       // A postponed fixture's placeholder row carries no score — take the
@@ -122,7 +119,7 @@ async function main() {
     // guessing which is right.
     const hasScore = (r: Record<string, string>) => r.team_h_score !== "" && r.team_a_score !== "";
     const chosen = new Map<string, Record<string, string>>();
-    for (const r of merged!) {
+    for (const r of merged) {
       const rowKey = `${r.fixture}:${r.element}`;
       const previous = chosen.get(rowKey);
       if (previous === undefined) {

@@ -1,0 +1,2 @@
+# Gzipped data snapshots: never line-ending-convert.
+*.gz binary

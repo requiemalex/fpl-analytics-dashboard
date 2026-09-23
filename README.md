@@ -691,6 +691,21 @@ fixture, a mid-season move splits correctly between clubs.
   2019/20's COVID-postponed games) gives way to the real one; 2016/17 and
   2017/18 have no fixture list, so each fixture's sides are rebuilt from
   the rows themselves (a home row's opponent is the away side).
+
+  **The archive is frozen in the repo, not read online.**
+  `data/vaastav-snapshot/` holds every file the backfill reads, raw and
+  complete (every column: cards, ICT, price, ownership, transfers, … —
+  not just what the ledger uses today), gzipped, ~12 MB: each season's
+  `players_raw.csv` and `gws/merged_gw.csv`, plus `fixtures.csv` (2018/19
+  on) and `teams.csv` (2019/20 on), `master_team_list.csv`, and the
+  official bootstrap's team short names at snapshot time.
+  `manifest.json` pins the vaastav commit it was taken from and each
+  file's sha256; the backfill checks every file against it and never
+  touches the network, so it rebuilds the committed ledger byte-for-byte
+  (verified) even if the online repository disappears — and the ledger
+  can be widened later from data already in hand.
+  `npm run club-history:snapshot` took it (refuses to overwrite without
+  `--force`).
 - **2026/27 on: archived from the official API** by
   `.github/workflows/club-history-archive.yml` (Tuesdays and Fridays,
   05:00 UTC, plus manual runs) via `scripts/club-history/archive-current.ts`.

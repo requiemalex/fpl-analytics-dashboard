@@ -54,9 +54,11 @@ npm start                # runs the production build (node server/dist/index.js)
   (`data/club-history/`) was backfilled from the vaastav/Fantasy-Premier-League
   community archive (a mirror of FPL's own data), because the official API
   doesn't serve past seasons' match data at all. It was checked against
-  official totals before use. From 2026/27 on, club history is archived
-  from the official API only — don't extend the exception to anything else.
-  See README → "Club history".
+  official totals before use. The raw archive files it was built from are
+  frozen in the repo (`data/vaastav-snapshot/`, pinned commit + checksums)
+  and the backfill reads only that copy, never the network. From 2026/27
+  on, club history is archived from the official API only — don't extend
+  the exception to anything else. See README → "Club history".
 - **Inspect the live API, never assume a field's shape.** Advanced/
   expected-stats field availability is detected at runtime
   (`client/src/normalize/fieldAvailability.ts`), not hard-coded.
