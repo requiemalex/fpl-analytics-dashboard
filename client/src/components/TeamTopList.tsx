@@ -1,6 +1,7 @@
 import React from "react";
 import { TeamBadge } from "./primitives";
 import { DataViewBadge } from "./DataViewBadge";
+import { CardEditRemoveButtons } from "./IconToolbar";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 
 export interface TeamTopListRow {
@@ -22,6 +23,7 @@ export function TeamTopList({
   format,
   onSelect,
   emptyMessage = "No data available.",
+  onEdit,
   onRemove,
   draggable,
   isDragOver,
@@ -36,7 +38,9 @@ export function TeamTopList({
   format: (v: number | null) => string;
   onSelect?: (teamId: number) => void;
   emptyMessage?: string;
-  /** Dashboard-only: renders a "Remove" button in the header when set — every other TeamTopList usage omits this and is unaffected. */
+  /** Dashboard-only: renders an Edit icon button in the header when set — every other TeamTopList usage omits this and is unaffected. */
+  onEdit?: () => void;
+  /** Dashboard-only: renders a Remove icon button in the header when set — every other TeamTopList usage omits this and is unaffected. */
   onRemove?: () => void;
   draggable?: boolean;
   isDragOver?: boolean;
@@ -67,11 +71,7 @@ export function TeamTopList({
         <div className="card-title">{title}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {dataView && <DataViewBadge mode={dataView} />}
-          {onRemove && (
-            <button type="button" className="btn" onClick={onRemove} title="Remove this tile">
-              Remove
-            </button>
-          )}
+          <CardEditRemoveButtons noun="tile" onEdit={onEdit} onRemove={onRemove} />
         </div>
       </div>
       {rows.length === 0 ? (

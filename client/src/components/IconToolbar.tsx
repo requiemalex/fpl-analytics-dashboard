@@ -75,6 +75,64 @@ export function DownloadIcon() {
   );
 }
 
+export function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M3 4.5h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M6 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4.5 4.5 5 13a1 1 0 0 0 1 .9h4a1 1 0 0 0 1-.9l.5-8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="6.5" y1="7" x2="6.7" y2="11.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+      <line x1="9.5" y1="7" x2="9.3" y2="11.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** A pencil — edit an existing Dashboard tile/graph. */
+export function EditIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M10.6 2.6a1.5 1.5 0 0 1 2.1 0l.7.7a1.5 1.5 0 0 1 0 2.1L6 12.8l-3.3.8.8-3.3 7.1-7.7Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      <line x1="9.4" y1="3.9" x2="12.1" y2="6.6" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  );
+}
+
+/** Scatter dots with a dashed diagonal through them — the Add Graph dialog's trend (reference) line toggle. */
+export function TrendLineIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M2 14 14 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeDasharray="2 2" />
+      <circle cx="4.5" cy="9" r="1.2" fill="currentColor" />
+      <circle cx="8" cy="10.5" r="1.2" fill="currentColor" />
+      <circle cx="10.5" cy="4.5" r="1.2" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** Edit + Remove icon buttons for a Dashboard tile/graph card header. Either is omitted when its handler isn't set (e.g. the immutable Default view). */
+export function CardEditRemoveButtons({ noun, onEdit, onRemove }: { noun: "tile" | "graph"; onEdit?: () => void; onRemove?: () => void }) {
+  return (
+    <>
+      {onEdit && (
+        <button
+          type="button"
+          className="chip chip-icon"
+          title={`Edit ${noun} — change its name, statistic${noun === "graph" ? "s" : ""}, data view or filters`}
+          aria-label={`Edit ${noun}`}
+          onClick={onEdit}
+        >
+          <EditIcon />
+        </button>
+      )}
+      {onRemove && (
+        <button type="button" className="chip chip-icon" title={`Remove this ${noun}`} aria-label={`Remove ${noun}`} onClick={onRemove}>
+          <TrashIcon />
+        </button>
+      )}
+    </>
+  );
+}
+
 /** Icon-only chip button — pairs with `.icon-toolbar` as the wrapping container. `badge` renders a small count bubble (visible-column count, active-filter count, etc.) in the corner. */
 export function IconChipButton({
   icon,

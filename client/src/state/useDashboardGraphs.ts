@@ -46,13 +46,13 @@ export type DashboardGraphType = "scatter" | "bar";
 export interface DashboardGraphConfig {
   id: string;
   scope: SummaryTileScope;
-  /** Custom title, set once at creation — null/"" falls back to an auto-generated "<X> vs <Y>" / "Top 15 — <Y>" title (see Dashboard.tsx). */
+  /** Custom title, set in the Add/Edit dialog — null/"" falls back to an auto-generated "<X> vs <Y>" / "Top 15 — <Y>" title (see Dashboard.tsx). */
   name: string | null;
   chartType: DashboardGraphType;
   /** X axis metric key (into PLAYER_COLUMNS/TEAM_COLUMNS depending on `scope`) — unused/ignored for a "bar" graph, which only ranks by yMetricKey. */
   xMetricKey: string;
   yMetricKey: string;
-  /** This graph's own analysis mode — set once at creation, independent of every other graph's and every tile's. See SummaryTileConfig.dataView. */
+  /** This graph's own analysis mode — set in the Add/Edit dialog, independent of every other graph's and every tile's. See SummaryTileConfig.dataView. */
   dataView: AnalysisMode;
   /** Scatter only — draws a dashed 45° "expected output" line, meaningful only when X and Y are on the same scale (e.g. xG vs Goals). Ignored for a "bar" graph. */
   showReferenceLine: boolean;
@@ -167,10 +167,10 @@ const DASHBOARD_GRAPHS_STORE: VersionedStore<DashboardGraphConfig[]> = {
     const graphs = (data as Partial<DashboardGraphConfig>[]).map(normalizeDashboardGraph);
     if (storedVersion !== null && storedVersion >= STORAGE_VERSION) return graphs;
     // Older copies of a packaged default are replaced in place (same
-    // position) by the current definition. Safe because a graph is never
-    // edited after creation — a stored graph with a default id can only
-    // ever be an unmodified default. A default the user removed stays
-    // removed; nothing is re-added.
+    // position) by the current definition. Safe because a default-id graph
+    // only ever lives in the immutable Default view (no Edit there, and
+    // Create View starts blank), so it can only be an unmodified default.
+    // A default the user removed stays removed; nothing is re-added.
     return graphs.map((g) => DEFAULT_DASHBOARD_GRAPHS.find((d) => d.id === g.id) ?? clearUnappliedLiveMinMinutes(g));
   },
 };
@@ -191,6 +191,8 @@ export interface UseDashboardGraphs {
   graphs: DashboardGraphConfig[];
   addGraph: (graph: DashboardGraphConfig) => void;
   removeGraph: (id: string) => void;
+  /** Replaces one graph's settings in place (Edit Graph) — same id, same position, same scope. */
+  updateGraph: (id: string, changes: Omit<DashboardGraphConfig, "id" | "scope">) => void;
   reorderGraph: (draggedId: string, targetId: string) => void;
   /** Wholesale-replaces every graph of one scope (e.g. loading a saved Dashboard view) — the other scope's graphs are untouched. Caller is responsible for checking the MAX_DASHBOARD_GRAPHS cap against the combined result first. */
   replaceScopeGraphs: (scope: SummaryTileScope, scopeGraphs: DashboardGraphConfig[]) => void;
@@ -212,6 +214,10 @@ export function useDashboardGraphs(): UseDashboardGraphs {
     setGraphs((prev) => prev.filter((g) => g.id !== id));
   }, []);
 
+  const updateGraph = useCallback((id: string, changes: Omit<DashboardGraphConfig, "id" | "scope">) => {
+    setGraphs((prev) => prev.map((g) => (g.id === id ? { ...changes, id: g.id, scope: g.scope } : g)));
+  }, []);
+
   const reorderGraph = useCallback((draggedId: string, targetId: string) => {
     setGraphs((prev) => {
       const from = prev.findIndex((g) => g.id === draggedId);
@@ -228,5 +234,5 @@ export function useDashboardGraphs(): UseDashboardGraphs {
     setGraphs((prev) => [...prev.filter((g) => g.scope !== scope), ...scopeGraphs]);
   }, []);
 
-  return { graphs, addGraph, removeGraph, reorderGraph, replaceScopeGraphs };
+  return { graphs, addGraph, removeGraph, updateGraph, reorderGraph, replaceScopeGraphs };
 }

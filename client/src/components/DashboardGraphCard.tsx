@@ -1,5 +1,6 @@
 import React from "react";
 import { DataViewBadge } from "./DataViewBadge";
+import { CardEditRemoveButtons } from "./IconToolbar";
 import { ScatterWithReference, type ScatterPoint } from "./charts/ScatterWithReference";
 import { BarTopN, type BarDatum } from "./charts/BarTopN";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
@@ -7,12 +8,12 @@ import type { DashboardGraphType } from "../state/useDashboardGraphs";
 
 /**
  * Presentational-only Dashboard graph card — mirrors TopList/TeamTopList's
- * header conventions (title, DataViewBadge, drag handle, Remove button)
- * exactly, but renders a chart instead of a ranked row list. Unlike the old
- * Underlying Numbers "User Analysis" graphs, a Dashboard graph has no
- * inline-editable filter bar of its own: its configuration is set once in
- * the Add Graph modal, same as a tile — editing means removing and
- * re-adding, keeping graphs and tiles built the same way.
+ * header conventions (title, DataViewBadge, drag handle, Edit/Remove
+ * icon buttons) exactly, but renders a chart instead of a ranked row list.
+ * Unlike the old Underlying Numbers "User Analysis" graphs, a Dashboard
+ * graph has no inline-editable filter bar of its own: its configuration is
+ * set in the Add Graph dialog, and changed by reopening that same dialog
+ * via Edit — same as a tile.
  */
 export function DashboardGraphCard({
   title,
@@ -26,6 +27,7 @@ export function DashboardGraphCard({
   showReferenceLine,
   dataView,
   onSelect,
+  onEdit,
   onRemove,
   draggable,
   isDragOver,
@@ -46,6 +48,7 @@ export function DashboardGraphCard({
   showReferenceLine: boolean;
   dataView: AnalysisMode;
   onSelect?: (id: number) => void;
+  onEdit?: () => void;
   onRemove?: () => void;
   draggable?: boolean;
   isDragOver?: boolean;
@@ -76,11 +79,7 @@ export function DashboardGraphCard({
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <DataViewBadge mode={dataView} />
-          {onRemove && (
-            <button type="button" className="btn" onClick={onRemove} title="Remove this graph">
-              Remove
-            </button>
-          )}
+          <CardEditRemoveButtons noun="graph" onEdit={onEdit} onRemove={onRemove} />
         </div>
       </div>
       {chartType === "scatter" ? (

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { renderHook } from "@testing-library/react";
+import { renderHook, act } from "@testing-library/react";
 import { useSummaryTiles, DEFAULT_SUMMARY_TILES } from "./useSummaryTiles";
 import { DEFAULT_FILTERS } from "./scoutingFilters";
 
@@ -178,5 +178,22 @@ describe('useSummaryTiles — version 5 -> 6 migration (Min Minutes now applies 
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 6, data: [liveTile] }));
     const { result } = renderHook(() => useSummaryTiles());
     expect(result.current.tiles[0].criteria?.minMinutes).toBe(450);
+  });
+});
+
+describe("useSummaryTiles — updateTile (Edit Tile)", () => {
+  it("replaces one tile's settings in place, keeping its id, scope and position; other tiles untouched", () => {
+    const { result } = renderHook(() => useSummaryTiles());
+    const before = result.current.tiles;
+    const target = before[2];
+    const { id: _id, scope: _scope, ...rest } = target;
+    const criteria = { ...DEFAULT_FILTERS, position: "DEF" as const, minMinutes: 270 };
+    act(() => {
+      result.current.updateTile(target.id, { ...rest, name: "Defender value", dataView: "live", criteria });
+    });
+    const after = result.current.tiles;
+    expect(after.map((t) => t.id)).toEqual(before.map((t) => t.id));
+    expect(after[2]).toEqual({ ...target, name: "Defender value", dataView: "live", criteria });
+    expect(after[0]).toBe(before[0]);
   });
 });

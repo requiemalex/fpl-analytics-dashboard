@@ -54,11 +54,11 @@ export interface SummaryTileConfig {
   scope: SummaryTileScope;
   metricKey: string;
   direction: TileDirection;
-  /** This tile's own analysis mode — set once at creation (Add Tile modal), independent of every other tile's. See Dashboard.tsx / README's "Per-tile data view". */
+  /** This tile's own analysis mode — set in the Add/Edit Tile dialog, independent of every other tile's. See Dashboard.tsx / README's "Per-tile data view". */
   dataView: AnalysisMode;
-  /** Custom title, set once at creation — null/"" falls back to the auto-generated "Top 5 — <metric>" title. */
+  /** Custom title, set in the Add/Edit dialog — null/"" falls back to the auto-generated "Top 5 — <metric>" title. */
   name: string | null;
-  /** This tile's own Search/Position/Team/Min Minutes criteria, set once at creation — independent of every other tile's. Always null for scope "team" (a team tile aggregates a club's whole squad regardless of any player-level filter, same as before this existed). Ignored when `playerIds` is set (see below). */
+  /** This tile's own Search/Position/Team/Min Minutes criteria, set in the Add/Edit dialog — independent of every other tile's. Always null for scope "team" (a team tile aggregates a club's whole squad regardless of any player-level filter, same as before this existed). Ignored when `playerIds` is set (see below). */
   criteria: GlobalScoutingFilters | null;
   /**
    * Scope "player" only: up to 5 specific player ids to track, chosen via
@@ -152,6 +152,8 @@ export interface UseSummaryTiles {
   tiles: SummaryTileConfig[];
   addTile: (tile: SummaryTileConfig) => void;
   removeTile: (id: string) => void;
+  /** Replaces one tile's settings in place (Edit Tile) — same id, same position, same scope. */
+  updateTile: (id: string, changes: Omit<SummaryTileConfig, "id" | "scope">) => void;
   reorderTile: (draggedId: string, targetId: string) => void;
   /** Wholesale-replaces every tile of one scope (e.g. loading a saved Dashboard view) — the other scope's tiles are untouched. Caller is responsible for checking the MAX_SUMMARY_TILES cap against the combined result first. */
   replaceScopeTiles: (scope: SummaryTileScope, scopeTiles: SummaryTileConfig[]) => void;
@@ -173,6 +175,10 @@ export function useSummaryTiles(): UseSummaryTiles {
     setTiles((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  const updateTile = useCallback((id: string, changes: Omit<SummaryTileConfig, "id" | "scope">) => {
+    setTiles((prev) => prev.map((t) => (t.id === id ? { ...changes, id: t.id, scope: t.scope } : t)));
+  }, []);
+
   const reorderTile = useCallback((draggedId: string, targetId: string) => {
     setTiles((prev) => {
       const from = prev.findIndex((t) => t.id === draggedId);
@@ -189,5 +195,5 @@ export function useSummaryTiles(): UseSummaryTiles {
     setTiles((prev) => [...prev.filter((t) => t.scope !== scope), ...scopeTiles]);
   }, []);
 
-  return { tiles, addTile, removeTile, reorderTile, replaceScopeTiles };
+  return { tiles, addTile, removeTile, updateTile, reorderTile, replaceScopeTiles };
 }

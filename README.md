@@ -3242,3 +3242,23 @@ tiles/graphs only:
   graph shows exactly what it did before — tiles store v5 → 6, graphs
   store v3 → 4, saved views store v3 → 4 (non-Default views' tiles and
   graphs). Non-live items keep their values.
+
+## Dashboard: edit tiles/graphs in place, icon Remove, Add Trend Line toggle
+
+- **Edit** — every tile/graph header on a non-Default view has a pencil
+  icon (`CardEditRemoveButtons`, `components/IconToolbar.tsx`) that reopens
+  the Add Tile/Add Graph dialog prefilled with that item's settings
+  (`openEditTileModal`/`openEditGraphModal`, `editingTileId`/
+  `editingGraphId` in Dashboard.tsx). Saving calls the new
+  `updateTile`/`updateGraph` (`useSummaryTiles.ts`/`useDashboardGraphs.ts`),
+  which replace the settings in place — same id, scope and grid position —
+  and the live-sync effect writes the change into the selected saved view.
+  The Default view stays immutable: no Edit there, same as no Remove. That
+  also keeps the graphs store's migrate() assumption true: a default-id
+  graph only lives in Default, so it's always an unmodified default.
+- **Remove** is a bin icon (same `TrashIcon` as Delete View, moved into
+  IconToolbar.tsx) instead of a text button, on tiles and graphs.
+- The Add Graph dialog's "Show expected-output reference line" checkbox is
+  now an icon toggle chip (`TrendLineIcon`, hover "Add Trend Line"). What
+  it draws is unchanged: the dashed y = x line, still left out when the
+  axes' scales differ.

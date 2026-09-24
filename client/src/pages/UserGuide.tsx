@@ -205,7 +205,7 @@ export function UserGuide() {
           <li>
             <strong>Create View</strong> (the icon next to the dropdown) starts a new, blank, named view and switches to it
             immediately — from there the + cards at the end of the tile grid and the graph grid add tiles/graphs to it one at a
-            time, and each one's own Remove button takes it away. Every change saves itself as you make it, so there's nothing
+            time; each one's own pencil icon edits it and its bin icon removes it. Every change saves itself as you make it, so there's nothing
             separate to save and nothing lost by switching views, tabs, or closing the app — up to 5 views each for Player and Team.
             Picking a different view from the dropdown loads it immediately, replacing the live tiles and graphs for that scope only;
             the other scope is untouched.
@@ -224,11 +224,12 @@ export function UserGuide() {
           <li>Each row's bar shows its value's size relative to the other rows in that tile — green/red by above/below-expected for the three "vs xG/xA/xGI" tiles, one flat colour for everything else.</li>
         </ul>
         <p className="page-subtitle">
-          <strong>Graphs</strong>, below the tile grid (past the divider), work the same way tiles do — built once via{" "}
-          <strong>+ Add Graph</strong> rather than left permanently editable, so changing one means removing and re-adding it. Pick a
-          name, a chart type (a <strong>Scatter Plot</strong> comparing two metrics, or a <strong>Bar Chart</strong> ranking the top 15
-          by one), the metric(s) to plot from the full Player Explorer/Team metric catalogue, a Data View, and — for a scatter graph —
-          whether to draw a dashed 45° reference line (meaningful only when X and Y are on the same scale, e.g. an expected-vs-actual
+          <strong>Graphs</strong>, below the tile grid (past the divider), work the same way tiles do — built via{" "}
+          <strong>+ Add Graph</strong>, and changed later with the pencil icon in the graph's header (which reopens the same dialog
+          with its current settings). Pick a name, a chart type (a <strong>Scatter Plot</strong> comparing two metrics, or a{" "}
+          <strong>Bar Chart</strong> ranking the top 15 by one), the metric(s) to plot from the full Player Explorer/Team metric
+          catalogue, a Data View, and — for a scatter graph — whether to draw a dashed 45° trend line (the <strong>Add Trend Line</strong>{" "}
+          icon; it marks where X and Y are equal, so it's meaningful only when they're on the same scale, e.g. an expected-vs-actual
           pair like xG and Goals; leave it off for anything else, like Price vs Points). A Player Graph can be scoped the same two ways
           a Player Tile can — Filters, or up to 5 specific players via Player Search — and a Team Graph the same way a Team Tile can —
           All Teams, or up to 5 specific teams via Team Selection.

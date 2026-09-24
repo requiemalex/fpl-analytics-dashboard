@@ -129,6 +129,20 @@ describe("useDashboardGraphs — addGraph/removeGraph/replaceScopeGraphs", () =>
     expect(result.current.graphs.filter((g) => g.scope === "player")).toEqual([]);
     expect(result.current.graphs.filter((g) => g.scope === "team")).toEqual(teamGraphsBefore);
   });
+
+  it("updateGraph replaces one graph's settings in place, keeping its id, scope and position", () => {
+    const { result } = renderHook(() => useDashboardGraphs());
+    const before = result.current.graphs;
+    const target = before[1];
+    const { id: _id, scope: _scope, ...rest } = target;
+    act(() => {
+      result.current.updateGraph(target.id, { ...rest, name: "Renamed", chartType: "bar", showReferenceLine: false });
+    });
+    const after = result.current.graphs;
+    expect(after.map((g) => g.id)).toEqual(before.map((g) => g.id));
+    expect(after[1]).toEqual({ ...target, name: "Renamed", chartType: "bar", showReferenceLine: false });
+    expect(after[0]).toBe(before[0]);
+  });
 });
 
 describe('useDashboardGraphs — version 3 -> 4 migration (Min Minutes now applies to Current Season graphs)', () => {

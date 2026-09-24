@@ -8,7 +8,7 @@ import { computeTeamAggregates, type TeamAggregate } from "../metrics/teamStats"
 import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFilters";
 import { ANALYSIS_MODE_OPTIONS } from "../components/AnalysisModeToggle";
 import { FiltersBar } from "../components/FiltersBar";
-import { FilterIcon } from "../components/IconToolbar";
+import { FilterIcon, TrashIcon, TrendLineIcon } from "../components/IconToolbar";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { TeamPicker } from "../components/TeamPicker";
 import { TopList, type TopListRow } from "../components/TopList";
@@ -54,7 +54,7 @@ function tileTitle(metricLabel: string, direction: TileDirection): string {
   return `${direction === "desc" ? "Top" : "Bottom"} 5 — ${metricLabel}`;
 }
 
-/** A tile's custom name (set once at creation) if it has one, else the auto-generated "Top/Bottom 5 — <metric>" title. */
+/** A tile's custom name (set in the Add/Edit dialog) if it has one, else the auto-generated "Top/Bottom 5 — <metric>" title. */
 function displayTileTitle(tile: SummaryTileConfig, metricLabel: string): string {
   return tile.name && tile.name.trim() ? tile.name : tileTitle(metricLabel, tile.direction);
 }
@@ -63,7 +63,7 @@ function graphTitle(chartType: DashboardGraphType, xLabel: string, yLabel: strin
   return chartType === "scatter" ? `${xLabel} vs ${yLabel}` : `Top 15 — ${yLabel}`;
 }
 
-/** A graph's custom name (set once at creation) if it has one, else the auto-generated "<X> vs <Y>" / "Top 15 — <Y>" title. */
+/** A graph's custom name (set in the Add/Edit dialog) if it has one, else the auto-generated "<X> vs <Y>" / "Top 15 — <Y>" title. */
 function displayGraphTitle(graph: DashboardGraphConfig, xLabel: string, yLabel: string): string {
   return graph.name && graph.name.trim() ? graph.name : graphTitle(graph.chartType, xLabel, yLabel);
 }
@@ -187,18 +187,6 @@ function TeamSelectionIcon() {
   );
 }
 
-function TrashIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-      <path d="M3 4.5h10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-      <path d="M6 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M4.5 4.5 5 13a1 1 0 0 0 1 .9h4a1 1 0 0 0 1-.9l.5-8.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-      <line x1="6.5" y1="7" x2="6.7" y2="11.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-      <line x1="9.5" y1="7" x2="9.3" y2="11.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 export function Dashboard() {
   const {
     players,
@@ -300,13 +288,18 @@ export function Dashboard() {
   const [newTileTeamMode, setNewTileTeamMode] = useState<"all" | "selected">("all");
   const [newTileTeamIds, setNewTileTeamIds] = useState<number[]>([]);
   const [newTileError, setNewTileError] = useState<string | null>(null);
+  // Set while the Add Tile dialog is editing an existing tile (opened from
+  // its Edit icon) rather than adding a new one — same dialog, same fields,
+  // just prefilled, and saving replaces that tile in place.
+  const [editingTileId, setEditingTileId] = useState<string | null>(null);
 
   // ---------- Graphs ----------
   //
   // Same idea as Summary Tiles above (user-built, user-ordered, persisted
   // to localStorage via useDashboardGraphs), one screen-space size class up
-  // — a graph is configured once in the Add Graph modal, same as a tile,
-  // not left permanently editable the way the old Underlying Numbers "User
+  // — a graph is configured in the Add Graph dialog (and changed later by
+  // reopening it via the card's Edit icon), same as a tile, not left
+  // permanently editable inline the way the old Underlying Numbers "User
   // Analysis" graphs were.
   const graphsState = useDashboardGraphs();
   const [dragOverGraphId, setDragOverGraphId] = useState<string | null>(null);
@@ -323,6 +316,8 @@ export function Dashboard() {
   const [newGraphTeamMode, setNewGraphTeamMode] = useState<"all" | "selected">("all");
   const [newGraphTeamIds, setNewGraphTeamIds] = useState<number[]>([]);
   const [newGraphError, setNewGraphError] = useState<string | null>(null);
+  // Same as editingTileId above, for the Add Graph dialog.
+  const [editingGraphId, setEditingGraphId] = useState<string | null>(null);
 
   // ---------- Saved Dashboard Views ----------
   //
@@ -627,6 +622,23 @@ export function Dashboard() {
     setNewTileTeamMode("all");
     setNewTileTeamIds([]);
     setNewTileError(null);
+    setEditingTileId(null);
+    setShowAddTileModal(true);
+  }
+
+  /** Opens the same dialog prefilled with an existing tile's settings — saving replaces that tile in place (same position). */
+  function openEditTileModal(tile: SummaryTileConfig) {
+    setNewTileMetricKey(tile.metricKey);
+    setNewTileDirection(tile.direction);
+    setNewTileDataView(tile.dataView);
+    setNewTileName(tile.name ?? "");
+    setNewTileCriteria(tile.criteria ?? DEFAULT_FILTERS);
+    setNewTilePlayerMode(tile.playerIds && tile.playerIds.length > 0 ? "players" : "filters");
+    setNewTilePlayerIds(tile.playerIds ?? []);
+    setNewTileTeamMode(tile.teamIds && tile.teamIds.length > 0 ? "selected" : "all");
+    setNewTileTeamIds(tile.teamIds ?? []);
+    setNewTileError(null);
+    setEditingTileId(tile.id);
     setShowAddTileModal(true);
   }
 
@@ -682,22 +694,25 @@ export function Dashboard() {
 
   function handleAddTile() {
     if (addTileDisabled) return;
+    const settings = {
+      metricKey: newTileMetricKey,
+      direction: newTileDirection,
+      dataView: newTileDataView,
+      name: trimmedNewTileName,
+      criteria: tileView === "player" && newTilePlayerMode === "filters" ? newTileCriteria : null,
+      playerIds: tileView === "player" && newTilePlayerMode === "players" ? newTilePlayerIds : null,
+      teamIds: tileView === "team" && newTileTeamMode === "selected" ? newTileTeamIds : null,
+    };
+    if (editingTileId) {
+      tilesState.updateTile(editingTileId, settings);
+      setShowAddTileModal(false);
+      return;
+    }
     if (tilesState.tiles.length >= MAX_SUMMARY_TILES) {
       setNewTileError(`You already have ${MAX_SUMMARY_TILES} tiles — the maximum allowed. Remove one first.`);
       return;
     }
-    tilesState.addTile(
-      createSummaryTile({
-        scope: tileView,
-        metricKey: newTileMetricKey,
-        direction: newTileDirection,
-        dataView: newTileDataView,
-        name: trimmedNewTileName,
-        criteria: tileView === "player" && newTilePlayerMode === "filters" ? newTileCriteria : null,
-        playerIds: tileView === "player" && newTilePlayerMode === "players" ? newTilePlayerIds : null,
-        teamIds: tileView === "team" && newTileTeamMode === "selected" ? newTileTeamIds : null,
-      }),
-    );
+    tilesState.addTile(createSummaryTile({ scope: tileView, ...settings }));
     setShowAddTileModal(false);
   }
 
@@ -732,6 +747,25 @@ export function Dashboard() {
     setNewGraphTeamMode("all");
     setNewGraphTeamIds([]);
     setNewGraphError(null);
+    setEditingGraphId(null);
+    setShowAddGraphModal(true);
+  }
+
+  /** Opens the same dialog prefilled with an existing graph's settings — saving replaces that graph in place (same position). */
+  function openEditGraphModal(graph: DashboardGraphConfig) {
+    setNewGraphName(graph.name ?? "");
+    setNewGraphChartType(graph.chartType);
+    setNewGraphXKey(graph.xMetricKey);
+    setNewGraphYKey(graph.yMetricKey);
+    setNewGraphDataView(graph.dataView);
+    setNewGraphShowReferenceLine(graph.showReferenceLine);
+    setNewGraphCriteria(graph.criteria ?? DEFAULT_FILTERS);
+    setNewGraphPlayerMode(graph.playerIds && graph.playerIds.length > 0 ? "players" : "filters");
+    setNewGraphPlayerIds(graph.playerIds ?? []);
+    setNewGraphTeamMode(graph.teamIds && graph.teamIds.length > 0 ? "selected" : "all");
+    setNewGraphTeamIds(graph.teamIds ?? []);
+    setNewGraphError(null);
+    setEditingGraphId(graph.id);
     setShowAddGraphModal(true);
   }
 
@@ -781,24 +815,27 @@ export function Dashboard() {
 
   function handleAddGraph() {
     if (addGraphDisabled) return;
+    const settings = {
+      name: trimmedNewGraphName,
+      chartType: newGraphChartType,
+      xMetricKey: newGraphXKey,
+      yMetricKey: newGraphYKey,
+      dataView: newGraphDataView,
+      showReferenceLine: newGraphChartType === "scatter" && newGraphShowReferenceLine,
+      criteria: tileView === "player" && newGraphPlayerMode === "filters" ? newGraphCriteria : null,
+      playerIds: tileView === "player" && newGraphPlayerMode === "players" ? newGraphPlayerIds : null,
+      teamIds: tileView === "team" && newGraphTeamMode === "selected" ? newGraphTeamIds : null,
+    };
+    if (editingGraphId) {
+      graphsState.updateGraph(editingGraphId, settings);
+      setShowAddGraphModal(false);
+      return;
+    }
     if (graphsState.graphs.length >= MAX_DASHBOARD_GRAPHS) {
       setNewGraphError(`You already have ${MAX_DASHBOARD_GRAPHS} graphs — the maximum allowed. Remove one first.`);
       return;
     }
-    graphsState.addGraph(
-      createDashboardGraph({
-        scope: tileView,
-        name: trimmedNewGraphName,
-        chartType: newGraphChartType,
-        xMetricKey: newGraphXKey,
-        yMetricKey: newGraphYKey,
-        dataView: newGraphDataView,
-        showReferenceLine: newGraphChartType === "scatter" && newGraphShowReferenceLine,
-        criteria: tileView === "player" && newGraphPlayerMode === "filters" ? newGraphCriteria : null,
-        playerIds: tileView === "player" && newGraphPlayerMode === "players" ? newGraphPlayerIds : null,
-        teamIds: tileView === "team" && newGraphTeamMode === "selected" ? newGraphTeamIds : null,
-      }),
-    );
+    graphsState.addGraph(createDashboardGraph({ scope: tileView, ...settings }));
     setShowAddGraphModal(false);
   }
 
@@ -985,6 +1022,7 @@ export function Dashboard() {
               onDragOver={(e) => handleTileDragOver(e, tile.id)}
               onDragLeave={() => setDragOverTileId((k) => (k === tile.id ? null : k))}
               onDrop={(e) => handleTileDrop(e, tile.id)}
+              onEdit={selectedViewIsDefault ? undefined : () => openEditTileModal(tile)}
               onRemove={selectedViewIsDefault ? undefined : () => tilesState.removeTile(tile.id)}
             />
           ))}
@@ -1010,6 +1048,7 @@ export function Dashboard() {
               onDragOver={(e) => handleTileDragOver(e, tile.id)}
               onDragLeave={() => setDragOverTileId((k) => (k === tile.id ? null : k))}
               onDrop={(e) => handleTileDrop(e, tile.id)}
+              onEdit={selectedViewIsDefault ? undefined : () => openEditTileModal(tile)}
               onRemove={selectedViewIsDefault ? undefined : () => tilesState.removeTile(tile.id)}
             />
           ))}
@@ -1048,6 +1087,7 @@ export function Dashboard() {
               onDragOver={(e) => handleGraphDragOver(e, graph.id)}
               onDragLeave={() => setDragOverGraphId((k) => (k === graph.id ? null : k))}
               onDrop={(e) => handleGraphDrop(e, graph.id)}
+              onEdit={selectedViewIsDefault ? undefined : () => openEditGraphModal(graph)}
               onRemove={selectedViewIsDefault ? undefined : () => graphsState.removeGraph(graph.id)}
             />
           ))}
@@ -1069,7 +1109,9 @@ export function Dashboard() {
       {showAddTileModal && (
         <div className="dialog-backdrop" onClick={closeAddTileModal}>
           <div className="dialog" onClick={(e) => e.stopPropagation()}>
-            <div className="dialog-title">Add {tileView === "player" ? "Player" : "Team"} Tile</div>
+            <div className="dialog-title">
+              {editingTileId ? "Edit" : "Add"} {tileView === "player" ? "Player" : "Team"} Tile
+            </div>
             <div className="field">
               <label htmlFor="new-tile-name">Name</label>
               <input
@@ -1240,7 +1282,7 @@ export function Dashboard() {
                 Cancel
               </button>
               <button type="button" className="btn primary" onClick={handleAddTile} disabled={addTileDisabled} title={addTileDisabledReason}>
-                Add Tile
+                {editingTileId ? "Save Changes" : "Add Tile"}
               </button>
             </div>
           </div>
@@ -1250,7 +1292,9 @@ export function Dashboard() {
       {showAddGraphModal && (
         <div className="dialog-backdrop" onClick={closeAddGraphModal}>
           <div className="dialog" onClick={(e) => e.stopPropagation()}>
-            <div className="dialog-title">Add {tileView === "player" ? "Player" : "Team"} Graph</div>
+            <div className="dialog-title">
+              {editingGraphId ? "Edit" : "Add"} {tileView === "player" ? "Player" : "Team"} Graph
+            </div>
             <div className="field">
               <label htmlFor="new-graph-name">Name</label>
               <input
@@ -1300,18 +1344,18 @@ export function Dashboard() {
               </select>
             </div>
             {newGraphChartType === "scatter" && (
-              <label style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: 8, margin: "10px 0" }} htmlFor="new-graph-reference-line">
-                <input
-                  id="new-graph-reference-line"
-                  type="checkbox"
-                  checked={newGraphShowReferenceLine}
-                  onChange={(e) => setNewGraphShowReferenceLine(e.target.checked)}
-                  style={{ width: "auto", minWidth: "auto" }}
-                />
-                <span title="Draws a dashed 45° line — meaningful only when X and Y are on the same scale, e.g. an expected-vs-actual pair like xG and Goals. Left out automatically when they aren't (one is 5× the size of the other or more).">
-                  Show expected-output reference line
-                </span>
-              </label>
+              <div className="chip-row" style={{ marginTop: 10 }}>
+                <button
+                  type="button"
+                  className={`chip chip-icon${newGraphShowReferenceLine ? " active" : ""}`}
+                  title="Add Trend Line"
+                  aria-label="Add Trend Line"
+                  aria-pressed={newGraphShowReferenceLine}
+                  onClick={() => setNewGraphShowReferenceLine((on) => !on)}
+                >
+                  <TrendLineIcon />
+                </button>
+              </div>
             )}
             {tileView === "player" && (
               <>
@@ -1447,7 +1491,7 @@ export function Dashboard() {
                 Cancel
               </button>
               <button type="button" className="btn primary" onClick={handleAddGraph} disabled={addGraphDisabled} title={addGraphDisabledReason}>
-                Add Graph
+                {editingGraphId ? "Save Changes" : "Add Graph"}
               </button>
             </div>
           </div>
