@@ -215,8 +215,8 @@ export function UserGuide() {
             Current Season, and its own Search/Position/Team/Min Minutes criteria, when it's created in the add-tile dialog — not one
             shared setting for the whole page, so two tiles can watch completely different slices of the player pool side by side. The
             data view shows as a small <code>LS</code>/<code>HA</code>/<code>CS</code> badge in the tile's header (hover for the full
-            name). Min Minutes has no effect on a tile whose own data view is Current Season, since everyone genuinely has low minutes
-            early in a live season. Team Tiles aggregate a club's whole squad (or, for league-standing metrics like League Position,
+            name). Min Minutes applies in every data view, Current Season included — it starts at 0, so raise it as the season goes on
+            if you only want regular starters (e.g. 270 for three full games). Team Tiles aggregate a club's whole squad (or, for league-standing metrics like League Position,
             Wins, and Goals Against, this season's real table — see below) and have no criteria of their own. Every tile can also be
             given a custom name in the same dialog — leave it blank to keep the auto-generated "Top/Bottom 5 — &lt;statistic&gt;"
             title.

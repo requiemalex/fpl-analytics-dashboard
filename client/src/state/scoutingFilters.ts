@@ -33,6 +33,20 @@ export const DEFAULT_FILTERS: GlobalScoutingFilters = {
   maxPrice: null,
 };
 
+/**
+ * One-off storage migration for Dashboard tiles/graphs saved before Min
+ * Minutes applied in Current Season mode. Back then a live tile's stored
+ * `minMinutes` was greyed out and never used — but could still be non-zero
+ * (typed before switching the Data View to Current Season). Honouring it now
+ * would silently start filtering a tile that never filtered before, so it's
+ * zeroed instead, keeping every existing tile/graph showing exactly what it
+ * did. Non-live items are returned untouched.
+ */
+export function clearUnappliedLiveMinMinutes<T extends { dataView?: AnalysisMode; criteria?: GlobalScoutingFilters | null }>(item: T): T {
+  if (item.dataView !== "live" || !item.criteria || !item.criteria.minMinutes) return item;
+  return { ...item, criteria: { ...item.criteria, minMinutes: 0 } };
+}
+
 /** One page's (or one saved graph's) own analysis-mode + filter selection — see `GlobalScoutingFilters` above for why this is deliberately local, never shared via AppStateContext. */
 export interface LocalViewState {
   analysisMode: AnalysisMode;

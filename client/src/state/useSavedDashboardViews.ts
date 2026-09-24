@@ -3,6 +3,7 @@ import type { SummaryTileScope } from "../components/summaryTileMetrics";
 import { DEFAULT_SUMMARY_TILES, type SummaryTileConfig } from "./useSummaryTiles";
 import { DEFAULT_DASHBOARD_GRAPHS, normalizeDashboardGraph, type DashboardGraphConfig } from "./useDashboardGraphs";
 import { loadVersioned, saveVersioned, type VersionedStore } from "./persistentStorage";
+import { clearUnappliedLiveMinMinutes } from "./scoutingFilters";
 
 const STORAGE_KEY = "fpl-dashboard:dashboard:saved-views:v1";
 /**
@@ -15,8 +16,14 @@ const STORAGE_KEY = "fpl-dashboard:dashboard:saved-views:v1";
  * entries are wholesale-replaced by the canonical DEFAULT_SAVED_DASHBOARD_VIEWS
  * regardless (see migrate() below), which already carries the packaged
  * default graphs.
+ *
+ * Bumped 3 -> 4 when Min Minutes started applying to Current Season tiles/
+ * graphs (it used to be bypassed for them) — a non-Default view stored under
+ * an older version has each live tile's/graph's never-applied minMinutes
+ * zeroed by clearUnappliedLiveMinMinutes (scoutingFilters.ts), so loading it
+ * shows exactly what it did when saved.
  */
-const STORAGE_VERSION = 3;
+const STORAGE_VERSION = 4;
 
 export interface SavedDashboardView {
   id: string;
@@ -80,11 +87,12 @@ const SAVED_VIEWS_STORE: VersionedStore<SavedDashboardView[]> = {
   // (e.g. from before this guarantee existed) and guards against any future
   // drift (e.g. DEFAULT_SUMMARY_TILES itself changing later). A no-op once a
   // Default entry already matches, which is the steady-state case.
-  migrate(data) {
+  migrate(data, storedVersion) {
     if (!Array.isArray(data)) return null;
     const views = data as Partial<SavedDashboardView>[];
     const existingIds = new Set(views.map((v) => v.id));
     const missingDefaults = DEFAULT_SAVED_DASHBOARD_VIEWS.filter((d) => !existingIds.has(d.id));
+    const clearLiveMinMinutes = storedVersion === null || storedVersion < 4;
     const normalized = views.map((v) => {
       const canonical = DEFAULT_SAVED_DASHBOARD_VIEWS.find((d) => d.id === v.id);
       if (canonical) return canonical;
@@ -92,10 +100,14 @@ const SAVED_VIEWS_STORE: VersionedStore<SavedDashboardView[]> = {
       // no such field — backfill to an empty list, exactly matching what
       // that view legitimately had at the time, same idea as
       // normalizeSummaryTile backfilling an older tile's missing fields.
+      const graphs = Array.isArray(v.graphs) ? (v.graphs as Partial<DashboardGraphConfig>[]).map(normalizeDashboardGraph) : [];
+      const view = { ...v, graphs } as SavedDashboardView;
+      if (!clearLiveMinMinutes) return view;
       return {
-        ...v,
-        graphs: Array.isArray(v.graphs) ? (v.graphs as Partial<DashboardGraphConfig>[]).map(normalizeDashboardGraph) : [],
-      } as SavedDashboardView;
+        ...view,
+        tiles: Array.isArray(view.tiles) ? view.tiles.map(clearUnappliedLiveMinMinutes) : view.tiles,
+        graphs: graphs.map(clearUnappliedLiveMinMinutes),
+      };
     });
     return missingDefaults.length > 0 ? [...normalized, ...missingDefaults] : normalized;
   },

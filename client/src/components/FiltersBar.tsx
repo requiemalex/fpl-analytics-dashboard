@@ -28,6 +28,7 @@ export function FiltersBar({
   showMinMinutes = true,
   showSearch = true,
   showPrice = false,
+  minMinutesInLive = false,
 }: {
   idPrefix?: string;
   filters: GlobalScoutingFilters;
@@ -40,8 +41,11 @@ export function FiltersBar({
   showSearch?: boolean;
   /** On for the Dashboard Add Tile/Add Graph modals' "Filters" mode only — a live-price (£m) range, e.g. "only the best £5m players". Off everywhere else, matching showMinMinutes/showSearch's per-page opt-in pattern. */
   showPrice?: boolean;
+  /** On for the Dashboard Add Tile/Add Graph modals only — Min Minutes stays editable (and is applied, see filterPlayers' `applyMinMinutesInLive`) in Current Season mode instead of being greyed out as bypassed. */
+  minMinutesInLive?: boolean;
 }) {
   const { teams } = useAppState();
+  const minMinutesBypassed = analysisMode === "live" && !minMinutesInLive;
 
   function update<K extends keyof GlobalScoutingFilters>(key: K, value: GlobalScoutingFilters[K]) {
     onChange({ ...filters, [key]: value });
@@ -129,7 +133,7 @@ export function FiltersBar({
       {showMinMinutes && (
         <div className="field">
           <label htmlFor={`${idPrefix}-min-minutes`}>
-            Min minutes {analysisMode === "live" && <span style={{ color: "var(--text-muted)" }}>(bypassed)</span>}
+            Min minutes {minMinutesBypassed && <span style={{ color: "var(--text-muted)" }}>(bypassed)</span>}
           </label>
           <input
             id={`${idPrefix}-min-minutes`}
@@ -137,8 +141,8 @@ export function FiltersBar({
             step={MINUTES_STEP}
             min={0}
             value={filters.minMinutes}
-            disabled={analysisMode === "live"}
-            title={analysisMode === "live" ? "Not applied in Current Season mode — everyone has low or zero minutes until real gameweeks accumulate" : undefined}
+            disabled={minMinutesBypassed}
+            title={minMinutesBypassed ? "Not applied in Current Season mode — everyone has low or zero minutes until real gameweeks accumulate" : undefined}
             onChange={(e) => update("minMinutes", Math.max(0, Math.round(Number(e.target.value) / MINUTES_STEP) * MINUTES_STEP))}
           />
         </div>

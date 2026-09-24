@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { SummaryTileScope } from "../components/summaryTileMetrics";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
-import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "./scoutingFilters";
+import { clearUnappliedLiveMinMinutes, DEFAULT_FILTERS, type GlobalScoutingFilters } from "./scoutingFilters";
 import { loadVersioned, saveVersioned, type VersionedStore } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:dashboard:summary-tiles:v1";
@@ -34,8 +34,14 @@ const STORAGE_KEY = "fpl-dashboard:dashboard:summary-tiles:v1";
  * missing, as before) so an old criteria object picks up `minPrice`/
  * `maxPrice: null` (no-op) instead of silently carrying `undefined` for
  * fields the rest of the app now expects to exist.
+ *
+ * Bumped 5 -> 6 when Min Minutes started applying to Current Season tiles
+ * (it used to be bypassed for them). A tile saved under version 5 (or
+ * earlier) with dataView "live" has any stored minMinutes zeroed by
+ * clearUnappliedLiveMinMinutes (scoutingFilters.ts), since it was never
+ * actually applied — so existing tiles keep showing exactly what they did.
  */
-const STORAGE_VERSION = 5;
+const STORAGE_VERSION = 6;
 const DEFAULT_DATA_VIEW: AnalysisMode = "lastSeason";
 
 /** A UI/localStorage-hygiene limit, matching the same idea as Team Building's saved-squad cap and User Analysis's saved-graph cap. */
@@ -107,7 +113,7 @@ export const DEFAULT_SUMMARY_TILES: SummaryTileConfig[] = [
 const SUMMARY_TILES_STORE: VersionedStore<SummaryTileConfig[]> = {
   version: STORAGE_VERSION,
   fallback: DEFAULT_SUMMARY_TILES,
-  migrate(data) {
+  migrate(data, storedVersion) {
     // A genuinely empty array is a legitimate, deliberate user state (every
     // tile removed) — Dashboard.tsx already renders a clean "No tiles yet"
     // empty state for it — not something to silently revert back to the
@@ -115,7 +121,9 @@ const SUMMARY_TILES_STORE: VersionedStore<SummaryTileConfig[]> = {
     // same "is an empty array valid?" question. Only a non-array (or
     // missing) payload means there's nothing usable to migrate.
     if (!Array.isArray(data)) return null;
-    return (data as Partial<SummaryTileConfig>[]).map(normalizeSummaryTile);
+    const tiles = (data as Partial<SummaryTileConfig>[]).map(normalizeSummaryTile);
+    if (storedVersion !== null && storedVersion >= 6) return tiles;
+    return tiles.map(clearUnappliedLiveMinMinutes);
   },
 };
 

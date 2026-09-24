@@ -162,3 +162,21 @@ describe("useSummaryTiles — <update_safety> version 4 -> 5 migration (criteria
     expect(result.current.tiles[0].criteria).toEqual({ search: "", position: "ALL", teamId: "ALL", minMinutes: 0, minPrice: 4.5, maxPrice: 5.0 });
   });
 });
+
+describe('useSummaryTiles — version 5 -> 6 migration (Min Minutes now applies to Current Season tiles)', () => {
+  const liveTile = { id: 't-live', scope: 'player', metricKey: 'totalPoints', direction: 'desc', dataView: 'live', name: null, criteria: { ...DEFAULT_FILTERS, minMinutes: 450 }, playerIds: null, teamIds: null };
+  const lsTile = { ...liveTile, id: 't-ls', dataView: 'lastSeason' };
+
+  it("zeroes a pre-v6 live tile's never-applied minMinutes, leaving non-live tiles untouched", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 5, data: [liveTile, lsTile] }));
+    const { result } = renderHook(() => useSummaryTiles());
+    expect(result.current.tiles[0].criteria?.minMinutes).toBe(0);
+    expect(result.current.tiles[1].criteria?.minMinutes).toBe(450);
+  });
+
+  it("keeps a v6 live tile's minMinutes as set", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 6, data: [liveTile] }));
+    const { result } = renderHook(() => useSummaryTiles());
+    expect(result.current.tiles[0].criteria?.minMinutes).toBe(450);
+  });
+});

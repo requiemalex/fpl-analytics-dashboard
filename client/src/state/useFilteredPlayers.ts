@@ -13,14 +13,24 @@ import { matchesPlayerSearch } from "../utils/playerSearch";
  * bar would filter out the entire player pool early in a live season,
  * not just the noisy fringe it's meant to catch. Returns 0 (no filtering)
  * for live mode; the user's actual setting otherwise.
+ *
+ * `applyInLive` opts out of that bypass — Dashboard tiles/graphs only,
+ * where the threshold is set once per tile/graph for its own data view
+ * (default 0), so a Current Season tile can deliberately ask for e.g.
+ * "only players with 270+ minutes so far".
  */
-export function effectiveMinMinutes(filters: GlobalScoutingFilters, mode: AnalysisMode): number {
-  return mode === "live" ? 0 : filters.minMinutes;
+export function effectiveMinMinutes(filters: GlobalScoutingFilters, mode: AnalysisMode, applyInLive = false): number {
+  return mode === "live" && !applyInLive ? 0 : filters.minMinutes;
 }
 
-export function filterPlayers(players: NormalizedPlayer[], filters: GlobalScoutingFilters, mode: AnalysisMode): NormalizedPlayer[] {
+export function filterPlayers(
+  players: NormalizedPlayer[],
+  filters: GlobalScoutingFilters,
+  mode: AnalysisMode,
+  applyMinMinutesInLive = false,
+): NormalizedPlayer[] {
   const search = filters.search.trim();
-  const minMinutes = effectiveMinMinutes(filters, mode);
+  const minMinutes = effectiveMinMinutes(filters, mode, applyMinMinutesInLive);
 
   return players.filter((p) => {
     if (search && !matchesPlayerSearch(p, search)) return false;

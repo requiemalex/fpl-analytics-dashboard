@@ -114,3 +114,26 @@ describe("filterPlayers — live price range (minPrice/maxPrice)", () => {
     expect(result.map((p) => p.id).sort()).toEqual([1, 2, 3]);
   });
 });
+
+describe("Dashboard tiles/graphs — Min Minutes applies in Current Season mode when opted in (applyMinMinutesInLive)", () => {
+  const players = [
+    makePlayer({ id: 1, name: "Regular", position: "MID", minutes: 360 }),
+    makePlayer({ id: 2, name: "Bench", position: "MID", minutes: 45 }),
+    makePlayer({ id: 3, name: "NoData", position: "MID", minutes: null }),
+  ];
+  const filters: GlobalScoutingFilters = { ...DEFAULT_FILTERS, minMinutes: 270 };
+
+  it("effectiveMinMinutes returns the user's setting in live mode when applyInLive is true", () => {
+    expect(effectiveMinMinutes(filters, "live", true)).toBe(270);
+  });
+
+  it("filterPlayers drops live-mode players under the threshold when opted in (null-minutes players still retained)", () => {
+    const result = filterPlayers(players, filters, "live", true);
+    expect(result.map((p) => p.id).sort()).toEqual([1, 3]);
+  });
+
+  it("without the opt-in, live mode still bypasses the threshold (every other page unchanged)", () => {
+    const result = filterPlayers(players, filters, "live");
+    expect(result.map((p) => p.id).sort()).toEqual([1, 2, 3]);
+  });
+});

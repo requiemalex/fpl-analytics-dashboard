@@ -130,3 +130,21 @@ describe("useDashboardGraphs — addGraph/removeGraph/replaceScopeGraphs", () =>
     expect(result.current.graphs.filter((g) => g.scope === "team")).toEqual(teamGraphsBefore);
   });
 });
+
+describe('useDashboardGraphs — version 3 -> 4 migration (Min Minutes now applies to Current Season graphs)', () => {
+  const liveGraph = { id: 'g-live', scope: 'player', name: null, chartType: 'scatter', xMetricKey: 'xG', yMetricKey: 'goals', dataView: 'live', showReferenceLine: false, criteria: { ...DEFAULT_FILTERS, minMinutes: 900 }, playerIds: null, teamIds: null };
+  const lsGraph = { ...liveGraph, id: 'g-ls', dataView: 'lastSeason' };
+
+  it("zeroes a pre-v4 live graph's never-applied minMinutes, leaving non-live graphs untouched", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 3, data: [liveGraph, lsGraph] }));
+    const { result } = renderHook(() => useDashboardGraphs());
+    expect(result.current.graphs[0].criteria?.minMinutes).toBe(0);
+    expect(result.current.graphs[1].criteria?.minMinutes).toBe(900);
+  });
+
+  it("keeps a v4 live graph's minMinutes as set", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 4, data: [liveGraph] }));
+    const { result } = renderHook(() => useDashboardGraphs());
+    expect(result.current.graphs[0].criteria?.minMinutes).toBe(900);
+  });
+});

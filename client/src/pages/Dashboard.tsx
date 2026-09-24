@@ -486,7 +486,7 @@ export function Dashboard() {
             sourcePlayers = resolvedByMode[tile.dataView].filter((p) => idSet.has(p.id));
           } else {
             const criteria = tile.criteria ?? DEFAULT_FILTERS;
-            sourcePlayers = filterPlayers(resolvedByMode[tile.dataView], criteria, tile.dataView);
+            sourcePlayers = filterPlayers(resolvedByMode[tile.dataView], criteria, tile.dataView, true);
             if (metric.ratePerMinutes) {
               const floor = tile.dataView === "live" ? LIVE_RATE_STAT_MIN_MINUTES : RATE_STAT_MIN_MINUTES;
               sourcePlayers = sourcePlayers.filter((p) => p.minutes !== null && p.minutes >= floor);
@@ -541,7 +541,7 @@ export function Dashboard() {
             sourcePlayers = resolvedByMode[graph.dataView].filter((p) => idSet.has(p.id));
           } else {
             const criteria = graph.criteria ?? DEFAULT_FILTERS;
-            sourcePlayers = filterPlayers(resolvedByMode[graph.dataView], criteria, graph.dataView);
+            sourcePlayers = filterPlayers(resolvedByMode[graph.dataView], criteria, graph.dataView, true);
           }
           const scatterData: ScatterPoint[] = [];
           const barData: BarDatum[] = [];
@@ -1139,6 +1139,7 @@ export function Dashboard() {
                     analysisMode={newTileDataView}
                     showSearch={false}
                     showPrice
+                    minMinutesInLive
                   />
                 ) : (
                   <>
@@ -1345,6 +1346,7 @@ export function Dashboard() {
                     analysisMode={newGraphDataView}
                     showSearch={false}
                     showPrice
+                    minMinutesInLive
                   />
                 ) : (
                   <>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { SummaryTileScope } from "../components/summaryTileMetrics";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
-import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "./scoutingFilters";
+import { clearUnappliedLiveMinMinutes, DEFAULT_FILTERS, type GlobalScoutingFilters } from "./scoutingFilters";
 import { loadVersioned, saveVersioned, type VersionedStore } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:dashboard:graphs:v1";
@@ -14,8 +14,13 @@ const STORAGE_KEY = "fpl-dashboard:dashboard:graphs:v1";
  * so the team xGC default goes back to it. migrate() re-syncs any stored
  * graph carrying a default id to its current packaged definition when
  * loading data stored under an older version.
+ *
+ * Bumped 3 -> 4 when Min Minutes started applying to Current Season graphs
+ * (it used to be bypassed for them) — a graph stored under an older version
+ * with dataView "live" has its never-applied minMinutes zeroed by
+ * clearUnappliedLiveMinMinutes (scoutingFilters.ts).
  */
-const STORAGE_VERSION = 3;
+const STORAGE_VERSION = 4;
 const DEFAULT_DATA_VIEW: AnalysisMode = "lastSeason";
 
 /**
@@ -166,7 +171,7 @@ const DASHBOARD_GRAPHS_STORE: VersionedStore<DashboardGraphConfig[]> = {
     // edited after creation — a stored graph with a default id can only
     // ever be an unmodified default. A default the user removed stays
     // removed; nothing is re-added.
-    return graphs.map((g) => DEFAULT_DASHBOARD_GRAPHS.find((d) => d.id === g.id) ?? g);
+    return graphs.map((g) => DEFAULT_DASHBOARD_GRAPHS.find((d) => d.id === g.id) ?? clearUnappliedLiveMinMinutes(g));
   },
 };
 

@@ -3218,3 +3218,27 @@ That page is gone; graph building now lives alongside Summary Tiles.
   a stored tile/graph carrying it resolves to `goalsAgainst`
   (`currentTeamMetricKey()`, `teamColumns.tsx`), and the default team
   graph is "Team xGC vs Goals Against" again (graphs store v3).
+
+## Dashboard tiles/graphs: Min Minutes applies in Current Season
+
+Min Minutes used to be greyed out ("bypassed") in the Add Tile/Add Graph
+dialogs whenever the Data View was Current Season, and was never applied
+to a live tile/graph (see "Dashboard: per-tile criteria and tile naming"
+above). It is now editable and applied in every data view, for Dashboard
+tiles/graphs only:
+
+- `filterPlayers()`/`effectiveMinMinutes()` (`useFilteredPlayers.ts`) take
+  an opt-in `applyMinMinutesInLive`/`applyInLive` flag, passed only by
+  Dashboard.tsx's tile and graph rows; `FiltersBar` takes a matching
+  `minMinutesInLive` prop, set only by the two Dashboard dialogs. Every
+  other page (Player Comparison, player/team detail overlays, Team
+  Building's picker) still bypasses Min Minutes in Current Season.
+- The default is still 0, so a new Current Season tile shows everyone
+  until the user raises it. Players with null minutes are still retained.
+- Migration: a live tile/graph saved before this could carry a non-zero
+  `minMinutes` that was never applied (typed before switching the Data
+  View to Current Season). `clearUnappliedLiveMinMinutes()`
+  (`scoutingFilters.ts`) zeroes it on first load, so every existing tile/
+  graph shows exactly what it did before — tiles store v5 → 6, graphs
+  store v3 → 4, saved views store v3 → 4 (non-Default views' tiles and
+  graphs). Non-live items keep their values.

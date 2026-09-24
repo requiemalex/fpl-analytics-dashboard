@@ -262,3 +262,33 @@ describe("useSavedDashboardViews — selectedViewIds persistence (which view the
     expect(result.current.selectedViewIds.player).toBe("view-custom-1");
   });
 });
+
+describe('useSavedDashboardViews — version 3 -> 4 migration (Min Minutes now applies to Current Season tiles/graphs)', () => {
+  const criteria = { search: '', position: 'ALL', teamId: 'ALL', minMinutes: 450, minPrice: null, maxPrice: null };
+  const view = {
+    id: 'view-custom-1', scope: 'player', name: 'My View', updatedAt: 1,
+    tiles: [
+      { id: 't-live', scope: 'player', metricKey: 'totalPoints', direction: 'desc', dataView: 'live', name: null, criteria, playerIds: null, teamIds: null },
+      { id: 't-ls', scope: 'player', metricKey: 'totalPoints', direction: 'desc', dataView: 'lastSeason', name: null, criteria, playerIds: null, teamIds: null },
+    ],
+    graphs: [{ id: 'g-live', scope: 'player', name: null, chartType: 'bar', xMetricKey: 'xG', yMetricKey: 'goals', dataView: 'live', showReferenceLine: false, criteria, playerIds: null, teamIds: null }],
+  };
+  const customView = (views: { id: string }[]) => views.find((v) => v.id === 'view-custom-1') as typeof view;
+
+  it("zeroes never-applied minMinutes on a pre-v4 view's live tiles/graphs only", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 3, data: [view] }));
+    const { result } = renderHook(() => useSavedDashboardViews());
+    const v = customView(result.current.views);
+    expect(v.tiles[0].criteria.minMinutes).toBe(0);
+    expect(v.tiles[1].criteria.minMinutes).toBe(450);
+    expect(v.graphs[0].criteria.minMinutes).toBe(0);
+  });
+
+  it("keeps a v4 view's live minMinutes as saved", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 4, data: [view] }));
+    const { result } = renderHook(() => useSavedDashboardViews());
+    const v = customView(result.current.views);
+    expect(v.tiles[0].criteria.minMinutes).toBe(450);
+    expect(v.graphs[0].criteria.minMinutes).toBe(450);
+  });
+});
