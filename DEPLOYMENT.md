@@ -3,8 +3,8 @@
 ## Current status: desktop app is primary; Railway is retired
 
 The Railway deployment described below was decommissioned (project
-deleted) once the Electron desktop app (see README's "Electron desktop
-app" section) was verified working end-to-end — each user now runs
+deleted) once the Electron desktop app (see README's "Desktop app and
+releases" section) was verified working end-to-end — each user now runs
 their own copy locally, against their own FPL API requests, at zero
 hosting cost, instead of one shared paid host. Everything below this
 point (Docker image, `railway.json`, the single-host reasoning) is kept
@@ -17,8 +17,8 @@ linked, since the old one no longer exists.
 ## Hosting shape: single host, not split
 
 This app needs a real always-on backend — the Express proxy caches and
-rate-limits calls to the live FPL API (see README's "API caching
-behaviour") — so pure static hosting for the client alone was never an
+rate-limits calls to the live FPL API (see README's "API endpoints
+and caching") — so pure static hosting for the client alone was never an
 option. The remaining choice was **one host running both client and
 server** vs. **a split deployment** (static frontend host + separate API
 host). Single-host was chosen, for reasons specific to how this app is
@@ -51,7 +51,7 @@ client with near-zero cold-start for static assets, and would let you
 redeploy the frontend without restarting the API process (irrelevant
 here — the API's in-memory cache is cheap to rebuild, per the README's
 "Known limitations"). If this ever grows into the multi-user website
-version the README explicitly says it deliberately avoided (real
+version this project deliberately avoided (real
 database, shared cache across many users), split hosting would be worth
 revisiting. For the app as it exists today, single-host is the simpler,
 correct choice.

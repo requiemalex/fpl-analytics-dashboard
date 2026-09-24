@@ -326,8 +326,8 @@ export function PlayerDetailOverlay() {
   // hidden entirely rather than shown as an always-zero row for everyone
   // else. Defensive Contributions is the opposite case: the mechanic
   // itself (a per-match action-count threshold) explicitly excludes
-  // goalkeepers per official FPL scoring rules — see README's "Defensive
-  // Contribution/Game vs Defensive Reward/Game" — so it's hidden for GKP
+  // goalkeepers per official FPL scoring rules — see README's "Metric
+  // methodology" (Defensive Reward/Game) — so it's hidden for GKP
   // specifically rather than shown as a column that can never score them
   // anything. Every other column here is at least possible for every
   // position (however rare), so nothing else is pruned.

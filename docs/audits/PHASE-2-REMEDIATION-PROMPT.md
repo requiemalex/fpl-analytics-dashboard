@@ -3,8 +3,8 @@
 We now have a forensic audit at docs/audits/FULL_AUDIT_REPORT.md. Treat that
 report as the input to this phase.
 
-Start by reading, in order: CLAUDE.md; docs/PROJECT_SPEC.md if present;
-docs/DATA_DICTIONARY.md if present; docs/audits/FULL_AUDIT_REPORT.md; the
+Start by reading, in order: CLAUDE.md; README.md (how the app works
+now — not docs/HISTORY.md, which is archived); docs/audits/FULL_AUDIT_REPORT.md; the
 current git status and recent git history.
 
 Do not rely on prior conversation history — this is a fresh session and the

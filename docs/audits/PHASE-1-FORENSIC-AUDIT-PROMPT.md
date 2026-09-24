@@ -16,7 +16,8 @@ application, not a feature request.
 ## First: reconstruct the project
 
 Before drawing any conclusions:
-- Read CLAUDE.md and any files under docs/.
+- Read CLAUDE.md, README.md (how the app works now), and any files under docs/
+  except docs/HISTORY.md (archived — describes past behaviour, not current).
 - Inspect package.json and every available script.
 - Inspect the complete source tree and identify the main architecture.
 - Inspect git status and recent history.

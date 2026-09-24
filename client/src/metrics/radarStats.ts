@@ -94,7 +94,7 @@ export interface RadarAxisGroup {
   /** "" for a position with one combined radar (GKP, FWD — points come
    * overwhelmingly from one facet already); "Defense"/"Offense" for a
    * position split into two (DEF, MID — both facets genuinely drive
-   * their points). See README → Percentile Radar. */
+   * their points). See README → "Metric methodology" (percentiles). */
   label: string;
   axes: RadarAxis[];
 }

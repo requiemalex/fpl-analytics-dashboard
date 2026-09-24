@@ -5,8 +5,8 @@ on this FPL Analytics Dashboard. You are now the independent QA/regression
 reviewer. Your job is NOT to assume the previous fixes are correct — try to
 break them.
 
-Read, in order: CLAUDE.md; docs/PROJECT_SPEC.md if present;
-docs/DATA_DICTIONARY.md if present; docs/audits/FULL_AUDIT_REPORT.md;
+Read, in order: CLAUDE.md; README.md (how the app works
+now — not docs/HISTORY.md, which is archived); docs/audits/FULL_AUDIT_REPORT.md;
 docs/audits/REMEDIATION_REPORT.md; the current git diff/history.
 
 Focus specifically on: edge cases; null and zero values; inconsistent player

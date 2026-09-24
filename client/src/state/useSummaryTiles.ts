@@ -54,7 +54,7 @@ export interface SummaryTileConfig {
   scope: SummaryTileScope;
   metricKey: string;
   direction: TileDirection;
-  /** This tile's own analysis mode — set in the Add/Edit Tile dialog, independent of every other tile's. See Dashboard.tsx / README's "Per-tile data view". */
+  /** This tile's own analysis mode — set in the Add/Edit Tile dialog, independent of every other tile's. See Dashboard.tsx / README's Dashboard implementation notes. */
   dataView: AnalysisMode;
   /** Custom title, set in the Add/Edit dialog — null/"" falls back to the auto-generated "Top 5 — <metric>" title. */
   name: string | null;

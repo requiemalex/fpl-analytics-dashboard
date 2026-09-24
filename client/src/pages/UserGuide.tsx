@@ -183,10 +183,10 @@ export function UserGuide() {
           </li>
         </ul>
         <p className="page-subtitle" style={{ margin: 0 }}>
-          One thing that deliberately never changes: a player's name, team, and price shown together in an identity line (like Player
-          Explorer's leftmost column) always uses today's real price, in every mode — comparing a past season's output against today's
-          price would be a mismatched, misleading pairing. Explicit Price <em>columns</em> you add yourself are a different thing, and
-          correctly still resolve per mode.
+          One thing that deliberately never changes: price is always today's real price, in every mode — in the identity line (like
+          Player Explorer's leftmost column), in the Price column, and in anything worked out from it like Points/£m — because what a
+          player costs right now is what matters for picking a squad. The one exception is Career History's season-by-season table,
+          which shows what a player cost at the time.
         </p>
       </Section>
 
@@ -216,8 +216,8 @@ export function UserGuide() {
             shared setting for the whole page, so two tiles can watch completely different slices of the player pool side by side. The
             data view shows as a small <code>LS</code>/<code>HA</code>/<code>CS</code> badge in the tile's header (hover for the full
             name). Min Minutes applies in every data view, Current Season included — it starts at 0, so raise it as the season goes on
-            if you only want regular starters (e.g. 270 for three full games). Team Tiles aggregate a club's whole squad (or, for league-standing metrics like League Position,
-            Wins, and Goals Against, this season's real table — see below) and have no criteria of their own. Every tile can also be
+            if you only want regular starters (e.g. 270 for three full games). Team Tiles show club figures for the season(s) their Data View picks — league standing included (see
+            below) — and have no criteria of their own. Every tile can also be
             given a custom name in the same dialog — leave it blank to keep the auto-generated "Top/Bottom 5 — &lt;statistic&gt;"
             title.
           </li>
@@ -290,9 +290,9 @@ export function UserGuide() {
           <li><strong>Reset Columns</strong> restores the packaged defaults — order, visibility, and width.</li>
           <li><strong>Comparative Colouring</strong> tints each cell green/red relative to what's currently on screen.</li>
           <li>
-            The filter bar above the table (search, position, team, min minutes) narrows the whole table at once. Every
-            other column — Starts, Own%, Price, and the rest — has its own filter (click the ▾ icon on that column's header) with
-            ≤/≥/= fields, so narrowing by ownership or price range happens at the column, not up here. Player-name search (here, in
+            The search box in the toolbar narrows the table by player name. Everything else is filtered at its own column (click
+            the ▾ icon on that column's header) — Position and Team by category, and numeric columns like Minutes, Own%, and
+            Price with ≤/≥/= fields. Player-name search (here, in
             Team Building's Add Players table, and in the search-and-add boxes on Player Comparison and Player Trends) is
             accent-insensitive (typing "odegaard" or "salah" finds "Ødegaard" or "Salah" either way), matches first and last name in
             any order (so "fernandes bruno" finds Bruno Fernandes, not just "bruno fernandes"), and tolerates small typos on longer

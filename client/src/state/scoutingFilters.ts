@@ -10,7 +10,7 @@ import type { AnalysisMode } from "../metrics/resolvePlayerStats";
  * because renaming the type would touch every page for no behavioural
  * gain — but the state itself is deliberately per-page now, so changing
  * one page's criteria can never change what another page shows. See
- * README → "Per-page filter/analysis-mode state" for the full story.
+ * README → "Architecture" (shared vs per-page state).
  */
 export interface GlobalScoutingFilters {
   search: string;

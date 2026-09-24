@@ -15,10 +15,10 @@ import { computeCareerAverages } from "./careerMetrics";
  * (appearance, goals, assists, clean sheet, goals conceded, saves,
  * defensive contribution, bonus) and sums the results.
  *
- * This is deliberately a SEPARATE module. It is not wired into any page
- * yet, and does not replace computeExpectedPointsForWindow anywhere —
- * see README's "Expected Points — Tier 2" section for why (in short: an
- * unvalidated model shouldn't quietly replace a working one; see
+ * This is deliberately a SEPARATE module, shown in Team Building alongside
+ * Tier 1 as "Exp. Pts (Model Predicted)" — never replacing it. See README's
+ * "Team Building" section (in short: an unvalidated model shouldn't quietly
+ * replace a working one; see
  * scripts/backtestExpectedPoints.ts for the validation this app's own
  * conventions require before that changes).
  *
@@ -180,7 +180,7 @@ function estimateCleanSheetProbability(ownStrength: number | null, opponentStren
 /**
  * One fixture's worth of Tier 2 expected points for one player. Every
  * component sums independently; see the file header for the overall
- * design and README for the fuller writeup including backtest results.
+ * design and README's "Team Building" section for the backtest summary.
  */
 export function computeExpectedPointsV2ForFixture(
   player: NormalizedPlayer,

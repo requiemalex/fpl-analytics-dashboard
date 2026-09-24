@@ -8,8 +8,8 @@ export interface SeasonAverageMinutes {
 /**
  * Average minutes per completed gameweek across the whole current season
  * so far — not a rolling recent-form window — used to drive the player
- * profile's single-icon Playing Time summary (see README → Playing-time
- * indicator methodology).
+ * profile's single-icon Playing Time summary (see README → "Metric
+ * methodology", Playing Time).
  */
 export function computeSeasonAverageMinutes(history: PlayerGameweekHistory[]): SeasonAverageMinutes {
   const gameweeksPlayed = history.length;

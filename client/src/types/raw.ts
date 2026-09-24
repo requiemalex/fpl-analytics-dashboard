@@ -1,7 +1,7 @@
 /**
  * Raw shapes returned by the official FPL API, as actually observed on the
  * live 2026/27 endpoint (inspected directly rather than assumed from prior
- * seasons — see README "Metric definitions" for the field-by-field mapping).
+ * seasons — see README "Data rules" and metrics/dictionary.ts for field mappings).
  *
  * These intentionally only type the fields this application uses. The FPL
  * API returns many more fields; unlisted ones are ignored, not stripped —
@@ -246,8 +246,8 @@ export interface RawElementSummaryHistory {
  * A single past-season summary inside an element-summary "history_past"
  * array — one entry per prior season this player appears in the FPL game
  * for (never the live/current season). Field names and types confirmed
- * directly against the live API response (see README → historical-season
- * data notes), not assumed from older seasons' documentation.
+ * directly against the live API response (see README → "Metric
+ * methodology", historic data caveats), not assumed from older seasons' documentation.
  *
  * expected_* fields are present as far back as history_past goes (even
  * seasons before FPL tracked xG show them as the string "0.00" rather than
