@@ -8,7 +8,7 @@ import { computeTeamAggregates, type TeamAggregate } from "../metrics/teamStats"
 import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFilters";
 import { ANALYSIS_MODE_OPTIONS } from "../components/AnalysisModeToggle";
 import { FiltersBar } from "../components/FiltersBar";
-import { FilterIcon, TrashIcon, TrendLineIcon } from "../components/IconToolbar";
+import { CardEditRemoveButtons, FilterIcon, TrashIcon, TrendLineIcon } from "../components/IconToolbar";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { TeamPicker } from "../components/TeamPicker";
 import { TopList, type TopListRow } from "../components/TopList";
@@ -23,12 +23,14 @@ import {
   TEAM_TILE_METRICS,
   playerTileMetricByKey,
   teamTileMetricByKey,
+  isRatePerMinutesColumnKey,
   type SummaryTileScope,
 } from "../components/summaryTileMetrics";
 import { useSummaryTiles, createSummaryTile, MAX_SUMMARY_TILES, type TileDirection, type SummaryTileConfig } from "../state/useSummaryTiles";
 import {
   useDashboardGraphs,
   createDashboardGraph,
+  defaultGraphDirection,
   MAX_DASHBOARD_GRAPHS,
   type DashboardGraphType,
   type DashboardGraphConfig,
@@ -43,6 +45,22 @@ const MAX_TILE_TEAMS = 5;
 
 /** Every mode a tile can be built from — used to pre-compute one resolved/eligible/aggregate bucket per mode (see below), since tiles now each carry their own data view rather than sharing one page-wide mode. */
 const MODES: AnalysisMode[] = ["live", "lastSeason", "historicAverage"];
+
+// A rate-per-game metric (PPG, xG/Game, xGC/Game, DC/Game, Goals/Game, etc.
+// — see PlayerTileMetric.ratePerMinutes / isRatePerMinutesColumnKey) still
+// needs a real sample to mean anything, even with the estimated-games basis
+// (see <per_game_not_per_90> in metrics/calculations.ts). Current Season gets
+// its own, much lower floor (one full match) rather than being exempted
+// entirely, since everyone genuinely has low minutes for only the first
+// couple of gameweeks. Applied per tile/graph, on top of its own criteria
+// filter — never to specifically picked players.
+export const LIVE_RATE_STAT_MIN_MINUTES = 90;
+export const RATE_STAT_MIN_MINUTES = 450;
+
+export function applyRateStatFloor(players: NormalizedPlayer[], dataView: AnalysisMode): NormalizedPlayer[] {
+  const floor = dataView === "live" ? LIVE_RATE_STAT_MIN_MINUTES : RATE_STAT_MIN_MINUTES;
+  return players.filter((p) => p.minutes !== null && p.minutes >= floor);
+}
 
 export function topN<T extends { value: number | null }>(rowsIn: T[], n: number, ascending = false): T[] {
   const eligible = rowsIn.filter((r) => r.value !== null) as (T & { value: number })[];
@@ -59,13 +77,76 @@ function displayTileTitle(tile: SummaryTileConfig, metricLabel: string): string 
   return tile.name && tile.name.trim() ? tile.name : tileTitle(metricLabel, tile.direction);
 }
 
-function graphTitle(chartType: DashboardGraphType, xLabel: string, yLabel: string): string {
-  return chartType === "scatter" ? `${xLabel} vs ${yLabel}` : `Top 15 — ${yLabel}`;
+/** A bar graph in its metric's natural order is its "Top 15" (League Position 1–15, lowest Goals Against…); the other way round is its "Bottom 15". */
+function graphTitle(graph: DashboardGraphConfig, xLabel: string, yLabel: string): string {
+  if (graph.chartType === "scatter") return `${xLabel} vs ${yLabel}`;
+  const natural = graph.direction === defaultGraphDirection(graph.scope, graph.yMetricKey);
+  return `${natural ? "Top" : "Bottom"} 15 — ${yLabel}`;
 }
 
 /** A graph's custom name (set in the Add/Edit dialog) if it has one, else the auto-generated "<X> vs <Y>" / "Top 15 — <Y>" title. */
 function displayGraphTitle(graph: DashboardGraphConfig, xLabel: string, yLabel: string): string {
-  return graph.name && graph.name.trim() ? graph.name : graphTitle(graph.chartType, xLabel, yLabel);
+  return graph.name && graph.name.trim() ? graph.name : graphTitle(graph, xLabel, yLabel);
+}
+
+/** Longest custom name a tile, graph or view takes — past this it's no longer a title. */
+const MAX_NAME_LENGTH = 60;
+
+/** Why a Filters-mode price range can't be saved, if it can't. */
+function priceRangeProblem(criteria: GlobalScoutingFilters): string | undefined {
+  if (criteria.minPrice != null && criteria.maxPrice != null && criteria.minPrice > criteria.maxPrice) return "Min price is above max price";
+  return undefined;
+}
+
+type GameweekDisplay = { heading: string; sub: string; progress: number | null };
+
+/**
+ * The Gameweek Status card. FPL marks an event "current" once its deadline
+ * passes and keeps it current until the NEXT deadline passes — even after
+ * its own matches have finished (same reasoning as AppShell's
+ * getGameweekInfo). So a current event's own deadline is always in the
+ * past: while it's being played the card says so and counts down to the
+ * next deadline; once finished it switches to the next gameweek.
+ */
+export function gameweekDisplay(
+  gameweekState: ReturnType<typeof useAppState>["gameweekState"],
+  events: ReturnType<typeof useAppState>["events"],
+): GameweekDisplay {
+  if (gameweekState?.kind === "current") {
+    const current = gameweekState.event;
+    const next = events.find((e) => e.isNext);
+    if (current.finished) {
+      if (!next) return { heading: current.name, sub: "Finished — awaiting next gameweek", progress: null };
+      return { heading: next.name, sub: `Deadline ${fmtDate(next.deadlineTime)}`, progress: timeProgressPercent(current.deadlineTime, next.deadlineTime) };
+    }
+    if (!next) return { heading: current.name, sub: "In progress", progress: null };
+    return {
+      heading: current.name,
+      sub: `In progress · next deadline ${fmtDate(next.deadlineTime)}`,
+      progress: timeProgressPercent(current.deadlineTime, next.deadlineTime),
+    };
+  }
+  if (gameweekState?.kind === "last-completed") {
+    return { heading: gameweekState.event.name, sub: "Last completed gameweek", progress: null };
+  }
+  return { heading: "Pre-season", sub: "No active gameweek yet", progress: null };
+}
+
+/** Stand-in for a saved tile or graph whose statistic this version doesn't have (e.g. one removed in an update) — says so and can still be removed, rather than vanishing while still counting toward the cap. */
+function UnavailableItemCard({ title, noun, onRemove, minHeight }: { title: string; noun: "tile" | "graph"; onRemove?: () => void; minHeight?: number }) {
+  return (
+    <div className="card" style={minHeight ? { minHeight } : undefined}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+        <div className="card-title">{title}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <CardEditRemoveButtons noun={noun} onRemove={onRemove} />
+        </div>
+      </div>
+      <p className="page-subtitle" style={{ margin: 0 }}>
+        This {noun}'s statistic is no longer available.
+      </p>
+    </div>
+  );
 }
 
 /** % of the way from `startISO` to `endISO` the current moment is, clamped to [0, 100] — null if the window is malformed (end <= start), so the caller can just hide the bar rather than showing something nonsensical. */
@@ -237,17 +318,6 @@ export function Dashboard() {
     return map;
   }, [players, historicProfiles, currentSeasonHasStarted]);
 
-  // A rate-per-game metric (PPG, Goals/Game, Assists/Game, DC/Game — see
-  // PlayerTileMetric.ratePerMinutes) still needs a real sample to mean
-  // anything, even with the estimated-games basis (see
-  // <per_game_not_per_90> in metrics/calculations.ts). Current Season gets
-  // its own, much lower floor (one full match) rather than being exempted
-  // entirely, since everyone genuinely has low minutes for only the first
-  // couple of gameweeks. Applied per-tile below, on top of that tile's own
-  // criteria filter.
-  const LIVE_RATE_STAT_MIN_MINUTES = 90;
-  const RATE_STAT_MIN_MINUTES = 450;
-
   // Club figures per mode — same shared computation Teams and Team Profile
   // use (<club_not_squad>, metrics/teamStats.ts): what each club did in
   // the season(s) a tile/graph's own Data View selects, league table
@@ -310,6 +380,7 @@ export function Dashboard() {
   const [newGraphYKey, setNewGraphYKey] = useState<string>(PLAYER_COLUMNS[0].key);
   const [newGraphDataView, setNewGraphDataView] = useState<AnalysisMode>("lastSeason");
   const [newGraphShowReferenceLine, setNewGraphShowReferenceLine] = useState(false);
+  const [newGraphDirection, setNewGraphDirection] = useState<TileDirection>("desc");
   const [newGraphCriteria, setNewGraphCriteria] = useState<GlobalScoutingFilters>(DEFAULT_FILTERS);
   const [newGraphPlayerMode, setNewGraphPlayerMode] = useState<"filters" | "players">("filters");
   const [newGraphPlayerIds, setNewGraphPlayerIds] = useState<number[]>([]);
@@ -340,6 +411,7 @@ export function Dashboard() {
   const [newViewName, setNewViewName] = useState("");
   const [createViewError, setCreateViewError] = useState<string | null>(null);
   const [loadViewError, setLoadViewError] = useState<string | null>(null);
+  const [showDeleteViewConfirm, setShowDeleteViewConfirm] = useState(false);
 
   const visibleSavedViews = useMemo(
     () => savedDashboardViews.views.filter((v) => v.scope === tileView),
@@ -421,8 +493,12 @@ export function Dashboard() {
       setCreateViewError("Enter a name for this view.");
       return;
     }
+    if (visibleSavedViews.some((v) => v.name.trim().toLowerCase() === name.toLowerCase())) {
+      setCreateViewError(`There's already a ${tileView} view called "${name}". Pick another name.`);
+      return;
+    }
     if (visibleSavedViews.length >= MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE) {
-      setCreateViewError(`You already have ${MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE} saved ${tileView} views — the maximum allowed. Delete one first.`);
+      setCreateViewError(`You already have ${MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE} ${tileView} views, Default included — the maximum allowed. Delete one first.`);
       return;
     }
     const id = savedDashboardViews.save(tileView, name, [], []);
@@ -436,12 +512,12 @@ export function Dashboard() {
   function handleLoadView(view: SavedDashboardView): boolean {
     const otherScopeTileCount = tilesState.tiles.filter((t) => t.scope !== tileView).length;
     if (otherScopeTileCount + view.tiles.length > MAX_SUMMARY_TILES) {
-      setLoadViewError(`Loading "${view.name}" would push you past the ${MAX_SUMMARY_TILES}-tile limit — remove some tiles first.`);
+      setLoadViewError(`Loading "${view.name}" would push you past the ${MAX_SUMMARY_TILES}-tile limit (counted across Players and Teams) — remove some tiles first.`);
       return false;
     }
     const otherScopeGraphCount = graphsState.graphs.filter((g) => g.scope !== tileView).length;
     if (otherScopeGraphCount + view.graphs.length > MAX_DASHBOARD_GRAPHS) {
-      setLoadViewError(`Loading "${view.name}" would push you past the ${MAX_DASHBOARD_GRAPHS}-graph limit — remove a graph first.`);
+      setLoadViewError(`Loading "${view.name}" would push you past the ${MAX_DASHBOARD_GRAPHS}-graph limit (counted across Players and Teams) — remove a graph first.`);
       return false;
     }
     setLoadViewError(null);
@@ -451,6 +527,7 @@ export function Dashboard() {
   }
 
   function handleDeleteSelectedView() {
+    setShowDeleteViewConfirm(false);
     if (!selectedViewId) return;
     // useSavedDashboardViews.remove() already falls the scope's selection
     // back to Default when the deleted view was the one selected.
@@ -470,7 +547,7 @@ export function Dashboard() {
       .map((tile) => {
         if (tile.scope === "player") {
           const metric = playerTileMetricByKey(tile.metricKey);
-          if (!metric) return null;
+          if (!metric) return { tile, kind: "unavailable" as const };
           let sourcePlayers: NormalizedPlayer[];
           if (tile.playerIds && tile.playerIds.length > 0) {
             // Tracking specific players — sort/rank exactly those (up to
@@ -482,17 +559,14 @@ export function Dashboard() {
           } else {
             const criteria = tile.criteria ?? DEFAULT_FILTERS;
             sourcePlayers = filterPlayers(resolvedByMode[tile.dataView], criteria, tile.dataView, true);
-            if (metric.ratePerMinutes) {
-              const floor = tile.dataView === "live" ? LIVE_RATE_STAT_MIN_MINUTES : RATE_STAT_MIN_MINUTES;
-              sourcePlayers = sourcePlayers.filter((p) => p.minutes !== null && p.minutes >= floor);
-            }
+            if (metric.ratePerMinutes) sourcePlayers = applyRateStatFloor(sourcePlayers, tile.dataView);
           }
           const rows = sourcePlayers.map((p) => ({ player: p, derived: getPlayerDerivedMetrics(p) }));
           const valueRows: TopListRow[] = rows.map((r) => ({ player: r.player, value: metric.getValue(r.player, r.derived) }));
           return { tile, metric, kind: "player" as const, topRows: topN(valueRows, 5, tile.direction === "asc") };
         }
         const metric = teamTileMetricByKey(tile.metricKey);
-        if (!metric) return null;
+        if (!metric) return { tile, kind: "unavailable" as const };
         let teamPool = teamAggregatesByMode[tile.dataView];
         if (tile.teamIds && tile.teamIds.length > 0) {
           const idSet = new Set(tile.teamIds);
@@ -505,17 +579,14 @@ export function Dashboard() {
           value: metric.getValue(t),
         }));
         return { tile, metric, kind: "team" as const, topRows: topN(valueRows, 5, tile.direction === "asc") };
-      })
-      .filter((x): x is NonNullable<typeof x> => x !== null);
+      });
   }, [tilesState.tiles, resolvedByMode, teamAggregatesByMode]);
 
   // Split for rendering only — reordering still operates on the one
   // underlying `tilesState.tiles` array regardless of scope (drag-drop
   // is id-based, not index-based), this just picks out whichever scope
   // `tileView` currently has selected.
-  const playerTileRows = useMemo(() => tileRows.filter((t) => t.kind === "player"), [tileRows]);
-  const teamTileRows = useMemo(() => tileRows.filter((t) => t.kind === "team"), [tileRows]);
-  const visibleTileRows = tileView === "player" ? playerTileRows : teamTileRows;
+  const visibleTileRows = useMemo(() => tileRows.filter((t) => t.tile.scope === tileView), [tileRows, tileView]);
 
   // Same shape as tileRows above, one per saved graph — resolves each
   // graph's own scope/dataView/criteria (or specific player/team picks)
@@ -527,9 +598,8 @@ export function Dashboard() {
       .map((graph) => {
         if (graph.scope === "player") {
           const yColumn = playerColumnByKey(graph.yMetricKey);
-          if (!yColumn) return null;
           const xColumn = graph.chartType === "scatter" ? playerColumnByKey(graph.xMetricKey) : undefined;
-          if (graph.chartType === "scatter" && !xColumn) return null;
+          if (!yColumn || (graph.chartType === "scatter" && !xColumn)) return { graph, kind: "unavailable" as const };
           let sourcePlayers: NormalizedPlayer[];
           if (graph.playerIds && graph.playerIds.length > 0) {
             const idSet = new Set(graph.playerIds);
@@ -537,6 +607,8 @@ export function Dashboard() {
           } else {
             const criteria = graph.criteria ?? DEFAULT_FILTERS;
             sourcePlayers = filterPlayers(resolvedByMode[graph.dataView], criteria, graph.dataView, true);
+            const plotsRate = isRatePerMinutesColumnKey(graph.yMetricKey) || (graph.chartType === "scatter" && isRatePerMinutesColumnKey(graph.xMetricKey));
+            if (plotsRate) sourcePlayers = applyRateStatFloor(sourcePlayers, graph.dataView);
           }
           const scatterData: ScatterPoint[] = [];
           const barData: BarDatum[] = [];
@@ -558,14 +630,14 @@ export function Dashboard() {
             xLabel: xColumn?.label ?? "",
             yLabel: yColumn.label,
             format: yColumn.format,
+            xFormat: xColumn?.format,
             scatterData,
             barData,
           };
         }
         const yColumn = teamColumnByKey(graph.yMetricKey);
-        if (!yColumn) return null;
         const xColumn = graph.chartType === "scatter" ? teamColumnByKey(graph.xMetricKey) : undefined;
-        if (graph.chartType === "scatter" && !xColumn) return null;
+        if (!yColumn || (graph.chartType === "scatter" && !xColumn)) return { graph, kind: "unavailable" as const };
         let teamPool = teamAggregatesByMode[graph.dataView];
         if (graph.teamIds && graph.teamIds.length > 0) {
           const idSet = new Set(graph.teamIds);
@@ -590,16 +662,14 @@ export function Dashboard() {
           xLabel: xColumn?.label ?? "",
           yLabel: yColumn.label,
           format: yColumn.format,
+          xFormat: xColumn?.format,
           scatterData,
           barData,
         };
-      })
-      .filter((x): x is NonNullable<typeof x> => x !== null);
+      });
   }, [graphsState.graphs, resolvedByMode, teamAggregatesByMode]);
 
-  const playerGraphRows = useMemo(() => graphRows.filter((g) => g.kind === "player"), [graphRows]);
-  const teamGraphRows = useMemo(() => graphRows.filter((g) => g.kind === "team"), [graphRows]);
-  const visibleGraphRows = tileView === "player" ? playerGraphRows : teamGraphRows;
+  const visibleGraphRows = useMemo(() => graphRows.filter((g) => g.graph.scope === tileView), [graphRows, tileView]);
 
   // Whether any current tile or graph needs the bulk historic dataset at
   // all — only "lastSeason"/"historicAverage" do (see
@@ -607,8 +677,15 @@ export function Dashboard() {
   // tiles/graphs never needs to wait on it.
   // Team figures come from club history in every mode, live included (it
   // arrives with the historic load), so any team tile/graph needs it too.
-  const usesHistoricData =
-    tilesState.tiles.some((t) => t.dataView !== "live" || t.scope === "team") || graphsState.graphs.some((g) => g.dataView !== "live" || g.scope === "team");
+  const needsHistoric = (item: { dataView: AnalysisMode; scope: SummaryTileScope }) => item.dataView !== "live" || item.scope === "team";
+  const usesHistoricData = tilesState.tiles.some(needsHistoric) || graphsState.graphs.some(needsHistoric);
+
+  // Until the historic data a tile/graph needs has arrived, an empty result
+  // means "not loaded", not "nobody qualifies" — say which.
+  function emptyMessageFor(item: { dataView: AnalysisMode; scope: SummaryTileScope }): string | undefined {
+    if (!needsHistoric(item) || historicStatus === "ready") return undefined;
+    return historicStatus === "error" ? "Historic data couldn't be loaded." : "Loading historic data…";
+  }
 
   function openAddTileModal() {
     const firstMetric = tileView === "player" ? PLAYER_TILE_METRICS[0] : TEAM_TILE_METRICS[0];
@@ -683,14 +760,15 @@ export function Dashboard() {
   const newTileNameMissing = trimmedNewTileName.length === 0;
   const newTilePlayersMissing = tileView === "player" && newTilePlayerMode === "players" && newTilePlayerIds.length === 0;
   const newTileTeamsMissing = tileView === "team" && newTileTeamMode === "selected" && newTileTeamIds.length === 0;
-  const addTileDisabled = newTileNameMissing || newTilePlayersMissing || newTileTeamsMissing;
+  const newTilePriceProblem = tileView === "player" && newTilePlayerMode === "filters" ? priceRangeProblem(newTileCriteria) : undefined;
+  const addTileDisabled = newTileNameMissing || newTilePlayersMissing || newTileTeamsMissing || !!newTilePriceProblem;
   const addTileDisabledReason = newTileNameMissing
     ? "Name is required"
     : newTilePlayersMissing
       ? "Select at least one player to track"
       : newTileTeamsMissing
         ? "Select at least one team to track"
-        : undefined;
+        : newTilePriceProblem;
 
   function handleAddTile() {
     if (addTileDisabled) return;
@@ -709,7 +787,11 @@ export function Dashboard() {
       return;
     }
     if (tilesState.tiles.length >= MAX_SUMMARY_TILES) {
-      setNewTileError(`You already have ${MAX_SUMMARY_TILES} tiles — the maximum allowed. Remove one first.`);
+      const here = tilesState.tiles.filter((t) => t.scope === tileView).length;
+      const other = tilesState.tiles.length - here;
+      setNewTileError(
+        `You already have ${MAX_SUMMARY_TILES} tiles across Players and Teams (${here} here, ${other} in ${tileView === "player" ? "Teams" : "Players"}) — the maximum allowed. Remove one first.`,
+      );
       return;
     }
     tilesState.addTile(createSummaryTile({ scope: tileView, ...settings }));
@@ -741,6 +823,7 @@ export function Dashboard() {
     setNewGraphYKey(columns.length > 1 ? columns[1].key : columns[0].key);
     setNewGraphDataView("lastSeason");
     setNewGraphShowReferenceLine(false);
+    setNewGraphDirection(defaultGraphDirection(tileView, columns.length > 1 ? columns[1].key : columns[0].key));
     setNewGraphCriteria(DEFAULT_FILTERS);
     setNewGraphPlayerMode("filters");
     setNewGraphPlayerIds([]);
@@ -759,6 +842,7 @@ export function Dashboard() {
     setNewGraphYKey(graph.yMetricKey);
     setNewGraphDataView(graph.dataView);
     setNewGraphShowReferenceLine(graph.showReferenceLine);
+    setNewGraphDirection(graph.direction);
     setNewGraphCriteria(graph.criteria ?? DEFAULT_FILTERS);
     setNewGraphPlayerMode(graph.playerIds && graph.playerIds.length > 0 ? "players" : "filters");
     setNewGraphPlayerIds(graph.playerIds ?? []);
@@ -771,6 +855,12 @@ export function Dashboard() {
 
   function closeAddGraphModal() {
     setShowAddGraphModal(false);
+  }
+
+  /** Same as handleMetricChange for tiles: a new metric starts in its natural order. */
+  function handleGraphYMetricChange(key: string) {
+    setNewGraphYKey(key);
+    setNewGraphDirection(defaultGraphDirection(tileView, key));
   }
 
   /** Switching away from "players" clears any in-progress player picks — same reasoning as togglePlayerTileMode above. */
@@ -804,14 +894,15 @@ export function Dashboard() {
   const newGraphNameMissing = trimmedNewGraphName.length === 0;
   const newGraphPlayersMissing = tileView === "player" && newGraphPlayerMode === "players" && newGraphPlayerIds.length === 0;
   const newGraphTeamsMissing = tileView === "team" && newGraphTeamMode === "selected" && newGraphTeamIds.length === 0;
-  const addGraphDisabled = newGraphNameMissing || newGraphPlayersMissing || newGraphTeamsMissing;
+  const newGraphPriceProblem = tileView === "player" && newGraphPlayerMode === "filters" ? priceRangeProblem(newGraphCriteria) : undefined;
+  const addGraphDisabled = newGraphNameMissing || newGraphPlayersMissing || newGraphTeamsMissing || !!newGraphPriceProblem;
   const addGraphDisabledReason = newGraphNameMissing
     ? "Name is required"
     : newGraphPlayersMissing
       ? "Select at least one player to plot"
       : newGraphTeamsMissing
         ? "Select at least one team to plot"
-        : undefined;
+        : newGraphPriceProblem;
 
   function handleAddGraph() {
     if (addGraphDisabled) return;
@@ -821,6 +912,7 @@ export function Dashboard() {
       xMetricKey: newGraphXKey,
       yMetricKey: newGraphYKey,
       dataView: newGraphDataView,
+      direction: newGraphDirection,
       showReferenceLine: newGraphChartType === "scatter" && newGraphShowReferenceLine,
       criteria: tileView === "player" && newGraphPlayerMode === "filters" ? newGraphCriteria : null,
       playerIds: tileView === "player" && newGraphPlayerMode === "players" ? newGraphPlayerIds : null,
@@ -832,7 +924,11 @@ export function Dashboard() {
       return;
     }
     if (graphsState.graphs.length >= MAX_DASHBOARD_GRAPHS) {
-      setNewGraphError(`You already have ${MAX_DASHBOARD_GRAPHS} graphs — the maximum allowed. Remove one first.`);
+      const here = graphsState.graphs.filter((g) => g.scope === tileView).length;
+      const other = graphsState.graphs.length - here;
+      setNewGraphError(
+        `You already have ${MAX_DASHBOARD_GRAPHS} graphs across Players and Teams (${here} here, ${other} in ${tileView === "player" ? "Teams" : "Players"}) — the maximum allowed. Remove one first.`,
+      );
       return;
     }
     graphsState.addGraph(createDashboardGraph({ scope: tileView, ...settings }));
@@ -864,32 +960,22 @@ export function Dashboard() {
     setSearchParams((prev) => ({ ...Object.fromEntries(prev), teamProfile: String(teamId) }));
   }
 
-  // Same reasoning as AppShell's getGameweekInfo: FPL keeps an event marked
-  // "current" until the NEXT one's deadline passes, even after this one's
-  // own matches have all finished — so once finished, switch to showing
-  // the next gameweek's deadline instead (never the one that just ended).
-  // The progress bar tracks time elapsed across whichever deadline window
-  // is currently "live" — the previous deadline to this one if it hasn't
-  // passed yet, or this (just-passed) deadline to the next one if it has.
-  const gwDisplay = useMemo(() => {
-    if (gameweekState?.kind === "current") {
-      if (gameweekState.event.finished) {
-        const next = events.find((e) => e.isNext);
-        if (!next) return { heading: gameweekState.event.name, sub: "Finished — awaiting next gameweek", progress: null as number | null };
-        return { heading: next.name, sub: `Deadline ${fmtDate(next.deadlineTime)}`, progress: timeProgressPercent(gameweekState.event.deadlineTime, next.deadlineTime) };
-      }
-      const previous = events.find((e) => e.isPrevious);
-      return {
-        heading: gameweekState.event.name,
-        sub: `Deadline ${fmtDate(gameweekState.event.deadlineTime)}`,
-        progress: previous ? timeProgressPercent(previous.deadlineTime, gameweekState.event.deadlineTime) : null,
-      };
+  const gwDisplay = useMemo(() => gameweekDisplay(gameweekState, events), [gameweekState, events]);
+
+  // Escape closes whichever dialog is open, discarding it like Cancel.
+  const anyDialogOpen = showAddTileModal || showAddGraphModal || showCreateViewModal || showDeleteViewConfirm;
+  useEffect(() => {
+    if (!anyDialogOpen) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      setShowAddTileModal(false);
+      setShowAddGraphModal(false);
+      setShowCreateViewModal(false);
+      setShowDeleteViewConfirm(false);
     }
-    if (gameweekState?.kind === "last-completed") {
-      return { heading: gameweekState.event.name, sub: "Last completed gameweek", progress: null as number | null };
-    }
-    return { heading: "Pre-season", sub: "No active gameweek yet", progress: null as number | null };
-  }, [gameweekState, events]);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [anyDialogOpen]);
 
   return (
     <div>
@@ -952,7 +1038,7 @@ export function Dashboard() {
       {usesHistoricData && historicStatus === "loading" && (
         <div className="empty-state">
           <h3>Building the historic dataset…</h3>
-          <p>This runs once per session and can take up to a minute — it'll be quick after that. Needed because at least one tile's data view is Last Completed Season or Historic Average.</p>
+          <p>This runs once per session and can take up to a minute — it'll be quick after that. Needed because at least one tile or graph uses Last Completed Season, Historic Average, or team figures.</p>
         </div>
       )}
       {usesHistoricData && historicStatus === "error" && (
@@ -992,7 +1078,7 @@ export function Dashboard() {
           disabled={!selectedViewId || selectedViewIsDefault}
           title={selectedViewIsDefault ? "The Default view can't be deleted" : "Delete View"}
           aria-label="Delete View"
-          onClick={handleDeleteSelectedView}
+          onClick={() => setShowDeleteViewConfirm(true)}
         >
           <TrashIcon />
         </button>
@@ -1005,53 +1091,38 @@ export function Dashboard() {
 
       {visibleTileRows.length === 0 && selectedViewIsDefault ? (
         <p className="page-subtitle">No {tileView} tiles yet.</p>
-      ) : tileView === "player" ? (
-        <div className="card-grid">
-          {playerTileRows.map(({ tile, metric, topRows }) => (
-            <TopList
-              key={tile.id}
-              title={displayTileTitle(tile, metric.label)}
-              rows={topRows as TopListRow[]}
-              format={metric.format}
-              onSelect={select}
-              dataView={tile.dataView}
-              signed={metric.signed}
-              draggable
-              isDragOver={dragOverTileId === tile.id}
-              onDragStart={(e) => handleTileDragStart(e, tile.id)}
-              onDragOver={(e) => handleTileDragOver(e, tile.id)}
-              onDragLeave={() => setDragOverTileId((k) => (k === tile.id ? null : k))}
-              onDrop={(e) => handleTileDrop(e, tile.id)}
-              onEdit={selectedViewIsDefault ? undefined : () => openEditTileModal(tile)}
-              onRemove={selectedViewIsDefault ? undefined : () => tilesState.removeTile(tile.id)}
-            />
-          ))}
-          {!selectedViewIsDefault && (
-            <button type="button" className="add-tile-card" onClick={openAddTileModal} title="Add Tile" aria-label="Add Tile">
-              <PlusIcon size={22} />
-            </button>
-          )}
-        </div>
       ) : (
         <div className="card-grid">
-          {teamTileRows.map(({ tile, metric, topRows }) => (
-            <TeamTopList
-              key={tile.id}
-              title={displayTileTitle(tile, metric.label)}
-              rows={topRows as TeamTopListRow[]}
-              format={metric.format}
-              onSelect={selectTeam}
-              dataView={tile.dataView}
-              draggable
-              isDragOver={dragOverTileId === tile.id}
-              onDragStart={(e) => handleTileDragStart(e, tile.id)}
-              onDragOver={(e) => handleTileDragOver(e, tile.id)}
-              onDragLeave={() => setDragOverTileId((k) => (k === tile.id ? null : k))}
-              onDrop={(e) => handleTileDrop(e, tile.id)}
-              onEdit={selectedViewIsDefault ? undefined : () => openEditTileModal(tile)}
-              onRemove={selectedViewIsDefault ? undefined : () => tilesState.removeTile(tile.id)}
-            />
-          ))}
+          {visibleTileRows.map((row) => {
+            const { tile } = row;
+            const onRemove = selectedViewIsDefault ? undefined : () => tilesState.removeTile(tile.id);
+            if (row.kind === "unavailable") {
+              return <UnavailableItemCard key={tile.id} title={tile.name?.trim() || "Unavailable tile"} noun="tile" onRemove={onRemove} />;
+            }
+            // Default is immutable (no reorder), so its tiles aren't draggable.
+            const dragProps = {
+              draggable: !selectedViewIsDefault,
+              isDragOver: dragOverTileId === tile.id,
+              onDragStart: (e: React.DragEvent) => handleTileDragStart(e, tile.id),
+              onDragOver: (e: React.DragEvent) => handleTileDragOver(e, tile.id),
+              onDragLeave: () => setDragOverTileId((k) => (k === tile.id ? null : k)),
+              onDrop: (e: React.DragEvent) => handleTileDrop(e, tile.id),
+            };
+            const common = {
+              title: displayTileTitle(tile, row.metric.label),
+              format: row.metric.format,
+              dataView: tile.dataView,
+              emptyMessage: emptyMessageFor(tile),
+              onEdit: selectedViewIsDefault ? undefined : () => openEditTileModal(tile),
+              onRemove,
+              ...dragProps,
+            };
+            return row.kind === "player" ? (
+              <TopList key={tile.id} {...common} rows={row.topRows as TopListRow[]} onSelect={select} signed={row.metric.signed} />
+            ) : (
+              <TeamTopList key={tile.id} {...common} rows={row.topRows as TeamTopListRow[]} onSelect={selectTeam} />
+            );
+          })}
           {!selectedViewIsDefault && (
             <button type="button" className="add-tile-card" onClick={openAddTileModal} title="Add Tile" aria-label="Add Tile">
               <PlusIcon size={22} />
@@ -1067,7 +1138,21 @@ export function Dashboard() {
         <p className="page-subtitle">No {tileView} graphs yet.</p>
       ) : (
         <div className="card-grid graph-grid">
-          {visibleGraphRows.map(({ graph, kind, xLabel, yLabel, format, scatterData, barData }) => (
+          {visibleGraphRows.map((row) => {
+            const { graph } = row;
+            if (row.kind === "unavailable") {
+              return (
+                <UnavailableItemCard
+                  key={graph.id}
+                  title={graph.name?.trim() || "Unavailable graph"}
+                  noun="graph"
+                  minHeight={360}
+                  onRemove={selectedViewIsDefault ? undefined : () => graphsState.removeGraph(graph.id)}
+                />
+              );
+            }
+            const { kind, xLabel, yLabel, format, xFormat, scatterData, barData } = row;
+            return (
             <DashboardGraphCard
               key={graph.id}
               title={displayGraphTitle(graph, xLabel, yLabel)}
@@ -1078,10 +1163,13 @@ export function Dashboard() {
               xLabel={xLabel}
               yLabel={yLabel}
               format={format}
+              xFormat={xFormat}
+              ascending={graph.direction === "asc"}
+              emptyMessage={emptyMessageFor(graph)}
               showReferenceLine={graph.showReferenceLine}
               dataView={graph.dataView}
               onSelect={kind === "player" ? select : selectTeam}
-              draggable
+              draggable={!selectedViewIsDefault}
               isDragOver={dragOverGraphId === graph.id}
               onDragStart={(e) => handleGraphDragStart(e, graph.id)}
               onDragOver={(e) => handleGraphDragOver(e, graph.id)}
@@ -1090,7 +1178,8 @@ export function Dashboard() {
               onEdit={selectedViewIsDefault ? undefined : () => openEditGraphModal(graph)}
               onRemove={selectedViewIsDefault ? undefined : () => graphsState.removeGraph(graph.id)}
             />
-          ))}
+            );
+          })}
           {!selectedViewIsDefault && (
             <button
               type="button"
@@ -1117,6 +1206,7 @@ export function Dashboard() {
               <input
                 id="new-tile-name"
                 type="text"
+                maxLength={MAX_NAME_LENGTH}
                 value={newTileName}
                 onChange={(e) => setNewTileName(e.target.value)}
               />
@@ -1300,6 +1390,7 @@ export function Dashboard() {
               <input
                 id="new-graph-name"
                 type="text"
+                maxLength={MAX_NAME_LENGTH}
                 value={newGraphName}
                 onChange={(e) => setNewGraphName(e.target.value)}
               />
@@ -1325,7 +1416,7 @@ export function Dashboard() {
             )}
             <div className="field">
               <label htmlFor="new-graph-y">{newGraphChartType === "scatter" ? "Y axis metric" : "Metric"}</label>
-              <select id="new-graph-y" value={newGraphYKey} onChange={(e) => setNewGraphYKey(e.target.value)}>
+              <select id="new-graph-y" value={newGraphYKey} onChange={(e) => handleGraphYMetricChange(e.target.value)}>
                 {(tileView === "player" ? PLAYER_COLUMNS : TEAM_COLUMNS).map((c) => (
                   <option key={c.key} value={c.key}>
                     {c.label}
@@ -1343,6 +1434,15 @@ export function Dashboard() {
                 ))}
               </select>
             </div>
+            {newGraphChartType === "bar" && (
+              <div className="field">
+                <label htmlFor="new-graph-direction">Order</label>
+                <select id="new-graph-direction" value={newGraphDirection} onChange={(e) => setNewGraphDirection(e.target.value as TileDirection)}>
+                  <option value="desc">Highest first</option>
+                  <option value="asc">Lowest first</option>
+                </select>
+              </div>
+            )}
             {newGraphChartType === "scatter" && (
               <div className="chip-row" style={{ marginTop: 10 }}>
                 <button
@@ -1498,6 +1598,25 @@ export function Dashboard() {
         </div>
       )}
 
+      {showDeleteViewConfirm && (
+        <div className="dialog-backdrop" onClick={() => setShowDeleteViewConfirm(false)}>
+          <div className="dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-title">Delete view</div>
+            <p className="page-subtitle" style={{ margin: "0 0 12px" }}>
+              Delete "{visibleSavedViews.find((v) => v.id === selectedViewId)?.name ?? "this view"}" and all its tiles and graphs? This can't be undone.
+            </p>
+            <div className="dialog-actions">
+              <button type="button" className="btn" onClick={() => setShowDeleteViewConfirm(false)}>
+                Cancel
+              </button>
+              <button type="button" className="btn primary" onClick={handleDeleteSelectedView}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showCreateViewModal && (
         <div className="dialog-backdrop" onClick={closeCreateViewModal}>
           <div className="dialog" onClick={(e) => e.stopPropagation()}>
@@ -1507,6 +1626,7 @@ export function Dashboard() {
               <input
                 id="new-view-name"
                 type="text"
+                maxLength={MAX_NAME_LENGTH}
                 placeholder="e.g. Attacking Threats"
                 value={newViewName}
                 onChange={(e) => setNewViewName(e.target.value)}

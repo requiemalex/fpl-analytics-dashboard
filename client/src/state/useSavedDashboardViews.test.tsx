@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useSavedDashboardViews, isDefaultSavedView } from "./useSavedDashboardViews";
-import { DEFAULT_SUMMARY_TILES } from "./useSummaryTiles";
+import { DEFAULT_SUMMARY_TILES, normalizeSummaryTile, type SummaryTileConfig } from "./useSummaryTiles";
 import { DEFAULT_DASHBOARD_GRAPHS } from "./useDashboardGraphs";
 
 const STORAGE_KEY = "fpl-dashboard:dashboard:saved-views:v1";
@@ -93,7 +93,11 @@ describe("useSavedDashboardViews — Default-view self-healing migration", () =>
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 3, data: existing }));
     const { result } = renderHook(() => useSavedDashboardViews());
     const custom = result.current.views.find((v) => v.id === "view-custom-1");
-    expect(custom?.tiles).toEqual(existing[0].tiles);
+    // The user's own tile, not a Default one — only backfilled to the current
+    // tile shape (normalizeSummaryTile, since v5 of this store), exactly as the
+    // tiles store itself loads it.
+    expect(custom?.tiles).toEqual(existing[0].tiles.map((t) => normalizeSummaryTile(t as Partial<SummaryTileConfig>)));
+    expect(custom?.tiles[0]).toMatchObject({ id: "t1", metricKey: "xGI", direction: "desc", dataView: "live", name: null });
   });
 
   // Bumped 2 -> 3 when `graphs` was added — a view saved before that has no
@@ -134,6 +138,7 @@ describe("useSavedDashboardViews — save()/updateView() (backing Create View an
         scope: "player" as const,
         name: "xG vs Goals",
         chartType: "scatter" as const,
+        direction: "desc" as const,
         xMetricKey: "xG",
         yMetricKey: "goals",
         dataView: "live" as const,
@@ -290,5 +295,23 @@ describe('useSavedDashboardViews — version 3 -> 4 migration (Min Minutes now a
     const v = customView(result.current.views);
     expect(v.tiles[0].criteria.minMinutes).toBe(450);
     expect(v.graphs[0].criteria.minMinutes).toBe(450);
+  });
+});
+
+describe("useSavedDashboardViews — version 4 -> 5 (embedded tiles and graphs normalised)", () => {
+  it("normalises a custom view's tiles and graphs, so a bad stored value can't reach the page", () => {
+    const view = {
+      id: "view-custom-1",
+      scope: "team",
+      name: "Mine",
+      tiles: [{ id: "t1", scope: "team", metricKey: "points", direction: "desc", dataView: "bogus", name: "T", criteria: null }],
+      graphs: [{ id: "g1", scope: "team", name: "G", chartType: "bar", xMetricKey: "xG", yMetricKey: "leaguePosition", dataView: "lastSeason", showReferenceLine: false, criteria: null, playerIds: null, teamIds: null }],
+      updatedAt: 1,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 4, data: [view] }));
+    const { result } = renderHook(() => useSavedDashboardViews());
+    const custom = result.current.views.find((v) => v.id === "view-custom-1");
+    expect(custom?.tiles[0]).toMatchObject({ id: "t1", dataView: "lastSeason", playerIds: null, teamIds: null });
+    expect(custom?.graphs[0].direction).toBe("asc");
   });
 });

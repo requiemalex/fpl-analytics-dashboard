@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { SummaryTileScope } from "../components/summaryTileMetrics";
-import type { AnalysisMode } from "../metrics/resolvePlayerStats";
+import { isAnalysisMode, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { clearUnappliedLiveMinMinutes, DEFAULT_FILTERS, type GlobalScoutingFilters } from "./scoutingFilters";
 import { loadVersioned, saveVersioned, type VersionedStore } from "./persistentStorage";
 
@@ -83,7 +83,11 @@ export interface SummaryTileConfig {
 export function normalizeSummaryTile(t: Partial<SummaryTileConfig>): SummaryTileConfig {
   return {
     ...t,
-    dataView: t.dataView ?? DEFAULT_DATA_VIEW,
+    // An unrecognised value (corrupted storage, or data from a newer app
+    // version) falls back rather than crashing the Dashboard, which indexes
+    // its per-mode data by this.
+    dataView: isAnalysisMode(t.dataView) ? t.dataView : DEFAULT_DATA_VIEW,
+    direction: t.direction === "asc" ? "asc" : "desc",
     name: t.name ?? null,
     criteria: t.criteria ? { ...DEFAULT_FILTERS, ...t.criteria } : t.scope === "player" ? DEFAULT_FILTERS : null,
     playerIds: t.playerIds ?? null,

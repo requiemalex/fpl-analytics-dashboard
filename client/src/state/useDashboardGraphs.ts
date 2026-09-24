@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type { SummaryTileScope } from "../components/summaryTileMetrics";
-import type { AnalysisMode } from "../metrics/resolvePlayerStats";
+import { isAnalysisMode, type AnalysisMode } from "../metrics/resolvePlayerStats";
+import { columnByKey as playerColumnByKey } from "../components/playerColumns";
+import { teamColumnByKey } from "../components/teamColumns";
+import type { TileDirection } from "./useSummaryTiles";
 import { clearUnappliedLiveMinMinutes, DEFAULT_FILTERS, type GlobalScoutingFilters } from "./scoutingFilters";
 import { loadVersioned, saveVersioned, type VersionedStore } from "./persistentStorage";
 
@@ -19,8 +22,16 @@ const STORAGE_KEY = "fpl-dashboard:dashboard:graphs:v1";
  * (it used to be bypassed for them) — a graph stored under an older version
  * with dataView "live" has its never-applied minMinutes zeroed by
  * clearUnappliedLiveMinMinutes (scoutingFilters.ts).
+ *
+ * Bumped 4 -> 5 when `direction` was added (a bar graph's Order, like a
+ * tile's). Bar graphs used to rank highest-first unconditionally, which put
+ * the WORST clubs in "Top 15 — League Position". An older graph gets its Y
+ * metric's natural order (lowest first for League Position, Goals Against,
+ * xGC, Price, etc.) — the same default a new graph gets — via
+ * normalizeDashboardGraph. An unrecognised `dataView` also falls back to
+ * the default instead of crashing the page.
  */
-const STORAGE_VERSION = 4;
+const STORAGE_VERSION = 5;
 const DEFAULT_DATA_VIEW: AnalysisMode = "lastSeason";
 
 /**
@@ -54,6 +65,8 @@ export interface DashboardGraphConfig {
   yMetricKey: string;
   /** This graph's own analysis mode — set in the Add/Edit dialog, independent of every other graph's and every tile's. See SummaryTileConfig.dataView. */
   dataView: AnalysisMode;
+  /** Bar only — "desc" ranks highest first, "asc" lowest first (e.g. League Position 1, 2, 3…). Defaults to the Y metric's natural order (defaultGraphDirection). Ignored for a scatter graph. */
+  direction: TileDirection;
   /** Scatter only — draws a dashed 45° "expected output" line, meaningful only when X and Y are on the same scale (e.g. xG vs Goals). Ignored for a "bar" graph. */
   showReferenceLine: boolean;
   /** Scope "player" only — same Search/Position/Team/Min Minutes criteria a Player Tile can carry. Always null for scope "team". Ignored when `playerIds` is set. */
@@ -64,13 +77,20 @@ export interface DashboardGraphConfig {
   teamIds: number[] | null;
 }
 
+/** The natural Order for a graph's Y metric — lowest first when lower is better (League Position, Goals Against, xGC, Price…), highest first otherwise. Same rule the Add Tile dialog uses for a tile's default direction. */
+export function defaultGraphDirection(scope: SummaryTileScope, yMetricKey: string): TileDirection {
+  const column = scope === "team" ? teamColumnByKey(yMetricKey) : playerColumnByKey(yMetricKey);
+  return column?.higherIsBetter === false ? "asc" : "desc";
+}
+
 /** Backfills a possibly-older-shaped stored graph to the current DashboardGraphConfig shape — mirrors normalizeSummaryTile (useSummaryTiles.ts), shared by this store's migrate() and by useSavedDashboardViews' (which embeds this same graph shape inside each saved view's `graphs` array). */
 export function normalizeDashboardGraph(g: Partial<DashboardGraphConfig>): DashboardGraphConfig {
   return {
     ...g,
-    dataView: g.dataView ?? DEFAULT_DATA_VIEW,
+    dataView: isAnalysisMode(g.dataView) ? g.dataView : DEFAULT_DATA_VIEW,
     name: g.name ?? null,
-    chartType: g.chartType ?? "scatter",
+    chartType: g.chartType === "bar" ? "bar" : "scatter",
+    direction: g.direction === "asc" || g.direction === "desc" ? g.direction : defaultGraphDirection(g.scope === "team" ? "team" : "player", g.yMetricKey ?? ""),
     showReferenceLine: g.showReferenceLine ?? false,
     criteria: g.criteria ? { ...DEFAULT_FILTERS, ...g.criteria } : g.scope === "player" ? DEFAULT_FILTERS : null,
     playerIds: g.playerIds ?? null,
@@ -93,6 +113,7 @@ export const DEFAULT_DASHBOARD_GRAPHS: DashboardGraphConfig[] = [
     scope: "player",
     name: "xG vs Goals",
     chartType: "scatter",
+    direction: "desc",
     xMetricKey: "xG",
     yMetricKey: "goals",
     dataView: DEFAULT_DATA_VIEW,
@@ -106,6 +127,7 @@ export const DEFAULT_DASHBOARD_GRAPHS: DashboardGraphConfig[] = [
     scope: "player",
     name: "xA vs Assists",
     chartType: "scatter",
+    direction: "desc",
     xMetricKey: "xA",
     yMetricKey: "assists",
     dataView: DEFAULT_DATA_VIEW,
@@ -119,6 +141,7 @@ export const DEFAULT_DASHBOARD_GRAPHS: DashboardGraphConfig[] = [
     scope: "player",
     name: "Price vs Points",
     chartType: "scatter",
+    direction: "desc",
     xMetricKey: "price",
     yMetricKey: "totalPoints",
     dataView: DEFAULT_DATA_VIEW,
@@ -132,6 +155,7 @@ export const DEFAULT_DASHBOARD_GRAPHS: DashboardGraphConfig[] = [
     scope: "team",
     name: "Team xG vs Goals",
     chartType: "scatter",
+    direction: "desc",
     xMetricKey: "xG",
     yMetricKey: "goals",
     dataView: DEFAULT_DATA_VIEW,
@@ -145,6 +169,7 @@ export const DEFAULT_DASHBOARD_GRAPHS: DashboardGraphConfig[] = [
     scope: "team",
     name: "Team xGC vs Goals Against",
     chartType: "scatter",
+    direction: "desc",
     xMetricKey: "xGC",
     yMetricKey: "goalsAgainst",
     dataView: DEFAULT_DATA_VIEW,
@@ -171,7 +196,11 @@ const DASHBOARD_GRAPHS_STORE: VersionedStore<DashboardGraphConfig[]> = {
     // only ever lives in the immutable Default view (no Edit there, and
     // Create View starts blank), so it can only be an unmodified default.
     // A default the user removed stays removed; nothing is re-added.
-    return graphs.map((g) => DEFAULT_DASHBOARD_GRAPHS.find((d) => d.id === g.id) ?? clearUnappliedLiveMinMinutes(g));
+    // The live-Min-Minutes clear is the 3 -> 4 step only: from version 4 on,
+    // a live graph's Min Minutes is applied, so it's the user's own setting.
+    // (The 4 -> 5 `direction` backfill happens in normalizeDashboardGraph.)
+    const clearLiveMinMinutes = storedVersion === null || storedVersion < 4;
+    return graphs.map((g) => DEFAULT_DASHBOARD_GRAPHS.find((d) => d.id === g.id) ?? (clearLiveMinMinutes ? clearUnappliedLiveMinMinutes(g) : g));
   },
 };
 

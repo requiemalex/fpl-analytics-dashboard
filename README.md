@@ -149,6 +149,10 @@ Every analysis page has the same three-way toggle, resolved through
   the player has, light seasons included (`<no_survivorship_bias>`,
   `metrics/historicAnalysis.ts`). `MIN_QUALIFYING_SEASON_MINUTES` (900) only
   marks a season "light" in charts and gates Expected Points' reliability.
+  A stat missing for some seasons (DC before 2024/25) is averaged over the
+  seasons that have it, and its per-game rate uses those same seasons'
+  minutes (`<matched_season_rates>`, `metrics/careerMetrics.ts`) — never
+  the whole window's minutes, which inflated DC/Game.
 - **Current Season** — live bootstrap fields. Before any club has played
   (`currentSeasonHasStarted`), FPL still carries last season's totals in
   those fields, so cumulative stats are zeroed (a true zero, not unknown)
@@ -169,9 +173,12 @@ is **kept, not dropped or zeroed**: every performance field comes back
   `state/useFilteredPlayers.ts`; Team Building: `pickerEffectiveMinMinutes`).
 - **Dashboard tiles and graphs apply it in every mode**, Current Season
   included (`applyMinMinutesInLive`).
-- Dashboard rate-per-game tiles (PPG, Goals/Game, etc. —
-  `PlayerTileMetric.ratePerMinutes`) add their own floor on top: 90 minutes
-  in Current Season, 450 otherwise.
+- Dashboard per-game rates (PPG, xG/xA/xGI/xGC/DC/Def. Reward per game,
+  Goals/Game, Assists/Game — `PlayerTileMetric.ratePerMinutes`,
+  `isRatePerMinutesColumnKey`) add their own floor on top, in tiles and in
+  graphs that plot one: 90 minutes in Current Season, 450 otherwise
+  (`applyRateStatFloor`). Specifically picked players are never floored.
+- Min Minutes takes any whole number as typed; the arrow buttons step by 90.
 - Player Explorer has no Min Minutes control — its MINS column filter does
   that job.
 
@@ -283,17 +290,32 @@ obvious from the UI.
   pool is resolved once per mode and each item filters from its own. Items
   are added and edited through one dialog each (`updateTile`/`updateGraph`
   edit in place).
+- The tile (20) and graph (10) caps count both scopes together, and the
+  message says so. A stored value this version doesn't recognise (a
+  `dataView`, an order) falls back to its default when loaded; a tile or
+  graph whose metric no longer exists shows as an "unavailable" card that
+  can still be removed, rather than vanishing while counting toward the cap.
+- A bar graph ranks by its own `direction` (Order): new graphs and graphs
+  saved before it existed get the metric's natural order
+  (`defaultGraphDirection` — lowest first when `higherIsBetter` is false, so
+  "Top 15 — League Position" is 1–15).
 - Saved views (`useSavedDashboardViews`) hold one scope's tiles and graphs.
   The selected non-Default view live-syncs every change. **Default** (one
   per scope) is immutable: no add, edit, remove or reorder, and it is
   re-synced to the packaged set on every load. A default-id tile or graph
-  can therefore only ever be an unmodified default. Create View starts
-  blank.
+  can therefore only ever be an unmodified default, and Default's cards
+  aren't draggable. Create View starts blank; Default counts toward the 5
+  views per scope, and names must be unique within a scope. Delete View
+  asks for confirmation.
 - Scatter axes follow `<axis_scaling>` (`components/charts/axisScaling.ts`):
   - The y = x trend line is dropped when one axis is ≥5× the other.
   - A crowded axis goes log or √.
   - Axes fit the data, not 0.
   - With the line drawn, x and y share one planned axis.
+  - It's a Recharts `ScatterChart` (item-triggered tooltip: it names the
+    point under the cursor, with each metric's own format) and the y = x
+    line is a `ReferenceLine` segment. A `ComposedChart` here had an
+    axis-triggered tooltip that never fired or named the wrong player.
 
 **Player Explorer / tables** — column reorder, resize, fit and reset
 (`state/useColumnCustomization.ts`), multi-column sort with nulls as lowest

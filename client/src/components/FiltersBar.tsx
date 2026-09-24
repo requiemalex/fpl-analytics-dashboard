@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useAppState } from "../state/AppStateContext";
 import type { GlobalScoutingFilters } from "../state/scoutingFilters";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
@@ -46,6 +46,25 @@ export function FiltersBar({
 }) {
   const { teams } = useAppState();
   const minMinutesBypassed = analysisMode === "live" && !minMinutesInLive;
+  // What's in the Min minutes box while it's being typed in — null when not
+  // editing, so the box shows the real value. Every keystroke still applies
+  // straight away; the draft only lets the box hold what was typed (blank,
+  // or a number part-way through) instead of snapping it — it used to round
+  // to the nearest 90 per keystroke, so typing "450" left it at 0.
+  const [minMinutesDraft, setMinMinutesDraft] = useState<string | null>(null);
+
+  function typeMinMinutes(raw: string) {
+    setMinMinutesDraft(raw);
+    const n = Math.floor(Number(raw));
+    update("minMinutes", raw.trim() === "" || !Number.isFinite(n) ? 0 : Math.max(0, n));
+  }
+
+  /** A typed price, never below £0m; blank means no bound. */
+  function parsePrice(raw: string): number | null {
+    if (raw === "") return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? Math.max(0, n) : null;
+  }
 
   function update<K extends keyof GlobalScoutingFilters>(key: K, value: GlobalScoutingFilters[K]) {
     onChange({ ...filters, [key]: value });
@@ -110,7 +129,7 @@ export function FiltersBar({
             min={0}
             placeholder="£4.0m"
             value={filters.minPrice ?? ""}
-            onChange={(e) => update("minPrice", e.target.value === "" ? null : Number(e.target.value))}
+            onChange={(e) => update("minPrice", parsePrice(e.target.value))}
           />
         </div>
       )}
@@ -125,7 +144,7 @@ export function FiltersBar({
             min={0}
             placeholder="£15m"
             value={filters.maxPrice ?? ""}
-            onChange={(e) => update("maxPrice", e.target.value === "" ? null : Number(e.target.value))}
+            onChange={(e) => update("maxPrice", parsePrice(e.target.value))}
           />
         </div>
       )}
@@ -140,10 +159,11 @@ export function FiltersBar({
             type="number"
             step={MINUTES_STEP}
             min={0}
-            value={filters.minMinutes}
+            value={minMinutesDraft ?? String(filters.minMinutes)}
             disabled={minMinutesBypassed}
             title={minMinutesBypassed ? "Not applied in Current Season mode — everyone has low or zero minutes until real gameweeks accumulate" : undefined}
-            onChange={(e) => update("minMinutes", Math.max(0, Math.round(Number(e.target.value) / MINUTES_STEP) * MINUTES_STEP))}
+            onChange={(e) => typeMinMinutes(e.target.value)}
+            onBlur={() => setMinMinutesDraft(null)}
           />
         </div>
       )}

@@ -197,3 +197,13 @@ describe("useSummaryTiles — updateTile (Edit Tile)", () => {
     expect(after[0]).toBe(before[0]);
   });
 });
+
+describe("useSummaryTiles — unrecognised stored values", () => {
+  it("falls back to the default data view for an unrecognised one (it would crash the Dashboard)", () => {
+    const tiles = [{ id: "t1", scope: "player", metricKey: "goals", direction: "desc", dataView: "nextSeason", name: null, criteria: null, playerIds: null, teamIds: null }];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 6, data: tiles }));
+    const { result } = renderHook(() => useSummaryTiles());
+    expect(result.current.tiles[0].dataView).toBe("lastSeason");
+    expect(result.current.tiles[0].metricKey).toBe("goals");
+  });
+});

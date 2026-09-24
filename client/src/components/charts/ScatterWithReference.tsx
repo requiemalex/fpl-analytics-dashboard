@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { ResponsiveContainer, ComposedChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Line, ZAxis, Cell, Label } from "recharts";
+import { ResponsiveContainer, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ZAxis, Cell, Label } from "recharts";
 import { planScatterAxes, type AxisScale } from "./axisScaling";
 
 export interface ScatterPoint {
@@ -35,9 +35,18 @@ function axisProps(scale: AxisScale) {
   return { scale: scale.kind, domain: scale.domain, ticks: scale.ticks };
 }
 
-function CustomTooltip({ active, payload, zLabel }: any) {
+/**
+ * The hovered point's own values, labelled with its metrics. A ScatterChart's
+ * tooltip is item-triggered — it follows the point under the cursor. (This
+ * used to be a ComposedChart, whose axis-triggered tooltip never fired over a
+ * plain scatter and, with the reference line drawn, named whichever player
+ * matched the cursor's x-position rather than the hovered one.)
+ */
+function CustomTooltip({ active, payload, xLabel, yLabel, zLabel, xFormat, yFormat }: any) {
   if (!active || !payload || payload.length === 0) return null;
   const p = payload[0].payload as ScatterPoint;
+  const fx = (v: number) => (xFormat ? xFormat(v) : v.toFixed(2));
+  const fy = (v: number) => (yFormat ? yFormat(v) : v.toFixed(2));
   return (
     <div
       style={{
@@ -50,7 +59,7 @@ function CustomTooltip({ active, payload, zLabel }: any) {
     >
       <strong>{p.label}</strong>
       <div className="mono">
-        x: {p.x.toFixed(2)} · y: {p.y.toFixed(2)}
+        {xLabel}: {fx(p.x)} · {yLabel}: {fy(p.y)}
         {p.z !== undefined && zLabel ? ` · ${zLabel}: ${p.z.toFixed(2)}` : ""}
       </div>
     </div>
@@ -69,6 +78,8 @@ export function ScatterWithReference({
   xTickStep,
   xTickFormatter,
   emptyMessage = "No eligible players have data for this chart with the current filters.",
+  xFormat,
+  yFormat,
 }: {
   data: ScatterPoint[];
   xLabel: string;
@@ -86,6 +97,9 @@ export function ScatterWithReference({
   xTickFormatter?: (v: number) => string;
   /** Shown in place of the chart when `data` is empty — defaults to the player-scoped wording every existing caller wants; Dashboard's team graphs pass their own. */
   emptyMessage?: string;
+  /** How the tooltip shows each axis's value (e.g. £15.6m, 45.2%) — two decimals when omitted. */
+  xFormat?: (v: number) => string;
+  yFormat?: (v: number) => string;
 }) {
   const hasZ = useMemo(() => data.some((d) => d.z !== undefined && d.z !== null), [data]);
   const useBubbleSize = hasZ && !colorScale;
@@ -126,8 +140,10 @@ export function ScatterWithReference({
     [data, showReferenceLine],
   );
 
-  const referenceLineData = useMemo(() => {
-    if (!plan.drawReferenceLine) return [];
+  // y = x across the shared axis: a straight diagonal whatever the scale,
+  // since both axes share one planned range and stretch.
+  const referenceSegment = useMemo(() => {
+    if (!plan.drawReferenceLine) return null;
     const [lo, hi] = plan.x.domain;
     return [
       { x: lo, y: lo },
@@ -146,7 +162,7 @@ export function ScatterWithReference({
   return (
     <div>
       <ResponsiveContainer width="100%" height={height}>
-        <ComposedChart margin={{ top: 10, right: 20, bottom: 26, left: 16 }}>
+        <ScatterChart margin={{ top: 10, right: 20, bottom: 26, left: 16 }}>
           <CartesianGrid stroke="var(--border)" />
           <XAxis
             type="number"
@@ -171,10 +187,11 @@ export function ScatterWithReference({
           </YAxis>
           {/* Fixed-size dots are kept small and semi-transparent so a dense cluster (many players on the same whole-number goals/price value) reads as a darker patch rather than one solid blob. */}
           <ZAxis dataKey={useBubbleSize ? "z" : undefined} range={useBubbleSize ? [30, 160] : [22, 22]} name={zLabel} />
-          <Tooltip content={<CustomTooltip zLabel={zLabel} />} cursor={{ stroke: "var(--border-strong)" }} />
-          {plan.drawReferenceLine && (
-            <Line data={referenceLineData} dataKey="y" stroke="var(--text-muted)" strokeDasharray="4 4" dot={false} legendType="none" isAnimationActive={false} />
-          )}
+          <Tooltip
+            content={<CustomTooltip xLabel={xLabel} yLabel={yLabel} zLabel={zLabel} xFormat={xFormat} yFormat={yFormat} />}
+            cursor={{ stroke: "var(--border-strong)", strokeDasharray: "3 3" }}
+          />
+          {referenceSegment && <ReferenceLine segment={referenceSegment} stroke="var(--text-muted)" strokeDasharray="4 4" ifOverflow="hidden" />}
           <Scatter data={data} fillOpacity={useBubbleSize ? 0.8 : 0.55} onClick={(point: any) => onPointClick?.(point.id)} cursor={onPointClick ? "pointer" : "default"}>
             {data.map((d) => {
               let fill = "var(--accent-positive)";
@@ -185,7 +202,7 @@ export function ScatterWithReference({
               return <Cell key={d.id} fill={fill} />;
             })}
           </Scatter>
-        </ComposedChart>
+        </ScatterChart>
       </ResponsiveContainer>
       {plan.lineSuppressed && (
         <p style={{ fontSize: 10.5, color: "var(--text-muted)", textAlign: "center", margin: "2px 0 0" }}>

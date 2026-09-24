@@ -1,4 +1,5 @@
 import type { PlayerSeasonHistory } from "../types/normalized";
+import { perGame } from "./calculations";
 
 export interface CareerAverages {
   seasonsPlayed: number;
@@ -20,6 +21,19 @@ export interface CareerAverages {
   avgXGCPerSeason: number | null;
   /** Averaged only over seasons where DC was tracked (2024/25+) — see PlayerSeasonHistory.defensiveContribution. */
   avgDefensiveContributionPerSeason: number | null;
+  /**
+   * Per-game rates, each over the SAME seasons its stat is averaged over
+   * (<matched_season_rates>): a stat that's null for some seasons (DC before
+   * 2024/25) is divided by the average minutes of the seasons that have it,
+   * never by avgMinutesPerSeason across the whole window — mixing the two
+   * divided one season's DC by a four-season minutes average and inflated
+   * DC/Game for anyone with light early seasons.
+   */
+  xGPerGame: number | null;
+  xAPerGame: number | null;
+  xGIPerGame: number | null;
+  xGCPerGame: number | null;
+  defensiveContributionPerGame: number | null;
 }
 
 /**
@@ -50,6 +64,11 @@ export function computeCareerAverages(seasons: PlayerSeasonHistory[]): CareerAve
       avgXGIPerSeason: null,
       avgXGCPerSeason: null,
       avgDefensiveContributionPerSeason: null,
+      xGPerGame: null,
+      xAPerGame: null,
+      xGIPerGame: null,
+      xGCPerGame: null,
+      defensiveContributionPerGame: null,
     };
   }
 
@@ -57,6 +76,15 @@ export function computeCareerAverages(seasons: PlayerSeasonHistory[]): CareerAve
   const avgOrNull = (fn: (s: PlayerSeasonHistory) => number | null): number | null => {
     const values = seasons.map(fn).filter((v): v is number => v !== null);
     return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
+  };
+  // <matched_season_rates>: numerator and minutes both averaged over the
+  // seasons where this stat is known.
+  const perGameOverKnownSeasons = (fn: (s: PlayerSeasonHistory) => number | null): number | null => {
+    const known = seasons.filter((s) => fn(s) !== null);
+    if (known.length === 0) return null;
+    const avgStat = known.reduce((acc, s) => acc + (fn(s) as number), 0) / known.length;
+    const avgMinutes = known.reduce((acc, s) => acc + s.minutes, 0) / known.length;
+    return perGame(avgStat, avgMinutes);
   };
 
   return {
@@ -76,6 +104,11 @@ export function computeCareerAverages(seasons: PlayerSeasonHistory[]): CareerAve
     avgXGIPerSeason: avgOrNull((s) => s.xGI),
     avgXGCPerSeason: avgOrNull((s) => s.xGC),
     avgDefensiveContributionPerSeason: avgOrNull((s) => s.defensiveContribution),
+    xGPerGame: perGameOverKnownSeasons((s) => s.xG),
+    xAPerGame: perGameOverKnownSeasons((s) => s.xA),
+    xGIPerGame: perGameOverKnownSeasons((s) => s.xGI),
+    xGCPerGame: perGameOverKnownSeasons((s) => s.xGC),
+    defensiveContributionPerGame: perGameOverKnownSeasons((s) => s.defensiveContribution),
   };
 }
 

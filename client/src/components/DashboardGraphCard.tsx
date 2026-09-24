@@ -24,8 +24,11 @@ export function DashboardGraphCard({
   xLabel,
   yLabel,
   format,
+  xFormat,
+  ascending,
   showReferenceLine,
   dataView,
+  emptyMessage: emptyMessageOverride,
   onSelect,
   onEdit,
   onRemove,
@@ -44,7 +47,12 @@ export function DashboardGraphCard({
   barData: BarDatum[];
   xLabel: string;
   yLabel: string;
+  /** The Y metric's formatter (bar axis and tooltip, scatter tooltip). */
   format: (v: number | null) => string;
+  /** Scatter only — the X metric's formatter, for the tooltip. */
+  xFormat?: (v: number | null) => string;
+  /** Bar only — rank lowest first (the graph's Order). */
+  ascending?: boolean;
   showReferenceLine: boolean;
   dataView: AnalysisMode;
   onSelect?: (id: number) => void;
@@ -56,8 +64,10 @@ export function DashboardGraphCard({
   onDragOver?: (e: React.DragEvent) => void;
   onDragLeave?: () => void;
   onDrop?: (e: React.DragEvent) => void;
+  /** Replaces the default empty-state wording — e.g. while the historic data this graph needs is still loading, or failed. */
+  emptyMessage?: string;
 }) {
-  const emptyMessage = `No eligible ${kind === "player" ? "players" : "teams"} have data for this chart with the current filters.`;
+  const emptyMessage = emptyMessageOverride ?? `No eligible ${kind === "player" ? "players" : "teams"} have data for this chart with the current filters.`;
 
   return (
     <div
@@ -77,7 +87,7 @@ export function DashboardGraphCard({
         <div className="card-title" style={{ marginBottom: 0 }}>
           {title}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           <DataViewBadge mode={dataView} />
           <CardEditRemoveButtons noun="graph" onEdit={onEdit} onRemove={onRemove} />
         </div>
@@ -90,9 +100,11 @@ export function DashboardGraphCard({
           showReferenceLine={showReferenceLine}
           onPointClick={onSelect}
           emptyMessage={emptyMessage}
+          xFormat={xFormat}
+          yFormat={format}
         />
       ) : (
-        <BarTopN data={barData} valueLabel={yLabel} format={format} onBarClick={onSelect} emptyMessage={emptyMessage} />
+        <BarTopN data={barData} valueLabel={yLabel} format={format} onBarClick={onSelect} emptyMessage={emptyMessage} ascending={ascending} />
       )}
     </div>
   );

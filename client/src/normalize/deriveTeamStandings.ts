@@ -9,7 +9,7 @@ import type { NormalizedFixture, NormalizedTeam } from "../types/normalized";
  * app made. Those raw fields are never trusted for anything derived from
  * "has this team actually played yet" — finished fixtures (each carrying
  * a real final score, confirmed reliable) are recomputed into the same
- * played/wins/draws/losses shape instead, and used everywhere those
+ * played/wins/draws/losses/points shape instead, and used everywhere those
  * fields would otherwise have been read.
  */
 export function applyRealTeamStandings(teams: NormalizedTeam[], fixtures: NormalizedFixture[]): NormalizedTeam[] {
@@ -48,6 +48,9 @@ export function applyRealTeamStandings(teams: NormalizedTeam[], fixtures: Normal
     // fixtures haven't loaded yet) — leave the raw values as-is; they're
     // correctly 0 in that case anyway.
     if (!s) return t;
-    return { ...t, played: s.played, wins: s.wins, draws: s.draws, losses: s.losses };
+    // `points` too: bootstrap's team.points stays 0 all season just like
+    // played/W/D/L (Team Profile read "4W 0D 1L · 0 pts"). League points
+    // are 3 per win and 1 per draw.
+    return { ...t, played: s.played, wins: s.wins, draws: s.draws, losses: s.losses, points: s.wins * 3 + s.draws };
   });
 }

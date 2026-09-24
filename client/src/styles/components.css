@@ -8,6 +8,10 @@
 }
 
 .card-title {
+  /* A long custom name wraps inside its card instead of spilling out and
+     pushing the header's buttons off-screen. */
+  overflow-wrap: anywhere;
+  min-width: 0;
   font-size: 11.5px;
   text-transform: uppercase;
   letter-spacing: 0.06em;

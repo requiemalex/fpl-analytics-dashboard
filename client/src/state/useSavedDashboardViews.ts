@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { SummaryTileScope } from "../components/summaryTileMetrics";
-import { DEFAULT_SUMMARY_TILES, type SummaryTileConfig } from "./useSummaryTiles";
+import { DEFAULT_SUMMARY_TILES, normalizeSummaryTile, type SummaryTileConfig } from "./useSummaryTiles";
 import { DEFAULT_DASHBOARD_GRAPHS, normalizeDashboardGraph, type DashboardGraphConfig } from "./useDashboardGraphs";
 import { loadVersioned, saveVersioned, type VersionedStore } from "./persistentStorage";
 import { clearUnappliedLiveMinMinutes } from "./scoutingFilters";
@@ -22,8 +22,14 @@ const STORAGE_KEY = "fpl-dashboard:dashboard:saved-views:v1";
  * an older version has each live tile's/graph's never-applied minMinutes
  * zeroed by clearUnappliedLiveMinMinutes (scoutingFilters.ts), so loading it
  * shows exactly what it did when saved.
+ *
+ * Bumped 4 -> 5 when graphs gained `direction` (a bar graph's Order — see
+ * useDashboardGraphs.ts). Each non-Default view's graphs pick it up through
+ * normalizeDashboardGraph, and its tiles now go through normalizeSummaryTile
+ * too (they used to be loaded raw, so a view saved by an older version put
+ * older-shaped tiles straight on screen).
  */
-const STORAGE_VERSION = 4;
+const STORAGE_VERSION = 5;
 
 export interface SavedDashboardView {
   id: string;
@@ -101,11 +107,12 @@ const SAVED_VIEWS_STORE: VersionedStore<SavedDashboardView[]> = {
       // that view legitimately had at the time, same idea as
       // normalizeSummaryTile backfilling an older tile's missing fields.
       const graphs = Array.isArray(v.graphs) ? (v.graphs as Partial<DashboardGraphConfig>[]).map(normalizeDashboardGraph) : [];
-      const view = { ...v, graphs } as SavedDashboardView;
+      const tiles = Array.isArray(v.tiles) ? (v.tiles as Partial<SummaryTileConfig>[]).map(normalizeSummaryTile) : [];
+      const view = { ...v, tiles, graphs } as SavedDashboardView;
       if (!clearLiveMinMinutes) return view;
       return {
         ...view,
-        tiles: Array.isArray(view.tiles) ? view.tiles.map(clearUnappliedLiveMinMinutes) : view.tiles,
+        tiles: tiles.map(clearUnappliedLiveMinMinutes),
         graphs: graphs.map(clearUnappliedLiveMinMinutes),
       };
     });

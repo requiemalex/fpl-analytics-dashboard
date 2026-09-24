@@ -4,6 +4,11 @@ import { perGame, estimatedPointsPerGame } from "./calculations";
 
 export type AnalysisMode = "live" | "lastSeason" | "historicAverage";
 
+/** Whether a stored value (e.g. a saved tile's `dataView`) is a mode this app version knows — anything else falls back rather than crashing a page. */
+export function isAnalysisMode(value: unknown): value is AnalysisMode {
+  return value === "live" || value === "lastSeason" || value === "historicAverage";
+}
+
 export const ANALYSIS_MODE_LABELS: Record<AnalysisMode, string> = {
   live: "Live Season",
   lastSeason: "Last Completed Season",
@@ -209,12 +214,14 @@ export function resolvePlayerStats(
     xA: avg.avgXAPerSeason,
     xGI: avg.avgXGIPerSeason,
     xGC: avg.avgXGCPerSeason,
-    xGPerGame: perGame(avg.avgXGPerSeason, avg.avgMinutesPerSeason),
-    xAPerGame: perGame(avg.avgXAPerSeason, avg.avgMinutesPerSeason),
-    xGIPerGame: perGame(avg.avgXGIPerSeason, avg.avgMinutesPerSeason),
-    xGCPerGame: perGame(avg.avgXGCPerSeason, avg.avgMinutesPerSeason),
+    // <matched_season_rates> (careerMetrics.ts): each rate uses the minutes
+    // of the seasons its own stat was averaged over.
+    xGPerGame: avg.xGPerGame,
+    xAPerGame: avg.xAPerGame,
+    xGIPerGame: avg.xGIPerGame,
+    xGCPerGame: avg.xGCPerGame,
     defensiveContributions: avg.avgDefensiveContributionPerSeason,
-    defensiveContributionsPerGame: perGame(avg.avgDefensiveContributionPerSeason, avg.avgMinutesPerSeason),
+    defensiveContributionsPerGame: avg.defensiveContributionPerGame,
   };
 }
 

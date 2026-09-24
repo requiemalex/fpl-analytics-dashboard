@@ -33,8 +33,27 @@ export interface PlayerTileMetric {
   signed?: boolean;
 }
 
-/** See `PlayerTileMetric.ratePerMinutes` — the set of PLAYER_COLUMNS keys that need the flag, since those are spread in below rather than declared with it directly. */
-const RATE_PER_MINUTES_COLUMN_KEYS = new Set(["pointsPerGame", "defensiveContributionsPerGame"]);
+/**
+ * See `PlayerTileMetric.ratePerMinutes` — every PLAYER_COLUMNS key that's a
+ * per-game rate, since those are spread in below rather than declared with
+ * the flag directly. Must list EVERY per-game column: one left out goes
+ * unfloored, and a single cameo tops its leaderboard (xG/Game led by a
+ * 63-minute player, lowest xGC/Game by 1-minute players).
+ */
+const RATE_PER_MINUTES_COLUMN_KEYS = new Set([
+  "pointsPerGame",
+  "xGPerGame",
+  "xAPerGame",
+  "xGIPerGame",
+  "xGCPerGame",
+  "defensiveContributionsPerGame",
+  "defensiveRewardPerGame",
+]);
+
+/** Whether a PLAYER_COLUMNS key is a per-game rate — Dashboard graphs apply the same minutes floor as tiles when they plot one. */
+export function isRatePerMinutesColumnKey(key: string): boolean {
+  return RATE_PER_MINUTES_COLUMN_KEYS.has(key);
+}
 
 export interface TeamTileMetric {
   key: string;

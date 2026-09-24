@@ -81,6 +81,7 @@ describe("useDashboardGraphs — addGraph/removeGraph/replaceScopeGraphs", () =>
       scope,
       name: "Test",
       chartType: "scatter" as const,
+      direction: "desc" as const,
       xMetricKey: "xG",
       yMetricKey: "goals",
       dataView: "lastSeason" as const,
@@ -160,5 +161,50 @@ describe('useDashboardGraphs — version 3 -> 4 migration (Min Minutes now appli
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 4, data: [liveGraph] }));
     const { result } = renderHook(() => useDashboardGraphs());
     expect(result.current.graphs[0].criteria?.minMinutes).toBe(900);
+  });
+});
+
+describe("useDashboardGraphs — version 4 -> 5 migration (bar graph Order)", () => {
+  const bar = (id: string, scope: "player" | "team", yMetricKey: string) => ({
+    id, scope, name: id, chartType: "bar", xMetricKey: "xG", yMetricKey, dataView: "lastSeason", showReferenceLine: false,
+    criteria: scope === "player" ? { ...DEFAULT_FILTERS, minMinutes: 450 } : null, playerIds: null, teamIds: null,
+  });
+
+  it("gives an older bar graph its metric's natural order — League Position and Goals Against lowest first, Points highest first", () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ version: 4, data: [bar("pos", "team", "leaguePosition"), bar("ga", "team", "goalsAgainst"), bar("pts", "team", "points"), bar("xgc", "player", "xGCPerGame")] }),
+    );
+    const { result } = renderHook(() => useDashboardGraphs());
+    expect(result.current.graphs.map((g) => [g.id, g.direction])).toEqual([
+      ["pos", "asc"],
+      ["ga", "asc"],
+      ["pts", "desc"],
+      ["xgc", "asc"],
+    ]);
+  });
+
+  it("maps a retired team metric key to its current one when picking the order", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 4, data: [bar("gc", "team", "goalsConceded")] }));
+    const { result } = renderHook(() => useDashboardGraphs());
+    expect(result.current.graphs[0].direction).toBe("asc");
+  });
+
+  it("doesn't re-run the 3 -> 4 live Min Minutes clear on v4 data", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 4, data: [{ ...bar("live", "player", "goals"), dataView: "live" }] }));
+    const { result } = renderHook(() => useDashboardGraphs());
+    expect(result.current.graphs[0].criteria?.minMinutes).toBe(450);
+  });
+
+  it("keeps a stored direction as set", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 5, data: [{ ...bar("pos", "team", "leaguePosition"), direction: "desc" }] }));
+    const { result } = renderHook(() => useDashboardGraphs());
+    expect(result.current.graphs[0].direction).toBe("desc");
+  });
+
+  it("falls back to the default data view for an unrecognised one rather than keeping it (it would crash the Dashboard)", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 5, data: [{ ...bar("x", "team", "points"), dataView: "nextSeason" }] }));
+    const { result } = renderHook(() => useDashboardGraphs());
+    expect(result.current.graphs[0].dataView).toBe("lastSeason");
   });
 });

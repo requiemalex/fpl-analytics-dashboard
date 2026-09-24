@@ -206,7 +206,9 @@ export function UserGuide() {
             <strong>Create View</strong> (the icon next to the dropdown) starts a new, blank, named view and switches to it
             immediately — from there the + cards at the end of the tile grid and the graph grid add tiles/graphs to it one at a
             time; each one's own pencil icon edits it and its bin icon removes it. Every change saves itself as you make it, so there's nothing
-            separate to save and nothing lost by switching views, tabs, or closing the app — up to 5 views each for Player and Team.
+            separate to save and nothing lost by switching views, tabs, or closing the app — up to 5 views each for Player and Team,
+            Default included, each with its own name. The bin icon next to the dropdown deletes the selected view after asking you to
+            confirm — there's no undo.
             Picking a different view from the dropdown loads it immediately, replacing the live tiles and graphs for that scope only;
             the other scope is untouched.
           </li>
@@ -216,10 +218,10 @@ export function UserGuide() {
             shared setting for the whole page, so two tiles can watch completely different slices of the player pool side by side. The
             data view shows as a small <code>LS</code>/<code>HA</code>/<code>CS</code> badge in the tile's header (hover for the full
             name). Min Minutes applies in every data view, Current Season included — it starts at 0, so raise it as the season goes on
-            if you only want regular starters (e.g. 270 for three full games). Team Tiles show club figures for the season(s) their Data View picks — league standing included (see
-            below) — and have no criteria of their own. Every tile can also be
-            given a custom name in the same dialog — leave it blank to keep the auto-generated "Top/Bottom 5 — &lt;statistic&gt;"
-            title.
+            if you only want regular starters (e.g. 270 for three full games). Per-game statistics (PPG, xG/Game, xGC/Game, DC/Game and
+            the rest) also only rank players with at least one full match in Current Season, or five in the other views — in tiles and
+            graphs alike — so a single cameo can't top them; players you pick by name are always shown. Team Tiles show club figures for the season(s) their Data View picks — league standing included (see
+            below) — and have no criteria of their own. Every tile needs a name, set in the same dialog.
           </li>
           <li>Each row's bar shows its value's size relative to the other rows in that tile — green/red by above/below-expected for the three "vs xG/xA/xGI" tiles, one flat colour for everything else.</li>
         </ul>
@@ -227,7 +229,8 @@ export function UserGuide() {
           <strong>Graphs</strong>, below the tile grid (past the divider), work the same way tiles do — built via{" "}
           <strong>+ Add Graph</strong>, and changed later with the pencil icon in the graph's header (which reopens the same dialog
           with its current settings). Pick a name, a chart type (a <strong>Scatter Plot</strong> comparing two metrics, or a{" "}
-          <strong>Bar Chart</strong> ranking the top 15 by one), the metric(s) to plot from the full Player Explorer/Team metric
+          <strong>Bar Chart</strong> ranking 15 by one, in the Order you pick — it starts as the natural one for the metric, so League
+          Position or Goals Against lists the best first), the metric(s) to plot from the full Player Explorer/Team metric
           catalogue, a Data View, and — for a scatter graph — whether to draw a dashed 45° trend line (the <strong>Add Trend Line</strong>{" "}
           icon; it marks where X and Y are equal, so it's meaningful only when they're on the same scale, e.g. an expected-vs-actual
           pair like xG and Goals; leave it off for anything else, like Price vs Points). A Player Graph can be scoped the same two ways

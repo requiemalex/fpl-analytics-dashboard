@@ -30,7 +30,15 @@ function CustomTooltip({ active, payload, valueLabel, format }: any) {
   );
 }
 
-/** Ranked bar chart of the top 15 players by a single metric — the "type" alternative to a scatter plot when a user just wants a leaderboard, not a relationship between two metrics. */
+/** The 15 bars shown: highest first, or lowest first when `ascending` (League Position, Goals Against, xGC…). */
+export function rankBars(data: BarDatum[], ascending = false): BarDatum[] {
+  return data
+    .slice()
+    .sort((a, b) => (ascending ? a.value - b.value : b.value - a.value))
+    .slice(0, TOP_N);
+}
+
+/** Ranked bar chart of the top 15 players/teams by a single metric — the "type" alternative to a scatter plot when a user just wants a leaderboard, not a relationship between two metrics. */
 export function BarTopN({
   data,
   valueLabel,
@@ -38,6 +46,7 @@ export function BarTopN({
   onBarClick,
   height = 420,
   emptyMessage = "No eligible players have data for this chart with the current filters.",
+  ascending = false,
 }: {
   data: BarDatum[];
   valueLabel: string;
@@ -46,11 +55,14 @@ export function BarTopN({
   height?: number;
   /** Shown in place of the chart when `data` is empty — defaults to the player-scoped wording every existing caller wants; Dashboard's team graphs pass their own. */
   emptyMessage?: string;
+  /** Rank lowest first — the graph's Order, e.g. League Position 1, 2, 3… */
+  ascending?: boolean;
 }) {
-  const top = data
-    .slice()
-    .sort((a, b) => b.value - a.value)
-    .slice(0, TOP_N);
+  const top = rankBars(data, ascending);
+  // Whole-number data (goals, clean sheets, draws…) gets whole-number ticks —
+  // Recharts would otherwise pick 0.75-steps that a 0-decimal formatter
+  // renders as "0, 1, 2, 2, 3".
+  const integerValues = top.every((d) => Number.isInteger(d.value));
 
   if (top.length === 0) {
     return (
@@ -64,7 +76,7 @@ export function BarTopN({
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={top} layout="vertical" margin={{ top: 10, right: 24, bottom: 10, left: 12 }}>
         <CartesianGrid stroke="var(--border)" horizontal={false} />
-        <XAxis type="number" stroke="var(--text-muted)" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} tickFormatter={format} />
+        <XAxis type="number" allowDecimals={!integerValues} stroke="var(--text-muted)" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} tickFormatter={format} />
         <YAxis
           type="category"
           dataKey="label"
