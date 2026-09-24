@@ -112,8 +112,21 @@ retired — `Dockerfile`/`railway.json` are reference only.
 - Prefer fixing the root cause over adding a defensive patch on top.
 
 ## Audit process
-Periodic three-phase review, prompts in `docs/audits/`, each phase in its own
-fresh session, never two in one conversation:
-1. PHASE-1-FORENSIC-AUDIT-PROMPT.md — investigate and report only, no fixes.
-2. PHASE-2-REMEDIATION-PROMPT.md — fix confirmed issues from the audit.
-3. PHASE-3-ADVERSARIAL-REGRESSION-PROMPT.md — try to break what was just fixed.
+Strategy and results are kept apart (index: `docs/audits/README.md`):
+- **Strategy** — how to audit, reusable any time: `docs/audits/strategy/`.
+- **Results** — what past audits found and fixed, one dated folder per run:
+  `docs/audits/results/<YYYY-MM-DD>-<scope>/` (`1-audit.md`,
+  `2-remediation.md`, `3-regression.md`). Never overwrite an earlier run.
+
+Three phases, each in its own fresh session (never two in one conversation).
+Each takes an optional scope (a page or feature; default the full app):
+1. `PHASE-1-FORENSIC-AUDIT-PROMPT.md` — investigate and report only; commits
+   the report as the baseline.
+2. `PHASE-2-REMEDIATION-PROMPT.md` — fix that run's confirmed findings;
+   commits, no release unless I ask.
+3. `PHASE-3-ADVERSARIAL-REGRESSION-PROMPT.md` — try to break the fixes; report
+   only, and recommend whether to release.
+
+Asking you to run one of these prompts counts as asking you to run the app
+for it. When I ask for past audit results, read `docs/audits/README.md` and
+`docs/audits/results/`, not the strategy folder.

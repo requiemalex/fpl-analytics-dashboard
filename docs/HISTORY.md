@@ -2849,8 +2849,8 @@ and any equivalent one rather than needing a fix release each time.
 A systematic bug/efficiency review, run as its own fresh session with fixes
 explicitly not allowed during the audit itself — findings only, then a
 separate remediation session against that report. Checked against the live
-app and the real FPL API (2026/27 season). Full detail in `docs/audits/`
-(`FULL_AUDIT_REPORT.md`, `REMEDIATION_REPORT.md`).
+app and the real FPL API (2026/27 season). Full detail in
+`docs/audits/results/2026-09-21-full-app/` (`1-audit.md`, `2-remediation.md`).
 
 - **Fixed — the whole player pool's historic career data was being fetched
   unconditionally on every app launch**, regardless of whether any page
@@ -2911,7 +2911,7 @@ A third, independent session with one job: don't trust the remediation pass
 above — try to break it. Re-read every changed file's diff, re-ran the full
 build and test suite independently, and drove the real dev servers with a
 headless browser against live data. Full detail in
-`docs/audits/REGRESSION_AUDIT.md`.
+`docs/audits/results/2026-09-21-full-app/3-regression.md`.
 
 - **Fixed — the previous entry's own "Refresh Historic Data" fix introduced
   a race condition.** If an explicit refresh request arrived while an

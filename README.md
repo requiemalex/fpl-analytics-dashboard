@@ -16,7 +16,7 @@ It updates itself. Everything below is for developing the app.
 | In-app User Guide (`client/src/pages/UserGuide.tsx`) | What each page does and how to use it — the user-facing feature reference |
 | `DEPLOYMENT.md` | Desktop-app build, packaging, auto-update, and the retired web-hosting setup |
 | `docs/HISTORY.md` | How the app **used to** work — archived. Only for understanding or restoring something old |
-| `docs/audits/` | The three-phase audit process prompts and past audit reports |
+| `docs/audits/` | Audits: `strategy/` holds the reusable three-phase prompts, `results/` one dated folder per past run (index in `docs/audits/README.md`) |
 | `CLAUDE.md` | Working rules for AI-assisted development |
 
 Keep this file describing the current app: when behaviour changes, edit the
