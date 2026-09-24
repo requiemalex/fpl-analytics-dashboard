@@ -418,8 +418,9 @@ export function UserGuide() {
           Where the club record comes from: the official FPL API only serves the current season's match-by-match data and wipes it
           every summer, so 2016/17 to 2025/26 were filled in once from a well-known community archive of FPL's own data (checked
           against FPL's official season totals, and every match's goals against its real score). From 2026/27 on, the app keeps its
-          own copy straight from the official API, saved twice a week through the season. Club xG, xA and xGC exist from 2022/23
-          (when FPL started tracking them); club Defensive Contributions exist for 2025/26 on.
+          own copy straight from the official API, saved twice a week through the season. Club xG, xA and xGC exist from 2023/24:
+          FPL only started tracking them partway through 2022/23, so that season shows "—" rather than a part-season figure, and a
+          Historic Average of them covers only the seasons that have them. Club Defensive Contributions exist for 2025/26 on.
         </p>
       </Section>
 

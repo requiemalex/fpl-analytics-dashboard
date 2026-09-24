@@ -90,6 +90,22 @@ describe("aggregateClubSeason", () => {
     expect(club.dc).toBeNull();
   });
 
+  it("keeps expected stats and starts null (not a part-season sum) when only some matches tracked them", () => {
+    // 2022/23 shape: expected stats and starts only exist from GW16, so earlier rows are null.
+    const partial = rows.map((r) => (r.fixture === 1 ? { ...r, starts: null, xG: null, xA: null, xGI: null, xGC: null } : r));
+    const [club] = aggregateClubSeason("2022/23", teams, fixtures, partial);
+    expect(club.xG).toBeNull();
+    expect(club.xA).toBeNull();
+    expect(club.xGI).toBeNull();
+    expect(club.xGC).toBeNull();
+    const keeper = club.players.find((p) => p.code === 11)!;
+    expect(keeper.xG).toBeNull();
+    expect(keeper.starts).toBeNull();
+    // Stats every match tracked are unaffected.
+    expect(club.goals).toBe(3);
+    expect(club.dc).toBe(0);
+  });
+
   it("marks a season complete only when every fixture has finished", () => {
     const allDone = fixtures.map((f) => ({ ...f, finished: true, teamHScore: f.teamHScore ?? 0, teamAScore: f.teamAScore ?? 0 }));
     expect(aggregateClubSeason("2025/26", teams, allDone, rows)[0].complete).toBe(true);

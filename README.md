@@ -204,7 +204,13 @@ too.
 - **Data View mapping** (`clubSeasonsForMode()`): Historic Average means the
   last 4 completed seasons **the club was in the Premier League**, never
   padded with zeros. A season with no record shows "—".
-- **Gaps:** club xG/xA/xGI/xGC exist from 2022/23; club DC from 2025/26.
+- **Gaps:** club xG/xA/xGI/xGC (and per-player starts) exist from 2023/24;
+  club DC from 2025/26. FPL only started tracking starts and expected stats
+  at 2022/23 GW16, and the archive carries 0 for earlier gameweeks, so the
+  backfill stores those as `null` (`<untracked_expected_rounds>`) and any
+  season total with a missing match is `null` — shown "—", never a
+  part-season sum. Historic Average then averages those stats over the
+  window seasons that have them.
 - **End of season:** once the last fixture finishes, the next archive run
   moves the season into `completedSeasons.generated.ts`. Cut a release
   before FPL resets the API for the new season (usually mid-July).

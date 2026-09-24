@@ -131,6 +131,19 @@ async function main() {
       if (hasScore(previous) && hasScore(r)) throw new Error(`${folder}: conflicting duplicate rows for fixture ${r.fixture}, element ${r.element}`);
       if (hasScore(r)) chosen.set(rowKey, r);
     }
+    // <untracked_expected_rounds>: FPL started tracking starts and the
+    // expected stats partway through 2022-23 (from GW16), and the archive's
+    // rows for earlier gameweeks carry 0 for them rather than blank — a
+    // placeholder, not a real zero. A gameweek where no row records a
+    // start or any expected stat wasn't tracked, so those fields are
+    // written as null for it.
+    const roundOf = (r: Record<string, string>) => numOrNull(r.round) ?? numOrNull(r.GW);
+    const trackedRounds = new Set<number | null>();
+    for (const r of chosen.values()) {
+      const values = [r.starts, r.expected_goals, r.expected_assists, r.expected_goal_involvements, r.expected_goals_conceded];
+      if (values.some((v) => (numOrNull(v) ?? 0) > 0)) trackedRounds.add(roundOf(r));
+    }
+    const untrackedRounds = new Set([...chosen.values()].map(roundOf).filter((round) => !trackedRounds.has(round)));
     for (const r of chosen.values()) {
       const fixture = fixturesById.get(numOrZero(r.fixture));
       if (!fixture) throw new Error(`${folder}: row references unknown fixture ${r.fixture}`);
@@ -143,6 +156,8 @@ async function main() {
       // counts toward his club's figures; he just gets a negative
       // placeholder code, so he can never collide with a real player.
       if (!info) missingCode += 1;
+      const tracked = trackedRounds.has(roundOf(r));
+      const expected = (value: string | undefined) => (tracked ? numOrNull(value) : null);
       rows.push({
         fixture: fixture.id,
         element,
@@ -150,9 +165,9 @@ async function main() {
         team,
         wasHome,
         position: info?.position ?? null,
-        round: numOrNull(r.round) ?? numOrNull(r.GW),
+        round: roundOf(r),
         minutes: numOrZero(r.minutes),
-        starts: numOrNull(r.starts),
+        starts: expected(r.starts),
         totalPoints: numOrZero(r.total_points),
         goals: numOrZero(r.goals_scored),
         assists: numOrZero(r.assists),
@@ -162,10 +177,10 @@ async function main() {
         saves: numOrNull(r.saves),
         bonus: numOrZero(r.bonus),
         bps: numOrNull(r.bps),
-        xG: numOrNull(r.expected_goals),
-        xA: numOrNull(r.expected_assists),
-        xGI: numOrNull(r.expected_goal_involvements),
-        xGC: numOrNull(r.expected_goals_conceded),
+        xG: expected(r.expected_goals),
+        xA: expected(r.expected_assists),
+        xGI: expected(r.expected_goal_involvements),
+        xGC: expected(r.expected_goals_conceded),
         dc: numOrNull(r.defensive_contribution),
       });
     }
@@ -174,6 +189,7 @@ async function main() {
     const problems = checkLedgerAgainstScores(fixtures, rows);
     results.push(
       `${season}: ${teams.length} clubs, ${fixtures.length} fixtures, ${rows.length} rows · score mismatches ${problems.length} · side mismatches ${sideMismatch} · rows without a player code ${missingCode} · duplicate rows dropped ${duplicates}` +
+        ` · gameweeks without starts/expected stats ${untrackedRounds.size}` +
         (problems.length > 0 ? `\n    e.g. ${problems.slice(0, 3).join("; ")}` : ""),
     );
     console.log(results[results.length - 1]);

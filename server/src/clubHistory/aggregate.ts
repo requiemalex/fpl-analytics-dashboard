@@ -1,8 +1,14 @@
 import type { ClubPlayerSeason, ClubSeason, LedgerFixture, LedgerRow, LedgerTeam } from "./types.js";
 
+/**
+ * Null unless every value is present: a sum over only the matches that
+ * tracked a stat isn't the season's total (2022/23's starts and expected
+ * stats only exist from GW16 — see <untracked_expected_rounds> in
+ * scripts/club-history/backfill-vaastav.ts).
+ */
 function sumOrNull(values: (number | null)[]): number | null {
-  const present = values.filter((v): v is number => v !== null);
-  return present.length === 0 ? null : present.reduce((a, b) => a + b, 0);
+  if (values.length === 0 || values.some((v) => v === null)) return null;
+  return (values as number[]).reduce((a, b) => a + b, 0);
 }
 
 /** Rounds away float noise from summing many 2-dp figures (e.g. 52.699999999 → 52.7). */
@@ -81,6 +87,7 @@ export function aggregateClubSeason(season: string, teams: LedgerTeam[], fixture
     const teamRows = rowsByTeam.get(team.id) ?? [];
 
     const xgcByFixture = new Map<number, number>();
+    const xgcComplete = teamRows.length > 0 && teamRows.every((r) => r.xGC !== null);
     for (const r of teamRows) {
       if (r.xGC === null) continue;
       xgcByFixture.set(r.fixture, Math.max(xgcByFixture.get(r.fixture) ?? 0, r.xGC));
@@ -131,7 +138,7 @@ export function aggregateClubSeason(season: string, teams: LedgerTeam[], fixture
       xG: tidy(sumOrNull(teamRows.map((r) => r.xG))),
       xA: tidy(sumOrNull(teamRows.map((r) => r.xA))),
       xGI: tidy(sumOrNull(teamRows.map((r) => r.xGI))),
-      xGC: xgcByFixture.size === 0 ? null : tidy([...xgcByFixture.values()].reduce((a, b) => a + b, 0)),
+      xGC: !xgcComplete ? null : tidy([...xgcByFixture.values()].reduce((a, b) => a + b, 0)),
       dc: sumOrNull(teamRows.map((r) => r.dc)),
       players,
     });

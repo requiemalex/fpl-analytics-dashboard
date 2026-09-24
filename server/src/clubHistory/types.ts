@@ -62,7 +62,7 @@ export interface LedgerRow {
   saves: number | null;
   bonus: number;
   bps: number | null;
-  /** Null for seasons before FPL tracked expected stats (pre-2022/23). */
+  /** Null where FPL didn't track expected stats: every season before 2022/23, and 2022/23 before GW16. */
   xG: number | null;
   xA: number | null;
   xGI: number | null;
