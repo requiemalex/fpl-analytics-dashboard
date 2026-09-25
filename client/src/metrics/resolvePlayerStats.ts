@@ -1,5 +1,6 @@
 import type { NormalizedPlayer } from "../types/normalized";
 import type { HistoricPlayerProfile } from "./historicAnalysis";
+import type { HistoricDataStatus } from "../state/AppStateContext";
 import { perGame, estimatedPointsPerGame, estimatedGamesFromMinutes, pointsPerEstimatedGame } from "./calculations";
 
 export type AnalysisMode = "live" | "lastSeason" | "historicAverage";
@@ -79,6 +80,20 @@ export function isAnalysisMode(value: unknown): value is AnalysisMode {
 /** A resolved player with nothing to show for the selected mode has every performance field nulled — this is the one canonical check for that, rather than each caller picking a different field to test. */
 export function hasDataForMode(resolved: NormalizedPlayer): boolean {
   return resolved.totalPoints !== null;
+}
+
+/**
+ * Whether a player's figures for a mode are actually known, so that
+ * hasDataForMode() being false really means "he has none". Current Season
+ * always is. A historic mode is known only once the historic dataset has
+ * loaded, and not for a player the server couldn't build (a transient FPL
+ * fetch failure, `historicSkippedPlayerIds`) — for him, as while loading,
+ * every figure is null for reasons that have nothing to do with the player
+ * (audit 2026-09-25 player-team-profiles M2, R4).
+ */
+export function modeDataKnown(mode: AnalysisMode, historicStatus: HistoricDataStatus, historicSkippedPlayerIds: readonly number[], playerId: number): boolean {
+  if (mode === "live") return true;
+  return historicStatus === "ready" && !historicSkippedPlayerIds.includes(playerId);
 }
 
 /** Every performance field set to null — identity, price, and ownership are the caller's job to keep live, same as every other branch. */

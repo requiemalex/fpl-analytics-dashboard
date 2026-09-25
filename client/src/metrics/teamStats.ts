@@ -132,6 +132,7 @@ export function computeTeamAggregates(teams: NormalizedTeam[], mode: AnalysisMod
       return emptyAggregate(team, preseasonZero ? 0 : null);
     }
     const pick = (fn: (c: ClubSeason) => number | null) => mean(records.map(fn));
+    const results = resultsWithinPlayed(pick((c) => c.played), pick((c) => c.wins), pick((c) => c.draws), pick((c) => c.losses));
     return {
       teamId: team.id,
       name: team.name,
@@ -150,12 +151,40 @@ export function computeTeamAggregates(teams: NormalizedTeam[], mode: AnalysisMod
       goalsAgainst: pick((c) => c.goalsAgainst),
       leaguePosition: pick((c) => c.leaguePosition),
       leaguePoints: pick((c) => c.leaguePoints),
-      played: pick((c) => c.played),
-      wins: pick((c) => c.wins),
-      draws: pick((c) => c.draws),
-      losses: pick((c) => c.losses),
+      ...results,
     };
   });
+}
+
+/**
+ * <results_within_played>: a Historic Average's wins, draws and losses are
+ * whole numbers that add up to the games played (the owner's rule, audit
+ * 2026-09-25 player-team-profiles R1). Rounding each mean on its own could
+ * show "38 played · 14W 11D 14L" — 39 results. The shortfall after rounding
+ * every mean down goes to the ones with the largest fractions (ties: wins,
+ * then draws, then losses). A single season's figures are whole already, so
+ * they come back unchanged. If the means don't add up to the games played
+ * (never true of a real record), each is just rounded, rather than forcing
+ * a total the data doesn't support.
+ */
+export function resultsWithinPlayed(
+  played: number | null,
+  wins: number | null,
+  draws: number | null,
+  losses: number | null,
+): Pick<TeamAggregate, "played" | "wins" | "draws" | "losses"> {
+  if (played === null || wins === null || draws === null || losses === null) return { played, wins, draws, losses };
+  const target = Math.round(played);
+  const means = [wins, draws, losses];
+  const floors = means.map(Math.floor);
+  const shortfall = target - floors.reduce((a, b) => a + b, 0);
+  if (Math.abs(wins + draws + losses - played) > 1e-6 || shortfall < 0 || shortfall > means.length) {
+    const [w, d, l] = means.map(Math.round);
+    return { played: target, wins: w, draws: d, losses: l };
+  }
+  const byFraction = [0, 1, 2].sort((a, b) => means[b] - floors[b] - (means[a] - floors[a]) || a - b);
+  for (const i of byFraction.slice(0, shortfall)) floors[i] += 1;
+  return { played: target, wins: floors[0], draws: floors[1], losses: floors[2] };
 }
 
 /** One player's figures for one club under a Data View — averaged over the seasons he played for it (Historic Average), never including time at other clubs. */

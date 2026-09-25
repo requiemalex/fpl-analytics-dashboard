@@ -183,16 +183,20 @@ export function UserGuide() {
           <li>
             <strong>Current Season</strong> — this season's live figures. Pre-season, or before a player's team has played, the
             cumulative fields (points, goals, minutes, etc.) genuinely are zero — not a placeholder, an honest zero, since no games have
-            been played yet. Price, ownership, and availability status are always live regardless of which mode is selected.
+            been played yet. Price, ownership, and availability status are always live regardless of which mode is selected. Live figures
+            update on their own every 10 minutes; the Refresh button at the top fetches everything again straight away, this season's
+            club figures and league table included (those can take up to a minute to rebuild; the current ones stay on screen until then).
           </li>
         </ul>
         <p className="page-subtitle">
           <strong>Minimum minutes.</strong> Where you can set a minutes filter yourself — Player Explorer's Mins column, the tiles and
           graphs you build on the Dashboard, Team Building — the app adds none of its own: raise it if one short appearance is topping
           a per-game list. Where you can't — the player profile, Player Comparison, the Team Profile and the Dashboard's Default view —
-          a fixed floor applies: 90 minutes in Current Season, 450 (five full games) otherwise. A player under it is a{" "}
-          <em>small sample</em>: he's shown, but gets no percentile and no green/red colour, so a cameo can't read as the best in the
-          league.
+          a fixed floor applies: 90 minutes in Current Season, 450 (five full games) otherwise — in Historic Average, his average
+          minutes over the seasons counted. In the player profile, Player Comparison's radars and the Team Profile's squad, a player
+          under it is a <em>small sample</em>: he's shown, but gets no percentile and no percentile colour, so a cameo can't read as
+          the best in the league. Player Comparison's table still colours whichever of the players you picked is better on each row.
+          The Default view's per-game tiles and graphs leave players under the floor out.
         </p>
         <p className="page-subtitle" style={{ margin: 0 }}>
           One thing that deliberately never changes: price is always today's real price, in every mode — in the identity line (like
@@ -443,7 +447,9 @@ export function UserGuide() {
           team radars, upcoming fixtures, and the current squad with what each player did <em>for this club</em> in the selected
           season (a new signing shows "—" for last season), with its own "Player Rankings" link through to Player Explorer for the
           full sortable table. The header's league position, points and results follow the Data View too, shown as Team Explorer
-          shows them ("—" for a season the club wasn't in the Premier League). In Historic Average each squad row is the player's
+          shows them ("—" for a season the club wasn't in the Premier League). In Historic Average they're averages: position and
+          points are rounded (so two clubs can both be "2nd"), and wins, draws and losses are whole numbers that always add up to the
+          games played. In Historic Average each squad row is the player's
           average over the seasons in the window he actually played for this club — so a signing from last summer shows his one
           season, next to the club's four. The squad's green/red colouring compares each player with others in his position and uses
           the fixed minutes floor: a player under it is greyed out with no colour (hover the row to see why). On the Defense radar,

@@ -5,7 +5,7 @@ import { normalizeTeams } from "../normalize/normalizeTeams";
 import { normalizeFixtures } from "../normalize/normalizeFixtures";
 import { applyRealTeamStandings } from "../normalize/deriveTeamStandings";
 import { normalizeBulkHistoricData } from "../normalize/normalizeElementSummary";
-import { deriveGameweekState, normalizeEvents } from "../normalize/gameweek";
+import { deriveGameweekState, normalizeEvents, seasonHasStarted } from "../normalize/gameweek";
 import { normalizeChips } from "../normalize/normalizeChips";
 import { runMetricValidation, type ValidationReport } from "../metrics/validation";
 import { buildAllHistoricProfiles, type HistoricPlayerProfile } from "../metrics/historicAnalysis";
@@ -220,11 +220,6 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     return () => clearInterval(id);
   }, [load]);
 
-  const refresh = useCallback(async () => {
-    if (refreshing) return; // prevent concurrent manual refreshes
-    await load(true);
-  }, [load, refreshing]);
-
   // Fetched at most once per session, shared by every page via this
   // context — never re-fetched per page. Gated behind real demand: each
   // page/component that actually resolves stats in a non-"live"
@@ -272,6 +267,20 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     loadHistoric(true);
   }, [loadHistoric, historicRefreshing]);
 
+  // Refresh Data refreshes everything already loaded this session. The
+  // historic dataset carries the live season's club figures too (Team
+  // Explorer's and the Team Profile's Current Season, league table
+  // included), which otherwise stayed as they were when first loaded while
+  // players and fixtures moved on (audit 2026-09-25 player-team-profiles
+  // R2). Only if something has asked for it: a session that never needed
+  // the historic build doesn't start one here. It runs alongside, keeping
+  // the current data on screen until the new build arrives.
+  const refresh = useCallback(async () => {
+    if (refreshing) return; // prevent concurrent manual refreshes
+    if (historicRequestedRef.current) refreshHistoricData();
+    await load(true);
+  }, [load, refreshing, refreshHistoricData]);
+
   const requestHistoricData = useCallback(() => {
     if (historicRequestedRef.current) return;
     historicRequestedRef.current = true;
@@ -306,7 +315,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       // Real fixture results, not bootstrap-static's own (unreliable, see
       // above) team.played — true the moment any fixture has actually been
       // played and finished, current-season carryover-zeroing switches off.
-      currentSeasonHasStarted: fixtures.some((f) => f.finished),
+      // A finished gameweek counts too, so a failed fixtures request can't
+      // make a season in progress look unstarted (seasonHasStarted).
+      currentSeasonHasStarted: seasonHasStarted(fixtures, events),
       fixtures,
       gameweekState,
       events,

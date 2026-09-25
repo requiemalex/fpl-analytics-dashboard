@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { clubPlayerFigures, clubSeasonHistory, clubSeasonsForMode, computeTeamAggregates, type ClubHistoryContext } from "./teamStats";
+import { clubPlayerFigures, clubSeasonHistory, clubSeasonsForMode, computeTeamAggregates, resultsWithinPlayed, type ClubHistoryContext } from "./teamStats";
 import { makeTeam } from "../test/fixtures";
 import { teamHeaderLine } from "../components/TeamDetailOverlay";
 import type { ClubPlayerSeason, ClubSeason } from "../types/normalized";
@@ -143,15 +143,48 @@ describe("clubSeasonHistory", () => {
 
 describe("teamHeaderLine — the Team Profile header follows the Data View (audit 2026-09-25 player-team-profiles M1)", () => {
   it("shows a season's league line, and a Historic Average rounded the way Team Explorer shows it", () => {
-    const history = { ...ctx, clubSeasons: [clubSeason(101, "2025/26", { leaguePosition: 3, leaguePoints: 71 }), clubSeason(101, "2024/25", { leaguePosition: 4, leaguePoints: 70, wins: 21 })] };
+    // 2024/25 is a real 38-game record (21W 9D 8L). This fixture used to be
+    // 21W 10D 8L — 39 results in 38 games — which hid R1 (3-regression.md).
+    const history = { ...ctx, clubSeasons: [clubSeason(101, "2025/26", { leaguePosition: 3, leaguePoints: 71 }), clubSeason(101, "2024/25", { leaguePosition: 4, leaguePoints: 70, wins: 21, draws: 9 })] };
     const [last] = computeTeamAggregates([teams[0]], "lastSeason", history);
     expect(teamHeaderLine(last)).toBe("3rd in table · 71 pts · 38 played · 20W 10D 8L");
     const [avg] = computeTeamAggregates([teams[0]], "historicAverage", history);
-    expect(teamHeaderLine(avg)).toBe("4th in table · 71 pts · 38 played · 21W 10D 8L"); // 3.5 → 4, 70.5 → 71, 20.5 → 21
+    // 3.5 → 4th, 70.5 → 71; results 20.5W 9.5D 8L share out as 21W 9D 8L = 38, never 21W 10D 8L = 39.
+    expect(teamHeaderLine(avg)).toBe("4th in table · 71 pts · 38 played · 21W 9D 8L");
   });
 
   it("is — for a season the club has no record of", () => {
     const [none] = computeTeamAggregates([teams[1]], "lastSeason", { ...ctx, clubSeasons: [] });
     expect(teamHeaderLine(none)).toBe("—");
+  });
+});
+
+describe("resultsWithinPlayed — Historic Average W/D/L never add up to more than the games played (audit 2026-09-25 player-team-profiles R1)", () => {
+  it("shares out the rounding so W + D + L = played (rounding each alone gave 15W 11D 13L = 39)", () => {
+    expect(resultsWithinPlayed(38, 14.5, 10.5, 13)).toEqual({ played: 38, wins: 15, draws: 10, losses: 13 });
+  });
+
+  it("gives the leftover games to the largest fractions", () => {
+    // 13.75 / 10.5 / 13.75 rounds to 14 + 11 + 14 = 39; 14.25 / 10.75 / 13 already rounds to 38.
+    expect(resultsWithinPlayed(38, 13.75, 10.5, 13.75)).toEqual({ played: 38, wins: 14, draws: 10, losses: 14 });
+    expect(resultsWithinPlayed(38, 14.25, 10.75, 13)).toEqual({ played: 38, wins: 14, draws: 11, losses: 13 });
+  });
+
+  it("leaves a single season's whole numbers alone, and nulls as nulls", () => {
+    expect(resultsWithinPlayed(5, 5, 0, 0)).toEqual({ played: 5, wins: 5, draws: 0, losses: 0 });
+    expect(resultsWithinPlayed(null, null, null, null)).toEqual({ played: null, wins: null, draws: null, losses: null });
+  });
+
+  it("every club's Historic Average from computeTeamAggregates adds up", () => {
+    const history = {
+      ...ctx,
+      clubSeasons: [
+        clubSeason(101, "2025/26", { wins: 14, draws: 11, losses: 13 }),
+        clubSeason(101, "2024/25", { wins: 15, draws: 10, losses: 13 }),
+      ],
+    };
+    const [avg] = computeTeamAggregates([teams[0]], "historicAverage", history);
+    expect([avg.played, avg.wins, avg.draws, avg.losses].every(Number.isInteger)).toBe(true); // whole numbers, as displayed
+    expect((avg.wins ?? 0) + (avg.draws ?? 0) + (avg.losses ?? 0)).toBe(avg.played);
   });
 });

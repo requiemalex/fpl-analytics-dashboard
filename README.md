@@ -115,6 +115,12 @@ Outbound requests time out after 8 s and retry twice (capped backoff) on
 network errors or 5xx only. Concurrent requests for the same resource share
 one upstream call. **Refresh Data** calls `/api/refresh/*`, which bypasses
 the cache (a refresh never piggybacks on a non-refresh request in flight).
+If the historic dataset has been loaded this session, it is rebuilt too
+(`/api/refresh/historic-bulk`, up to a minute, with the old data on screen
+until it arrives): it carries the live season's club figures, including
+Current Season's league table in Team Explorer and the Team Profile, which
+otherwise stayed as first loaded. The 10-minute background poll refreshes
+bootstrap and fixtures only.
 If the upstream fails, the server serves its last cached copy and the client
 shows a "stale data" banner — never blank, never presented as current.
 
@@ -165,7 +171,9 @@ Every analysis page has the same three-way toggle, resolved through
   `metrics/careerMetrics.ts`) — never the whole window's minutes, which
   inflated DC/Game.
 - **Current Season** — live bootstrap fields. Before any club has played
-  (`currentSeasonHasStarted`), FPL still carries last season's totals in
+  (`currentSeasonHasStarted`: a finished fixture, or a finished gameweek
+  in case the fixtures request failed — `seasonHasStarted`,
+  `normalize/gameweek.ts`), FPL still carries last season's totals in
   those fields, so cumulative stats are zeroed (a true zero, not unknown)
   and rates become `null`.
 
@@ -190,7 +198,11 @@ everything:
 In the fixed-floor sections the floor applies to **every percentile**,
 totals as well as per-game rates: the pool is everyone at or above it, and
 a player below it is shown as a small sample, with no percentile and no
-colour. Historic Average's window is always the last 4 completed seasons;
+colour. Player Comparison's table colours are head-to-head between the
+picked players, not percentiles, so the floor doesn't touch them; only its
+radars. In Historic Average the floor is compared with the resolved
+minutes, i.e. the average per counted season (1,061 minutes over four
+seasons is 265 a season: a small sample). Historic Average's window is always the last 4 completed seasons;
 dropping a 0-minute season never reaches further back to replace it
 (`HistoricPlayerProfile.playedWindowAverage`, used through
 `resolvePlayerStats`'s `dropZeroMinuteSeasons`). A season lost entirely to
@@ -252,7 +264,12 @@ too.
   club's players in that match (`<club_xgc_per_match>`).
 - **Data View mapping** (`clubSeasonsForMode()`): Historic Average means the
   last 4 completed seasons **the club was in the Premier League**, never
-  padded with zeros. A season with no record shows "—".
+  padded with zeros. A season with no record shows "—". Its wins, draws and
+  losses are whole numbers that add up to the games played
+  (`resultsWithinPlayed`, `<results_within_played>`, the owner's rule):
+  rounding each mean alone could show "38 played · 14W 11D 14L". League
+  position and points stay rounded means, so two clubs can share a
+  position.
 - **Gaps:** club xG/xA/xGI/xGC (and per-player starts) exist from 2023/24;
   club DC from 2025/26. FPL only started tracking starts and expected stats
   at 2022/23 GW16, and the archive carries 0 for earlier gameweeks, so the

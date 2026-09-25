@@ -16,7 +16,7 @@ import { PlayingTimeIcon } from "./playerProfile/PlayingTimeIcon";
 import { computeSeasonAverageMinutes, computeGameweekTotals, computeGameweekAverages } from "../metrics/rotationIndicators";
 import { computeSeasonTrend } from "../metrics/careerMetrics";
 import { buildHistoricPlayerProfile, nextSeasonName, HISTORIC_WINDOW_SEASONS } from "../metrics/historicAnalysis";
-import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode, type AnalysisMode, type ResolveOptions } from "../metrics/resolvePlayerStats";
+import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode, modeDataKnown, type AnalysisMode, type ResolveOptions } from "../metrics/resolvePlayerStats";
 import { AnalysisModeToggle, ANALYSIS_MODE_OPTIONS } from "./AnalysisModeToggle";
 import { PositionBadge } from "./primitives";
 import { fmtDecimal, fmtPrice, fmtPercent, fmtSigned, DASH } from "../utils/format";
@@ -97,7 +97,7 @@ function ChevronIcon({ direction }: { direction: "down" | "up" }) {
 }
 
 export function PlayerDetailOverlay() {
-  const { players, teamsById, historicReferenceSeason, historicStatus, historicProfiles, currentSeasonHasStarted, requestHistoricData } = useAppState();
+  const { players, teamsById, historicReferenceSeason, historicStatus, historicProfiles, historicSkippedPlayerIds, currentSeasonHasStarted, requestHistoricData } = useAppState();
   const [player, setPlayerId, unknownPlayerLink] = useSelectedPlayer();
   const isOpen = player !== null;
   // Only an open profile needs the historic dataset (it opens on Last
@@ -303,18 +303,22 @@ export function PlayerDetailOverlay() {
   const resolvedPlayer = resolvePlayerStats(player, analysisMode, historicProfiles.get(player.id), currentSeasonHasStarted, PROFILE_RESOLVE);
   const derived = getPlayerDerivedMetrics(resolvedPlayer);
   // A historic Data View's figures are only known once the historic dataset
-  // has loaded. Until then (or if it failed, which the Data View toggle
-  // reports with a Retry) every figure is null for reasons that have
-  // nothing to do with the player, so nothing here claims he has no data
-  // (audit 2026-09-25 player-team-profiles M2).
-  const dataSettled = analysisMode === "live" || historicStatus === "ready";
-  const noDataForMode = dataSettled && !hasDataForMode(resolvedPlayer);
-  // Other Data Views that do have figures for him, for the no-data message —
-  // never the one already selected.
+  // has loaded, and only if the server could build this player's. Until then
+  // (or if it failed, which the Data View toggle reports with a Retry)
+  // every figure is null for reasons that have nothing to do with the
+  // player, so nothing here claims he has no data (audit 2026-09-25
+  // player-team-profiles M2, R4).
+  const skippedByServer = analysisMode !== "live" && historicStatus === "ready" && historicSkippedPlayerIds.includes(player.id);
+  const noDataForMode = modeDataKnown(analysisMode, historicStatus, historicSkippedPlayerIds, player.id) && !hasDataForMode(resolvedPlayer);
+  // Other Data Views where he actually played, for the no-data message —
+  // never the one already selected, and never one where all he has is 0
+  // minutes, which would only show a 0-minute small sample (T2).
   const modesWithData = noDataForMode
-    ? ANALYSIS_MODE_OPTIONS.filter(
-        (o) => o.mode !== analysisMode && hasDataForMode(resolvePlayerStats(player, o.mode, historicProfiles.get(player.id), currentSeasonHasStarted, PROFILE_RESOLVE)),
-      ).map((o) => o.label)
+    ? ANALYSIS_MODE_OPTIONS.filter((o) => {
+        if (o.mode === analysisMode) return false;
+        const r = resolvePlayerStats(player, o.mode, historicProfiles.get(player.id), currentSeasonHasStarted, PROFILE_RESOLVE);
+        return hasDataForMode(r) && (r.minutes ?? 0) > 0;
+      }).map((o) => o.label)
     : [];
   // <live_vs_resolved_bug>: checks the RESOLVED player's minutes —
   // whichever the active mode resolved to — never the live player's, which
@@ -571,6 +575,12 @@ export function PlayerDetailOverlay() {
 
         <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
 
+        {skippedByServer && (
+          <div className="banner info" style={{ marginBottom: 16 }}>
+            {player.name}'s historic figures couldn't be fetched from FPL this session, so this mode shows {DASH}. Live Data and Career
+            History below are unaffected.
+          </div>
+        )}
         {noDataForMode && (
           <div className="banner info" style={{ marginBottom: 16 }}>
             No data for {player.name} in this mode — every field below shows {DASH}.

@@ -535,3 +535,100 @@ describe("L9: a link to a player or club that doesn't exist", () => {
     expect(getByText("Team not found")).toBeTruthy();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Second remediation pass (3-regression.md R-items). Each fails on 29df1c7
+// unless noted.
+// ---------------------------------------------------------------------------
+
+describe("R1: the Team Profile header's Historic Average results add up to the games played", () => {
+  it("shows 15W 10D 13L over 38 played, never 15W 11D 13L (39)", () => {
+    setApp(state.app.players as NormalizedPlayer[], {
+      clubSeasons: [
+        clubSeason(101, "2025/26", { wins: 14, draws: 11, losses: 13, leaguePoints: 53 }),
+        clubSeason(101, "2024/25", { wins: 15, draws: 10, losses: 13, leaguePoints: 55 }),
+      ],
+    });
+    const { getByText, getByRole } = render(
+      <MemoryRouter initialEntries={["/teams?teamProfile=1"]}>
+        <TeamDetailOverlay />
+      </MemoryRouter>,
+    );
+    fireEvent.click(getByRole("button", { name: "Historic Average" }));
+    expect(getByText("4th in table · 54 pts · 38 played · 15W 10D 13L")).toBeTruthy();
+  });
+});
+
+describe("R4: a player the server couldn't build isn't told he has no data", () => {
+  it("the profile says his historic figures couldn't be fetched, not 'No data'", () => {
+    setApp(state.app.players as NormalizedPlayer[], { historicSkippedPlayerIds: [1] });
+    const { queryByText, getByText } = render(
+      <MemoryRouter initialEntries={["/players?player=1"]}>
+        <PlayerDetailOverlay />
+      </MemoryRouter>,
+    );
+    expect(queryByText(/No data for Saliba/)).toBeNull();
+    expect(getByText(/historic figures couldn't be fetched from FPL this session/)).toBeTruthy();
+  });
+
+  it("Player Comparison doesn't list him as having no data — nor anyone while the historic data is loading", () => {
+    const players = [
+      makePlayer({ id: 1, name: "Saliba", position: "DEF", teamId: 1, minutes: 450 }),
+      makePlayer({ id: 2, name: "Gabriel", position: "DEF", teamId: 1, minutes: 450 }),
+    ];
+    setApp(players, { historicSkippedPlayerIds: [1], historicProfiles: profiles({ 2: [makeSeason({ seasonName: "2025/26", minutes: 3000, totalPoints: 150 })] }) });
+    const first = render(
+      <MemoryRouter initialEntries={["/player-comparison?players=1,2"]}>
+        <PlayerComparison />
+      </MemoryRouter>,
+    );
+    expect(first.queryByText(/has no data in this mode/)).toBeNull();
+    cleanup();
+    setApp(players, { historicStatus: "loading" });
+    const loading = render(
+      <MemoryRouter initialEntries={["/player-comparison?players=1,2"]}>
+        <PlayerComparison />
+      </MemoryRouter>,
+    );
+    expect(loading.queryByText(/no data in this mode/)).toBeNull();
+  });
+});
+
+describe("T2: the no-data message only suggests Data Views where he actually played", () => {
+  it("doesn't suggest Last Completed Season when all he has there is 0 minutes", () => {
+    setApp(state.app.players as NormalizedPlayer[], {
+      historicProfiles: profiles({ 1: [makeSeason({ seasonName: "2024/25", minutes: 0, totalPoints: 0 }), makeSeason({ seasonName: "2025/26", minutes: 0, totalPoints: 0 })] }),
+    });
+    const { getByText, getByRole } = render(
+      <MemoryRouter initialEntries={["/players?player=1"]}>
+        <PlayerDetailOverlay />
+      </MemoryRouter>,
+    );
+    fireEvent.click(getByRole("button", { name: "Historic Average" }));
+    const banner = getByText(/No data for Saliba in this mode/);
+    expect(banner.textContent).toContain("Try Current Season.");
+    expect(banner.textContent).not.toContain("Last Completed Season");
+  });
+});
+
+describe("R5 (not a defect — guards the right behaviour): keyboard focus through club → player → close", () => {
+  it("returns to the team pill that opened the club", () => {
+    setApp(state.app.players as NormalizedPlayer[], { clubSeasons: [clubSeason(101, "2025/26", { players: [clubPlayer(1001)] })] });
+    const { getByRole, getByText } = render(
+      <MemoryRouter initialEntries={["/players"]}>
+        <TeamBadge teamId={1} shortName="ARS" />
+        <PlayerDetailOverlay />
+        <TeamDetailOverlay />
+      </MemoryRouter>,
+    );
+    const pill = getByRole("button", { name: "View ARS team profile" });
+    pill.focus();
+    fireEvent.keyDown(pill, { key: " " }); // Space as well as Enter
+    const row = getByText("Saliba").closest("tr")!;
+    row.focus();
+    fireEvent.keyDown(row, { key: " " });
+    expect(getByRole("dialog", { name: "Saliba" })).toBeTruthy();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(document.activeElement).toBe(pill);
+  });
+});

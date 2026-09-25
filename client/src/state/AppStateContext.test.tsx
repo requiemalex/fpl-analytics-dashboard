@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import React from "react";
 import { AppStateProvider, useAppState } from "./AppStateContext";
 import { makeRawElement, makeRawTeam, RAW_ELEMENT_TYPES } from "../test/rawFixtures";
@@ -61,5 +61,48 @@ describe("AppStateProvider — L8 regression: bootstrap-static and fixtures must
     expect(fetchBootstrapMock).toHaveBeenCalledTimes(1);
 
     resolveBootstrap(bootstrapPayload());
+  });
+});
+
+// Audit 2026-09-25 player-team-profiles, second remediation pass (3-regression.md).
+describe("AppStateProvider — R3: a failed fixtures request doesn't make a season in progress look unstarted", () => {
+  it("currentSeasonHasStarted comes from a finished gameweek when fixtures fail", async () => {
+    const payload = bootstrapPayload();
+    payload.data.events = [
+      { id: 1, name: "Gameweek 1", deadline_time: "2026-08-21T17:30:00Z", finished: true, is_previous: true, is_current: false, is_next: false },
+      { id: 2, name: "Gameweek 2", deadline_time: "2026-08-28T17:30:00Z", finished: false, is_previous: false, is_current: true, is_next: false },
+    ] as never[];
+    fetchBootstrapMock.mockResolvedValue(payload);
+    fetchFixturesMock.mockRejectedValue(new Error("502"));
+    const { result } = renderHook(() => useAppState(), { wrapper: ({ children }) => <AppStateProvider>{children}</AppStateProvider> });
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalled());
+    expect(result.current.fixtures).toEqual([]);
+    expect(result.current.currentSeasonHasStarted).toBe(true);
+  });
+});
+
+describe("AppStateProvider — R2: Refresh Data also refreshes the historic dataset, once something has loaded it", () => {
+  beforeEach(() => {
+    fetchBootstrapMock.mockResolvedValue(bootstrapPayload());
+    fetchFixturesMock.mockResolvedValue({ data: [], source: "live", fetchedAt: Date.now() });
+  });
+
+  it("rebuilds it (forced) when it was loaded this session", async () => {
+    const { result } = renderHook(() => useAppState(), { wrapper: ({ children }) => <AppStateProvider>{children}</AppStateProvider> });
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    act(() => result.current.requestHistoricData());
+    await waitFor(() => expect(result.current.historicStatus).toBe("ready"));
+    expect(fetchHistoricBulkMock).toHaveBeenCalledTimes(1);
+    await act(() => result.current.refresh());
+    await waitFor(() => expect(fetchHistoricBulkMock).toHaveBeenCalledTimes(2));
+    expect(fetchHistoricBulkMock).toHaveBeenLastCalledWith({ forceRefresh: true });
+  });
+
+  it("doesn't start it when nothing has needed it", async () => {
+    const { result } = renderHook(() => useAppState(), { wrapper: ({ children }) => <AppStateProvider>{children}</AppStateProvider> });
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    await act(() => result.current.refresh());
+    expect(fetchHistoricBulkMock).not.toHaveBeenCalled();
   });
 });

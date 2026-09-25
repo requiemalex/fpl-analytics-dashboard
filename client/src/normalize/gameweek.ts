@@ -1,5 +1,5 @@
 import type { RawEvent } from "../types/raw";
-import type { GameweekState, NormalizedEvent } from "../types/normalized";
+import type { GameweekState, NormalizedEvent, NormalizedFixture } from "../types/normalized";
 
 function toNormalizedEvent(e: RawEvent): NormalizedEvent {
   return {
@@ -39,4 +39,17 @@ export function deriveGameweekState(rawEvents: RawEvent[]): GameweekState {
   }
 
   return { kind: "pre-season" };
+}
+
+/**
+ * Whether this season's matches have started — the switch for
+ * <live_mode_preseason_fix> (resolvePlayerStats.ts): until then FPL's live
+ * player fields still carry last season's totals. A finished fixture is the
+ * earliest sign; a finished gameweek (bootstrap-static, fetched separately)
+ * is the fallback, so a failed fixtures request — which leaves the list
+ * empty — can't make a season in progress look unstarted and zero every
+ * live figure (audit 2026-09-25 player-team-profiles R3).
+ */
+export function seasonHasStarted(fixtures: Pick<NormalizedFixture, "finished">[], events: Pick<NormalizedEvent, "finished">[]): boolean {
+  return fixtures.some((f) => f.finished) || events.some((e) => e.finished);
 }

@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { useAppState } from "../state/AppStateContext";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
-import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode, type AnalysisMode, type ResolveOptions } from "../metrics/resolvePlayerStats";
+import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode, modeDataKnown, type AnalysisMode, type ResolveOptions } from "../metrics/resolvePlayerStats";
 import { computeRadarData } from "../metrics/radarStats";
 import { fixedFloorMinutes, isBelowFixedFloor } from "../metrics/fixedMinutesFloor";
 import { buildMultiSeriesTrend, playerMetricTrendDataKey, type TrendMetricKey } from "../metrics/careerTrends";
@@ -119,7 +119,7 @@ function useComparisonIds(): [number[], (ids: number[]) => void] {
 }
 
 export function PlayerComparison() {
-  const { players, historicProfiles, currentSeasonHasStarted, allTimeSeasonsByPlayerId, requestHistoricData } = useAppState();
+  const { players, historicProfiles, historicStatus, historicSkippedPlayerIds, currentSeasonHasStarted, allTimeSeasonsByPlayerId, requestHistoricData } = useAppState();
   useEffect(() => {
     requestHistoricData();
   }, [requestHistoricData]);
@@ -156,7 +156,12 @@ export function PlayerComparison() {
   // fields this mode can't fill in, rather than vanishing from a
   // comparison the user explicitly built.
   const comparedPlayers = comparisonResults.map((r) => r.resolved);
-  const noDataNames = comparisonResults.filter((r) => !hasDataForMode(r.resolved)).map((r) => r.live.name);
+  // Only once his figures for the mode are known: not while the historic
+  // dataset loads, nor for a player the server couldn't build (audit
+  // 2026-09-25 player-team-profiles R4).
+  const noDataNames = comparisonResults
+    .filter((r) => modeDataKnown(analysisMode, historicStatus, historicSkippedPlayerIds, r.live.id) && !hasDataForMode(r.resolved))
+    .map((r) => r.live.name);
   const derivedById = useMemo(() => new Map(comparedPlayers.map((p) => [p.id, getPlayerDerivedMetrics(p)])), [comparedPlayers]);
   const minMinutesThreshold = fixedFloorMinutes(analysisMode);
 

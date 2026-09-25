@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { deriveGameweekState, normalizeEvents } from "./gameweek";
+import { deriveGameweekState, normalizeEvents, seasonHasStarted } from "./gameweek";
 import type { RawEvent } from "../types/raw";
 
 function makeEvent(overrides: Partial<RawEvent> & { id: number }): RawEvent {
@@ -76,5 +76,22 @@ describe("normalizeEvents", () => {
       isNext: false,
       isPrevious: true,
     });
+  });
+});
+
+describe("seasonHasStarted (audit 2026-09-25 player-team-profiles R3)", () => {
+  const events = (finished: boolean[]) => normalizeEvents(finished.map((f, i) => makeEvent({ id: i + 1, finished: f })));
+
+  it("is true once any fixture has finished", () => {
+    expect(seasonHasStarted([{ finished: false }, { finished: true }], events([false, false]))).toBe(true);
+  });
+
+  it("is true once a gameweek has finished, even with no fixtures loaded (a failed fixtures request)", () => {
+    expect(seasonHasStarted([], events([true, false]))).toBe(true);
+  });
+
+  it("is false pre-season", () => {
+    expect(seasonHasStarted([{ finished: false }], events([false, false]))).toBe(false);
+    expect(seasonHasStarted([], [])).toBe(false);
   });
 });
