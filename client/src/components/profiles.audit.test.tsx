@@ -145,7 +145,7 @@ describe("Player profile — while historic data is still loading", () => {
 describe("Player profile — gameweek log", () => {
   // L1: whole-number counts show as whole numbers (the rest of the app shows
   // minutes as "90", not "90.00").
-  it("L1: Prime shows 90 minutes as '90', not '90.00'", () => {
+  it("L1: Live Data shows 90 minutes as '90', not '90.00'", () => {
     const { getAllByText } = render(
       <MemoryRouter initialEntries={["/players?player=1"]}>
         <PlayerDetailOverlay />
@@ -178,8 +178,8 @@ describe("Player profile — gameweek log", () => {
         <PlayerDetailOverlay />
       </MemoryRouter>,
     );
-    // 5 gameweeks × 6 points, shown in Prime's Totals row; average 6.0.
-    expect(getAllByText("Totals").length).toBe(2);
+    // 5 gameweeks × 6 points, shown in the Totals row; average 6.0.
+    expect(getAllByText("Totals").length).toBe(1);
     expect(getAllByText("6.0").length).toBeGreaterThan(0);
   });
 });
@@ -376,7 +376,7 @@ describe("In the profile, only seasons of 450+ minutes count toward Historic Ave
     makeSeason({ seasonName: "2025/26", minutes: 1800, totalPoints: 150 }),
   ];
 
-  it("Career History averages the 2 window seasons that reach 450 and marks the 0- and 300-minute ones †", () => {
+  it("Points History averages the 2 window seasons that reach 450 and marks the 0- and 300-minute ones †", () => {
     setApp([makePlayer({ id: 1, name: "Ndiaye", position: "MID", teamId: 1 })], { historicProfiles: profiles({ 1: seasons }) });
     setHistory([gw(1)], seasons);
     const { getByText, getByLabelText } = render(
@@ -384,8 +384,7 @@ describe("In the profile, only seasons of 450+ minutes count toward Historic Ave
         <PlayerDetailOverlay />
       </MemoryRouter>,
     );
-    expect(getByText("Season average (2 seasons)")).toBeTruthy();
-    expect(getByText(/^120 pts/)).toBeTruthy();
+    expect(getByLabelText("Season average over 2 seasons: 120 pts")).toBeTruthy();
     fireEvent.click(getByLabelText("Show season-by-season detail"));
     for (const [season, pattern] of [["2022/23", /^2022\/23/], ["2024/25", /^2024\/25/]] as const) {
       const row = getByText(pattern).closest("tr")!;
@@ -414,18 +413,18 @@ describe("M1: the Team Profile header follows the Data View", () => {
 });
 
 describe("M2: when the historic dataset fails", () => {
-  it("says nothing about the player having no data, and Career History doesn't claim 0 seasons", () => {
+  it("says nothing about the player having no data, and Points History doesn't claim 0 seasons", () => {
     setApp(state.app.players as NormalizedPlayer[], { historicStatus: "error", historicReferenceSeason: null, historicErrorMessage: "502" });
     setHistory([gw(1)], [makeSeason({ seasonName: "2025/26", minutes: 2000, totalPoints: 100 })]);
-    const { queryByText, getByText } = render(
+    const { queryByText, getByLabelText, queryByLabelText } = render(
       <MemoryRouter initialEntries={["/players?player=1"]}>
         <PlayerDetailOverlay />
       </MemoryRouter>,
     );
     expect(queryByText(/No data for Saliba/)).toBeNull();
     expect(queryByText(/Small sample/)).toBeNull();
-    expect(getByText("Season average")).toBeTruthy();
-    expect(queryByText(/\(0 seasons\)/)).toBeNull();
+    expect(getByLabelText("Season average")).toBeTruthy();
+    expect(queryByLabelText(/0 seasons/)).toBeNull();
   });
 
   it("once loaded, a player with no data for the mode is told so, and never pointed at the mode already selected", () => {
@@ -454,17 +453,81 @@ describe("Player profile — Live Data details", () => {
     expect(getByText("Average Minutes Per Match: 60")).toBeTruthy();
   });
 
-  it("L5: Prime's Average row isn't tinted with the Totals row's rank", () => {
+  it("L5: the Average row ranks the per-match figure, not the Totals row's rank", () => {
+    // Saliba joined late: 5 matches in his log (6 pts each, 30 total) while
+    // Arsenal have played 20. Rice has 100 over Chelsea's 20 matches (5.0 a
+    // match). Saliba's total is the lower (red); his 6.0 a match the higher (green).
+    const finished = (id: number, home: number, away: number) =>
+      ({ id, eventId: id, homeTeamId: home, awayTeamId: away, homeScore: 1, awayScore: 0, kickoffTime: null, finished: true, homeDifficulty: 3, awayDifficulty: 3 });
+    setApp(
+      [
+        makePlayer({ id: 1, name: "Saliba", position: "DEF", teamId: 1, teamName: "Arsenal", totalPoints: 30, minutes: 450 }),
+        makePlayer({ id: 2, name: "Rice", position: "DEF", teamId: 2, teamName: "Chelsea", totalPoints: 100, minutes: 1800 }),
+      ],
+      { fixtures: Array.from({ length: 20 }, (_, i) => finished(i + 1, 1, 2)) },
+    );
     const { getAllByText } = render(
       <MemoryRouter initialEntries={["/players?player=1"]}>
         <PlayerDetailOverlay />
       </MemoryRouter>,
     );
-    const prime = getAllByText("Totals")[0].closest("table")!;
-    const [totalsRow, averageRow] = [...prime.querySelectorAll("tfoot tr")] as HTMLElement[];
+    const table = getAllByText("Totals")[0].closest("table")!;
+    const [totalsRow, averageRow] = [...table.querySelectorAll("tfoot tr")] as HTMLElement[];
     const pointsIndex = 1; // "Totals"/"Average" spans the identity columns, so Points is the next cell
-    expect((totalsRow.querySelectorAll("td")[pointsIndex] as HTMLElement).style.background).not.toBe("");
-    expect((averageRow.querySelectorAll("td")[pointsIndex] as HTMLElement).style.background).toBe("");
+    const totalsCell = totalsRow.querySelectorAll("td")[pointsIndex] as HTMLElement;
+    const averageCell = averageRow.querySelectorAll("td")[pointsIndex] as HTMLElement;
+    expect(averageCell.textContent).toBe("6.0");
+    expect(totalsCell.style.background).toBe(asRendered(percentileTint(25)));
+    expect(averageCell.style.background).toBe(asRendered(percentileTint(75)));
+  });
+
+  it("the Average row has no colour with no one to compare against (no finished fixtures)", () => {
+    const { getAllByText } = render(
+      <MemoryRouter initialEntries={["/players?player=1"]}>
+        <PlayerDetailOverlay />
+      </MemoryRouter>,
+    );
+    const averageRow = getAllByText("Average")[0].closest("tr")!;
+    expect((averageRow.querySelectorAll("td")[1] as HTMLElement).style.background).toBe("");
+  });
+
+  it("Live Data is one table — no Supplements", () => {
+    const { queryByText, getAllByText } = render(
+      <MemoryRouter initialEntries={["/players?player=1"]}>
+        <PlayerDetailOverlay />
+      </MemoryRouter>,
+    );
+    expect(getAllByText("Totals")).toHaveLength(1);
+    expect(queryByText("Supplements")).toBeNull();
+    expect(queryByText("Prime")).toBeNull();
+    expect(queryByText("Tackles")).toBeNull();
+  });
+
+  it("Points History's Price column: cheaper than the season's pool is green, dearer is red", () => {
+    // 2024/25 pool (others, 450+ min): £4.5m, £5.0m, £12.0m (the 200-minute £4.0m doesn't count).
+    const others = new Map<number, PlayerSeasonHistory[]>([
+      [2, [makeSeason({ seasonName: "2024/25", minutes: 2000, startCost: 4.5, endCost: 4.5 })]],
+      [3, [makeSeason({ seasonName: "2024/25", minutes: 2000, startCost: 5.0, endCost: 5.0 })]],
+      [4, [makeSeason({ seasonName: "2024/25", minutes: 2000, startCost: 12.0, endCost: 12.0 })]],
+      [5, [makeSeason({ seasonName: "2024/25", minutes: 200, startCost: 4.0, endCost: 4.0 })]],
+    ]);
+    const renderWith = (startCost: number, endCost: number) => {
+      cleanup();
+      const own = [makeSeason({ seasonName: "2024/25", minutes: 2000, totalPoints: 150, startCost, endCost })];
+      setApp(state.app.players as NormalizedPlayer[], { allTimeSeasonsByPlayerId: new Map([...others, [1, own]]) });
+      setHistory([gw(1)], own);
+      const utils = render(
+        <MemoryRouter initialEntries={["/players?player=1"]}>
+          <PlayerDetailOverlay />
+        </MemoryRouter>,
+      );
+      fireEvent.click(utils.getByLabelText("Show season-by-season detail"));
+      return (utils.getByText(/^2024\/25/).closest("tr")!.querySelectorAll("td")[1] as HTMLElement).style.background;
+    };
+    // £4.0m–£4.4m (mid £4.2m) is the cheapest of 4 → 100 − 12.5 = 87.5.
+    expect(renderWith(4.0, 4.4)).toBe(asRendered(percentileTint(87.5)));
+    // £13.0m is the dearest of 4 → 100 − 87.5 = 12.5.
+    expect(renderWith(13.0, 13.0)).toBe(asRendered(percentileTint(12.5)));
   });
 
   it("L4: a goalkeeper's Underlying Numbers have no Defensive Contribution tiles", () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { bandForPercentile, computePositionPercentiles } from "./percentiles";
+import { bandForPercentile, computePositionPercentiles, percentileInPool } from "./percentiles";
 import { makePlayer } from "../test/fixtures";
 
 describe("bandForPercentile", () => {
@@ -91,5 +91,17 @@ describe("computePositionPercentiles", () => {
     const result = computePositionPercentiles(players, (p) => p.totalPoints, 0);
     expect(result.size).toBe(1);
     expect(result.get(1)).toBe(100);
+  });
+});
+
+describe("percentileInPool", () => {
+  it("ranks a value within a pool that includes it, half of ties counting as below", () => {
+    expect(percentileInPool(3, [1, 2, 3, 4])).toBe(62.5);
+    expect(percentileInPool(2, [2, 2])).toBe(50);
+  });
+
+  it("gives no percentile with no one else to compare against", () => {
+    expect(percentileInPool(5, [5])).toBeNull();
+    expect(percentileInPool(5, [])).toBeNull();
   });
 });

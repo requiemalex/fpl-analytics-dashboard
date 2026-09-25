@@ -3398,3 +3398,26 @@ tiles/graphs only:
   small sample gets no colour or bold, the others are coloured among
   themselves, and the Summary doesn't count him.
 - **Last commit with it:** `7da1500`.
+
+### Player profile Live Data "Supplements" table (removed 2026-09-26)
+- **What it did:** a second match-by-match table under Live Data ("Prime"
+  was the first), repeating GW/Opponent/Result and showing Starts, Goals
+  Conceded, Tackles, Clearances/Blocks/Interceptions, Recoveries, Own
+  Goals, Penalties Saved (goalkeepers), Penalties Missed, Yellow Cards and
+  Red Cards, with untinted Totals and Average rows.
+- **Why it went:** the owner found it visual noise that added little. With
+  one table left, the "Prime" heading went too.
+- **Last commit with it:** `974e6da`.
+
+### Career History / FPL Points History charts (replaced 2026-09-26)
+- **What it did:** the player profile's "Career History" and the Team
+  Profile's "FPL Points History" were a Recharts bar chart
+  (`playerProfile/CareerHistoryChart.tsx`) with a y-axis, gridlines, a
+  dashed "Avg N" reference line and a hover tooltip; the trend sat above it
+  as "▲ +92 pts, 2024/25 → 2025/26", and a "Season average (N seasons)"
+  text row below it.
+- **Why it went:** the owner asked for a redesign with less visual noise:
+  both are now "Points History" (`playerProfile/PointsHistory.tsx`) —
+  figures above each bar, no axis or gridlines, a plain average line over
+  the counted seasons, and the trend and averages as icons with hover text.
+- **Last commit with it:** `974e6da`.

@@ -52,3 +52,21 @@ export function computePositionPercentiles(
 
   return result;
 }
+
+/**
+ * Where `value` ranks within `pool` (which must already include it), on the
+ * same 0–100 scale computePositionPercentiles uses: half of any ties count as
+ * below. For a figure that isn't a NormalizedPlayer field — a per-match
+ * average, a past season's price — so the caller builds the pool it means.
+ * Null with no one else in the pool: a rank against nobody isn't a comparison.
+ */
+export function percentileInPool(value: number, pool: number[]): number | null {
+  if (pool.length < 2) return null;
+  let below = 0;
+  let equal = 0;
+  for (const other of pool) {
+    if (other < value) below += 1;
+    else if (other === value) equal += 1;
+  }
+  return ((below + equal / 2) / pool.length) * 100;
+}

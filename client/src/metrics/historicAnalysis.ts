@@ -16,8 +16,8 @@ export const HISTORIC_WINDOW_SEASONS = 4;
  * other, on the same reasoning "last completed season" mode has always
  * used (that season's actual data however little the player played,
  * never treated as noise). Still used for two narrower, still-valid
- * purposes: (1) flagging a season as "light" in the UI (season colour
- * in the Career History chart, the `*` marker in its detail table) so a
+ * purposes: (1) flagging a season as "light" in the UI (the `*` marker
+ * in Points History's detail table) so a
  * dip in the average is legible rather than mysterious, and (2)
  * `expectedPoints.ts`'s forward-looking Expected Points model, which
  * needs a season's RATE to be built from enough minutes to be worth
@@ -67,8 +67,8 @@ export interface HistoricPlayerProfile {
    * Seasons within the window that meet MIN_QUALIFYING_SEASON_MINUTES,
    * oldest first. No longer used to build the average (see
    * <no_survivorship_bias> on windowAverage below) — kept only so the UI
-   * can flag a season as "light" (Career History chart colour, the `*`
-   * marker in its detail table) and for `expectedPoints.ts`'s
+   * can flag a season as "light" (the `*` marker in Points History's
+   * detail table) and for `expectedPoints.ts`'s
    * forward-prediction reliability gate.
    */
   qualifyingSeasons: PlayerSeasonHistory[];

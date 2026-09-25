@@ -24,10 +24,10 @@ import { computeClubSeasonWindow } from "../metrics/teamSeasonHistory";
 import { computeSeasonTrend } from "../metrics/careerMetrics";
 import { relativeCellTint, percentileTint } from "../utils/colorScale";
 import { AnalysisModeToggle } from "./AnalysisModeToggle";
-import { PositionBadge, AvailabilityFlag, availabilityTextClass, FixtureChips, Tooltip } from "./primitives";
+import { PositionBadge, AvailabilityFlag, availabilityTextClass, FixtureChips } from "./primitives";
 import { PercentileRadarChart } from "./PlayerRadarChart";
-import { CareerHistoryChart } from "./playerProfile/CareerHistoryChart";
-import { fmtDecimal, fmtOrdinal, fmtPrice, fmtSigned, DASH } from "../utils/format";
+import { AverageLineIcon, PointsHistoryChart, PointsHistoryHeader, PointsHistoryStats } from "./playerProfile/PointsHistory";
+import { fmtDecimal, fmtOrdinal, fmtPrice, DASH } from "../utils/format";
 import type { NormalizedPlayer, NormalizedTeam } from "../types/normalized";
 
 /**
@@ -156,7 +156,7 @@ export function TeamDetailOverlay() {
   const completedSeasonHistory = useMemo(() => seasonHistory.filter((s) => s.complete), [seasonHistory]);
   const liveSeasonName = seasonHistory.find((s) => !s.complete)?.seasonName ?? null;
   // Same 4-season rolling window (HISTORIC_WINDOW_SEASONS) the player
-  // profile's own Career History average uses — a season outside it
+  // profile's own Points History average uses — a season outside it
   // draws muted-grey on the chart, same treatment as there.
   const { inWindowNames: windowSeasonNames, windowAverage: seasonAverage } = useMemo(
     () => computeClubSeasonWindow(completedSeasonHistory, historicReferenceSeason),
@@ -420,42 +420,26 @@ export function TeamDetailOverlay() {
 
         <div className="profile-section">
           <div className="card">
-            <div className="card-title">FPL Points History</div>
+            <PointsHistoryHeader
+              trend={seasonHistory.length > 0 ? seasonTrend : null}
+              titleHint={`Each bar is the FPL points scored for ${team.name} that season by whoever was playing for the club then — not the current squad. Seasons ${team.name} weren't in the Premier League don't appear.`}
+            />
             {historicStatus === "loading" && seasonHistory.length === 0 ? (
               <p className="page-subtitle">Loading club history…</p>
             ) : seasonHistory.length === 0 ? (
               <p className="page-subtitle">No season data for {team.name}.</p>
             ) : (
               <>
-                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
-                  {seasonTrend.direction !== "unknown" && (
-                    <span
-                      className={`num ${seasonTrend.direction === "up" ? "value-positive" : seasonTrend.direction === "down" ? "value-negative" : "value-muted"}`}
-                      style={{ fontSize: 12.5 }}
-                    >
-                      {seasonTrend.direction === "up" ? "▲" : seasonTrend.direction === "down" ? "▼" : "≈"} {fmtSigned(seasonTrend.pointsDelta, 0)} pts,{" "}
-                      {seasonTrend.previousSeason} → {seasonTrend.latestSeason}
-                    </span>
-                  )}
-                </div>
-
-                <CareerHistoryChart seasons={seasonHistory} countedSeasonNames={windowSeasonNames} currentSeasonName={liveSeasonName} averagePoints={seasonAverage} />
-
-                <div style={{ display: "flex", justifyContent: "center", marginTop: 4 }}>
-                  <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                    <Tooltip label="?">
-                      Each bar is the FPL points scored for {team.name} that season by whoever was playing for the club then — not the current squad.
-                      Seasons {team.name} weren&apos;t in the Premier League don&apos;t appear.
-                    </Tooltip>
-                  </span>
-                </div>
-
-                <div className="stat-row" style={{ marginTop: 10 }}>
-                  <span className="stat-row-name">
-                    Season average ({windowSeasonNames.size} season{windowSeasonNames.size === 1 ? "" : "s"})
-                  </span>
-                  <span className="stat-row-value">{seasonAverage !== null ? `${fmtDecimal(seasonAverage, 0)} pts` : DASH}</span>
-                </div>
+                <PointsHistoryChart seasons={seasonHistory} countedSeasonNames={windowSeasonNames} currentSeasonName={liveSeasonName} averagePoints={seasonAverage} />
+                <PointsHistoryStats
+                  items={[
+                    {
+                      icon: <AverageLineIcon />,
+                      value: fmtDecimal(seasonAverage, 0),
+                      label: `Season average over ${windowSeasonNames.size} season${windowSeasonNames.size === 1 ? "" : "s"}: ${fmtDecimal(seasonAverage, 0)} pts`,
+                    },
+                  ]}
+                />
               </>
             )}
           </div>

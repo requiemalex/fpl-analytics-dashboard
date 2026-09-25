@@ -174,7 +174,7 @@ export function UserGuide() {
             <strong>Historic Average</strong> — averaged across every one of the last 4 completed seasons a player has, light or
             injury-hit ones included: excluding a bad season used to flatter the average by only ever counting the good ones, so it no
             longer filters by minutes at all here (a separate, much narrower minutes bar still exists just to flag a season as "light"
-            in the Career History chart, and for Expected Points' own forward-looking reliability check). Its per-game figures
+            in the Points History season-by-season table, and for Expected Points' own forward-looking reliability check). Its per-game figures
             (PPG, xG/Game and the rest) are the seasons' total divided by their total games, with games counted from the seasons'
             total minutes. Where you can't set minimum minutes yourself (see below), only seasons with at least 450 minutes count: a
             shorter season — a cameo year, one lost to injury, a year out of the Premier League — is a small sample, and none of its
@@ -202,7 +202,7 @@ export function UserGuide() {
         <p className="page-subtitle" style={{ margin: 0 }}>
           One thing that deliberately never changes: price is always today's real price, in every mode — in the identity line (like
           Player Explorer's leftmost column), in the Price column, and in anything worked out from it like Points/£m — because what a
-          player costs right now is what matters for picking a squad. The one exception is Career History's season-by-season table,
+          player costs right now is what matters for picking a squad. The one exception is Points History's season-by-season table,
           which shows what a player cost at the time.
         </p>
       </Section>
@@ -459,11 +459,11 @@ export function UserGuide() {
           clubs (several Premier League sides share red or blue as a primary) are still distinguishable at a glance.
         </p>
         <p className="page-subtitle">
-          <strong>FPL Points History</strong>, below the squad table, is the same bar-chart idea as the player profile's Career
-          History, applied to the club: each bar is the FPL points scored for that club in that season, including this one in
-          progress (dashed), back to 2016/17. The average line/figure uses the same rolling 4-season window the player profile does —
-          a season older than that draws muted-grey, marked † when you hover it, rather than counting toward the average. Seasons the club wasn't in the Premier
-          League simply have no bar.
+          <strong>Points History</strong>, below the squad table, is the same chart as the player profile's Points History, applied
+          to the club: each bar is the FPL points scored for that club in that season, including this one in progress (an outlined
+          bar), back to 2016/17 — hover the title for a reminder. The average line and the figure beside the line icon underneath
+          use the same rolling 4-season window the player profile does — a season older than that draws grey, marked † when you
+          hover it, rather than counting toward the average. Seasons the club wasn't in the Premier League simply have no bar.
         </p>
         <p className="page-subtitle">
           Where the club record comes from: the official FPL API only serves the current season's match-by-match data and wipes it
@@ -479,7 +479,7 @@ export function UserGuide() {
         <p className="page-subtitle" style={{ marginTop: 0 }}>
           Click a player's name almost anywhere in the app to open it; the × or Escape closes it. The profile is split into two zones: "Views" (Actual vs
           Expected, Underlying Numbers, Percentile Radar, Value) resolves per the active analysis mode, while "Live Data" (the
-          gameweek tables and Playing Time) and Career History always show today's actual figures regardless of that toggle — Career
+          gameweek table and Playing Time) and Points History always show today's actual figures regardless of that toggle — Points
           History shows every prior season on record plus this season in progress (marked "(live)", from live data rather than a
           completed season's record; before the season starts it reads zero). The Percentile Radar chart is position-specific — a
           goalkeeper's axes share almost nothing with a forward's — and also resolves per mode. Defenders and midfielders get two
@@ -497,27 +497,29 @@ export function UserGuide() {
           player has no figures at all in the mode you've picked, the profile says so and suggests the Data Views that do have some.
         </p>
         <p className="page-subtitle">
-          <strong>Live Data</strong> is a match-by-match breakdown of the live season, split into two stacked tables — "Prime" and
-          "Supplements" — each repeating GW/Opponent/Result so it stands alone (a double gameweek is two rows). Prime covers Points,
-          Minutes, Goals, Assists, xG, xA, xGI, Clean Sheets, xGC, Defensive Contributions, Saves, BPS; Supplements covers Starts,
-          Goals Conceded, Tackles, Clearances/Blocks/Interceptions, Recoveries, Own Goals, Penalties Saved, Penalties Missed, Yellow
-          Cards, Red Cards. A goalkeeper's row swaps Defensive Contributions out for Saves and Penalties Saved (the only position that
-          can record either); every other position doesn't get those two columns at all, rather than a column that can only ever read
-          zero. Each table gets its own Totals row and Average row — the total divided by the matches listed, including any he didn't
-          play in. Both tables scroll horizontally if needed. Sourced from the same element-summary request as Career History and
-          Playing Time, so they share its loading/error state. Prime's Totals row is also tinted green/red — this player's percentile
-          against others in their own position, live-season figures only, with the Current Season floor. The Average row and
-          Supplements stay untinted: there's no matching per-match figure, or no per-gameweek record, for the rest of the players to
-          compare them against. <strong>Playing Time</strong> — the minutes-per-match gauge, with the number of matches and average
-          minutes spelled out next to it — sits below both tables and above Career History.
+          <strong>Live Data</strong> is a match-by-match table of the live season (a double gameweek is two rows): GW, Opponent and
+          Result, then Points, Minutes, Goals, Assists, xG, xA, xGI, Clean Sheets, xGC, Defensive Contributions and BPS. A
+          goalkeeper's table swaps Defensive Contributions for Saves (FPL's defensive-contribution points exclude goalkeepers, and only
+          they record saves). It scrolls horizontally if needed. The Totals row adds up the matches listed and the Average row
+          divides that by them, including any he didn't play in. Both are tinted green/red against others in his position, using
+          live-season figures and the Current Season floor: Totals by season total, Average by per-match figure — everyone else's
+          season total divided by the matches their club has played — so a late signing's strong per-match numbers show green
+          even while his total is still low. Sourced from the same request as Points History and Playing Time, so they share
+          its loading/error state. <strong>Playing Time</strong> — the minutes-per-match gauge, with the number of matches and average
+          minutes spelled out next to it — sits below the table and above Points History.
         </p>
         <p className="page-subtitle">
-          Career History's average is the last 4 completed seasons, as in Historic Average. In the season-by-season table (the
-          chevron below the chart), <strong>*</strong> marks a light season (fewer minutes than usual) that still counts, and{" "}
-          <strong>†</strong> a season that doesn't: outside the 4-season window, or under 450 minutes. Hovering a bar on the chart
-          uses the same †. The table is tinted the same green/red way as the rest of the profile, but relative to this player's own
-          other seasons shown in the table, not the wider player pool — there's no "other players" comparison for a single player's
-          career.
+          <strong>Points History</strong> has a bar per season with its points above it: green for the seasons counted in the
+          average, grey for those that aren't, and this season in progress as an outline. The line across the green bars is the
+          average — the last 4 completed seasons, as in Historic Average. Top right is the change between the last two completed
+          seasons (hover it to see which). The icons underneath are the per-season averages: points, minutes, goals and assists —
+          hover any of them for what it is. The chevron beside them opens the season-by-season table, where <strong>*</strong>
+          marks a light season (fewer minutes than usual) that still counts, and <strong>†</strong> a season that doesn't: outside
+          the 4-season window, or under 450 minutes. Hovering a bar on the chart uses the same †. Most of the table is tinted
+          relative to this player's own other seasons shown, not the wider player pool. Price is the exception: each season's price
+          (the middle of its start and end price) is compared with every other player's that season who played 450+ minutes (90 for
+          this season) — cheaper is greener, dearer is redder. Past seasons compare with the players still in FPL today, and a
+          season of his under those minutes has no colour.
         </p>
       </Section>
 

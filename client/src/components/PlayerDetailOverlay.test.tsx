@@ -25,6 +25,7 @@ vi.mock("../state/AppStateContext", () => ({
     historicRefreshing: false,
     refreshHistoricData: () => {},
     historicProfiles: new Map(),
+    allTimeSeasonsByPlayerId: new Map(),
     currentSeasonHasStarted: true,
     requestHistoricData: () => {},
   }),

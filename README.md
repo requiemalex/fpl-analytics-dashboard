@@ -146,7 +146,7 @@ substituted from another statistic.
 availability, and a player's name/club/position are **always live**, in
 every analysis mode — including the Price column and everything derived
 from price, such as Points/£m (`<price_always_live>`,
-`resolvePlayerStats.ts`). The one exception is the Career History
+`resolvePlayerStats.ts`). The one exception is the Points History
 season-by-season table, which shows what a player cost at the time.
 
 ### Analysis modes
@@ -457,11 +457,17 @@ word as an initial that must start a name word (`utils/playerSearch.ts`).
 
 **Player profile** (`components/PlayerDetailOverlay.tsx`) — has its own
 mode toggle, and is a fixed-floor section (see "Minimum minutes"). Live
-Data (the Prime/Supplements gameweek tables) and Playing Time are always
-live data; rows are keyed by fixture, so a double gameweek is two rows.
-Only Prime's Totals row is tinted (live percentile): the Average row
-divides by the matches in this player's log, which the pool has no
-equivalent of. Career History uses the profile's Historic Average (window
+Data (the gameweek table) and Playing Time are always live data; rows are
+keyed by fixture, so a double gameweek is two rows. Its Totals row is
+tinted by live within-position percentile. Its Average row (total ÷
+matches in his log) is tinted by where that per-match figure ranks among
+his position's, each other player's being their live season total ÷
+their club's finished matches (`metrics/profileComparisons.ts`,
+`perMatchPositionPercentile`) — his own entry replaced by the figure shown,
+Current Season floor for both; no colour if no one else qualifies (e.g.
+fixtures failed to load). Only columns with a whole-pool season total are
+shown, so both rows can be compared. Points History (`playerProfile/PointsHistory.tsx`,
+shared with the Team Profile: bars with their own figures, no axis) uses the profile's Historic Average (window
 seasons of 450+ minutes; the others are marked †); its "(live)" season is resolved as Current Season,
 so pre-season it reads 0, not FPL's carried-over totals. The gameweek-history
 fetch (`usePlayerHistory`) is lazy, retries network failures twice, and
@@ -469,9 +475,16 @@ drops responses for a player no longer selected.
 - The profile asks for the historic dataset only while it's open (both
   overlays are mounted on every page). Until that data has loaded — or if
   it failed, which the Data View toggle reports with Retry — it says
-  nothing about the player having no data; Career History then shows its
+  nothing about the player having no data; Points History then shows its
   seasons with no window marks and no average. "No data in this mode"
   suggests only the other Data Views that do have figures for him.
+- Points History's season-by-season table tints each column against this
+  player's own seasons, except Price: a season's mid price
+  ((start + end) ÷ 2, `seasonMidPrice`) ranked, lower better, among every
+  other player's that season at or above the fixed floor, all positions
+  (`seasonPricePools` over `allTimeSeasonsByPlayerId`, so only players
+  still in FPL; the live season against today's prices at the Current
+  Season floor). A season of his under the floor has no colour.
 - Both profiles are modal dialogs (`role="dialog"`, focus moved in and kept
   there, then returned: `state/useDialogFocus.ts`) and close on Escape
   (`useEscapeLayer`). An address naming a player or club that doesn't exist
