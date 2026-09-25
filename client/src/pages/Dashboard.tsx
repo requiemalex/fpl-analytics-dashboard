@@ -26,18 +26,18 @@ import {
   isRatePerMinutesColumnKey,
   type SummaryTileScope,
 } from "../components/summaryTileMetrics";
-import { useSummaryTiles, createSummaryTile, isPackagedDefaultTile, MAX_SUMMARY_TILES, type TileDirection, type SummaryTileConfig } from "../state/useSummaryTiles";
+import { useSummaryTiles, createSummaryTile, MAX_SUMMARY_TILES, type TileDirection, type SummaryTileConfig } from "../state/useSummaryTiles";
 import {
   useDashboardGraphs,
   createDashboardGraph,
   defaultGraphDirection,
-  isPackagedDefaultGraph,
   MAX_DASHBOARD_GRAPHS,
   type DashboardGraphType,
   type DashboardGraphConfig,
 } from "../state/useDashboardGraphs";
-import { useSavedDashboardViews, isDefaultSavedView, MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE, type SavedDashboardView } from "../state/useSavedDashboardViews";
+import { useSavedDashboardViews, isDefaultViewSelected, MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE, type SavedDashboardView } from "../state/useSavedDashboardViews";
 import { fmtDate, fmtTimeAgo } from "../utils/format";
+import { useEscapeLayer } from "../state/useEscapeLayer";
 import type { NormalizedPlayer } from "../types/normalized";
 
 /** Same cap for both, and reused for graphs too (see MAX_TILE_PLAYERS/MAX_TILE_TEAMS usage below) — a tile or graph tracking a handful of specific players/teams is meant for close comparison, not a second way to build a big list. */
@@ -69,19 +69,20 @@ export function applyRateStatFloor(players: NormalizedPlayer[], dataView: Analys
  * The players one player-scope tile or graph ranks or plots: its picked
  * players if it has any (no criteria, no floor), otherwise its criteria
  * applied to the pool — plus the rate-stat floor when it shows a per-game
- * rate and is a packaged default (see applyRateStatFloor above).
+ * rate and the packaged Default view is the one on screen (see
+ * applyRateStatFloor above).
  */
 export function playersForDashboardItem(
   item: { dataView: AnalysisMode; criteria: GlobalScoutingFilters | null; playerIds: number[] | null },
   pool: NormalizedPlayer[],
-  { showsRate, isPackagedDefault }: { showsRate: boolean; isPackagedDefault: boolean },
+  { showsRate, defaultViewShown }: { showsRate: boolean; defaultViewShown: boolean },
 ): NormalizedPlayer[] {
   if (item.playerIds && item.playerIds.length > 0) {
     const idSet = new Set(item.playerIds);
     return pool.filter((p) => idSet.has(p.id));
   }
   const players = filterPlayers(pool, item.criteria ?? DEFAULT_FILTERS, item.dataView, true);
-  return showsRate && isPackagedDefault ? applyRateStatFloor(players, item.dataView) : players;
+  return showsRate && defaultViewShown ? applyRateStatFloor(players, item.dataView) : players;
 }
 
 export function topN<T extends { value: number | null }>(rowsIn: T[], n: number, ascending = false): T[] {
@@ -439,10 +440,7 @@ export function Dashboard() {
     () => savedDashboardViews.views.filter((v) => v.scope === tileView),
     [savedDashboardViews.views, tileView],
   );
-  const selectedViewIsDefault = useMemo(() => {
-    const view = visibleSavedViews.find((v) => v.id === selectedViewId);
-    return view ? isDefaultSavedView(view) : false;
-  }, [visibleSavedViews, selectedViewId]);
+  const selectedViewIsDefault = useMemo(() => isDefaultViewSelected(visibleSavedViews, selectedViewId), [visibleSavedViews, selectedViewId]);
 
   // Keeps the currently-selected non-Default view's storage in lock-step
   // with whatever's actually on screen — every add/remove/reorder of a
@@ -564,6 +562,15 @@ export function Dashboard() {
     }
   }
 
+  // The rate-stat floor is for the packaged Default view only (audit
+  // 2026-09-25 M1): decided by which view is on screen for Players, not by
+  // a tile's id — a view saved before v1.35.0 can hold copies of the
+  // Default's tiles, ids and all, that the user has since edited (R2).
+  const playerDefaultViewShown = useMemo(
+    () => isDefaultViewSelected(savedDashboardViews.views, savedDashboardViews.selectedViewIds.player),
+    [savedDashboardViews.views, savedDashboardViews.selectedViewIds.player],
+  );
+
   const tileRows = useMemo(() => {
     return tilesState.tiles
       .map((tile) => {
@@ -572,7 +579,7 @@ export function Dashboard() {
           if (!metric) return { tile, kind: "unavailable" as const };
           const sourcePlayers = playersForDashboardItem(tile, resolvedByMode[tile.dataView], {
             showsRate: !!metric.ratePerMinutes,
-            isPackagedDefault: isPackagedDefaultTile(tile),
+            defaultViewShown: playerDefaultViewShown,
           });
           const rows = sourcePlayers.map((p) => ({ player: p, derived: getPlayerDerivedMetrics(p) }));
           const valueRows: TopListRow[] = rows.map((r) => ({ player: r.player, value: metric.getValue(r.player, r.derived) }));
@@ -593,7 +600,7 @@ export function Dashboard() {
         }));
         return { tile, metric, kind: "team" as const, topRows: topN(valueRows, 5, tile.direction === "asc") };
       });
-  }, [tilesState.tiles, resolvedByMode, teamAggregatesByMode]);
+  }, [tilesState.tiles, resolvedByMode, teamAggregatesByMode, playerDefaultViewShown]);
 
   // Split for rendering only — reordering still operates on the one
   // underlying `tilesState.tiles` array regardless of scope (drag-drop
@@ -615,7 +622,7 @@ export function Dashboard() {
           if (!yColumn || (graph.chartType === "scatter" && !xColumn)) return { graph, kind: "unavailable" as const };
           const sourcePlayers = playersForDashboardItem(graph, resolvedByMode[graph.dataView], {
             showsRate: isRatePerMinutesColumnKey(graph.yMetricKey) || (graph.chartType === "scatter" && isRatePerMinutesColumnKey(graph.xMetricKey)),
-            isPackagedDefault: isPackagedDefaultGraph(graph),
+            defaultViewShown: playerDefaultViewShown,
           });
           const scatterData: ScatterPoint[] = [];
           const barData: BarDatum[] = [];
@@ -674,7 +681,7 @@ export function Dashboard() {
           barData,
         };
       });
-  }, [graphsState.graphs, resolvedByMode, teamAggregatesByMode]);
+  }, [graphsState.graphs, resolvedByMode, teamAggregatesByMode, playerDefaultViewShown]);
 
   const visibleGraphRows = useMemo(() => graphRows.filter((g) => g.graph.scope === tileView), [graphRows, tileView]);
 
@@ -971,18 +978,12 @@ export function Dashboard() {
 
   // Escape closes whichever dialog is open, discarding it like Cancel.
   const anyDialogOpen = showAddTileModal || showAddGraphModal || showCreateViewModal || showDeleteViewConfirm;
-  useEffect(() => {
-    if (!anyDialogOpen) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key !== "Escape") return;
-      setShowAddTileModal(false);
-      setShowAddGraphModal(false);
-      setShowCreateViewModal(false);
-      setShowDeleteViewConfirm(false);
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [anyDialogOpen]);
+  useEscapeLayer(anyDialogOpen, () => {
+    setShowAddTileModal(false);
+    setShowAddGraphModal(false);
+    setShowCreateViewModal(false);
+    setShowDeleteViewConfirm(false);
+  });
 
   return (
     <div>

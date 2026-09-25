@@ -174,7 +174,9 @@ export function UserGuide() {
             <strong>Historic Average</strong> — averaged across every one of the last 4 completed seasons a player has, light or
             injury-hit ones included: excluding a bad season used to flatter the average by only ever counting the good ones, so it no
             longer filters by minutes at all here (a separate, much narrower minutes bar still exists just to flag a season as "light"
-            in the Career History chart, and for Expected Points' own forward-looking reliability check).
+            in the Career History chart, and for Expected Points' own forward-looking reliability check). Its per-game figures
+            (PPG, xG/Game and the rest) are the seasons' total divided by their total games, with games counted from the seasons'
+            total minutes.
           </li>
           <li>
             <strong>Current Season</strong> — this season's live figures. Pre-season, or before a player's team has played, the
@@ -290,12 +292,14 @@ export function UserGuide() {
             <strong>Filter</strong> — click the ▾ on a header's edge for an Excel-style filter (Less than or equal to / Greater than or
             equal to / Equal to). Confirm with Enter (the button or the key); discard with Cancel or Escape. Numbers are compared as the
             table shows them, so Equal to 15.3 finds a player shown as 15.3. A range nothing can meet (Greater than or equal to above
-            Less than or equal to) can't be applied. Hiding a column clears its filter.
+            Less than or equal to) can't be applied. Hiding a column clears its filter, and stops the table sorting by it. If a filter
+            leaves nobody, the columns stay on screen so you can change it from its own ▾.
           </li>
           <li>
             Column widths auto-fit the table to the available space — on load, whenever the visible columns change, and when the window
-            is resized. A column you've resized by hand keeps its width until Reset; the others share the rest. Next 5 Fixtures is
-            always given room for all five fixtures.
+            is resized. A column you've resized by hand keeps its width until Reset; the others share the rest, so widening one narrows
+            the others. Next 5 Fixtures is always given room for all five fixtures. When the columns can't all fit, the table scrolls
+            sideways.
           </li>
           <li><strong>Reset Columns</strong> restores the packaged defaults — order, visibility, and width.</li>
           <li>Each cell is tinted green/red relative to the rest of its column on screen (comparative colouring).</li>
@@ -307,10 +311,15 @@ export function UserGuide() {
             accent-insensitive (typing "odegaard" or "sesko" finds "Ødegaard" or "Šeško"), matches first and last name in any order
             (so "fernandes bruno" finds Bruno Fernandes, not just "bruno fernandes"), accepts a name typed as FPL shows it
             ("B.Fernandes"), and tolerates small typos on longer names. The Columns picker closes on Escape or a click outside it.
+            With several things open, Escape closes the one opened last.
           </li>
           <li>
-            Arriving from a club's "Player Rankings" link (Teams or the Team Profile) sets the Team column's filter to that club — shown
-            on the column like any other filter, so you can change it to another club or clear it.
+            Arriving from a club's "Player Rankings" link (Teams or the Team Profile) shows all of that club's players: it clears the
+            search and any other column filters, then sets the Team column's filter to that club — shown on the column like any other
+            filter, so you can change it to another club or clear it.
+          </li>
+          <li>
+            Player Explorer starts fresh each visit: columns, widths, sort and filters go back to the defaults when you leave the page.
           </li>
           <li><strong>Export CSV</strong> downloads exactly what's on screen — the same rows and visible columns, in the same order, with the same formatted values.</li>
           <li>

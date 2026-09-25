@@ -1,5 +1,6 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { columnFilterProblem, type ColumnFilterSpec } from "../state/useColumnFilters";
+import { useEscapeLayer } from "../state/useEscapeLayer";
 
 export function ColumnFilterControl({
   isOpen,
@@ -23,15 +24,9 @@ export function ColumnFilterControl({
 }) {
   const problem = columnFilterProblem(filterDraft);
 
-  // Escape closes the open popover like Cancel, wherever focus is.
-  useEffect(() => {
-    if (!isOpen) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onCancel();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isOpen, onCancel]);
+  // Escape closes the open popover like Cancel, wherever focus is — unless
+  // something opened after it (a player profile) is on top.
+  useEscapeLayer(isOpen, onCancel);
 
   const iconLabel = isActive ? "Filter active on this column — click to edit" : "Filter this column";
   return (

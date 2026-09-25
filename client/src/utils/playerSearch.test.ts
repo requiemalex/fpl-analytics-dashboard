@@ -50,3 +50,12 @@ describe("matchesPlayerSearch — the behaviour the User Guide promises", () => 
     expect(find("e")).toEqual(["Haaland"]);
   });
 });
+
+describe("matchesPlayerSearch — curly apostrophes (audit 2026-09-25)", () => {
+  const ORILEY = makePlayer({ id: 8, position: "MID", name: "O'Riley", firstName: "Matt", lastName: "O'Riley" });
+  it("a name pasted with a curly apostrophe ('O’Riley') finds the same player as the straight one", () => {
+    expect(matchesPlayerSearch(ORILEY, "O’Riley")).toBe(true);
+    expect(matchesPlayerSearch(ORILEY, "o'riley")).toBe(true);
+    expect(matchesPlayerSearch(ORILEY, "O‘Riley")).toBe(true);
+  });
+});

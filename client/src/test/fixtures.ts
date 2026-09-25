@@ -1,8 +1,9 @@
 import type { NormalizedPlayer, NormalizedTeam, Position, PlayerSeasonHistory } from "../types/normalized";
+import { estimatedGamesFromMinutes } from "../metrics/calculations";
 
 /** Shared builder for a fully-populated NormalizedPlayer, so individual test files only need to specify the fields they care about. Not imported by any production code. */
 export function makePlayer(overrides: Partial<NormalizedPlayer> & { id: number; position: Position }): NormalizedPlayer {
-  return {
+  const player: NormalizedPlayer = {
     code: 1000 + overrides.id,
     name: `Player ${overrides.id}`,
     firstName: "First",
@@ -16,6 +17,7 @@ export function makePlayer(overrides: Partial<NormalizedPlayer> & { id: number; 
     pointsPerGame: null,
     epNext: null,
     minutes: 900,
+    estimatedGames: null,
     starts: null,
     goals: 0,
     assists: 0,
@@ -49,6 +51,9 @@ export function makePlayer(overrides: Partial<NormalizedPlayer> & { id: number; 
     priceChange: null,
     ...overrides,
   };
+  // Games follow minutes, as normalizePlayers sets them, unless a test gives its own.
+  if (overrides.estimatedGames === undefined) player.estimatedGames = player.minutes === null ? null : estimatedGamesFromMinutes(player.minutes);
+  return player;
 }
 
 export function makeTeam(overrides: Partial<NormalizedTeam> & { id: number }): NormalizedTeam {

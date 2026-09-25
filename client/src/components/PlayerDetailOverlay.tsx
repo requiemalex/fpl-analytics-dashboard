@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useEscapeLayer } from "../state/useEscapeLayer";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { usePlayerHistory } from "../state/usePlayerHistory";
@@ -254,16 +255,10 @@ export function PlayerDetailOverlay() {
     return result;
   }, [player, liveResolvedPlayers]);
 
-  // Escape closes the profile, like its × button. Re-registered with the
-  // current setter so it never restores an out-of-date address.
-  useEffect(() => {
-    if (!player) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setPlayerId(null);
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [player, setPlayerId]);
+  // Escape closes the profile, like its × button (the current setter, so it
+  // never restores an out-of-date address) — and only the profile, when
+  // something opened before it is still open underneath.
+  useEscapeLayer(!!player, () => setPlayerId(null));
 
   if (!player) return null;
 

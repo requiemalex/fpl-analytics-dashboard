@@ -1,5 +1,5 @@
 import type { NormalizedPlayer, Position } from "../types/normalized";
-import { perGame } from "./calculations";
+import { perEstimatedGame } from "./calculations";
 
 /**
  * FPL clean-sheet points by position — verified against the current
@@ -21,12 +21,12 @@ export const CLEAN_SHEET_POINTS_BY_POSITION: Record<Position, number> = {
 export function cleanSheetPointsPerGame(player: NormalizedPlayer): number | null {
   if (player.cleanSheets === null) return null;
   const pointsPerCleanSheet = CLEAN_SHEET_POINTS_BY_POSITION[player.position];
-  return perGame(player.cleanSheets * pointsPerCleanSheet, player.minutes);
+  return perEstimatedGame(player.cleanSheets * pointsPerCleanSheet, player.estimatedGames);
 }
 
 /** Total bonus points per game. Null if the player hasn't played, or has no data for the selected mode. */
 export function bonusPerGame(player: NormalizedPlayer): number | null {
-  return perGame(player.bonus, player.minutes);
+  return perEstimatedGame(player.bonus, player.estimatedGames);
 }
 
 /**

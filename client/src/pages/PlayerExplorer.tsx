@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { useColumnCustomization } from "../state/useColumnCustomization";
-import { useSortSpec, compareSortValues } from "../state/useSortSpec";
+import { useSortSpec, compareSortValues, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
 import { useColumnFilters, isColumnFilterActive, EMPTY_COLUMN_FILTER, type ColumnFilterSpec } from "../state/useColumnFilters";
 import { ColumnFilterControl } from "../components/ColumnFilterControl";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
@@ -16,6 +16,7 @@ import { fmtPercent, fmtPrice } from "../utils/format";
 import { relativeCellTint } from "../utils/colorScale";
 import { downloadCsv } from "../utils/csvExport";
 import { matchesPlayerSearch } from "../utils/playerSearch";
+import { useEscapeLayer } from "../state/useEscapeLayer";
 import type { NormalizedPlayer, Position } from "../types/normalized";
 
 const GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE", "ADVANCED"];
@@ -65,11 +66,13 @@ const EXPLORER_MIN_COLUMN_WIDTHS: Record<string, number> = { [FIXTURES_COLUMN_KE
 /** Position sorts in pitch order, not alphabetically: the first (descending) click gives GKP, DEF, MID, FWD. */
 const POSITION_SORT_RANK: Record<Position, number> = { GKP: 4, DEF: 3, MID: 2, FWD: 1 };
 
+const EXPLORER_DEFAULT_SORT: SortSpec[] = [{ key: "totalPoints", direction: "desc" }];
+
 /** This page's own default visible-column order for the user-configurable columns only — deliberately NOT the shared DEFAULT_VISIBLE_COLUMNS (Team Building also uses that one; changing it would silently change Team Building's defaults too). Ownership/Price/Team/Position are never part of this list — see IDENTITY_COLUMNS above. */
 const EXPLORER_DEFAULT_VISIBLE_COLUMNS = ["totalPoints", "pointsPerGame", "goals", "assists", "pointsPerMillion", "xG", "xA", "xGI", "minutes"];
 
 export function PlayerExplorer() {
-  const { players, teamsById, fixtures, advancedFieldAvailability, historicProfiles, currentSeasonHasStarted, requestHistoricData } = useAppState();
+  const { players, teamsById, fixtures, advancedFieldAvailability, historicProfiles, historicStatus, currentSeasonHasStarted, requestHistoricData } = useAppState();
   useEffect(() => {
     requestHistoricData();
   }, [requestHistoricData]);
@@ -87,7 +90,10 @@ export function PlayerExplorer() {
   // on the column, changeable and clearable like any other — then leaves
   // the address, so nothing re-applies it later. An unknown id is dropped.
   // Seeded at mount (so the first frame is already filtered) and handled
-  // by the effect below when it arrives while the page is open.
+  // by the effect below when it arrives while the page is open, where it
+  // also clears the search and every other column filter: the link means
+  // "this club's players", the same from the Team Profile as from Teams
+  // (which remounts the page, so starts clean anyway) — audit 2026-09-25 R4.
   const teamFilterFromParam = (): ColumnFilterSpec | null => {
     const team = teamsById.get(Number(searchParams.get("team")));
     return team ? { ...EMPTY_COLUMN_FILTER, category: team.shortName } : null;
@@ -99,7 +105,11 @@ export function PlayerExplorer() {
   useEffect(() => {
     if (!searchParams.has("team")) return;
     const seed = teamFilterFromParam();
-    if (seed) columnFiltersState.setColumnFilter(TEAM_COLUMN_KEY, seed);
+    if (seed) {
+      setSearch("");
+      columnFiltersState.resetAllFilters();
+      columnFiltersState.setColumnFilter(TEAM_COLUMN_KEY, seed);
+    }
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -133,7 +143,7 @@ export function PlayerExplorer() {
   }, [resolvedPlayers, search]);
 
   const [showColumnPopover, setShowColumnPopover] = useState(false);
-  const { sort, handleHeaderClick } = useSortSpec([{ key: "totalPoints", direction: "desc" }]);
+  const { sort, setSort, handleHeaderClick } = useSortSpec(EXPLORER_DEFAULT_SORT);
 
   const {
     visibleColumns,
@@ -146,31 +156,28 @@ export function PlayerExplorer() {
     reorderColumn,
     startResize,
     fitToBox,
-  } = useColumnCustomization(EXPLORER_DEFAULT_VISIBLE_COLUMNS, EXPLORER_MIN_COLUMN_WIDTHS);
+  } = useColumnCustomization(EXPLORER_DEFAULT_VISIBLE_COLUMNS, EXPLORER_MIN_COLUMN_WIDTHS, () => handleFitToBox());
   const columnPickerRef = useRef<HTMLDivElement>(null);
 
-  // A filter on a column the user hides goes with it — it would otherwise
-  // keep cutting the table down with nothing on screen to say why.
+  // A filter or sort on a column the user hides goes with it — either would
+  // otherwise keep shaping the table with nothing on screen to say why.
   function handleToggleColumn(key: string) {
-    if (visibleColumns.includes(key)) columnFiltersState.clearFilter(key);
+    if (visibleColumns.includes(key)) {
+      columnFiltersState.clearFilter(key);
+      setSort((prev) => sortWithoutHiddenColumn(prev, key, EXPLORER_DEFAULT_SORT));
+    }
     toggleColumn(key);
   }
 
   // The Columns picker closes on Escape or a click anywhere outside it.
+  useEscapeLayer(showColumnPopover, () => setShowColumnPopover(false));
   useEffect(() => {
     if (!showColumnPopover) return;
     function onMouseDown(e: MouseEvent) {
       if (!columnPickerRef.current?.contains(e.target as Node)) setShowColumnPopover(false);
     }
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setShowColumnPopover(false);
-    }
     document.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onMouseDown);
-      window.removeEventListener("keydown", onKeyDown);
-    };
+    return () => document.removeEventListener("mousedown", onMouseDown);
   }, [showColumnPopover]);
   const tableWrapRef = useRef<HTMLDivElement>(null);
   const stickyColRef = useRef<HTMLTableCellElement>(null);
@@ -261,15 +268,15 @@ export function PlayerExplorer() {
     fitToBox(container.clientWidth - fixedWidth - 4);
   }
 
-  // Column widths auto-fit the table's available width — on first load
-  // (once there are rows to measure against), whenever the set of visible
+  // Column widths auto-fit the table's available width — on first load,
+  // when the table empties or fills again (the Player column's width
+  // follows the names in it), after a drag-resize, whenever the set of visible
   // columns changes (so toggling a column on/off never leaves the table
   // overflowing or oddly narrow), and on window resize. Deliberately keyed
   // on visibleColumns.length rather than the array itself: a plain reorder
   // (drag-and-drop) doesn't change the column count, so it shouldn't
   // re-trigger this and wipe out a manual per-column resize.
   useEffect(() => {
-    if (sortedRows.length === 0) return;
     handleFitToBox();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortedRows.length > 0, visibleColumns.length]);
@@ -443,14 +450,8 @@ export function PlayerExplorer() {
       )}
 
       <div className="page-fill-body">
-        {sortedRows.length === 0 ? (
-          <div className="empty-state">
-            <h3>No players match your filters</h3>
-            <p>Try clearing the search or a column filter. This is a filter result, not an API error.</p>
-          </div>
-        ) : (
         <div className="table-wrap" ref={tableWrapRef}>
-          <table className="data-table">
+          <table className="data-table resizable-columns">
             <thead>
               <tr>
                 <th className="sticky-col" ref={stickyColRef} onClick={() => handleHeaderClick("name", false)} style={{ paddingRight: 6 }}>
@@ -575,6 +576,25 @@ export function PlayerExplorer() {
               </tr>
             </thead>
             <tbody>
+              {/* The header stays when nothing matches, so every column's ▾ is still there to change or clear its filter. */}
+              {sortedRows.length === 0 && (
+                <tr className="empty-row">
+                  <td colSpan={1 + IDENTITY_COLUMNS.length + columnsInOrder.length}>
+                    {analysisMode !== "live" && historicStatus === "loading" ? (
+                      // A number filter fails every "—", and every historic figure is "—" until the build finishes.
+                      <div className="empty-state">
+                        <h3>Building the historic dataset…</h3>
+                        <p>This runs once per session and can take up to a minute — it'll be quick after that.</p>
+                      </div>
+                    ) : (
+                      <div className="empty-state">
+                        <h3>No players match your filters</h3>
+                        <p>Try clearing the search or a column filter. This is a filter result, not an API error.</p>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              )}
               {sortedRows.map(({ player, derived }) => (
                 <tr key={player.id} onClick={() => setSearchParams((prev) => ({ ...Object.fromEntries(prev), player: String(player.id) }))}>
                   <td className="sticky-col" style={{ paddingRight: 6 }}>
@@ -651,7 +671,6 @@ export function PlayerExplorer() {
             </tbody>
           </table>
         </div>
-        )}
       </div>
       <div className="count-pill" style={{ marginTop: 10 }}>
         {sortedRows.length.toLocaleString("en-GB")}/{resolvedPlayers.length.toLocaleString("en-GB")} Players

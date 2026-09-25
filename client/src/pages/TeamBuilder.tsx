@@ -5,7 +5,7 @@ import { useSavedSquads, MAX_SAVED_SQUADS } from "../state/useSavedSquads";
 import { useColumnCustomization, MIN_COLUMN_WIDTH, type UseColumnCustomization } from "../state/useColumnCustomization";
 import { useColumnFilters, isColumnFilterActive } from "../state/useColumnFilters";
 import { ColumnFilterControl } from "../components/ColumnFilterControl";
-import { useSortSpec, compareSortValues } from "../state/useSortSpec";
+import { useSortSpec, compareSortValues, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
 import { SQUAD_RULES, createBlankSquad, type SavedSquad } from "../types/team";
 import { validateSquad, validateStartingXI, canAddPlayer } from "../metrics/squadRules";
 import { resolvePlayerStats, resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
@@ -40,6 +40,7 @@ const PICKER_HISTORIC_MODE_OPTIONS: { mode: AnalysisMode; label: string }[] = [
 ];
 /** Own% is a normal Historic/Raw column now (resizable, comparative-coloured), matching Player Explorer — it used to be excluded and pinned separately. */
 const HISTORIC_RAW_COLUMNS = PLAYER_COLUMNS;
+const PICKER_DEFAULT_SORT: SortSpec[] = [{ key: "expFplOfficial", direction: "desc" }];
 /** Price defaults off since squad budget always uses live price regardless of this toggle, so a historic price here could read as more relevant to squad-building than it actually is — still selectable manually if wanted. Ownership defaults ON, matching Player Explorer. */
 const DEFAULT_HISTORIC_RAW_COLUMN_KEYS = DEFAULT_VISIBLE_COLUMNS.filter((k) => k !== "price");
 /** Fixed width of the one remaining pinned-left column — see the .picker-sticky-player CSS. */
@@ -186,9 +187,14 @@ export function TeamBuilder() {
   const [showPredictiveColumnPopover, setShowPredictiveColumnPopover] = useState(false);
   const columnFiltersState = useColumnFilters();
   const [showHistoricRawColumnPopover, setShowHistoricRawColumnPopover] = useState(false);
-  const predictiveCols = useColumnCustomization(DEFAULT_PREDICTIVE_COLUMN_KEYS);
-  const historicRawCols = useColumnCustomization(DEFAULT_HISTORIC_RAW_COLUMN_KEYS);
-  const { sort: pickerSort, handleHeaderClick: handlePickerHeaderClick } = useSortSpec([{ key: "expFplOfficial", direction: "desc" }]);
+  // Always the current render's handlePickerFitToBox (assigned below it):
+  // the window-resize listener is registered once, and the drag-resize end
+  // callback is kept by the column hook, so both would otherwise run the
+  // first render's copy, which sizes the budget for that render's columns.
+  const pickerFitRef = useRef<() => void>(() => {});
+  const predictiveCols = useColumnCustomization(DEFAULT_PREDICTIVE_COLUMN_KEYS, {}, () => pickerFitRef.current());
+  const historicRawCols = useColumnCustomization(DEFAULT_HISTORIC_RAW_COLUMN_KEYS, {}, () => pickerFitRef.current());
+  const { sort: pickerSort, setSort: setPickerSort, handleHeaderClick: handlePickerHeaderClick } = useSortSpec(PICKER_DEFAULT_SORT);
   const pickerTableWrapRef = useRef<HTMLDivElement>(null);
 
   // Keep activeId pointing at a real squad even after a delete/first-load.
@@ -452,10 +458,14 @@ export function TeamBuilder() {
     predictiveCols.fitToBox(perColumn * predictiveCols.visibleColumns.length);
     historicRawCols.fitToBox(perColumn * historicRawCols.visibleColumns.length);
   }
+  pickerFitRef.current = handlePickerFitToBox;
 
-  /** Hiding a column also drops its filter, so nothing keeps filtering the table from a column you can't see. */
+  /** Hiding a column also drops its filter and its sort, so nothing keeps shaping the table from a column you can't see. */
   function togglePickerColumn(cols: UseColumnCustomization, key: string) {
-    if (cols.visibleColumns.includes(key)) columnFiltersState.clearFilter(key);
+    if (cols.visibleColumns.includes(key)) {
+      columnFiltersState.clearFilter(key);
+      setPickerSort((prev) => sortWithoutHiddenColumn(prev, key, PICKER_DEFAULT_SORT));
+    }
     cols.toggleColumn(key);
   }
 
@@ -494,7 +504,7 @@ export function TeamBuilder() {
 
   useEffect(() => {
     function onResize() {
-      handlePickerFitToBox();
+      pickerFitRef.current();
     }
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
@@ -1100,7 +1110,7 @@ export function TeamBuilder() {
         )}
 
         <div className="table-wrap" ref={pickerTableWrapRef} style={{ maxHeight: 420 }}>
-          <table className="data-table compact">
+          <table className="data-table compact resizable-columns">
             <thead>
               <tr>
                 <th

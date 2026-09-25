@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { compareSortValues } from "./useSortSpec";
+import { compareSortValues, sortWithoutHiddenColumn, type SortSpec } from "./useSortSpec";
 
 describe("compareSortValues — null handling", () => {
   it("'last' (default): a null always sorts after every real value, in EITHER direction", () => {
@@ -41,5 +41,23 @@ describe("compareSortValues — real-value comparison", () => {
   it("works for strings the same way JS's < operator does, for the shared Player-name column", () => {
     expect(compareSortValues("Alan", "Bob", "asc")).toBe(-1);
     expect(compareSortValues("Bob", "Alan", "asc")).toBe(1);
+  });
+});
+
+describe("sortWithoutHiddenColumn (audit 2026-09-25: a hidden column kept ordering the table)", () => {
+  const byPoints: SortSpec[] = [{ key: "totalPoints", direction: "desc" }];
+  it("drops the hidden column from the sort, keeping the rest in order", () => {
+    const sort: SortSpec[] = [{ key: "xG", direction: "desc" }, { key: "goals", direction: "asc" }];
+    expect(sortWithoutHiddenColumn(sort, "xG", byPoints)).toEqual([{ key: "goals", direction: "asc" }]);
+  });
+  it("falls back to the page's default sort when that was the only one", () => {
+    expect(sortWithoutHiddenColumn([{ key: "xG", direction: "asc" }], "xG", byPoints)).toEqual(byPoints);
+  });
+  it("hiding the default sort's own column leaves no sort rather than sorting by a hidden column", () => {
+    expect(sortWithoutHiddenColumn(byPoints, "totalPoints", byPoints)).toEqual([]);
+  });
+  it("hiding a column that isn't sorted leaves the sort exactly as it was", () => {
+    const sort: SortSpec[] = [{ key: "xG", direction: "desc" }];
+    expect(sortWithoutHiddenColumn(sort, "goals", byPoints)).toBe(sort);
   });
 });

@@ -62,6 +62,14 @@ export interface NormalizedPlayer {
   /** FPL's own official expected-points prediction for the next gameweek — not derived by this app. See metrics/expectedPoints.ts. */
   epNext: number | null;
   minutes: number | null;
+  /**
+   * Estimated games behind `minutes` — what every per-game rate divides by
+   * (<per_game_not_per_90>, calculations.ts). One season: minutes ÷ 90,
+   * rounded up. Historic Average: games per season from the window's TOTAL
+   * minutes (<games_from_total_minutes>), so it can be fractional. Set by
+   * resolvePlayerStats for each analysis mode; null when `minutes` is.
+   */
+  estimatedGames: number | null;
   starts: number | null;
   goals: number | null;
   assists: number | null;

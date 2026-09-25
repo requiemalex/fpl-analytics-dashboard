@@ -98,3 +98,22 @@ describe("useColumnCustomization — 2026-09-25 audit fixes", () => {
     expect(result.current.columnWidths).toEqual({ totalPoints: 100, goals: 100, assists: 100, minutes: 100 });
   });
 });
+
+describe("useColumnCustomization — 2026-09-25 audit, phase 3 fixes", () => {
+  it("R1: a column can't be dragged below its own minimum (Next 5 Fixtures keeps room for five fixtures)", () => {
+    const { result } = renderHook(() => useColumnCustomization(["totalPoints", "fixtures"], { fixtures: 190 }));
+    dragResize(result, "fixtures", -60); // 100 → floored at 190
+    expect(result.current.columnWidths.fixtures).toBe(190);
+    dragResize(result, "totalPoints", -60); // 100 → floored at MIN_COLUMN_WIDTH
+    expect(result.current.columnWidths.totalPoints).toBe(MIN_COLUMN_WIDTH);
+  });
+
+  it("R1: ending a drag calls the page's re-fit, so the other columns make room instead of the table overflowing", () => {
+    let fits = 0;
+    const { result } = renderHook(() => useColumnCustomization(DEFAULTS, {}, () => fits++));
+    dragResize(result, "goals", 60);
+    expect(fits).toBe(1);
+    act(() => result.current.fitToBox(400));
+    expect(result.current.columnWidths).toEqual({ totalPoints: 80, goals: 160, assists: 80, minutes: 80 });
+  });
+});

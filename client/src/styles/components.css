@@ -165,6 +165,18 @@ table.data-table {
   font-size: 12.5px;
 }
 
+/* A table whose columns the user can resize (Player Explorer, Team
+   Building's Add Players). At width: 100% the browser ignores every set
+   width once they add up to more than the box and squeezes each column to
+   its content, so a drag did nothing and number columns fell below the
+   64px minimum (audit 2026-09-25, R1). Here the table is as wide as its
+   columns ask for, never narrower than the box, and scrolls sideways
+   inside .table-wrap when they don't fit. */
+table.data-table.resizable-columns {
+  width: max-content;
+  min-width: 100%;
+}
+
 table.data-table th {
   position: sticky;
   top: 0;

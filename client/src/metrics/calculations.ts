@@ -66,8 +66,32 @@ export function xGIPerMillion(xGI: number | null, priceInMillions: number | null
  * estimating from a cumulative total rather than counting actual
  * appearances; see README.
  */
-function estimatedGamesFromMinutes(minutes: number): number {
+export function estimatedGamesFromMinutes(minutes: number): number {
   return minutes > 0 ? Math.max(1, Math.ceil(minutes / 90)) : 0;
+}
+
+/**
+ * <games_from_total_minutes>: estimated games per season over several
+ * seasons (Historic Average) — the TOTAL minutes across them, rounded up
+ * to games once, then shared across the seasons. Rounding each season's
+ * average minutes up instead adds up to a whole extra game per season for
+ * a player with light seasons (Reed 2022/23–2025/26: 13 vs 12.25), which
+ * understated every per-game rate there (audit 2026-09-25, V1). A
+ * per-season stat divided by this is exactly total stat ÷ total games.
+ */
+export function estimatedGamesPerSeason(totalMinutes: number, seasons: number): number {
+  return seasons > 0 ? estimatedGamesFromMinutes(totalMinutes) / seasons : 0;
+}
+
+/**
+ * Total ÷ an already-estimated number of games (a resolved player's
+ * `estimatedGames`, set once per analysis mode by resolvePlayerStats).
+ * Zero games returns null (an undefined rate, not a fake zero) per
+ * <zero_handling>.
+ */
+export function perEstimatedGame(total: number | null, games: number | null): number | null {
+  if (total === null || games === null || games === 0) return null;
+  return total / games;
 }
 
 /**
@@ -78,10 +102,14 @@ function estimatedGamesFromMinutes(minutes: number): number {
  * one deliberate exception to that.
  */
 export function perGame(total: number | null, minutes: number | null): number | null {
-  if (total === null || minutes === null) return null;
-  const games = estimatedGamesFromMinutes(minutes);
-  if (games === 0) return null;
-  return total / games;
+  if (minutes === null) return null;
+  return perEstimatedGame(total, estimatedGamesFromMinutes(minutes));
+}
+
+/** estimatedPointsPerGame() for an already-estimated number of games: 0 games (0 minutes) divides by 1, so 0 points in 0 minutes is a real 0.0 (<ppg_vs_per90>). */
+export function pointsPerEstimatedGame(totalPoints: number | null, games: number | null): number | null {
+  if (totalPoints === null || games === null) return null;
+  return safeDivide(totalPoints, games > 0 ? games : 1);
 }
 
 /**
@@ -97,9 +125,8 @@ export function perGame(total: number | null, minutes: number | null): number | 
  * in the historic modes and than every other per-game column.
  */
 export function estimatedPointsPerGame(totalPoints: number | null, minutes: number | null): number | null {
-  if (totalPoints === null || minutes === null) return null;
-  const games = minutes > 0 ? estimatedGamesFromMinutes(minutes) : 1;
-  return safeDivide(totalPoints, games);
+  if (minutes === null) return null;
+  return pointsPerEstimatedGame(totalPoints, estimatedGamesFromMinutes(minutes));
 }
 
 /**

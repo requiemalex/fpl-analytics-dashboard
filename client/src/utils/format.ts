@@ -4,9 +4,20 @@ function isDisplayable(n: number | null | undefined): n is number {
   return n !== null && n !== undefined && Number.isFinite(n);
 }
 
+/**
+ * The one rounding every number cell uses (fmtNumber, fmtPrice, fmtPercent)
+ * and that column filters compare against (roundAsDisplayed) — so a value
+ * always filters as it's shown. Price and percent used to round with
+ * toFixed, which can disagree with this on a value like 1.005 (audit
+ * 2026-09-25).
+ */
+function fixedDecimals(n: number, decimals: number, useGrouping: boolean): string {
+  return n.toLocaleString("en-GB", { minimumFractionDigits: decimals, maximumFractionDigits: decimals, useGrouping });
+}
+
 export function fmtNumber(n: number | null | undefined, decimals = 0): string {
   if (!isDisplayable(n)) return DASH;
-  return n.toLocaleString("en-GB", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  return fixedDecimals(n, decimals, true);
 }
 
 export function fmtDecimal(n: number | null | undefined, decimals = 2): string {
@@ -15,17 +26,17 @@ export function fmtDecimal(n: number | null | undefined, decimals = 2): string {
 
 /** The number a cell formatted by fmtNumber/fmtDecimal shows at `decimals` places (same rounding), e.g. 15.3197 → 15.3 — so a column filter can compare what the user sees, not the hidden precision. */
 export function roundAsDisplayed(n: number, decimals: number): number {
-  return Number(n.toLocaleString("en-GB", { minimumFractionDigits: decimals, maximumFractionDigits: decimals, useGrouping: false }));
+  return Number(fixedDecimals(n, decimals, false));
 }
 
 export function fmtPrice(n: number | null | undefined): string {
   if (!isDisplayable(n)) return DASH;
-  return `\u00a3${n.toFixed(1)}m`;
+  return `\u00a3${fixedDecimals(n, 1, false)}m`;
 }
 
 export function fmtPercent(n: number | null | undefined, decimals = 1): string {
   if (!isDisplayable(n)) return DASH;
-  return `${n.toFixed(decimals)}%`;
+  return `${fixedDecimals(n, decimals, false)}%`;
 }
 
 export function fmtSigned(n: number | null | undefined, decimals = 2): string {

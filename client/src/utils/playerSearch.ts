@@ -43,8 +43,8 @@ export function matchesPlayerSearch(player: NormalizedPlayer, query: string): bo
   );
 }
 
-/** Splits both names and the query, so a name typed as FPL displays it ("B.Fernandes", "O'Brien") breaks into the same words the player's name does. */
-const WORD_SEPARATORS = /[\s.'-]+/;
+/** Splits both names and the query, so a name typed as FPL displays it ("B.Fernandes", "O'Brien") breaks into the same words the player's name does. Curly apostrophes count too, so a name pasted from a web page ("O’Riley") still matches. */
+const WORD_SEPARATORS = /[\s.'’‘ʼ-]+/;
 
 const COMBINING_DIACRITICS = /[̀-ͯ]/g;
 

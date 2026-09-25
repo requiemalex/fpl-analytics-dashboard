@@ -2,6 +2,7 @@ import type { RawBootstrapStatic, RawElement, RawElementType, RawTeam } from "..
 import type { NormalizedPlayer, Position, PriceChangeInfo } from "../types/normalized";
 import { parseNumericString, parseNumberOrNull } from "./parseNumeric";
 import { detectAdvancedFieldAvailability, type AdvancedFieldAvailability } from "./fieldAvailability";
+import { estimatedGamesFromMinutes } from "../metrics/calculations";
 
 function normalizePriceChange(el: RawElement, availability: AdvancedFieldAvailability): PriceChangeInfo | null {
   if (!availability.price_change_percent) return null;
@@ -83,6 +84,7 @@ function normalizeOnePlayer(
     pointsPerGame: null,
     epNext: parseNumericString(el.ep_next),
     minutes: el.minutes,
+    estimatedGames: estimatedGamesFromMinutes(el.minutes),
     starts: availability.starts ? parseNumberOrNull(el.starts) : null,
     goals: el.goals_scored,
     assists: el.assists,

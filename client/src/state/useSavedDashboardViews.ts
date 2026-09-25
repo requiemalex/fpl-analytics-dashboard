@@ -66,6 +66,12 @@ export function isDefaultSavedView(view: Pick<SavedDashboardView, "id">): boolea
   return DEFAULT_SAVED_VIEW_IDS.has(view.id);
 }
 
+/** Whether the view selected for a scope (`selectedId`, from selectedViewIds) is that scope's Default — i.e. whether what's on screen is the packaged, uneditable set. */
+export function isDefaultViewSelected(views: Pick<SavedDashboardView, "id">[], selectedId: string | undefined): boolean {
+  const view = views.find((v) => v.id === selectedId);
+  return view ? isDefaultSavedView(view) : false;
+}
+
 function defaultViewIdForScope(scope: SummaryTileScope): string {
   return `default-view-${scope}`;
 }

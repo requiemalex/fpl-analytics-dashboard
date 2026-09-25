@@ -1,6 +1,6 @@
 import type { NormalizedPlayer } from "../types/normalized";
 import type { HistoricPlayerProfile } from "./historicAnalysis";
-import { perGame, estimatedPointsPerGame } from "./calculations";
+import { perGame, estimatedPointsPerGame, estimatedGamesFromMinutes, pointsPerEstimatedGame } from "./calculations";
 
 export type AnalysisMode = "live" | "lastSeason" | "historicAverage";
 
@@ -88,6 +88,7 @@ function nullPerformanceFields(player: NormalizedPlayer): NormalizedPlayer {
     totalPoints: null,
     pointsPerGame: null,
     minutes: null,
+    estimatedGames: null,
     starts: null,
     goals: null,
     assists: null,
@@ -127,6 +128,7 @@ export function resolvePlayerStats(
       return {
         ...player,
         pointsPerGame: estimatedPointsPerGame(player.totalPoints, player.minutes),
+        estimatedGames: player.minutes === null ? null : estimatedGamesFromMinutes(player.minutes),
         xGPerGame: perGame(player.xG, player.minutes),
         xAPerGame: perGame(player.xA, player.minutes),
         xGIPerGame: perGame(player.xGI, player.minutes),
@@ -140,6 +142,7 @@ export function resolvePlayerStats(
       totalPoints: 0,
       pointsPerGame: null,
       minutes: 0,
+      estimatedGames: 0,
       starts: 0,
       goals: 0,
       assists: 0,
@@ -170,6 +173,7 @@ export function resolvePlayerStats(
       totalPoints: s.totalPoints,
       pointsPerGame: estimatedPointsPerGame(s.totalPoints, s.minutes),
       minutes: s.minutes,
+      estimatedGames: estimatedGamesFromMinutes(s.minutes),
       starts: s.starts,
       goals: s.goals,
       assists: s.assists,
@@ -197,8 +201,12 @@ export function resolvePlayerStats(
   return {
     ...player,
     totalPoints: avg.avgPointsPerSeason,
-    pointsPerGame: estimatedPointsPerGame(avg.avgPointsPerSeason, avg.avgMinutesPerSeason),
+    // Games from the window's total minutes (<games_from_total_minutes>), so
+    // PPG is total points ÷ total games — the same games figure every other
+    // Historic Average per-game rate uses.
+    pointsPerGame: pointsPerEstimatedGame(avg.avgPointsPerSeason, avg.avgEstimatedGamesPerSeason),
     minutes: avg.avgMinutesPerSeason,
+    estimatedGames: avg.avgEstimatedGamesPerSeason,
     starts: avg.avgStartsPerSeason,
     goals: avg.avgGoalsPerSeason,
     assists: avg.avgAssistsPerSeason,

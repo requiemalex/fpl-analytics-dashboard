@@ -89,7 +89,10 @@ expensive-to-fetch data: players, teams, fixtures, events, historic profiles
 controlled `AnalysisModeToggle`/`FiltersBar`; nothing a page does can change
 another page. The one cross-page hand-off (Teams → Player Explorer filtered
 to a club) goes through the `?team=<id>` URL param, which Player Explorer
-turns into its Team column filter and then removes from the address. Overlays use URL params
+turns into its Team column filter and then removes from the address. Arriving
+while the page is already open (the Team Profile's link) also clears the
+search and every other column filter, so both routes show the whole club.
+Overlays use URL params
 too: `?player=<id>` (player profile), `?teamProfile=<id>` (team profile),
 `?players=id,id` (Player Comparison selection).
 
@@ -150,10 +153,15 @@ Every analysis page has the same three-way toggle, resolved through
   the player has, light seasons included (`<no_survivorship_bias>`,
   `metrics/historicAnalysis.ts`). `MIN_QUALIFYING_SEASON_MINUTES` (900) only
   marks a season "light" in charts and gates Expected Points' reliability.
-  A stat missing for some seasons (DC before 2024/25) is averaged over the
-  seasons that have it, and its per-game rate uses those same seasons'
-  minutes (`<matched_season_rates>`, `metrics/careerMetrics.ts`) — never
-  the whole window's minutes, which inflated DC/Game.
+  Per-game rates count games from the **total** minutes across the
+  seasons, rounded up once (`<games_from_total_minutes>`,
+  `metrics/calculations.ts`), so each is total stat ÷ total games — never
+  the average season's minutes rounded up, which added up to a game per
+  season for light seasons. A stat missing for some seasons (DC before
+  2024/25) is averaged over the seasons that have it, and its per-game rate
+  uses those same seasons' minutes (`<matched_season_rates>`,
+  `metrics/careerMetrics.ts`) — never the whole window's minutes, which
+  inflated DC/Game.
 - **Current Season** — live bootstrap fields. Before any club has played
   (`currentSeasonHasStarted`), FPL still carries last season's totals in
   those fields, so cumulative stats are zeroed (a true zero, not unknown)
@@ -180,12 +188,14 @@ is **kept, not dropped or zeroed**: every performance field comes back
   can set Min Minutes or a Mins filter: a Dashboard tile or graph the user
   builds, and Player Explorer. A one-cameo player can top them; raising Min
   Minutes is the user's call.
-- Only the packaged Default view's tiles and graphs, which the user can't
-  edit, add a floor when they show a per-game rate: 90 minutes in Current
-  Season, 450 otherwise (`applyRateStatFloor`, `playersForDashboardItem`,
-  `isPackagedDefaultTile`/`isPackagedDefaultGraph`). None of the current
-  defaults shows one, so today it changes nothing on screen. Specifically
-  picked players are never floored.
+- Only the packaged Default view, which the user can't edit, adds a floor
+  to a tile or graph showing a per-game rate: 90 minutes in Current Season,
+  450 otherwise (`applyRateStatFloor`, `playersForDashboardItem`). It's
+  decided by the Players Default view being the one selected
+  (`isDefaultViewSelected`), not by a tile's id: views saved before v1.35.0
+  can hold copies of Default tiles, ids included. None of the current
+  defaults shows a per-game rate, so today it changes nothing on screen.
+  Specifically picked players are never floored.
 - Min Minutes takes any whole number as typed; the arrow buttons step by 90.
 - Player Explorer has no Min Minutes control — its MINS column filter does
   that job.
@@ -247,10 +257,15 @@ per-90 inflates tiny samples (2 points in 1 minute = 180 per 90). FPL's own
 `*_per_90` fields are deliberately not read, and neither is its
 `points_per_game`, which divides by appearances (a 10-minute cameo is a
 whole game) — PPG is `estimatedPointsPerGame()` in Current Season too.
+`resolvePlayerStats` sets each resolved player's `estimatedGames` once per
+Data View, and every per-game rate (Def. Reward/Game and Goals/Assists per
+game included) divides by it.
 
 ```
 estimatedGames      = minutes > 0 ? max(1, ceil(minutes / 90)) : 0   (any appearance counts as a game)
-X / Game            = X / estimatedGames
+  Historic Average  = estimatedGames(total minutes over the seasons) / seasons   (per season; may be fractional)
+X / Game            = X / estimatedGames      (so Historic Average X / Game = total X / total games)
+PPG                 = totalPoints / estimatedGames, or / 1 with 0 minutes (0 points in 0 minutes is 0.0)
 Points / £m         = totalPoints / price;   xG, xA, xGI / £m likewise
 Minutes / Point     = minutes / totalPoints; Minutes / Goal, / Assist likewise
 Goals − xG, Assists − xA, (Goals + Assists) − xGI
@@ -333,20 +348,36 @@ obvious from the UI.
 (`state/useColumnFilters.ts`, `components/ColumnFilterControl.tsx`) are
 shared engines, reused by Team Building's Add Players table. Search is
 accent- and order-insensitive with small-typo tolerance, splits the
-query at dots/apostrophes/hyphens as it does names, and treats a one-letter
+query at dots/apostrophes (curly ones too)/hyphens as it does names, and treats a one-letter
 word as an initial that must start a name word (`utils/playerSearch.ts`).
 - Filters compare a value **as displayed**: each column declares its
   `decimals` and the value is rounded the way its cell is
   (`roundAsDisplayed`) before ≤/≥/=. A range nothing can meet is refused
-  (`columnFilterProblem`). Hiding a column clears its filter (`clearFilter`).
+  (`columnFilterProblem`). Hiding a column clears its filter (`clearFilter`)
+  and drops it from the sort (`sortWithoutHiddenColumn`; the page's default
+  sort takes over if nothing's left).
+- When nothing matches, the table keeps its header (so each column's ▾ can
+  still change its filter) with the message in the body — "Building the
+  historic dataset…" instead while a historic view is still loading, when
+  a number filter fails every "—".
 - Auto-fit (`fitToBox`) keeps any width set by dragging, until Reset, and
   shares the rest; a table can give a column a minimum (Player Explorer's
-  Next 5 Fixtures: 190px). It reads current columns through refs, so a
-  once-registered window-resize listener stays correct. Player Explorer
-  measures its fixed Player/Own%/Price/Team/Position block (hand-set widths
-  win over squeezed ones) and fits a second time once the new widths have
-  laid out. If hand-set widths plus the 64px minimums can't fit, the
-  browser shrinks every column to the window.
+  Next 5 Fixtures: 190px), which also floors dragging. It runs again when a
+  drag ends, so widening one column narrows the others. It reads current
+  columns through refs, so a once-registered window-resize listener stays
+  correct. Player Explorer measures its fixed Player/Own%/Price/Team/Position
+  block (hand-set widths win over squeezed ones) and fits a second time once
+  the new widths have laid out.
+- Resizable tables (`.resizable-columns`: Player Explorer, Add Players) are
+  `width: max-content; min-width: 100%`: when the columns' widths and
+  minimums can't fit (e.g. Next 5 Fixtures at the desktop's default 1440px
+  window), the table scrolls sideways inside `.table-wrap` with every width
+  honoured. At `width: 100%` the browser ignored all set widths once they
+  overflowed, so dragging did nothing and columns fell below 64px.
+- Player Explorer keeps no saved data: columns, order, widths, sort, filters
+  and Data View reset when you leave the page (by design).
+- Escape closes only the most recently opened layer — column filter, Columns
+  picker, Dashboard dialog or player profile (`state/useEscapeLayer.ts`).
 - Text sorts with an accent- and case-insensitive collator; Player
   Explorer's Position sorts in pitch order (GKP, DEF, MID, FWD first).
 

@@ -57,3 +57,18 @@ describe("computeCareerAverages — <matched_season_rates>", () => {
     expect(avg.defensiveContributionPerGame).toBeNull();
   });
 });
+
+describe("computeCareerAverages — games from total minutes (audit 2026-09-25 V1)", () => {
+  it("rounds the window's TOTAL minutes up to games once, instead of rounding each average season up", () => {
+    // 100 + 89 = 189 minutes = 3 games, 1.5 a season. Rounding the 94.5-minute average up gave 2 a season.
+    const avg = computeCareerAverages([season("2024/25", 100, 20), season("2025/26", 89, 5)]);
+    expect(avg.avgEstimatedGamesPerSeason).toBe(1.5);
+    expect(avg.defensiveContributionPerGame).toBeCloseTo(25 / 3, 10);
+  });
+
+  it("no minutes at all is 0 games, and a rate over it stays null", () => {
+    const avg = computeCareerAverages([season("2024/25", 0, 0)]);
+    expect(avg.avgEstimatedGamesPerSeason).toBe(0);
+    expect(avg.defensiveContributionPerGame).toBeNull();
+  });
+});

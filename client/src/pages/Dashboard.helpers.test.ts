@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { applyRateStatFloor, gameweekDisplay, playersForDashboardItem, LIVE_RATE_STAT_MIN_MINUTES, RATE_STAT_MIN_MINUTES } from "./Dashboard";
-import { DEFAULT_SUMMARY_TILES, createSummaryTile, isPackagedDefaultTile } from "../state/useSummaryTiles";
-import { DEFAULT_DASHBOARD_GRAPHS, createDashboardGraph, isPackagedDefaultGraph } from "../state/useDashboardGraphs";
+import { DEFAULT_SUMMARY_TILES } from "../state/useSummaryTiles";
+import { isDefaultViewSelected } from "../state/useSavedDashboardViews";
 import { DEFAULT_FILTERS } from "../state/scoutingFilters";
 import { makePlayer } from "../test/fixtures";
 import { rankBars } from "../components/charts/BarTopN";
@@ -95,31 +95,33 @@ describe("playersForDashboardItem — the per-game minutes floor is for the Defa
   const item = { dataView: "lastSeason" as const, criteria: DEFAULT_FILTERS, playerIds: null };
 
   it("a tile or graph the user built ranks everyone its own criteria let through, even on a per-game metric", () => {
-    const ids = playersForDashboardItem(item, pool, { showsRate: true, isPackagedDefault: false }).map((p) => p.id);
+    const ids = playersForDashboardItem(item, pool, { showsRate: true, defaultViewShown: false }).map((p) => p.id);
     expect(ids).toEqual([1, 2]);
   });
 
   it("its own Min Minutes is how the user sets a floor", () => {
     const withMin = { ...item, criteria: { ...DEFAULT_FILTERS, minMinutes: 450 } };
-    expect(playersForDashboardItem(withMin, pool, { showsRate: true, isPackagedDefault: false }).map((p) => p.id)).toEqual([2]);
+    expect(playersForDashboardItem(withMin, pool, { showsRate: true, defaultViewShown: false }).map((p) => p.id)).toEqual([2]);
   });
 
   it("a packaged default showing a per-game metric still gets the floor", () => {
-    expect(playersForDashboardItem(item, pool, { showsRate: true, isPackagedDefault: true }).map((p) => p.id)).toEqual([2]);
-    expect(playersForDashboardItem(item, pool, { showsRate: false, isPackagedDefault: true }).map((p) => p.id)).toEqual([1, 2]);
+    expect(playersForDashboardItem(item, pool, { showsRate: true, defaultViewShown: true }).map((p) => p.id)).toEqual([2]);
+    expect(playersForDashboardItem(item, pool, { showsRate: false, defaultViewShown: true }).map((p) => p.id)).toEqual([1, 2]);
   });
 
   it("picked players are never floored", () => {
     const picked = { ...item, playerIds: [1] };
-    expect(playersForDashboardItem(picked, pool, { showsRate: true, isPackagedDefault: true }).map((p) => p.id)).toEqual([1]);
+    expect(playersForDashboardItem(picked, pool, { showsRate: true, defaultViewShown: true }).map((p) => p.id)).toEqual([1]);
   });
 
-  it("only the packaged Default ids count as packaged defaults", () => {
-    expect(DEFAULT_SUMMARY_TILES.every(isPackagedDefaultTile)).toBe(true);
-    expect(DEFAULT_DASHBOARD_GRAPHS.every(isPackagedDefaultGraph)).toBe(true);
-    const { id: _tileId, ...tileConfig } = DEFAULT_SUMMARY_TILES[0];
-    const { id: _graphId, ...graphConfig } = DEFAULT_DASHBOARD_GRAPHS[0];
-    expect(isPackagedDefaultTile(createSummaryTile(tileConfig))).toBe(false);
-    expect(isPackagedDefaultGraph(createDashboardGraph(graphConfig))).toBe(false);
+  it("R2: 'Default view' means the Default view is selected — not a tile carrying a packaged id, as views saved before v1.35.0 can", () => {
+    // A user view saved by the old Save View: a copy of the Default's
+    // default-points tile, since edited to PPG (Edit keeps the id).
+    const oldUserView = { id: "view-old", tiles: [{ ...DEFAULT_SUMMARY_TILES[0], metricKey: "pointsPerGame" }] };
+    const views = [{ id: "default-view-player" }, oldUserView];
+    expect(isDefaultViewSelected(views, "view-old")).toBe(false);
+    expect(isDefaultViewSelected(views, "default-view-player")).toBe(true);
+    expect(isDefaultViewSelected(views, "view-deleted")).toBe(false);
+    expect(isDefaultViewSelected(views, undefined)).toBe(false);
   });
 });

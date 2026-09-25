@@ -44,10 +44,10 @@ export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
     apiFields: ["total_points", "minutes"],
     suppliedByFPL: false,
     derived: true,
-    formula: "total points / estimated games played (minutes ÷ 90, rounded UP so any appearance beyond a full match counts as another game, floored at 1 appearance) — the same games figure as every other per-game rate, in every Data View.",
+    formula: "total points / estimated games played (minutes ÷ 90, rounded UP so any appearance beyond a full match counts as another game, floored at 1 appearance) — the same games figure as every other per-game rate, in every Data View. Historic Average: the seasons' total points / games from their total minutes.",
     units: "points/game",
     caveats:
-      "Not FPL's own points_per_game, which divides by appearances (a 10-minute cameo counts as a whole game). Games are estimated from minutes, so this is close for regular starters and less precise for players used mainly as substitutes. A player with 0 minutes shows 0.0.",
+      "Not FPL's own points_per_game, which divides by appearances (a 10-minute cameo counts as a whole game). Games are estimated from minutes, so this is close for regular starters and less precise for players used mainly as substitutes. A player with 0 minutes and 0 points shows 0.0 once the season has started; pre-season, Current Season PPG is — for everyone.",
     availabilityNote: "Always available.",
   }),
   goals: def({

@@ -1,7 +1,7 @@
 import React from "react";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, fireEvent, cleanup, within } from "@testing-library/react";
-import { MemoryRouter, useLocation } from "react-router-dom";
+import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { PlayerExplorer } from "./PlayerExplorer";
 import { makePlayer, makeTeam } from "../test/fixtures";
 import { downloadCsv } from "../utils/csvExport";
@@ -19,6 +19,9 @@ const PLAYERS = [
   makePlayer({ id: 4, name: "Bob", position: "FWD", teamId: 2, teamShortName: "CHE", totalPoints: 10, price: 6 }),
 ];
 
+/** What the mocked app state reports for the historic build — a test can set "loading" to see the page mid-build. */
+const historic = vi.hoisted(() => ({ status: "ready" as "idle" | "loading" | "ready" | "error" }));
+
 vi.mock("../state/AppStateContext", () => ({
   useAppState: () => ({
     players: PLAYERS,
@@ -27,7 +30,7 @@ vi.mock("../state/AppStateContext", () => ({
     fixtures: [],
     advancedFieldAvailability: null,
     historicProfiles: new Map(),
-    historicStatus: "ready",
+    historicStatus: historic.status,
     historicErrorMessage: null,
     historicSkippedPlayerIds: [],
     historicRefreshing: false,
@@ -39,22 +42,36 @@ vi.mock("../state/AppStateContext", () => ({
 
 vi.mock("../utils/csvExport", () => ({ downloadCsv: vi.fn() }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  historic.status = "ready";
+});
 
 /** Shows the router's current query string, so a test can check what's left in the address. */
 function LocationProbe() {
   return <output data-testid="location-search">{useLocation().search}</output>;
 }
 
+/** A link somewhere else in the app (the Team Profile's) that navigates while Player Explorer stays open. */
+function NavigateButton({ to }: { to: string }) {
+  const navigate = useNavigate();
+  return (
+    <button type="button" onClick={() => navigate(to)}>
+      go {to}
+    </button>
+  );
+}
+
 /** Renders the page at `url` and switches to Current Season, so every row uses the fixture players' own (live) figures. */
-function renderExplorer(url = "/players") {
+function renderExplorer(url = "/players", { currentSeason = true } = {}) {
   const utils = render(
     <MemoryRouter initialEntries={[url]}>
       <PlayerExplorer />
       <LocationProbe />
+      <NavigateButton to="/players?team=2" />
     </MemoryRouter>,
   );
-  fireEvent.click(utils.getByRole("button", { name: "Current Season" }));
+  if (currentSeason) fireEvent.click(utils.getByRole("button", { name: "Current Season" }));
   return utils;
 }
 
@@ -233,5 +250,58 @@ describe("Player Explorer — phase 2 regression tests (2026-09-25 audit)", () =
   it("L9: each column's filter button has an accessible name", () => {
     const { container } = renderExplorer();
     expect(header(container, "Points").querySelector("button.column-filter-icon")?.getAttribute("aria-label")).toBe("Filter this column");
+  });
+});
+
+describe("Player Explorer — phase 3 findings (2026-09-25 audit, 3-regression.md)", () => {
+  it("R4: a club link followed while the page is open shows that club's players — the search and other filters are cleared", () => {
+    const { container, getByRole, getByLabelText, getByTestId } = renderExplorer();
+    applyNumericFilter(container, "Points", 1, "30");
+    fireEvent.change(getByLabelText("Search players"), { target: { value: "o" } });
+    fireEvent.click(getByRole("button", { name: "go /players?team=2" }));
+    expect(rowNames(container)).toEqual(["Ángel", "Bob"]);
+    expect((getByLabelText("Search players") as HTMLInputElement).value).toBe("");
+    expect(header(container, "Points").querySelector("button.column-filter-icon")?.className).not.toContain("active");
+    expect(header(container, "Team").querySelector("button.column-filter-icon")?.className).toContain("active");
+    expect(getByTestId("location-search").textContent).toBe("");
+  });
+
+  it("R3: with a number filter on while the historic data is still building, it says so — not 'No players match'", () => {
+    historic.status = "loading";
+    const { container } = renderExplorer("/players", { currentSeason: false }); // Last Completed Season: every figure "—" until built
+    applyNumericFilter(container, "Points", 1, "1");
+    expect(container.querySelector(".empty-state h3")?.textContent).toBe("Building the historic dataset…");
+  });
+
+  it("R12: when a filter leaves nobody, the columns stay on screen so that filter can be changed from its own ▾", () => {
+    const { container } = renderExplorer();
+    applyNumericFilter(container, "Points", 1, "1000");
+    expect(container.querySelector(".empty-state h3")?.textContent).toBe("No players match your filters");
+    const pointsFilter = header(container, "Points").querySelector("button.column-filter-icon");
+    expect(pointsFilter?.className).toContain("active");
+    applyNumericFilter(container, "Points", 1, "");
+    expect(rowNames(container)).toEqual(["Zubimendi", "Ødegaard", "Ángel", "Bob"]);
+  });
+
+  it("R7: hiding the column the table is sorted by drops that sort — the default (Points) takes over", () => {
+    const { container, getByRole } = renderExplorer();
+    fireEvent.click(header(container, "Pts/£m")); // descending: 15.3, 4.0, 3.8, 1.7
+    expect(rowNames(container)).toEqual(["Zubimendi", "Ángel", "Ødegaard", "Bob"]);
+    fireEvent.click(getByRole("button", { name: /^Columns/ }));
+    fireEvent.click(within(container.querySelector<HTMLElement>(".popover")!).getByLabelText("Pts/£m"));
+    expect(rowNames(container)).toEqual(["Zubimendi", "Ødegaard", "Ángel", "Bob"]);
+    expect(header(container, "Points").textContent).toContain("↓");
+  });
+
+  it("R10: Escape closes only the most recently opened layer — the Columns picker, then the filter under it", () => {
+    const { container, getByRole } = renderExplorer();
+    openColumnFilter(container, "Points");
+    fireEvent.click(getByRole("button", { name: /^Columns/ }));
+    expect(container.querySelectorAll(".popover")).toHaveLength(2);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(container.querySelector(".column-filter-popover")).not.toBeNull();
+    expect(container.querySelectorAll(".popover")).toHaveLength(1);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(container.querySelector(".popover")).toBeNull();
   });
 });

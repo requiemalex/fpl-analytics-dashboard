@@ -34,6 +34,18 @@ export function useSortSpec(initial: SortSpec[]) {
   return { sort, setSort, handleHeaderClick };
 }
 
+/**
+ * The sort once `hiddenKey`'s column is hidden: that column drops out, so no
+ * sort keeps ordering the table by a column you can't see (audit
+ * 2026-09-25, alongside M3's filters). If it was the only sort, the page's
+ * default sort takes over, unless that's the column being hidden.
+ */
+export function sortWithoutHiddenColumn(sort: SortSpec[], hiddenKey: string, fallback: SortSpec[]): SortSpec[] {
+  if (!sort.some((s) => s.key === hiddenKey)) return sort;
+  const remaining = sort.filter((s) => s.key !== hiddenKey);
+  return remaining.length > 0 ? remaining : fallback.filter((s) => s.key !== hiddenKey);
+}
+
 const NAME_COLLATOR = new Intl.Collator("en-GB", { sensitivity: "base" });
 
 /**

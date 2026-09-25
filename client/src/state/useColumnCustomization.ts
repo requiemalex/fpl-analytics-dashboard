@@ -43,7 +43,12 @@ export interface UseColumnCustomization {
  * dragged key up in its own `visibleColumns` and finds nothing (`indexOf`
  * returns -1), not because of any explicit cross-group guard.
  */
-export function useColumnCustomization(defaultVisibleColumns: string[], minWidths: Record<string, number> = {}): UseColumnCustomization {
+export function useColumnCustomization(
+  defaultVisibleColumns: string[],
+  minWidths: Record<string, number> = {},
+  /** Called when a drag-resize ends — pages re-fit here, so widening one column narrows the others (never below their minimum) rather than pushing the table past its box. */
+  onResizeEnd?: () => void,
+): UseColumnCustomization {
   const [visibleColumns, setVisibleColumnsState] = useState<string[]>(defaultVisibleColumns);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
@@ -55,6 +60,10 @@ export function useColumnCustomization(defaultVisibleColumns: string[], minWidth
   visibleColumnsRef.current = visibleColumns;
   /** Columns whose width the user set by dragging — auto-fit leaves them alone until Reset. */
   const manualWidthKeysRef = useRef(new Set<string>());
+  const onResizeEndRef = useRef(onResizeEnd);
+  onResizeEndRef.current = onResizeEnd;
+  /** A column's floor, for dragging and auto-fit alike: MIN_COLUMN_WIDTH, or its own `minWidths` entry if larger (Next 5 Fixtures keeps room for all five fixtures). */
+  const minFor = (key: string) => Math.max(MIN_COLUMN_WIDTH, minWidths[key] ?? 0);
 
   function setVisibleColumns(keys: string[]) {
     setVisibleColumnsState(keys);
@@ -97,13 +106,14 @@ export function useColumnCustomization(defaultVisibleColumns: string[], minWidth
     function onMove(ev: PointerEvent) {
       const delta = ev.clientX - startX;
       manualWidthKeysRef.current.add(key);
-      setColumnWidths((prev) => ({ ...prev, [key]: Math.max(MIN_COLUMN_WIDTH, Math.round(startWidth + delta)) }));
+      setColumnWidths((prev) => ({ ...prev, [key]: Math.max(minFor(key), Math.round(startWidth + delta)) }));
     }
     function onUp() {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       document.body.style.userSelect = "";
       setResizingKey(null);
+      onResizeEndRef.current?.();
     }
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
@@ -112,7 +122,6 @@ export function useColumnCustomization(defaultVisibleColumns: string[], minWidth
   function fitToBox(availableWidth: number) {
     const visible = visibleColumnsRef.current;
     const manual = manualWidthKeysRef.current;
-    const minFor = (key: string) => Math.max(MIN_COLUMN_WIDTH, minWidths[key] ?? 0);
     setColumnWidths((prev) => {
       const next: Record<string, number> = {};
       for (const key of manual) if (prev[key] !== undefined) next[key] = prev[key];

@@ -3311,3 +3311,20 @@ tiles/graphs only:
   (`playersForDashboardItem`), though no current default shows a per-game
   rate.
 - **Last commit with it:** `e4c9923`.
+
+### Historic Average games from the average season's minutes (replaced 2026-09-25)
+- **What it did:** Historic Average per-game rates (PPG, xG/xA/xGI/xGC/DC
+  per game, Def. Reward/Game, Goals/Game, Assists/Game) divided the average
+  season's stat by `ceil(average season minutes ÷ 90)` —
+  `perGameOverKnownSeasons` in `metrics/careerMetrics.ts`, and
+  `estimatedPointsPerGame(avgPoints, avgMinutes)` /
+  `perGame(stat, player.minutes)` on the resolved player.
+- **Why it went:** rounding each average season up added up to a whole
+  game per season for light seasons, understating the rate (Reed
+  2022/23–2025/26: PPG 3.4 vs 3.7 from total minutes; DC/Game 6.25 vs 8.33),
+  and CLAUDE.md already said games come from total minutes. The owner chose
+  total minutes (audit 2026-09-25, V1). Games are now counted once from the
+  seasons' total minutes and carried on the resolved player
+  (`estimatedGames`). Expected Points' historic rate still uses the old
+  basis, deliberately frozen (`<expected_points_frozen>`).
+- **Last commit with it:** `d6143e0`.

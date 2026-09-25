@@ -180,13 +180,6 @@ export const DEFAULT_DASHBOARD_GRAPHS: DashboardGraphConfig[] = [
   },
 ];
 
-const DEFAULT_DASHBOARD_GRAPH_IDS = new Set(DEFAULT_DASHBOARD_GRAPHS.map((g) => g.id));
-
-/** A packaged Default-view graph, which the user can't edit (see migrate() below: a default id only ever lives in the immutable Default view). */
-export function isPackagedDefaultGraph(graph: Pick<DashboardGraphConfig, "id">): boolean {
-  return DEFAULT_DASHBOARD_GRAPH_IDS.has(graph.id);
-}
-
 const DASHBOARD_GRAPHS_STORE: VersionedStore<DashboardGraphConfig[]> = {
   version: STORAGE_VERSION,
   fallback: DEFAULT_DASHBOARD_GRAPHS,

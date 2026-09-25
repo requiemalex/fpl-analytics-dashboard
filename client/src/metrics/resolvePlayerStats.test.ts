@@ -115,3 +115,42 @@ describe("resolvePlayerStatsList", () => {
     expect(noDataCount).toBe(1); // only player 2 has no data
   });
 });
+
+describe("resolvePlayerStats — Historic Average games come from total minutes (audit 2026-09-25 V1)", () => {
+  // Reed-like window: two regular seasons and two very light ones.
+  // Total 4,374 minutes = ceil(48.6) = 49 games over 4 seasons (12.25 a season).
+  // The old basis rounded the AVERAGE up: ceil(1093.5 / 90) = 13 a season.
+  const seasons = [
+    makeSeason({ seasonName: "2022/23", totalPoints: 80, minutes: 2000, goals: 4, assists: 2, cleanSheets: 6, bonus: 5 }),
+    makeSeason({ seasonName: "2023/24", totalPoints: 70, minutes: 2185, goals: 3, assists: 3, cleanSheets: 5, bonus: 3 }),
+    makeSeason({ seasonName: "2024/25", totalPoints: 14, minutes: 100, defensiveContribution: 20 }),
+    makeSeason({ seasonName: "2025/26", totalPoints: 15, minutes: 89, defensiveContribution: 5 }),
+  ];
+  const profile: HistoricPlayerProfile = { lastCompletedSeason: seasons[3], qualifyingSeasons: [], windowAverage: computeCareerAverages(seasons), allSeasonsInWindow: seasons };
+  const resolved = resolvePlayerStats(makePlayer({ id: 1, position: "MID" }), "historicAverage", profile, true);
+
+  it("PPG is total points ÷ total games (179 / 49), not the average season's points ÷ its rounded-up games (44.75 / 13)", () => {
+    expect(resolved.estimatedGames).toBeCloseTo(12.25, 10);
+    expect(resolved.pointsPerGame).toBeCloseTo(179 / 49, 10);
+  });
+
+  it("a stat tracked only in some seasons uses those seasons' total minutes: DC 25 / ceil(189 / 90) = 25 / 3", () => {
+    expect(resolved.defensiveContributionsPerGame).toBeCloseTo(25 / 3, 10);
+  });
+
+  it("the rates worked out from a resolved player (Goals/Game, Def. Reward/Game) use the same games", async () => {
+    const { getPlayerDerivedMetrics } = await import("./playerMetrics");
+    const { defensiveRewardPerGame } = await import("./defensiveReward");
+    expect(getPlayerDerivedMetrics(resolved).goalsPerGame).toBeCloseTo(7 / 49, 10);
+    // MID: 1 point per clean sheet; 11 CS + 8 bonus over 49 games.
+    expect(defensiveRewardPerGame(resolved)).toBeCloseTo((11 * 1 + 8) / 49, 10);
+  });
+
+  it("one season (Last Completed Season, Current Season) still uses that season's minutes", () => {
+    const one = makeSeason({ seasonName: "2025/26", totalPoints: 15, minutes: 89 });
+    const last: HistoricPlayerProfile = { lastCompletedSeason: one, qualifyingSeasons: [], windowAverage: computeCareerAverages([one]), allSeasonsInWindow: [one] };
+    expect(resolvePlayerStats(makePlayer({ id: 2, position: "MID" }), "lastSeason", last, true).estimatedGames).toBe(1);
+    expect(resolvePlayerStats(makePlayer({ id: 3, position: "MID", minutes: 181 }), "live", undefined, true).estimatedGames).toBe(3);
+    expect(resolvePlayerStats(makePlayer({ id: 4, position: "MID", minutes: 181 }), "live", undefined, false).estimatedGames).toBe(0);
+  });
+});

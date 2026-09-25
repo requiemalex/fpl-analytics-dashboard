@@ -1,10 +1,12 @@
 import type { PlayerSeasonHistory } from "../types/normalized";
-import { perGame } from "./calculations";
+import { perGame, estimatedGamesPerSeason } from "./calculations";
 
 export interface CareerAverages {
   seasonsPlayed: number;
   avgPointsPerSeason: number | null;
   avgMinutesPerSeason: number | null;
+  /** Estimated games per season, from the TOTAL minutes across every season (<games_from_total_minutes>, calculations.ts) — what every per-game rate over all these seasons divides by. */
+  avgEstimatedGamesPerSeason: number | null;
   avgGoalsPerSeason: number | null;
   avgAssistsPerSeason: number | null;
   /** Averaged only over seasons where starts is known (see PlayerSeasonHistory.starts nullability). */
@@ -24,10 +26,11 @@ export interface CareerAverages {
   /**
    * Per-game rates, each over the SAME seasons its stat is averaged over
    * (<matched_season_rates>): a stat that's null for some seasons (DC before
-   * 2024/25) is divided by the average minutes of the seasons that have it,
-   * never by avgMinutesPerSeason across the whole window — mixing the two
-   * divided one season's DC by a four-season minutes average and inflated
-   * DC/Game for anyone with light early seasons.
+   * 2024/25) is divided by the games of the seasons that have it, never by
+   * games across the whole window — mixing the two divided one season's DC
+   * by a four-season games figure and inflated DC/Game for anyone with light
+   * early seasons. Games come from those seasons' total minutes
+   * (<games_from_total_minutes>), so each rate is total stat ÷ total games.
    */
   xGPerGame: number | null;
   xAPerGame: number | null;
@@ -51,6 +54,7 @@ export function computeCareerAverages(seasons: PlayerSeasonHistory[]): CareerAve
       seasonsPlayed: 0,
       avgPointsPerSeason: null,
       avgMinutesPerSeason: null,
+      avgEstimatedGamesPerSeason: null,
       avgGoalsPerSeason: null,
       avgStartsPerSeason: null,
       avgAssistsPerSeason: null,
@@ -77,20 +81,22 @@ export function computeCareerAverages(seasons: PlayerSeasonHistory[]): CareerAve
     const values = seasons.map(fn).filter((v): v is number => v !== null);
     return values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : null;
   };
-  // <matched_season_rates>: numerator and minutes both averaged over the
-  // seasons where this stat is known.
+  // <matched_season_rates>: the stat and the minutes both totalled over the
+  // seasons where this stat is known, so games come from total minutes
+  // (<games_from_total_minutes>).
   const perGameOverKnownSeasons = (fn: (s: PlayerSeasonHistory) => number | null): number | null => {
     const known = seasons.filter((s) => fn(s) !== null);
     if (known.length === 0) return null;
-    const avgStat = known.reduce((acc, s) => acc + (fn(s) as number), 0) / known.length;
-    const avgMinutes = known.reduce((acc, s) => acc + s.minutes, 0) / known.length;
-    return perGame(avgStat, avgMinutes);
+    const totalStat = known.reduce((acc, s) => acc + (fn(s) as number), 0);
+    const totalMinutes = known.reduce((acc, s) => acc + s.minutes, 0);
+    return perGame(totalStat, totalMinutes);
   };
 
   return {
     seasonsPlayed: n,
     avgPointsPerSeason: sum((s) => s.totalPoints) / n,
     avgMinutesPerSeason: sum((s) => s.minutes) / n,
+    avgEstimatedGamesPerSeason: estimatedGamesPerSeason(sum((s) => s.minutes), n),
     avgGoalsPerSeason: sum((s) => s.goals) / n,
     avgStartsPerSeason: avgOrNull((s) => s.starts),
     avgAssistsPerSeason: sum((s) => s.assists) / n,
