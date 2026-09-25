@@ -142,7 +142,11 @@ export function useColumnCustomization(
       }
       const share = flexible.length > 0 ? Math.floor(budget / flexible.length) : 0;
       for (const key of flexible) next[key] = share;
-      return next;
+      // Same widths as before → keep the same object, so React skips
+      // re-rendering every table row (pages re-fit more than once per load).
+      const prevKeys = Object.keys(prev);
+      const unchanged = prevKeys.length === Object.keys(next).length && prevKeys.every((key) => prev[key] === next[key]);
+      return unchanged ? prev : next;
     });
   }
 

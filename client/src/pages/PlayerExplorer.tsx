@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { useColumnCustomization } from "../state/useColumnCustomization";
@@ -17,6 +17,7 @@ import { relativeCellTint } from "../utils/colorScale";
 import { downloadCsv } from "../utils/csvExport";
 import { matchesPlayerSearch } from "../utils/playerSearch";
 import { useEscapeLayer } from "../state/useEscapeLayer";
+import { useProgressiveRowCount, INITIAL_ROW_COUNT } from "../state/useProgressiveRowCount";
 import type { NormalizedPlayer, Position } from "../types/normalized";
 
 const GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE", "ADVANCED"];
@@ -70,6 +71,174 @@ const EXPLORER_DEFAULT_SORT: SortSpec[] = [{ key: "totalPoints", direction: "des
 
 /** This page's own default visible-column order for the user-configurable columns only — deliberately NOT the shared DEFAULT_VISIBLE_COLUMNS (Team Building also uses that one; changing it would silently change Team Building's defaults too). Ownership/Price/Team/Position are never part of this list — see IDENTITY_COLUMNS above. */
 const EXPLORER_DEFAULT_VISIBLE_COLUMNS = ["totalPoints", "pointsPerGame", "goals", "assists", "pointsPerMillion", "xG", "xA", "xGI", "minutes"];
+
+type ColumnRanges = Map<string, { min: number; max: number }>;
+/** Shared empty list, so a team with no fixtures doesn't hand its rows a new array (and a re-render) every time. */
+const NO_FIXTURES: UpcomingFixture[] = [];
+
+function columnTint(ranges: ColumnRanges, player: NormalizedPlayer, derived: PlayerDerivedMetrics, c: PlayerColumn): string | undefined {
+  const range = ranges.get(c.key);
+  const v = c.getValue(player, derived);
+  if (!range || v === null) return undefined;
+  return relativeCellTint(v, range.min, range.max, c.higherIsBetter !== false);
+}
+
+/** The sticky Player cell — shared by real rows and the width-sizer rows, so both measure exactly the same. */
+function PlayerCell({ player }: { player: NormalizedPlayer }) {
+  return (
+    <td className="sticky-col" style={{ paddingRight: 6 }}>
+      <div className="player-name-cell">
+        <span className={`name ${availabilityTextClass(player.status)}`}>
+          {player.name}
+          <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />
+        </span>
+        <span className="meta">
+          {fmtPercent(player.ownership)} · {fmtPrice(player.price)}
+          <TeamBadge teamId={player.teamId} shortName={player.teamShortName} />
+          <PositionBadge position={player.position} />
+        </span>
+      </div>
+    </td>
+  );
+}
+
+interface ExplorerRowProps {
+  player: NormalizedPlayer;
+  derived: PlayerDerivedMetrics;
+  columnsInOrder: (PlayerColumn | typeof FIXTURES_COLUMN_KEY)[];
+  columnWidths: Record<string, number>;
+  columnRanges: ColumnRanges;
+  fixtures: UpcomingFixture[];
+  onOpenPlayer: (playerId: number) => void;
+}
+
+/** One table row. Memoized: opening a filter, dragging a header or adding more staged rows leaves the rows already drawn alone. */
+const ExplorerRow = React.memo(function ExplorerRow({ player, derived, columnsInOrder, columnWidths, columnRanges, fixtures, onOpenPlayer }: ExplorerRowProps) {
+  return (
+    <tr onClick={() => onOpenPlayer(player.id)}>
+      <PlayerCell player={player} />
+      {IDENTITY_COLUMNS.map((c, idx) => {
+        const width = columnWidths[typeof c === "string" ? c : c.key];
+        const isFirst = idx === 0;
+        const widthStyle = {
+          ...(width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const } : {}),
+          ...(isFirst ? { paddingLeft: 6 } : {}),
+        };
+        const className = isFirst ? "column-group-divider" : undefined;
+        if (c === TEAM_COLUMN_KEY || c === POSITION_COLUMN_KEY) {
+          return (
+            <td key={c} className={className} style={widthStyle}>
+              {c === TEAM_COLUMN_KEY ? <TeamBadge teamId={player.teamId} shortName={player.teamShortName} /> : <PositionBadge position={player.position} />}
+            </td>
+          );
+        }
+        const value = c.getValue(player, derived);
+        return (
+          <td key={c.key} className={className} style={{ ...widthStyle, backgroundColor: columnTint(columnRanges, player, derived, c) }}>
+            {c.format(value)}
+          </td>
+        );
+      })}
+      {columnsInOrder.map((c, idx) => {
+        const dividerClass = idx === 0 ? "column-group-divider" : undefined;
+        if (c === FIXTURES_COLUMN_KEY) {
+          const width = columnWidths[FIXTURES_COLUMN_KEY];
+          return (
+            <td
+              key={FIXTURES_COLUMN_KEY}
+              className={dividerClass}
+              style={{
+                textAlign: "left",
+                ...(width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden" } : {}),
+              }}
+            >
+              <FixtureChips fixtures={fixtures} />
+            </td>
+          );
+        }
+        const value = c.getValue(player, derived);
+        const width = columnWidths[c.key];
+        return (
+          <td
+            key={c.key}
+            className={dividerClass}
+            style={{
+              ...(width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } : {}),
+              backgroundColor: columnTint(columnRanges, player, derived, c),
+            }}
+          >
+            {c.format(value)}
+          </td>
+        );
+      })}
+    </tr>
+  );
+});
+
+/** How many of the likeliest-widest Player cells (by name line, and by the ownership/price line) stand in for rows not drawn yet. */
+const SIZER_CANDIDATES_BY_NAME = 20;
+const SIZER_CANDIDATES_BY_META = 10;
+/** Rough allowance for the availability flag after a flagged player's name — only used to rank candidates, never to size anything. */
+const FLAG_ALLOWANCE_PX = 14;
+
+let measureContext: CanvasRenderingContext2D | null | undefined;
+/** Text width for ranking candidates only. Falls back to character count where canvas isn't available (tests). */
+function estimateTextWidth(text: string, font: string): number {
+  if (measureContext === undefined) {
+    try {
+      measureContext = document.createElement("canvas").getContext("2d") ?? null;
+    } catch {
+      measureContext = null;
+    }
+  }
+  if (!measureContext) return text.length * 7;
+  measureContext.font = font;
+  return measureContext.measureText(text).width;
+}
+
+function topIds(entries: { id: number; width: number }[], count: number): number[] {
+  return [...entries].sort((a, b) => b.width - a.width).slice(0, count).map((e) => e.id);
+}
+
+/**
+ * The Player column is sized by the browser to its widest name, across every
+ * row in the table. While rows are still being drawn in stages, the widest
+ * one may not be drawn yet — the column (and everything right of it) would
+ * then shift a few pixels when it arrives. So the likeliest-widest Player
+ * cells among the undrawn rows are drawn as hidden, zero-height rows
+ * (`.width-sizer-row`, visibility: collapse — they still count towards
+ * column widths) until the real rows are all in. Candidates come from the
+ * rows the table is showing (not the whole pool), so a search still narrows
+ * the column exactly as it did before. The estimate only picks candidates;
+ * the width itself is the browser's own measurement of the real cell.
+ */
+function useWidthSizerRows(filteredRows: { player: NormalizedPlayer }[], sortedRows: { player: NormalizedPlayer }[], renderedCount: number): NormalizedPlayer[] {
+  // Only while rows are still being staged — a mode switch or filter with
+  // every row already drawn needs no stand-ins, so skips the estimate.
+  const staging = renderedCount < sortedRows.length;
+  const candidates = useMemo(() => {
+    if (!staging || filteredRows.length <= INITIAL_ROW_COUNT) return [];
+    const family = getComputedStyle(document.documentElement).getPropertyValue("--font-body").trim() || "sans-serif";
+    const nameFont = `600 12.5px ${family}`;
+    const metaFont = `10.5px ${family}`;
+    const byName = filteredRows.map(({ player }) => ({
+      id: player.id,
+      width: estimateTextWidth(player.name, nameFont) + (player.status !== "a" ? FLAG_ALLOWANCE_PX : 0),
+    }));
+    const byMeta = filteredRows.map(({ player }) => ({
+      id: player.id,
+      width: estimateTextWidth(`${fmtPercent(player.ownership)} · ${fmtPrice(player.price)} ${player.teamShortName} ${player.position}`, metaFont),
+    }));
+    const ids = new Set([...topIds(byName, SIZER_CANDIDATES_BY_NAME), ...topIds(byMeta, SIZER_CANDIDATES_BY_META)]);
+    return filteredRows.filter((r) => ids.has(r.player.id)).map((r) => r.player);
+  }, [filteredRows, staging]);
+
+  return useMemo(() => {
+    if (renderedCount >= sortedRows.length || candidates.length === 0) return [];
+    const drawn = new Set(sortedRows.slice(0, renderedCount).map((r) => r.player.id));
+    return candidates.filter((p) => !drawn.has(p.id));
+  }, [candidates, sortedRows, renderedCount]);
+}
 
 export function PlayerExplorer() {
   const { players, teamsById, fixtures, advancedFieldAvailability, historicProfiles, historicStatus, currentSeasonHasStarted, requestHistoricData } = useAppState();
@@ -137,10 +306,15 @@ export function PlayerExplorer() {
     return map;
   }, [teamsById, fixtures]);
 
-  const filtered = useMemo(() => {
+  // Derived metrics once per resolved player, before the search narrows
+  // them — each row object then stays the same across searches, sorts and
+  // filters, which lets ExplorerRow skip re-rendering rows that didn't change.
+  const allRows = useMemo(() => resolvedPlayers.map((p) => ({ player: p, derived: getPlayerDerivedMetrics(p) })), [resolvedPlayers]);
+
+  const rows = useMemo(() => {
     const query = search.trim();
-    return query ? resolvedPlayers.filter((p) => matchesPlayerSearch(p, query)) : resolvedPlayers;
-  }, [resolvedPlayers, search]);
+    return query ? allRows.filter((r) => matchesPlayerSearch(r.player, query)) : allRows;
+  }, [allRows, search]);
 
   const [showColumnPopover, setShowColumnPopover] = useState(false);
   const { sort, setSort, handleHeaderClick } = useSortSpec(EXPLORER_DEFAULT_SORT);
@@ -181,15 +355,6 @@ export function PlayerExplorer() {
   }, [showColumnPopover]);
   const tableWrapRef = useRef<HTMLDivElement>(null);
   const stickyColRef = useRef<HTMLTableCellElement>(null);
-
-  const rows = useMemo(
-    () =>
-      filtered.map((p) => ({
-        player: p,
-        derived: getPlayerDerivedMetrics(p),
-      })),
-    [filtered],
-  );
 
   // "name" is handled separately since it isn't a PLAYER_COLUMNS entry
   // (there's nothing to derive — the player's name IS the value) — used
@@ -311,23 +476,31 @@ export function PlayerExplorer() {
   // skipped either way: Fixtures already has its own per-chip FDR colour,
   // and Team/Position are categorical (a min/max comparative tint would be
   // meaningless for a team name or position) — a second tint layered on
-  // top would just be noise either way.
+  // top would just be noise either way. Built from filteredRows (the same
+  // players as sortedRows, before ordering) so a sort alone doesn't produce
+  // new ranges and redraw every row.
   const columnRanges = useMemo(() => {
     const ranges = new Map<string, { min: number; max: number }>();
     for (const c of [...IDENTITY_COLUMNS, ...columnsInOrder]) {
       if (typeof c === "string") continue;
-      const values = sortedRows.map((r) => c.getValue(r.player, r.derived)).filter((v): v is number => v !== null);
+      const values = filteredRows.map((r) => c.getValue(r.player, r.derived)).filter((v): v is number => v !== null);
       if (values.length > 0) ranges.set(c.key, { min: Math.min(...values), max: Math.max(...values) });
     }
     return ranges;
-  }, [columnsInOrder, sortedRows]);
+  }, [columnsInOrder, filteredRows]);
 
-  function columnTint(player: NormalizedPlayer, derived: PlayerDerivedMetrics, c: PlayerColumn): string | undefined {
-    const range = columnRanges.get(c.key);
-    const v = c.getValue(player, derived);
-    if (!range || v === null) return undefined;
-    return relativeCellTint(v, range.min, range.max, c.higherIsBetter !== false);
-  }
+  // Rows are drawn in stages (see useProgressiveRowCount); everything above
+  // still works on the full sortedRows.
+  const renderedRowCount = useProgressiveRowCount(sortedRows.length);
+  const widthSizerRows = useWidthSizerRows(filteredRows, sortedRows, renderedRowCount);
+
+  // Stable across renders, so memoized rows don't re-render just because
+  // this page did; the ref keeps the call on the current setSearchParams.
+  const setSearchParamsRef = useRef(setSearchParams);
+  setSearchParamsRef.current = setSearchParams;
+  const openPlayer = useCallback((playerId: number) => {
+    setSearchParamsRef.current((prev) => ({ ...Object.fromEntries(prev), player: String(playerId) }));
+  }, []);
 
   /** Shared by the table header and the CSV export, so the two can never label a column differently. */
   function columnLabel(c: PlayerColumn | SpecialColumnKey): string {
@@ -595,77 +768,21 @@ export function PlayerExplorer() {
                   </td>
                 </tr>
               )}
-              {sortedRows.map(({ player, derived }) => (
-                <tr key={player.id} onClick={() => setSearchParams((prev) => ({ ...Object.fromEntries(prev), player: String(player.id) }))}>
-                  <td className="sticky-col" style={{ paddingRight: 6 }}>
-                    <div className="player-name-cell">
-                      <span className={`name ${availabilityTextClass(player.status)}`}>
-                        {player.name}
-                        <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />
-                      </span>
-                      <span className="meta">
-                        {fmtPercent(player.ownership)} · {fmtPrice(player.price)}
-                        <TeamBadge teamId={player.teamId} shortName={player.teamShortName} />
-                        <PositionBadge position={player.position} />
-                      </span>
-                    </div>
-                  </td>
-                  {IDENTITY_COLUMNS.map((c, idx) => {
-                    const width = columnWidths[typeof c === "string" ? c : c.key];
-                    const isFirst = idx === 0;
-                    const widthStyle = {
-                      ...(width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const } : {}),
-                      ...(isFirst ? { paddingLeft: 6 } : {}),
-                    };
-                    const className = isFirst ? "column-group-divider" : undefined;
-                    if (c === TEAM_COLUMN_KEY || c === POSITION_COLUMN_KEY) {
-                      return (
-                        <td key={c} className={className} style={widthStyle}>
-                          {c === TEAM_COLUMN_KEY ? <TeamBadge teamId={player.teamId} shortName={player.teamShortName} /> : <PositionBadge position={player.position} />}
-                        </td>
-                      );
-                    }
-                    const value = c.getValue(player, derived);
-                    return (
-                      <td key={c.key} className={className} style={{ ...widthStyle, backgroundColor: columnTint(player, derived, c) }}>
-                        {c.format(value)}
-                      </td>
-                    );
-                  })}
-                  {columnsInOrder.map((c, idx) => {
-                    const dividerClass = idx === 0 ? "column-group-divider" : undefined;
-                    if (c === FIXTURES_COLUMN_KEY) {
-                      const width = columnWidths[FIXTURES_COLUMN_KEY];
-                      return (
-                        <td
-                          key={FIXTURES_COLUMN_KEY}
-                          className={dividerClass}
-                          style={{
-                            textAlign: "left",
-                            ...(width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden" } : {}),
-                          }}
-                        >
-                          <FixtureChips fixtures={fixturesByTeamId.get(player.teamId) ?? []} />
-                        </td>
-                      );
-                    }
-                    const value = c.getValue(player, derived);
-                    const width = columnWidths[c.key];
-                    return (
-                      <td
-                        key={c.key}
-                        className={dividerClass}
-                        style={{
-                          ...(width
-                            ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }
-                            : {}),
-                          backgroundColor: columnTint(player, derived, c),
-                        }}
-                      >
-                        {c.format(value)}
-                      </td>
-                    );
-                  })}
+              {sortedRows.slice(0, renderedRowCount).map(({ player, derived }) => (
+                <ExplorerRow
+                  key={player.id}
+                  player={player}
+                  derived={derived}
+                  columnsInOrder={columnsInOrder}
+                  columnWidths={columnWidths}
+                  columnRanges={columnRanges}
+                  fixtures={fixturesByTeamId.get(player.teamId) ?? NO_FIXTURES}
+                  onOpenPlayer={openPlayer}
+                />
+              ))}
+              {widthSizerRows.map((player) => (
+                <tr key={`sizer-${player.id}`} className="width-sizer-row" aria-hidden="true">
+                  <PlayerCell player={player} />
                 </tr>
               ))}
             </tbody>

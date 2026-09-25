@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { useSavedSquads, MAX_SAVED_SQUADS } from "../state/useSavedSquads";
@@ -6,10 +6,11 @@ import { useColumnCustomization, MIN_COLUMN_WIDTH, type UseColumnCustomization }
 import { useColumnFilters, isColumnFilterActive } from "../state/useColumnFilters";
 import { ColumnFilterControl } from "../components/ColumnFilterControl";
 import { useSortSpec, compareSortValues, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
+import { useProgressiveRowCount } from "../state/useProgressiveRowCount";
 import { SQUAD_RULES, createBlankSquad, type SavedSquad } from "../types/team";
 import { validateSquad, validateStartingXI, canAddPlayer } from "../metrics/squadRules";
 import { resolvePlayerStats, resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
-import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
+import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { computeExpectedPointsForSingleFixture } from "../metrics/expectedPoints";
 import { computeExpectedPointsV2ForFixture } from "../metrics/expectedPointsV2";
 import { fetchEntryTeam, fetchEntryHistory, fetchEntryPicks, ApiRequestError } from "../api/client";
@@ -51,6 +52,8 @@ interface PickerRowData {
   live: NormalizedPlayer;
   /** Resolved per the picker's own Historic/Raw toggle — null if the player has no data for that mode. */
   historicRaw: NormalizedPlayer;
+  /** getPlayerDerivedMetrics(historicRaw), worked out once per row rather than once per cell, sort comparison and tint. */
+  historicDerived: PlayerDerivedMetrics;
   fixtures: UpcomingFixture[];
   /** FPL's own ep_next, extended by fixture difficulty for the gameweek currently selected on the pitch-view navigator — see computeExpectedPointsForSingleFixture. */
   fplOfficial: number | null;
@@ -143,6 +146,127 @@ const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
   },
 ];
 const DEFAULT_PREDICTIVE_COLUMN_KEYS = PREDICTIVE_COLUMNS.map((c) => c.key);
+
+type ColumnRanges = Map<string, { min: number; max: number }>;
+
+function predictiveTint(ranges: ColumnRanges, row: PickerRowData, c: PredictiveColumnDef): string | undefined {
+  const range = ranges.get(c.key);
+  const v = c.getValue(row);
+  if (!range || v === null) return undefined;
+  return relativeCellTint(v, range.min, range.max, c.higherIsBetter !== false);
+}
+
+function historicRawTint(ranges: ColumnRanges, row: PickerRowData, c: PlayerColumn): string | undefined {
+  const range = ranges.get(c.key);
+  if (!range || !row.historicRaw) return undefined;
+  const v = c.getValue(row.historicRaw, row.historicDerived);
+  if (v === null) return undefined;
+  return relativeCellTint(v, range.min, range.max, c.higherIsBetter !== false);
+}
+
+interface PickerRowProps {
+  row: PickerRowData;
+  canAdd: boolean;
+  /** canAddPlayer's reason when the Add button is disabled — shown as its hover text. */
+  addBlockedReason: string | undefined;
+  predictiveColumns: PredictiveColumnDef[];
+  historicRawColumns: PlayerColumn[];
+  predictiveWidths: Record<string, number>;
+  historicRawWidths: Record<string, number>;
+  predictiveRanges: ColumnRanges;
+  historicRawRanges: ColumnRanges;
+  onAdd: (player: NormalizedPlayer) => void;
+  onViewProfile: (playerId: number) => void;
+}
+
+/** One Add Players row. Memoized: opening a filter, a pitch change or adding more staged rows leaves the rows already drawn alone. */
+const PickerRow = React.memo(function PickerRow({
+  row,
+  canAdd,
+  addBlockedReason,
+  predictiveColumns,
+  historicRawColumns,
+  predictiveWidths,
+  historicRawWidths,
+  predictiveRanges,
+  historicRawRanges,
+  onAdd,
+  onViewProfile,
+}: PickerRowProps) {
+  return (
+    <tr
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", String(row.live.id));
+        e.dataTransfer.effectAllowed = "move";
+      }}
+      style={{ cursor: "grab" }}
+    >
+      <td className="picker-sticky-player">
+        <div className="player-name-cell">
+          <span
+            className={`name ${availabilityTextClass(row.live.status)}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewProfile(row.live.id);
+            }}
+            style={{ cursor: "pointer" }}
+            title="View profile"
+          >
+            {row.live.name}
+            <AvailabilityFlag status={row.live.status} news={row.live.news} chanceOfPlayingNextRound={row.live.chanceOfPlayingNextRound} />
+          </span>
+          <span className="meta">
+            <PositionBadge position={row.live.position} /> {row.live.teamShortName} · {fmtPrice(row.live.price)}
+            <button
+              type="button"
+              className="inline-add-btn"
+              disabled={!canAdd}
+              title={canAdd ? "Add to squad" : addBlockedReason}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAdd(row.live);
+              }}
+            >
+              Add
+            </button>
+          </span>
+        </div>
+      </td>
+      {predictiveColumns.map((c) => {
+        const width = predictiveWidths[c.key];
+        return (
+          <td
+            key={c.key}
+            style={{
+              ...(width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } : {}),
+              backgroundColor: predictiveTint(predictiveRanges, row, c),
+            }}
+          >
+            {c.renderCell(row)}
+          </td>
+        );
+      })}
+      {historicRawColumns.map((c, i) => {
+        const value = row.historicRaw ? c.getValue(row.historicRaw, row.historicDerived) : null;
+        const isSignedMetric = c.key === "goalsMinusXG" || c.key === "assistsMinusXA";
+        const width = historicRawWidths[c.key];
+        return (
+          <td
+            key={c.key}
+            className={i === 0 ? "column-group-divider" : undefined}
+            style={{
+              ...(width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } : {}),
+              backgroundColor: historicRawTint(historicRawRanges, row, c),
+            }}
+          >
+            {isSignedMetric ? <SignedNum value={value} /> : c.format(value)}
+          </td>
+        );
+      })}
+    </tr>
+  );
+});
 /** Same meaning as isStaticColumn (playerColumns.tsx), for this page's own local PredictiveColumnDef type. */
 function isStaticPredictiveColumn(c: PredictiveColumnDef): boolean {
   return c.varies === false;
@@ -644,7 +768,7 @@ export function TeamBuilder() {
     const predictiveCol = PREDICTIVE_COLUMNS.find((c) => c.key === key);
     if (predictiveCol) return predictiveCol.getValue(row);
     const historicCol = columnByKey(key);
-    if (historicCol) return row.historicRaw ? historicCol.getValue(row.historicRaw, getPlayerDerivedMetrics(row.historicRaw)) : null;
+    if (historicCol) return row.historicRaw ? historicCol.getValue(row.historicRaw, row.historicDerived) : null;
     return null;
   }
 
@@ -673,10 +797,14 @@ export function TeamBuilder() {
   // actual behaviour is fully determined by `columnFiltersState.columnFilters`
   // and `pickerSort` respectively (both listed), plus module-level
   // constants that never change across renders.
-  const pickerRows: PickerRowData[] = useMemo(() => {
+  //
+  // Split into three steps — build, filter, sort — so each row object
+  // survives a sort, a column filter or a squad change unchanged, and
+  // PickerRow (memoized) only redraws rows whose figures actually changed.
+  // Same filters, same order of application, same comparator as before.
+  const pickerBuiltRows: PickerRowData[] = useMemo(() => {
     const search = pickerSearch.trim();
     return players
-      .filter((p) => !squadPlayerIdSet.has(p.id))
       .filter((p) => pickerPosition === "ALL" || p.position === pickerPosition)
       .filter((p) => pickerTeamId === "ALL" || p.teamId === pickerTeamId)
       .filter((p) => !search || matchesPlayerSearch(p, search))
@@ -693,16 +821,24 @@ export function TeamBuilder() {
           modelPredicted = breakdown.total;
           modelCaveats = breakdown.caveats;
         }
+        const historicRaw = resolvePlayerStats(p, pickerHistoricMode, historicProfile, currentSeasonHasStarted);
         return {
           live: p,
-          historicRaw: resolvePlayerStats(p, pickerHistoricMode, historicProfile, currentSeasonHasStarted),
+          historicRaw,
+          historicDerived: getPlayerDerivedMetrics(historicRaw),
           fixtures: playerFixtures.slice(0, 5),
           fplOfficial,
           modelPredicted,
           modelCaveats,
           reliability,
         };
-      })
+      });
+  }, [players, pickerSearch, pickerPosition, pickerTeamId, fixturesByTeamId, historicProfiles, pickerHistoricMode, currentSeasonHasStarted, gwOffset, teamsById]);
+
+  const pickerCandidateRows: PickerRowData[] = useMemo(
+    () =>
+      pickerBuiltRows
+        .filter((row) => !squadPlayerIdSet.has(row.live.id))
       // A player with no data at all for the selected Historic/Raw mode is
       // excluded whenever the user has explicitly set a minimum, same as
       // "doesn't meet the bar" would be — this is a deliberate, opt-in
@@ -710,73 +846,66 @@ export function TeamBuilder() {
       // applies once pickerMinMinutes is actually set, and never in "live"
       // mode — see pickerEffectiveMinMinutes above), not the kind of
       // always-on default exclusion resolvePlayerStats.ts moved away from.
-      .filter((row) => {
-        const threshold = pickerEffectiveMinMinutes(pickerHistoricMode, pickerMinMinutes);
-        return threshold === null || (row.historicRaw.minutes !== null && row.historicRaw.minutes >= threshold);
-      })
-      .filter(passesColumnFilters)
-      .sort((a, b) => {
+        .filter((row) => {
+          const threshold = pickerEffectiveMinMinutes(pickerHistoricMode, pickerMinMinutes);
+          return threshold === null || (row.historicRaw.minutes !== null && row.historicRaw.minutes >= threshold);
+        })
+        .filter(passesColumnFilters),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pickerBuiltRows, active?.playerIds, pickerHistoricMode, pickerMinMinutes, columnFiltersState.columnFilters],
+  );
+
+  const pickerRows: PickerRowData[] = useMemo(
+    () =>
+      [...pickerCandidateRows].sort((a, b) => {
         for (const s of pickerSort) {
           const cmp = compareSortValues(getPickerSortValue(a, s.key), getPickerSortValue(b, s.key), s.direction);
           if (cmp !== 0) return cmp;
         }
         return 0;
-      });
-  }, [
-    players,
-    active?.playerIds,
-    pickerSearch,
-    pickerPosition,
-    pickerTeamId,
-    fixturesByTeamId,
-    historicProfiles,
-    pickerHistoricMode,
-    currentSeasonHasStarted,
-    gwOffset,
-    teamsById,
-    pickerMinMinutes,
-    columnFiltersState.columnFilters,
-    pickerSort,
-  ]);
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pickerCandidateRows, pickerSort],
+  );
 
   // Per-column min/max across every currently-filtered candidate — the
   // tint below is a "how does this compare to what you're currently
   // looking at" hint, matching how Player Comparison's colour scale is
   // also scoped to what's visible (with no cap, "visible" now means
   // everyone who matches the current filters, not a fixed subset).
+  // Built from the unsorted candidates (the same players) so a sort alone
+  // doesn't produce new ranges and redraw every row.
   const predictiveColumnRanges = useMemo(() => {
-    const ranges = new Map<string, { min: number; max: number }>();
+    const ranges: ColumnRanges = new Map();
     for (const c of predictiveColumnsInOrder) {
-      const values = pickerRows.map((r) => c.getValue(r)).filter((v): v is number => v !== null);
+      const values = pickerCandidateRows.map((r) => c.getValue(r)).filter((v): v is number => v !== null);
       if (values.length > 0) ranges.set(c.key, { min: Math.min(...values), max: Math.max(...values) });
     }
     return ranges;
-  }, [predictiveColumnsInOrder, pickerRows]);
+  }, [predictiveColumnsInOrder, pickerCandidateRows]);
   const historicRawColumnRanges = useMemo(() => {
-    const ranges = new Map<string, { min: number; max: number }>();
+    const ranges: ColumnRanges = new Map();
     for (const c of historicRawColumnsInOrder) {
-      const values = pickerRows
-        .map((r) => (r.historicRaw ? c.getValue(r.historicRaw, getPlayerDerivedMetrics(r.historicRaw)) : null))
+      const values = pickerCandidateRows
+        .map((r) => (r.historicRaw ? c.getValue(r.historicRaw, r.historicDerived) : null))
         .filter((v): v is number => v !== null);
       if (values.length > 0) ranges.set(c.key, { min: Math.min(...values), max: Math.max(...values) });
     }
     return ranges;
-  }, [historicRawColumnsInOrder, pickerRows]);
+  }, [historicRawColumnsInOrder, pickerCandidateRows]);
 
-  function predictiveTint(row: PickerRowData, c: PredictiveColumnDef): string | undefined {
-    const range = predictiveColumnRanges.get(c.key);
-    const v = c.getValue(row);
-    if (!range || v === null) return undefined;
-    return relativeCellTint(v, range.min, range.max, c.higherIsBetter !== false);
-  }
+  // Rows are drawn in stages (see useProgressiveRowCount); sorting,
+  // filtering, tints and CSV export above all use the full pickerRows.
+  const renderedPickerRowCount = useProgressiveRowCount(pickerRows.length);
 
-  function historicRawTint(row: PickerRowData, c: PlayerColumn): string | undefined {
-    const range = historicRawColumnRanges.get(c.key);
-    if (!range || !row.historicRaw) return undefined;
-    const v = c.getValue(row.historicRaw, getPlayerDerivedMetrics(row.historicRaw));
-    if (v === null) return undefined;
-    return relativeCellTint(v, range.min, range.max, c.higherIsBetter !== false);
-  }
+  // Stable across renders, so memoized PickerRows don't redraw just because
+  // this page did; the refs keep each call on the current render's handler.
+  const handleAddRef = useRef(handleAdd);
+  handleAddRef.current = handleAdd;
+  const handleViewProfileRef = useRef(handleViewProfile);
+  handleViewProfileRef.current = handleViewProfile;
+  const addPickerPlayer = useCallback((player: NormalizedPlayer) => handleAddRef.current(player), []);
+  const viewPickerProfile = useCallback((playerId: number) => handleViewProfileRef.current(playerId), []);
 
   function formatPredictiveCellForCsv(row: PickerRowData, c: PredictiveColumnDef): string {
     if (c.key === "reliability") return row.reliability !== null ? fmtPercent(row.reliability * 100, 0) : DASH;
@@ -804,7 +933,7 @@ export function TeamBuilder() {
     const rows = pickerRows.map((row) => {
       const predictiveCells = predictiveColumnsInOrder.map((c) => formatPredictiveCellForCsv(row, c));
       const historicRawCells = historicRawColumnsInOrder.map((c) => {
-        const value = row.historicRaw ? c.getValue(row.historicRaw, getPlayerDerivedMetrics(row.historicRaw)) : null;
+        const value = row.historicRaw ? c.getValue(row.historicRaw, row.historicDerived) : null;
         if (c.key === "goalsMinusXG" || c.key === "assistsMinusXA") return value !== null ? fmtSigned(value, 2) : DASH;
         return c.format(value);
       });
@@ -1236,85 +1365,23 @@ export function TeamBuilder() {
               </tr>
             </thead>
             <tbody>
-              {pickerRows.map((row) => {
+              {pickerRows.slice(0, renderedPickerRowCount).map((row) => {
                 const check = canAddPlayer(squadPlayers, row.live);
                 return (
-                  <tr
+                  <PickerRow
                     key={row.live.id}
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData("text/plain", String(row.live.id));
-                      e.dataTransfer.effectAllowed = "move";
-                    }}
-                    style={{ cursor: "grab" }}
-                  >
-                    <td className="picker-sticky-player">
-                      <div className="player-name-cell">
-                        <span
-                          className={`name ${availabilityTextClass(row.live.status)}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleViewProfile(row.live.id);
-                          }}
-                          style={{ cursor: "pointer" }}
-                          title="View profile"
-                        >
-                          {row.live.name}
-                          <AvailabilityFlag status={row.live.status} news={row.live.news} chanceOfPlayingNextRound={row.live.chanceOfPlayingNextRound} />
-                        </span>
-                        <span className="meta">
-                          <PositionBadge position={row.live.position} /> {row.live.teamShortName} · {fmtPrice(row.live.price)}
-                          <button
-                            type="button"
-                            className="inline-add-btn"
-                            disabled={!check.ok}
-                            title={check.ok ? "Add to squad" : check.reason}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAdd(row.live);
-                            }}
-                          >
-                            Add
-                          </button>
-                        </span>
-                      </div>
-                    </td>
-                    {predictiveColumnsInOrder.map((c) => {
-                      const width = predictiveCols.columnWidths[c.key];
-                      return (
-                        <td
-                          key={c.key}
-                          style={{
-                            ...(width
-                              ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }
-                              : {}),
-                            backgroundColor: predictiveTint(row, c),
-                          }}
-                        >
-                          {c.renderCell(row)}
-                        </td>
-                      );
-                    })}
-                    {historicRawColumnsInOrder.map((c, i) => {
-                      const value = row.historicRaw ? c.getValue(row.historicRaw, getPlayerDerivedMetrics(row.historicRaw)) : null;
-                      const isSignedMetric = c.key === "goalsMinusXG" || c.key === "assistsMinusXA";
-                      const width = historicRawCols.columnWidths[c.key];
-                      return (
-                        <td
-                          key={c.key}
-                          className={i === 0 ? "column-group-divider" : undefined}
-                          style={{
-                            ...(width
-                              ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }
-                              : {}),
-                            backgroundColor: historicRawTint(row, c),
-                          }}
-                        >
-                          {isSignedMetric ? <SignedNum value={value} /> : c.format(value)}
-                        </td>
-                      );
-                    })}
-                  </tr>
+                    row={row}
+                    canAdd={check.ok}
+                    addBlockedReason={check.reason}
+                    predictiveColumns={predictiveColumnsInOrder}
+                    historicRawColumns={historicRawColumnsInOrder}
+                    predictiveWidths={predictiveCols.columnWidths}
+                    historicRawWidths={historicRawCols.columnWidths}
+                    predictiveRanges={predictiveColumnRanges}
+                    historicRawRanges={historicRawColumnRanges}
+                    onAdd={addPickerPlayer}
+                    onViewProfile={viewPickerProfile}
+                  />
                 );
               })}
               {pickerRows.length === 0 && (

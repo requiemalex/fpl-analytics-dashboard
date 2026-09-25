@@ -374,6 +374,24 @@ word as an initial that must start a name word (`utils/playerSearch.ts`).
   window), the table scrolls sideways inside `.table-wrap` with every width
   honoured. At `width: 100%` the browser ignored all set widths once they
   overflowed, so dragging did nothing and columns fell below 64px.
+- Both tables draw rows in stages (`state/useProgressiveRowCount.ts`): the
+  first 50 at once, then 100 per animation frame until every row is drawn,
+  with no scrolling needed. Mounting all ~700 rows in one go blocked the
+  page for most of a second before anything showed. Only the drawing is
+  staged — sort, filters, tints, the row count and CSV export always use the
+  full list — and a filter that shrinks the list restages it when cleared.
+  Rows are `React.memo` components (`ExplorerRow`, `PickerRow`) with stable
+  props, so a filter popover, a sort or a newly staged batch doesn't redraw
+  rows that haven't changed; tint ranges come from the unsorted rows for the
+  same reason. Player Explorer's Player column is sized by the browser to its
+  widest name, so while rows are staged the likeliest-widest undrawn Player
+  cells sit in hidden `visibility: collapse` rows (`.width-sizer-row`, which
+  still count towards column widths) — the column is its final width from
+  the first frame.
+- The per-page row calculations are not cached across visits on purpose:
+  on the live pool they take under 5ms (Team Building's predictions
+  included), against the ~0.6s the full table took to draw. The data behind
+  them is already fetched and normalised once in `AppStateContext`.
 - Player Explorer keeps no saved data: columns, order, widths, sort, filters
   and Data View reset when you leave the page (by design).
 - Escape closes only the most recently opened layer — column filter, Columns

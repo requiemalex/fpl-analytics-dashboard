@@ -337,6 +337,12 @@ table.data-table.compact th {
 table.data-table tbody tr {
   cursor: pointer;
 }
+/* Hidden, zero-height stand-ins for Player Explorer rows not drawn yet —
+   collapsed rows still count towards column widths, so the Player column
+   is already its final width while the rest of the rows arrive. */
+table.data-table tbody tr.width-sizer-row {
+  visibility: collapse;
+}
 table.data-table tbody tr:hover td {
   background: var(--surface-hover);
 }
