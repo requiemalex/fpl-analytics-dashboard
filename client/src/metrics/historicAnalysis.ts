@@ -1,5 +1,6 @@
 import type { PlayerSeasonHistory } from "../types/normalized";
 import { computeCareerAverages, type CareerAverages } from "./careerMetrics";
+import { FIXED_FLOOR_MINUTES } from "./fixedMinutesFloor";
 
 /**
  * Most recent N completed seasons are eligible for the qualifying-average
@@ -96,18 +97,20 @@ export interface HistoricPlayerProfile {
    */
   allSeasonsInWindow: PlayerSeasonHistory[];
   /**
-   * The window's seasons with any minutes at all (> 0), oldest first — never
-   * reaching back past the window to replace a 0-minute one. Where the user
-   * can't set minimum minutes (<fixed_minutes_floor>: player profile, Player
-   * Comparison, Team Profile, the packaged Default Dashboard views), a season
-   * registered but never played (a year out of the Premier League, or lost
-   * to injury) doesn't count toward Historic Average — the owner's decision,
-   * audit 2026-09-25 player-team-profiles V2. Everywhere else keeps
-   * windowAverage, 0-minute seasons included.
+   * The window's seasons with at least the fixed minutes floor
+   * (FIXED_FLOOR_MINUTES, 450), oldest first — never reaching back past the
+   * window to replace one that falls short. Where the user can't set
+   * minimum minutes (<fixed_minutes_floor>: player profile, Player
+   * Comparison, Team Profile, the packaged Default Dashboard views), only
+   * these seasons count toward Historic Average: a season under the floor
+   * (a cameo year, one lost to injury, or 0 minutes) is a small sample, so
+   * its figures don't count at all — the owner's rule (2026-09-25, replacing
+   * "leave out 0-minute seasons"). Everywhere else keeps windowAverage,
+   * every season included.
    */
-  playedSeasonsInWindow: PlayerSeasonHistory[];
-  /** Average over playedSeasonsInWindow. Null when the window has no season with minutes. */
-  playedWindowAverage: CareerAverages | null;
+  floorSeasonsInWindow: PlayerSeasonHistory[];
+  /** Average over floorSeasonsInWindow. Null when no window season reaches the floor. */
+  floorWindowAverage: CareerAverages | null;
 }
 
 /** Builds one player's HistoricPlayerProfile against a shared reference season. */
@@ -122,15 +125,15 @@ export function buildHistoricPlayerProfile(seasons: PlayerSeasonHistory[], refer
     qualifyingSeasons = allSeasonsInWindow.filter((s) => s.minutes >= MIN_QUALIFYING_SEASON_MINUTES);
   }
 
-  const playedSeasonsInWindow = allSeasonsInWindow.filter((s) => s.minutes > 0);
+  const floorSeasonsInWindow = allSeasonsInWindow.filter((s) => s.minutes >= FIXED_FLOOR_MINUTES);
 
   return {
     lastCompletedSeason,
     qualifyingSeasons,
     windowAverage: allSeasonsInWindow.length > 0 ? computeCareerAverages(allSeasonsInWindow) : null,
     allSeasonsInWindow,
-    playedSeasonsInWindow,
-    playedWindowAverage: playedSeasonsInWindow.length > 0 ? computeCareerAverages(playedSeasonsInWindow) : null,
+    floorSeasonsInWindow,
+    floorWindowAverage: floorSeasonsInWindow.length > 0 ? computeCareerAverages(floorSeasonsInWindow) : null,
   };
 }
 

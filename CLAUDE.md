@@ -66,9 +66,11 @@ No lint script. Playwright isn't installed but works via
   profile, Player Comparison, Team Profile, the packaged Default Dashboard
   views) the fixed floor applies — 90 min in Current Season, 450 otherwise
   (`metrics/fixedMinutesFloor.ts`) — to every percentile, totals too; below
-  it is a "small sample" with no percentile or colour; and Historic Average
-  leaves out 0-minute seasons. The Historic Average window is always the
-  last 4 completed seasons, never reaching further back. Check which side a
+  it is a "small sample" with no percentile or colour (Player Comparison's
+  table too); and Historic Average counts only seasons of 450+ minutes —
+  a shorter season's figures don't count at all. The Historic Average
+  window is always the last 4 completed seasons, never reaching further
+  back. Check which side a
   section is on before adding or removing any floor (README "Minimum
   minutes").
 

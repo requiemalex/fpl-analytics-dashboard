@@ -6,12 +6,14 @@ import { useDialogFocus } from "../state/useDialogFocus";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import { getUpcomingFixtures, averageFixtureDifficulty } from "../metrics/fixtureTicker";
 import { computePositionPercentiles } from "../metrics/percentiles";
-import { fixedFloorMinutes, isBelowFixedFloor } from "../metrics/fixedMinutesFloor";
+import { FIXED_FLOOR_MINUTES, fixedFloorMinutes, isBelowFixedFloor } from "../metrics/fixedMinutesFloor";
+import { HISTORIC_WINDOW_SEASONS } from "../metrics/historicAnalysis";
 import { teamColumnByKey } from "./teamColumns";
 import {
   computeTeamAggregates,
   computeTeamRadarData,
   clubPlayerFigures,
+  clubPlayersShortOfFloor,
   clubSeasonHistory,
   TEAM_DEFENSE_AXES,
   TEAM_OFFENSE_AXES,
@@ -117,11 +119,19 @@ export function TeamDetailOverlay() {
   // percentile tints compare against everyone's. A summer signing has no
   // figures for last season here: what he did elsewhere is player
   // analysis, not this club's (see <club_not_squad>, metrics/teamStats.ts).
+  // A fixed-floor section (<fixed_minutes_floor>): Historic Average counts
+  // only the seasons he played at least the floor for the club.
   const figuresByTeamId = useMemo(() => {
     const map = new Map<number, Map<number, ClubPlayerFigures>>();
-    for (const t of teams) map.set(t.id, clubPlayerFigures(t.code, analysisMode, clubCtx));
+    for (const t of teams) map.set(t.id, clubPlayerFigures(t.code, analysisMode, clubCtx, { fixedFloorSeasons: true }));
     return map;
   }, [teams, analysisMode, clubCtx]);
+  // This club's players who played for it in the window but never reached
+  // the floor in a season — no Historic Average here, shown as small samples.
+  const shortOfFloor = useMemo(
+    () => (team && analysisMode === "historicAverage" ? clubPlayersShortOfFloor(team.code, clubCtx) : new Set<number>()),
+    [team, analysisMode, clubCtx],
+  );
 
   const figuresFor = (p: NormalizedPlayer): ClubPlayerFigures | null => (p.code === null ? null : (figuresByTeamId.get(p.teamId)?.get(p.code) ?? null));
 
@@ -195,9 +205,9 @@ export function TeamDetailOverlay() {
   // uses (<fixed_minutes_floor>; audit 2026-09-25 player-team-profiles H1),
   // over every current player's figures for his own club in this view
   // (never squad-filtered — see <percentile_population>). A player under
-  // the floor for this club gets no colour. His figures come from the club
-  // record, which only has seasons he played in, so a 0-minute season never
-  // counts toward his Historic Average here either.
+  // the floor for this club gets no colour. In Historic Average only club
+  // seasons that reach the floor count, so there the question is whether he
+  // has any (shortOfFloor).
   const minMinutes = fixedFloorMinutes(analysisMode);
   const squadPercentiles = useMemo(() => {
     const population: NormalizedPlayer[] = [];
@@ -359,7 +369,8 @@ export function TeamDetailOverlay() {
                 </thead>
                 <tbody>
                   {squad.map(({ player, figures }) => {
-                    const smallSample = figures !== null && isBelowFixedFloor(figures.minutes, analysisMode);
+                    const shortOfFloorHere = player.code !== null && shortOfFloor.has(player.code);
+                    const smallSample = (figures !== null && isBelowFixedFloor(figures.minutes, analysisMode)) || shortOfFloorHere;
                     return (
                     <tr
                       key={player.id}
@@ -373,7 +384,13 @@ export function TeamDetailOverlay() {
                       tabIndex={0}
                       aria-label={`Open ${player.name}'s profile`}
                       style={smallSample ? { color: "var(--text-muted)" } : undefined}
-                      title={smallSample ? `Small sample — ${fmtDecimal(figures.minutes, 0)} min for ${team.name}, under ${minMinutes}: no colour` : undefined}
+                      title={
+                        shortOfFloorHere
+                          ? `Small sample — no season in the last ${HISTORIC_WINDOW_SEASONS} with ${FIXED_FLOOR_MINUTES}+ minutes for ${team.name}, so nothing counts`
+                          : smallSample && figures
+                            ? `Small sample — ${fmtDecimal(figures.minutes, 0)} min for ${team.name}, under ${minMinutes}: no colour`
+                            : undefined
+                      }
                     >
                       <td className="sticky-col">
                         <div className="player-name-cell">

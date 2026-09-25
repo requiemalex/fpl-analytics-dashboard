@@ -126,18 +126,18 @@ describe("playersForDashboardItem — the per-game minutes floor is for the Defa
   });
 });
 
-describe("poolForDashboardItem — Historic Average without 0-minute seasons in the Default view only (audit 2026-09-25 player-team-profiles V2)", () => {
+describe("poolForDashboardItem — Historic Average from fixed-floor seasons in the Default view only (audit 2026-09-25 player-team-profiles V2)", () => {
   const p = (id: number) => ({ id }) as NormalizedPlayer;
   const pools = {
     byMode: { live: [p(1)], lastSeason: [p(2)], historicAverage: [p(3)] },
-    historicPlayedSeasonsOnly: [p(4)],
+    historicFixedFloorSeasons: [p(4)],
   };
 
-  it("the packaged Default view reads the played-seasons pool for Historic Average", () => {
+  it("the packaged Default view reads the fixed-floor-seasons pool for Historic Average", () => {
     expect(poolForDashboardItem("historicAverage", true, pools).map((x) => x.id)).toEqual([4]);
   });
 
-  it("a view the user builds keeps 0-minute seasons, and other Data Views are unchanged", () => {
+  it("a view the user builds keeps every season, and other Data Views are unchanged", () => {
     expect(poolForDashboardItem("historicAverage", false, pools).map((x) => x.id)).toEqual([3]);
     expect(poolForDashboardItem("lastSeason", true, pools).map((x) => x.id)).toEqual([2]);
     expect(poolForDashboardItem("live", true, pools).map((x) => x.id)).toEqual([1]);

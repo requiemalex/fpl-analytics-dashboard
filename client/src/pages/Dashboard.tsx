@@ -67,16 +67,16 @@ export function applyRateStatFloor(players: NormalizedPlayer[], dataView: Analys
 /**
  * The resolved pool a player-scope tile or graph starts from. The packaged
  * Default view is a fixed-floor section (<fixed_minutes_floor>), so its
- * Historic Average leaves out 0-minute seasons; a view the user builds keeps
- * them. None of the current defaults uses Historic Average, so today this
- * changes nothing on screen.
+ * Historic Average counts only seasons that reach the floor; a view the user
+ * builds counts every season. None of the current defaults uses Historic
+ * Average, so today this changes nothing on screen.
  */
 export function poolForDashboardItem(
   dataView: AnalysisMode,
   defaultViewShown: boolean,
-  pools: { byMode: Record<AnalysisMode, NormalizedPlayer[]>; historicPlayedSeasonsOnly: NormalizedPlayer[] },
+  pools: { byMode: Record<AnalysisMode, NormalizedPlayer[]>; historicFixedFloorSeasons: NormalizedPlayer[] },
 ): NormalizedPlayer[] {
-  return defaultViewShown && dataView === "historicAverage" ? pools.historicPlayedSeasonsOnly : pools.byMode[dataView];
+  return defaultViewShown && dataView === "historicAverage" ? pools.historicFixedFloorSeasons : pools.byMode[dataView];
 }
 
 /**
@@ -355,11 +355,11 @@ export function Dashboard() {
     return map;
   }, [players, historicProfiles, currentSeasonHasStarted]);
   // The packaged Default view's Historic Average (poolForDashboardItem).
-  const historicPlayedSeasonsOnly = useMemo(
-    () => resolvePlayerStatsList(players, "historicAverage", historicProfiles, currentSeasonHasStarted, { dropZeroMinuteSeasons: true }).resolved,
+  const historicFixedFloorSeasons = useMemo(
+    () => resolvePlayerStatsList(players, "historicAverage", historicProfiles, currentSeasonHasStarted, { fixedFloorSeasons: true }).resolved,
     [players, historicProfiles, currentSeasonHasStarted],
   );
-  const playerPools = useMemo(() => ({ byMode: resolvedByMode, historicPlayedSeasonsOnly }), [resolvedByMode, historicPlayedSeasonsOnly]);
+  const playerPools = useMemo(() => ({ byMode: resolvedByMode, historicFixedFloorSeasons }), [resolvedByMode, historicFixedFloorSeasons]);
 
   // Club figures per mode — same shared computation Teams and Team Profile
   // use (<club_not_squad>, metrics/teamStats.ts): what each club did in

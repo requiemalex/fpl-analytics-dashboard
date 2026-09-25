@@ -7,7 +7,7 @@ import { usePlayerHistory } from "../state/usePlayerHistory";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { computeRadarDataForAxes, getRadarAxisGroupsForPosition } from "../metrics/radarStats";
 import { computePositionPercentiles } from "../metrics/percentiles";
-import { fixedFloorMinutes, isBelowFixedFloor } from "../metrics/fixedMinutesFloor";
+import { FIXED_FLOOR_MINUTES, fixedFloorMinutes, isFixedFloorSmallSample } from "../metrics/fixedMinutesFloor";
 import { percentileTint, relativeCellTint } from "../utils/colorScale";
 import { PercentileRadarChart } from "./PlayerRadarChart";
 import { ActualVsExpectedBars } from "./playerProfile/ActualVsExpectedBars";
@@ -22,8 +22,8 @@ import { PositionBadge } from "./primitives";
 import { fmtDecimal, fmtPrice, fmtPercent, fmtSigned, DASH } from "../utils/format";
 import type { NormalizedPlayer, PlayerSeasonHistory, PlayerGameweekHistory } from "../types/normalized";
 
-/** The profile has no minimum-minutes control, so its Historic Average leaves out 0-minute seasons (<fixed_minutes_floor>). */
-const PROFILE_RESOLVE: ResolveOptions = { dropZeroMinuteSeasons: true };
+/** The profile has no minimum-minutes control, so its Historic Average counts only seasons that reach the fixed floor (<fixed_minutes_floor>). */
+const PROFILE_RESOLVE: ResolveOptions = { fixedFloorSeasons: true };
 
 /** The player `?player=` names, and whether it names one that doesn't exist (an old link, or not a number) — shown as a message rather than silently ignored. */
 function useSelectedPlayer(): [NormalizedPlayer | null, (id: number | null) => void, boolean] {
@@ -159,8 +159,9 @@ export function PlayerDetailOverlay() {
   // Percentiles are computed against the same resolved-mode population
   // every other page uses, not the raw live list — otherwise this page
   // would silently disagree with Player Explorer about where a player
-  // ranks whenever a historic mode is active. Historic Average here leaves
-  // out 0-minute seasons, for everyone in the pool (PROFILE_RESOLVE).
+  // ranks whenever a historic mode is active. Historic Average here counts
+  // only seasons that reach the floor, for everyone in the pool
+  // (PROFILE_RESOLVE).
   const { resolved: resolvedPlayers } = useMemo(
     () => resolvePlayerStatsList(players, analysisMode, historicProfiles, currentSeasonHasStarted, PROFILE_RESOLVE),
     [players, analysisMode, historicProfiles, currentSeasonHasStarted],
@@ -309,7 +310,15 @@ export function PlayerDetailOverlay() {
   // player, so nothing here claims he has no data (audit 2026-09-25
   // player-team-profiles M2, R4).
   const skippedByServer = analysisMode !== "live" && historicStatus === "ready" && historicSkippedPlayerIds.includes(player.id);
-  const noDataForMode = modeDataKnown(analysisMode, historicStatus, historicSkippedPlayerIds, player.id) && !hasDataForMode(resolvedPlayer);
+  // <live_vs_resolved_bug>: checks the RESOLVED player's minutes —
+  // whichever the active mode resolved to — never the live player's, which
+  // flagged well-sampled historic records as small samples early in a
+  // season. Under the fixed floor (<fixed_minutes_floor>) he has no
+  // percentile, so the radars and tints are blank. In Historic Average a
+  // player who played but never reached the floor in a season has nothing
+  // counted, so no figures at all: a small sample, not "no data".
+  const smallSample = isFixedFloorSmallSample(resolvedPlayer.minutes, analysisMode, historicProfiles.get(player.id));
+  const noDataForMode = modeDataKnown(analysisMode, historicStatus, historicSkippedPlayerIds, player.id) && !hasDataForMode(resolvedPlayer) && !smallSample;
   // Other Data Views where he actually played, for the no-data message —
   // never the one already selected, and never one where all he has is 0
   // minutes, which would only show a 0-minute small sample (T2).
@@ -320,13 +329,6 @@ export function PlayerDetailOverlay() {
         return hasDataForMode(r) && (r.minutes ?? 0) > 0;
       }).map((o) => o.label)
     : [];
-  // <live_vs_resolved_bug>: checks the RESOLVED player's minutes —
-  // whichever the active mode resolved to — never the live player's, which
-  // flagged well-sampled historic records as small samples early in a
-  // season. Under the fixed floor (<fixed_minutes_floor>) he has no
-  // percentile, so the radars and tints are blank; null minutes is "no
-  // data" (above), not a small sample.
-  const smallSample = isBelowFixedFloor(resolvedPlayer.minutes, analysisMode);
 
   // DEF and MID score points from both facets — same reasoning as the
   // split Defense/Offense percentile radars (radarGroups.length > 1 for
@@ -589,8 +591,9 @@ export function PlayerDetailOverlay() {
         )}
         {smallSample && (
           <div className="banner info" style={{ marginBottom: 16 }}>
-            Small sample — {fmtDecimal(resolvedPlayer.minutes, 0)} min in this mode, under the {minutesFloor}-minute floor, so no
-            percentiles or colours.
+            {resolvedPlayer.minutes === null
+              ? `Small sample — no season in the last ${HISTORIC_WINDOW_SEASONS} with ${FIXED_FLOOR_MINUTES}+ minutes, so nothing counts toward his Historic Average: no figures, percentiles or colours.`
+              : `Small sample — ${fmtDecimal(resolvedPlayer.minutes, 0)} min in this mode, under the ${minutesFloor}-minute floor, so no percentiles or colours.`}
           </div>
         )}
 
@@ -757,17 +760,17 @@ export function PlayerDetailOverlay() {
               // alongside complete seasons would understate the average for
               // reasons that have nothing to do with an injury or bad season,
               // just the season not being over yet. The average is the
-              // profile's Historic Average: window seasons with 0 minutes
-              // don't count (<fixed_minutes_floor>).
+              // profile's Historic Average: only window seasons that reach
+              // the fixed floor count (<fixed_minutes_floor>).
               const {
                 qualifyingSeasons,
-                playedWindowAverage: windowAverage,
+                floorWindowAverage: windowAverage,
                 allSeasonsInWindow,
-                playedSeasonsInWindow,
+                floorSeasonsInWindow,
               } = buildHistoricPlayerProfile(history.seasonHistory, historicReferenceSeason);
               const qualifyingSeasonNames = new Set(qualifyingSeasons.map((s) => s.seasonName));
               const inWindowNames = new Set(allSeasonsInWindow.map((s) => s.seasonName));
-              const countedNames = new Set(playedSeasonsInWindow.map((s) => s.seasonName));
+              const countedNames = new Set(floorSeasonsInWindow.map((s) => s.seasonName));
               const trend = computeSeasonTrend(history.seasonHistory);
               const orderedSeasons = [...combinedSeasonHistory].sort((a, b) => a.seasonName.localeCompare(b.seasonName));
 
@@ -876,17 +879,17 @@ export function PlayerDetailOverlay() {
                               const marked = windowKnown && !isCurrentSeason;
                               const inWindow = inWindowNames.has(s.seasonName);
                               const outsideWindow = marked && !inWindow;
-                              const noMinutes = marked && inWindow && !countedNames.has(s.seasonName);
-                              const isLight = marked && inWindow && !noMinutes && !qualifyingSeasonNames.has(s.seasonName);
+                              const underFloor = marked && inWindow && !countedNames.has(s.seasonName);
+                              const isLight = marked && inWindow && !underFloor && !qualifyingSeasonNames.has(s.seasonName);
                               return (
                                 <tr
                                   key={s.seasonName}
-                                  style={isLight || outsideWindow || noMinutes ? { color: "var(--text-muted)" } : undefined}
+                                  style={isLight || outsideWindow || underFloor ? { color: "var(--text-muted)" } : undefined}
                                   title={
                                     outsideWindow
                                       ? `Outside the ${HISTORIC_WINDOW_SEASONS}-season averaging window — not counted in the average above`
-                                      : noMinutes
-                                        ? "No minutes this season — not counted in the average above"
+                                      : underFloor
+                                        ? `Under ${FIXED_FLOOR_MINUTES} minutes this season — a small sample, not counted in the average above`
                                         : isLight
                                           ? "Light season (fewer minutes than usual — e.g. injury) — still counted in the average above"
                                           : undefined
@@ -894,7 +897,7 @@ export function PlayerDetailOverlay() {
                                 >
                                   <td style={{ textAlign: "left", fontFamily: "var(--font-body)" }}>
                                     {s.seasonName}
-                                    {isCurrentSeason ? " (live)" : outsideWindow || noMinutes ? " †" : isLight ? " *" : ""}
+                                    {isCurrentSeason ? " (live)" : outsideWindow || underFloor ? " †" : isLight ? " *" : ""}
                                   </td>
                                   <td>
                                     {isCurrentSeason

@@ -2,6 +2,7 @@ import type { ClubPlayerSeason, ClubSeason, NormalizedTeam } from "../types/norm
 import type { AnalysisMode } from "./resolvePlayerStats";
 import type { RadarDataPoint } from "./radarStats";
 import { HISTORIC_WINDOW_SEASONS, nextSeasonName } from "./historicAnalysis";
+import { FIXED_FLOOR_MINUTES } from "./fixedMinutesFloor";
 
 /**
  * One club's figures for whichever season(s) a view's Data View selects.
@@ -195,11 +196,24 @@ export type ClubPlayerFigures = Omit<ClubPlayerSeason, "code">;
  * A player only appears for seasons he actually played for the club — a
  * summer signing has no entry for last season here, however well he did
  * elsewhere (that's player analysis, not club analysis).
+ *
+ * `fixedFloorSeasons` (the Team Profile, a fixed-floor section —
+ * <fixed_minutes_floor>): Historic Average counts only the seasons he played
+ * at least FIXED_FLOOR_MINUTES for the club, the same rule as a player's own
+ * Historic Average there. A player whose club seasons in the window all fall
+ * short has no entry; clubPlayersShortOfFloor lists them.
  */
-export function clubPlayerFigures(clubCode: number | null, mode: AnalysisMode, ctx: ClubHistoryContext): Map<number, ClubPlayerFigures> {
+export function clubPlayerFigures(
+  clubCode: number | null,
+  mode: AnalysisMode,
+  ctx: ClubHistoryContext,
+  options: { fixedFloorSeasons?: boolean } = {},
+): Map<number, ClubPlayerFigures> {
+  const floorOnly = options.fixedFloorSeasons === true && mode === "historicAverage";
   const byCode = new Map<number, ClubPlayerSeason[]>();
   for (const record of clubRecordsForMode(clubCode, mode, ctx)) {
     for (const p of record.players) {
+      if (floorOnly && p.minutes < FIXED_FLOOR_MINUTES) continue;
       const list = byCode.get(p.code);
       if (list) list.push(p);
       else byCode.set(p.code, [p]);
@@ -224,6 +238,13 @@ export function clubPlayerFigures(clubCode: number | null, mode: AnalysisMode, c
     });
   }
   return result;
+}
+
+/** Players with Historic Average club seasons in the window, none of them reaching FIXED_FLOOR_MINUTES for the club — small samples in the Team Profile, with no Historic Average there. */
+export function clubPlayersShortOfFloor(clubCode: number | null, ctx: ClubHistoryContext): Set<number> {
+  const all = clubPlayerFigures(clubCode, "historicAverage", ctx);
+  const counted = clubPlayerFigures(clubCode, "historicAverage", ctx, { fixedFloorSeasons: true });
+  return new Set([...all.keys()].filter((code) => !counted.has(code)));
 }
 
 export interface ClubSeasonPoints {

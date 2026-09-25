@@ -341,8 +341,11 @@ describe("H1: the profile's percentiles use the fixed minutes floor", () => {
         <PlayerComparison />
       </MemoryRouter>,
     );
-    // Only the cameo's radar card, not the regular's.
-    expect(getAllByText(/\(small sample\)/).length).toBe(1);
+    // The cameo's radar card and (since the owner's 2026-09-25 follow-up) his
+    // table column — never the regular's.
+    const marks = getAllByText(/\(small sample\)/);
+    expect(marks.length).toBe(2);
+    for (const m of marks) expect(m.closest("th, .card-title")!.textContent).toContain("Davies");
   });
 
   it("the Team Profile's squad gives a player under the floor no colour, and marks his row", () => {
@@ -360,20 +363,20 @@ describe("H1: the profile's percentiles use the fixed minutes floor", () => {
   });
 });
 
-describe("V2: in the profile, a 0-minute season doesn't count toward Historic Average", () => {
-  // 2022/23 on record with 0 minutes (a season out of the Premier League).
-  // The window is the last 4 completed seasons, 2022/23–2025/26: without the
-  // 0-minute season it's 3 seasons, averaging 120 — and 2021/22 is never
-  // pulled in to replace it.
+describe("In the profile, only seasons of 450+ minutes count toward Historic Average (V2, then the owner's 450 rule)", () => {
+  // 2022/23 on record with 0 minutes (a season out of the Premier League) and
+  // 2024/25 a 300-minute cameo season. The window is the last 4 completed
+  // seasons, 2022/23–2025/26: only 2023/24 and 2025/26 reach 450, averaging
+  // 120 — and 2021/22 is never pulled in to replace the others.
   const seasons = [
     makeSeason({ seasonName: "2021/22", minutes: 3000, totalPoints: 200 }),
     makeSeason({ seasonName: "2022/23", minutes: 0, totalPoints: 0 }),
     makeSeason({ seasonName: "2023/24", minutes: 1800, totalPoints: 90 }),
-    makeSeason({ seasonName: "2024/25", minutes: 1800, totalPoints: 120 }),
+    makeSeason({ seasonName: "2024/25", minutes: 300, totalPoints: 20 }),
     makeSeason({ seasonName: "2025/26", minutes: 1800, totalPoints: 150 }),
   ];
 
-  it("Career History averages the 3 played window seasons and marks the 0-minute one †", () => {
+  it("Career History averages the 2 window seasons that reach 450 and marks the 0- and 300-minute ones †", () => {
     setApp([makePlayer({ id: 1, name: "Ndiaye", position: "MID", teamId: 1 })], { historicProfiles: profiles({ 1: seasons }) });
     setHistory([gw(1)], seasons);
     const { getByText, getByLabelText } = render(
@@ -381,12 +384,14 @@ describe("V2: in the profile, a 0-minute season doesn't count toward Historic Av
         <PlayerDetailOverlay />
       </MemoryRouter>,
     );
-    expect(getByText("Season average (3 seasons)")).toBeTruthy();
+    expect(getByText("Season average (2 seasons)")).toBeTruthy();
     expect(getByText(/^120 pts/)).toBeTruthy();
     fireEvent.click(getByLabelText("Show season-by-season detail"));
-    const row = getByText(/^2022\/23/).closest("tr")!;
-    expect(row.textContent).toContain("2022/23 †");
-    expect(row.getAttribute("title")).toBe("No minutes this season — not counted in the average above");
+    for (const [season, pattern] of [["2022/23", /^2022\/23/], ["2024/25", /^2024\/25/]] as const) {
+      const row = getByText(pattern).closest("tr")!;
+      expect(row.textContent).toContain(`${season} †`);
+      expect(row.getAttribute("title")).toBe("Under 450 minutes this season — a small sample, not counted in the average above");
+    }
   });
 });
 
@@ -630,5 +635,93 @@ describe("R5 (not a defect — guards the right behaviour): keyboard focus throu
     expect(getByRole("dialog", { name: "Saliba" })).toBeTruthy();
     fireEvent.keyDown(window, { key: "Escape" });
     expect(document.activeElement).toBe(pill);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The owner's follow-up (2026-09-25): where the user can't set minimum
+// minutes, Historic Average counts only seasons of 450+ minutes; Player
+// Comparison's table treats a small sample as its radars do.
+// ---------------------------------------------------------------------------
+
+describe("Historic Average counts only 450+ minute seasons in the fixed-floor sections", () => {
+  it("the profile calls a player who played but never reached 450 in a season a small sample, not 'no data'", () => {
+    setApp(state.app.players as NormalizedPlayer[], {
+      historicProfiles: profiles({ 1: [makeSeason({ seasonName: "2024/25", minutes: 300, totalPoints: 12 }), makeSeason({ seasonName: "2025/26", minutes: 400, totalPoints: 15 })] }),
+    });
+    const { getByRole, getByText, queryByText } = render(
+      <MemoryRouter initialEntries={["/players?player=1"]}>
+        <PlayerDetailOverlay />
+      </MemoryRouter>,
+    );
+    fireEvent.click(getByRole("button", { name: "Historic Average" }));
+    expect(getByText(/Small sample — no season in the last 4 with 450\+ minutes/)).toBeTruthy();
+    expect(queryByText(/No data for Saliba/)).toBeNull();
+  });
+
+  it("the Team Profile squad averages only his 450+ seasons for the club, and greys a player with none", () => {
+    const seasons = [
+      clubSeason(101, "2025/26", { players: [clubPlayer(1001, { minutes: 3000, totalPoints: 150 }), clubPlayer(1002, { minutes: 400, totalPoints: 15 })] }),
+      clubSeason(101, "2024/25", { players: [clubPlayer(1001, { minutes: 300, totalPoints: 10 }), clubPlayer(1002, { minutes: 300, totalPoints: 12 })] }),
+    ];
+    setApp(
+      [
+        makePlayer({ id: 1, name: "Saliba", position: "DEF", teamId: 1 }),
+        makePlayer({ id: 2, name: "Kiwior", position: "DEF", teamId: 1 }),
+      ],
+      { clubSeasons: seasons },
+    );
+    const { getByRole, getByText } = render(
+      <MemoryRouter initialEntries={["/teams?teamProfile=1"]}>
+        <TeamDetailOverlay />
+      </MemoryRouter>,
+    );
+    fireEvent.click(getByRole("button", { name: "Historic Average" }));
+    const saliba = getByText("Saliba").closest("tr")!;
+    expect(saliba.querySelectorAll("td")[1].textContent).toBe("150"); // not (150 + 10) / 2 = 80
+    const kiwior = getByText("Kiwior").closest("tr")!;
+    expect(kiwior.querySelectorAll("td")[1].textContent).toBe("—");
+    expect(kiwior.getAttribute("title")).toMatch(/Small sample — no season in the last 4 with 450\+ minutes for Arsenal/);
+  });
+});
+
+describe("Player Comparison's table treats a small sample as its radars do", () => {
+  const OTHER = makePlayer({ id: 3, name: "Mings", position: "DEF", teamId: 1, teamName: "Arsenal", minutes: 0, totalPoints: 0 });
+  const SEASONS = { ...LAST_SEASON, 3: [makeSeason({ seasonName: "2025/26", minutes: 2500, totalPoints: 90, xG: 0.5, xA: 0.5, xGI: 1.0, xGC: 35 })] };
+
+  it("no better/worse colour or bold for the cameo, and the others are coloured among themselves", () => {
+    setApp([CAMEO, REGULAR, OTHER], { historicProfiles: profiles(SEASONS) });
+    const { getByText } = render(
+      <MemoryRouter initialEntries={["/player-comparison?players=1,2,3"]}>
+        <PlayerComparison />
+      </MemoryRouter>,
+    );
+    const cells = [...getByText("xG/Game").closest("tr")!.querySelectorAll("td")].slice(1) as HTMLElement[];
+    // Davies 0.25 would top this row; he's greyed instead, and Konsa (0.03) vs Mings (0.02) decide the colours.
+    expect(cells[0].style.color).toBe("var(--text-muted)");
+    expect(cells[0].style.fontWeight).toBe("");
+    expect(cells[1].style.fontWeight).toBe("700");
+  });
+
+  it("the Summary doesn't count the cameo, and says so", () => {
+    setApp([CAMEO, REGULAR, OTHER], { historicProfiles: profiles(SEASONS) });
+    const { getByText } = render(
+      <MemoryRouter initialEntries={["/player-comparison?players=1,2,3"]}>
+        <PlayerComparison />
+      </MemoryRouter>,
+    );
+    const summary = getByText("Summary").closest(".card")!;
+    expect(summary.textContent).toContain("Davies is a small sample in this mode and isn't counted.");
+    expect(summary.textContent).not.toMatch(/Davies (rates|and|are tied)/);
+  });
+
+  it("with one regular left, there's nothing to compare", () => {
+    setApp([CAMEO, REGULAR], { historicProfiles: profiles(LAST_SEASON) });
+    const { getByText } = render(
+      <MemoryRouter initialEntries={["/player-comparison?players=1,2"]}>
+        <PlayerComparison />
+      </MemoryRouter>,
+    );
+    expect(getByText(/Fewer than two of these players have enough minutes in this mode to compare/)).toBeTruthy();
   });
 });

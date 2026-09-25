@@ -176,9 +176,9 @@ export function UserGuide() {
             longer filters by minutes at all here (a separate, much narrower minutes bar still exists just to flag a season as "light"
             in the Career History chart, and for Expected Points' own forward-looking reliability check). Its per-game figures
             (PPG, xG/Game and the rest) are the seasons' total divided by their total games, with games counted from the seasons'
-            total minutes. Where you can't set minimum minutes yourself (see below), a season with no minutes at all — a year out of
-            the Premier League, or one lost entirely to injury — isn't counted. The window is still the last 4 completed seasons; an
-            older season never takes its place.
+            total minutes. Where you can't set minimum minutes yourself (see below), only seasons with at least 450 minutes count: a
+            shorter season — a cameo year, one lost to injury, a year out of the Premier League — is a small sample, and none of its
+            figures count. The window is still the last 4 completed seasons; an older season never takes its place.
           </li>
           <li>
             <strong>Current Season</strong> — this season's live figures. Pre-season, or before a player's team has played, the
@@ -192,11 +192,12 @@ export function UserGuide() {
           <strong>Minimum minutes.</strong> Where you can set a minutes filter yourself — Player Explorer's Mins column, the tiles and
           graphs you build on the Dashboard, Team Building — the app adds none of its own: raise it if one short appearance is topping
           a per-game list. Where you can't — the player profile, Player Comparison, the Team Profile and the Dashboard's Default view —
-          a fixed floor applies: 90 minutes in Current Season, 450 (five full games) otherwise — in Historic Average, his average
-          minutes over the seasons counted. In the player profile, Player Comparison's radars and the Team Profile's squad, a player
-          under it is a <em>small sample</em>: he's shown, but gets no percentile and no percentile colour, so a cameo can't read as
-          the best in the league. Player Comparison's table still colours whichever of the players you picked is better on each row.
-          The Default view's per-game tiles and graphs leave players under the floor out.
+          a fixed floor applies: 90 minutes in Current Season, 450 (five full games) otherwise — and in Historic Average only
+          seasons of 450+ minutes count, so a player who never reached 450 in any of the last 4 seasons has no Historic Average
+          there. In the player profile, Player Comparison and the Team Profile's squad, a player under the floor is a{" "}
+          <em>small sample</em>: he's shown, but gets no percentile and no green/red colour, and Player Comparison's summary doesn't
+          count him, so a cameo can't read as the best in the league. The Default view's per-game tiles and graphs leave players
+          under the floor out.
         </p>
         <p className="page-subtitle" style={{ margin: 0 }}>
           One thing that deliberately never changes: price is always today's real price, in every mode — in the identity line (like
@@ -407,8 +408,8 @@ export function UserGuide() {
           Compare up to 5 players side by side across every Player Explorer metric, plus a percentile radar chart per player underneath.
           The colour scale is better/worse (not just higher/lower) — price, ownership, and xGC are inverted since a lower number is the
           better one for those three specifically. A Summary card counts how many metrics each player leads on, stated plainly as a
-          mechanical count, not a weighted verdict. The radars use the fixed minutes floor (see Analysis modes): a player under it is
-          marked "(small sample)" and has no percentiles.
+          mechanical count, not a weighted verdict. The table, the summary and the radars use the fixed minutes floor (see Analysis modes): a player under it is
+          marked "(small sample)", has no percentiles or better/worse colours, and isn't counted in the Summary.
         </p>
         <Try>Add two players you're deciding between, then check whether the "leads on more metrics" summary agrees with your gut — if it doesn't, that's worth investigating why.</Try>
         <p className="page-subtitle">
@@ -450,8 +451,8 @@ export function UserGuide() {
           shows them ("—" for a season the club wasn't in the Premier League). In Historic Average they're averages: position and
           points are rounded (so two clubs can both be "2nd"), and wins, draws and losses are whole numbers that always add up to the
           games played. In Historic Average each squad row is the player's
-          average over the seasons in the window he actually played for this club — so a signing from last summer shows his one
-          season, next to the club's four. The squad's green/red colouring compares each player with others in his position and uses
+          average over the seasons in the window he played at least 450 minutes for this club — so a signing from last summer shows
+          his one season, next to the club's four, and a player with no such season shows "—", greyed as a small sample. The squad's green/red colouring compares each player with others in his position and uses
           the fixed minutes floor: a player under it is greyed out with no colour (hover the row to see why). On the Defense radar,
           more Defensive Contributions counts as better, as it does for a player — they're FPL points — so a dominant side that
           rarely has to defend can sit low on that one axis. It's a two-colour swatch of that club's real primary and secondary kit colours where known, so same-coloured
@@ -492,7 +493,7 @@ export function UserGuide() {
         <p className="page-subtitle">
           The profile has no minutes setting, so its percentiles use the fixed minutes floor (see Analysis modes): only players with at
           least 450 minutes (90 in Current Season) are ranked. A player under it is a <em>small sample</em> — the profile says so, his
-          radars are marked "(small sample)" and nothing is coloured. Its Historic Average leaves out seasons with no minutes. If a
+          radars are marked "(small sample)" and nothing is coloured. Its Historic Average counts only seasons of 450+ minutes. If a
           player has no figures at all in the mode you've picked, the profile says so and suggests the Data Views that do have some.
         </p>
         <p className="page-subtitle">
@@ -513,7 +514,7 @@ export function UserGuide() {
         <p className="page-subtitle">
           Career History's average is the last 4 completed seasons, as in Historic Average. In the season-by-season table (the
           chevron below the chart), <strong>*</strong> marks a light season (fewer minutes than usual) that still counts, and{" "}
-          <strong>†</strong> a season that doesn't: outside the 4-season window, or with no minutes at all. Hovering a bar on the chart
+          <strong>†</strong> a season that doesn't: outside the 4-season window, or under 450 minutes. Hovering a bar on the chart
           uses the same †. The table is tinted the same green/red way as the rest of the profile, but relative to this player's own
           other seasons shown in the table, not the wider player pool — there's no "other players" comparison for a single player's
           career.

@@ -36,7 +36,7 @@ function ChartTooltip({ active, payload }: any) {
  * it), so it draws green/solid same as any other in-window season. Only a
  * season outside the window (too old) draws muted-grey, since that's the
  * one case genuinely excluded from the average (in the player profile, so
- * is a window season with 0 minutes — <fixed_minutes_floor>). Hovering an
+ * is a window season under the fixed minutes floor — <fixed_minutes_floor>). Hovering an
  * uncounted season marks it "†", the same mark Career History's table uses
  * for it. The live/in-progress season draws dashed-outline only — real, but
  * not complete yet, so not counted until it is.

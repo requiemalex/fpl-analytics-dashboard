@@ -5,7 +5,7 @@ import { useAppState } from "../state/AppStateContext";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode, modeDataKnown, type AnalysisMode, type ResolveOptions } from "../metrics/resolvePlayerStats";
 import { computeRadarData } from "../metrics/radarStats";
-import { fixedFloorMinutes, isBelowFixedFloor } from "../metrics/fixedMinutesFloor";
+import { fixedFloorMinutes, isFixedFloorSmallSample } from "../metrics/fixedMinutesFloor";
 import { buildMultiSeriesTrend, playerMetricTrendDataKey, type TrendMetricKey } from "../metrics/careerTrends";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { PercentileRadarChart } from "../components/PlayerRadarChart";
@@ -17,8 +17,8 @@ import { DASH } from "../utils/format";
 import type { NormalizedPlayer } from "../types/normalized";
 
 const MAX_COMPARE = 5;
-/** No minimum-minutes control here, so Historic Average leaves out 0-minute seasons (<fixed_minutes_floor>). */
-const COMPARISON_RESOLVE: ResolveOptions = { dropZeroMinuteSeasons: true };
+/** No minimum-minutes control here, so Historic Average counts only seasons that reach the fixed floor (<fixed_minutes_floor>). */
+const COMPARISON_RESOLVE: ResolveOptions = { fixedFloorSeasons: true };
 const COLUMN_GROUP_ORDER: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE", "ADVANCED"];
 
 function joinNames(names: string[]): string {
@@ -60,13 +60,31 @@ function computeWinTally(comparedPlayers: NormalizedPlayer[], columns: PlayerCol
   return { counts, comparableMetrics };
 }
 
-function ComparisonSummary({ comparedPlayers, derivedById }: { comparedPlayers: NormalizedPlayer[]; derivedById: Map<number, PlayerDerivedMetrics> }) {
+/**
+ * `smallSampleIds`: players under the fixed minutes floor for the mode
+ * (<fixed_minutes_floor>). As on the radars, they aren't ranked: they
+ * can't lead a metric, and they aren't counted in the tally at all.
+ */
+function ComparisonSummary({
+  comparedPlayers: allCompared,
+  derivedById,
+  smallSampleIds,
+}: {
+  comparedPlayers: NormalizedPlayer[];
+  derivedById: Map<number, PlayerDerivedMetrics>;
+  smallSampleIds: Set<number>;
+}) {
+  const comparedPlayers = useMemo(() => allCompared.filter((p) => !smallSampleIds.has(p.id)), [allCompared, smallSampleIds]);
+  const smallSampleNames = allCompared.filter((p) => smallSampleIds.has(p.id)).map((p) => p.name);
   const overall = useMemo(() => computeWinTally(comparedPlayers, PLAYER_COLUMNS, derivedById), [comparedPlayers, derivedById]);
   const actualOutputColumns = useMemo(() => PLAYER_COLUMNS.filter((c) => c.group === "ACTUAL OUTPUT"), []);
   const actualOutput = useMemo(
     () => computeWinTally(comparedPlayers, actualOutputColumns, derivedById),
     [comparedPlayers, actualOutputColumns, derivedById],
   );
+  const one = smallSampleNames.length === 1;
+  const smallSampleNote =
+    smallSampleNames.length > 0 ? ` ${joinNames(smallSampleNames)} ${one ? "is a small sample" : "are small samples"} in this mode and ${one ? "isn't" : "aren't"} counted.` : "";
 
   const maxOverall = Math.max(0, ...Array.from(overall.counts.values()));
   const overallLeaders = comparedPlayers.filter((p) => overall.counts.get(p.id) === maxOverall && maxOverall > 0);
@@ -77,9 +95,13 @@ function ComparisonSummary({ comparedPlayers, derivedById }: { comparedPlayers: 
   return (
     <div className="card" style={{ marginBottom: 22 }}>
       <div className="card-title">Summary</div>
-      {overallLeaders.length === 0 ? (
+      {comparedPlayers.length < 2 ? (
         <p className="page-subtitle" style={{ margin: 0 }}>
-          No player here leads on more metrics than the others — too close to call from this table alone.
+          Fewer than two of these players have enough minutes in this mode to compare.{smallSampleNote}
+        </p>
+      ) : overallLeaders.length === 0 ? (
+        <p className="page-subtitle" style={{ margin: 0 }}>
+          No player here leads on more metrics than the others — too close to call from this table alone.{smallSampleNote}
         </p>
       ) : (
         <p className="page-subtitle" style={{ marginBottom: 6 }}>
@@ -90,6 +112,7 @@ function ComparisonSummary({ comparedPlayers, derivedById }: { comparedPlayers: 
             ` Looking only at actual output (points, goals, assists, clean sheets, bonus), ${joinNames(outputLeaders.map((p) => p.name))} ${
               outputLeaders.length > 1 ? "lead" : "leads"
             } there${outputLeaders.length === overallLeaders.length && outputLeaders.every((p) => overallLeaders.includes(p)) ? " too" : ""}.`}
+          {smallSampleNote}
         </p>
       )}
     </div>
@@ -159,8 +182,21 @@ export function PlayerComparison() {
   // Only once his figures for the mode are known: not while the historic
   // dataset loads, nor for a player the server couldn't build (audit
   // 2026-09-25 player-team-profiles R4).
+  // Under the fixed floor for the mode (<fixed_minutes_floor>): no
+  // percentile on the radar, and — the same rule — no better/worse colour in
+  // the table and no place in the Summary's tally, so a cameo can't "beat" a
+  // regular on a per-game row. One who played in the Historic Average window
+  // but never reached the floor in a season has no figures there: a small
+  // sample, not "no data".
+  const smallSampleIds = useMemo(
+    () =>
+      new Set(
+        comparisonResults.filter((r) => isFixedFloorSmallSample(r.resolved.minutes, analysisMode, historicProfiles.get(r.live.id))).map((r) => r.live.id),
+      ),
+    [comparisonResults, analysisMode, historicProfiles],
+  );
   const noDataNames = comparisonResults
-    .filter((r) => modeDataKnown(analysisMode, historicStatus, historicSkippedPlayerIds, r.live.id) && !hasDataForMode(r.resolved))
+    .filter((r) => modeDataKnown(analysisMode, historicStatus, historicSkippedPlayerIds, r.live.id) && !hasDataForMode(r.resolved) && !smallSampleIds.has(r.live.id))
     .map((r) => r.live.name);
   const derivedById = useMemo(() => new Map(comparedPlayers.map((p) => [p.id, getPlayerDerivedMetrics(p)])), [comparedPlayers]);
   const minMinutesThreshold = fixedFloorMinutes(analysisMode);
@@ -304,7 +340,7 @@ export function PlayerComparison() {
         </div>
       ) : (
         <>
-          <ComparisonSummary comparedPlayers={comparedPlayers} derivedById={derivedById} />
+          <ComparisonSummary comparedPlayers={comparedPlayers} derivedById={derivedById} smallSampleIds={smallSampleIds} />
           <div className="card">
             <div className="card-title">Comparison</div>
             {new Set(comparedPlayers.map((p) => p.position)).size > 1 && (
@@ -326,6 +362,7 @@ export function PlayerComparison() {
                           {p.name}
                         </span>
                         <AvailabilityFlag status={p.status} news={p.news} chanceOfPlayingNextRound={p.chanceOfPlayingNextRound} />
+                        {smallSampleIds.has(p.id) && <div style={{ fontSize: 11, fontWeight: 400, color: "var(--text-muted)" }}>(small sample)</div>}
                       </th>
                     ))}
                   </tr>
@@ -344,7 +381,8 @@ export function PlayerComparison() {
                       {PLAYER_COLUMNS.filter((c) => c.group === group).map((col) => {
                         const higherIsBetter = col.higherIsBetter !== false;
                         const values = comparedPlayers.map((p) => col.getValue(p, derivedById.get(p.id)!));
-                        const nonNull = values.filter((v): v is number => v !== null);
+                        // Colour ranks only the players at or above the floor.
+                        const nonNull = values.filter((v, i): v is number => v !== null && !smallSampleIds.has(comparedPlayers[i].id));
                         const min = nonNull.length > 0 ? Math.min(...nonNull) : 0;
                         const max = nonNull.length > 0 ? Math.max(...nonNull) : 0;
                         const canColor = nonNull.length >= 2;
@@ -358,17 +396,21 @@ export function PlayerComparison() {
                             >
                               {col.label}
                             </td>
-                            {values.map((v, i) => (
-                              <td
-                                key={comparedPlayers[i].id}
-                                style={{
-                                  color: v !== null && canColor ? relativeCellTextColor(v, min, max, higherIsBetter) : undefined,
-                                  fontWeight: v !== null && canColor && v === bestValue && max !== min ? 700 : undefined,
-                                }}
-                              >
-                                {col.format(v)}
-                              </td>
-                            ))}
+                            {values.map((v, i) => {
+                              const small = smallSampleIds.has(comparedPlayers[i].id);
+                              const ranked = v !== null && canColor && !small;
+                              return (
+                                <td
+                                  key={comparedPlayers[i].id}
+                                  style={{
+                                    color: ranked ? relativeCellTextColor(v, min, max, higherIsBetter) : small ? "var(--text-muted)" : undefined,
+                                    fontWeight: ranked && v === bestValue && max !== min ? 700 : undefined,
+                                  }}
+                                >
+                                  {col.format(v)}
+                                </td>
+                              );
+                            })}
                           </tr>
                         );
                       })}
@@ -383,7 +425,7 @@ export function PlayerComparison() {
             <div className="card-title">Percentile Radar Comparison</div>
             <div className="card-grid">
               {comparedPlayers.map((p) => {
-                const isSmallSample = isBelowFixedFloor(p.minutes, analysisMode);
+                const isSmallSample = smallSampleIds.has(p.id);
                 const radarData = radarDataByPlayerId.get(p.id) ?? [];
                 return (
                   <div className="card" key={p.id}>

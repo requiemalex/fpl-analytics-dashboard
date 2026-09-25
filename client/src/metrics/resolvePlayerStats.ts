@@ -126,14 +126,14 @@ function nullPerformanceFields(player: NormalizedPlayer): NormalizedPlayer {
 }
 
 /**
- * `dropZeroMinuteSeasons`: Historic Average leaves out window seasons with 0
- * minutes (HistoricPlayerProfile.playedWindowAverage). Only for the sections
- * where the user can't set minimum minutes (<fixed_minutes_floor>,
- * metrics/fixedMinutesFloor.ts); elsewhere 0-minute seasons still count.
- * No effect on the other two modes.
+ * `fixedFloorSeasons`: Historic Average counts only window seasons that
+ * reach the fixed minutes floor (HistoricPlayerProfile.floorWindowAverage).
+ * Only for the sections where the user can't set minimum minutes
+ * (<fixed_minutes_floor>, metrics/fixedMinutesFloor.ts); elsewhere every
+ * season counts. No effect on the other two modes.
  */
 export interface ResolveOptions {
-  dropZeroMinuteSeasons?: boolean;
+  fixedFloorSeasons?: boolean;
 }
 
 export function resolvePlayerStats(
@@ -223,7 +223,7 @@ export function resolvePlayerStats(
   }
 
   // historicAverage
-  const avg = options.dropZeroMinuteSeasons ? historicProfile?.playedWindowAverage : historicProfile?.windowAverage;
+  const avg = options.fixedFloorSeasons ? historicProfile?.floorWindowAverage : historicProfile?.windowAverage;
   if (!avg) return nullPerformanceFields(player);
   return {
     ...player,

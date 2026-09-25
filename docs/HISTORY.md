@@ -3374,3 +3374,27 @@ tiles/graphs only:
   matches, so a double gameweek counted two. Now labelled "Matches" and
   "per Match" (audit M4).
 - **Last commit with them:** `ae127db`.
+
+### Historic Average dropping only 0-minute seasons in the fixed-floor sections (replaced 2026-09-25)
+- **What it did:** in the player profile (Views and Career History), Player
+  Comparison and the Default Dashboard view, Historic Average left out
+  window seasons with 0 minutes and counted any season with more
+  (`playedWindowAverage`, `dropZeroMinuteSeasons`). The 450-minute floor
+  was then compared with the average minutes per counted season, so a
+  300-minute cameo season still went into the average.
+- **Why it went:** the owner set one definitive rule for sections where the
+  user can't set minimum minutes: only seasons of 450+ minutes count, and a
+  shorter season's figures don't count at all (`floorWindowAverage`,
+  `fixedFloorSeasons`). The Team Profile squad's Historic Average follows
+  the same rule for seasons at the club.
+- **Last commit with it:** `7da1500`.
+
+### Player Comparison's table colouring small samples (replaced 2026-09-25)
+- **What it did:** the table coloured every picked player better/worse
+  head-to-head and counted everyone in the Summary's "leads on" tally, so a
+  136-minute cameo showed green over a regular on per-game rows. Only the
+  radars followed the fixed minutes floor.
+- **Why it went:** the owner asked for the table to match the radars: a
+  small sample gets no colour or bold, the others are coloured among
+  themselves, and the Summary doesn't count him.
+- **Last commit with it:** `7da1500`.

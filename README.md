@@ -193,20 +193,28 @@ everything:
 | | Where | Floor | Historic Average |
 |---|---|---|---|
 | **The user can set minimum minutes** | Player Explorer (MINS filter), Dashboard tiles and graphs the user builds, Team Building | None added by the app | Every window season counts, 0-minute ones included |
-| **The user can't** | Player profile, Player Comparison, Team Profile, the packaged Default Dashboard views | Fixed: 90 minutes in Current Season, 450 otherwise (`metrics/fixedMinutesFloor.ts`, `<fixed_minutes_floor>`) | A season with 0 minutes doesn't count; any minutes above 0 do |
+| **The user can't** | Player profile, Player Comparison, Team Profile, the packaged Default Dashboard views | Fixed: 90 minutes in Current Season, 450 otherwise (`metrics/fixedMinutesFloor.ts`, `<fixed_minutes_floor>`) | Only seasons with 450+ minutes count; a season under that is a small sample and none of its figures count |
 
 In the fixed-floor sections the floor applies to **every percentile**,
 totals as well as per-game rates: the pool is everyone at or above it, and
 a player below it is shown as a small sample, with no percentile and no
-colour. Player Comparison's table colours are head-to-head between the
-picked players, not percentiles, so the floor doesn't touch them; only its
-radars. In Historic Average the floor is compared with the resolved
-minutes, i.e. the average per counted season (1,061 minutes over four
-seasons is 265 a season: a small sample). Historic Average's window is always the last 4 completed seasons;
-dropping a 0-minute season never reaches further back to replace it
-(`HistoricPlayerProfile.playedWindowAverage`, used through
-`resolvePlayerStats`'s `dropZeroMinuteSeasons`). A season lost entirely to
-injury also has 0 minutes, so it's dropped there too.
+colour. Player Comparison's table follows the same rule as its radars: a
+small sample's column gets no better/worse colour or bold, the others are
+coloured among themselves, and the Summary doesn't count him.
+
+**Historic Average there counts only seasons of 450+ minutes** (the
+owner's rule, `HistoricPlayerProfile.floorWindowAverage`, used through
+`resolvePlayerStats`'s `fixedFloorSeasons`; the Team Profile squad's
+`clubPlayerFigures(…, { fixedFloorSeasons })` for seasons at the club). Two
+seasons of 1,800 and 450 minutes and one of 300: the average is the first
+two, and none of the 300-minute season's figures count. So every Historic
+Average there is built from real samples, and the floor needs no second
+check on the average. A player who played in the window but never reached
+450 in a season has no Historic Average there: a small sample (figures
+"—"), not "no data" (`isShortOfFixedFloor`, `isFixedFloorSmallSample`).
+Only 0 minutes throughout is "no data". The window is always the last 4
+completed seasons; a season that falls short is never replaced by an older
+one. One qualifying season is enough.
 
 Details:
 - Default 0 everywhere the user can set it (`DEFAULT_MIN_MINUTES`,
@@ -225,7 +233,7 @@ Details:
 - Only the packaged Default view, which the user can't edit, adds the fixed
   floor to a tile or graph showing a per-game rate
   (`applyRateStatFloor`, `playersForDashboardItem`), and reads Historic
-  Average without 0-minute seasons (`poolForDashboardItem`). Both are
+  Average from 450+ minute seasons only (`poolForDashboardItem`). Both are
   decided by the Players Default view being the one selected
   (`isDefaultViewSelected`), not by a tile's id: views saved before v1.35.0
   can hold copies of Default tiles, ids included. None of the current
@@ -454,7 +462,7 @@ live data; rows are keyed by fixture, so a double gameweek is two rows.
 Only Prime's Totals row is tinted (live percentile): the Average row
 divides by the matches in this player's log, which the pool has no
 equivalent of. Career History uses the profile's Historic Average (window
-seasons with minutes); its "(live)" season is resolved as Current Season,
+seasons of 450+ minutes; the others are marked †); its "(live)" season is resolved as Current Season,
 so pre-season it reads 0, not FPL's carried-over totals. The gameweek-history
 fetch (`usePlayerHistory`) is lazy, retries network failures twice, and
 drops responses for a player no longer selected.
@@ -471,8 +479,10 @@ drops responses for a player no longer selected.
 
 **Player Comparison** — up to 5 players across every `PLAYER_COLUMNS`
 metric, coloured better/worse (price, ownership, xGC inverted), plus radars.
-A fixed-floor section: radars use the fixed floor, and Historic Average
-leaves out 0-minute seasons, in the table as well as the radars.
+A fixed-floor section: a small sample gets no percentile on the radar, no
+colour or bold in the table and no place in the Summary's tally, and
+Historic Average counts only 450+ minute seasons, in the table as well as
+the radars.
 Player Trends (`metrics/careerTrends.ts`) is separate and uses the full
 unwindowed career (`allTimeSeasonsByPlayerId`), outside the mode toggle.
 
@@ -492,11 +502,12 @@ longest word (`TEAM_MIN_COLUMN_WIDTHS`).
   rounded mean, and a season the club has no record of reads "—".
 - Its squad table shows each current player's figures **for this club**
   (`clubPlayerFigures`). In Historic Average that's the mean over the
-  window seasons he played for the club — not the club's own window — so a
-  signing from last summer shows his one season here. The club record only
-  lists players with minutes, so a 0-minute season never counts. Squad
-  tints are within-position percentiles with the fixed floor; a player
-  under it is greyed, with no colour.
+  window seasons he played at least 450 minutes for the club — not the
+  club's own window — so a signing from last summer shows his one season
+  here. A player whose club seasons all fall short shows "—", greyed, as a
+  small sample (`clubPlayersShortOfFloor`). Squad tints are
+  within-position percentiles with the fixed floor; a player under it is
+  greyed, with no colour.
 - The team Defense radar ranks more Defensive Contributions as better
   (`TEAM_DEFENSE_AXES`), as for a player — they're FPL points. A dominant
   side that rarely has to defend can sit low on that one axis while topping
