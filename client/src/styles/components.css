@@ -171,8 +171,11 @@ table.data-table {
    its content, so a drag did nothing and number columns fell below the
    64px minimum (audit 2026-09-25, R1). Here the table is as wide as its
    columns ask for, never narrower than the box, and scrolls sideways
-   inside .table-wrap when they don't fit. */
-table.data-table.resizable-columns {
+   inside .table-wrap when they don't fit. Team Explorer's table
+   (.natural-width) has no resizing but wants the same never-squeezed
+   sizing on smaller laptop screens. */
+table.data-table.resizable-columns,
+table.data-table.natural-width {
   width: max-content;
   min-width: 100%;
 }

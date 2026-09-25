@@ -16,7 +16,7 @@ const NAV_STRUCTURE: NavEntry[] = [
     label: "Analysis Tools",
     links: [
       { to: "/players", label: "Player Explorer" },
-      { to: "/teams", label: "Teams" },
+      { to: "/teams", label: "Team Explorer" },
       { to: "/player-comparison", label: "Player Comparison" },
     ],
   },

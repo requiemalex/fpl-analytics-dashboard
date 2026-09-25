@@ -42,7 +42,7 @@ const SECTION_META = [
   { id: "player-explorer", label: "Player Explorer", accent: "var(--accent-focus)" },
   { id: "team-building", label: "Team Building", accent: "var(--accent-positive)" },
   { id: "player-comparison", label: "Player Comparison", accent: "var(--accent-focus)" },
-  { id: "teams", label: "Teams", accent: "var(--accent-value)" },
+  { id: "teams", label: "Team Explorer", accent: "var(--accent-value)" },
   { id: "player-profile", label: "Player Profile", accent: "var(--accent-positive)" },
   { id: "limitations", label: "Data sourcing & known limitations", accent: "var(--accent-negative)" },
   { id: "metric-reference", label: "Metric reference", accent: "var(--accent-value)" },
@@ -159,7 +159,7 @@ export function UserGuide() {
 
       <Section id="modes" title="Analysis modes: Last Completed Season / Historic Average / Current Season">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Most sections (Dashboard, Player Explorer, Player Comparison, Teams, Team Profile, the player profile) show the
+          Most sections (Dashboard, Player Explorer, Player Comparison, Team Explorer, Team Profile, the player profile) show the
           same toggle near the top of the page — the options are identical everywhere, but each page's toggle is independent: changing
           one page's mode (or its Search/Position/Team/Min Minutes criteria, where a page has that too) never changes what any other
           page shows. Switching Player Explorer to Historic Average, for instance, has no effect on the Dashboard open in another tab:
@@ -266,7 +266,7 @@ export function UserGuide() {
           metric-vs-metric graph, so they don't fit this per-graph model and were retired rather than forced in.
         </p>
         <p className="page-subtitle">
-          Every team metric is a <em>club</em> figure for the season(s) the tile or graph's own Data View picks — see Teams &amp; Team
+          Every team metric is a <em>club</em> figure for the season(s) the tile or graph's own Data View picks — see Team Explorer &amp; Team
           Profile below. That includes the results: a team tile set to Last Completed Season shows that season's final{" "}
           <strong>League Position</strong>, <strong>League Points</strong>, <strong>Goals For/Against</strong> and so on, not today's
           table.
@@ -314,7 +314,7 @@ export function UserGuide() {
             With several things open, Escape closes the one opened last.
           </li>
           <li>
-            Arriving from a club's "Player Rankings" link (Teams or the Team Profile) shows all of that club's players: it clears the
+            Arriving from a club's "Player Rankings" link (Team Explorer or the Team Profile) shows all of that club's players: it clears the
             search and any other column filters, then sets the Team column's filter to that club — shown on the column like any other
             filter, so you can change it to another club or clear it.
           </li>
@@ -410,7 +410,7 @@ export function UserGuide() {
         </p>
       </Section>
 
-      <Section id="teams" title="Teams &amp; Team Profile">
+      <Section id="teams" title="Team Explorer &amp; Team Profile">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
           Team analysis is always <em>what the club did</em> in a given season — whoever was playing for it at the time — never what its
           current players did elsewhere. Every figure comes from a match-by-match record of which club each player was playing for in
@@ -421,8 +421,8 @@ export function UserGuide() {
           for a season it was in the Championship, never zero).
         </p>
         <p className="page-subtitle">
-          Teams is a league-table view of that season — position, points, goals for and against, clean sheets, xG, xGC, xA and FPL
-          points scored — sortable like every other table here, with a "Player Rankings" shortcut next to each club name that jumps
+          Team Explorer is a league-table view of that season — position, points, goals for and against, clean sheets, xG, xGC, xA and FPL
+          points scored — sortable like every other table here, with a "Player Rankings" shortcut under each club name that jumps
           straight into Player Explorer pre-filtered to that team. A team's coloured pill — here, in the Team Profile, and on the
           Dashboard's team tiles — is clickable anywhere it appears in the app and opens that club's Team Profile: season totals, the
           team radars, upcoming fixtures, and the current squad with what each player did <em>for this club</em> in the selected
@@ -487,7 +487,7 @@ export function UserGuide() {
           <li>
             <strong>Club history before 2026/27 comes from a community archive.</strong> The official API's per-season player history
             has no club attribution, and it doesn't serve past seasons' match data at all, so 2016/17–2025/26 club figures were
-            backfilled from the vaastav/Fantasy-Premier-League archive (a mirror of FPL's own data) — see Teams &amp; Team Profile.
+            backfilled from the vaastav/Fantasy-Premier-League archive (a mirror of FPL's own data) — see Team Explorer &amp; Team Profile.
             From 2026/27 on it's archived straight from the official API.
           </li>
           <li>

@@ -16,7 +16,7 @@ export interface TeamColumn {
 const num = (decimals = 0) => (v: number | null) => fmtDecimal(v, decimals);
 
 /**
- * The full set of team-level metrics a Dashboard tile/graph, the Teams
+ * The full set of team-level metrics a Dashboard tile/graph, the Team Explorer
  * table, and Team Profile can use. Every one is a CLUB figure for the
  * season(s) the view's own Data View selects (see <club_not_squad> in
  * metrics/teamStats.ts) — results, output and underlying numbers alike,

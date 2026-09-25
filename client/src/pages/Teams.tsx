@@ -12,6 +12,8 @@ import { relativeCellTint } from "../utils/colorScale";
 /** A league-table-style view of each club in the selected season(s) — every column a club figure (see <club_not_squad>, metrics/teamStats.ts). */
 const TEAM_TABLE_COLUMN_KEYS = ["leaguePosition", "leaguePoints", "goalsFor", "goalsAgainst", "cleanSheets", "xG", "xGC", "xA", "points"];
 const TEAM_TABLE_COLUMNS: TeamColumn[] = TEAM_TABLE_COLUMN_KEYS.map((k) => teamColumnByKey(k)).filter((c): c is TeamColumn => c !== undefined);
+/** A cell width in an auto-layout table is a floor, not a cap — keeps short columns (xG, xA) from shrinking to their few digits while long headers still size themselves. */
+const TEAM_METRIC_MIN_WIDTH = 96;
 
 function getTeamSortValue(team: TeamAggregate, key: string): number | string | null {
   if (key === "name") return team.name;
@@ -82,10 +84,10 @@ export function Teams() {
   }
 
   return (
-    <div>
+    <div className="page-fill">
       <div className="page-header">
         <div>
-          <h1>Teams</h1>
+          <h1>Team Explorer</h1>
         </div>
       </div>
 
@@ -96,57 +98,69 @@ export function Teams() {
 
       {historicStatus === "loading" && clubSeasons.length === 0 && <p className="page-subtitle">Loading club history…</p>}
 
-      <div className="table-wrap">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th style={{ textAlign: "left", cursor: "pointer" }} onClick={(e) => handleHeaderClick("name", e.shiftKey)} title="Click to sort · Shift-click to add secondary sort">
-                Team
-                {sort.find((s) => s.key === "name") && (
-                  <span className="sort-indicator">{sort.find((s) => s.key === "name")!.direction === "asc" ? "\u2191" : "\u2193"}</span>
-                )}
-              </th>
-              {TEAM_TABLE_COLUMNS.map((c) => {
-                const sortEntry = sort.find((s) => s.key === c.key);
-                return (
-                  <th key={c.key} onClick={(e) => handleHeaderClick(c.key, e.shiftKey)} title="Click to sort · Shift-click to add secondary sort">
-                    {c.label}
-                    {sortEntry && <span className="sort-indicator">{sortEntry.direction === "asc" ? "\u2191" : "\u2193"}</span>}
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {aggregates.map((t) => (
-              <tr key={t.teamId} onClick={() => openTeamProfile(t.teamId)}>
-                <td style={{ textAlign: "left", fontFamily: "var(--font-body)", fontWeight: 600 }}>
-                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <TeamBadge teamId={t.teamId} shortName={t.shortName} />
-                    {t.name}
-                    <button
-                      type="button"
-                      className="chip"
-                      style={{ fontWeight: 400, fontSize: 10.5, padding: "2px 7px" }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        goToPlayerRankings(t.teamId);
-                      }}
-                      title={`See ${t.name}'s players, sortable by any metric, in Player Explorer`}
+      {/* Same shape as Player Explorer's table: fills the page's height and scrolls inside itself, the Team column pinned left with a two-line cell, and every column at least TEAM_METRIC_MIN_WIDTH wide — a narrow window scrolls sideways rather than squeezing the columns together. */}
+      <div className="page-fill-body">
+        <div className="table-wrap">
+          <table className="data-table natural-width">
+            <thead>
+              <tr>
+                <th className="sticky-col" onClick={(e) => handleHeaderClick("name", e.shiftKey)} title="Click to sort · Shift-click to add secondary sort">
+                  Team
+                  {sort.find((s) => s.key === "name") && (
+                    <span className="sort-indicator">{sort.find((s) => s.key === "name")!.direction === "asc" ? "↑" : "↓"}</span>
+                  )}
+                </th>
+                {TEAM_TABLE_COLUMNS.map((c, idx) => {
+                  const sortEntry = sort.find((s) => s.key === c.key);
+                  return (
+                    <th
+                      key={c.key}
+                      className={idx === 0 ? "column-group-divider" : undefined}
+                      onClick={(e) => handleHeaderClick(c.key, e.shiftKey)}
+                      title="Click to sort · Shift-click to add secondary sort"
+                      // No column filters here, so no room to reserve for the filter icon on the right.
+                      style={{ width: TEAM_METRIC_MIN_WIDTH, paddingRight: 10 }}
                     >
-                      Player Rankings
-                    </button>
-                  </span>
-                </td>
-                {TEAM_TABLE_COLUMNS.map((c) => (
-                  <td key={c.key} style={{ backgroundColor: teamCellTint(t, c) }}>
-                    {c.format(c.getValue(t))}
-                  </td>
-                ))}
+                      {c.label}
+                      {sortEntry && <span className="sort-indicator">{sortEntry.direction === "asc" ? "↑" : "↓"}</span>}
+                    </th>
+                  );
+                })}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {aggregates.map((t) => (
+                <tr key={t.teamId} onClick={() => openTeamProfile(t.teamId)}>
+                  <td className="sticky-col">
+                    <div className="player-name-cell">
+                      <span className="name">{t.name}</span>
+                      <span className="meta">
+                        <TeamBadge teamId={t.teamId} shortName={t.shortName} />
+                        <button
+                          type="button"
+                          className="chip"
+                          style={{ fontSize: 10, padding: "1px 7px" }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            goToPlayerRankings(t.teamId);
+                          }}
+                          title={`See ${t.name}'s players, sortable by any metric, in Player Explorer`}
+                        >
+                          Player Rankings
+                        </button>
+                      </span>
+                    </div>
+                  </td>
+                  {TEAM_TABLE_COLUMNS.map((c, idx) => (
+                    <td key={c.key} className={idx === 0 ? "column-group-divider" : undefined} style={{ backgroundColor: teamCellTint(t, c) }}>
+                      {c.format(c.getValue(t))}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

@@ -87,7 +87,7 @@ expensive-to-fetch data: players, teams, fixtures, events, historic profiles
 `bootstrap-static` silently every 10 minutes. Analysis mode and filters are
 **per page** — each page keeps its own in `useState` and renders the
 controlled `AnalysisModeToggle`/`FiltersBar`; nothing a page does can change
-another page. The one cross-page hand-off (Teams → Player Explorer filtered
+another page. The one cross-page hand-off (Team Explorer → Player Explorer filtered
 to a club) goes through the `?team=<id>` URL param, which Player Explorer
 turns into its Team column filter and then removes from the address. Arriving
 while the page is already open (the Team Profile's link) also clears the
@@ -96,7 +96,7 @@ Overlays use URL params
 too: `?player=<id>` (player profile), `?teamProfile=<id>` (team profile),
 `?players=id,id` (Player Comparison selection).
 
-**Pages:** Dashboard (`/`), Player Explorer (`/players`), Teams (`/teams`),
+**Pages:** Dashboard (`/`), Player Explorer (`/players`), Team Explorer (`/teams`),
 Player Comparison (`/player-comparison`), Team Building (`/team-building`),
 User Guide (`/guide`), plus the player and team profile overlays.
 
@@ -203,7 +203,7 @@ is **kept, not dropped or zeroed**: every performance field comes back
 ### Club history: team figures are club figures
 
 Every team figure is **what the club did in that season, whoever played for
-it** — never a sum over today's squad. Teams, Team Profile and Dashboard
+it** — never a sum over today's squad. Team Explorer, Team Profile and Dashboard
 team tiles/graphs all use `computeTeamAggregates()` (`metrics/teamStats.ts`).
 League results (position, points, goals for/against) follow the Data View
 too.
@@ -411,9 +411,11 @@ metric, coloured better/worse (price, ownership, xGC inverted), plus radars.
 Player Trends (`metrics/careerTrends.ts`) is separate and uses the full
 unwindowed career (`allTimeSeasonsByPlayerId`), outside the mode toggle.
 
-**Teams / Team Profile** (`components/TeamDetailOverlay.tsx`) — club
+**Team Explorer / Team Profile** (`pages/Teams.tsx`, `components/TeamDetailOverlay.tsx`) — club
 figures per "Club history" above. Club pills use real two-colour kits
-(`utils/teamColors.ts`, with a generated fallback).
+(`utils/teamColors.ts`, with a generated fallback). Team Explorer's table
+matches Player Explorer's: fills the page height, pins the two-line Team
+cell left, and scrolls sideways rather than squeezing columns below 96px.
 
 ### Team Building — the one predictive section
 
