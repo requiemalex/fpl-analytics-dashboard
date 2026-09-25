@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 /** Floor for both manual resize and Fit to Box — below this a column stops being readable. Bumped from 56 to give the filter icon (added alongside the resize handle) room to sit without crowding the label text. */
 export const MIN_COLUMN_WIDTH = 64;
@@ -22,7 +22,15 @@ export interface UseColumnCustomization {
    * also interpreted as a column-reorder drag on the header it sits in.
    */
   startResize: (e: React.PointerEvent, key: string) => void;
-  /** Compresses every currently-visible column to share `availableWidth`, floored at MIN_COLUMN_WIDTH. Callers compute availableWidth themselves (their own pinned columns' measured widths vary by table). */
+  /**
+   * Shares `availableWidth` among the visible columns the user hasn't
+   * resized by hand, floored at MIN_COLUMN_WIDTH (or the column's own
+   * `minWidths` entry). A width set by dragging is kept, and its space is
+   * taken out of the share. Callers compute availableWidth themselves
+   * (their own pinned columns' measured widths vary by table). Safe to call
+   * from a listener registered once: it reads the current columns, not the
+   * ones from when the listener was made.
+   */
   fitToBox: (availableWidth: number) => void;
 }
 
@@ -35,11 +43,18 @@ export interface UseColumnCustomization {
  * dragged key up in its own `visibleColumns` and finds nothing (`indexOf`
  * returns -1), not because of any explicit cross-group guard.
  */
-export function useColumnCustomization(defaultVisibleColumns: string[]): UseColumnCustomization {
+export function useColumnCustomization(defaultVisibleColumns: string[], minWidths: Record<string, number> = {}): UseColumnCustomization {
   const [visibleColumns, setVisibleColumnsState] = useState<string[]>(defaultVisibleColumns);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const [resizingKey, setResizingKey] = useState<string | null>(null);
+  // Refs, not state, for what fitToBox reads: pages call it from a window
+  // resize listener registered once, which would otherwise see only the
+  // first render's columns forever.
+  const visibleColumnsRef = useRef(visibleColumns);
+  visibleColumnsRef.current = visibleColumns;
+  /** Columns whose width the user set by dragging — auto-fit leaves them alone until Reset. */
+  const manualWidthKeysRef = useRef(new Set<string>());
 
   function setVisibleColumns(keys: string[]) {
     setVisibleColumnsState(keys);
@@ -48,10 +63,12 @@ export function useColumnCustomization(defaultVisibleColumns: string[]): UseColu
   function toggleColumn(key: string) {
     // Newly-shown columns append to the end of the current custom order,
     // rather than snapping back to canonical order.
+    if (visibleColumns.includes(key)) manualWidthKeysRef.current.delete(key);
     setVisibleColumnsState((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
   }
 
   function resetColumns() {
+    manualWidthKeysRef.current.clear();
     setVisibleColumnsState(defaultVisibleColumns);
     setColumnWidths({});
   }
@@ -79,6 +96,7 @@ export function useColumnCustomization(defaultVisibleColumns: string[]): UseColu
 
     function onMove(ev: PointerEvent) {
       const delta = ev.clientX - startX;
+      manualWidthKeysRef.current.add(key);
       setColumnWidths((prev) => ({ ...prev, [key]: Math.max(MIN_COLUMN_WIDTH, Math.round(startWidth + delta)) }));
     }
     function onUp() {
@@ -92,11 +110,31 @@ export function useColumnCustomization(defaultVisibleColumns: string[]): UseColu
   }
 
   function fitToBox(availableWidth: number) {
-    if (visibleColumns.length === 0) return;
-    const perColumn = Math.max(MIN_COLUMN_WIDTH, Math.floor(availableWidth / visibleColumns.length));
-    const next: Record<string, number> = {};
-    for (const key of visibleColumns) next[key] = perColumn;
-    setColumnWidths(next);
+    const visible = visibleColumnsRef.current;
+    const manual = manualWidthKeysRef.current;
+    const minFor = (key: string) => Math.max(MIN_COLUMN_WIDTH, minWidths[key] ?? 0);
+    setColumnWidths((prev) => {
+      const next: Record<string, number> = {};
+      for (const key of manual) if (prev[key] !== undefined) next[key] = prev[key];
+      let budget = availableWidth - visible.reduce((sum, key) => sum + (manual.has(key) ? (prev[key] ?? 0) : 0), 0);
+      // A column that needs more than an equal share (Next 5 Fixtures) gets
+      // its minimum first; the others then share what's left.
+      let flexible = visible.filter((key) => !manual.has(key));
+      let settled = false;
+      while (!settled && flexible.length > 0) {
+        const share = Math.floor(budget / flexible.length);
+        const needMore = flexible.filter((key) => minFor(key) > share);
+        settled = needMore.length === 0;
+        for (const key of needMore) {
+          next[key] = minFor(key);
+          budget -= next[key];
+        }
+        flexible = flexible.filter((key) => next[key] === undefined);
+      }
+      const share = flexible.length > 0 ? Math.floor(budget / flexible.length) : 0;
+      for (const key of flexible) next[key] = share;
+      return next;
+    });
   }
 
   return {

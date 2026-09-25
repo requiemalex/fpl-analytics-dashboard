@@ -114,6 +114,13 @@ export const DEFAULT_SUMMARY_TILES: SummaryTileConfig[] = [
   { id: "default-team-clean-sheets", scope: "team", metricKey: "cleanSheets", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: null, playerIds: null, teamIds: null },
 ];
 
+const DEFAULT_SUMMARY_TILE_IDS = new Set(DEFAULT_SUMMARY_TILES.map((t) => t.id));
+
+/** A packaged Default-view tile, which the user can't edit (a default id only ever lives in the immutable Default view). */
+export function isPackagedDefaultTile(tile: Pick<SummaryTileConfig, "id">): boolean {
+  return DEFAULT_SUMMARY_TILE_IDS.has(tile.id);
+}
+
 const SUMMARY_TILES_STORE: VersionedStore<SummaryTileConfig[]> = {
   version: STORAGE_VERSION,
   fallback: DEFAULT_SUMMARY_TILES,

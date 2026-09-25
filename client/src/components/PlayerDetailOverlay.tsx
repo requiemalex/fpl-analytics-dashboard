@@ -254,6 +254,17 @@ export function PlayerDetailOverlay() {
     return result;
   }, [player, liveResolvedPlayers]);
 
+  // Escape closes the profile, like its × button. Re-registered with the
+  // current setter so it never restores an out-of-date address.
+  useEffect(() => {
+    if (!player) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setPlayerId(null);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [player, setPlayerId]);
+
   if (!player) return null;
 
   // The stat cards below use this — identity fields (name, team, position,

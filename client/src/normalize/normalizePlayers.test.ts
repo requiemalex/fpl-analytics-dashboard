@@ -101,3 +101,10 @@ describe("normalizePlayers — total player count", () => {
     expect(result.totalPlayers).toBeNull();
   });
 });
+
+describe("normalizePlayers — PPG (audit 2026-09-25 M4)", () => {
+  it("doesn't read FPL's per-appearance points_per_game; resolvePlayerStats works PPG out per estimated game", () => {
+    const bootstrap = makeBootstrap({ elements: [makeRawElement({ id: 1, total_points: 9, minutes: 72, points_per_game: "2.2" })] });
+    expect(normalizePlayers(bootstrap).players[0].pointsPerGame).toBeNull();
+  });
+});

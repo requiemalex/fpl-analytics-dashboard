@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { columnFilterPasses, isColumnFilterActive, useColumnFilters, EMPTY_COLUMN_FILTER, type ColumnFilterSpec } from "./useColumnFilters";
+import { columnFilterPasses, columnFilterProblem, isColumnFilterActive, useColumnFilters, EMPTY_COLUMN_FILTER, type ColumnFilterSpec } from "./useColumnFilters";
 
 const spec = (over: Partial<ColumnFilterSpec>): ColumnFilterSpec => ({ ...EMPTY_COLUMN_FILTER, ...over });
 
@@ -69,5 +69,51 @@ describe("useColumnFilters — draft vs applied", () => {
     expect(result.current.passesAllFilters(row(100, "ARS"))).toBe(false);
     act(() => result.current.resetAllFilters());
     expect(result.current.passesAllFilters(row(null, "CHE"))).toBe(true);
+  });
+});
+
+describe("column filters — 2026-09-25 audit fixes", () => {
+  it("M2: with the column's decimals, values compare as displayed (Equal to, ≥ and ≤ alike)", () => {
+    // Pts/£m 15.3197 shows as "15.3"; Historic Average points 227.25 show as "227".
+    expect(columnFilterPasses(15.3197, spec({ eq: 15.3 }), 1)).toBe(true);
+    expect(columnFilterPasses(15.3197, spec({ lte: 15.3 }), 1)).toBe(true);
+    expect(columnFilterPasses(15.3197, spec({ gte: 15.3 }), 1)).toBe(true);
+    expect(columnFilterPasses(227.25, spec({ eq: 227 }), 0)).toBe(true);
+    expect(columnFilterPasses(15.36, spec({ eq: 15.3 }), 1)).toBe(false);
+    // Same rounding as the table cell: 15.35 shows as "15.4".
+    expect(columnFilterPasses(15.35, spec({ eq: 15.4 }), 1)).toBe(true);
+    // Without decimals the full value is compared, as before.
+    expect(columnFilterPasses(15.3197, spec({ eq: 15.3 }))).toBe(false);
+  });
+
+  it("M2: passesAllFilters takes each column's decimals from the caller", () => {
+    const { result } = renderHook(() => useColumnFilters({ pointsPerMillion: spec({ eq: 15.3 }) }));
+    expect(result.current.passesAllFilters(() => 15.3197, () => 1)).toBe(true);
+    expect(result.current.passesAllFilters(() => 15.3197)).toBe(false);
+  });
+
+  it("L2: a minimum above the maximum, or Equal to outside the range, is a problem and Enter refuses it", () => {
+    expect(columnFilterProblem(spec({ gte: 200, lte: 100 }))).toBeTruthy();
+    expect(columnFilterProblem(spec({ eq: 5, gte: 10 }))).toBeTruthy();
+    expect(columnFilterProblem(spec({ eq: 50, lte: 10 }))).toBeTruthy();
+    expect(columnFilterProblem(spec({ gte: 100, lte: 100 }))).toBeUndefined();
+    expect(columnFilterProblem(spec({ gte: -5 }))).toBeUndefined();
+
+    const { result } = renderHook(() => useColumnFilters());
+    act(() => result.current.openFilter("totalPoints"));
+    act(() => result.current.setFilterDraft(spec({ gte: 200, lte: 100 })));
+    act(() => result.current.confirmFilter());
+    expect(result.current.columnFilters.totalPoints).toBeUndefined();
+    expect(result.current.openFilterKey).toBe("totalPoints");
+  });
+
+  it("M3: clearFilter drops only that column's filter (and closes its popover); H1: setColumnFilter applies one directly", () => {
+    const { result } = renderHook(() => useColumnFilters());
+    act(() => result.current.setColumnFilter("team", spec({ category: "ARS" })));
+    act(() => result.current.setColumnFilter("goals", spec({ gte: 10 })));
+    act(() => result.current.openFilter("goals"));
+    act(() => result.current.clearFilter("goals"));
+    expect(result.current.columnFilters).toEqual({ team: spec({ category: "ARS" }) });
+    expect(result.current.openFilterKey).toBeNull();
   });
 });

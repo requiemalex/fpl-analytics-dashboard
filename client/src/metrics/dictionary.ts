@@ -40,14 +40,14 @@ export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
   pointsPerGame: def({
     displayName: "Points Per Game (PPG)",
     internalName: "pointsPerGame",
-    source: "FPL API",
-    apiFields: ["points_per_game"],
-    suppliedByFPL: true,
-    derived: false,
-    formula: null,
+    source: "Derived",
+    apiFields: ["total_points", "minutes"],
+    suppliedByFPL: false,
+    derived: true,
+    formula: "total points / estimated games played (minutes ÷ 90, rounded UP so any appearance beyond a full match counts as another game, floored at 1 appearance) — the same games figure as every other per-game rate, in every Data View.",
     units: "points/game",
     caveats:
-      "FPL's own figure for the live season. FPL's API has no historical equivalent, so Last Completed Season / Historic Average estimate it as total points ÷ estimated games played (minutes ÷ 90, rounded UP so any appearance beyond a full match counts as another game, floored at 1 appearance) — a close approximation for regular starters, less precise for players used mainly as substitutes.",
+      "Not FPL's own points_per_game, which divides by appearances (a 10-minute cameo counts as a whole game). Games are estimated from minutes, so this is close for regular starters and less precise for players used mainly as substitutes. A player with 0 minutes shows 0.0.",
     availabilityNote: "Always available.",
   }),
   goals: def({

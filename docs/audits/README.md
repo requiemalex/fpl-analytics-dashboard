@@ -42,7 +42,7 @@ ID schemes (C/M/L on 2026-09-21, D on 2026-09-24).
 |---|---|---|---|
 | `results/2026-09-21-full-app/` | Whole app | `1-audit.md`, `2-remediation.md`, `3-regression.md` | Standard three-phase run |
 | `results/2026-09-24-dashboard/` | Dashboard page | `audit-and-remediation.md` | Audit and fixes in one session, at the owner's request (not the standard three phases). All 20 findings fixed in v1.64.0 |
-| `results/2026-09-25-player-explorer/` | Player Explorer page | `1-audit.md` | Phase 1 done: 0 C, 1 H, 6 M, 9 L, 2 V. 27 tests added (5 `it.fails`). Phases 2–3 pending |
+| `results/2026-09-25-player-explorer/` | Player Explorer page | `1-audit.md`, `2-remediation.md` | Phase 1: 0 C, 1 H, 6 M, 9 L, 2 V. Phase 2: all 16 confirmed findings fixed (M1, M3, M4 per the owner's decisions; M1 also removed the per-game floor from user-built Dashboard tiles/graphs); V1, V2 left for the owner. 346/346 tests. Phase 3 pending |
 
 Each phase adds or updates its run's row. A result file records what was true
 at the time, so its text isn't updated afterwards. It may refer to files by

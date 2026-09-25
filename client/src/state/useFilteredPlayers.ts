@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import type { NormalizedPlayer } from "../types/normalized";
 import type { GlobalScoutingFilters } from "./scoutingFilters";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
@@ -51,8 +50,4 @@ export function filterPlayers(
     if (p.minutes !== null && p.minutes < minMinutes) return false;
     return true;
   });
-}
-
-export function useFilteredPlayers(players: NormalizedPlayer[], filters: GlobalScoutingFilters, mode: AnalysisMode): NormalizedPlayer[] {
-  return useMemo(() => filterPlayers(players, filters, mode), [players, filters, mode]);
 }

@@ -77,7 +77,10 @@ function normalizeOnePlayer(
     ownership: parseNumericString(el.selected_by_percent),
 
     totalPoints: el.total_points,
-    pointsPerGame: parseNumericString(el.points_per_game),
+    // Placeholder, like the per-game rates below: resolvePlayerStats.ts
+    // works PPG out from total points and minutes in every mode. FPL's own
+    // points_per_game is per appearance, a different measure, and is not read.
+    pointsPerGame: null,
     epNext: parseNumericString(el.ep_next),
     minutes: el.minutes,
     starts: availability.starts ? parseNumberOrNull(el.starts) : null,

@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { applyRateStatFloor, gameweekDisplay, LIVE_RATE_STAT_MIN_MINUTES, RATE_STAT_MIN_MINUTES } from "./Dashboard";
+import { applyRateStatFloor, gameweekDisplay, playersForDashboardItem, LIVE_RATE_STAT_MIN_MINUTES, RATE_STAT_MIN_MINUTES } from "./Dashboard";
+import { DEFAULT_SUMMARY_TILES, createSummaryTile, isPackagedDefaultTile } from "../state/useSummaryTiles";
+import { DEFAULT_DASHBOARD_GRAPHS, createDashboardGraph, isPackagedDefaultGraph } from "../state/useDashboardGraphs";
+import { DEFAULT_FILTERS } from "../state/scoutingFilters";
+import { makePlayer } from "../test/fixtures";
 import { rankBars } from "../components/charts/BarTopN";
 import type { NormalizedEvent, NormalizedPlayer } from "../types/normalized";
 
@@ -80,5 +84,42 @@ describe("gameweekDisplay — the Gameweek Status card", () => {
 
   it("pre-season", () => {
     expect(gameweekDisplay({ kind: "pre-season" }, []).heading).toBe("Pre-season");
+  });
+});
+
+describe("playersForDashboardItem — the per-game minutes floor is for the Default view only (audit 2026-09-25 M1)", () => {
+  // Reed-style one-cameo player next to a regular.
+  const cameo = makePlayer({ id: 1, position: "MID", minutes: 89 });
+  const regular = makePlayer({ id: 2, position: "MID", minutes: 2700 });
+  const pool = [cameo, regular];
+  const item = { dataView: "lastSeason" as const, criteria: DEFAULT_FILTERS, playerIds: null };
+
+  it("a tile or graph the user built ranks everyone its own criteria let through, even on a per-game metric", () => {
+    const ids = playersForDashboardItem(item, pool, { showsRate: true, isPackagedDefault: false }).map((p) => p.id);
+    expect(ids).toEqual([1, 2]);
+  });
+
+  it("its own Min Minutes is how the user sets a floor", () => {
+    const withMin = { ...item, criteria: { ...DEFAULT_FILTERS, minMinutes: 450 } };
+    expect(playersForDashboardItem(withMin, pool, { showsRate: true, isPackagedDefault: false }).map((p) => p.id)).toEqual([2]);
+  });
+
+  it("a packaged default showing a per-game metric still gets the floor", () => {
+    expect(playersForDashboardItem(item, pool, { showsRate: true, isPackagedDefault: true }).map((p) => p.id)).toEqual([2]);
+    expect(playersForDashboardItem(item, pool, { showsRate: false, isPackagedDefault: true }).map((p) => p.id)).toEqual([1, 2]);
+  });
+
+  it("picked players are never floored", () => {
+    const picked = { ...item, playerIds: [1] };
+    expect(playersForDashboardItem(picked, pool, { showsRate: true, isPackagedDefault: true }).map((p) => p.id)).toEqual([1]);
+  });
+
+  it("only the packaged Default ids count as packaged defaults", () => {
+    expect(DEFAULT_SUMMARY_TILES.every(isPackagedDefaultTile)).toBe(true);
+    expect(DEFAULT_DASHBOARD_GRAPHS.every(isPackagedDefaultGraph)).toBe(true);
+    const { id: _tileId, ...tileConfig } = DEFAULT_SUMMARY_TILES[0];
+    const { id: _graphId, ...graphConfig } = DEFAULT_DASHBOARD_GRAPHS[0];
+    expect(isPackagedDefaultTile(createSummaryTile(tileConfig))).toBe(false);
+    expect(isPackagedDefaultGraph(createDashboardGraph(graphConfig))).toBe(false);
   });
 });

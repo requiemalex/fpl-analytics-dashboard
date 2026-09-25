@@ -1,5 +1,5 @@
-import React from "react";
-import type { ColumnFilterSpec } from "../state/useColumnFilters";
+import React, { useEffect } from "react";
+import { columnFilterProblem, type ColumnFilterSpec } from "../state/useColumnFilters";
 
 export function ColumnFilterControl({
   isOpen,
@@ -21,6 +21,19 @@ export function ColumnFilterControl({
   /** When set, this column is categorical (Team, Position) — renders a single "show only" dropdown instead of the three numeric threshold inputs below. */
   categoryOptions?: string[];
 }) {
+  const problem = columnFilterProblem(filterDraft);
+
+  // Escape closes the open popover like Cancel, wherever focus is.
+  useEffect(() => {
+    if (!isOpen) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onCancel();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, onCancel]);
+
+  const iconLabel = isActive ? "Filter active on this column — click to edit" : "Filter this column";
   return (
     <>
       <button
@@ -32,7 +45,8 @@ export function ColumnFilterControl({
           if (isOpen) onCancel();
           else onOpen();
         }}
-        title={isActive ? "Filter active on this column — click to edit" : "Filter this column"}
+        title={iconLabel}
+        aria-label={iconLabel}
       >
         ▾
       </button>
@@ -42,6 +56,12 @@ export function ColumnFilterControl({
           draggable={false}
           onClick={(e) => e.stopPropagation()}
           onDragStart={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            // Enter in a field applies the filter; on a focused button it just presses that button.
+            if (e.key !== "Enter" || e.target instanceof HTMLButtonElement) return;
+            e.preventDefault();
+            if (!problem) onConfirm();
+          }}
         >
           {categoryOptions ? (
             <div className="field">
@@ -87,7 +107,7 @@ export function ColumnFilterControl({
             </>
           )}
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-            <button type="button" className="btn" onClick={onConfirm}>
+            <button type="button" className="btn" onClick={onConfirm} disabled={!!problem} title={problem}>
               Enter
             </button>
             <button type="button" className="chip" onClick={onCancel}>

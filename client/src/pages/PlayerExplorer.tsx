@@ -1,22 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
-import { useFilteredPlayers } from "../state/useFilteredPlayers";
 import { useColumnCustomization } from "../state/useColumnCustomization";
 import { useSortSpec, compareSortValues } from "../state/useSortSpec";
-import { useColumnFilters, isColumnFilterActive } from "../state/useColumnFilters";
+import { useColumnFilters, isColumnFilterActive, EMPTY_COLUMN_FILTER, type ColumnFilterSpec } from "../state/useColumnFilters";
 import { ColumnFilterControl } from "../components/ColumnFilterControl";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { getUpcomingFixtures, formatFixturesForCsv, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
-import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFilters";
-import { PositionBadge, TeamBadge, SignedNum, AvailabilityFlag, availabilityTextClass, FixtureChips } from "../components/primitives";
+import { PositionBadge, TeamBadge, AvailabilityFlag, availabilityTextClass, FixtureChips } from "../components/primitives";
 import { PLAYER_COLUMNS, columnByKey, isStaticColumn, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { IconChipButton, ResetIcon, ColumnsIcon, FilterIcon, DownloadIcon } from "../components/IconToolbar";
-import { fmtSigned, fmtPercent, fmtPrice, DASH } from "../utils/format";
+import { fmtPercent, fmtPrice } from "../utils/format";
 import { relativeCellTint } from "../utils/colorScale";
 import { downloadCsv } from "../utils/csvExport";
+import { matchesPlayerSearch } from "../utils/playerSearch";
 import type { NormalizedPlayer, Position } from "../types/normalized";
 
 const GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE", "ADVANCED"];
@@ -61,27 +60,56 @@ const POSITION_OPTIONS: Position[] = ["GKP", "DEF", "MID", "FWD"];
 const IDENTITY_COLUMNS: (PlayerColumn | IdentityColumnKey)[] = [columnByKey("ownership")!, columnByKey("price")!, TEAM_COLUMN_KEY, POSITION_COLUMN_KEY];
 const FIXED_COLUMN_KEYS = new Set<string>(["ownership", "price", TEAM_COLUMN_KEY, POSITION_COLUMN_KEY]);
 
+/** Next 5 Fixtures needs room for five fixture chips plus their average; an equal share of the table (about 72px at 1600px wide) showed only two. */
+const EXPLORER_MIN_COLUMN_WIDTHS: Record<string, number> = { [FIXTURES_COLUMN_KEY]: 190 };
+/** Position sorts in pitch order, not alphabetically: the first (descending) click gives GKP, DEF, MID, FWD. */
+const POSITION_SORT_RANK: Record<Position, number> = { GKP: 4, DEF: 3, MID: 2, FWD: 1 };
+
 /** This page's own default visible-column order for the user-configurable columns only — deliberately NOT the shared DEFAULT_VISIBLE_COLUMNS (Team Building also uses that one; changing it would silently change Team Building's defaults too). Ownership/Price/Team/Position are never part of this list — see IDENTITY_COLUMNS above. */
 const EXPLORER_DEFAULT_VISIBLE_COLUMNS = ["totalPoints", "pointsPerGame", "goals", "assists", "pointsPerMillion", "xG", "xA", "xGI", "minutes"];
 
 export function PlayerExplorer() {
-  const { players, teamsById, fixtures, advancedFieldAvailability, historicProfiles, historicStatus, currentSeasonHasStarted, requestHistoricData } = useAppState();
+  const { players, teamsById, fixtures, advancedFieldAvailability, historicProfiles, currentSeasonHasStarted, requestHistoricData } = useAppState();
   useEffect(() => {
     requestHistoricData();
   }, [requestHistoricData]);
 
-  // This page's own analysis-mode + filter state — deliberately not
-  // shared with any other page (see state/scoutingFilters.ts). `?team=`
-  // is a one-time seed from Teams.tsx's "View Players" hand-off (read
-  // once at mount only, never kept in sync afterwards) — the only
-  // cross-page link left, carried via the URL rather than shared state.
+  // This page's own analysis mode, search and column filters — deliberately
+  // not shared with any other page (see state/scoutingFilters.ts). There is
+  // no criteria bar: Team, Position, Mins and every other filter is a
+  // column filter below.
   const [searchParams, setSearchParams] = useSearchParams();
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("lastSeason");
-  const [filters, setFilters] = useState<GlobalScoutingFilters>(() => {
-    const teamParam = searchParams.get("team");
-    return teamParam ? { ...DEFAULT_FILTERS, teamId: Number(teamParam) } : DEFAULT_FILTERS;
+  const [search, setSearch] = useState("");
+
+  // `?team=<id>` is the Teams page's "Player Rankings" hand-off (and the
+  // Team Profile's link). It becomes the Team column's own filter — shown
+  // on the column, changeable and clearable like any other — then leaves
+  // the address, so nothing re-applies it later. An unknown id is dropped.
+  // Seeded at mount (so the first frame is already filtered) and handled
+  // by the effect below when it arrives while the page is open.
+  const teamFilterFromParam = (): ColumnFilterSpec | null => {
+    const team = teamsById.get(Number(searchParams.get("team")));
+    return team ? { ...EMPTY_COLUMN_FILTER, category: team.shortName } : null;
+  };
+  const columnFiltersState = useColumnFilters((): Record<string, ColumnFilterSpec> => {
+    const seed = teamFilterFromParam();
+    return seed ? { [TEAM_COLUMN_KEY]: seed } : {};
   });
-  const resetFilters = () => setFilters(DEFAULT_FILTERS);
+  useEffect(() => {
+    if (!searchParams.has("team")) return;
+    const seed = teamFilterFromParam();
+    if (seed) columnFiltersState.setColumnFilter(TEAM_COLUMN_KEY, seed);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("team");
+        return next;
+      },
+      { replace: true },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const { resolved: resolvedPlayers } = useMemo(
     () => resolvePlayerStatsList(players, analysisMode, historicProfiles, currentSeasonHasStarted),
@@ -99,7 +127,10 @@ export function PlayerExplorer() {
     return map;
   }, [teamsById, fixtures]);
 
-  const filtered = useFilteredPlayers(resolvedPlayers, filters, analysisMode);
+  const filtered = useMemo(() => {
+    const query = search.trim();
+    return query ? resolvedPlayers.filter((p) => matchesPlayerSearch(p, query)) : resolvedPlayers;
+  }, [resolvedPlayers, search]);
 
   const [showColumnPopover, setShowColumnPopover] = useState(false);
   const { sort, handleHeaderClick } = useSortSpec([{ key: "totalPoints", direction: "desc" }]);
@@ -115,11 +146,34 @@ export function PlayerExplorer() {
     reorderColumn,
     startResize,
     fitToBox,
-  } = useColumnCustomization(EXPLORER_DEFAULT_VISIBLE_COLUMNS);
+  } = useColumnCustomization(EXPLORER_DEFAULT_VISIBLE_COLUMNS, EXPLORER_MIN_COLUMN_WIDTHS);
+  const columnPickerRef = useRef<HTMLDivElement>(null);
+
+  // A filter on a column the user hides goes with it — it would otherwise
+  // keep cutting the table down with nothing on screen to say why.
+  function handleToggleColumn(key: string) {
+    if (visibleColumns.includes(key)) columnFiltersState.clearFilter(key);
+    toggleColumn(key);
+  }
+
+  // The Columns picker closes on Escape or a click anywhere outside it.
+  useEffect(() => {
+    if (!showColumnPopover) return;
+    function onMouseDown(e: MouseEvent) {
+      if (!columnPickerRef.current?.contains(e.target as Node)) setShowColumnPopover(false);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setShowColumnPopover(false);
+    }
+    document.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [showColumnPopover]);
   const tableWrapRef = useRef<HTMLDivElement>(null);
   const stickyColRef = useRef<HTMLTableCellElement>(null);
-  /** The last (Position) identity column's cell — combined with stickyColRef, gives the fixed identity block's total rendered width (Player column's right edge to Position column's right edge), so handleFitToBox can hand the flexible engine only the width that's actually left over for it. */
-  const identityEndRef = useRef<HTMLTableCellElement>(null);
 
   const rows = useMemo(
     () =>
@@ -129,8 +183,6 @@ export function PlayerExplorer() {
       })),
     [filtered],
   );
-
-  const columnFiltersState = useColumnFilters();
 
   // "name" is handled separately since it isn't a PLAYER_COLUMNS entry
   // (there's nothing to derive — the player's name IS the value) — used
@@ -142,6 +194,11 @@ export function PlayerExplorer() {
     if (key === POSITION_COLUMN_KEY) return row.player.position;
     const col = columnByKey(key);
     return col ? col.getValue(row.player, row.derived) : null;
+  }
+
+  function getSortValue(row: { player: NormalizedPlayer; derived: PlayerDerivedMetrics }, key: string): number | string | null {
+    if (key === POSITION_COLUMN_KEY) return POSITION_SORT_RANK[row.player.position];
+    return getRowValue(row, key);
   }
 
   // Every team currently in the pool, alphabetical by short name — the
@@ -159,7 +216,13 @@ export function PlayerExplorer() {
   );
 
   const filteredRows = useMemo(
-    () => rows.filter((r) => columnFiltersState.passesAllFilters((key) => getRowValue(r, key))),
+    () =>
+      rows.filter((r) =>
+        columnFiltersState.passesAllFilters(
+          (key) => getRowValue(r, key),
+          (key) => columnByKey(key)?.decimals,
+        ),
+      ),
     [rows, columnFiltersState.columnFilters],
   );
 
@@ -167,7 +230,7 @@ export function PlayerExplorer() {
     const arr = [...filteredRows];
     arr.sort((a, b) => {
       for (const s of sort) {
-        const cmp = compareSortValues(getRowValue(a, s.key), getRowValue(b, s.key), s.direction, "belowZero");
+        const cmp = compareSortValues(getSortValue(a, s.key), getSortValue(b, s.key), s.direction, "belowZero");
         if (cmp !== 0) return cmp;
       }
       return 0;
@@ -175,16 +238,27 @@ export function PlayerExplorer() {
     return arr;
   }, [filteredRows, sort]);
 
-  /** Measures the sticky Player column and the fixed identity block (Ownership/Price/Team/Position) actually rendered, then hands only what's left over to the shared engine for the user-configurable columns. */
+  /** Measures the sticky Player column and the fixed identity block (Ownership/Price/Team/Position), then hands only what's left over to the shared engine for the user-configurable columns. */
   function handleFitToBox() {
+    fitOnce();
+    // The auto-width Player/Own%/Team/Position block was just measured at
+    // whatever width the old layout squeezed it to; once the new widths have
+    // laid out, measure again so the flexible columns share exactly what's
+    // left (otherwise the table overshoots and the browser trims every
+    // column a few pixels, hand-resized ones included).
+    requestAnimationFrame(() => requestAnimationFrame(fitOnce));
+  }
+  function fitOnce() {
     const container = tableWrapRef.current;
-    if (!container) return;
-    const stickyWidth = stickyColRef.current?.getBoundingClientRect().width ?? 170;
-    const identityWidth =
-      identityEndRef.current && stickyColRef.current
-        ? identityEndRef.current.getBoundingClientRect().right - stickyColRef.current.getBoundingClientRect().right
-        : 0;
-    fitToBox(container.clientWidth - stickyWidth - identityWidth - 4);
+    const headerRow = stickyColRef.current?.parentElement;
+    if (!container || !headerRow) return;
+    // Player plus the fixed Own%/Price/Team/Position block, each at its
+    // rendered width — or its hand-set width, if the browser has squeezed it
+    // below that (read from the DOM, which is current even when this runs
+    // from the once-registered resize listener).
+    const fixedCells = Array.from(headerRow.children).slice(0, 1 + IDENTITY_COLUMNS.length) as HTMLElement[];
+    const fixedWidth = fixedCells.reduce((sum, th) => sum + Math.max(th.getBoundingClientRect().width, parseFloat(th.style.width) || 0), 0);
+    fitToBox(container.clientWidth - fixedWidth - 4);
   }
 
   // Column widths auto-fit the table's available width — on first load
@@ -212,7 +286,7 @@ export function PlayerExplorer() {
   // The user-configurable columns — a real PLAYER_COLUMNS entry, or the
   // special Fixtures key (renders fixture chips, not a number). Team/Position
   // never appear here — they're part of the fixed IDENTITY_COLUMNS block
-  // above, never toggled into `visibleColumns` at all (see toggleColumn's
+  // above, never toggled into `visibleColumns` at all (see handleToggleColumn's
   // call sites: only Fixtures and the PLAYER_COLUMNS checkboxes call it).
   const columnsInOrder = useMemo(
     () =>
@@ -261,9 +335,7 @@ export function PlayerExplorer() {
     if (c === FIXTURES_COLUMN_KEY) return formatFixturesForCsv(fixturesByTeamId.get(player.teamId) ?? []);
     if (c === TEAM_COLUMN_KEY) return player.teamShortName;
     if (c === POSITION_COLUMN_KEY) return player.position;
-    const value = c.getValue(player, derived);
-    if (c.key === "goalsMinusXG" || c.key === "assistsMinusXA") return value !== null ? fmtSigned(value, 2) : DASH;
-    return c.format(value);
+    return c.format(c.getValue(player, derived));
   }
 
   // Matches exactly what's on screen — same rows (filtered/sorted), same
@@ -291,17 +363,6 @@ export function PlayerExplorer() {
 
       <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
 
-      {/*
-        No FiltersBar here any more — Search moved to the toolbar below,
-        and Position/Team/Min Minutes are now handled by their own table
-        columns (Position/Team's category filter, MINS's per-column numeric
-        filter). With every one of FiltersBar's fields opted out via
-        showSearch/showPosition/showTeam/showMinMinutes, it would render as
-        an empty box holding nothing but a stray Reset icon — worse than no
-        bar at all. `filters`/`resetFilters` still exist (Search still
-        reads/writes filters.search, and the Filter/Reset-columns buttons
-        below still clear it), just with no bar of their own to render.
-      */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
         <div className="icon-toolbar">
           <IconChipButton
@@ -309,11 +370,11 @@ export function PlayerExplorer() {
             label="Restore the default columns, order, and natural widths, and clear every filter"
             onClick={() => {
               resetColumns();
-              resetFilters();
+              setSearch("");
               columnFiltersState.resetAllFilters();
             }}
           />
-          <div style={{ position: "relative" }}>
+          <div style={{ position: "relative" }} ref={columnPickerRef}>
             <IconChipButton
               icon={<ColumnsIcon />}
               label={`Columns (${visibleColumns.length} shown)`}
@@ -331,7 +392,7 @@ export function PlayerExplorer() {
                     <input
                       type="checkbox"
                       checked={visibleColumns.includes(FIXTURES_COLUMN_KEY)}
-                      onChange={() => toggleColumn(FIXTURES_COLUMN_KEY)}
+                      onChange={() => handleToggleColumn(FIXTURES_COLUMN_KEY)}
                     />
                     Next 5 Fixtures
                   </label>
@@ -343,7 +404,7 @@ export function PlayerExplorer() {
                     </div>
                     {PLAYER_COLUMNS.filter((c) => c.group === group && !FIXED_COLUMN_KEYS.has(c.key)).map((c) => (
                       <label key={c.key}>
-                        <input type="checkbox" checked={visibleColumns.includes(c.key)} onChange={() => toggleColumn(c.key)} />
+                        <input type="checkbox" checked={visibleColumns.includes(c.key)} onChange={() => handleToggleColumn(c.key)} />
                         {c.label}
                       </label>
                     ))}
@@ -354,9 +415,9 @@ export function PlayerExplorer() {
           </div>
           <IconChipButton
             icon={<FilterIcon />}
-            label="Clear every filter — the filter bar above and any per-column filters"
+            label="Clear every filter — the search box and every column filter"
             onClick={() => {
-              resetFilters();
+              setSearch("");
               columnFiltersState.resetAllFilters();
             }}
           />
@@ -368,8 +429,8 @@ export function PlayerExplorer() {
             type="text"
             placeholder="Player name…"
             aria-label="Search players"
-            value={filters.search}
-            onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
           />
         </div>
       </div>
@@ -382,15 +443,10 @@ export function PlayerExplorer() {
       )}
 
       <div className="page-fill-body">
-        {sortedRows.length === 0 && analysisMode !== "live" && historicStatus === "loading" ? (
-          <div className="empty-state">
-            <h3>Building the historic dataset…</h3>
-            <p>This runs once per session and can take up to a minute — it'll be quick after that.</p>
-          </div>
-        ) : sortedRows.length === 0 ? (
+        {sortedRows.length === 0 ? (
           <div className="empty-state">
             <h3>No players match your filters</h3>
-            <p>Try clearing a filter — the criteria bar above or a per-column filter. This is a filter result, not an API error.</p>
+            <p>Try clearing the search or a column filter. This is a filter result, not an API error.</p>
           </div>
         ) : (
         <div className="table-wrap" ref={tableWrapRef}>
@@ -415,7 +471,6 @@ export function PlayerExplorer() {
                   return (
                     <th
                       key={key}
-                      ref={idx === IDENTITY_COLUMNS.length - 1 ? identityEndRef : undefined}
                       className={isFirst ? "col-static column-group-divider" : "col-static"}
                       onClick={(e) => handleHeaderClick(key, e.shiftKey)}
                       title="Always today's live figure, regardless of the toggle above · Click to sort · Shift-click to add secondary sort · Drag the right edge to resize"
@@ -575,7 +630,6 @@ export function PlayerExplorer() {
                       );
                     }
                     const value = c.getValue(player, derived);
-                    const isSignedMetric = c.key === "goalsMinusXG" || c.key === "assistsMinusXA";
                     const width = columnWidths[c.key];
                     return (
                       <td
@@ -588,7 +642,7 @@ export function PlayerExplorer() {
                           backgroundColor: columnTint(player, derived, c),
                         }}
                       >
-                        {isSignedMetric ? <SignedNum value={value} /> : c.format(value)}
+                        {c.format(value)}
                       </td>
                     );
                   })}

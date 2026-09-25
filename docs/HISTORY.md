@@ -3286,4 +3286,28 @@ tiles/graphs only:
 
 ## Removed or replaced since 2026-09-24
 
-_None yet._
+### Current Season PPG from FPL's `points_per_game` (replaced 2026-09-25)
+- **What it did:** in Current Season, PPG was FPL's own bootstrap
+  `points_per_game` (points ÷ appearances), read in
+  `normalize/normalizePlayers.ts` and passed through by
+  `resolvePlayerStats.ts`. Last Completed Season and Historic Average
+  estimated it as points ÷ estimated games.
+- **Why it went:** PPG meant a different thing depending on the Data View,
+  and differed by 0.5 or more for 163 of 421 players who'd played (e.g. a
+  substitute with 9 points in 72 minutes: 2.2 vs 9.0). The owner chose the
+  app's points per estimated game everywhere (audit 2026-09-25, M4).
+- **Last commit with it:** `e4c9923`.
+
+### Per-game minutes floor on user-built Dashboard tiles and graphs (removed 2026-09-25)
+- **What it did:** any Dashboard tile or graph showing a per-game rate
+  (PPG, xG/Game, DC/Game…) left out players under 90 minutes (Current
+  Season) or 450 (other views), on top of its own criteria —
+  `applyRateStatFloor` in `pages/Dashboard.tsx`, called for every
+  criteria-based tile and graph.
+- **Why it went:** users set their own Min Minutes on tiles and graphs they
+  build, so a hidden extra floor overrode their choice. The owner decided
+  the floor belongs only on the packaged Default view, which can't be
+  edited (audit 2026-09-25, M1). It is still applied there
+  (`playersForDashboardItem`), though no current default shows a per-game
+  rate.
+- **Last commit with it:** `e4c9923`.

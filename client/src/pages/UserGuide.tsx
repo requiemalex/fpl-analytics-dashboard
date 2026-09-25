@@ -219,8 +219,8 @@ export function UserGuide() {
             data view shows as a small <code>LS</code>/<code>HA</code>/<code>CS</code> badge in the tile's header (hover for the full
             name). Min Minutes applies in every data view, Current Season included — it starts at 0, so raise it as the season goes on
             if you only want regular starters (e.g. 270 for three full games). Per-game statistics (PPG, xG/Game, xGC/Game, DC/Game and
-            the rest) also only rank players with at least one full match in Current Season, or five in the other views — in tiles and
-            graphs alike — so a single cameo can't top them; players you pick by name are always shown. Team Tiles show club figures for the season(s) their Data View picks — league standing included (see
+            the rest) rank everyone your criteria let through, so a player with one short appearance can top them — set Min Minutes
+            (e.g. 450 for five full games) to rank only players with a real sample. The same goes for graphs. Team Tiles show club figures for the season(s) their Data View picks — league standing included (see
             below) — and have no criteria of their own. Every tile needs a name, set in the same dialog.
           </li>
           <li>Each row's bar shows its value's size relative to the other rows in that tile — green/red by above/below-expected for the three "vs xG/xA/xGI" tiles, one flat colour for everything else.</li>
@@ -283,23 +283,34 @@ export function UserGuide() {
           <li>
             <strong>Sort</strong> — click a header; shift-click another to add a secondary tiebreaker. A blank (—) is treated as lower
             than any real value here, not always parked at the end — so it appears first ascending, last descending, like any other low
-            number would.
+            number would. Player names sort alphabetically, ignoring accents and capitals (Ødegaard sits among the Os). Position sorts
+            in pitch order: GKP, DEF, MID, FWD on the first click.
           </li>
           <li>
             <strong>Filter</strong> — click the ▾ on a header's edge for an Excel-style filter (Less than or equal to / Greater than or
-            equal to / Equal to). Confirm with Enter, discard with Cancel.
+            equal to / Equal to). Confirm with Enter (the button or the key); discard with Cancel or Escape. Numbers are compared as the
+            table shows them, so Equal to 15.3 finds a player shown as 15.3. A range nothing can meet (Greater than or equal to above
+            Less than or equal to) can't be applied. Hiding a column clears its filter.
           </li>
-          <li>Column widths auto-fit the table to the available space — on load and whenever the visible columns change.</li>
+          <li>
+            Column widths auto-fit the table to the available space — on load, whenever the visible columns change, and when the window
+            is resized. A column you've resized by hand keeps its width until Reset; the others share the rest. Next 5 Fixtures is
+            always given room for all five fixtures.
+          </li>
           <li><strong>Reset Columns</strong> restores the packaged defaults — order, visibility, and width.</li>
-          <li><strong>Comparative Colouring</strong> tints each cell green/red relative to what's currently on screen.</li>
+          <li>Each cell is tinted green/red relative to the rest of its column on screen (comparative colouring).</li>
           <li>
             The search box in the toolbar narrows the table by player name. Everything else is filtered at its own column (click
             the ▾ icon on that column's header) — Position and Team by category, and numeric columns like Minutes, Own%, and
             Price with ≤/≥/= fields. Player-name search (here, in
             Team Building's Add Players table, and in the search-and-add boxes on Player Comparison and Player Trends) is
-            accent-insensitive (typing "odegaard" or "salah" finds "Ødegaard" or "Salah" either way), matches first and last name in
-            any order (so "fernandes bruno" finds Bruno Fernandes, not just "bruno fernandes"), and tolerates small typos on longer
-            names.
+            accent-insensitive (typing "odegaard" or "sesko" finds "Ødegaard" or "Šeško"), matches first and last name in any order
+            (so "fernandes bruno" finds Bruno Fernandes, not just "bruno fernandes"), accepts a name typed as FPL shows it
+            ("B.Fernandes"), and tolerates small typos on longer names. The Columns picker closes on Escape or a click outside it.
+          </li>
+          <li>
+            Arriving from a club's "Player Rankings" link (Teams or the Team Profile) sets the Team column's filter to that club — shown
+            on the column like any other filter, so you can change it to another club or clear it.
           </li>
           <li><strong>Export CSV</strong> downloads exactly what's on screen — the same rows and visible columns, in the same order, with the same formatted values.</li>
           <li>
@@ -310,8 +321,8 @@ export function UserGuide() {
           </li>
         </ul>
         <Try>
-          Looking for undervalued midfielders? Set Position to MID, add the "Points/£m" column, click its header to sort descending, and
-          use the Price column's own ▾ filter to cap it at a budget you're working within.
+          Looking for undervalued midfielders? Use the Position column's ▾ to show only MID, click the Pts/£m header to sort
+          descending, and use the Price column's own ▾ filter to cap it at a budget you're working within.
         </Try>
       </Section>
 
@@ -429,7 +440,7 @@ export function UserGuide() {
 
       <Section id="player-profile" title="Player Profile">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Click a player's name almost anywhere in the app to open it. The profile is split into two zones: "Views" (Actual vs
+          Click a player's name almost anywhere in the app to open it; the × or Escape closes it. The profile is split into two zones: "Views" (Actual vs
           Expected, Underlying Numbers, Percentile Radar, Value) resolves per the active analysis mode, while "Live Data" (Current
           Season Log, Playing Time, Career History) always shows today's actual figures regardless of that toggle — Career History
           always shows every prior season on record plus this season in progress (marked "(live)", sourced from live data rather than a

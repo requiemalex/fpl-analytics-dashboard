@@ -26,11 +26,12 @@ import {
   isRatePerMinutesColumnKey,
   type SummaryTileScope,
 } from "../components/summaryTileMetrics";
-import { useSummaryTiles, createSummaryTile, MAX_SUMMARY_TILES, type TileDirection, type SummaryTileConfig } from "../state/useSummaryTiles";
+import { useSummaryTiles, createSummaryTile, isPackagedDefaultTile, MAX_SUMMARY_TILES, type TileDirection, type SummaryTileConfig } from "../state/useSummaryTiles";
 import {
   useDashboardGraphs,
   createDashboardGraph,
   defaultGraphDirection,
+  isPackagedDefaultGraph,
   MAX_DASHBOARD_GRAPHS,
   type DashboardGraphType,
   type DashboardGraphConfig,
@@ -52,14 +53,35 @@ const MODES: AnalysisMode[] = ["live", "lastSeason", "historicAverage"];
 // (see <per_game_not_per_90> in metrics/calculations.ts). Current Season gets
 // its own, much lower floor (one full match) rather than being exempted
 // entirely, since everyone genuinely has low minutes for only the first
-// couple of gameweeks. Applied per tile/graph, on top of its own criteria
-// filter — never to specifically picked players.
+// couple of gameweeks. Applied only to the packaged Default view's tiles and
+// graphs, whose criteria the user can't edit — a tile or graph the user
+// builds has its own Min Minutes for this (the owner's decision, audit
+// 2026-09-25 M1). Never applied to specifically picked players.
 export const LIVE_RATE_STAT_MIN_MINUTES = 90;
 export const RATE_STAT_MIN_MINUTES = 450;
 
 export function applyRateStatFloor(players: NormalizedPlayer[], dataView: AnalysisMode): NormalizedPlayer[] {
   const floor = dataView === "live" ? LIVE_RATE_STAT_MIN_MINUTES : RATE_STAT_MIN_MINUTES;
   return players.filter((p) => p.minutes !== null && p.minutes >= floor);
+}
+
+/**
+ * The players one player-scope tile or graph ranks or plots: its picked
+ * players if it has any (no criteria, no floor), otherwise its criteria
+ * applied to the pool — plus the rate-stat floor when it shows a per-game
+ * rate and is a packaged default (see applyRateStatFloor above).
+ */
+export function playersForDashboardItem(
+  item: { dataView: AnalysisMode; criteria: GlobalScoutingFilters | null; playerIds: number[] | null },
+  pool: NormalizedPlayer[],
+  { showsRate, isPackagedDefault }: { showsRate: boolean; isPackagedDefault: boolean },
+): NormalizedPlayer[] {
+  if (item.playerIds && item.playerIds.length > 0) {
+    const idSet = new Set(item.playerIds);
+    return pool.filter((p) => idSet.has(p.id));
+  }
+  const players = filterPlayers(pool, item.criteria ?? DEFAULT_FILTERS, item.dataView, true);
+  return showsRate && isPackagedDefault ? applyRateStatFloor(players, item.dataView) : players;
 }
 
 export function topN<T extends { value: number | null }>(rowsIn: T[], n: number, ascending = false): T[] {
@@ -548,19 +570,10 @@ export function Dashboard() {
         if (tile.scope === "player") {
           const metric = playerTileMetricByKey(tile.metricKey);
           if (!metric) return { tile, kind: "unavailable" as const };
-          let sourcePlayers: NormalizedPlayer[];
-          if (tile.playerIds && tile.playerIds.length > 0) {
-            // Tracking specific players — sort/rank exactly those (up to
-            // MAX_TILE_PLAYERS), skipping the criteria filter and the
-            // rate-stat minutes floor entirely, since the user explicitly
-            // picked these players by name rather than by a threshold.
-            const idSet = new Set(tile.playerIds);
-            sourcePlayers = resolvedByMode[tile.dataView].filter((p) => idSet.has(p.id));
-          } else {
-            const criteria = tile.criteria ?? DEFAULT_FILTERS;
-            sourcePlayers = filterPlayers(resolvedByMode[tile.dataView], criteria, tile.dataView, true);
-            if (metric.ratePerMinutes) sourcePlayers = applyRateStatFloor(sourcePlayers, tile.dataView);
-          }
+          const sourcePlayers = playersForDashboardItem(tile, resolvedByMode[tile.dataView], {
+            showsRate: !!metric.ratePerMinutes,
+            isPackagedDefault: isPackagedDefaultTile(tile),
+          });
           const rows = sourcePlayers.map((p) => ({ player: p, derived: getPlayerDerivedMetrics(p) }));
           const valueRows: TopListRow[] = rows.map((r) => ({ player: r.player, value: metric.getValue(r.player, r.derived) }));
           return { tile, metric, kind: "player" as const, topRows: topN(valueRows, 5, tile.direction === "asc") };
@@ -600,16 +613,10 @@ export function Dashboard() {
           const yColumn = playerColumnByKey(graph.yMetricKey);
           const xColumn = graph.chartType === "scatter" ? playerColumnByKey(graph.xMetricKey) : undefined;
           if (!yColumn || (graph.chartType === "scatter" && !xColumn)) return { graph, kind: "unavailable" as const };
-          let sourcePlayers: NormalizedPlayer[];
-          if (graph.playerIds && graph.playerIds.length > 0) {
-            const idSet = new Set(graph.playerIds);
-            sourcePlayers = resolvedByMode[graph.dataView].filter((p) => idSet.has(p.id));
-          } else {
-            const criteria = graph.criteria ?? DEFAULT_FILTERS;
-            sourcePlayers = filterPlayers(resolvedByMode[graph.dataView], criteria, graph.dataView, true);
-            const plotsRate = isRatePerMinutesColumnKey(graph.yMetricKey) || (graph.chartType === "scatter" && isRatePerMinutesColumnKey(graph.xMetricKey));
-            if (plotsRate) sourcePlayers = applyRateStatFloor(sourcePlayers, graph.dataView);
-          }
+          const sourcePlayers = playersForDashboardItem(graph, resolvedByMode[graph.dataView], {
+            showsRate: isRatePerMinutesColumnKey(graph.yMetricKey) || (graph.chartType === "scatter" && isRatePerMinutesColumnKey(graph.xMetricKey)),
+            isPackagedDefault: isPackagedDefaultGraph(graph),
+          });
           const scatterData: ScatterPoint[] = [];
           const barData: BarDatum[] = [];
           for (const p of sourcePlayers) {

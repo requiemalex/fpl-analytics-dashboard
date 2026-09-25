@@ -13,6 +13,11 @@ export function fmtDecimal(n: number | null | undefined, decimals = 2): string {
   return fmtNumber(n, decimals);
 }
 
+/** The number a cell formatted by fmtNumber/fmtDecimal shows at `decimals` places (same rounding), e.g. 15.3197 → 15.3 — so a column filter can compare what the user sees, not the hidden precision. */
+export function roundAsDisplayed(n: number, decimals: number): number {
+  return Number(n.toLocaleString("en-GB", { minimumFractionDigits: decimals, maximumFractionDigits: decimals, useGrouping: false }));
+}
+
 export function fmtPrice(n: number | null | undefined): string {
   if (!isDisplayable(n)) return DASH;
   return `\u00a3${n.toFixed(1)}m`;

@@ -34,6 +34,21 @@ describe("resolvePlayerStats — live mode", () => {
   });
 });
 
+describe("resolvePlayerStats — PPG in Current Season (audit 2026-09-25 M4)", () => {
+  it("is points per estimated game, like every other mode and per-game column — not FPL's per-appearance figure", () => {
+    // Cho, GW5 2026/27: 9 points in 72 minutes over several substitute
+    // appearances. FPL's own points_per_game said 2.2; 72 minutes is 1 estimated game.
+    const player = makePlayer({ id: 1, position: "FWD", totalPoints: 9, minutes: 72, pointsPerGame: 2.2 });
+    expect(resolvePlayerStats(player, "live", undefined, true).pointsPerGame).toBe(9);
+    // Haaland-like: 39 points in 450 minutes = 5 games.
+    const starter = makePlayer({ id: 2, position: "FWD", totalPoints: 39, minutes: 450, pointsPerGame: 7.8 });
+    expect(resolvePlayerStats(starter, "live", undefined, true).pointsPerGame).toBe(7.8);
+    // 0 minutes, 0 points is a real 0.0, as in the historic modes (<ppg_vs_per90>).
+    const unused = makePlayer({ id: 3, position: "GKP", totalPoints: 0, minutes: 0 });
+    expect(resolvePlayerStats(unused, "live", undefined, true).pointsPerGame).toBe(0);
+  });
+});
+
 describe("resolvePlayerStats — lastSeason mode", () => {
   it("returns every performance field null (<retained_not_omitted>) when there's no lastCompletedSeason entry", () => {
     const player = makePlayer({ id: 1, position: "DEF", totalPoints: 50 });

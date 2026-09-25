@@ -9,12 +9,6 @@ export function isAnalysisMode(value: unknown): value is AnalysisMode {
   return value === "live" || value === "lastSeason" || value === "historicAverage";
 }
 
-export const ANALYSIS_MODE_LABELS: Record<AnalysisMode, string> = {
-  live: "Live Season",
-  lastSeason: "Last Completed Season",
-  historicAverage: "Historic Average",
-};
-
 /**
  * Given the active analysis mode, returns a NormalizedPlayer-shaped
  * object with performance fields swapped to the selected historic view
@@ -124,12 +118,15 @@ export function resolvePlayerStats(
   if (mode === "live") {
     if (currentSeasonHasStarted) {
       // The live player's own totals + minutes, run through this app's
-      // own perGame() — never FPL's raw per-90 fields, which normalize/
+      // own perGame()/estimatedPointsPerGame() — never FPL's raw per-90
+      // fields or its per-appearance points_per_game, which normalize/
       // normalizePlayers.ts deliberately leaves null (see
       // <per_game_not_per_90>, calculations.ts). Every analysis mode
-      // resolves these the same way, live included.
+      // resolves these the same way, live included, so PPG means points
+      // per estimated game whichever Data View is showing.
       return {
         ...player,
+        pointsPerGame: estimatedPointsPerGame(player.totalPoints, player.minutes),
         xGPerGame: perGame(player.xG, player.minutes),
         xAPerGame: perGame(player.xA, player.minutes),
         xGIPerGame: perGame(player.xGI, player.minutes),
@@ -199,16 +196,16 @@ export function resolvePlayerStats(
   if (!avg) return nullPerformanceFields(player);
   return {
     ...player,
-    totalPoints: avg.avgPointsPerSeason ?? 0,
+    totalPoints: avg.avgPointsPerSeason,
     pointsPerGame: estimatedPointsPerGame(avg.avgPointsPerSeason, avg.avgMinutesPerSeason),
-    minutes: avg.avgMinutesPerSeason ?? 0,
+    minutes: avg.avgMinutesPerSeason,
     starts: avg.avgStartsPerSeason,
-    goals: avg.avgGoalsPerSeason ?? 0,
-    assists: avg.avgAssistsPerSeason ?? 0,
-    cleanSheets: avg.avgCleanSheetsPerSeason ?? 0,
+    goals: avg.avgGoalsPerSeason,
+    assists: avg.avgAssistsPerSeason,
+    cleanSheets: avg.avgCleanSheetsPerSeason,
     goalsConceded: avg.avgGoalsConcededPerSeason,
-    bonus: avg.avgBonusPerSeason ?? 0,
-    bps: avg.avgBpsPerSeason ?? 0,
+    bonus: avg.avgBonusPerSeason,
+    bps: avg.avgBpsPerSeason,
     ictIndex: avg.avgIctIndex,
     xG: avg.avgXGPerSeason,
     xA: avg.avgXAPerSeason,

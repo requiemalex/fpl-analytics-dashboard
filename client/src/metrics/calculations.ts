@@ -90,11 +90,11 @@ export function perGame(total: number | null, minutes: number | null): number | 
  * have played zero minutes with zero points (a real, on-the-record
  * season with nothing to show, not missing data) shows a genuine "0.0"
  * here rather than perGame()'s "—", matching this metric's existing
- * behaviour from before the wider per-game rollout. FPL's own bootstrap
- * `points_per_game` field (used as-is for the live season, see
- * resolvePlayerStats.ts) is genuinely games-based already — this is
- * only needed to estimate it for history_past (past seasons), which has
- * no such field.
+ * behaviour from before the wider per-game rollout. Used in every analysis
+ * mode, the live season included: FPL's own bootstrap `points_per_game` is
+ * points per appearance (a 10-minute cameo counts as a whole game), so
+ * reading it for the live season made PPG a different measure there than
+ * in the historic modes and than every other per-game column.
  */
 export function estimatedPointsPerGame(totalPoints: number | null, minutes: number | null): number | null {
   if (totalPoints === null || minutes === null) return null;

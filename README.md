@@ -88,7 +88,8 @@ expensive-to-fetch data: players, teams, fixtures, events, historic profiles
 **per page** — each page keeps its own in `useState` and renders the
 controlled `AnalysisModeToggle`/`FiltersBar`; nothing a page does can change
 another page. The one cross-page hand-off (Teams → Player Explorer filtered
-to a club) goes through the `?team=<id>` URL param. Overlays use URL params
+to a club) goes through the `?team=<id>` URL param, which Player Explorer
+turns into its Team column filter and then removes from the address. Overlays use URL params
 too: `?player=<id>` (player profile), `?teamProfile=<id>` (team profile),
 `?players=id,id` (Player Comparison selection).
 
@@ -173,11 +174,18 @@ is **kept, not dropped or zeroed**: every performance field comes back
   `state/useFilteredPlayers.ts`; Team Building: `pickerEffectiveMinMinutes`).
 - **Dashboard tiles and graphs apply it in every mode**, Current Season
   included (`applyMinMinutesInLive`).
-- Dashboard per-game rates (PPG, xG/xA/xGI/xGC/DC/Def. Reward per game,
-  Goals/Game, Assists/Game — `PlayerTileMetric.ratePerMinutes`,
-  `isRatePerMinutesColumnKey`) add their own floor on top, in tiles and in
-  graphs that plot one: 90 minutes in Current Season, 450 otherwise
-  (`applyRateStatFloor`). Specifically picked players are never floored.
+- Per-game rates (PPG, xG/xA/xGI/xGC/DC/Def. Reward per game, Goals/Game,
+  Assists/Game — `PlayerTileMetric.ratePerMinutes`,
+  `isRatePerMinutesColumnKey`) have **no built-in floor** anywhere the user
+  can set Min Minutes or a Mins filter: a Dashboard tile or graph the user
+  builds, and Player Explorer. A one-cameo player can top them; raising Min
+  Minutes is the user's call.
+- Only the packaged Default view's tiles and graphs, which the user can't
+  edit, add a floor when they show a per-game rate: 90 minutes in Current
+  Season, 450 otherwise (`applyRateStatFloor`, `playersForDashboardItem`,
+  `isPackagedDefaultTile`/`isPackagedDefaultGraph`). None of the current
+  defaults shows one, so today it changes nothing on screen. Specifically
+  picked players are never floored.
 - Min Minutes takes any whole number as typed; the arrow buttons step by 90.
 - Player Explorer has no Min Minutes control — its MINS column filter does
   that job.
@@ -234,9 +242,11 @@ never `NaN`/`Infinity`.
 ### Per game, not per 90
 
 Display rates (xG/Game, xA/Game, xGI/Game, xGC/Game, DC/Game, Goals/Game,
-Assists/Game, PPG) are per **estimated game**, because per-90 inflates tiny
-samples (2 points in 1 minute = 180 per 90). FPL's own `*_per_90` fields
-are deliberately not read.
+Assists/Game, PPG) are per **estimated game** in every Data View, because
+per-90 inflates tiny samples (2 points in 1 minute = 180 per 90). FPL's own
+`*_per_90` fields are deliberately not read, and neither is its
+`points_per_game`, which divides by appearances (a 10-minute cameo is a
+whole game) — PPG is `estimatedPointsPerGame()` in Current Season too.
 
 ```
 estimatedGames      = minutes > 0 ? max(1, ceil(minutes / 90)) : 0   (any appearance counts as a game)
@@ -322,8 +332,23 @@ obvious from the UI.
 (`state/useSortSpec.ts`), and ≤/≥/= column filters
 (`state/useColumnFilters.ts`, `components/ColumnFilterControl.tsx`) are
 shared engines, reused by Team Building's Add Players table. Search is
-accent- and order-insensitive with small-typo tolerance
-(`utils/playerSearch.ts`).
+accent- and order-insensitive with small-typo tolerance, splits the
+query at dots/apostrophes/hyphens as it does names, and treats a one-letter
+word as an initial that must start a name word (`utils/playerSearch.ts`).
+- Filters compare a value **as displayed**: each column declares its
+  `decimals` and the value is rounded the way its cell is
+  (`roundAsDisplayed`) before ≤/≥/=. A range nothing can meet is refused
+  (`columnFilterProblem`). Hiding a column clears its filter (`clearFilter`).
+- Auto-fit (`fitToBox`) keeps any width set by dragging, until Reset, and
+  shares the rest; a table can give a column a minimum (Player Explorer's
+  Next 5 Fixtures: 190px). It reads current columns through refs, so a
+  once-registered window-resize listener stays correct. Player Explorer
+  measures its fixed Player/Own%/Price/Team/Position block (hand-set widths
+  win over squeezed ones) and fits a second time once the new widths have
+  laid out. If hand-set widths plus the 64px minimums can't fit, the
+  browser shrinks every column to the window.
+- Text sorts with an accent- and case-insensitive collator; Player
+  Explorer's Position sorts in pitch order (GKP, DEF, MID, FWD first).
 
 **Player profile** (`components/PlayerDetailOverlay.tsx`) — has its own
 mode toggle. The Current Season Log (Prime/Supplements tables) and Playing

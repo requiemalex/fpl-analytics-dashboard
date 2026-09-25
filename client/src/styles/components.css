@@ -248,10 +248,14 @@ table.data-table td.column-group-divider {
   border-left: 2px solid var(--border-strong);
 }
 
+/* Sits wholly inside its own header: each sticky header is its own layer,
+   so a handle overhanging the edge (it used to be right: -4px) had its
+   outer half covered by the next header, where a drag sorted or moved that
+   column instead of resizing. */
 .column-resize-handle {
   position: absolute;
   top: 0;
-  right: -4px;
+  right: 0;
   width: 8px;
   height: 100%;
   cursor: col-resize;

@@ -34,6 +34,8 @@ export function useSortSpec(initial: SortSpec[]) {
   return { sort, setSort, handleHeaderClick };
 }
 
+const NAME_COLLATOR = new Intl.Collator("en-GB", { sensitivity: "base" });
+
 /**
  * How to treat a null (— on screen) relative to real values:
  * - "last" (the default, used everywhere except Player Explorer): always
@@ -44,9 +46,11 @@ export function useSortSpec(initial: SortSpec[]) {
  *   smaller than every real value, same as any other number would be —
  *   so it sorts first ascending, last descending, rather than always last.
  *
- * Works for strings and numbers alike (JS's `<` does the right thing for
- * both), which is what lets one comparator handle a "Player" name-sort
- * next to every numeric column.
+ * Works for strings and numbers alike, which is what lets one comparator
+ * handle a "Player" name-sort next to every numeric column. Strings compare
+ * alphabetically, ignoring accents and case (Ángel next to Adams, Ødegaard
+ * among the Os, van Ewijk among the Vs) — plain `<` compares character
+ * codes, which put every accented or lower-case name after Z.
  */
 export function compareSortValues(
   av: number | string | null,
@@ -63,6 +67,9 @@ export function compareSortValues(
   if (av === null) cmp = -1; // belowZero: null < any real value
   else if (bv === null) cmp = 1;
   else if (av === bv) return 0;
-  else cmp = av < bv ? -1 : 1;
+  else if (typeof av === "string" && typeof bv === "string") {
+    cmp = NAME_COLLATOR.compare(av, bv);
+    if (cmp === 0) return 0;
+  } else cmp = av < bv ? -1 : 1;
   return direction === "asc" ? cmp : -cmp;
 }

@@ -18,7 +18,7 @@ export interface PlayerDerivedMetrics {
   xGPerMillion: number | null;
   xAPerMillion: number | null;
   xGIPerMillion: number | null;
-  /** Points-per-game already exists on NormalizedPlayer itself (player.pointsPerGame — FPL's own figure live, estimated historically); no separate derived copy needed here now that this used to be pointsPer90. */
+  /** Points-per-game already exists on NormalizedPlayer itself (player.pointsPerGame — points per estimated game in every mode, set by resolvePlayerStats); no separate derived copy needed here now that this used to be pointsPer90. */
   goalsPerGame: number | null;
   assistsPerGame: number | null;
   minutesPerPoint: number | null;

@@ -14,11 +14,15 @@ import type { NormalizedPlayer } from "../types/normalized";
  *   international, and zero-risk (it only ever makes matching MORE
  *   permissive for characters that were never distinguishing typing
  *   intent in the first place).
- * - Splits the query into words and requires each one to appear
+ * - Splits the query into words (at spaces, dots, apostrophes and hyphens,
+ *   exactly as names are split) and requires each one to appear
  *   somewhere across the player's display name, first name, and last
  *   name combined, in any order — so "fernandes bruno" and "bruno"
  *   alike find Bruno Fernandes, not just an exact ordered substring of
  *   whichever single field happens to contain it.
+ * - Treats a one-letter word in the query as an initial: it must start one
+ *   of the player's words ("b fernandes" / "B.Fernandes" find Bruno, not
+ *   Gabriel Fernando de Jesus).
  * - Falls back to a small, length-scaled edit-distance check per word
  *   when a token isn't a plain substring of anything, so a minor typo
  *   ("haland" for Haaland, "plamer" for Palmer) still finds the player.
@@ -29,11 +33,18 @@ import type { NormalizedPlayer } from "../types/normalized";
 export function matchesPlayerSearch(player: NormalizedPlayer, query: string): boolean {
   const q = normalizeSearchText(query);
   if (!q) return true;
-  const tokens = q.split(/\s+/).filter(Boolean);
+  const tokens = q.split(WORD_SEPARATORS).filter(Boolean);
   const words = playerSearchWords(player);
   const haystack = words.join(" ");
-  return tokens.every((token) => haystack.includes(token) || words.some((w) => fuzzyWordMatch(token, w)));
+  return tokens.every((token) =>
+    // A lone letter is an initial ("B" of "B.Fernandes"): it has to start a
+    // word, or it would match any name containing that letter.
+    token.length === 1 ? words.some((w) => w.startsWith(token)) : haystack.includes(token) || words.some((w) => fuzzyWordMatch(token, w)),
+  );
 }
+
+/** Splits both names and the query, so a name typed as FPL displays it ("B.Fernandes", "O'Brien") breaks into the same words the player's name does. */
+const WORD_SEPARATORS = /[\s.'-]+/;
 
 const COMBINING_DIACRITICS = /[̀-ͯ]/g;
 
@@ -76,7 +87,7 @@ function normalizeSearchText(s: string): string {
 function playerSearchWords(player: NormalizedPlayer): string[] {
   const combined = `${player.name} ${player.firstName} ${player.lastName}`;
   return normalizeSearchText(combined)
-    .split(/[\s.'-]+/)
+    .split(WORD_SEPARATORS)
     .filter(Boolean);
 }
 

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { useSavedSquads, MAX_SAVED_SQUADS } from "../state/useSavedSquads";
-import { useColumnCustomization, MIN_COLUMN_WIDTH } from "../state/useColumnCustomization";
+import { useColumnCustomization, MIN_COLUMN_WIDTH, type UseColumnCustomization } from "../state/useColumnCustomization";
 import { useColumnFilters, isColumnFilterActive } from "../state/useColumnFilters";
 import { ColumnFilterControl } from "../components/ColumnFilterControl";
 import { useSortSpec, compareSortValues } from "../state/useSortSpec";
@@ -65,6 +65,8 @@ interface PredictiveColumnDef {
   label: string;
   getValue: (row: PickerRowData) => number | null;
   renderCell: (row: PickerRowData) => React.ReactNode;
+  /** Decimal places the cell shows — column filters compare values as displayed (see columnFilterPasses). */
+  decimals: number;
   /** Defaults true; only the fixtures column (lower average difficulty = easier = better) needs false. */
   higherIsBetter?: boolean;
   /** Same meaning as PlayerColumn.varies (playerColumns.tsx) — whether this column changes with the picker's own Historic/Raw toggle or gameweek navigator. Both predictive figures are navigator-driven, so they vary; Minutes Reliability and fixtures are always the player's live, current figures regardless of either toggle. Defaults true. */
@@ -77,11 +79,13 @@ const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
     label: "Exp. Pts (FPL Official)",
     getValue: (row) => row.fplOfficial,
     renderCell: (row) => fmtDecimal(row.fplOfficial, 1),
+    decimals: 1,
   },
   {
     key: "expModelPredicted",
     label: "Exp. Pts (Model Predicted)",
     getValue: (row) => row.modelPredicted,
+    decimals: 1,
     renderCell: (row) => (
       <span
         title={
@@ -99,12 +103,14 @@ const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
     label: "Minutes Reliability",
     getValue: (row) => (row.reliability !== null ? row.reliability * 100 : null),
     renderCell: (row) => (row.reliability !== null ? fmtPercent(row.reliability * 100, 0) : DASH),
+    decimals: 0,
     varies: false,
   },
   {
     key: "fixtures",
     label: "Next 5 Fixtures",
     getValue: (row) => averageFixtureDifficulty(row.fixtures),
+    decimals: 1,
     higherIsBetter: false,
     varies: false,
     renderCell: (row) => {
@@ -447,6 +453,12 @@ export function TeamBuilder() {
     historicRawCols.fitToBox(perColumn * historicRawCols.visibleColumns.length);
   }
 
+  /** Hiding a column also drops its filter, so nothing keeps filtering the table from a column you can't see. */
+  function togglePickerColumn(cols: UseColumnCustomization, key: string) {
+    if (cols.visibleColumns.includes(key)) columnFiltersState.clearFilter(key);
+    cols.toggleColumn(key);
+  }
+
   function handleResetPickerColumns() {
     predictiveCols.resetColumns();
     historicRawCols.resetColumns();
@@ -628,7 +640,10 @@ export function TeamBuilder() {
 
   /** Excel-style per-column filter, scoped to predictive/historic-raw columns only (the same reuse of getPickerSortValue that drives sorting). */
   function passesColumnFilters(row: PickerRowData): boolean {
-    return columnFiltersState.passesAllFilters((key) => getPickerSortValue(row, key));
+    return columnFiltersState.passesAllFilters(
+      (key) => getPickerSortValue(row, key),
+      (key) => (PREDICTIVE_COLUMNS.find((c) => c.key === key) ?? columnByKey(key))?.decimals,
+    );
   }
 
   // Memoized deliberately, unlike an earlier version of this file: this
@@ -1007,7 +1022,7 @@ export function TeamBuilder() {
               <div className="popover" style={{ left: 0, right: "auto" }}>
                 {PREDICTIVE_COLUMNS.map((c) => (
                   <label key={c.key}>
-                    <input type="checkbox" checked={predictiveCols.visibleColumns.includes(c.key)} onChange={() => predictiveCols.toggleColumn(c.key)} />
+                    <input type="checkbox" checked={predictiveCols.visibleColumns.includes(c.key)} onChange={() => togglePickerColumn(predictiveCols, c.key)} />
                     {c.label}
                   </label>
                 ))}
@@ -1033,7 +1048,7 @@ export function TeamBuilder() {
                         <input
                           type="checkbox"
                           checked={historicRawCols.visibleColumns.includes(c.key)}
-                          onChange={() => historicRawCols.toggleColumn(c.key)}
+                          onChange={() => togglePickerColumn(historicRawCols, c.key)}
                         />
                         {c.label}
                       </label>
