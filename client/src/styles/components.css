@@ -171,11 +171,8 @@ table.data-table {
    its content, so a drag did nothing and number columns fell below the
    64px minimum (audit 2026-09-25, R1). Here the table is as wide as its
    columns ask for, never narrower than the box, and scrolls sideways
-   inside .table-wrap when they don't fit. Team Explorer's table
-   (.natural-width) has no resizing but wants the same never-squeezed
-   sizing on smaller laptop screens. */
-table.data-table.resizable-columns,
-table.data-table.natural-width {
+   inside .table-wrap when they don't fit. */
+table.data-table.resizable-columns {
   width: max-content;
   min-width: 100%;
 }
@@ -200,6 +197,12 @@ table.data-table th {
   user-select: none;
   border-bottom: 1px solid var(--border-strong);
   z-index: 2;
+}
+/* Team Explorer's labels run longer ("Goals Against", "Def. Contributions"),
+   so on a narrow screen they wrap between words instead of forcing their
+   column wider than its share — see TEAM_MIN_COLUMN_WIDTHS in Teams.tsx. */
+table.data-table.wrap-headers th {
+  white-space: normal;
 }
 /* Marks a column (or, in Player Comparison's transposed table, a metric
    row label) whose value stays the same regardless of the page's

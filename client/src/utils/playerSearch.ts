@@ -1,8 +1,9 @@
 import type { NormalizedPlayer } from "../types/normalized";
+import type { TeamAggregate } from "../metrics/teamStats";
 
 /**
  * Shared player-name search, used everywhere a player search box exists
- * (Player Explorer/Teams' filter bar, Team Building's Add Players search,
+ * (Player Explorer's filter bar, Team Building's Add Players search,
  * and the PlayerSearch autocomplete used by Dashboard's Add Tile/Add Graph
  * modals, Player Comparison, and Player Trends) — one implementation so
  * "can I find this player" doesn't quietly depend on which page you're on.
@@ -31,16 +32,24 @@ import type { NormalizedPlayer } from "../types/normalized";
  *   net to start matching unrelated short names.
  */
 export function matchesPlayerSearch(player: NormalizedPlayer, query: string): boolean {
+  return matchesWords(playerSearchWords(player), query);
+}
+
+function matchesWords(words: string[], query: string): boolean {
   const q = normalizeSearchText(query);
   if (!q) return true;
   const tokens = q.split(WORD_SEPARATORS).filter(Boolean);
-  const words = playerSearchWords(player);
   const haystack = words.join(" ");
   return tokens.every((token) =>
     // A lone letter is an initial ("B" of "B.Fernandes"): it has to start a
     // word, or it would match any name containing that letter.
     token.length === 1 ? words.some((w) => w.startsWith(token)) : haystack.includes(token) || words.some((w) => fuzzyWordMatch(token, w)),
   );
+}
+
+/** Team Explorer's "Team name…" search — the same accent-stripping, any-order, typo-tolerant word matching as players, over the club's name and short name ("man utd" and "mun" both find Man Utd; "forest" finds Nott'm Forest). */
+export function matchesTeamSearch(team: Pick<TeamAggregate, "name" | "shortName">, query: string): boolean {
+  return matchesWords(normalizeSearchText(`${team.name} ${team.shortName}`).split(WORD_SEPARATORS).filter(Boolean), query);
 }
 
 /** Splits both names and the query, so a name typed as FPL displays it ("B.Fernandes", "O'Brien") breaks into the same words the player's name does. Curly apostrophes count too, so a name pasted from a web page ("O’Riley") still matches. */

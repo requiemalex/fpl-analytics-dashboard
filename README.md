@@ -414,8 +414,13 @@ unwindowed career (`allTimeSeasonsByPlayerId`), outside the mode toggle.
 **Team Explorer / Team Profile** (`pages/Teams.tsx`, `components/TeamDetailOverlay.tsx`) — club
 figures per "Club history" above. Club pills use real two-colour kits
 (`utils/teamColors.ts`, with a generated fallback). Team Explorer's table
-matches Player Explorer's: fills the page height, pins the two-line Team
-cell left, and scrolls sideways rather than squeezing columns below 96px.
+works like Player Explorer's: the same toolbar (Reset, Columns, clear
+filters, Export CSV, a "Team name…" search via `matchesTeamSearch`), sort,
+drag-reorder, resize, a ▾ filter per column, and Fit to Box sharing the width
+left after the pinned, content-width Team column. The Columns picker lists
+every `TEAM_COLUMNS` metric; beyond the nine league-table defaults they're
+off. Headers wrap between words on narrow screens, each column floored at its
+longest word (`TEAM_MIN_COLUMN_WIDTHS`).
 
 ### Team Building — the one predictive section
 

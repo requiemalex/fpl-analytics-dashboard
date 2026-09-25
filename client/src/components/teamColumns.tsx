@@ -9,6 +9,8 @@ export interface TeamColumn {
   group: TeamColumnGroup;
   getValue: (t: TeamAggregate) => number | null;
   format: (v: number | null) => string;
+  /** Decimal places shown — Team Explorer's column filters compare a value as displayed (see columnFilterPasses). Omitted for whole numbers. */
+  decimals?: number;
   /** Whether a higher value is the "better" one for this metric. Defaults to true; false for league position, losses, goals against, and xGC. */
   higherIsBetter?: boolean;
 }
@@ -49,10 +51,10 @@ export const TEAM_COLUMNS: TeamColumn[] = [
   { key: "bonus", label: "Bonus Points", group: "OUTPUT", getValue: (t) => t.bonus, format: num(0) },
 
   // UNDERLYING PERFORMANCE
-  { key: "xG", label: "xG", group: "UNDERLYING PERFORMANCE", getValue: (t) => t.xG, format: num(2) },
-  { key: "xA", label: "xA", group: "UNDERLYING PERFORMANCE", getValue: (t) => t.xA, format: num(2) },
-  { key: "xGI", label: "xGI", group: "UNDERLYING PERFORMANCE", getValue: (t) => t.xGI, format: num(2) },
-  { key: "xGC", label: "xGC", group: "UNDERLYING PERFORMANCE", getValue: (t) => t.xGC, format: num(2), higherIsBetter: false },
+  { key: "xG", label: "xG", group: "UNDERLYING PERFORMANCE", getValue: (t) => t.xG, format: num(2), decimals: 2 },
+  { key: "xA", label: "xA", group: "UNDERLYING PERFORMANCE", getValue: (t) => t.xA, format: num(2), decimals: 2 },
+  { key: "xGI", label: "xGI", group: "UNDERLYING PERFORMANCE", getValue: (t) => t.xGI, format: num(2), decimals: 2 },
+  { key: "xGC", label: "xGC", group: "UNDERLYING PERFORMANCE", getValue: (t) => t.xGC, format: num(2), decimals: 2, higherIsBetter: false },
   {
     key: "defensiveContributions",
     label: "Def. Contributions",
