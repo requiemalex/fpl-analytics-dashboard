@@ -181,6 +181,8 @@ export interface NormalizedFixture {
 }
 
 export interface PlayerGameweekHistory {
+  /** The FPL fixture id — unique per match, unlike `round`, which a double gameweek repeats. */
+  fixtureId: number;
   round: number;
   minutes: number;
   starts: number | null;

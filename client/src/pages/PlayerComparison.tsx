@@ -3,11 +3,10 @@ import { useSearchParams } from "react-router-dom";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import { useAppState } from "../state/AppStateContext";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
-import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode, type AnalysisMode } from "../metrics/resolvePlayerStats";
+import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode, type AnalysisMode, type ResolveOptions } from "../metrics/resolvePlayerStats";
 import { computeRadarData } from "../metrics/radarStats";
+import { fixedFloorMinutes, isBelowFixedFloor } from "../metrics/fixedMinutesFloor";
 import { buildMultiSeriesTrend, playerMetricTrendDataKey, type TrendMetricKey } from "../metrics/careerTrends";
-import { effectiveMinMinutes } from "../state/useFilteredPlayers";
-import { DEFAULT_FILTERS } from "../state/scoutingFilters";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { PercentileRadarChart } from "../components/PlayerRadarChart";
 import { PlayerSearch } from "../components/PlayerSearch";
@@ -18,6 +17,8 @@ import { DASH } from "../utils/format";
 import type { NormalizedPlayer } from "../types/normalized";
 
 const MAX_COMPARE = 5;
+/** No minimum-minutes control here, so Historic Average leaves out 0-minute seasons (<fixed_minutes_floor>). */
+const COMPARISON_RESOLVE: ResolveOptions = { dropZeroMinuteSeasons: true };
 const COLUMN_GROUP_ORDER: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE", "ADVANCED"];
 
 function joinNames(names: string[]): string {
@@ -125,11 +126,10 @@ export function PlayerComparison() {
   const [ids, setIds] = useComparisonIds();
   const [, setSearchParams] = useSearchParams();
   // This page's own analysis-mode — deliberately not shared with any
-  // other page (see state/scoutingFilters.ts). No Min Minutes control of
-  // its own, so `filters` below is a fixed, never-mutated default —
-  // purely to satisfy effectiveMinMinutes' signature, not a hidden knob.
+  // other page (see state/scoutingFilters.ts). It has no Min Minutes
+  // control, so its radars use the fixed minutes floor
+  // (<fixed_minutes_floor>).
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("lastSeason");
-  const filters = DEFAULT_FILTERS;
 
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
 
@@ -138,7 +138,7 @@ export function PlayerComparison() {
   // the up-to-5 players actually being compared here
   // (<percentile_population>).
   const { resolved: resolvedPlayers } = useMemo(
-    () => resolvePlayerStatsList(players, analysisMode, historicProfiles, currentSeasonHasStarted),
+    () => resolvePlayerStatsList(players, analysisMode, historicProfiles, currentSeasonHasStarted, COMPARISON_RESOLVE),
     [players, analysisMode, historicProfiles, currentSeasonHasStarted],
   );
 
@@ -147,7 +147,7 @@ export function PlayerComparison() {
       ids
         .map((id) => playersById.get(id))
         .filter((p): p is NormalizedPlayer => !!p)
-        .map((live) => ({ live, resolved: resolvePlayerStats(live, analysisMode, historicProfiles.get(live.id), currentSeasonHasStarted) })),
+        .map((live) => ({ live, resolved: resolvePlayerStats(live, analysisMode, historicProfiles.get(live.id), currentSeasonHasStarted, COMPARISON_RESOLVE) })),
     [ids, playersById, analysisMode, historicProfiles, currentSeasonHasStarted],
   );
 
@@ -158,12 +158,14 @@ export function PlayerComparison() {
   const comparedPlayers = comparisonResults.map((r) => r.resolved);
   const noDataNames = comparisonResults.filter((r) => !hasDataForMode(r.resolved)).map((r) => r.live.name);
   const derivedById = useMemo(() => new Map(comparedPlayers.map((p) => [p.id, getPlayerDerivedMetrics(p)])), [comparedPlayers]);
-  const minMinutesThreshold = effectiveMinMinutes(filters, analysisMode);
+  const minMinutesThreshold = fixedFloorMinutes(analysisMode);
 
   // Each computeRadarData call is 6 full-population percentile scans — was
   // previously recomputed inline inside the render-time .map() below, i.e.
   // on every render (up to MAX_COMPARE times each) rather than only when a
   // compared player, the population, or the threshold actually changes.
+  // The population is everyone at or above the fixed floor, so a cameo
+  // can't top a per-game axis (audit 2026-09-25 player-team-profiles H1).
   const radarDataByPlayerId = useMemo(
     () => new Map(comparedPlayers.map((p) => [p.id, computeRadarData(p, resolvedPlayers, minMinutesThreshold)])),
     [comparedPlayers, resolvedPlayers, minMinutesThreshold],
@@ -376,7 +378,7 @@ export function PlayerComparison() {
             <div className="card-title">Percentile Radar Comparison</div>
             <div className="card-grid">
               {comparedPlayers.map((p) => {
-                const isSmallSample = analysisMode !== "live" && (p.minutes === null || p.minutes < filters.minMinutes);
+                const isSmallSample = isBelowFixedFloor(p.minutes, analysisMode);
                 const radarData = radarDataByPlayerId.get(p.id) ?? [];
                 return (
                   <div className="card" key={p.id}>
@@ -385,10 +387,10 @@ export function PlayerComparison() {
                       <AvailabilityFlag status={p.status} news={p.news} chanceOfPlayingNextRound={p.chanceOfPlayingNextRound} />
                       <span className="page-subtitle" style={{ marginLeft: 6 }}>
                         <PositionBadge position={p.position} />
-                        {isSmallSample && " (below eligibility threshold)"}
+                        {isSmallSample && " (small sample)"}
                       </span>
                     </div>
-                    <PercentileRadarChart data={isSmallSample ? radarData.map((d) => ({ ...d, percentile: null })) : radarData} />
+                    <PercentileRadarChart data={radarData} smallSample={isSmallSample} />
                   </div>
                 );
               })}

@@ -2,20 +2,22 @@ import type { PlayerGameweekHistory } from "../types/normalized";
 
 export interface SeasonAverageMinutes {
   averageMinutes: number | null;
-  gameweeksPlayed: number;
+  /** Matches in the player's log so far, 0-minute ones included — a double gameweek counts two. */
+  matches: number;
 }
 
 /**
- * Average minutes per completed gameweek across the whole current season
- * so far — not a rolling recent-form window — used to drive the player
- * profile's single-icon Playing Time summary (see README → "Metric
- * methodology", Playing Time).
+ * Average minutes per match across the whole current season so far — not
+ * a rolling recent-form window — used to drive the player profile's
+ * single-icon Playing Time summary (see README → "Metric methodology",
+ * Playing Time). Per match, not per gameweek: a double gameweek is two
+ * matches, and the gauge measures against one 90-minute match.
  */
 export function computeSeasonAverageMinutes(history: PlayerGameweekHistory[]): SeasonAverageMinutes {
-  const gameweeksPlayed = history.length;
-  if (gameweeksPlayed === 0) return { averageMinutes: null, gameweeksPlayed: 0 };
+  const matches = history.length;
+  if (matches === 0) return { averageMinutes: null, matches: 0 };
   const totalMinutes = history.reduce((sum, g) => sum + g.minutes, 0);
-  return { averageMinutes: totalMinutes / gameweeksPlayed, gameweeksPlayed };
+  return { averageMinutes: totalMinutes / matches, matches };
 }
 
 /** Season-to-date totals across every gameweek entry in the player's current-season history — the Totals row under a gameweek-by-gameweek breakdown table. */
@@ -82,10 +84,10 @@ export function computeGameweekTotals(history: PlayerGameweekHistory[]): Gamewee
   };
 }
 
-/** Average per completed gameweek — total ÷ gameweeks played — for every
- * column in the Season Log table, not just the four expected-stats
- * columns a per-90-minutes rate used to cover (leaving every other
- * column's average cell blank). */
+/** Average per match listed — total ÷ matches in the log, 0-minute ones
+ * included — for every column in the Live Data tables, not just the four
+ * expected-stats columns a per-90-minutes rate used to cover (leaving every
+ * other column's average cell blank). */
 export interface GameweekHistoryAverages {
   points: number | null;
   starts: number | null;

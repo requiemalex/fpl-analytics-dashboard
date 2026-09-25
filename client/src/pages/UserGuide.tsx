@@ -176,7 +176,9 @@ export function UserGuide() {
             longer filters by minutes at all here (a separate, much narrower minutes bar still exists just to flag a season as "light"
             in the Career History chart, and for Expected Points' own forward-looking reliability check). Its per-game figures
             (PPG, xG/Game and the rest) are the seasons' total divided by their total games, with games counted from the seasons'
-            total minutes.
+            total minutes. Where you can't set minimum minutes yourself (see below), a season with no minutes at all — a year out of
+            the Premier League, or one lost entirely to injury — isn't counted. The window is still the last 4 completed seasons; an
+            older season never takes its place.
           </li>
           <li>
             <strong>Current Season</strong> — this season's live figures. Pre-season, or before a player's team has played, the
@@ -184,6 +186,14 @@ export function UserGuide() {
             been played yet. Price, ownership, and availability status are always live regardless of which mode is selected.
           </li>
         </ul>
+        <p className="page-subtitle">
+          <strong>Minimum minutes.</strong> Where you can set a minutes filter yourself — Player Explorer's Mins column, the tiles and
+          graphs you build on the Dashboard, Team Building — the app adds none of its own: raise it if one short appearance is topping
+          a per-game list. Where you can't — the player profile, Player Comparison, the Team Profile and the Dashboard's Default view —
+          a fixed floor applies: 90 minutes in Current Season, 450 (five full games) otherwise. A player under it is a{" "}
+          <em>small sample</em>: he's shown, but gets no percentile and no green/red colour, so a cameo can't read as the best in the
+          league.
+        </p>
         <p className="page-subtitle" style={{ margin: 0 }}>
           One thing that deliberately never changes: price is always today's real price, in every mode — in the identity line (like
           Player Explorer's leftmost column), in the Price column, and in anything worked out from it like Points/£m — because what a
@@ -393,7 +403,8 @@ export function UserGuide() {
           Compare up to 5 players side by side across every Player Explorer metric, plus a percentile radar chart per player underneath.
           The colour scale is better/worse (not just higher/lower) — price, ownership, and xGC are inverted since a lower number is the
           better one for those three specifically. A Summary card counts how many metrics each player leads on, stated plainly as a
-          mechanical count, not a weighted verdict.
+          mechanical count, not a weighted verdict. The radars use the fixed minutes floor (see Analysis modes): a player under it is
+          marked "(small sample)" and has no percentiles.
         </p>
         <Try>Add two players you're deciding between, then check whether the "leads on more metrics" summary agrees with your gut — if it doesn't, that's worth investigating why.</Try>
         <p className="page-subtitle">
@@ -431,14 +442,20 @@ export function UserGuide() {
           Dashboard's team tiles — is clickable anywhere it appears in the app and opens that club's Team Profile: season totals, the
           team radars, upcoming fixtures, and the current squad with what each player did <em>for this club</em> in the selected
           season (a new signing shows "—" for last season), with its own "Player Rankings" link through to Player Explorer for the
-          full sortable table. It's a two-colour swatch of that club's real primary and secondary kit colours where known, so same-coloured
+          full sortable table. The header's league position, points and results follow the Data View too, shown as Team Explorer
+          shows them ("—" for a season the club wasn't in the Premier League). In Historic Average each squad row is the player's
+          average over the seasons in the window he actually played for this club — so a signing from last summer shows his one
+          season, next to the club's four. The squad's green/red colouring compares each player with others in his position and uses
+          the fixed minutes floor: a player under it is greyed out with no colour (hover the row to see why). On the Defense radar,
+          more Defensive Contributions counts as better, as it does for a player — they're FPL points — so a dominant side that
+          rarely has to defend can sit low on that one axis. It's a two-colour swatch of that club's real primary and secondary kit colours where known, so same-coloured
           clubs (several Premier League sides share red or blue as a primary) are still distinguishable at a glance.
         </p>
         <p className="page-subtitle">
           <strong>FPL Points History</strong>, below the squad table, is the same bar-chart idea as the player profile's Career
           History, applied to the club: each bar is the FPL points scored for that club in that season, including this one in
           progress (dashed), back to 2016/17. The average line/figure uses the same rolling 4-season window the player profile does —
-          a season older than that draws muted-grey rather than counting toward the average. Seasons the club wasn't in the Premier
+          a season older than that draws muted-grey, marked † when you hover it, rather than counting toward the average. Seasons the club wasn't in the Premier
           League simply have no bar.
         </p>
         <p className="page-subtitle">
@@ -454,35 +471,46 @@ export function UserGuide() {
       <Section id="player-profile" title="Player Profile">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
           Click a player's name almost anywhere in the app to open it; the × or Escape closes it. The profile is split into two zones: "Views" (Actual vs
-          Expected, Underlying Numbers, Percentile Radar, Value) resolves per the active analysis mode, while "Live Data" (Current
-          Season Log, Playing Time, Career History) always shows today's actual figures regardless of that toggle — Career History
-          always shows every prior season on record plus this season in progress (marked "(live)", sourced from live data rather than a
-          completed season's record). The Percentile Radar chart is position-specific — a goalkeeper's axes share almost nothing with a
-          forward's — and also resolves per mode. Defenders and midfielders get two radars ("Defense" and "Offense"), since both facets
-          genuinely drive their points; goalkeepers and forwards keep one combined radar. A "Compare" button in the header links into
-          Player Comparison, pre-filled. Every figure in Underlying Numbers and Value is also lightly tinted green/red — same idea as
-          Player Explorer's Comparative Colouring, but relative to this player's percentile against others in their own position
-          (the same population the Percentile Radar uses) rather than a visible table's rows.
+          Expected, Underlying Numbers, Percentile Radar, Value) resolves per the active analysis mode, while "Live Data" (the
+          gameweek tables and Playing Time) and Career History always show today's actual figures regardless of that toggle — Career
+          History shows every prior season on record plus this season in progress (marked "(live)", from live data rather than a
+          completed season's record; before the season starts it reads zero). The Percentile Radar chart is position-specific — a
+          goalkeeper's axes share almost nothing with a forward's — and also resolves per mode. Defenders and midfielders get two
+          radars ("Defense" and "Offense"), since both facets genuinely drive their points; goalkeepers and forwards keep one combined
+          radar. A "Compare" button in the header links into Player Comparison, pre-filled. Every figure in Underlying Numbers and
+          Value is also lightly tinted green/red — same idea as Player Explorer's Comparative Colouring, but relative to this player's
+          percentile against others in their own position (the same population the Percentile Radar uses) rather than a visible
+          table's rows. Goalkeepers don't get Defensive Contribution tiles: FPL's defensive-contribution points exclude them, so those
+          could only ever read zero.
         </p>
         <p className="page-subtitle">
-          <strong>Current Season Log</strong> is a gameweek-by-gameweek breakdown of the live season, split into two stacked tables —
-          "Prime" and "Supplements" — each repeating GW/Opponent/Result so it stands alone. Prime covers Points, Minutes, Starts,
-          Goals, Assists, xG, xA, xGI, Clean Sheets, xGC, Defensive Contributions, Saves, BPS; Supplements covers Goals Conceded,
-          Tackles, Clearances/Blocks/Interceptions, Recoveries, Own Goals, Penalties Saved, Penalties Missed, Yellow Cards, Red Cards. A
-          goalkeeper's row swaps Defensive Contributions out for Saves and Penalties Saved (the only position that can record either);
-          every other position doesn't get those two columns at all, rather than a column that can only ever read zero. Each table gets
-          its own Totals row and Average row (total ÷ gameweeks played so far). Both tables scroll horizontally if needed. Sourced from
-          the same element-summary request as Career History and Playing Time, so they share its loading/error state. Prime's Totals
-          and Average rows are also tinted green/red — this player's percentile against others in their own position, live-season
-          figures only, same as Underlying Numbers/Value above. Supplements stays untinted — those more granular defensive/discipline
-          stats are only ever tracked per-gameweek for one player at a time, so there's no real population to compare them against.
-          <strong> Playing Time</strong> — the minutes-per-gameweek gauge, with completed-gameweeks and average-minutes spelled out next
-          to it — sits below both tables and above Career History.
+          The profile has no minutes setting, so its percentiles use the fixed minutes floor (see Analysis modes): only players with at
+          least 450 minutes (90 in Current Season) are ranked. A player under it is a <em>small sample</em> — the profile says so, his
+          radars are marked "(small sample)" and nothing is coloured. Its Historic Average leaves out seasons with no minutes. If a
+          player has no figures at all in the mode you've picked, the profile says so and suggests the Data Views that do have some.
         </p>
         <p className="page-subtitle">
-          Career History's season-by-season table (the chevron below the chart) is tinted the same green/red way, but relative to this
-          player's own other seasons shown in the table, not the wider player pool — there's no "other players" comparison for a
-          single player's career.
+          <strong>Live Data</strong> is a match-by-match breakdown of the live season, split into two stacked tables — "Prime" and
+          "Supplements" — each repeating GW/Opponent/Result so it stands alone (a double gameweek is two rows). Prime covers Points,
+          Minutes, Goals, Assists, xG, xA, xGI, Clean Sheets, xGC, Defensive Contributions, Saves, BPS; Supplements covers Starts,
+          Goals Conceded, Tackles, Clearances/Blocks/Interceptions, Recoveries, Own Goals, Penalties Saved, Penalties Missed, Yellow
+          Cards, Red Cards. A goalkeeper's row swaps Defensive Contributions out for Saves and Penalties Saved (the only position that
+          can record either); every other position doesn't get those two columns at all, rather than a column that can only ever read
+          zero. Each table gets its own Totals row and Average row — the total divided by the matches listed, including any he didn't
+          play in. Both tables scroll horizontally if needed. Sourced from the same element-summary request as Career History and
+          Playing Time, so they share its loading/error state. Prime's Totals row is also tinted green/red — this player's percentile
+          against others in their own position, live-season figures only, with the Current Season floor. The Average row and
+          Supplements stay untinted: there's no matching per-match figure, or no per-gameweek record, for the rest of the players to
+          compare them against. <strong>Playing Time</strong> — the minutes-per-match gauge, with the number of matches and average
+          minutes spelled out next to it — sits below both tables and above Career History.
+        </p>
+        <p className="page-subtitle">
+          Career History's average is the last 4 completed seasons, as in Historic Average. In the season-by-season table (the
+          chevron below the chart), <strong>*</strong> marks a light season (fewer minutes than usual) that still counts, and{" "}
+          <strong>†</strong> a season that doesn't: outside the 4-season window, or with no minutes at all. Hovering a bar on the chart
+          uses the same †. The table is tinted the same green/red way as the rest of the profile, but relative to this player's own
+          other seasons shown in the table, not the wider player pool — there's no "other players" comparison for a single player's
+          career.
         </p>
       </Section>
 

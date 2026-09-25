@@ -248,28 +248,36 @@ export interface TeamRadarAxis {
   key: string;
   label: string;
   metricFn: (t: TeamAggregate) => number | null;
+  decimals: number;
   higherIsBetter: boolean;
 }
 
+/**
+ * Defensive Contributions count as higher-is-better here, as they are for a
+ * player: they're FPL points for the club's defenders and midfielders. A
+ * dominant side that rarely has to defend can sit low on this axis while
+ * topping the other three — intended, and kept by the owner's decision
+ * (audit 2026-09-25 player-team-profiles V1).
+ */
 export const TEAM_DEFENSE_AXES: TeamRadarAxis[] = [
-  { key: "cleanSheets", label: "Clean Sheets", metricFn: (t) => t.cleanSheets, higherIsBetter: true },
-  { key: "goalsAgainst", label: "Goals Conceded", metricFn: (t) => t.goalsAgainst, higherIsBetter: false },
-  { key: "xGC", label: "xGC", metricFn: (t) => t.xGC, higherIsBetter: false },
-  { key: "defensiveContributions", label: "Def. Contributions", metricFn: (t) => t.defensiveContributions, higherIsBetter: true },
+  { key: "cleanSheets", label: "Clean Sheets", metricFn: (t) => t.cleanSheets, decimals: 0, higherIsBetter: true },
+  { key: "goalsAgainst", label: "Goals Conceded", metricFn: (t) => t.goalsAgainst, decimals: 0, higherIsBetter: false },
+  { key: "xGC", label: "xGC", metricFn: (t) => t.xGC, decimals: 2, higherIsBetter: false },
+  { key: "defensiveContributions", label: "Def. Contributions", metricFn: (t) => t.defensiveContributions, decimals: 0, higherIsBetter: true },
 ];
 
 export const TEAM_OFFENSE_AXES: TeamRadarAxis[] = [
-  { key: "goals", label: "Goals", metricFn: (t) => t.goals, higherIsBetter: true },
-  { key: "xG", label: "xG", metricFn: (t) => t.xG, higherIsBetter: true },
-  { key: "assists", label: "Assists", metricFn: (t) => t.assists, higherIsBetter: true },
-  { key: "xA", label: "xA", metricFn: (t) => t.xA, higherIsBetter: true },
-  { key: "xGI", label: "xGI", metricFn: (t) => t.xGI, higherIsBetter: true },
+  { key: "goals", label: "Goals", metricFn: (t) => t.goals, decimals: 0, higherIsBetter: true },
+  { key: "xG", label: "xG", metricFn: (t) => t.xG, decimals: 2, higherIsBetter: true },
+  { key: "assists", label: "Assists", metricFn: (t) => t.assists, decimals: 0, higherIsBetter: true },
+  { key: "xA", label: "xA", metricFn: (t) => t.xA, decimals: 2, higherIsBetter: true },
+  { key: "xGI", label: "xGI", metricFn: (t) => t.xGI, decimals: 2, higherIsBetter: true },
 ];
 
 /** One league-wide-rank percentile per axis, for one team — the team-level counterpart to computeRadarDataForAxes (metrics/radarStats.ts). */
 export function computeTeamRadarData(axes: TeamRadarAxis[], team: TeamAggregate, allTeams: TeamAggregate[]): RadarDataPoint[] {
   return axes.map((axis) => {
     const percentile = computeTeamPercentiles(allTeams, axis.metricFn, axis.higherIsBetter).get(team.teamId) ?? null;
-    return { key: axis.key, label: axis.label, percentile, rawValue: axis.metricFn(team) };
+    return { key: axis.key, label: axis.label, percentile, rawValue: axis.metricFn(team), decimals: axis.decimals };
   });
 }

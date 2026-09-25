@@ -3328,3 +3328,49 @@ tiles/graphs only:
   (`estimatedGames`). Expected Points' historic rate still uses the old
   basis, deliberately frozen (`<expected_points_frozen>`).
 - **Last commit with it:** `d6143e0`.
+
+
+### No minutes floor on profile percentiles (replaced 2026-09-25)
+- **What it did:** the player profile's radars and tile tints, Player
+  Comparison's radars and the Team Profile's squad tints ranked each player
+  against every player in his position with minutes for the Data View
+  (`effectiveMinMinutes(DEFAULT_FILTERS, mode)`, always 0), and the
+  "small sample" warning checked `minutes < 0`, so it never showed.
+- **Why it went:** cameos topped per-game axes (Ben Davies, 136 minutes,
+  100th percentile of defenders for xG/Game) and 0-minute players padded
+  the bottom of every count. The owner set one rule: where the user can't
+  set minimum minutes, the fixed floor applies (90 min Current Season, 450
+  otherwise), to every percentile, and a player under it is a small sample
+  with no percentile or colour (audit 2026-09-25 player-team-profiles H1).
+- **Last commit with it:** `ae127db`.
+
+### 0-minute seasons in the profiles' Historic Average (replaced 2026-09-25)
+- **What it did:** the player profile (Views and Career History), Player
+  Comparison and the Default Dashboard view averaged every season in the
+  4-season window, including seasons on record with 0 minutes
+  (`windowAverage`).
+- **Why it went:** the owner decided that where the user can't set minimum
+  minutes, a season with 0 minutes doesn't count (audit 2026-09-25
+  player-team-profiles V2). Those sections now use `playedWindowAverage`;
+  everywhere else still uses `windowAverage`.
+- **Last commit with it:** `ae127db`.
+
+### Team Profile header from today's table (replaced 2026-09-25)
+- **What it did:** the header read "1st in table · 15 pts · 5 played ·
+  5W 0D 0L" from the live table (`team.position`, `team.points`…) in every
+  Data View.
+- **Why it went:** every other club figure follows the Data View. It now
+  shows the club's figures for the view, as Team Explorer shows them
+  (audit 2026-09-25 player-team-profiles M1).
+- **Last commit with it:** `ae127db`.
+
+### Profile details removed (2026-09-25)
+- **Prime's Average-row tint:** the Average row was tinted with the Totals
+  row's percentile, which coloured a late joiner's strong per-match figures
+  red. The Average row is now untinted (audit L5).
+- **Goalkeeper Def. Contrib. and DC/Game tiles:** always 0, since FPL's
+  defensive-contribution points exclude goalkeepers (audit L4).
+- **"Completed Gameweeks" / "per Gameweek" in Playing Time:** it counted
+  matches, so a double gameweek counted two. Now labelled "Matches" and
+  "per Match" (audit M4).
+- **Last commit with them:** `ae127db`.

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { applyRateStatFloor, gameweekDisplay, playersForDashboardItem, LIVE_RATE_STAT_MIN_MINUTES, RATE_STAT_MIN_MINUTES } from "./Dashboard";
+import { applyRateStatFloor, gameweekDisplay, playersForDashboardItem, poolForDashboardItem, LIVE_RATE_STAT_MIN_MINUTES, RATE_STAT_MIN_MINUTES } from "./Dashboard";
 import { DEFAULT_SUMMARY_TILES } from "../state/useSummaryTiles";
 import { isDefaultViewSelected } from "../state/useSavedDashboardViews";
 import { DEFAULT_FILTERS } from "../state/scoutingFilters";
@@ -123,5 +123,23 @@ describe("playersForDashboardItem — the per-game minutes floor is for the Defa
     expect(isDefaultViewSelected(views, "default-view-player")).toBe(true);
     expect(isDefaultViewSelected(views, "view-deleted")).toBe(false);
     expect(isDefaultViewSelected(views, undefined)).toBe(false);
+  });
+});
+
+describe("poolForDashboardItem — Historic Average without 0-minute seasons in the Default view only (audit 2026-09-25 player-team-profiles V2)", () => {
+  const p = (id: number) => ({ id }) as NormalizedPlayer;
+  const pools = {
+    byMode: { live: [p(1)], lastSeason: [p(2)], historicAverage: [p(3)] },
+    historicPlayedSeasonsOnly: [p(4)],
+  };
+
+  it("the packaged Default view reads the played-seasons pool for Historic Average", () => {
+    expect(poolForDashboardItem("historicAverage", true, pools).map((x) => x.id)).toEqual([4]);
+  });
+
+  it("a view the user builds keeps 0-minute seasons, and other Data Views are unchanged", () => {
+    expect(poolForDashboardItem("historicAverage", false, pools).map((x) => x.id)).toEqual([3]);
+    expect(poolForDashboardItem("lastSeason", true, pools).map((x) => x.id)).toEqual([2]);
+    expect(poolForDashboardItem("live", true, pools).map((x) => x.id)).toEqual([1]);
   });
 });

@@ -1,9 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
+import { useEscapeLayer } from "../state/useEscapeLayer";
+import { useDialogFocus } from "../state/useDialogFocus";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import { getUpcomingFixtures, averageFixtureDifficulty } from "../metrics/fixtureTicker";
 import { computePositionPercentiles } from "../metrics/percentiles";
+import { fixedFloorMinutes, isBelowFixedFloor } from "../metrics/fixedMinutesFloor";
+import { teamColumnByKey } from "./teamColumns";
 import {
   computeTeamAggregates,
   computeTeamRadarData,
@@ -17,16 +21,29 @@ import {
 import { computeClubSeasonWindow } from "../metrics/teamSeasonHistory";
 import { computeSeasonTrend } from "../metrics/careerMetrics";
 import { relativeCellTint, percentileTint } from "../utils/colorScale";
-import { effectiveMinMinutes } from "../state/useFilteredPlayers";
-import { DEFAULT_FILTERS } from "../state/scoutingFilters";
 import { AnalysisModeToggle } from "./AnalysisModeToggle";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass, FixtureChips, Tooltip } from "./primitives";
 import { PercentileRadarChart } from "./PlayerRadarChart";
 import { CareerHistoryChart } from "./playerProfile/CareerHistoryChart";
-import { fmtDecimal, fmtPrice, fmtSigned, DASH } from "../utils/format";
+import { fmtDecimal, fmtOrdinal, fmtPrice, fmtSigned, DASH } from "../utils/format";
 import type { NormalizedPlayer, NormalizedTeam } from "../types/normalized";
 
-function useSelectedTeam(): [NormalizedTeam | null, (id: number | null) => void] {
+/**
+ * The header's league line for the Data View, from the club's figures for
+ * it, each shown as Team Explorer's column shows it (a Historic Average
+ * rounds the same way). A club with no record for the view (not in the
+ * Premier League that season) shows "—". It used to show today's table in
+ * every Data View (audit 2026-09-25 player-team-profiles M1).
+ */
+export function teamHeaderLine(t: TeamAggregate): string {
+  if (t.leaguePosition === null && t.leaguePoints === null && t.played === null) return DASH;
+  const show = (key: string, v: number | null) => teamColumnByKey(key)?.format(v) ?? DASH;
+  const position = t.leaguePosition === null ? DASH : fmtOrdinal(Number(show("leaguePosition", t.leaguePosition)));
+  return `${position} in table · ${show("leaguePoints", t.leaguePoints)} pts · ${show("played", t.played)} played · ${show("wins", t.wins)}W ${show("draws", t.draws)}D ${show("losses", t.losses)}L`;
+}
+
+/** The club `?teamProfile=` names, and whether it names one that doesn't exist (an old link, or not a number) — shown as a message rather than silently ignored. */
+function useSelectedTeam(): [NormalizedTeam | null, (id: number | null) => void, boolean] {
   const { teamsById } = useAppState();
   const [searchParams, setSearchParams] = useSearchParams();
   const id = searchParams.get("teamProfile");
@@ -41,7 +58,7 @@ function useSelectedTeam(): [NormalizedTeam | null, (id: number | null) => void]
     });
   };
 
-  return [team, setId];
+  return [team, setId, id !== null && team === null];
 }
 
 function CloseIcon() {
@@ -65,10 +82,16 @@ function StatTile({ label, value, tint }: { label: string; value: React.ReactNod
 
 export function TeamDetailOverlay() {
   const { players, teams, teamsById, fixtures, clubSeasons, currentSeasonHasStarted, historicReferenceSeason, historicStatus, requestHistoricData } = useAppState();
+  const [team, setTeamId, unknownTeamLink] = useSelectedTeam();
+  const isOpen = team !== null;
+  // Every club figure here (Current Season included) comes from the historic
+  // dataset, but only an open profile needs it: this overlay is mounted on
+  // every page (audit 2026-09-25 player-team-profiles M3).
   useEffect(() => {
-    requestHistoricData();
-  }, [requestHistoricData]);
-  const [team, setTeamId] = useSelectedTeam();
+    if (isOpen) requestHistoricData();
+  }, [isOpen, requestHistoricData]);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const headingId = useId();
   const [, setSearchParams] = useSearchParams();
   // The profile's own analysis-mode — deliberately independent of whatever
   // mode happens to be selected on the page underneath it, same reasoning
@@ -168,10 +191,14 @@ export function TeamDetailOverlay() {
   }, [upcomingFixtures, avgFdrRange]);
 
   // Per-player comparative colouring for the roster table — the same
-  // within-position percentile/threshold PlayerDetailOverlay uses, over
-  // every current player's figures for his own club in this view (never
-  // squad-filtered — see <percentile_population>).
-  const minMinutes = effectiveMinMinutes(DEFAULT_FILTERS, analysisMode);
+  // within-position percentile and fixed minutes floor PlayerDetailOverlay
+  // uses (<fixed_minutes_floor>; audit 2026-09-25 player-team-profiles H1),
+  // over every current player's figures for his own club in this view
+  // (never squad-filtered — see <percentile_population>). A player under
+  // the floor for this club gets no colour. His figures come from the club
+  // record, which only has seasons he played in, so a 0-minute season never
+  // counts toward his Historic Average here either.
+  const minMinutes = fixedFloorMinutes(analysisMode);
   const squadPercentiles = useMemo(() => {
     const population: NormalizedPlayer[] = [];
     for (const p of players) {
@@ -208,11 +235,31 @@ export function TeamDetailOverlay() {
     ];
   }, [clubTotals, allTeamAggregates]);
 
-  if (!team || !clubTotals) return null;
+  // Escape closes the profile, like its × button — only this layer when
+  // something opened before it is still open (audit 2026-09-25
+  // player-team-profiles M5).
+  useEscapeLayer(isOpen || unknownTeamLink, () => setTeamId(null));
+  useDialogFocus(isOpen || unknownTeamLink, sheetRef);
 
   function close() {
     setTeamId(null);
   }
+
+  if (unknownTeamLink) {
+    return (
+      <div className="profile-backdrop">
+        <div className="profile-sheet" ref={sheetRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={headingId}>
+          <button className="profile-close" onClick={close} type="button" title="Close" aria-label="Close">
+            <CloseIcon />
+          </button>
+          <h2 id={headingId}>Team not found</h2>
+          <p className="page-subtitle">This link is to a club that isn't in FPL's current list of teams.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!team || !clubTotals) return null;
 
   /** Swaps this overlay for the player profile rather than stacking both — same single-overlay-at-a-time UX as every other cross-link into a player (Dashboard, Teams, etc.). */
   function openPlayer(playerId: number) {
@@ -226,21 +273,25 @@ export function TeamDetailOverlay() {
 
   return (
     <div className="profile-backdrop">
-      <div className="profile-sheet">
+      <div className="profile-sheet" ref={sheetRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={headingId}>
         <button className="profile-close" onClick={close} type="button" title="Close" aria-label="Close">
           <CloseIcon />
         </button>
 
         <div className="profile-header">
           <div>
-            <h2 style={{ marginBottom: 2 }}>{team.name}</h2>
+            <h2 id={headingId} style={{ marginBottom: 2 }}>{team.name}</h2>
             <p className="page-subtitle" style={{ marginTop: 0 }}>
-              {team.position !== null ? `${team.position}${team.position === 1 ? "st" : team.position === 2 ? "nd" : team.position === 3 ? "rd" : "th"} in table · ` : ""}
-              {team.points} pts · {team.played} played · {team.wins}W {team.draws}D {team.losses}L
+              {teamHeaderLine(clubTotals)}
             </p>
           </div>
           <div className="profile-header-actions">
-            <Link className="profile-icon-btn" to={`/players?team=${team.id}`} title={`See ${team.name}'s players, sortable by any metric, in Player Explorer`}>
+            <Link
+              className="profile-icon-btn"
+              to={`/players?team=${team.id}`}
+              title={`See ${team.name}'s players, sortable by any metric, in Player Explorer`}
+              aria-label={`See ${team.name}'s players, sortable by any metric, in Player Explorer`}
+            >
               Player Rankings
             </Link>
           </div>
@@ -307,8 +358,23 @@ export function TeamDetailOverlay() {
                   </tr>
                 </thead>
                 <tbody>
-                  {squad.map(({ player, figures }) => (
-                    <tr key={player.id} onClick={() => openPlayer(player.id)}>
+                  {squad.map(({ player, figures }) => {
+                    const smallSample = figures !== null && isBelowFixedFloor(figures.minutes, analysisMode);
+                    return (
+                    <tr
+                      key={player.id}
+                      onClick={() => openPlayer(player.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          openPlayer(player.id);
+                        }
+                      }}
+                      tabIndex={0}
+                      aria-label={`Open ${player.name}'s profile`}
+                      style={smallSample ? { color: "var(--text-muted)" } : undefined}
+                      title={smallSample ? `Small sample — ${fmtDecimal(figures.minutes, 0)} min for ${team.name}, under ${minMinutes}: no colour` : undefined}
+                    >
                       <td className="sticky-col">
                         <div className="player-name-cell">
                           <span className={`name ${availabilityTextClass(player.status)}`}>
@@ -325,7 +391,8 @@ export function TeamDetailOverlay() {
                       <td style={{ backgroundColor: squadCellTint(player.id, "xGC") }}>{fmtDecimal(figures?.xGC ?? null, 2)}</td>
                       <td style={{ backgroundColor: squadCellTint(player.id, "defensiveContributions") }}>{fmtDecimal(figures?.dc ?? null, 0)}</td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

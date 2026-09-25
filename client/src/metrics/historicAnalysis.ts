@@ -95,6 +95,19 @@ export interface HistoricPlayerProfile {
    * it was never filtered for that purpose either.
    */
   allSeasonsInWindow: PlayerSeasonHistory[];
+  /**
+   * The window's seasons with any minutes at all (> 0), oldest first — never
+   * reaching back past the window to replace a 0-minute one. Where the user
+   * can't set minimum minutes (<fixed_minutes_floor>: player profile, Player
+   * Comparison, Team Profile, the packaged Default Dashboard views), a season
+   * registered but never played (a year out of the Premier League, or lost
+   * to injury) doesn't count toward Historic Average — the owner's decision,
+   * audit 2026-09-25 player-team-profiles V2. Everywhere else keeps
+   * windowAverage, 0-minute seasons included.
+   */
+  playedSeasonsInWindow: PlayerSeasonHistory[];
+  /** Average over playedSeasonsInWindow. Null when the window has no season with minutes. */
+  playedWindowAverage: CareerAverages | null;
 }
 
 /** Builds one player's HistoricPlayerProfile against a shared reference season. */
@@ -109,11 +122,15 @@ export function buildHistoricPlayerProfile(seasons: PlayerSeasonHistory[], refer
     qualifyingSeasons = allSeasonsInWindow.filter((s) => s.minutes >= MIN_QUALIFYING_SEASON_MINUTES);
   }
 
+  const playedSeasonsInWindow = allSeasonsInWindow.filter((s) => s.minutes > 0);
+
   return {
     lastCompletedSeason,
     qualifyingSeasons,
     windowAverage: allSeasonsInWindow.length > 0 ? computeCareerAverages(allSeasonsInWindow) : null,
     allSeasonsInWindow,
+    playedSeasonsInWindow,
+    playedWindowAverage: playedSeasonsInWindow.length > 0 ? computeCareerAverages(playedSeasonsInWindow) : null,
   };
 }
 

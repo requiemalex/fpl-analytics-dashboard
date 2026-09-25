@@ -1,11 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useEscapeLayer } from "../state/useEscapeLayer";
+import { useDialogFocus } from "../state/useDialogFocus";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { usePlayerHistory } from "../state/usePlayerHistory";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { computeRadarDataForAxes, getRadarAxisGroupsForPosition } from "../metrics/radarStats";
 import { computePositionPercentiles } from "../metrics/percentiles";
+import { fixedFloorMinutes, isBelowFixedFloor } from "../metrics/fixedMinutesFloor";
 import { percentileTint, relativeCellTint } from "../utils/colorScale";
 import { PercentileRadarChart } from "./PlayerRadarChart";
 import { ActualVsExpectedBars } from "./playerProfile/ActualVsExpectedBars";
@@ -14,15 +16,17 @@ import { PlayingTimeIcon } from "./playerProfile/PlayingTimeIcon";
 import { computeSeasonAverageMinutes, computeGameweekTotals, computeGameweekAverages } from "../metrics/rotationIndicators";
 import { computeSeasonTrend } from "../metrics/careerMetrics";
 import { buildHistoricPlayerProfile, nextSeasonName, HISTORIC_WINDOW_SEASONS } from "../metrics/historicAnalysis";
-import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode, type AnalysisMode } from "../metrics/resolvePlayerStats";
-import { effectiveMinMinutes } from "../state/useFilteredPlayers";
-import { DEFAULT_FILTERS } from "../state/scoutingFilters";
-import { AnalysisModeToggle } from "./AnalysisModeToggle";
+import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode, type AnalysisMode, type ResolveOptions } from "../metrics/resolvePlayerStats";
+import { AnalysisModeToggle, ANALYSIS_MODE_OPTIONS } from "./AnalysisModeToggle";
 import { PositionBadge } from "./primitives";
 import { fmtDecimal, fmtPrice, fmtPercent, fmtSigned, DASH } from "../utils/format";
 import type { NormalizedPlayer, PlayerSeasonHistory, PlayerGameweekHistory } from "../types/normalized";
 
-function useSelectedPlayer(): [NormalizedPlayer | null, (id: number | null) => void] {
+/** The profile has no minimum-minutes control, so its Historic Average leaves out 0-minute seasons (<fixed_minutes_floor>). */
+const PROFILE_RESOLVE: ResolveOptions = { dropZeroMinuteSeasons: true };
+
+/** The player `?player=` names, and whether it names one that doesn't exist (an old link, or not a number) — shown as a message rather than silently ignored. */
+function useSelectedPlayer(): [NormalizedPlayer | null, (id: number | null) => void, boolean] {
   const { players } = useAppState();
   const [searchParams, setSearchParams] = useSearchParams();
   const id = searchParams.get("player");
@@ -37,7 +41,7 @@ function useSelectedPlayer(): [NormalizedPlayer | null, (id: number | null) => v
     });
   };
 
-  return [player, setId];
+  return [player, setId, id !== null && player === null];
 }
 
 /** Label-above-value, not label-beside-value — a side-by-side stat-row
@@ -94,60 +98,71 @@ function ChevronIcon({ direction }: { direction: "down" | "up" }) {
 
 export function PlayerDetailOverlay() {
   const { players, teamsById, historicReferenceSeason, historicStatus, historicProfiles, currentSeasonHasStarted, requestHistoricData } = useAppState();
+  const [player, setPlayerId, unknownPlayerLink] = useSelectedPlayer();
+  const isOpen = player !== null;
+  // Only an open profile needs the historic dataset (it opens on Last
+  // Completed Season, and Career History's window needs it). This overlay
+  // is mounted on every page, so asking on mount started the one-minute
+  // bulk build everywhere, even on the User Guide (audit 2026-09-25
+  // player-team-profiles M3).
   useEffect(() => {
-    requestHistoricData();
-  }, [requestHistoricData]);
-  const [player, setPlayerId] = useSelectedPlayer();
+    if (isOpen) requestHistoricData();
+  }, [isOpen, requestHistoricData]);
   const [showFullCareerTable, setShowFullCareerTable] = useState(false);
   // The profile's own analysis-mode — deliberately independent of
   // whatever mode happens to be selected on the page underneath it (see
-  // state/scoutingFilters.ts). No Min Minutes control of its own, so
-  // `filters` below is a fixed, never-mutated default — purely to
-  // satisfy effectiveMinMinutes' signature for the radar's small-sample
-  // threshold, not a hidden knob.
+  // state/scoutingFilters.ts). It has no Min Minutes control, so its
+  // percentiles use the fixed floor (<fixed_minutes_floor>).
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("lastSeason");
-  const filters = DEFAULT_FILTERS;
+  const minutesFloor = fixedFloorMinutes(analysisMode);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const headingId = useId();
 
   const history = usePlayerHistory(player?.id ?? null);
 
   // The live season, shaped like a PlayerSeasonHistory entry so it can slot
   // straight into the same career-history table/average/qualifying logic
-  // as prior seasons — sourced from the raw live player (never null in
-  // practice), matching how the rest of the app treats live data. Needs
+  // as prior seasons. Resolved as Current Season is everywhere else, so
+  // before the season starts its cumulative stats read 0 — FPL's live
+  // fields still carry last season's totals until then
+  // (<live_mode_preseason_fix>, resolvePlayerStats.ts; audit 2026-09-25
+  // player-team-profiles H2). Price is live either way. Needs
   // historicReferenceSeason (the last COMPLETED season) to name itself, so
   // it's absent until that's loaded at least once.
   const currentSeasonEntry: PlayerSeasonHistory | null = useMemo(() => {
     if (!player || !historicReferenceSeason) return null;
+    const live = resolvePlayerStats(player, "live", undefined, currentSeasonHasStarted);
     return {
       seasonName: nextSeasonName(historicReferenceSeason),
-      totalPoints: player.totalPoints ?? 0,
-      minutes: player.minutes ?? 0,
-      starts: player.starts,
-      goals: player.goals ?? 0,
-      assists: player.assists ?? 0,
-      cleanSheets: player.cleanSheets ?? 0,
-      goalsConceded: player.goalsConceded,
-      bonus: player.bonus ?? 0,
-      bps: player.bps ?? 0,
-      ictIndex: player.ictIndex,
-      startCost: player.price,
-      endCost: player.price,
-      xG: player.xG,
-      xA: player.xA,
-      xGI: player.xGI,
-      xGC: player.xGC,
-      defensiveContribution: player.defensiveContributions,
+      totalPoints: live.totalPoints ?? 0,
+      minutes: live.minutes ?? 0,
+      starts: live.starts,
+      goals: live.goals ?? 0,
+      assists: live.assists ?? 0,
+      cleanSheets: live.cleanSheets ?? 0,
+      goalsConceded: live.goalsConceded,
+      bonus: live.bonus ?? 0,
+      bps: live.bps ?? 0,
+      ictIndex: live.ictIndex,
+      startCost: live.price,
+      endCost: live.price,
+      xG: live.xG,
+      xA: live.xA,
+      xGI: live.xGI,
+      xGC: live.xGC,
+      defensiveContribution: live.defensiveContributions,
     };
-  }, [player, historicReferenceSeason]);
+  }, [player, historicReferenceSeason, currentSeasonHasStarted]);
 
   const combinedSeasonHistory = currentSeasonEntry ? [...history.seasonHistory, currentSeasonEntry] : history.seasonHistory;
 
   // Percentiles are computed against the same resolved-mode population
   // every other page uses, not the raw live list — otherwise this page
   // would silently disagree with Player Explorer about where a player
-  // ranks whenever a historic mode is active.
+  // ranks whenever a historic mode is active. Historic Average here leaves
+  // out 0-minute seasons, for everyone in the pool (PROFILE_RESOLVE).
   const { resolved: resolvedPlayers } = useMemo(
-    () => resolvePlayerStatsList(players, analysisMode, historicProfiles, currentSeasonHasStarted),
+    () => resolvePlayerStatsList(players, analysisMode, historicProfiles, currentSeasonHasStarted, PROFILE_RESOLVE),
     [players, analysisMode, historicProfiles, currentSeasonHasStarted],
   );
 
@@ -156,30 +171,30 @@ export function PlayerDetailOverlay() {
   // down (cheap — a single-player transform) to memoize the genuinely
   // expensive part: one full-population percentile scan per axis, across
   // every radar group (one group for GKP/FWD, two — Defense/Offense — for
-  // DEF/MID; see getRadarAxisGroupsForPosition).
+  // DEF/MID; see getRadarAxisGroupsForPosition). The pool is everyone at or
+  // above the fixed minutes floor, so a cameo can't top a per-game axis or
+  // a 0-minute player pad the bottom (audit 2026-09-25 player-team-profiles
+  // H1); a player under it gets no percentile.
   const radarGroups = useMemo(() => {
     if (!player) return [];
-    const resolved = resolvePlayerStats(player, analysisMode, historicProfiles.get(player.id), currentSeasonHasStarted);
-    const minMinutes = effectiveMinMinutes(filters, analysisMode);
+    const resolved = resolvePlayerStats(player, analysisMode, historicProfiles.get(player.id), currentSeasonHasStarted, PROFILE_RESOLVE);
     return getRadarAxisGroupsForPosition(player.position).map((group) => ({
       label: group.label,
-      data: computeRadarDataForAxes(group.axes, resolved, resolvedPlayers, minMinutes),
+      data: computeRadarDataForAxes(group.axes, resolved, resolvedPlayers, minutesFloor),
     }));
-  }, [player, analysisMode, historicProfiles, currentSeasonHasStarted, resolvedPlayers, filters.minMinutes]);
+  }, [player, analysisMode, historicProfiles, currentSeasonHasStarted, resolvedPlayers, minutesFloor]);
 
   // Comparative colouring for the Underlying Numbers / Value stat tiles —
   // same green-better/red-worse language as Player Explorer's Comparative
   // Colouring and Player Comparison's cell tints, but relative to this
   // player's within-POSITION percentile (computePositionPercentiles, the
-  // same population/threshold the Percentile Radar above already uses)
+  // same population and fixed floor the Percentile Radar above uses)
   // rather than a visible row range, since a single-player card has no
   // "rows on screen" to compare against. A small-sample player (below the
-  // minutes threshold) naturally gets `null` back from
-  // computePositionPercentiles here — same as the radar already nulling
-  // itself out — so no tint is shown rather than a misleading one.
+  // floor) gets `null` back from computePositionPercentiles, so no tint is
+  // shown rather than a misleading one.
   const statPercentiles = useMemo(() => {
     if (!player) return {} as Record<string, number | null>;
-    const minMinutes = effectiveMinMinutes(filters, analysisMode);
     const metrics: Record<string, { fn: (p: NormalizedPlayer) => number | null; higherIsBetter: boolean }> = {
       cleanSheets: { fn: (p) => p.cleanSheets, higherIsBetter: true },
       xGC: { fn: (p) => p.xGC, higherIsBetter: false },
@@ -199,14 +214,14 @@ export function PlayerDetailOverlay() {
     };
     const result: Record<string, number | null> = {};
     for (const [key, { fn, higherIsBetter }] of Object.entries(metrics)) {
-      const raw = computePositionPercentiles(resolvedPlayers, fn, minMinutes).get(player.id) ?? null;
+      const raw = computePositionPercentiles(resolvedPlayers, fn, minutesFloor).get(player.id) ?? null;
       result[key] = raw === null ? null : higherIsBetter ? raw : 100 - raw;
     }
     return result;
-  }, [player, resolvedPlayers, analysisMode, filters.minMinutes]);
+  }, [player, resolvedPlayers, minutesFloor]);
 
-  // The Current Season Log's Totals/Average rows are always live-season
-  // data regardless of the analysis-mode toggle above (see
+  // The Live Data tables' Totals rows are always live-season data
+  // regardless of the analysis-mode toggle above (see
   // <gw_log_is_always_live> below), so their comparative colouring is
   // always computed against the LIVE population too — never whichever
   // mode happens to be selected elsewhere on the page.
@@ -221,11 +236,14 @@ export function PlayerDetailOverlay() {
   // only ever computed per-gameweek for the one player currently being
   // viewed (usePlayerHistory is lazy-loaded per player, see CLAUDE.md),
   // so there's no real population to compare those columns against; they
-  // stay untinted rather than showing something fabricated. The same
-  // percentile is used for both the Totals row and the Average row (both
-  // reflect the same underlying season-long standing, just as a sum vs. a
-  // per-game rate) rather than maintaining a second, mostly-unavailable
-  // per-game population for the Average row specifically.
+  // stay untinted rather than showing something fabricated. Same fixed
+  // floor as the rest of the profile, at its Current Season value.
+  //
+  // Only the Totals row is tinted. The Average row divides by the matches
+  // in this player's log, which the rest of the pool has no equivalent of,
+  // so there's no population to rank it against; it used to borrow the
+  // Totals row's rank, which coloured a late joiner's strong per-match
+  // figures red (audit 2026-09-25 player-team-profiles L5).
   const seasonLogPercentiles = useMemo(() => {
     if (!player) return {} as Record<string, number | null>;
     const metrics: Record<string, { fn: (p: NormalizedPlayer) => number | null; higherIsBetter: boolean }> = {
@@ -249,7 +267,7 @@ export function PlayerDetailOverlay() {
     };
     const result: Record<string, number | null> = {};
     for (const [key, { fn, higherIsBetter }] of Object.entries(metrics)) {
-      const raw = computePositionPercentiles(liveResolvedPlayers, fn, 0).get(player.id) ?? null;
+      const raw = computePositionPercentiles(liveResolvedPlayers, fn, fixedFloorMinutes("live")).get(player.id) ?? null;
       result[key] = raw === null ? null : higherIsBetter ? raw : 100 - raw;
     }
     return result;
@@ -258,7 +276,22 @@ export function PlayerDetailOverlay() {
   // Escape closes the profile, like its × button (the current setter, so it
   // never restores an out-of-date address) — and only the profile, when
   // something opened before it is still open underneath.
-  useEscapeLayer(!!player, () => setPlayerId(null));
+  useEscapeLayer(isOpen || unknownPlayerLink, () => setPlayerId(null));
+  useDialogFocus(isOpen || unknownPlayerLink, sheetRef);
+
+  if (unknownPlayerLink) {
+    return (
+      <div className="profile-backdrop">
+        <div className="profile-sheet" ref={sheetRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={headingId}>
+          <button className="profile-close" onClick={() => setPlayerId(null)} type="button" title="Close" aria-label="Close">
+            <CloseIcon />
+          </button>
+          <h2 id={headingId}>Player not found</h2>
+          <p className="page-subtitle">This link is to a player who isn't in FPL's current player list.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!player) return null;
 
@@ -267,22 +300,29 @@ export function PlayerDetailOverlay() {
   // Indicators, the Compare link) all stay on the live `player` throughout,
   // matching how every other page keeps identity live and only resolves
   // the performance figures.
-  const resolvedPlayer = resolvePlayerStats(player, analysisMode, historicProfiles.get(player.id), currentSeasonHasStarted);
+  const resolvedPlayer = resolvePlayerStats(player, analysisMode, historicProfiles.get(player.id), currentSeasonHasStarted, PROFILE_RESOLVE);
   const derived = getPlayerDerivedMetrics(resolvedPlayer);
-  // <live_vs_resolved_bug>: this used to check `player.minutes` (the
-  // LIVE player's current-season minutes) even when viewing Last
-  // Completed Season or Historic Average — so a player with a full,
-  // well-sampled historic record but low CURRENT-season minutes (true
-  // of nearly everyone pre-season or early in a new season) was wrongly
-  // flagged as a small sample for modes where their data was actually
-  // robust. Now checks the RESOLVED player's minutes — whichever the
-  // active mode actually resolved to — against the same threshold. Null
-  // minutes (no data at all for this mode, see resolvePlayerStats.ts)
-  // counts as small-sample too — there's nothing to build a reliable
-  // radar/percentile from either way.
-  const smallSample =
-    analysisMode !== "live" &&
-    (resolvedPlayer.minutes === null || resolvedPlayer.minutes < effectiveMinMinutes(filters, analysisMode));
+  // A historic Data View's figures are only known once the historic dataset
+  // has loaded. Until then (or if it failed, which the Data View toggle
+  // reports with a Retry) every figure is null for reasons that have
+  // nothing to do with the player, so nothing here claims he has no data
+  // (audit 2026-09-25 player-team-profiles M2).
+  const dataSettled = analysisMode === "live" || historicStatus === "ready";
+  const noDataForMode = dataSettled && !hasDataForMode(resolvedPlayer);
+  // Other Data Views that do have figures for him, for the no-data message —
+  // never the one already selected.
+  const modesWithData = noDataForMode
+    ? ANALYSIS_MODE_OPTIONS.filter(
+        (o) => o.mode !== analysisMode && hasDataForMode(resolvePlayerStats(player, o.mode, historicProfiles.get(player.id), currentSeasonHasStarted, PROFILE_RESOLVE)),
+      ).map((o) => o.label)
+    : [];
+  // <live_vs_resolved_bug>: checks the RESOLVED player's minutes —
+  // whichever the active mode resolved to — never the live player's, which
+  // flagged well-sampled historic records as small samples early in a
+  // season. Under the fixed floor (<fixed_minutes_floor>) he has no
+  // percentile, so the radars and tints are blank; null minutes is "no
+  // data" (above), not a small sample.
+  const smallSample = isBelowFixedFloor(resolvedPlayer.minutes, analysisMode);
 
   // DEF and MID score points from both facets — same reasoning as the
   // split Defense/Offense percentile radars (radarGroups.length > 1 for
@@ -346,31 +386,31 @@ export function PlayerDetailOverlay() {
   // make this table LESS consistent with the rest of the app, not more
   // readable.
   const primeColumns: GwColumn[] = [
-    { key: "pts", header: "Points", cell: (g) => fmtDecimal(g.totalPoints) },
-    { key: "min", header: "Minutes", cell: (g) => fmtDecimal(g.minutes) },
-    { key: "g", header: "Goals", cell: (g) => fmtDecimal(g.goals) },
-    { key: "a", header: "Assists", cell: (g) => fmtDecimal(g.assists) },
+    { key: "pts", header: "Points", cell: (g) => fmtDecimal(g.totalPoints, 0) },
+    { key: "min", header: "Minutes", cell: (g) => fmtDecimal(g.minutes, 0) },
+    { key: "g", header: "Goals", cell: (g) => fmtDecimal(g.goals, 0) },
+    { key: "a", header: "Assists", cell: (g) => fmtDecimal(g.assists, 0) },
     { key: "xg", header: "xG", cell: (g) => fmtDecimal(g.xG, 2) },
     { key: "xa", header: "xA", cell: (g) => fmtDecimal(g.xA, 2) },
     { key: "xgi", header: "xGI", cell: (g) => fmtDecimal(g.xGI, 2) },
-    { key: "cs", header: "Clean Sheets", cell: (g) => fmtDecimal(g.cleanSheets) },
+    { key: "cs", header: "Clean Sheets", cell: (g) => fmtDecimal(g.cleanSheets, 0) },
     { key: "xgc", header: "xGC", cell: (g) => fmtDecimal(g.xGC, 2) },
-    ...(isGoalkeeper ? [] : [{ key: "dc", header: "Defensive Contributions", cell: (g: PlayerGameweekHistory) => fmtDecimal(g.defensiveContribution) }]),
-    ...(isGoalkeeper ? [{ key: "saves", header: "Saves", cell: (g: PlayerGameweekHistory) => fmtDecimal(g.saves) }] : []),
-    { key: "bps", header: "BPS", cell: (g) => fmtDecimal(g.bps) },
+    ...(isGoalkeeper ? [] : [{ key: "dc", header: "Defensive Contributions", cell: (g: PlayerGameweekHistory) => fmtDecimal(g.defensiveContribution, 0) }]),
+    ...(isGoalkeeper ? [{ key: "saves", header: "Saves", cell: (g: PlayerGameweekHistory) => fmtDecimal(g.saves, 0) }] : []),
+    { key: "bps", header: "BPS", cell: (g) => fmtDecimal(g.bps, 0) },
   ];
 
   const supplementsColumns: GwColumn[] = [
-    { key: "st", header: "Starts", cell: (g) => (g.starts !== null ? fmtDecimal(g.starts) : DASH) },
-    { key: "gc", header: "Goals Conceded", cell: (g) => fmtDecimal(g.goalsConceded) },
-    { key: "t", header: "Tackles", cell: (g) => fmtDecimal(g.tackles) },
-    { key: "cbi", header: "Clear/Blocks/Int", cell: (g) => fmtDecimal(g.clearancesBlocksInterceptions) },
-    { key: "r", header: "Recoveries", cell: (g) => fmtDecimal(g.recoveries) },
-    { key: "og", header: "Own Goals", cell: (g) => fmtDecimal(g.ownGoals) },
-    ...(isGoalkeeper ? [{ key: "ps", header: "Penalties Saved", cell: (g: PlayerGameweekHistory) => fmtDecimal(g.penaltiesSaved) }] : []),
-    { key: "pm", header: "Penalties Missed", cell: (g) => fmtDecimal(g.penaltiesMissed) },
-    { key: "yc", header: "Yellow Cards", cell: (g) => fmtDecimal(g.yellowCards) },
-    { key: "rc", header: "Red Cards", cell: (g) => fmtDecimal(g.redCards) },
+    { key: "st", header: "Starts", cell: (g) => fmtDecimal(g.starts, 0) },
+    { key: "gc", header: "Goals Conceded", cell: (g) => fmtDecimal(g.goalsConceded, 0) },
+    { key: "t", header: "Tackles", cell: (g) => fmtDecimal(g.tackles, 0) },
+    { key: "cbi", header: "Clear/Blocks/Int", cell: (g) => fmtDecimal(g.clearancesBlocksInterceptions, 0) },
+    { key: "r", header: "Recoveries", cell: (g) => fmtDecimal(g.recoveries, 0) },
+    { key: "og", header: "Own Goals", cell: (g) => fmtDecimal(g.ownGoals, 0) },
+    ...(isGoalkeeper ? [{ key: "ps", header: "Penalties Saved", cell: (g: PlayerGameweekHistory) => fmtDecimal(g.penaltiesSaved, 0) }] : []),
+    { key: "pm", header: "Penalties Missed", cell: (g) => fmtDecimal(g.penaltiesMissed, 0) },
+    { key: "yc", header: "Yellow Cards", cell: (g) => fmtDecimal(g.yellowCards, 0) },
+    { key: "rc", header: "Red Cards", cell: (g) => fmtDecimal(g.redCards, 0) },
   ];
 
   // Prime and Supplements each render as their own table (see
@@ -384,28 +424,28 @@ export function PlayerDetailOverlay() {
           const totals = computeGameweekTotals(history.history);
           const averages = computeGameweekAverages(totals);
           const totalsByKey: Record<string, React.ReactNode> = {
-            pts: fmtDecimal(totals.points),
-            min: fmtDecimal(totals.minutes),
-            g: fmtDecimal(totals.goals),
-            a: fmtDecimal(totals.assists),
+            pts: fmtDecimal(totals.points, 0),
+            min: fmtDecimal(totals.minutes, 0),
+            g: fmtDecimal(totals.goals, 0),
+            a: fmtDecimal(totals.assists, 0),
             xg: fmtDecimal(totals.xG, 2),
             xa: fmtDecimal(totals.xA, 2),
             xgi: fmtDecimal(totals.xGI, 2),
-            cs: fmtDecimal(totals.cleanSheets),
-            st: fmtDecimal(totals.starts),
-            gc: fmtDecimal(totals.goalsConceded),
+            cs: fmtDecimal(totals.cleanSheets, 0),
+            st: fmtDecimal(totals.starts, 0),
+            gc: fmtDecimal(totals.goalsConceded, 0),
             xgc: fmtDecimal(totals.xGC, 2),
-            t: fmtDecimal(totals.tackles),
-            cbi: fmtDecimal(totals.clearancesBlocksInterceptions),
-            r: fmtDecimal(totals.recoveries),
-            dc: fmtDecimal(totals.defensiveContribution),
-            og: fmtDecimal(totals.ownGoals),
-            ps: fmtDecimal(totals.penaltiesSaved),
-            pm: fmtDecimal(totals.penaltiesMissed),
-            yc: fmtDecimal(totals.yellowCards),
-            rc: fmtDecimal(totals.redCards),
-            saves: fmtDecimal(totals.saves),
-            bps: fmtDecimal(totals.bps),
+            t: fmtDecimal(totals.tackles, 0),
+            cbi: fmtDecimal(totals.clearancesBlocksInterceptions, 0),
+            r: fmtDecimal(totals.recoveries, 0),
+            dc: fmtDecimal(totals.defensiveContribution, 0),
+            og: fmtDecimal(totals.ownGoals, 0),
+            ps: fmtDecimal(totals.penaltiesSaved, 0),
+            pm: fmtDecimal(totals.penaltiesMissed, 0),
+            yc: fmtDecimal(totals.yellowCards, 0),
+            rc: fmtDecimal(totals.redCards, 0),
+            saves: fmtDecimal(totals.saves, 0),
+            bps: fmtDecimal(totals.bps, 0),
           };
           const averagesByKey: Record<string, React.ReactNode> = {
             pts: fmtDecimal(averages.points, 1),
@@ -459,7 +499,7 @@ export function PlayerDetailOverlay() {
           </thead>
           <tbody>
             {rows.gameweeks.map((g) => (
-              <tr key={g.round}>
+              <tr key={g.fixtureId}>
                 {columns.map((c, i) => (
                   <td
                     key={c.key}
@@ -493,7 +533,7 @@ export function PlayerDetailOverlay() {
                     Average
                   </td>
                 ) : i < identityColumns.length ? null : (
-                  <td key={c.key} className={i === statStart ? "column-group-divider" : undefined} style={{ background: percentileTint(seasonLogPercentiles[c.key] ?? null) }}>
+                  <td key={c.key} className={i === statStart ? "column-group-divider" : undefined}>
                     {rows.averagesByKey[c.key] ?? ""}
                   </td>
                 ),
@@ -507,14 +547,14 @@ export function PlayerDetailOverlay() {
 
   return (
     <div className="profile-backdrop">
-      <div className="profile-sheet">
+      <div className="profile-sheet" ref={sheetRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={headingId}>
         <button className="profile-close" onClick={close} type="button" title="Close" aria-label="Close">
           <CloseIcon />
         </button>
 
         <div className="profile-header">
           <div>
-            <h2 style={{ marginBottom: 2 }}>{player.name}</h2>
+            <h2 id={headingId} style={{ marginBottom: 2 }}>{player.name}</h2>
             <p className="page-subtitle" style={{ marginTop: 0 }}>
               <PositionBadge position={player.position} /> &nbsp;{player.teamName} · {fmtPrice(player.price)} ·{" "}
               {fmtPercent(player.ownership)} owned
@@ -531,10 +571,16 @@ export function PlayerDetailOverlay() {
 
         <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
 
-        {smallSample && !hasDataForMode(resolvedPlayer) && (
+        {noDataForMode && (
           <div className="banner info" style={{ marginBottom: 16 }}>
-            No data for {player.name} in this mode — every field below shows {DASH}. Try Last Completed Season or Historic Average.
-            Career History and Playing-Time Indicators below are unaffected.
+            No data for {player.name} in this mode — every field below shows {DASH}.
+            {modesWithData.length > 0 && ` Try ${modesWithData.join(" or ")}.`} Live Data and Career History below are unaffected.
+          </div>
+        )}
+        {smallSample && (
+          <div className="banner info" style={{ marginBottom: 16 }}>
+            Small sample — {fmtDecimal(resolvedPlayer.minutes, 0)} min in this mode, under the {minutesFloor}-minute floor, so no
+            percentiles or colours.
           </div>
         )}
 
@@ -547,19 +593,14 @@ export function PlayerDetailOverlay() {
               <div className="card" key={group.label || "combined"}>
                 <div className="card-title">
                   Percentile Radar{group.label ? ` — ${group.label}` : ` — ${player.position}`}
-                  {smallSample && <span style={{ color: "var(--accent-value)" }}> (below eligibility threshold)</span>}
+                  {smallSample && <span style={{ color: "var(--accent-value)" }}> (small sample)</span>}
                 </div>
-                <PercentileRadarChart data={smallSample ? group.data.map((d) => ({ ...d, percentile: null })) : group.data} />
+                <PercentileRadarChart data={group.data} smallSample={smallSample} />
               </div>
             ))}
 
             <div className="card">
               <div className="card-title">Actual vs Expected</div>
-              {smallSample && (
-                <div className="banner info" style={{ marginBottom: 12 }}>
-                  Small sample — below the current minutes eligibility threshold ({filters.minMinutes} min). Read with caution.
-                </div>
-              )}
               <ActualVsExpectedBars
                 rows={[
                   { label: "Goals − xG", value: derived.goalsMinusXG },
@@ -575,14 +616,14 @@ export function PlayerDetailOverlay() {
                 <>
                   <div className="card-title" style={{ marginBottom: 8 }}>Defensive</div>
                   <div className="stat-tile-grid">
-                    <StatTile label="Clean Sheets" value={fmtDecimal(resolvedPlayer.cleanSheets)} percentile={statPercentiles.cleanSheets} />
+                    <StatTile label="Clean Sheets" value={fmtDecimal(resolvedPlayer.cleanSheets, 0)} percentile={statPercentiles.cleanSheets} />
                     <StatTile label="xGC" value={fmtDecimal(resolvedPlayer.xGC, 2)} percentile={statPercentiles.xGC} />
-                    <StatTile label="Def. Contrib." value={fmtDecimal(resolvedPlayer.defensiveContributions)} percentile={statPercentiles.defensiveContributions} />
+                    <StatTile label="Def. Contrib." value={fmtDecimal(resolvedPlayer.defensiveContributions, 0)} percentile={statPercentiles.defensiveContributions} />
                   </div>
                   <div className="stat-tile-grid" style={{ marginTop: 10 }}>
                     <StatTile label="xGC/Game" value={fmtDecimal(resolvedPlayer.xGCPerGame, 2)} percentile={statPercentiles.xGCPerGame} />
                     <StatTile label="DC/Game" value={fmtDecimal(resolvedPlayer.defensiveContributionsPerGame, 2)} percentile={statPercentiles.defensiveContributionsPerGame} />
-                    <StatTile label="BPS" value={fmtDecimal(resolvedPlayer.bps)} percentile={statPercentiles.bps} />
+                    <StatTile label="BPS" value={fmtDecimal(resolvedPlayer.bps, 0)} percentile={statPercentiles.bps} />
                   </div>
                   <div className="card-title" style={{ marginTop: 16, marginBottom: 8 }}>Offensive</div>
                   <div className="stat-tile-grid">
@@ -598,14 +639,16 @@ export function PlayerDetailOverlay() {
                 </>
               ) : player.position === "GKP" ? (
                 <>
+                  {/* No Def. Contrib. or DC/Game: FPL's defensive-contribution
+                      points exclude goalkeepers, so both only ever read 0 — the
+                      same reason the gameweek log hides DC for them (audit
+                      2026-09-25 player-team-profiles L4). */}
                   <div className="stat-tile-grid">
-                    <StatTile label="Clean Sheets" value={fmtDecimal(resolvedPlayer.cleanSheets)} percentile={statPercentiles.cleanSheets} />
+                    <StatTile label="Clean Sheets" value={fmtDecimal(resolvedPlayer.cleanSheets, 0)} percentile={statPercentiles.cleanSheets} />
                     <StatTile label="xGC" value={fmtDecimal(resolvedPlayer.xGC, 2)} percentile={statPercentiles.xGC} />
-                    <StatTile label="Def. Contrib." value={fmtDecimal(resolvedPlayer.defensiveContributions)} percentile={statPercentiles.defensiveContributions} />
+                    <StatTile label="xGC/Game" value={fmtDecimal(resolvedPlayer.xGCPerGame, 2)} percentile={statPercentiles.xGCPerGame} />
                   </div>
                   <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                    <StatTile label="xGC/Game" value={fmtDecimal(resolvedPlayer.xGCPerGame, 2)} percentile={statPercentiles.xGCPerGame} />
-                    <StatTile label="DC/Game" value={fmtDecimal(resolvedPlayer.defensiveContributionsPerGame, 2)} percentile={statPercentiles.defensiveContributionsPerGame} />
                     <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} percentile={statPercentiles.xGI} />
                   </div>
                 </>
@@ -664,8 +707,8 @@ export function PlayerDetailOverlay() {
             {history.status === "error" && <p className="page-subtitle" style={{ margin: 0 }}>Couldn't load gameweek history.</p>}
             {history.status === "ready" &&
               (() => {
-                const { averageMinutes, gameweeksPlayed } = computeSeasonAverageMinutes(history.history);
-                return <PlayingTimeIcon averageMinutes={averageMinutes} gameweeksPlayed={gameweeksPlayed} />;
+                const { averageMinutes, matches } = computeSeasonAverageMinutes(history.history);
+                return <PlayingTimeIcon averageMinutes={averageMinutes} matches={matches} />;
               })()}
           </div>
 
@@ -683,23 +726,38 @@ export function PlayerDetailOverlay() {
           {history.status === "ready" && combinedSeasonHistory.length === 0 && (
             <p className="page-subtitle">No season data — {player.name} doesn't appear in the FPL API before this season.</p>
           )}
-          {history.status === "ready" && combinedSeasonHistory.length > 0 && historicStatus === "loading" && (
+          {history.status === "ready" && combinedSeasonHistory.length > 0 && historicReferenceSeason === null && (historicStatus === "idle" || historicStatus === "loading") && (
             <p className="page-subtitle">Determining the historic-average window (uses the same historic dataset as the rest of the app)…</p>
           )}
           {history.status === "ready" &&
             combinedSeasonHistory.length > 0 &&
-            historicStatus !== "loading" &&
+            (historicReferenceSeason !== null || historicStatus === "error" || historicStatus === "ready") &&
             (() => {
+              // The 4-season window is anchored to the pool's last completed
+              // season, which only the historic dataset knows. If that failed
+              // to load (the Data View toggle reports it, with Retry), the
+              // seasons still show, but nothing is marked counted or not and
+              // there's no average — rather than every season wrongly drawn
+              // as outside the window (audit 2026-09-25 player-team-profiles M2).
+              const windowKnown = historicReferenceSeason !== null;
               // Built from completed seasons only (history.seasonHistory), not
               // combinedSeasonHistory — the live/in-progress season is a real
               // bar on the chart below (drawn dashed, via CareerHistoryChart's
               // own isLive handling), but averaging its partial totals in
               // alongside complete seasons would understate the average for
               // reasons that have nothing to do with an injury or bad season,
-              // just the season not being over yet.
-              const { qualifyingSeasons, windowAverage, allSeasonsInWindow } = buildHistoricPlayerProfile(history.seasonHistory, historicReferenceSeason);
+              // just the season not being over yet. The average is the
+              // profile's Historic Average: window seasons with 0 minutes
+              // don't count (<fixed_minutes_floor>).
+              const {
+                qualifyingSeasons,
+                playedWindowAverage: windowAverage,
+                allSeasonsInWindow,
+                playedSeasonsInWindow,
+              } = buildHistoricPlayerProfile(history.seasonHistory, historicReferenceSeason);
               const qualifyingSeasonNames = new Set(qualifyingSeasons.map((s) => s.seasonName));
               const inWindowNames = new Set(allSeasonsInWindow.map((s) => s.seasonName));
+              const countedNames = new Set(playedSeasonsInWindow.map((s) => s.seasonName));
               const trend = computeSeasonTrend(history.seasonHistory);
               const orderedSeasons = [...combinedSeasonHistory].sort((a, b) => a.seasonName.localeCompare(b.seasonName));
 
@@ -750,14 +808,15 @@ export function PlayerDetailOverlay() {
 
                   <CareerHistoryChart
                     seasons={orderedSeasons}
-                    countedSeasonNames={inWindowNames}
+                    countedSeasonNames={windowKnown ? countedNames : null}
                     currentSeasonName={currentSeasonEntry?.seasonName ?? null}
                     averagePoints={windowAverage?.avgPointsPerSeason ?? null}
                   />
 
                   <div className="stat-row" style={{ marginTop: 10 }}>
                     <span className="stat-row-name">
-                      Season average ({windowAverage?.seasonsPlayed ?? 0} season{windowAverage?.seasonsPlayed === 1 ? "" : "s"})
+                      Season average
+                      {windowKnown && ` (${windowAverage?.seasonsPlayed ?? 0} season${windowAverage?.seasonsPlayed === 1 ? "" : "s"})`}
                     </span>
                     <span className="stat-row-value">
                       {windowAverage ? (
@@ -804,18 +863,20 @@ export function PlayerDetailOverlay() {
                           <tbody>
                             {combinedSeasonHistory.map((s) => {
                               const isCurrentSeason = s.seasonName === currentSeasonEntry?.seasonName;
+                              const marked = windowKnown && !isCurrentSeason;
                               const inWindow = inWindowNames.has(s.seasonName);
-                              const isLight = !isCurrentSeason && inWindow && !qualifyingSeasonNames.has(s.seasonName);
-                              const outsideWindow = !isCurrentSeason && !inWindow;
+                              const outsideWindow = marked && !inWindow;
+                              const noMinutes = marked && inWindow && !countedNames.has(s.seasonName);
+                              const isLight = marked && inWindow && !noMinutes && !qualifyingSeasonNames.has(s.seasonName);
                               return (
                                 <tr
                                   key={s.seasonName}
-                                  style={isLight || outsideWindow ? { color: "var(--text-muted)" } : undefined}
+                                  style={isLight || outsideWindow || noMinutes ? { color: "var(--text-muted)" } : undefined}
                                   title={
-                                    isCurrentSeason
-                                      ? undefined
-                                      : outsideWindow
-                                        ? `Outside the ${HISTORIC_WINDOW_SEASONS}-season averaging window — not counted in the average above`
+                                    outsideWindow
+                                      ? `Outside the ${HISTORIC_WINDOW_SEASONS}-season averaging window — not counted in the average above`
+                                      : noMinutes
+                                        ? "No minutes this season — not counted in the average above"
                                         : isLight
                                           ? "Light season (fewer minutes than usual — e.g. injury) — still counted in the average above"
                                           : undefined
@@ -823,7 +884,7 @@ export function PlayerDetailOverlay() {
                                 >
                                   <td style={{ textAlign: "left", fontFamily: "var(--font-body)" }}>
                                     {s.seasonName}
-                                    {isCurrentSeason ? " (live)" : outsideWindow ? " †" : isLight ? " *" : ""}
+                                    {isCurrentSeason ? " (live)" : outsideWindow || noMinutes ? " †" : isLight ? " *" : ""}
                                   </td>
                                   <td>
                                     {isCurrentSeason
@@ -832,12 +893,12 @@ export function PlayerDetailOverlay() {
                                         ? `${fmtPrice(s.startCost)}–${fmtPrice(s.endCost)}`
                                         : DASH}
                                   </td>
-                                  <td style={{ background: seasonCellTint("minutes", s.minutes) }}>{fmtDecimal(s.minutes)}</td>
-                                  <td style={{ background: seasonCellTint("starts", s.starts) }}>{s.starts !== null ? fmtDecimal(s.starts) : DASH}</td>
-                                  <td style={{ background: seasonCellTint("totalPoints", s.totalPoints) }}>{fmtDecimal(s.totalPoints)}</td>
-                                  <td style={{ background: seasonCellTint("goals", s.goals) }}>{fmtDecimal(s.goals)}</td>
-                                  <td style={{ background: seasonCellTint("assists", s.assists) }}>{fmtDecimal(s.assists)}</td>
-                                  <td style={{ background: seasonCellTint("cleanSheets", s.cleanSheets) }}>{fmtDecimal(s.cleanSheets)}</td>
+                                  <td style={{ background: seasonCellTint("minutes", s.minutes) }}>{fmtDecimal(s.minutes, 0)}</td>
+                                  <td style={{ background: seasonCellTint("starts", s.starts) }}>{fmtDecimal(s.starts, 0)}</td>
+                                  <td style={{ background: seasonCellTint("totalPoints", s.totalPoints) }}>{fmtDecimal(s.totalPoints, 0)}</td>
+                                  <td style={{ background: seasonCellTint("goals", s.goals) }}>{fmtDecimal(s.goals, 0)}</td>
+                                  <td style={{ background: seasonCellTint("assists", s.assists) }}>{fmtDecimal(s.assists, 0)}</td>
+                                  <td style={{ background: seasonCellTint("cleanSheets", s.cleanSheets) }}>{fmtDecimal(s.cleanSheets, 0)}</td>
                                   <td style={{ background: seasonCellTint("xG", s.xG) }}>{fmtDecimal(s.xG, 2)}</td>
                                   <td style={{ background: seasonCellTint("xA", s.xA) }}>{fmtDecimal(s.xA, 2)}</td>
                                   <td style={{ background: seasonCellTint("xGI", s.xGI) }}>{fmtDecimal(s.xGI, 2)}</td>

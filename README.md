@@ -121,7 +121,8 @@ shows a "stale data" banner — never blank, never presented as current.
 **The historic bulk build** (`server/src/routes/historicBulk.ts`) fetches
 every player's `element-summary` 15 at a time. A cold build takes up to a
 minute, so it is demand-driven: a page that needs historic data calls
-`requestHistoricData()` on mount. It never runs at startup. A handful of
+`requestHistoricData()` on mount, and a player or team profile calls it when
+it opens. It never runs at startup. A handful of
 failures are reported as `skippedPlayerIds`; more than half failing counts
 as a failed build and falls back to the stale cache.
 
@@ -151,7 +152,8 @@ Every analysis page has the same three-way toggle, resolved through
   little the player played.
 - **Historic Average** — the mean across the last **4 completed seasons**
   the player has, light seasons included (`<no_survivorship_bias>`,
-  `metrics/historicAnalysis.ts`). `MIN_QUALIFYING_SEASON_MINUTES` (900) only
+  `metrics/historicAnalysis.ts`). In the fixed-floor sections a season with
+  0 minutes is left out (see "Minimum minutes"). `MIN_QUALIFYING_SEASON_MINUTES` (900) only
   marks a season "light" in charts and gates Expected Points' reliability.
   Per-game rates count games from the **total** minutes across the
   seasons, rounded up once (`<games_from_total_minutes>`,
@@ -176,8 +178,28 @@ is **kept, not dropped or zeroed**: every performance field comes back
 
 ### Minimum minutes
 
-- Default 0 everywhere (`DEFAULT_MIN_MINUTES`, `state/scoutingFilters.ts`).
-  A player whose minutes are `null` for the mode is retained, not filtered.
+**The principle (the owner's rule).** A minutes floor exists only to stop
+tiny samples taking over. Which side of the rule a section is on decides
+everything:
+
+| | Where | Floor | Historic Average |
+|---|---|---|---|
+| **The user can set minimum minutes** | Player Explorer (MINS filter), Dashboard tiles and graphs the user builds, Team Building | None added by the app | Every window season counts, 0-minute ones included |
+| **The user can't** | Player profile, Player Comparison, Team Profile, the packaged Default Dashboard views | Fixed: 90 minutes in Current Season, 450 otherwise (`metrics/fixedMinutesFloor.ts`, `<fixed_minutes_floor>`) | A season with 0 minutes doesn't count; any minutes above 0 do |
+
+In the fixed-floor sections the floor applies to **every percentile**,
+totals as well as per-game rates: the pool is everyone at or above it, and
+a player below it is shown as a small sample, with no percentile and no
+colour. Historic Average's window is always the last 4 completed seasons;
+dropping a 0-minute season never reaches further back to replace it
+(`HistoricPlayerProfile.playedWindowAverage`, used through
+`resolvePlayerStats`'s `dropZeroMinuteSeasons`). A season lost entirely to
+injury also has 0 minutes, so it's dropped there too.
+
+Details:
+- Default 0 everywhere the user can set it (`DEFAULT_MIN_MINUTES`,
+  `state/scoutingFilters.ts`). A player whose minutes are `null` for the
+  mode is retained, not filtered.
 - Most pages **bypass** Min Minutes in Current Season (`effectiveMinMinutes`,
   `state/useFilteredPlayers.ts`; Team Building: `pickerEffectiveMinMinutes`).
 - **Dashboard tiles and graphs apply it in every mode**, Current Season
@@ -188,14 +210,16 @@ is **kept, not dropped or zeroed**: every performance field comes back
   can set Min Minutes or a Mins filter: a Dashboard tile or graph the user
   builds, and Player Explorer. A one-cameo player can top them; raising Min
   Minutes is the user's call.
-- Only the packaged Default view, which the user can't edit, adds a floor
-  to a tile or graph showing a per-game rate: 90 minutes in Current Season,
-  450 otherwise (`applyRateStatFloor`, `playersForDashboardItem`). It's
+- Only the packaged Default view, which the user can't edit, adds the fixed
+  floor to a tile or graph showing a per-game rate
+  (`applyRateStatFloor`, `playersForDashboardItem`), and reads Historic
+  Average without 0-minute seasons (`poolForDashboardItem`). Both are
   decided by the Players Default view being the one selected
   (`isDefaultViewSelected`), not by a tile's id: views saved before v1.35.0
   can hold copies of Default tiles, ids included. None of the current
-  defaults shows a per-game rate, so today it changes nothing on screen.
-  Specifically picked players are never floored.
+  defaults shows a per-game rate or uses Historic Average, so today neither
+  changes anything on screen. Specifically picked players are never
+  floored. A top-5 list of totals needs no floor: a cameo can't top one.
 - Min Minutes takes any whole number as typed; the arrow buttons step by 90.
 - Player Explorer has no Min Minutes control — its MINS column filter does
   that job.
@@ -282,18 +306,24 @@ by a fraction of one upcoming match.
   the API's xGI (tolerance 0.01) on every load. Discrepancies are logged and
   shown in the User Guide.
 - **Percentiles** (`metrics/percentiles.ts`) are within-position, against
-  the full mode-resolved pool that meets the minutes threshold — never a
-  filtered view. Bands: 90+ Excellent, 70–89 Good, 30–69 Average, <30 Poor.
+  the full mode-resolved pool at or above the fixed minutes floor — never a
+  filtered view. Every percentile the app shows is in a fixed-floor section
+  (player profile, Player Comparison's radars, the Team Profile's squad
+  tints), so a player under the floor has none (see "Minimum minutes").
+  Bands: 90+ Excellent, 70–89 Good, 30–69 Average, <30 Poor.
   Lower-is-better stats (xGC, Min/Goal) are flipped. They drive the
   profile's radars (`metrics/radarStats.ts`, position-specific axes; DEF/MID
-  get separate Defence and Offence radars) and stat-tile tints.
+  get separate Defence and Offence radars) and stat-tile tints. A radar's
+  hover box shows the raw value at the axis's own decimals (whole numbers
+  for counts).
 - **Defensive Reward/Game** (`metrics/defensiveReward.ts`) = clean-sheet
   points/game (GKP/DEF 4, MID 1, FWD 0) + **total** bonus/game. The API has
   no breakdown of bonus by defensive action, so it's a proxy, and the
   dictionary says so.
 - **Playing Time** (`metrics/rotationIndicators.ts`) = this season's average
-  minutes per completed gameweek. ≥75% of 90 is a starter, 40–74% rotation,
-  <40% fringe.
+  minutes per match in the player's log (0-minute matches included; a
+  double gameweek is two matches). ≥75% of 90 is a starter, 40–74%
+  rotation, <40% fringe.
 - **Comparative colouring** (`utils/colorScale.ts`): tables tint each column
   relative to the rows on screen; single-player cards tint by
   within-position percentile.
@@ -395,19 +425,37 @@ word as an initial that must start a name word (`utils/playerSearch.ts`).
 - Player Explorer keeps no saved data: columns, order, widths, sort, filters
   and Data View reset when you leave the page (by design).
 - Escape closes only the most recently opened layer — column filter, Columns
-  picker, Dashboard dialog or player profile (`state/useEscapeLayer.ts`).
+  picker, Dashboard dialog, player profile or team profile
+  (`state/useEscapeLayer.ts`).
 - Text sorts with an accent- and case-insensitive collator; Player
   Explorer's Position sorts in pitch order (GKP, DEF, MID, FWD first).
 
 **Player profile** (`components/PlayerDetailOverlay.tsx`) — has its own
-mode toggle. The Current Season Log (Prime/Supplements tables) and Playing
-Time are always live data. Career History uses the same windowed average as
-Historic Average. The gameweek-history fetch (`usePlayerHistory`) is lazy,
-retries network failures twice, and drops responses for a player no longer
-selected.
+mode toggle, and is a fixed-floor section (see "Minimum minutes"). Live
+Data (the Prime/Supplements gameweek tables) and Playing Time are always
+live data; rows are keyed by fixture, so a double gameweek is two rows.
+Only Prime's Totals row is tinted (live percentile): the Average row
+divides by the matches in this player's log, which the pool has no
+equivalent of. Career History uses the profile's Historic Average (window
+seasons with minutes); its "(live)" season is resolved as Current Season,
+so pre-season it reads 0, not FPL's carried-over totals. The gameweek-history
+fetch (`usePlayerHistory`) is lazy, retries network failures twice, and
+drops responses for a player no longer selected.
+- The profile asks for the historic dataset only while it's open (both
+  overlays are mounted on every page). Until that data has loaded — or if
+  it failed, which the Data View toggle reports with Retry — it says
+  nothing about the player having no data; Career History then shows its
+  seasons with no window marks and no average. "No data in this mode"
+  suggests only the other Data Views that do have figures for him.
+- Both profiles are modal dialogs (`role="dialog"`, focus moved in and kept
+  there, then returned: `state/useDialogFocus.ts`) and close on Escape
+  (`useEscapeLayer`). An address naming a player or club that doesn't exist
+  shows "not found" instead of nothing.
 
 **Player Comparison** — up to 5 players across every `PLAYER_COLUMNS`
 metric, coloured better/worse (price, ownership, xGC inverted), plus radars.
+A fixed-floor section: radars use the fixed floor, and Historic Average
+leaves out 0-minute seasons, in the table as well as the radars.
 Player Trends (`metrics/careerTrends.ts`) is separate and uses the full
 unwindowed career (`allTimeSeasonsByPlayerId`), outside the mode toggle.
 
@@ -421,6 +469,21 @@ left after the pinned, content-width Team column. The Columns picker lists
 every `TEAM_COLUMNS` metric; beyond the nine league-table defaults they're
 off. Headers wrap between words on narrow screens, each column floored at its
 longest word (`TEAM_MIN_COLUMN_WIDTHS`).
+- The Team Profile's header (position, league points, played, W/D/L)
+  follows its Data View like every other club figure, formatted as Team
+  Explorer's columns show it (`teamHeaderLine`): a Historic Average is the
+  rounded mean, and a season the club has no record of reads "—".
+- Its squad table shows each current player's figures **for this club**
+  (`clubPlayerFigures`). In Historic Average that's the mean over the
+  window seasons he played for the club — not the club's own window — so a
+  signing from last summer shows his one season here. The club record only
+  lists players with minutes, so a 0-minute season never counts. Squad
+  tints are within-position percentiles with the fixed floor; a player
+  under it is greyed, with no colour.
+- The team Defense radar ranks more Defensive Contributions as better
+  (`TEAM_DEFENSE_AXES`), as for a player — they're FPL points. A dominant
+  side that rarely has to defend can sit low on that one axis while topping
+  the other three. Intended (the owner's decision, audit 2026-09-25 V1).
 
 ### Team Building — the one predictive section
 

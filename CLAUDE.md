@@ -59,6 +59,18 @@ No lint script. Playwright isn't installed but works via
 - Handle zero minutes and nulls safely — no divide-by-zero, no NaN/Infinity
   in the UI, no silent 0-instead-of-null.
 - Goals−xG and assists−xA use the same source values everywhere.
+- **Minimum minutes — one rule.** A floor exists only to stop tiny samples
+  taking over. Where the user can set minimum minutes (Player Explorer,
+  Dashboard tiles/graphs they build, Team Building) the app adds none, and
+  Historic Average counts 0-minute seasons. Where they can't (player
+  profile, Player Comparison, Team Profile, the packaged Default Dashboard
+  views) the fixed floor applies — 90 min in Current Season, 450 otherwise
+  (`metrics/fixedMinutesFloor.ts`) — to every percentile, totals too; below
+  it is a "small sample" with no percentile or colour; and Historic Average
+  leaves out 0-minute seasons. The Historic Average window is always the
+  last 4 completed seasons, never reaching further back. Check which side a
+  section is on before adding or removing any floor (README "Minimum
+  minutes").
 
 ## Architecture
 - Client data flows `api/client.ts` → `validation/` → `normalize/` →
@@ -66,7 +78,8 @@ No lint script. Playwright isn't installed but works via
   `api/client.ts` using relative `/api/*` paths only, and reads shared data
   from `AppStateContext` — never re-fetched per page.
 - `element-summary/{id}` is lazy (per player, on demand). The whole-pool
-  historic build runs only when a page calls `requestHistoricData()`.
+  historic build runs only when a page (or an open profile) calls
+  `requestHistoricData()`.
 - **Analysis mode and filters are per page** (`useState` + the controlled
   `AnalysisModeToggle`/`FiltersBar`), never shared: one page must never change
   what another shows.

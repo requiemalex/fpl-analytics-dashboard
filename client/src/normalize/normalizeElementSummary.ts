@@ -13,6 +13,7 @@ export function normalizeElementSummary(raw: RawElementSummary): PlayerGameweekH
       const teamScore = h.was_home ? (h.team_h_score ?? null) : (h.team_a_score ?? null);
       const opponentScore = h.was_home ? (h.team_a_score ?? null) : (h.team_h_score ?? null);
       return {
+        fixtureId: h.fixture,
         round: h.round,
         minutes: h.minutes,
         starts: h.starts ?? null,
@@ -43,7 +44,7 @@ export function normalizeElementSummary(raw: RawElementSummary): PlayerGameweekH
         xGC: parseNumericString(h.expected_goals_conceded ?? null),
       };
     })
-    .sort((a, b) => a.round - b.round);
+    .sort((a, b) => a.round - b.round || a.fixtureId - b.fixtureId);
 }
 
 function priceInMillionsOrNull(tenths: number | undefined): number | null {

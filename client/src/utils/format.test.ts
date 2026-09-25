@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { fmtNumber, fmtPercent, fmtPrice, roundAsDisplayed, DASH } from "./format";
+import { fmtNumber, fmtOrdinal, fmtPercent, fmtPrice, roundAsDisplayed, DASH } from "./format";
 
 describe("number formatting and filter rounding agree (audit 2026-09-25)", () => {
   it("price and percent round exactly as every other cell and the column filters do", () => {
@@ -16,5 +16,19 @@ describe("number formatting and filter rounding agree (audit 2026-09-25)", () =>
     expect(fmtPrice(null)).toBe(DASH);
     expect(fmtPercent(null)).toBe(DASH);
     expect(fmtPercent(Number.NaN)).toBe(DASH);
+  });
+});
+
+describe("fmtOrdinal (audit 2026-09-25 player-team-profiles L2: the radar said \"42th\", \"1th\")", () => {
+  it("uses st/nd/rd/th, with 11–13 as th", () => {
+    expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 42, 100, 101, 111].map(fmtOrdinal)).toEqual([
+      "1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "23rd", "42nd", "100th", "101st", "111th",
+    ]);
+  });
+
+  it("rounds first, and shows — for no value", () => {
+    expect(fmtOrdinal(41.6)).toBe("42nd");
+    expect(fmtOrdinal(0.4)).toBe("0th");
+    expect(fmtOrdinal(null)).toBe(DASH);
   });
 });

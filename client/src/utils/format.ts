@@ -39,6 +39,16 @@ export function fmtPercent(n: number | null | undefined, decimals = 1): string {
   return `${fixedDecimals(n, decimals, false)}%`;
 }
 
+/** A whole number with its English ordinal suffix, rounded first: 1st, 2nd, 3rd, 11th, 12th, 13th, 21st, 42nd, 101st. */
+export function fmtOrdinal(n: number | null | undefined): string {
+  if (!isDisplayable(n)) return DASH;
+  const whole = Math.round(n);
+  const lastTwo = Math.abs(whole) % 100;
+  const last = Math.abs(whole) % 10;
+  const suffix = lastTwo >= 11 && lastTwo <= 13 ? "th" : last === 1 ? "st" : last === 2 ? "nd" : last === 3 ? "rd" : "th";
+  return `${whole}${suffix}`;
+}
+
 export function fmtSigned(n: number | null | undefined, decimals = 2): string {
   if (!isDisplayable(n)) return DASH;
   const sign = n > 0 ? "+" : "";

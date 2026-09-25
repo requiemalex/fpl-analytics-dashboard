@@ -46,7 +46,7 @@ export function TeamBadge({ teamId, shortName }: { teamId: number; shortName: st
   const identity = teamIdentityColor(teamId, shortName);
   const [, setSearchParams] = useSearchParams();
 
-  function openProfile(e: React.MouseEvent) {
+  function openProfile(e: React.SyntheticEvent) {
     e.stopPropagation();
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -60,9 +60,17 @@ export function TeamBadge({ teamId, shortName }: { teamId: number; shortName: st
       className="badge team-badge"
       style={{ color: identity, background: `color-mix(in srgb, ${identity} 12%, transparent)`, cursor: "pointer" }}
       onClick={openProfile}
+      onKeyDown={(e) => {
+        // A role="button" answers Enter and Space like a real button.
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openProfile(e);
+        }
+      }}
       role="button"
       tabIndex={0}
       title={`View ${shortName} team profile`}
+      aria-label={`View ${shortName} team profile`}
     >
       <span className="team-badge-swatch" style={{ background: `linear-gradient(180deg, ${primary} 50%, ${secondary} 50%)` }} />
       {shortName}

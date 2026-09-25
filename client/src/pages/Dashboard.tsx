@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
+import { FIXED_FLOOR_LIVE_MINUTES, FIXED_FLOOR_MINUTES, fixedFloorMinutes } from "../metrics/fixedMinutesFloor";
 import { filterPlayers } from "../state/useFilteredPlayers";
 import { computeTeamAggregates, type TeamAggregate } from "../metrics/teamStats";
 import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFilters";
@@ -50,19 +51,32 @@ const MODES: AnalysisMode[] = ["live", "lastSeason", "historicAverage"];
 // A rate-per-game metric (PPG, xG/Game, xGC/Game, DC/Game, Goals/Game, etc.
 // — see PlayerTileMetric.ratePerMinutes / isRatePerMinutesColumnKey) still
 // needs a real sample to mean anything, even with the estimated-games basis
-// (see <per_game_not_per_90> in metrics/calculations.ts). Current Season gets
-// its own, much lower floor (one full match) rather than being exempted
-// entirely, since everyone genuinely has low minutes for only the first
-// couple of gameweeks. Applied only to the packaged Default view's tiles and
-// graphs, whose criteria the user can't edit — a tile or graph the user
-// builds has its own Min Minutes for this (the owner's decision, audit
-// 2026-09-25 M1). Never applied to specifically picked players.
-export const LIVE_RATE_STAT_MIN_MINUTES = 90;
-export const RATE_STAT_MIN_MINUTES = 450;
+// (see <per_game_not_per_90> in metrics/calculations.ts). Applied only to the
+// packaged Default view's tiles and graphs, whose criteria the user can't
+// edit — a tile or graph the user builds has its own Min Minutes for this
+// (the minimum-minutes principle, <fixed_minutes_floor>). Never applied to
+// specifically picked players. The floor itself is the app-wide fixed one.
+export const LIVE_RATE_STAT_MIN_MINUTES = FIXED_FLOOR_LIVE_MINUTES;
+export const RATE_STAT_MIN_MINUTES = FIXED_FLOOR_MINUTES;
 
 export function applyRateStatFloor(players: NormalizedPlayer[], dataView: AnalysisMode): NormalizedPlayer[] {
-  const floor = dataView === "live" ? LIVE_RATE_STAT_MIN_MINUTES : RATE_STAT_MIN_MINUTES;
+  const floor = fixedFloorMinutes(dataView);
   return players.filter((p) => p.minutes !== null && p.minutes >= floor);
+}
+
+/**
+ * The resolved pool a player-scope tile or graph starts from. The packaged
+ * Default view is a fixed-floor section (<fixed_minutes_floor>), so its
+ * Historic Average leaves out 0-minute seasons; a view the user builds keeps
+ * them. None of the current defaults uses Historic Average, so today this
+ * changes nothing on screen.
+ */
+export function poolForDashboardItem(
+  dataView: AnalysisMode,
+  defaultViewShown: boolean,
+  pools: { byMode: Record<AnalysisMode, NormalizedPlayer[]>; historicPlayedSeasonsOnly: NormalizedPlayer[] },
+): NormalizedPlayer[] {
+  return defaultViewShown && dataView === "historicAverage" ? pools.historicPlayedSeasonsOnly : pools.byMode[dataView];
 }
 
 /**
@@ -340,6 +354,12 @@ export function Dashboard() {
     for (const mode of MODES) map[mode] = resolvePlayerStatsList(players, mode, historicProfiles, currentSeasonHasStarted).resolved;
     return map;
   }, [players, historicProfiles, currentSeasonHasStarted]);
+  // The packaged Default view's Historic Average (poolForDashboardItem).
+  const historicPlayedSeasonsOnly = useMemo(
+    () => resolvePlayerStatsList(players, "historicAverage", historicProfiles, currentSeasonHasStarted, { dropZeroMinuteSeasons: true }).resolved,
+    [players, historicProfiles, currentSeasonHasStarted],
+  );
+  const playerPools = useMemo(() => ({ byMode: resolvedByMode, historicPlayedSeasonsOnly }), [resolvedByMode, historicPlayedSeasonsOnly]);
 
   // Club figures per mode — same shared computation Teams and Team Profile
   // use (<club_not_squad>, metrics/teamStats.ts): what each club did in
@@ -577,7 +597,7 @@ export function Dashboard() {
         if (tile.scope === "player") {
           const metric = playerTileMetricByKey(tile.metricKey);
           if (!metric) return { tile, kind: "unavailable" as const };
-          const sourcePlayers = playersForDashboardItem(tile, resolvedByMode[tile.dataView], {
+          const sourcePlayers = playersForDashboardItem(tile, poolForDashboardItem(tile.dataView, playerDefaultViewShown, playerPools), {
             showsRate: !!metric.ratePerMinutes,
             defaultViewShown: playerDefaultViewShown,
           });
@@ -600,7 +620,7 @@ export function Dashboard() {
         }));
         return { tile, metric, kind: "team" as const, topRows: topN(valueRows, 5, tile.direction === "asc") };
       });
-  }, [tilesState.tiles, resolvedByMode, teamAggregatesByMode, playerDefaultViewShown]);
+  }, [tilesState.tiles, playerPools, teamAggregatesByMode, playerDefaultViewShown]);
 
   // Split for rendering only — reordering still operates on the one
   // underlying `tilesState.tiles` array regardless of scope (drag-drop
@@ -620,7 +640,7 @@ export function Dashboard() {
           const yColumn = playerColumnByKey(graph.yMetricKey);
           const xColumn = graph.chartType === "scatter" ? playerColumnByKey(graph.xMetricKey) : undefined;
           if (!yColumn || (graph.chartType === "scatter" && !xColumn)) return { graph, kind: "unavailable" as const };
-          const sourcePlayers = playersForDashboardItem(graph, resolvedByMode[graph.dataView], {
+          const sourcePlayers = playersForDashboardItem(graph, poolForDashboardItem(graph.dataView, playerDefaultViewShown, playerPools), {
             showsRate: isRatePerMinutesColumnKey(graph.yMetricKey) || (graph.chartType === "scatter" && isRatePerMinutesColumnKey(graph.xMetricKey)),
             defaultViewShown: playerDefaultViewShown,
           });
@@ -681,7 +701,7 @@ export function Dashboard() {
           barData,
         };
       });
-  }, [graphsState.graphs, resolvedByMode, teamAggregatesByMode, playerDefaultViewShown]);
+  }, [graphsState.graphs, playerPools, teamAggregatesByMode, playerDefaultViewShown]);
 
   const visibleGraphRows = useMemo(() => graphRows.filter((g) => g.graph.scope === tileView), [graphRows, tileView]);
 

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { clubPlayerFigures, clubSeasonHistory, clubSeasonsForMode, computeTeamAggregates, type ClubHistoryContext } from "./teamStats";
 import { makeTeam } from "../test/fixtures";
+import { teamHeaderLine } from "../components/TeamDetailOverlay";
 import type { ClubPlayerSeason, ClubSeason } from "../types/normalized";
 
 function player(code: number, overrides: Partial<ClubPlayerSeason> = {}): ClubPlayerSeason {
@@ -137,5 +138,20 @@ describe("clubSeasonHistory", () => {
       { seasonName: "2025/26", totalPoints: 1800, complete: true },
       { seasonName: "2026/27", totalPoints: 1800, complete: false },
     ]);
+  });
+});
+
+describe("teamHeaderLine — the Team Profile header follows the Data View (audit 2026-09-25 player-team-profiles M1)", () => {
+  it("shows a season's league line, and a Historic Average rounded the way Team Explorer shows it", () => {
+    const history = { ...ctx, clubSeasons: [clubSeason(101, "2025/26", { leaguePosition: 3, leaguePoints: 71 }), clubSeason(101, "2024/25", { leaguePosition: 4, leaguePoints: 70, wins: 21 })] };
+    const [last] = computeTeamAggregates([teams[0]], "lastSeason", history);
+    expect(teamHeaderLine(last)).toBe("3rd in table · 71 pts · 38 played · 20W 10D 8L");
+    const [avg] = computeTeamAggregates([teams[0]], "historicAverage", history);
+    expect(teamHeaderLine(avg)).toBe("4th in table · 71 pts · 38 played · 21W 10D 8L"); // 3.5 → 4, 70.5 → 71, 20.5 → 21
+  });
+
+  it("is — for a season the club has no record of", () => {
+    const [none] = computeTeamAggregates([teams[1]], "lastSeason", { ...ctx, clubSeasons: [] });
+    expect(teamHeaderLine(none)).toBe("—");
   });
 });

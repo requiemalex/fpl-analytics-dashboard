@@ -110,11 +110,23 @@ function nullPerformanceFields(player: NormalizedPlayer): NormalizedPlayer {
   };
 }
 
+/**
+ * `dropZeroMinuteSeasons`: Historic Average leaves out window seasons with 0
+ * minutes (HistoricPlayerProfile.playedWindowAverage). Only for the sections
+ * where the user can't set minimum minutes (<fixed_minutes_floor>,
+ * metrics/fixedMinutesFloor.ts); elsewhere 0-minute seasons still count.
+ * No effect on the other two modes.
+ */
+export interface ResolveOptions {
+  dropZeroMinuteSeasons?: boolean;
+}
+
 export function resolvePlayerStats(
   player: NormalizedPlayer,
   mode: AnalysisMode,
   historicProfile: HistoricPlayerProfile | undefined,
   currentSeasonHasStarted: boolean,
+  options: ResolveOptions = {},
 ): NormalizedPlayer {
   if (mode === "live") {
     if (currentSeasonHasStarted) {
@@ -196,7 +208,7 @@ export function resolvePlayerStats(
   }
 
   // historicAverage
-  const avg = historicProfile?.windowAverage;
+  const avg = options.dropZeroMinuteSeasons ? historicProfile?.playedWindowAverage : historicProfile?.windowAverage;
   if (!avg) return nullPerformanceFields(player);
   return {
     ...player,
@@ -243,11 +255,12 @@ export function resolvePlayerStatsList(
   mode: AnalysisMode,
   historicProfiles: Map<number, HistoricPlayerProfile>,
   currentSeasonHasStarted: boolean,
+  options: ResolveOptions = {},
 ): { resolved: NormalizedPlayer[]; noDataCount: number } {
   const resolved: NormalizedPlayer[] = [];
   let noDataCount = 0;
   for (const p of players) {
-    const r = resolvePlayerStats(p, mode, historicProfiles.get(p.id), currentSeasonHasStarted);
+    const r = resolvePlayerStats(p, mode, historicProfiles.get(p.id), currentSeasonHasStarted, options);
     if (!hasDataForMode(r)) noDataCount += 1;
     resolved.push(r);
   }

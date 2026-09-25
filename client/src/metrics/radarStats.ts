@@ -5,6 +5,8 @@ export interface RadarAxis {
   key: string;
   label: string;
   metricFn: (p: NormalizedPlayer) => number | null;
+  /** Decimal places for the raw value in the hover box — whole numbers for counts, as Player Explorer shows them. */
+  decimals: number;
   /** False inverts the percentile — for metrics where a lower raw value is actually better (xGC/Game: fewer expected goals conceded is a tighter defence), so every axis on the chart still points "outward = good". */
   higherIsBetter: boolean;
 }
@@ -20,36 +22,36 @@ export interface RadarAxis {
  */
 const RADAR_AXES_BY_POSITION: Record<Position, RadarAxis[]> = {
   GKP: [
-    { key: "totalPoints", label: "Points", metricFn: (p) => p.totalPoints, higherIsBetter: true },
-    { key: "cleanSheets", label: "Clean Sheets", metricFn: (p) => p.cleanSheets, higherIsBetter: true },
-    { key: "xGCPerGame", label: "Defence Tightness", metricFn: (p) => p.xGCPerGame, higherIsBetter: false },
-    { key: "bonus", label: "Bonus", metricFn: (p) => p.bonus, higherIsBetter: true },
-    { key: "bps", label: "BPS", metricFn: (p) => p.bps, higherIsBetter: true },
-    { key: "ictIndex", label: "ICT Index", metricFn: (p) => p.ictIndex, higherIsBetter: true },
+    { key: "totalPoints", label: "Points", metricFn: (p) => p.totalPoints, decimals: 0, higherIsBetter: true },
+    { key: "cleanSheets", label: "Clean Sheets", metricFn: (p) => p.cleanSheets, decimals: 0, higherIsBetter: true },
+    { key: "xGCPerGame", label: "Defence Tightness", metricFn: (p) => p.xGCPerGame, decimals: 2, higherIsBetter: false },
+    { key: "bonus", label: "Bonus", metricFn: (p) => p.bonus, decimals: 0, higherIsBetter: true },
+    { key: "bps", label: "BPS", metricFn: (p) => p.bps, decimals: 0, higherIsBetter: true },
+    { key: "ictIndex", label: "ICT Index", metricFn: (p) => p.ictIndex, decimals: 1, higherIsBetter: true },
   ],
   DEF: [
-    { key: "totalPoints", label: "Points", metricFn: (p) => p.totalPoints, higherIsBetter: true },
-    { key: "cleanSheets", label: "Clean Sheets", metricFn: (p) => p.cleanSheets, higherIsBetter: true },
-    { key: "xGCPerGame", label: "Defence Tightness", metricFn: (p) => p.xGCPerGame, higherIsBetter: false },
-    { key: "defensiveContributionsPerGame", label: "Def. Contribution/Game", metricFn: (p) => p.defensiveContributionsPerGame, higherIsBetter: true },
-    { key: "xGIPerGame", label: "Attacking Threat (xGI/Game)", metricFn: (p) => p.xGIPerGame, higherIsBetter: true },
-    { key: "bonus", label: "Bonus", metricFn: (p) => p.bonus, higherIsBetter: true },
+    { key: "totalPoints", label: "Points", metricFn: (p) => p.totalPoints, decimals: 0, higherIsBetter: true },
+    { key: "cleanSheets", label: "Clean Sheets", metricFn: (p) => p.cleanSheets, decimals: 0, higherIsBetter: true },
+    { key: "xGCPerGame", label: "Defence Tightness", metricFn: (p) => p.xGCPerGame, decimals: 2, higherIsBetter: false },
+    { key: "defensiveContributionsPerGame", label: "Def. Contribution/Game", metricFn: (p) => p.defensiveContributionsPerGame, decimals: 2, higherIsBetter: true },
+    { key: "xGIPerGame", label: "Attacking Threat (xGI/Game)", metricFn: (p) => p.xGIPerGame, decimals: 2, higherIsBetter: true },
+    { key: "bonus", label: "Bonus", metricFn: (p) => p.bonus, decimals: 0, higherIsBetter: true },
   ],
   MID: [
-    { key: "totalPoints", label: "Points", metricFn: (p) => p.totalPoints, higherIsBetter: true },
-    { key: "goals", label: "Goals", metricFn: (p) => p.goals, higherIsBetter: true },
-    { key: "assists", label: "Assists", metricFn: (p) => p.assists, higherIsBetter: true },
-    { key: "xGIPerGame", label: "xGI/Game", metricFn: (p) => p.xGIPerGame, higherIsBetter: true },
-    { key: "ictIndex", label: "ICT Index", metricFn: (p) => p.ictIndex, higherIsBetter: true },
-    { key: "bonus", label: "Bonus", metricFn: (p) => p.bonus, higherIsBetter: true },
+    { key: "totalPoints", label: "Points", metricFn: (p) => p.totalPoints, decimals: 0, higherIsBetter: true },
+    { key: "goals", label: "Goals", metricFn: (p) => p.goals, decimals: 0, higherIsBetter: true },
+    { key: "assists", label: "Assists", metricFn: (p) => p.assists, decimals: 0, higherIsBetter: true },
+    { key: "xGIPerGame", label: "xGI/Game", metricFn: (p) => p.xGIPerGame, decimals: 2, higherIsBetter: true },
+    { key: "ictIndex", label: "ICT Index", metricFn: (p) => p.ictIndex, decimals: 1, higherIsBetter: true },
+    { key: "bonus", label: "Bonus", metricFn: (p) => p.bonus, decimals: 0, higherIsBetter: true },
   ],
   FWD: [
-    { key: "totalPoints", label: "Points", metricFn: (p) => p.totalPoints, higherIsBetter: true },
-    { key: "goals", label: "Goals", metricFn: (p) => p.goals, higherIsBetter: true },
-    { key: "xGPerGame", label: "xG/Game", metricFn: (p) => p.xGPerGame, higherIsBetter: true },
-    { key: "assists", label: "Assists", metricFn: (p) => p.assists, higherIsBetter: true },
-    { key: "xAPerGame", label: "xA/Game", metricFn: (p) => p.xAPerGame, higherIsBetter: true },
-    { key: "ictIndex", label: "ICT Index", metricFn: (p) => p.ictIndex, higherIsBetter: true },
+    { key: "totalPoints", label: "Points", metricFn: (p) => p.totalPoints, decimals: 0, higherIsBetter: true },
+    { key: "goals", label: "Goals", metricFn: (p) => p.goals, decimals: 0, higherIsBetter: true },
+    { key: "xGPerGame", label: "xG/Game", metricFn: (p) => p.xGPerGame, decimals: 2, higherIsBetter: true },
+    { key: "assists", label: "Assists", metricFn: (p) => p.assists, decimals: 0, higherIsBetter: true },
+    { key: "xAPerGame", label: "xA/Game", metricFn: (p) => p.xAPerGame, decimals: 2, higherIsBetter: true },
+    { key: "ictIndex", label: "ICT Index", metricFn: (p) => p.ictIndex, decimals: 1, higherIsBetter: true },
   ],
 };
 
@@ -63,6 +65,8 @@ export interface RadarDataPoint {
   /** Within-position percentile, already flipped for higherIsBetter:false axes so higher always means "better" on the chart. Null if the player or the axis metric has no data. */
   percentile: number | null;
   rawValue: number | null;
+  /** Decimal places the raw value is shown with. */
+  decimals: number;
 }
 
 /**
@@ -82,7 +86,7 @@ export function computeRadarDataForAxes(
     const percentiles = computePositionPercentiles(allPlayers, axis.metricFn, minMinutesThreshold);
     const rawPercentile = percentiles.get(player.id) ?? null;
     const percentile = rawPercentile === null ? null : axis.higherIsBetter ? rawPercentile : 100 - rawPercentile;
-    return { key: axis.key, label: axis.label, percentile, rawValue: axis.metricFn(player) };
+    return { key: axis.key, label: axis.label, percentile, rawValue: axis.metricFn(player), decimals: axis.decimals };
   });
 }
 
@@ -100,11 +104,11 @@ export interface RadarAxisGroup {
 }
 
 const DEFENSIVE_AXES: RadarAxis[] = [
-  { key: "cleanSheets", label: "Clean Sheets", metricFn: (p) => p.cleanSheets, higherIsBetter: true },
-  { key: "xGCPerGame", label: "Defence Tightness", metricFn: (p) => p.xGCPerGame, higherIsBetter: false },
-  { key: "defensiveContributionsPerGame", label: "Def. Contribution/Game", metricFn: (p) => p.defensiveContributionsPerGame, higherIsBetter: true },
-  { key: "bps", label: "BPS", metricFn: (p) => p.bps, higherIsBetter: true },
-  { key: "bonus", label: "Bonus", metricFn: (p) => p.bonus, higherIsBetter: true },
+  { key: "cleanSheets", label: "Clean Sheets", metricFn: (p) => p.cleanSheets, decimals: 0, higherIsBetter: true },
+  { key: "xGCPerGame", label: "Defence Tightness", metricFn: (p) => p.xGCPerGame, decimals: 2, higherIsBetter: false },
+  { key: "defensiveContributionsPerGame", label: "Def. Contribution/Game", metricFn: (p) => p.defensiveContributionsPerGame, decimals: 2, higherIsBetter: true },
+  { key: "bps", label: "BPS", metricFn: (p) => p.bps, decimals: 0, higherIsBetter: true },
+  { key: "bonus", label: "Bonus", metricFn: (p) => p.bonus, decimals: 0, higherIsBetter: true },
 ];
 
 /** DEF and MID each get a Defense radar (built from `DEFENSIVE_AXES`, shared between them since the same defensive-scoring fields apply to both) plus their own Offense radar below — a defender's or midfielder's points genuinely come from both facets, unlike a goalkeeper's (defence) or forward's (attack). */
@@ -112,22 +116,22 @@ const SPLIT_RADAR_AXES: Partial<Record<Position, { defense: RadarAxis[]; offense
   DEF: {
     defense: DEFENSIVE_AXES,
     offense: [
-      { key: "goals", label: "Goals", metricFn: (p) => p.goals, higherIsBetter: true },
-      { key: "assists", label: "Assists", metricFn: (p) => p.assists, higherIsBetter: true },
-      { key: "xGPerGame", label: "xG/Game", metricFn: (p) => p.xGPerGame, higherIsBetter: true },
-      { key: "xAPerGame", label: "xA/Game", metricFn: (p) => p.xAPerGame, higherIsBetter: true },
-      { key: "xGIPerGame", label: "xGI/Game", metricFn: (p) => p.xGIPerGame, higherIsBetter: true },
+      { key: "goals", label: "Goals", metricFn: (p) => p.goals, decimals: 0, higherIsBetter: true },
+      { key: "assists", label: "Assists", metricFn: (p) => p.assists, decimals: 0, higherIsBetter: true },
+      { key: "xGPerGame", label: "xG/Game", metricFn: (p) => p.xGPerGame, decimals: 2, higherIsBetter: true },
+      { key: "xAPerGame", label: "xA/Game", metricFn: (p) => p.xAPerGame, decimals: 2, higherIsBetter: true },
+      { key: "xGIPerGame", label: "xGI/Game", metricFn: (p) => p.xGIPerGame, decimals: 2, higherIsBetter: true },
     ],
   },
   MID: {
     defense: DEFENSIVE_AXES,
     offense: [
-      { key: "goals", label: "Goals", metricFn: (p) => p.goals, higherIsBetter: true },
-      { key: "assists", label: "Assists", metricFn: (p) => p.assists, higherIsBetter: true },
-      { key: "xGPerGame", label: "xG/Game", metricFn: (p) => p.xGPerGame, higherIsBetter: true },
-      { key: "xAPerGame", label: "xA/Game", metricFn: (p) => p.xAPerGame, higherIsBetter: true },
-      { key: "xGIPerGame", label: "xGI/Game", metricFn: (p) => p.xGIPerGame, higherIsBetter: true },
-      { key: "ictIndex", label: "ICT Index", metricFn: (p) => p.ictIndex, higherIsBetter: true },
+      { key: "goals", label: "Goals", metricFn: (p) => p.goals, decimals: 0, higherIsBetter: true },
+      { key: "assists", label: "Assists", metricFn: (p) => p.assists, decimals: 0, higherIsBetter: true },
+      { key: "xGPerGame", label: "xG/Game", metricFn: (p) => p.xGPerGame, decimals: 2, higherIsBetter: true },
+      { key: "xAPerGame", label: "xA/Game", metricFn: (p) => p.xAPerGame, decimals: 2, higherIsBetter: true },
+      { key: "xGIPerGame", label: "xGI/Game", metricFn: (p) => p.xGIPerGame, decimals: 2, higherIsBetter: true },
+      { key: "ictIndex", label: "ICT Index", metricFn: (p) => p.ictIndex, decimals: 1, higherIsBetter: true },
     ],
   },
 };
