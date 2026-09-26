@@ -9,7 +9,7 @@ import { PlayerComparison } from "../pages/PlayerComparison";
 import { buildHistoricPlayerProfile } from "../metrics/historicAnalysis";
 import { percentileTint } from "../utils/colorScale";
 import { makePlayer, makeTeam, makeSeason } from "../test/fixtures";
-import type { ClubPlayerSeason, ClubSeason, NormalizedPlayer, PlayerGameweekHistory, PlayerSeasonHistory } from "../types/normalized";
+import type { ClubMatch, ClubSeason, NormalizedPlayer, PlayerGameweekHistory, PlayerSeasonHistory } from "../types/normalized";
 
 // Audit 2026-09-25 (player and team profiles). Each test states the correct
 // behaviour; a finding ID in the name (1-audit.md) marks a regression test
@@ -132,13 +132,13 @@ describe("Player profile — while historic data is still loading", () => {
   // dataset. Until it arrives the player has not been shown to have no data.
   it("M2: does not tell the user the player has no data while the historic dataset is loading", () => {
     setApp(state.app.players as NormalizedPlayer[], { historicStatus: "loading", historicReferenceSeason: null });
-    const { queryByText } = render(
+    const { queryByText, queryByLabelText } = render(
       <MemoryRouter initialEntries={["/players?player=1"]}>
         <PlayerDetailOverlay />
       </MemoryRouter>,
     );
     expect(queryByText(/No data for Saliba in this mode/)).toBeNull();
-    expect(queryByText(/Small sample/)).toBeNull();
+    expect(queryByLabelText(/^Small sample/)).toBeNull();
   });
 });
 
@@ -255,8 +255,8 @@ function asRendered(css: string | undefined): string {
   return el.style.background;
 }
 
-function clubPlayer(code: number, overrides: Partial<ClubPlayerSeason> = {}): ClubPlayerSeason {
-  return { code, minutes: 3000, starts: 33, totalPoints: 120, goals: 2, assists: 3, cleanSheets: 12, bonus: 10, xG: 2, xA: 2, xGI: 4, xGC: 40, dc: 300, ...overrides };
+function clubMatch(fixture: number, event: number, overrides: Partial<ClubMatch> = {}): ClubMatch {
+  return { fixture, event, opponentCode: 102, home: true, goalsFor: 2, goalsAgainst: 0, fantasyPoints: 60, goals: 2, assists: 2, bonus: 3, xG: 1.8, xA: 1.2, xGI: 3, xGC: 0.7, dc: 80, ...overrides };
 }
 
 function clubSeason(code: number, season: string, overrides: Partial<ClubSeason> = {}): ClubSeason {
@@ -284,7 +284,7 @@ function clubSeason(code: number, season: string, overrides: Partial<ClubSeason>
     xGI: 95,
     xGC: 42,
     dc: 2800,
-    players: [],
+    matches: [],
     ...overrides,
   };
 }
@@ -301,13 +301,15 @@ const LAST_SEASON = {
 describe("H1: the profile's percentiles use the fixed minutes floor", () => {
   it("a 136-minute cameo is a small sample in Last Completed Season: no percentile, marked on the radar", () => {
     setApp([CAMEO, REGULAR], { historicProfiles: profiles(LAST_SEASON) });
-    const { getByText, getAllByText } = render(
+    const { getByText, getAllByLabelText } = render(
       <MemoryRouter initialEntries={["/players?player=1"]}>
         <PlayerDetailOverlay />
       </MemoryRouter>,
     );
-    expect(getByText(/Small sample — 136 min in this mode, under the 450-minute floor/)).toBeTruthy();
-    expect(getAllByText("(small sample)").length).toBe(2); // Defense and Offense radars
+    // No banner: a badge on each radar (Defense and Offense) explains on hover.
+    const badges = getAllByLabelText(/^Small sample — 136 min in this mode, under the 450-minute floor/);
+    expect(badges.length).toBe(2);
+    for (const b of badges) expect(b.getAttribute("title")).toBe(b.getAttribute("aria-label"));
     // No tint on any tile.
     expect(asRendered(getByText("xG/Game").closest<HTMLElement>(".stat-tile")!.style.background)).toBe("");
   });
@@ -325,42 +327,29 @@ describe("H1: the profile's percentiles use the fixed minutes floor", () => {
 
   it("the floor also applies in Current Season: 60 minutes is under one full match", () => {
     setApp([makePlayer({ id: 1, name: "Hinshelwood", position: "MID", teamId: 1, minutes: 60, totalPoints: 5, xGI: 1.43 })]);
-    const { getByText, getByLabelText } = render(
+    const { getAllByLabelText, getByLabelText } = render(
       <MemoryRouter initialEntries={["/players?player=1"]}>
         <PlayerDetailOverlay />
       </MemoryRouter>,
     );
     fireEvent.click(getByLabelText("Current Season"));
-    expect(getByText(/Small sample — 60 min in this mode, under the 90-minute floor/)).toBeTruthy();
+    expect(getAllByLabelText(/^Small sample — 60 min in this mode, under the 90-minute floor/).length).toBeGreaterThan(0);
   });
 
   it("Player Comparison marks the cameo's radar as a small sample", () => {
     setApp([CAMEO, REGULAR], { historicProfiles: profiles(LAST_SEASON) });
-    const { getAllByText } = render(
+    const { getAllByLabelText } = render(
       <MemoryRouter initialEntries={["/player-comparison?players=1,2"]}>
         <PlayerComparison />
       </MemoryRouter>,
     );
     // The cameo's radar card and (since the owner's 2026-09-25 follow-up) his
     // table column — never the regular's.
-    const marks = getAllByText(/\(small sample\)/);
+    const marks = getAllByLabelText(/^Small sample — 136 min/);
     expect(marks.length).toBe(2);
     for (const m of marks) expect(m.closest("th, .card-title")!.textContent).toContain("Davies");
   });
 
-  it("the Team Profile's squad gives a player under the floor no colour, and marks his row", () => {
-    const season = clubSeason(101, "2025/26", { players: [clubPlayer(1001, { minutes: 136, totalPoints: 8 }), clubPlayer(1002)] });
-    setApp([CAMEO, REGULAR], { clubSeasons: [season] });
-    const { getByText } = render(
-      <MemoryRouter initialEntries={["/teams?teamProfile=1"]}>
-        <TeamDetailOverlay />
-      </MemoryRouter>,
-    );
-    const cameoRow = getByText("Davies").closest("tr")!;
-    expect(cameoRow.getAttribute("title")).toMatch(/^Small sample — 136 min for Arsenal, under 450/);
-    const pointsCell = cameoRow.querySelectorAll("td")[1] as HTMLElement;
-    expect(pointsCell.style.backgroundColor).toBe("");
-  });
 });
 
 describe("In the profile, only seasons of 450+ minutes count toward Historic Average (V2, then the owner's 450 rule)", () => {
@@ -422,7 +411,7 @@ describe("M2: when the historic dataset fails", () => {
       </MemoryRouter>,
     );
     expect(queryByText(/No data for Saliba/)).toBeNull();
-    expect(queryByText(/Small sample/)).toBeNull();
+    expect(queryByLabelText(/^Small sample/)).toBeNull();
     expect(getByLabelText("Season average")).toBeTruthy();
     expect(queryByLabelText(/0 seasons/)).toBeNull();
   });
@@ -555,20 +544,6 @@ describe("L8: keyboard and screen readers", () => {
     expect(document.activeElement).toBe(dialog);
   });
 
-  it("a squad row opens the player with Enter", () => {
-    setApp(state.app.players as NormalizedPlayer[], { clubSeasons: [clubSeason(101, "2025/26", { players: [clubPlayer(1001)] })] });
-    const { getByText, getByTestId } = render(
-      <MemoryRouter initialEntries={["/teams?teamProfile=1"]}>
-        <TeamDetailOverlay />
-        <LocationProbe />
-      </MemoryRouter>,
-    );
-    const row = getByText("Saliba").closest("tr")!;
-    expect(row.tabIndex).toBe(0);
-    fireEvent.keyDown(row, { key: "Enter" });
-    expect(getByTestId("location-search").textContent).toBe("?player=1");
-  });
-
   it("a team pill opens the Team Profile with Enter", () => {
     const { getByRole, getByTestId } = render(
       <MemoryRouter initialEntries={["/"]}>
@@ -679,10 +654,10 @@ describe("T2: the no-data message only suggests Data Views where he actually pla
   });
 });
 
-describe("R5 (not a defect — guards the right behaviour): keyboard focus through club → player → close", () => {
+describe("R5 (not a defect — guards the right behaviour): keyboard focus through club → close", () => {
   it("returns to the team pill that opened the club", () => {
-    setApp(state.app.players as NormalizedPlayer[], { clubSeasons: [clubSeason(101, "2025/26", { players: [clubPlayer(1001)] })] });
-    const { getByRole, getByText } = render(
+    setApp(state.app.players as NormalizedPlayer[], { clubSeasons: [clubSeason(101, "2025/26")] });
+    const { getByRole } = render(
       <MemoryRouter initialEntries={["/players"]}>
         <TeamBadge teamId={1} shortName="ARS" />
         <PlayerDetailOverlay />
@@ -692,10 +667,7 @@ describe("R5 (not a defect — guards the right behaviour): keyboard focus throu
     const pill = getByRole("button", { name: "View ARS team profile" });
     pill.focus();
     fireEvent.keyDown(pill, { key: " " }); // Space as well as Enter
-    const row = getByText("Saliba").closest("tr")!;
-    row.focus();
-    fireEvent.keyDown(row, { key: " " });
-    expect(getByRole("dialog", { name: "Saliba" })).toBeTruthy();
+    expect(getByRole("dialog", { name: "Arsenal" })).toBeTruthy();
     fireEvent.keyDown(window, { key: "Escape" });
     expect(document.activeElement).toBe(pill);
   });
@@ -712,40 +684,16 @@ describe("Historic Average counts only 450+ minute seasons in the fixed-floor se
     setApp(state.app.players as NormalizedPlayer[], {
       historicProfiles: profiles({ 1: [makeSeason({ seasonName: "2024/25", minutes: 300, totalPoints: 12 }), makeSeason({ seasonName: "2025/26", minutes: 400, totalPoints: 15 })] }),
     });
-    const { getByRole, getByText, queryByText } = render(
+    const { getByRole, getAllByLabelText, queryByText } = render(
       <MemoryRouter initialEntries={["/players?player=1"]}>
         <PlayerDetailOverlay />
       </MemoryRouter>,
     );
     fireEvent.click(getByRole("button", { name: "Historic Average" }));
-    expect(getByText(/Small sample — no season in the last 4 with 450\+ minutes/)).toBeTruthy();
+    expect(getAllByLabelText(/^Small sample — no season in the last 4 with 450\+ minutes/).length).toBeGreaterThan(0);
     expect(queryByText(/No data for Saliba/)).toBeNull();
   });
 
-  it("the Team Profile squad averages only his 450+ seasons for the club, and greys a player with none", () => {
-    const seasons = [
-      clubSeason(101, "2025/26", { players: [clubPlayer(1001, { minutes: 3000, totalPoints: 150 }), clubPlayer(1002, { minutes: 400, totalPoints: 15 })] }),
-      clubSeason(101, "2024/25", { players: [clubPlayer(1001, { minutes: 300, totalPoints: 10 }), clubPlayer(1002, { minutes: 300, totalPoints: 12 })] }),
-    ];
-    setApp(
-      [
-        makePlayer({ id: 1, name: "Saliba", position: "DEF", teamId: 1 }),
-        makePlayer({ id: 2, name: "Kiwior", position: "DEF", teamId: 1 }),
-      ],
-      { clubSeasons: seasons },
-    );
-    const { getByRole, getByText } = render(
-      <MemoryRouter initialEntries={["/teams?teamProfile=1"]}>
-        <TeamDetailOverlay />
-      </MemoryRouter>,
-    );
-    fireEvent.click(getByRole("button", { name: "Historic Average" }));
-    const saliba = getByText("Saliba").closest("tr")!;
-    expect(saliba.querySelectorAll("td")[1].textContent).toBe("150"); // not (150 + 10) / 2 = 80
-    const kiwior = getByText("Kiwior").closest("tr")!;
-    expect(kiwior.querySelectorAll("td")[1].textContent).toBe("—");
-    expect(kiwior.getAttribute("title")).toMatch(/Small sample — no season in the last 4 with 450\+ minutes for Arsenal/);
-  });
 });
 
 describe("Player Comparison's table treats a small sample as its radars do", () => {
@@ -786,5 +734,76 @@ describe("Player Comparison's table treats a small sample as its radars do", () 
       </MemoryRouter>,
     );
     expect(getByText(/Fewer than two of these players have enough minutes in this mode to compare/)).toBeTruthy();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The owner's rule (2026-09-26): team figures and player figures are kept
+// apart. The Team Profile shows only club figures — its squad table is gone,
+// replaced by the club's own live-season match log (<club_match_log>).
+// ---------------------------------------------------------------------------
+
+describe("The Team Profile shows club figures only", () => {
+  const LIVE = "2026/27";
+  const matches = [
+    clubMatch(1, 1, { goalsFor: 2, goalsAgainst: 0, xG: 1.8, xGC: 0.7 }),
+    clubMatch(2, 2, { opponentCode: 102, home: false, goalsFor: 1, goalsAgainst: 3, fantasyPoints: 20, goals: 1, xG: 0.9, xGC: 2.4 }),
+  ];
+
+  function renderClub() {
+    setApp(state.app.players as NormalizedPlayer[], {
+      clubSeasons: [clubSeason(101, "2025/26"), clubSeason(101, LIVE, { complete: false, played: 2, matches }), clubSeason(102, LIVE, { complete: false, played: 2 })],
+    });
+    return render(
+      <MemoryRouter initialEntries={["/teams?teamProfile=1"]}>
+        <TeamDetailOverlay />
+      </MemoryRouter>,
+    );
+  }
+
+  it("has no squad table, no player names and no link to players", () => {
+    const { queryByText, queryByRole } = renderClub();
+    expect(queryByText("Squad")).toBeNull();
+    expect(queryByText("Saliba")).toBeNull();
+    expect(queryByText("Player Rankings")).toBeNull();
+    expect(queryByRole("link")).toBeNull();
+  });
+
+  it("has no minimum-minutes badge: no floor applies to club figures", () => {
+    const { queryByLabelText } = renderClub();
+    expect(queryByLabelText(/^Minimum minutes applied/)).toBeNull();
+  });
+
+  it("logs the club's live-season matches, most recent first, with Totals and Average rows", () => {
+    const { getByRole } = renderClub();
+    const table = getByRole("table", { name: "Arsenal match log" });
+    const rows = [...table.querySelectorAll("tbody tr")].map((r) => [...r.querySelectorAll("td")].map((td) => td.textContent));
+    // GW, Opponent, Result, FPL Points, Goals, Assists, xG, xA, xGI, Clean Sheets, xGC, DC
+    expect(rows).toEqual([
+      ["2", "CHE (A)", "1–3", "20", "1", "2", "0.90", "1.20", "3.00", "0", "2.40", "80"],
+      ["1", "CHE (H)", "2–0", "60", "2", "2", "1.80", "1.20", "3.00", "1", "0.70", "80"],
+    ]);
+    const [totals, average] = [...table.querySelectorAll("tfoot tr")].map((r) => [...r.querySelectorAll("td")].map((td) => td.textContent));
+    expect(totals).toEqual(["Totals", "80", "3", "4", "2.70", "2.40", "6.00", "1", "3.10", "160"]);
+    expect(average).toEqual(["Average", "40.00", "1.50", "2.00", "1.35", "1.20", "3.00", "0.50", "1.55", "80.00"]);
+  });
+
+  it("the match log is always the live season, whatever the Data View", () => {
+    const { getByRole } = renderClub();
+    fireEvent.click(getByRole("button", { name: "Historic Average" }));
+    expect(getByRole("table", { name: "Arsenal match log" }).querySelectorAll("tbody tr")).toHaveLength(2);
+  });
+
+  it("shows a stat as — for the season when any match lacks it, never a partial sum", () => {
+    setApp(state.app.players as NormalizedPlayer[], {
+      clubSeasons: [clubSeason(101, "2025/26"), clubSeason(101, LIVE, { complete: false, matches: [clubMatch(1, 1), clubMatch(2, 2, { dc: null })] })],
+    });
+    const { getByRole } = render(
+      <MemoryRouter initialEntries={["/teams?teamProfile=1"]}>
+        <TeamDetailOverlay />
+      </MemoryRouter>,
+    );
+    const totals = getByRole("table", { name: "Arsenal match log" }).querySelector("tfoot tr")!;
+    expect([...totals.querySelectorAll("td")].at(-1)!.textContent).toBe("—");
   });
 });

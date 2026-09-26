@@ -60,9 +60,27 @@ describe("aggregateClubSeason", () => {
     expect(away).toMatchObject({ played: 2, wins: 0, draws: 1, losses: 1, goalsFor: 1, goalsAgainst: 3, cleanSheets: 0, leaguePoints: 1 });
   });
 
-  it("<club_xgc_per_match>: sums each match's highest player xGC, not every player's", () => {
-    expect(home.xGC).toBe(2); // 0.8 + 1.2, not 0.8 + 0.1 + 1.2
+  it("<club_xgc_per_match>: a club's xGC in a match is the opponent's players' xG summed", () => {
+    // Fixture 1: Away's xG 0.8; fixture 2: Away's xG 1.2 — whatever Home's own players' xGC says.
+    expect(home.matches.map((m) => m.xGC)).toEqual([0.8, 1.2]);
+    expect(home.xGC).toBe(2);
+    // Home's xG: 1.5 + 0.2, then 0.9.
+    expect(away.matches.map((m) => m.xGC)).toEqual([1.7, 0.9]);
     expect(away.xGC).toBe(2.6);
+  });
+
+  it("<club_xgc_per_match>: one side's xG is always the other side's xGC", () => {
+    for (const m of home.matches) {
+      const other = away.matches.find((a) => a.fixture === m.fixture)!;
+      expect(m.xG).toBe(other.xGC);
+      expect(m.xGC).toBe(other.xG);
+    }
+  });
+
+  it("<club_xgc_per_match>: a bad own-player xGC row (a 27-minute red card on 9.84) has no effect", () => {
+    const withBadRow = [...rows, row({ fixture: 1, code: 14, team: 1, minutes: 27, xGC: 9.84, xG: 0 })];
+    const [club] = aggregateClubSeason("2023/24", teams, fixtures, withBadRow);
+    expect(club.matches[0].xGC).toBe(0.8);
   });
 
   it("sums xG, goals and FPL points across the club's players", () => {
@@ -76,10 +94,20 @@ describe("aggregateClubSeason", () => {
     expect(away.leaguePosition).toBe(2);
   });
 
-  it("ships per-player records only for players who actually played", () => {
-    expect(home.players.map((p) => p.code).sort()).toEqual([11, 12]);
-    const keeper = home.players.find((p) => p.code === 11)!;
-    expect(keeper).toMatchObject({ minutes: 180, goals: 3, xGC: 2 });
+  it("logs each finished match from the club's side, and the season is those matches summed", () => {
+    expect(home.matches).toEqual([
+      { fixture: 1, event: 1, opponentCode: 200, home: true, goalsFor: 2, goalsAgainst: 0, fantasyPoints: 15, goals: 2, assists: 0, bonus: 0, xG: 1.7, xA: 0, xGI: 0, xGC: 0.8, dc: 0 },
+      { fixture: 2, event: 2, opponentCode: 200, home: false, goalsFor: 1, goalsAgainst: 1, fantasyPoints: 2, goals: 1, assists: 0, bonus: 0, xG: 0.9, xA: 0, xGI: 0, xGC: 1.2, dc: 0 },
+    ]);
+    expect(away.matches.map((m) => [m.fixture, m.home, m.goalsFor, m.goalsAgainst])).toEqual([
+      [1, false, 0, 2],
+      [2, true, 1, 1],
+    ]);
+    expect(home.fantasyPoints).toBe(home.matches.reduce((a, m) => a + m.fantasyPoints, 0));
+  });
+
+  it("carries no per-player records — club figures only", () => {
+    expect(Object.keys(home)).not.toContain("players");
   });
 
   it("keeps expected stats null (not 0) for a season with none tracked", () => {
@@ -98,9 +126,8 @@ describe("aggregateClubSeason", () => {
     expect(club.xA).toBeNull();
     expect(club.xGI).toBeNull();
     expect(club.xGC).toBeNull();
-    const keeper = club.players.find((p) => p.code === 11)!;
-    expect(keeper.xG).toBeNull();
-    expect(keeper.starts).toBeNull();
+    // The untracked match is null; the tracked one keeps its figures.
+    expect(club.matches.map((m) => m.xG)).toEqual([null, 0.9]);
     // Stats every match tracked are unaffected.
     expect(club.goals).toBe(3);
     expect(club.dc).toBe(0);

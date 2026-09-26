@@ -1,4 +1,4 @@
-import type { ClubPlayerSeason, ClubSeason, LedgerFixture, LedgerRow, LedgerTeam } from "./types.js";
+import type { ClubMatch, ClubSeason, LedgerFixture, LedgerRow, LedgerTeam } from "./types.js";
 
 /**
  * Null unless every value is present: a sum over only the matches that
@@ -16,131 +16,111 @@ function tidy(v: number | null): number | null {
   return v === null ? null : Math.round(v * 100) / 100;
 }
 
-interface ClubTally {
-  played: number;
-  wins: number;
-  draws: number;
-  losses: number;
-  goalsFor: number;
-  goalsAgainst: number;
-  cleanSheets: number;
+function sum(values: number[]): number {
+  return values.reduce((a, b) => a + b, 0);
+}
+
+/**
+ * One side's figures for one finished fixture: the score from the fixture,
+ * everything else summed from that side's ledger rows for it.
+ *
+ * <club_xgc_per_match>: the club's xGC for a match is the opponent's xG in
+ * it — the opponent's players' xG summed (the owner's rule, 2026-09-26), so
+ * one side's xG and the other's xGC are always the same number. It used to
+ * be the highest xGC among the club's own players, which picked up bad
+ * source rows: in 2023/24 GW38 a Wolves defender sent off after 27 minutes
+ * carries 9.84 xGC against 5.24 for everyone who played the full match
+ * (Liverpool's players' xG: 5.35). A player's own xGC is untouched.
+ */
+function buildMatch(fixture: LedgerFixture, home: boolean, opponentCode: number, rows: LedgerRow[], opponentRows: LedgerRow[]): ClubMatch {
+  const goalsFor = (home ? fixture.teamHScore : fixture.teamAScore) as number;
+  const goalsAgainst = (home ? fixture.teamAScore : fixture.teamHScore) as number;
+  return {
+    fixture: fixture.id,
+    event: fixture.event,
+    opponentCode,
+    home,
+    goalsFor,
+    goalsAgainst,
+    fantasyPoints: sum(rows.map((r) => r.totalPoints)),
+    goals: sum(rows.map((r) => r.goals)),
+    assists: sum(rows.map((r) => r.assists)),
+    bonus: sum(rows.map((r) => r.bonus)),
+    xG: tidy(sumOrNull(rows.map((r) => r.xG))),
+    xA: tidy(sumOrNull(rows.map((r) => r.xA))),
+    xGI: tidy(sumOrNull(rows.map((r) => r.xGI))),
+    xGC: tidy(sumOrNull(opponentRows.map((r) => r.xG))),
+    dc: sumOrNull(rows.map((r) => r.dc)),
+  };
 }
 
 /**
  * Builds one ClubSeason per club that has at least one finished fixture,
  * from finished fixtures only (an unplayed or in-progress match never
- * counts, even if a source already carries rows for it).
- *
- * <club_xgc_per_match>: a player's xGC is what his club conceded while he
- * was on the pitch, so the club's xGC for a match is that of a player who
- * was on for the whole game — which is the highest xGC among the club's
- * players in that match (xGC only ever accumulates with time on the
- * pitch). Checked against every one of 2025/26's 760 club-matches: each had
- * at least one player on for 90+ minutes, so this is the real club figure,
- * not an estimate. Summing xGC across players instead counts each chance
- * once per player on the pitch (~11x).
+ * counts, even if a source already carries rows for it). Each club gets a
+ * ClubMatch per finished fixture, and its season figures are those matches
+ * summed — a stat is null for the season if any match lacks it.
  */
 export function aggregateClubSeason(season: string, teams: LedgerTeam[], fixtures: LedgerFixture[], rows: LedgerRow[]): ClubSeason[] {
-  const finished = fixtures.filter((f) => f.finished && f.teamHScore !== null && f.teamAScore !== null);
-  const finishedIds = new Set(finished.map((f) => f.id));
+  const finished = fixtures
+    .filter((f) => f.finished && f.teamHScore !== null && f.teamAScore !== null)
+    .sort((a, b) => (a.event ?? 0) - (b.event ?? 0) || a.id - b.id);
   const complete = fixtures.length > 0 && finished.length === fixtures.length;
+  const codeById = new Map(teams.map((t) => [t.id, t.code]));
 
-  const tallies = new Map<number, ClubTally>();
-  const tally = (teamId: number) => {
-    let t = tallies.get(teamId);
-    if (!t) {
-      t = { played: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, cleanSheets: 0 };
-      tallies.set(teamId, t);
-    }
-    return t;
-  };
-  for (const f of finished) {
-    const h = f.teamHScore as number;
-    const a = f.teamAScore as number;
-    for (const [teamId, gf, ga] of [
-      [f.teamH, h, a],
-      [f.teamA, a, h],
-    ] as const) {
-      const t = tally(teamId);
-      t.played += 1;
-      t.goalsFor += gf;
-      t.goalsAgainst += ga;
-      if (ga === 0) t.cleanSheets += 1;
-      if (gf > ga) t.wins += 1;
-      else if (gf === ga) t.draws += 1;
-      else t.losses += 1;
-    }
+  const rowsBySide = new Map<string, LedgerRow[]>();
+  for (const r of rows) {
+    const key = `${r.fixture}:${r.team}`;
+    const list = rowsBySide.get(key);
+    if (list) list.push(r);
+    else rowsBySide.set(key, [r]);
   }
 
-  const rowsByTeam = new Map<number, LedgerRow[]>();
-  for (const r of rows) {
-    if (!finishedIds.has(r.fixture)) continue;
-    const list = rowsByTeam.get(r.team);
-    if (list) list.push(r);
-    else rowsByTeam.set(r.team, [r]);
+  const matchesByTeam = new Map<number, ClubMatch[]>();
+  for (const f of finished) {
+    for (const [teamId, opponentId, home] of [
+      [f.teamH, f.teamA, true],
+      [f.teamA, f.teamH, false],
+    ] as const) {
+      const opponentCode = codeById.get(opponentId);
+      if (opponentCode === undefined) continue;
+      const match = buildMatch(f, home, opponentCode, rowsBySide.get(`${f.id}:${teamId}`) ?? [], rowsBySide.get(`${f.id}:${opponentId}`) ?? []);
+      const list = matchesByTeam.get(teamId);
+      if (list) list.push(match);
+      else matchesByTeam.set(teamId, [match]);
+    }
   }
 
   const built: Omit<ClubSeason, "leaguePosition">[] = [];
   for (const team of teams) {
-    const t = tallies.get(team.id);
-    if (!t) continue;
-    const teamRows = rowsByTeam.get(team.id) ?? [];
-
-    const xgcByFixture = new Map<number, number>();
-    const xgcComplete = teamRows.length > 0 && teamRows.every((r) => r.xGC !== null);
-    for (const r of teamRows) {
-      if (r.xGC === null) continue;
-      xgcByFixture.set(r.fixture, Math.max(xgcByFixture.get(r.fixture) ?? 0, r.xGC));
-    }
-
-    const byPlayer = new Map<number, LedgerRow[]>();
-    for (const r of teamRows) {
-      const list = byPlayer.get(r.code);
-      if (list) list.push(r);
-      else byPlayer.set(r.code, [r]);
-    }
-    const players: ClubPlayerSeason[] = [];
-    for (const [code, pr] of byPlayer) {
-      const minutes = pr.reduce((a, r) => a + r.minutes, 0);
-      // Unused-squad listings are kept in the ledger (they're the record of
-      // who was at the club) but carry no stats worth shipping to the app.
-      if (minutes === 0) continue;
-      players.push({
-        code,
-        minutes,
-        starts: sumOrNull(pr.map((r) => r.starts)),
-        totalPoints: pr.reduce((a, r) => a + r.totalPoints, 0),
-        goals: pr.reduce((a, r) => a + r.goals, 0),
-        assists: pr.reduce((a, r) => a + r.assists, 0),
-        cleanSheets: pr.reduce((a, r) => a + r.cleanSheets, 0),
-        bonus: pr.reduce((a, r) => a + r.bonus, 0),
-        xG: tidy(sumOrNull(pr.map((r) => r.xG))),
-        xA: tidy(sumOrNull(pr.map((r) => r.xA))),
-        xGI: tidy(sumOrNull(pr.map((r) => r.xGI))),
-        xGC: tidy(sumOrNull(pr.map((r) => r.xGC))),
-        dc: sumOrNull(pr.map((r) => r.dc)),
-      });
-    }
-    players.sort((a, b) => b.minutes - a.minutes);
-
+    const matches = matchesByTeam.get(team.id);
+    if (!matches) continue;
+    const wins = matches.filter((m) => m.goalsFor > m.goalsAgainst).length;
+    const draws = matches.filter((m) => m.goalsFor === m.goalsAgainst).length;
     built.push({
       season,
       code: team.code,
       name: team.name,
       shortName: team.shortName,
       complete,
-      ...t,
-      leaguePoints: t.wins * 3 + t.draws,
-      fantasyPoints: teamRows.reduce((a, r) => a + r.totalPoints, 0),
-      goals: teamRows.reduce((a, r) => a + r.goals, 0),
-      assists: teamRows.reduce((a, r) => a + r.assists, 0),
-      bonus: teamRows.reduce((a, r) => a + r.bonus, 0),
-      xG: tidy(sumOrNull(teamRows.map((r) => r.xG))),
-      xA: tidy(sumOrNull(teamRows.map((r) => r.xA))),
-      xGI: tidy(sumOrNull(teamRows.map((r) => r.xGI))),
-      xGC: !xgcComplete ? null : tidy([...xgcByFixture.values()].reduce((a, b) => a + b, 0)),
-      dc: sumOrNull(teamRows.map((r) => r.dc)),
-      players,
+      played: matches.length,
+      wins,
+      draws,
+      losses: matches.length - wins - draws,
+      goalsFor: sum(matches.map((m) => m.goalsFor)),
+      goalsAgainst: sum(matches.map((m) => m.goalsAgainst)),
+      cleanSheets: matches.filter((m) => m.goalsAgainst === 0).length,
+      leaguePoints: wins * 3 + draws,
+      fantasyPoints: sum(matches.map((m) => m.fantasyPoints)),
+      goals: sum(matches.map((m) => m.goals)),
+      assists: sum(matches.map((m) => m.assists)),
+      bonus: sum(matches.map((m) => m.bonus)),
+      xG: tidy(sumOrNull(matches.map((m) => m.xG))),
+      xA: tidy(sumOrNull(matches.map((m) => m.xA))),
+      xGI: tidy(sumOrNull(matches.map((m) => m.xGI))),
+      xGC: tidy(sumOrNull(matches.map((m) => m.xGC))),
+      dc: sumOrNull(matches.map((m) => m.dc)),
+      matches,
     });
   }
 

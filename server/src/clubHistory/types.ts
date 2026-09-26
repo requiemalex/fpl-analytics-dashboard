@@ -71,20 +71,29 @@ export interface LedgerRow {
   dc: number | null;
 }
 
-/** One player's totals for one club in one season — a mid-season mover has one of these per club. */
-export interface ClubPlayerSeason {
-  code: number;
-  minutes: number;
-  starts: number | null;
-  totalPoints: number;
+/**
+ * One club's figures for one match — the unit every season total is summed
+ * from. Scores are the fixture's own; the rest are that side's ledger rows
+ * for that fixture, so they belong to whoever played for the club in it.
+ */
+export interface ClubMatch {
+  fixture: number;
+  event: number | null;
+  /** The opponent's stable team code. */
+  opponentCode: number;
+  home: boolean;
+  goalsFor: number;
+  goalsAgainst: number;
+  fantasyPoints: number;
+  /** Goals scored by the club's own players (excludes opponents' own goals — the like-for-like partner for xG). */
   goals: number;
   assists: number;
-  cleanSheets: number;
   bonus: number;
+  /** Null when any of the club's rows for the match lacks the stat — never a partial sum. */
   xG: number | null;
   xA: number | null;
   xGI: number | null;
-  /** The player's own on-pitch xGC — NOT a share of the club's, which comes from ClubSeason.xGC. */
+  /** The opponent's xG in the match (its players' xG summed) — see <club_xgc_per_match> in aggregate.ts. */
   xGC: number | null;
   dc: number | null;
 }
@@ -117,8 +126,9 @@ export interface ClubSeason {
   xG: number | null;
   xA: number | null;
   xGI: number | null;
-  /** Summed per match: the highest xGC among the club's players in that match, i.e. that of a player on for the whole game. See aggregateClubSeason. */
+  /** Summed per match: the opponent's xG in each (<club_xgc_per_match>). */
   xGC: number | null;
   dc: number | null;
-  players: ClubPlayerSeason[];
+  /** Every finished match, in fixture order. The season totals above are these summed. */
+  matches: ClubMatch[];
 }

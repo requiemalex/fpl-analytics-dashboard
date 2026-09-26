@@ -8,7 +8,7 @@ import { computeRadarData } from "../metrics/radarStats";
 import { fixedFloorMinutes, isFixedFloorSmallSample } from "../metrics/fixedMinutesFloor";
 import { buildMultiSeriesTrend, playerMetricTrendDataKey, type TrendMetricKey } from "../metrics/careerTrends";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
-import { profileFloorNote } from "../components/MinutesFloorBadge";
+import { profileFloorNote, SmallSampleBadge, smallSampleNote } from "../components/MinutesFloorBadge";
 import { PercentileRadarChart } from "../components/PlayerRadarChart";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass } from "../components/primitives";
@@ -196,6 +196,8 @@ export function PlayerComparison() {
       ),
     [comparisonResults, analysisMode, historicProfiles],
   );
+  const smallSampleNoteFor = (id: number) =>
+    smallSampleNote(comparisonResults.find((r) => r.live.id === id)?.resolved.minutes ?? null, analysisMode);
   const noDataNames = comparisonResults
     .filter((r) => modeDataKnown(analysisMode, historicStatus, historicSkippedPlayerIds, r.live.id) && !hasDataForMode(r.resolved) && !smallSampleIds.has(r.live.id))
     .map((r) => r.live.name);
@@ -363,7 +365,7 @@ export function PlayerComparison() {
                           {p.name}
                         </span>
                         <AvailabilityFlag status={p.status} news={p.news} chanceOfPlayingNextRound={p.chanceOfPlayingNextRound} />
-                        {smallSampleIds.has(p.id) && <div style={{ fontSize: 11, fontWeight: 400, color: "var(--text-muted)" }}>(small sample)</div>}
+                        {smallSampleIds.has(p.id) && <SmallSampleBadge note={smallSampleNoteFor(p.id)} />}
                       </th>
                     ))}
                   </tr>
@@ -435,8 +437,8 @@ export function PlayerComparison() {
                       <AvailabilityFlag status={p.status} news={p.news} chanceOfPlayingNextRound={p.chanceOfPlayingNextRound} />
                       <span className="page-subtitle" style={{ marginLeft: 6 }}>
                         <PositionBadge position={p.position} />
-                        {isSmallSample && " (small sample)"}
                       </span>
+                      {isSmallSample && <SmallSampleBadge note={smallSampleNoteFor(p.id)} />}
                     </div>
                     <PercentileRadarChart data={radarData} smallSample={isSmallSample} />
                   </div>

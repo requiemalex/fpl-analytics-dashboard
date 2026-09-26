@@ -1,7 +1,7 @@
 import React from "react";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, fireEvent, cleanup, within } from "@testing-library/react";
-import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
+import { MemoryRouter } from "react-router-dom";
 import { PlayerExplorer } from "./PlayerExplorer";
 import { makePlayer, makeTeam } from "../test/fixtures";
 import { downloadCsv } from "../utils/csvExport";
@@ -47,28 +47,11 @@ afterEach(() => {
   historic.status = "ready";
 });
 
-/** Shows the router's current query string, so a test can check what's left in the address. */
-function LocationProbe() {
-  return <output data-testid="location-search">{useLocation().search}</output>;
-}
-
-/** A link somewhere else in the app (the Team Profile's) that navigates while Player Explorer stays open. */
-function NavigateButton({ to }: { to: string }) {
-  const navigate = useNavigate();
-  return (
-    <button type="button" onClick={() => navigate(to)}>
-      go {to}
-    </button>
-  );
-}
-
 /** Renders the page at `url` and switches to Current Season, so every row uses the fixture players' own (live) figures. */
 function renderExplorer(url = "/players", { currentSeason = true } = {}) {
   const utils = render(
     <MemoryRouter initialEntries={[url]}>
       <PlayerExplorer />
-      <LocationProbe />
-      <NavigateButton to="/players?team=2" />
     </MemoryRouter>,
   );
   if (currentSeason) fireEvent.click(utils.getByRole("button", { name: "Current Season" }));
@@ -146,14 +129,8 @@ describe("Player Explorer — table basics", () => {
 });
 
 describe("Player Explorer — findings from the 2026-09-25 audit", () => {
-  it("H1: arriving from Teams (?team=1) shows the Team column's filter as active", () => {
-    const { container } = renderExplorer("/players?team=1");
-    expect(rowNames(container)).toEqual(["Zubimendi", "Ødegaard"]);
-    expect(header(container, "Team").querySelector("button.column-filter-icon")?.className).toContain("active");
-  });
-
-  it("H1: after arriving from Teams, choosing another club in the Team column shows that club's players", () => {
-    const { container } = renderExplorer("/players?team=1");
+  it("the Team column filter shows one club's players", () => {
+    const { container } = renderExplorer();
     applyCategoryFilter(container, "Team", "CHE");
     expect(rowNames(container)).toEqual(["Ángel", "Bob"]);
   });
@@ -176,20 +153,6 @@ describe("Player Explorer — findings from the 2026-09-25 audit", () => {
 });
 
 describe("Player Explorer — phase 2 regression tests (2026-09-25 audit)", () => {
-  it("H1: the ?team= hand-off leaves the address, so Clear filters shows everyone and nothing re-applies it", () => {
-    const { container, getByRole, getByTestId } = renderExplorer("/players?team=1");
-    expect(rowNames(container)).toEqual(["Zubimendi", "Ødegaard"]);
-    expect(getByTestId("location-search").textContent).toBe("");
-    fireEvent.click(getByRole("button", { name: /Clear every filter/ }));
-    expect(rowNames(container)).toEqual(["Zubimendi", "Ødegaard", "Ángel", "Bob"]);
-    expect(header(container, "Team").querySelector("button.column-filter-icon")?.className).not.toContain("active");
-  });
-
-  it("H1: an unknown ?team= id is ignored rather than showing nobody", () => {
-    const { container } = renderExplorer("/players?team=99");
-    expect(rowNames(container)).toEqual(["Zubimendi", "Ødegaard", "Ángel", "Bob"]);
-  });
-
   it("M3: hiding a filtered column removes its filter", () => {
     const { container, getByRole } = renderExplorer();
     applyNumericFilter(container, "Points", 1, "30");
@@ -254,18 +217,6 @@ describe("Player Explorer — phase 2 regression tests (2026-09-25 audit)", () =
 });
 
 describe("Player Explorer — phase 3 findings (2026-09-25 audit, 3-regression.md)", () => {
-  it("R4: a club link followed while the page is open shows that club's players — the search and other filters are cleared", () => {
-    const { container, getByRole, getByLabelText, getByTestId } = renderExplorer();
-    applyNumericFilter(container, "Points", 1, "30");
-    fireEvent.change(getByLabelText("Search players"), { target: { value: "o" } });
-    fireEvent.click(getByRole("button", { name: "go /players?team=2" }));
-    expect(rowNames(container)).toEqual(["Ángel", "Bob"]);
-    expect((getByLabelText("Search players") as HTMLInputElement).value).toBe("");
-    expect(header(container, "Points").querySelector("button.column-filter-icon")?.className).not.toContain("active");
-    expect(header(container, "Team").querySelector("button.column-filter-icon")?.className).toContain("active");
-    expect(getByTestId("location-search").textContent).toBe("");
-  });
-
   it("R3: with a number filter on while the historic data is still building, it says so — not 'No players match'", () => {
     historic.status = "loading";
     const { container } = renderExplorer("/players", { currentSeason: false }); // Last Completed Season: every figure "—" until built

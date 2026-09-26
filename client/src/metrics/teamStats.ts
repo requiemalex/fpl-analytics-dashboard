@@ -1,8 +1,7 @@
-import type { ClubPlayerSeason, ClubSeason, NormalizedTeam } from "../types/normalized";
+import type { ClubMatch, ClubSeason, NormalizedTeam } from "../types/normalized";
 import type { AnalysisMode } from "./resolvePlayerStats";
 import type { RadarDataPoint } from "./radarStats";
 import { HISTORIC_WINDOW_SEASONS, nextSeasonName } from "./historicAnalysis";
-import { FIXED_FLOOR_MINUTES } from "./fixedMinutesFloor";
 
 /**
  * One club's figures for whichever season(s) a view's Data View selects.
@@ -29,7 +28,7 @@ export interface TeamAggregate {
   xG: number | null;
   xA: number | null;
   xGI: number | null;
-  /** The club's real xGC, summed per match — see <club_xgc_per_match> in server/src/clubHistory/aggregate.ts. */
+  /** The club's xGC: each match's opponent xG, summed — see <club_xgc_per_match> in server/src/clubHistory/aggregate.ts. */
   xGC: number | null;
   defensiveContributions: number | null;
   /** Matches conceding 0. */
@@ -188,63 +187,16 @@ export function resultsWithinPlayed(
   return { played: target, wins: floors[0], draws: floors[1], losses: floors[2] };
 }
 
-/** One player's figures for one club under a Data View — averaged over the seasons he played for it (Historic Average), never including time at other clubs. */
-export type ClubPlayerFigures = Omit<ClubPlayerSeason, "code">;
-
 /**
- * Per-player figures FOR THIS CLUB under a Data View, keyed by player code.
- * A player only appears for seasons he actually played for the club — a
- * summer signing has no entry for last season here, however well he did
- * elsewhere (that's player analysis, not club analysis).
- *
- * `fixedFloorSeasons` (the Team Profile, a fixed-floor section —
- * <fixed_minutes_floor>): Historic Average counts only the seasons he played
- * at least FIXED_FLOOR_MINUTES for the club, the same rule as a player's own
- * Historic Average there. A player whose club seasons in the window all fall
- * short has no entry; clubPlayersShortOfFloor lists them.
+ * <club_match_log>: the club's own match-by-match record for the live
+ * season, most recent first — the team counterpart of a player's gameweek
+ * log, and like it always the live season whatever the Data View. Each
+ * match is what the club did in it (server/src/clubHistory), so nothing in
+ * it depends on who is at the club now. Empty until it has played.
  */
-export function clubPlayerFigures(
-  clubCode: number | null,
-  mode: AnalysisMode,
-  ctx: ClubHistoryContext,
-  options: { fixedFloorSeasons?: boolean } = {},
-): Map<number, ClubPlayerFigures> {
-  const floorOnly = options.fixedFloorSeasons === true && mode === "historicAverage";
-  const byCode = new Map<number, ClubPlayerSeason[]>();
-  for (const record of clubRecordsForMode(clubCode, mode, ctx)) {
-    for (const p of record.players) {
-      if (floorOnly && p.minutes < FIXED_FLOOR_MINUTES) continue;
-      const list = byCode.get(p.code);
-      if (list) list.push(p);
-      else byCode.set(p.code, [p]);
-    }
-  }
-  const result = new Map<number, ClubPlayerFigures>();
-  for (const [code, seasons] of byCode) {
-    const avg = (fn: (p: ClubPlayerSeason) => number | null) => mean(seasons.map(fn));
-    result.set(code, {
-      minutes: avg((p) => p.minutes) ?? 0,
-      starts: avg((p) => p.starts),
-      totalPoints: avg((p) => p.totalPoints) ?? 0,
-      goals: avg((p) => p.goals) ?? 0,
-      assists: avg((p) => p.assists) ?? 0,
-      cleanSheets: avg((p) => p.cleanSheets) ?? 0,
-      bonus: avg((p) => p.bonus) ?? 0,
-      xG: avg((p) => p.xG),
-      xA: avg((p) => p.xA),
-      xGI: avg((p) => p.xGI),
-      xGC: avg((p) => p.xGC),
-      dc: avg((p) => p.dc),
-    });
-  }
-  return result;
-}
-
-/** Players with Historic Average club seasons in the window, none of them reaching FIXED_FLOOR_MINUTES for the club — small samples in the Team Profile, with no Historic Average there. */
-export function clubPlayersShortOfFloor(clubCode: number | null, ctx: ClubHistoryContext): Set<number> {
-  const all = clubPlayerFigures(clubCode, "historicAverage", ctx);
-  const counted = clubPlayerFigures(clubCode, "historicAverage", ctx, { fixedFloorSeasons: true });
-  return new Set([...all.keys()].filter((code) => !counted.has(code)));
+export function clubLiveMatches(clubCode: number | null, ctx: ClubHistoryContext): ClubMatch[] {
+  const [live] = clubRecordsForMode(clubCode, "live", ctx);
+  return live ? [...live.matches].sort((a, b) => (b.event ?? 0) - (a.event ?? 0) || b.fixture - a.fixture) : [];
 }
 
 export interface ClubSeasonPoints {

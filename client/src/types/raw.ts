@@ -310,15 +310,17 @@ export interface RawHistoricBulkPlayer {
  * requests (no bulk endpoint exists on the official API for this). See
  * server/src/routes/historicBulk.ts.
  */
-/** One player's totals for one club in one season — see server/src/clubHistory/types.ts (ClubPlayerSeason), which this mirrors field for field. */
-export interface RawClubPlayerSeason {
-  code: number;
-  minutes: number;
-  starts: number | null;
-  totalPoints: number;
+/** One club's figures for one match — see server/src/clubHistory/types.ts (ClubMatch), which this mirrors field for field. */
+export interface RawClubMatch {
+  fixture: number;
+  event: number | null;
+  opponentCode: number;
+  home: boolean;
+  goalsFor: number;
+  goalsAgainst: number;
+  fantasyPoints: number;
   goals: number;
   assists: number;
-  cleanSheets: number;
   bonus: number;
   xG: number | null;
   xA: number | null;
@@ -352,7 +354,7 @@ export interface RawClubSeason {
   xGI: number | null;
   xGC: number | null;
   dc: number | null;
-  players: RawClubPlayerSeason[];
+  matches: RawClubMatch[];
 }
 
 export interface RawHistoricBulk {

@@ -3458,3 +3458,34 @@ tiles/graphs only:
   player tile and graph (`applyDefaultViewFloor`), and marks each with the
   minutes-floor badge.
 - **Last commit with it:** `89f5852`.
+
+### Team Profile squad table, Player Rankings link and `?team=` hand-off (removed 2026-09-26)
+- **What it did:** the Team Profile listed the club's current players with
+  each one's Points, xGI, xGC and DC **for this club** in the Data View
+  (`clubPlayerFigures`, `clubPlayersShortOfFloor` in `metrics/teamStats.ts`),
+  built from a per-player breakdown every club season carried
+  (`ClubSeason.players` / `ClubPlayerSeason`). Rows were tinted by
+  within-position percentile under the fixed minutes floor, greyed as small
+  samples below it, and opened the player's profile. The header's "Player
+  Rankings" link opened Player Explorer through `?team=<id>`, which
+  Player Explorer turned into its Team column filter.
+- **Why it went:** it mixed player and team data. A new signing showed "—"
+  despite a full career elsewhere, a player's figures didn't match his own
+  profile, and colours compared club-only slices of players. The owner's
+  rule is now full separation: team pages show club figures only. The
+  table was replaced by the club's live-season match log (`ClubMatch`,
+  `clubLiveMatches`), and the Team Profile no longer applies a minutes
+  floor.
+- **Last commit with it:** `2aa5349`.
+
+### Club xGC as the highest player xGC in each match (replaced 2026-09-26)
+- **What it did:** a club's xGC for a match was the highest xGC among its
+  own players in that match (`aggregateClubSeason`, `<club_xgc_per_match>`),
+  on the reasoning that a full-match player saw everything conceded.
+- **Why it went:** it picked up bad source rows. In 2023/24, 34 club-matches
+  were off by more than 0.5 — e.g. GW38, a Wolves defender sent off after
+  27 minutes carries 9.84 xGC against 5.24 for every full-match player, and
+  Fulham's 2023/24 xGC read 72.11 instead of 64.77. The owner chose the
+  opponent's players' xG summed, so one side's xG is always the other's
+  xGC and the league's xG and xGC totals are equal every season.
+- **Last commit with it:** `2aa5349`.

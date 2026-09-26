@@ -87,12 +87,7 @@ expensive-to-fetch data: players, teams, fixtures, events, historic profiles
 `bootstrap-static` silently every 10 minutes. Analysis mode and filters are
 **per page** — each page keeps its own in `useState` and renders the
 controlled `AnalysisModeToggle`/`FiltersBar`; nothing a page does can change
-another page. The one cross-page hand-off (the Team Profile's Player Rankings link →
-Player Explorer filtered to a club) goes through the `?team=<id>` URL param, which Player Explorer
-turns into its Team column filter and then removes from the address. Arriving
-while the page is already open (the Team Profile's link) also clears the
-search and every other column filter, so both routes show the whole club.
-Overlays use URL params
+another page. Overlays use URL params
 too: `?player=<id>` (player profile), `?teamProfile=<id>` (team profile),
 `?players=id,id` (Player Comparison selection).
 
@@ -193,7 +188,7 @@ everything:
 | | Where | Floor | Historic Average |
 |---|---|---|---|
 | **The user can set minimum minutes** | Player Explorer (MINS filter), Dashboard tiles and graphs the user builds, Team Building | None added by the app | Every window season counts, 0-minute ones included |
-| **The user can't** | Player profile, Player Comparison, Team Profile, the packaged Default Dashboard views | Fixed: 90 minutes in Current Season, 450 otherwise (`metrics/fixedMinutesFloor.ts`, `<fixed_minutes_floor>`) | Only seasons with 450+ minutes count; a season under that is a small sample and none of its figures count |
+| **The user can't** | Player profile, Player Comparison, the packaged Default Dashboard views | Fixed: 90 minutes in Current Season, 450 otherwise (`metrics/fixedMinutesFloor.ts`, `<fixed_minutes_floor>`) | Only seasons with 450+ minutes count; a season under that is a small sample and none of its figures count |
 
 In the fixed-floor sections the floor applies to **every percentile**,
 totals as well as per-game rates: the pool is everyone at or above it, and
@@ -205,16 +200,19 @@ coloured among themselves, and the Summary doesn't count him.
 **The badge.** Wherever the fixed floor is applied, a small stopwatch-on-a-
 line badge (`components/MinutesFloorBadge.tsx`) says so, its hover text
 naming the floor for the mode, so a missing player or an uncoloured cell
-isn't taken for missing data. The profile, Player Comparison and the Team
-Profile show it at the right of their mode toggle (`profileFloorNote`). On
+isn't taken for missing data. The profile and Player Comparison show it at
+the right of their mode toggle (`profileFloorNote`). The Team Profile has
+none: club figures have no floor. On
 the Dashboard it's per tile or graph, and only where a floor really applies
 (`dashboardItemFloorNote`): every player tile and graph in the Default view
-(not on picked players, and not on team tiles or graphs).
+(not on picked players, and not on team tiles or graphs). The same icon in
+amber (`SmallSampleBadge`, hover text `smallSampleNote`) marks a small
+sample on the profile's radar titles and on Player Comparison's column
+header and radar — no banner or "(small sample)" text.
 
 **Historic Average there counts only seasons of 450+ minutes** (the
 owner's rule, `HistoricPlayerProfile.floorWindowAverage`, used through
-`resolvePlayerStats`'s `fixedFloorSeasons`; the Team Profile squad's
-`clubPlayerFigures(…, { fixedFloorSeasons })` for seasons at the club). Two
+`resolvePlayerStats`'s `fixedFloorSeasons`). Two
 seasons of 1,800 and 450 minutes and one of 300: the average is the first
 two, and none of the 300-minute season's figures count. So every Historic
 Average there is built from real samples, and the floor needs no second
@@ -263,7 +261,14 @@ too.
 
 - **The record:** `data/club-history/<season>/ledger.csv` has one row per
   player per fixture, with the club he played for *in that fixture*.
-  Players are keyed by FPL `code`, clubs by team `code`.
+  Players are keyed by FPL `code`, clubs by team `code`. The ledger is the
+  only place players appear: the app receives club figures only.
+- **Per match, then per season:** `aggregateClubSeason` turns each finished
+  fixture into a `ClubMatch` per side — the score from the fixture, and
+  FPL points, goals, assists, xG, xA, xGI, xGC and DC from that side's
+  ledger rows for it (FPL serves xG and the rest per player only, never per
+  team). A season's figures are its matches summed; a stat any match lacks
+  is `null` for the season. Every `ClubSeason` carries its `matches`.
 - **2016/17–2025/26** were backfilled once from the vaastav community
   archive — the one approved exception to the official-API-only rule,
   because the official API doesn't serve past seasons' match data. It was
@@ -273,12 +278,19 @@ too.
   touches the network.
 - **2026/27 on:** archived from the official API only, by
   `.github/workflows/club-history-archive.yml` (Tue/Fri 05:00 UTC). It is
-  append-only and writes nothing if more than 5% of requests fail.
+  append-only and writes nothing if more than 5% of requests fail. It
+  archives every player FPL lists, and FPL keeps a player who leaves
+  (status "u") until the summer reset — in 2019/20–2025/26 every player who
+  played was still listed at season end — so no appearance is lost. Each
+  run re-enables its own schedule, since GitHub switches off a public
+  repository's schedules after 60 days without activity (the summer break
+  is longer).
 - **Aggregation** (`server/src/clubHistory/aggregate.ts`) uses finished
   fixtures only. Completed seasons are pre-built into
   `completedSeasons.generated.ts`; the live season is aggregated inside the
-  historic bulk build. Club xGC per match is the highest xGC among that
-  club's players in that match (`<club_xgc_per_match>`).
+  historic bulk build. Club xGC per match is the opponent's xG in it — the
+  opponent's players' xG summed (`<club_xgc_per_match>`) — so one side's xG
+  and the other's xGC are always equal.
 - **Data View mapping** (`clubSeasonsForMode()`): Historic Average means the
   last 4 completed seasons **the club was in the Premier League**, never
   padded with zeros. A season with no record shows "—". Its wins, draws and
@@ -342,8 +354,8 @@ by a fraction of one upcoming match.
 - **Percentiles** (`metrics/percentiles.ts`) are within-position, against
   the full mode-resolved pool at or above the fixed minutes floor — never a
   filtered view. Every percentile the app shows is in a fixed-floor section
-  (player profile, Player Comparison's radars, the Team Profile's squad
-  tints), so a player under the floor has none (see "Minimum minutes").
+  (player profile, Player Comparison's radars), so a player under the
+  floor has none (see "Minimum minutes").
   Bands: 90+ Excellent, 70–89 Good, 30–69 Average, <30 Poor.
   Lower-is-better stats (xGC, Min/Goal) are flipped. They drive the
   profile's radars (`metrics/radarStats.ts`, position-specific axes; DEF/MID
@@ -523,14 +535,17 @@ longest word (`TEAM_MIN_COLUMN_WIDTHS`).
   follows its Data View like every other club figure, formatted as Team
   Explorer's columns show it (`teamHeaderLine`): a Historic Average is the
   rounded mean, and a season the club has no record of reads "—".
-- Its squad table shows each current player's figures **for this club**
-  (`clubPlayerFigures`). In Historic Average that's the mean over the
-  window seasons he played at least 450 minutes for the club — not the
-  club's own window — so a signing from last summer shows his one season
-  here. A player whose club seasons all fall short shows "—", greyed, as a
-  small sample (`clubPlayersShortOfFloor`). Squad tints are
-  within-position percentiles with the fixed floor; a player under it is
-  greyed, with no colour.
+- **Club figures only — no players** (the owner's rule, 2026-09-26): no
+  squad list, no player names, no link to player pages, and no minutes
+  floor or badge.
+- **Live Data** is the club's match log for the live season
+  (`clubLiveMatches`, `<club_match_log>`) — the team counterpart of the
+  player profile's gameweek log, and like it always the live season
+  whatever the Data View. One row per finished match, most recent first:
+  GW, opponent (H/A), result, then FPL Points, Goals, Assists, xG, xA, xGI,
+  Clean Sheets, xGC and Defensive Contributions. The Totals and Average
+  (per match) rows are tinted against every club's live-season log
+  (`relativeCellTint`); a column any match lacks shows "—".
 - The team Defense radar ranks more Defensive Contributions as better
   (`TEAM_DEFENSE_AXES`), as for a player — they're FPL points. A dominant
   side that rarely has to defend can sit low on that one axis while topping

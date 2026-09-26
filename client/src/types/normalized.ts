@@ -254,4 +254,4 @@ export interface PlayerSeasonHistory {
  * now. See server/src/clubHistory/types.ts for how it's built and
  * sourced. Every team-level figure in the app comes from these.
  */
-export type { RawClubSeason as ClubSeason, RawClubPlayerSeason as ClubPlayerSeason } from "./raw";
+export type { RawClubSeason as ClubSeason, RawClubMatch as ClubMatch } from "./raw";

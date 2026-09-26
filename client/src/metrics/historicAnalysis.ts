@@ -101,7 +101,7 @@ export interface HistoricPlayerProfile {
    * (FIXED_FLOOR_MINUTES, 450), oldest first — never reaching back past the
    * window to replace one that falls short. Where the user can't set
    * minimum minutes (<fixed_minutes_floor>: player profile, Player
-   * Comparison, Team Profile, the packaged Default Dashboard views), only
+   * Comparison, the packaged Default Dashboard views), only
    * these seasons count toward Historic Average: a season under the floor
    * (a cameo year, one lost to injury, or 0 minutes) is a small sample, so
    * its figures don't count at all — the owner's rule (2026-09-25, replacing

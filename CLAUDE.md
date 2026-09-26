@@ -63,8 +63,8 @@ No lint script. Playwright isn't installed but works via
   taking over. Where the user can set minimum minutes (Player Explorer,
   Dashboard tiles/graphs they build, Team Building) the app adds none, and
   Historic Average counts 0-minute seasons. Where they can't (player
-  profile, Player Comparison, Team Profile, the packaged Default Dashboard
-  views) the fixed floor applies — 90 min in Current Season, 450 otherwise
+  profile, Player Comparison, the packaged Default Dashboard views) the
+  fixed floor applies — 90 min in Current Season, 450 otherwise
   (`metrics/fixedMinutesFloor.ts`) — to every percentile, totals too; below
   it is a "small sample" with no percentile or colour (Player Comparison's
   table too); and Historic Average counts only seasons of 450+ minutes —

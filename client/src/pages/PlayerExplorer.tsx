@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { useColumnCustomization } from "../state/useColumnCustomization";
 import { useSortSpec, compareSortValues, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
-import { useColumnFilters, isColumnFilterActive, EMPTY_COLUMN_FILTER, type ColumnFilterSpec } from "../state/useColumnFilters";
+import { useColumnFilters, isColumnFilterActive } from "../state/useColumnFilters";
 import { ColumnFilterControl } from "../components/ColumnFilterControl";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
@@ -250,44 +250,11 @@ export function PlayerExplorer() {
   // not shared with any other page (see state/scoutingFilters.ts). There is
   // no criteria bar: Team, Position, Mins and every other filter is a
   // column filter below.
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [, setSearchParams] = useSearchParams();
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("lastSeason");
   const [search, setSearch] = useState("");
 
-  // `?team=<id>` is the Team Profile's "Player Rankings" hand-off. It becomes the Team column's own filter — shown
-  // on the column, changeable and clearable like any other — then leaves
-  // the address, so nothing re-applies it later. An unknown id is dropped.
-  // Seeded at mount (so the first frame is already filtered) and handled
-  // by the effect below when it arrives while the page is open, where it
-  // also clears the search and every other column filter: the link means
-  // "this club's players", the same from the Team Profile as from Teams
-  // (which remounts the page, so starts clean anyway) — audit 2026-09-25 R4.
-  const teamFilterFromParam = (): ColumnFilterSpec | null => {
-    const team = teamsById.get(Number(searchParams.get("team")));
-    return team ? { ...EMPTY_COLUMN_FILTER, category: team.shortName } : null;
-  };
-  const columnFiltersState = useColumnFilters((): Record<string, ColumnFilterSpec> => {
-    const seed = teamFilterFromParam();
-    return seed ? { [TEAM_COLUMN_KEY]: seed } : {};
-  });
-  useEffect(() => {
-    if (!searchParams.has("team")) return;
-    const seed = teamFilterFromParam();
-    if (seed) {
-      setSearch("");
-      columnFiltersState.resetAllFilters();
-      columnFiltersState.setColumnFilter(TEAM_COLUMN_KEY, seed);
-    }
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete("team");
-        return next;
-      },
-      { replace: true },
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  const columnFiltersState = useColumnFilters();
 
   const { resolved: resolvedPlayers } = useMemo(
     () => resolvePlayerStatsList(players, analysisMode, historicProfiles, currentSeasonHasStarted),

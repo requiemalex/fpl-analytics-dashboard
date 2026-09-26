@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { clubPlayerFigures, clubSeasonHistory, clubSeasonsForMode, computeTeamAggregates, resultsWithinPlayed, type ClubHistoryContext } from "./teamStats";
+import { clubLiveMatches, clubSeasonHistory, clubSeasonsForMode, computeTeamAggregates, resultsWithinPlayed, type ClubHistoryContext } from "./teamStats";
 import { makeTeam } from "../test/fixtures";
 import { teamHeaderLine } from "../components/TeamDetailOverlay";
-import type { ClubPlayerSeason, ClubSeason } from "../types/normalized";
+import type { ClubMatch, ClubSeason } from "../types/normalized";
 
-function player(code: number, overrides: Partial<ClubPlayerSeason> = {}): ClubPlayerSeason {
-  return { code, minutes: 900, starts: 10, totalPoints: 50, goals: 2, assists: 1, cleanSheets: 3, bonus: 4, xG: 2, xA: 1, xGI: 3, xGC: 10, dc: 40, ...overrides };
+function match(fixture: number, event: number, overrides: Partial<ClubMatch> = {}): ClubMatch {
+  return { fixture, event, opponentCode: 102, home: true, goalsFor: 2, goalsAgainst: 1, fantasyPoints: 50, goals: 2, assists: 1, bonus: 3, xG: 1.8, xA: 1.2, xGI: 3, xGC: 0.9, dc: 70, ...overrides };
 }
 
 function clubSeason(code: number, season: string, overrides: Partial<ClubSeason> = {}): ClubSeason {
@@ -33,7 +33,7 @@ function clubSeason(code: number, season: string, overrides: Partial<ClubSeason>
     xGI: 95,
     xGC: 42,
     dc: 2800,
-    players: [],
+    matches: [],
     ...overrides,
   };
 }
@@ -47,8 +47,8 @@ const ctx: ClubHistoryContext = {
   clubSeasons: [
     clubSeason(101, "2022/23", { leaguePoints: 60, xGC: 50 }),
     clubSeason(101, "2024/25", { leaguePoints: 80, xGC: 30 }),
-    clubSeason(101, "2025/26", { leaguePoints: 70, xGC: 42, players: [player(9001, { totalPoints: 120 })] }),
-    clubSeason(101, "2026/27", { complete: false, played: 5, leaguePoints: 10, xGC: 6 }),
+    clubSeason(101, "2025/26", { leaguePoints: 70, xGC: 42, matches: [match(1, 1)] }),
+    clubSeason(101, "2026/27", { complete: false, played: 5, leaguePoints: 10, xGC: 6, matches: [match(11, 1), match(12, 2, { home: false })] }),
     // Club 102 was promoted this season — no 2025/26 record at all.
     clubSeason(102, "2026/27", { complete: false, played: 5, leaguePoints: 4 }),
     // A club no longer in the league keeps its history but isn't a current team.
@@ -122,11 +122,14 @@ describe("computeTeamAggregates — <club_not_squad>", () => {
   });
 });
 
-describe("clubPlayerFigures", () => {
-  it("returns only what a player did FOR this club in the view's season", () => {
-    const figures = clubPlayerFigures(101, "lastSeason", ctx);
-    expect(figures.get(9001)?.totalPoints).toBe(120);
-    expect(clubPlayerFigures(101, "live", ctx).has(9001)).toBe(false);
+describe("clubLiveMatches", () => {
+  it("<club_match_log>: the live season's matches, most recent first — never a completed season's", () => {
+    expect(clubLiveMatches(101, ctx).map((m) => m.fixture)).toEqual([12, 11]);
+  });
+
+  it("is empty for a club with no live record, or before historic data has loaded", () => {
+    expect(clubLiveMatches(999, ctx)).toEqual([]);
+    expect(clubLiveMatches(101, { ...ctx, referenceSeason: null })).toEqual([]);
   });
 });
 

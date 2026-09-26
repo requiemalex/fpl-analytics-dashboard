@@ -198,7 +198,8 @@ describe("buildBulkHistoricData — club seasons", () => {
         ok: true,
         data: {
           history_past: [],
-          history: [{ fixture: 10, was_home: home, minutes: 90, total_points: 6, goals_scored: home ? 1 : 0, expected_goals_conceded: home ? "0.40" : "1.30" }],
+          // Each side's xG is the other's xGC (<club_xgc_per_match>).
+          history: [{ fixture: 10, was_home: home, minutes: 90, total_points: 6, goals_scored: home ? 1 : 0, expected_goals: home ? "1.30" : "0.40", expected_goals_conceded: home ? "0.40" : "1.30" }],
         },
         source: "cache",
         fetchedAt: Date.now(),

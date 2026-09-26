@@ -165,6 +165,13 @@
   cursor: default;
 }
 
+.small-sample-badge {
+  color: var(--accent-value);
+  background: color-mix(in srgb, var(--accent-value) 16%, transparent);
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
 /* ---------- Tables ---------- */
 .table-wrap {
   overflow: auto;

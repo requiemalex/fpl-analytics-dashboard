@@ -1,6 +1,8 @@
 import React from "react";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import { FIXED_FLOOR_MINUTES, fixedFloorMinutes } from "../metrics/fixedMinutesFloor";
+import { HISTORIC_WINDOW_SEASONS } from "../metrics/historicAnalysis";
+import { fmtDecimal } from "../utils/format";
 
 /** A stopwatch standing on a floor line: "a minutes floor is in force here". */
 export function MinutesFloorIcon({ size = 13 }: { size?: number }) {
@@ -29,9 +31,30 @@ export function MinutesFloorBadge({ note }: { note: string }) {
   );
 }
 
+/**
+ * Marks a player who is under the fixed floor (<fixed_minutes_floor>) — the
+ * same stopwatch, in the warning colour. The hover text (smallSampleNote)
+ * says why he has no percentiles or colours.
+ */
+export function SmallSampleBadge({ note }: { note: string }) {
+  return (
+    <span className="data-view-badge small-sample-badge" title={note} aria-label={note}>
+      <MinutesFloorIcon />
+    </span>
+  );
+}
+
+/** Hover text for SmallSampleBadge. `minutes` null: Historic Average, where no window season reached the floor. */
+export function smallSampleNote(minutes: number | null, mode: AnalysisMode): string {
+  if (minutes === null) {
+    return `Small sample — no season in the last ${HISTORIC_WINDOW_SEASONS} with ${FIXED_FLOOR_MINUTES}+ minutes, so nothing counts toward Historic Average: no figures, percentiles or colours.`;
+  }
+  return `Small sample — ${fmtDecimal(minutes, 0)} min in this mode, under the ${fixedFloorMinutes(mode)}-minute floor: no percentiles or colours.`;
+}
+
 const PREFIX = "Minimum minutes applied automatically";
 
-/** Hover text for the player profile, Player Comparison and the Team Profile: the floor turns percentiles and colours off below it. */
+/** Hover text for the player profile and Player Comparison: the floor turns percentiles and colours off below it. */
 export function profileFloorNote(mode: AnalysisMode): string {
   if (mode === "historicAverage") {
     return `${PREFIX}: Historic Average counts only seasons of ${FIXED_FLOOR_MINUTES}+ minutes. A player with none is a small sample — no figures, percentile or colour.`;

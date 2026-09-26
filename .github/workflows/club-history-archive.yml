@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: write
+  actions: write # the keep-alive step below
 
 concurrency:
   group: club-history-archive
@@ -25,6 +26,16 @@ jobs:
   archive:
     runs-on: ubuntu-latest
     steps:
+      # GitHub switches off a public repository's scheduled workflows after
+      # 60 days without activity. The summer break is longer than that and
+      # has nothing new to archive, so no commit — this schedule would be
+      # off when next season starts. Re-enabling it on every run restarts
+      # that clock. First, so a failed archive run still keeps it on.
+      - name: Keep this schedule switched on
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/club-history-archive.yml/enable"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4

@@ -7,7 +7,7 @@ import type { HistoricPlayerProfile } from "./historicAnalysis";
  * taking over. Where the user can set minimum minutes (Player Explorer's
  * MINS filter, a Dashboard tile or graph they build, Team Building) the
  * app adds nothing. Where they can't — the player profile, Player
- * Comparison, the Team Profile and the packaged Default Dashboard views —
+ * Comparison and the packaged Default Dashboard views —
  * this fixed floor applies: one full match in Current Season, five
  * otherwise.
  *

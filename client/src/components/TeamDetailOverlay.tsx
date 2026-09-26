@@ -1,35 +1,29 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { useEscapeLayer } from "../state/useEscapeLayer";
 import { useDialogFocus } from "../state/useDialogFocus";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import { getUpcomingFixtures, averageFixtureDifficulty } from "../metrics/fixtureTicker";
-import { computePositionPercentiles } from "../metrics/percentiles";
-import { FIXED_FLOOR_MINUTES, fixedFloorMinutes, isBelowFixedFloor } from "../metrics/fixedMinutesFloor";
-import { HISTORIC_WINDOW_SEASONS } from "../metrics/historicAnalysis";
 import { teamColumnByKey } from "./teamColumns";
 import {
   computeTeamAggregates,
   computeTeamRadarData,
-  clubPlayerFigures,
-  clubPlayersShortOfFloor,
+  clubLiveMatches,
   clubSeasonHistory,
   TEAM_DEFENSE_AXES,
   TEAM_OFFENSE_AXES,
-  type ClubPlayerFigures,
   type TeamAggregate,
 } from "../metrics/teamStats";
 import { computeClubSeasonWindow } from "../metrics/teamSeasonHistory";
 import { computeSeasonTrend } from "../metrics/careerMetrics";
-import { relativeCellTint, percentileTint } from "../utils/colorScale";
+import { relativeCellTint } from "../utils/colorScale";
 import { AnalysisModeToggle } from "./AnalysisModeToggle";
-import { profileFloorNote } from "./MinutesFloorBadge";
-import { PositionBadge, AvailabilityFlag, availabilityTextClass, FixtureChips } from "./primitives";
+import { FixtureChips } from "./primitives";
 import { PercentileRadarChart } from "./PlayerRadarChart";
 import { AverageLineIcon, PointsHistoryChart, PointsHistoryHeader, PointsHistoryStats } from "./playerProfile/PointsHistory";
-import { fmtDecimal, fmtOrdinal, fmtPrice, DASH } from "../utils/format";
-import type { NormalizedPlayer, NormalizedTeam } from "../types/normalized";
+import { fmtDecimal, fmtOrdinal, DASH } from "../utils/format";
+import type { ClubMatch, NormalizedTeam } from "../types/normalized";
 
 /**
  * The header's league line for the Data View, from the club's figures for
@@ -73,6 +67,49 @@ function CloseIcon() {
   );
 }
 
+function matchResult(m: ClubMatch): { label: string; outcomeClass: string } {
+  const label = `${m.goalsFor}–${m.goalsAgainst}`;
+  if (m.goalsFor > m.goalsAgainst) return { label, outcomeClass: "value-positive" };
+  if (m.goalsFor < m.goalsAgainst) return { label, outcomeClass: "value-negative" };
+  return { label, outcomeClass: "value-muted" };
+}
+
+/**
+ * The match log's stat columns (<club_match_log>) — the team counterparts
+ * of the player gameweek log's. Goals are the club's own players' (the
+ * partner for xG); the Result column has the score.
+ */
+const MATCH_LOG_COLUMNS: { key: string; header: string; decimals: number; higherIsBetter: boolean; value: (m: ClubMatch) => number | null }[] = [
+  { key: "pts", header: "FPL Points", decimals: 0, higherIsBetter: true, value: (m) => m.fantasyPoints },
+  { key: "g", header: "Goals", decimals: 0, higherIsBetter: true, value: (m) => m.goals },
+  { key: "a", header: "Assists", decimals: 0, higherIsBetter: true, value: (m) => m.assists },
+  { key: "xg", header: "xG", decimals: 2, higherIsBetter: true, value: (m) => m.xG },
+  { key: "xa", header: "xA", decimals: 2, higherIsBetter: true, value: (m) => m.xA },
+  { key: "xgi", header: "xGI", decimals: 2, higherIsBetter: true, value: (m) => m.xGI },
+  { key: "cs", header: "Clean Sheets", decimals: 0, higherIsBetter: true, value: (m) => (m.goalsAgainst === 0 ? 1 : 0) },
+  { key: "xgc", header: "xGC", decimals: 2, higherIsBetter: false, value: (m) => m.xGC },
+  { key: "dc", header: "Defensive Contributions", decimals: 0, higherIsBetter: true, value: (m) => m.dc },
+];
+
+/** A column summed over the matches — null if any match lacks it (never a partial sum) or there are none. */
+export function matchLogTotal(matches: ClubMatch[], value: (m: ClubMatch) => number | null): number | null {
+  if (matches.length === 0) return null;
+  let total = 0;
+  for (const m of matches) {
+    const v = value(m);
+    if (v === null) return null;
+    total += v;
+  }
+  return total;
+}
+
+type TintRange = { min: number; max: number } | null;
+
+function valueRange(values: (number | null)[]): TintRange {
+  const present = values.filter((v): v is number => v !== null);
+  return present.length === 0 ? null : { min: Math.min(...present), max: Math.max(...present) };
+}
+
 /** Label-above-value tile — same visual language as the player profile's StatTile. `tint` is a pre-computed CSS colour (from relativeCellTint, comparing this team against every other team) rather than a percentile, since the range here is a simple league-wide min/max, not a within-position percentile. */
 function StatTile({ label, value, tint }: { label: string; value: React.ReactNode; tint?: string }) {
   return (
@@ -84,7 +121,7 @@ function StatTile({ label, value, tint }: { label: string; value: React.ReactNod
 }
 
 export function TeamDetailOverlay() {
-  const { players, teams, teamsById, fixtures, clubSeasons, currentSeasonHasStarted, historicReferenceSeason, historicStatus, requestHistoricData } = useAppState();
+  const { teams, teamsById, fixtures, clubSeasons, currentSeasonHasStarted, historicReferenceSeason, historicStatus, requestHistoricData } = useAppState();
   const [team, setTeamId, unknownTeamLink] = useSelectedTeam();
   const isOpen = team !== null;
   // Every club figure here (Current Season included) comes from the historic
@@ -95,7 +132,6 @@ export function TeamDetailOverlay() {
   }, [isOpen, requestHistoricData]);
   const sheetRef = useRef<HTMLDivElement>(null);
   const headingId = useId();
-  const [, setSearchParams] = useSearchParams();
   // The profile's own analysis-mode — deliberately independent of whatever
   // mode happens to be selected on the page underneath it, same reasoning
   // as PlayerDetailOverlay (see state/scoutingFilters.ts).
@@ -115,39 +151,27 @@ export function TeamDetailOverlay() {
     [allTeamAggregates, team],
   );
 
-  // Each current player's figures FOR HIS CURRENT CLUB in this view, for
-  // every club — the roster table below reads this club's, and the
-  // percentile tints compare against everyone's. A summer signing has no
-  // figures for last season here: what he did elsewhere is player
-  // analysis, not this club's (see <club_not_squad>, metrics/teamStats.ts).
-  // A fixed-floor section (<fixed_minutes_floor>): Historic Average counts
-  // only the seasons he played at least the floor for the club.
-  const figuresByTeamId = useMemo(() => {
-    const map = new Map<number, Map<number, ClubPlayerFigures>>();
-    for (const t of teams) map.set(t.id, clubPlayerFigures(t.code, analysisMode, clubCtx, { fixedFloorSeasons: true }));
-    return map;
-  }, [teams, analysisMode, clubCtx]);
-  // This club's players who played for it in the window but never reached
-  // the floor in a season — no Historic Average here, shown as small samples.
-  const shortOfFloor = useMemo(
-    () => (team && analysisMode === "historicAverage" ? clubPlayersShortOfFloor(team.code, clubCtx) : new Set<number>()),
-    [team, analysisMode, clubCtx],
-  );
-
-  const figuresFor = (p: NormalizedPlayer): ClubPlayerFigures | null => (p.code === null ? null : (figuresByTeamId.get(p.teamId)?.get(p.code) ?? null));
-
-  const squad = useMemo(() => {
-    if (!team) return [];
-    return players
-      .filter((p) => p.teamId === team.id)
-      .map((p) => ({ player: p, figures: figuresFor(p) }))
-      .sort((a, b) => {
-        if (a.figures === null) return b.figures === null ? 0 : 1;
-        if (b.figures === null) return -1;
-        return b.figures.totalPoints - a.figures.totalPoints;
+  // The club's own live-season match log (<club_match_log>), and every
+  // club's, so its Totals and Average rows are tinted against the league's.
+  const liveMatchesByTeamId = useMemo(() => new Map(teams.map((t) => [t.id, clubLiveMatches(t.code, clubCtx)])), [teams, clubCtx]);
+  const liveMatches = team ? (liveMatchesByTeamId.get(team.id) ?? []) : [];
+  const matchLogRanges = useMemo(() => {
+    const ranges = new Map<string, { total: TintRange; average: TintRange }>();
+    for (const c of MATCH_LOG_COLUMNS) {
+      const clubs = [...liveMatchesByTeamId.values()].map((ms) => ({ total: matchLogTotal(ms, c.value), n: ms.length }));
+      ranges.set(c.key, {
+        total: valueRange(clubs.map((x) => x.total)),
+        average: valueRange(clubs.map((x) => (x.total === null ? null : x.total / x.n))),
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, team, figuresByTeamId]);
+    }
+    return ranges;
+  }, [liveMatchesByTeamId]);
+
+  function matchLogTint(key: string, kind: "total" | "average", v: number | null, higherIsBetter: boolean): string | undefined {
+    const range = matchLogRanges.get(key)?.[kind];
+    if (!range || v === null) return undefined;
+    return relativeCellTint(v, range.min, range.max, higherIsBetter);
+  }
 
   // FPL points per season for this club, every season on record (live
   // included) — each bar is what the club's players scored FOR IT that
@@ -201,43 +225,6 @@ export function TeamDetailOverlay() {
     return relativeCellTint(avg, avgFdrRange.min, avgFdrRange.max, false);
   }, [upcomingFixtures, avgFdrRange]);
 
-  // Per-player comparative colouring for the roster table — the same
-  // within-position percentile and fixed minutes floor PlayerDetailOverlay
-  // uses (<fixed_minutes_floor>; audit 2026-09-25 player-team-profiles H1),
-  // over every current player's figures for his own club in this view
-  // (never squad-filtered — see <percentile_population>). A player under
-  // the floor for this club gets no colour. In Historic Average only club
-  // seasons that reach the floor count, so there the question is whether he
-  // has any (shortOfFloor).
-  const minMinutes = fixedFloorMinutes(analysisMode);
-  const squadPercentiles = useMemo(() => {
-    const population: NormalizedPlayer[] = [];
-    for (const p of players) {
-      const f = figuresFor(p);
-      if (!f) continue;
-      population.push({ ...p, minutes: f.minutes, totalPoints: f.totalPoints, xGI: f.xGI, xGC: f.xGC, defensiveContributions: f.dc });
-    }
-    const metrics: Record<string, { fn: (p: NormalizedPlayer) => number | null; higherIsBetter: boolean }> = {
-      totalPoints: { fn: (p) => p.totalPoints, higherIsBetter: true },
-      xGI: { fn: (p) => p.xGI, higherIsBetter: true },
-      xGC: { fn: (p) => p.xGC, higherIsBetter: false },
-      defensiveContributions: { fn: (p) => p.defensiveContributions, higherIsBetter: true },
-    };
-    const result = new Map<string, Map<number, number | null>>();
-    for (const [key, { fn, higherIsBetter }] of Object.entries(metrics)) {
-      const raw = computePositionPercentiles(population, fn, minMinutes);
-      const flipped = new Map<number, number | null>();
-      for (const [playerId, percentile] of raw) flipped.set(playerId, percentile === null ? null : higherIsBetter ? percentile : 100 - percentile);
-      result.set(key, flipped);
-    }
-    return result;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, figuresByTeamId, minMinutes]);
-
-  function squadCellTint(playerId: number, key: string): string | undefined {
-    return percentileTint(squadPercentiles.get(key)?.get(playerId) ?? null);
-  }
-
   const teamRadarGroups = useMemo(() => {
     if (!clubTotals) return [];
     return [
@@ -272,16 +259,6 @@ export function TeamDetailOverlay() {
 
   if (!team || !clubTotals) return null;
 
-  /** Swaps this overlay for the player profile rather than stacking both — same single-overlay-at-a-time UX as every other cross-link into a player (Dashboard, Teams, etc.). */
-  function openPlayer(playerId: number) {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.delete("teamProfile");
-      next.set("player", String(playerId));
-      return next;
-    });
-  }
-
   return (
     <div className="profile-backdrop">
       <div className="profile-sheet" ref={sheetRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={headingId}>
@@ -296,19 +273,9 @@ export function TeamDetailOverlay() {
               {teamHeaderLine(clubTotals)}
             </p>
           </div>
-          <div className="profile-header-actions">
-            <Link
-              className="profile-icon-btn"
-              to={`/players?team=${team.id}`}
-              title={`See ${team.name}'s players, sortable by any metric, in Player Explorer`}
-              aria-label={`See ${team.name}'s players, sortable by any metric, in Player Explorer`}
-            >
-              Player Rankings
-            </Link>
-          </div>
         </div>
 
-        <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} floorNote={profileFloorNote(analysisMode)} />
+        <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
 
         <div className="profile-section">
           <div className="profile-section-heading">
@@ -357,66 +324,82 @@ export function TeamDetailOverlay() {
 
         <div className="profile-section">
           <div className="profile-section-heading">
-            <h3>Squad</h3>
+            <h3>Live Data</h3>
           </div>
           <div className="card">
-            <div className="table-wrap">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: "left" }}>Player</th>
-                    <th>Points</th>
-                    <th>xGI</th>
-                    <th>xGC</th>
-                    <th>DC</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {squad.map(({ player, figures }) => {
-                    const shortOfFloorHere = player.code !== null && shortOfFloor.has(player.code);
-                    const smallSample = (figures !== null && isBelowFixedFloor(figures.minutes, analysisMode)) || shortOfFloorHere;
-                    return (
-                    <tr
-                      key={player.id}
-                      onClick={() => openPlayer(player.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          openPlayer(player.id);
-                        }
-                      }}
-                      tabIndex={0}
-                      aria-label={`Open ${player.name}'s profile`}
-                      style={smallSample ? { color: "var(--text-muted)" } : undefined}
-                      title={
-                        shortOfFloorHere
-                          ? `Small sample — no season in the last ${HISTORIC_WINDOW_SEASONS} with ${FIXED_FLOOR_MINUTES}+ minutes for ${team.name}, so nothing counts`
-                          : smallSample && figures
-                            ? `Small sample — ${fmtDecimal(figures.minutes, 0)} min for ${team.name}, under ${minMinutes}: no colour`
-                            : undefined
-                      }
-                    >
-                      <td className="sticky-col">
-                        <div className="player-name-cell">
-                          <span className={`name ${availabilityTextClass(player.status)}`}>
-                            {player.name}
-                            <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />
-                          </span>
-                          <span className="meta">
-                            <PositionBadge position={player.position} /> {fmtPrice(player.price)}
-                          </span>
-                        </div>
-                      </td>
-                      <td style={{ backgroundColor: squadCellTint(player.id, "totalPoints") }}>{figures ? fmtDecimal(figures.totalPoints, 0) : DASH}</td>
-                      <td style={{ backgroundColor: squadCellTint(player.id, "xGI") }}>{fmtDecimal(figures?.xGI ?? null, 2)}</td>
-                      <td style={{ backgroundColor: squadCellTint(player.id, "xGC") }}>{fmtDecimal(figures?.xGC ?? null, 2)}</td>
-                      <td style={{ backgroundColor: squadCellTint(player.id, "defensiveContributions") }}>{fmtDecimal(figures?.dc ?? null, 0)}</td>
+            {historicStatus === "loading" && liveMatches.length === 0 ? (
+              <p className="page-subtitle">Loading match log…</p>
+            ) : liveMatches.length === 0 ? (
+              <p className="page-subtitle">No matches played yet this season.</p>
+            ) : (
+              <div className="table-wrap">
+                <table className="data-table compact" aria-label={`${team.name} match log`}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: "left" }}>GW</th>
+                      <th style={{ textAlign: "left" }}>Opponent</th>
+                      <th style={{ textAlign: "left" }}>Result</th>
+                      {MATCH_LOG_COLUMNS.map((c, i) => (
+                        <th key={c.key} className={i === 0 ? "column-group-divider" : undefined}>
+                          {c.header}
+                        </th>
+                      ))}
                     </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {liveMatches.map((m) => {
+                      const opponent = teams.find((t) => t.code === m.opponentCode);
+                      const result = matchResult(m);
+                      return (
+                        <tr key={m.fixture}>
+                          <td style={{ textAlign: "left", fontFamily: "var(--font-body)" }}>{m.event ?? DASH}</td>
+                          <td style={{ textAlign: "left", fontFamily: "var(--font-body)" }}>
+                            {opponent?.shortName ?? DASH} <span className="team">({m.home ? "H" : "A"})</span>
+                          </td>
+                          <td style={{ textAlign: "left", fontFamily: "var(--font-body)" }}>
+                            <span className={result.outcomeClass}>{result.label}</span>
+                          </td>
+                          {MATCH_LOG_COLUMNS.map((c, i) => (
+                            <td key={c.key} className={i === 0 ? "column-group-divider" : undefined}>
+                              {fmtDecimal(c.value(m), c.decimals)}
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot className="table-footer">
+                    <tr style={{ fontWeight: 600 }}>
+                      <td className="table-footer-label" colSpan={3}>
+                        Totals
+                      </td>
+                      {MATCH_LOG_COLUMNS.map((c, i) => {
+                        const total = matchLogTotal(liveMatches, c.value);
+                        return (
+                          <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} style={{ background: matchLogTint(c.key, "total", total, c.higherIsBetter) }}>
+                            {fmtDecimal(total, c.decimals)}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    <tr>
+                      <td className="table-footer-label" colSpan={3}>
+                        Average
+                      </td>
+                      {MATCH_LOG_COLUMNS.map((c, i) => {
+                        const total = matchLogTotal(liveMatches, c.value);
+                        const average = total === null ? null : total / liveMatches.length;
+                        return (
+                          <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} style={{ background: matchLogTint(c.key, "average", average, c.higherIsBetter) }}>
+                            {fmtDecimal(average, 2)}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
           </div>
         </div>
 

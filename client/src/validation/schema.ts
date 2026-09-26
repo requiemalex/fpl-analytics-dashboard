@@ -241,15 +241,17 @@ export const historicBulkPlayerSchema = z
   })
   .passthrough();
 
-const clubPlayerSeasonSchema = z
+const clubMatchSchema = z
   .object({
-    code: z.number(),
-    minutes: z.number(),
-    starts: z.number().nullable(),
-    totalPoints: z.number(),
+    fixture: z.number(),
+    event: z.number().nullable(),
+    opponentCode: z.number(),
+    home: z.boolean(),
+    goalsFor: z.number(),
+    goalsAgainst: z.number(),
+    fantasyPoints: z.number(),
     goals: z.number(),
     assists: z.number(),
-    cleanSheets: z.number(),
     bonus: z.number(),
     xG: z.number().nullable(),
     xA: z.number().nullable(),
@@ -284,7 +286,7 @@ export const clubSeasonSchema = z
     xGI: z.number().nullable(),
     xGC: z.number().nullable(),
     dc: z.number().nullable(),
-    players: z.array(clubPlayerSeasonSchema),
+    matches: z.array(clubMatchSchema),
   })
   .passthrough();
 

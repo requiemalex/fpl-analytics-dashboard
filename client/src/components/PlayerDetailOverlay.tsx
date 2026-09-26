@@ -20,7 +20,7 @@ import { computeSeasonTrend } from "../metrics/careerMetrics";
 import { buildHistoricPlayerProfile, nextSeasonName, HISTORIC_WINDOW_SEASONS } from "../metrics/historicAnalysis";
 import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode, modeDataKnown, type AnalysisMode, type ResolveOptions } from "../metrics/resolvePlayerStats";
 import { AnalysisModeToggle, ANALYSIS_MODE_OPTIONS } from "./AnalysisModeToggle";
-import { profileFloorNote } from "./MinutesFloorBadge";
+import { profileFloorNote, SmallSampleBadge, smallSampleNote } from "./MinutesFloorBadge";
 import { PositionBadge } from "./primitives";
 import { fmtDecimal, fmtPrice, fmtPercent, DASH } from "../utils/format";
 import type { NormalizedPlayer, PlayerSeasonHistory, PlayerGameweekHistory } from "../types/normalized";
@@ -586,13 +586,6 @@ export function PlayerDetailOverlay() {
             {modesWithData.length > 0 && ` Try ${modesWithData.join(" or ")}.`} Live Data and Points History below are unaffected.
           </div>
         )}
-        {smallSample && (
-          <div className="banner info" style={{ marginBottom: 16 }}>
-            {resolvedPlayer.minutes === null
-              ? `Small sample — no season in the last ${HISTORIC_WINDOW_SEASONS} with ${FIXED_FLOOR_MINUTES}+ minutes, so nothing counts toward his Historic Average: no figures, percentiles or colours.`
-              : `Small sample — ${fmtDecimal(resolvedPlayer.minutes, 0)} min in this mode, under the ${minutesFloor}-minute floor, so no percentiles or colours.`}
-          </div>
-        )}
 
         <div className="profile-section">
           <div className="profile-section-heading">
@@ -603,7 +596,7 @@ export function PlayerDetailOverlay() {
               <div className="card" key={group.label || "combined"}>
                 <div className="card-title">
                   Percentile Radar{group.label ? ` — ${group.label}` : ` — ${player.position}`}
-                  {smallSample && <span style={{ color: "var(--accent-value)" }}> (small sample)</span>}
+                  {smallSample && <SmallSampleBadge note={smallSampleNote(resolvedPlayer.minutes, analysisMode)} />}
                 </div>
                 <PercentileRadarChart data={group.data} smallSample={smallSample} />
               </div>

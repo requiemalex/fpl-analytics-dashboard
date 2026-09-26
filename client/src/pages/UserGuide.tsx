@@ -191,14 +191,15 @@ export function UserGuide() {
         <p className="page-subtitle">
           <strong>Minimum minutes.</strong> Where you can set a minutes filter yourself — Player Explorer's Mins column, the tiles and
           graphs you build on the Dashboard, Team Building — the app adds none of its own: raise it if one short appearance is topping
-          a per-game list. Where you can't — the player profile, Player Comparison, the Team Profile and the Dashboard's Default view —
+          a per-game list. Where you can't — the player profile, Player Comparison and the Dashboard's Default view —
           a fixed floor applies: 90 minutes in Current Season, 450 (five full games) otherwise — and in Historic Average only
           seasons of 450+ minutes count, so a player who never reached 450 in any of the last 4 seasons has no Historic Average
-          there. In the player profile, Player Comparison and the Team Profile's squad, a player under the floor is a{" "}
+          there. In the player profile and Player Comparison, a player under the floor is a{" "}
           <em>small sample</em>: he's shown, but gets no percentile and no green/red colour, and Player Comparison's summary doesn't
           count him, so a cameo can't read as the best in the league. The Default view's player tiles and graphs leave players
           under the floor out. Wherever this fixed floor is in force you'll see a small stopwatch badge — by the mode toggle, or in a
-          Dashboard tile's or graph's header — and hovering it says what the floor is there.
+          Dashboard tile's or graph's header — and hovering it says what the floor is there. The same stopwatch in amber marks a
+          player who is under it.
         </p>
         <p className="page-subtitle" style={{ margin: 0 }}>
           One thing that deliberately never changes: price is always today's real price, in every mode — in the identity line (like
@@ -331,11 +332,6 @@ export function UserGuide() {
             With several things open, Escape closes the one opened last.
           </li>
           <li>
-            Arriving from a club's "Player Rankings" link (in the Team Profile) shows all of that club's players: it clears the
-            search and any other column filters, then sets the Team column's filter to that club — shown on the column like any other
-            filter, so you can change it to another club or clear it.
-          </li>
-          <li>
             Player Explorer starts fresh each visit: columns, widths, sort and filters go back to the defaults when you leave the page.
           </li>
           <li><strong>Export CSV</strong> downloads exactly what's on screen — the same rows and visible columns, in the same order, with the same formatted values.</li>
@@ -411,7 +407,7 @@ export function UserGuide() {
           The colour scale is better/worse (not just higher/lower) — price, ownership, and xGC are inverted since a lower number is the
           better one for those three specifically. A Summary card counts how many metrics each player leads on, stated plainly as a
           mechanical count, not a weighted verdict. The table, the summary and the radars use the fixed minutes floor (see Analysis modes): a player under it is
-          marked "(small sample)", has no percentiles or better/worse colours, and isn't counted in the Summary.
+          marked with an amber stopwatch badge (hover it for his minutes), has no percentiles or better/worse colours, and isn't counted in the Summary.
         </p>
         <Try>Add two players you're deciding between, then check whether the "leads on more metrics" summary agrees with your gut — if it doesn't, that's worth investigating why.</Try>
         <p className="page-subtitle">
@@ -446,21 +442,24 @@ export function UserGuide() {
           the "Team name…" box searches by club name or short name; Reset restores the default columns and clears every filter;
           and Export CSV downloads exactly what's on screen. A team's coloured pill — here, in the Team Profile, and on the
           Dashboard's tiles — is clickable anywhere it appears in the app and opens that club's Team Profile: season totals, the
-          team radars, upcoming fixtures, and the current squad with what each player did <em>for this club</em> in the selected
-          season (a new signing shows "—" for last season), with its own "Player Rankings" link through to Player Explorer for the
-          full sortable table. The header's league position, points and results follow the Data View too, shown as Team Explorer
+          team radars, upcoming fixtures, and the club's match log. The Team Profile shows club figures only — no players — so
+          nothing on it changes when players come and go; to look at a club's players, use Player Explorer's Team column. The header's league position, points and results follow the Data View too, shown as Team Explorer
           shows them ("—" for a season the club wasn't in the Premier League). In Historic Average they're averages: position and
           points are rounded (so two clubs can both be "2nd"), and wins, draws and losses are whole numbers that always add up to the
-          games played. In Historic Average each squad row is the player's
-          average over the seasons in the window he played at least 450 minutes for this club — so a signing from last summer shows
-          his one season, next to the club's four, and a player with no such season shows "—", greyed as a small sample. The squad's green/red colouring compares each player with others in his position and uses
-          the fixed minutes floor: a player under it is greyed out with no colour (hover the row to see why). On the Defense radar,
+          games played. Club figures have no minimum-minutes floor. On the Defense radar,
           more Defensive Contributions counts as better, as it does for a player — they're FPL points — so a dominant side that
           rarely has to defend can sit low on that one axis. It's a two-colour swatch of that club's real primary and secondary kit colours where known, so same-coloured
           clubs (several Premier League sides share red or blue as a primary) are still distinguishable at a glance.
         </p>
         <p className="page-subtitle">
-          <strong>Points History</strong>, below the squad table, is the same chart as the player profile's Points History, applied
+          <strong>Live Data</strong> is the club's match log for this season, like the player profile's gameweek log: one row per
+          match, newest first — the opponent, home or away, the score, then the club's FPL points, goals, assists, xG, xA, xGI, clean
+          sheet, xGC and defensive contributions in that match, with Totals and a per-match Average underneath, coloured against
+          every other club. It always shows this season, whichever Data View is selected. FPL only records xG and the rest per player,
+          so each match's figure adds up whoever played for the club in that match.
+        </p>
+        <p className="page-subtitle">
+          <strong>Points History</strong>, below Live Data, is the same chart as the player profile's Points History, applied
           to the club: each bar is the FPL points scored for that club in that season, including this one in progress (an outlined
           bar), back to 2016/17 — hover the title for a reminder. The average line and the figure beside the line icon underneath
           use the same rolling 4-season window the player profile does — a season older than that draws grey, marked † when you
@@ -493,8 +492,8 @@ export function UserGuide() {
         </p>
         <p className="page-subtitle">
           The profile has no minutes setting, so its percentiles use the fixed minutes floor (see Analysis modes): only players with at
-          least 450 minutes (90 in Current Season) are ranked. A player under it is a <em>small sample</em> — the profile says so, his
-          radars are marked "(small sample)" and nothing is coloured. Its Historic Average counts only seasons of 450+ minutes. If a
+          least 450 minutes (90 in Current Season) are ranked. A player under it is a <em>small sample</em> — his radars carry an amber
+          stopwatch badge (hover it for his minutes and the floor) and nothing is coloured. Its Historic Average counts only seasons of 450+ minutes. If a
           player has no figures at all in the mode you've picked, the profile says so and suggests the Data Views that do have some.
         </p>
         <p className="page-subtitle">
