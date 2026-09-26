@@ -9,6 +9,10 @@ on:
   push:
     tags:
       - "v*"
+  # The club-history archive starts this on a tag it has just pushed (a
+  # tag pushed from a workflow doesn't fire the push trigger above) — see
+  # club-history-archive.yml. Only ever run on a v* tag.
+  workflow_dispatch:
 
 permissions:
   contents: write # electron-builder needs this to create the GitHub Release and upload assets
@@ -34,7 +38,12 @@ jobs:
       # package.json by hand before tagging.
       - name: Set package version from tag
         shell: bash
-        run: npm pkg set version="${GITHUB_REF#refs/tags/v}"
+        run: |
+          if [[ "$GITHUB_REF" != refs/tags/v* ]]; then
+            echo "Run this on a v* tag, not $GITHUB_REF"
+            exit 1
+          fi
+          npm pkg set version="${GITHUB_REF#refs/tags/v}"
 
       - run: npm run electron:build -- --publish always
         env:

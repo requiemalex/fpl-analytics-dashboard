@@ -10,17 +10,14 @@
  * goes means every season from 2026/27 on has an exact, official club
  * record — no community backfill needed.
  *
- * <append_only>: rows are merged into what's already archived, keyed by
- * (fixture, player code) — a fresh fetch overwrites a row (so late
- * corrections like bonus points flow in), but a row is never deleted. A
- * player who leaves the FPL game mid-season keeps every appearance already
- * archived, still counted for the club he made it for.
+ * <append_only>: rows are merged into what's already archived and never
+ * deleted (mergeArchivedRows, server/src/clubHistory/archive.ts).
  */
 import { join } from "node:path";
 import { checkLedgerAgainstScores } from "../../server/src/clubHistory/aggregate.js";
+import { mergeArchivedRows } from "../../server/src/clubHistory/archive.js";
 import { readSeasonLedger, writeSeasonLedger } from "../../server/src/clubHistory/ledgerFiles.js";
 import { fixturesFromOfficial, ledgerRowsFromOfficial, seasonNameFromBootstrap, teamsFromBootstrap } from "../../server/src/clubHistory/official.js";
-import type { LedgerRow } from "../../server/src/clubHistory/types.js";
 
 const API = "https://fantasy.premierleague.com/api";
 const ROOT = join(process.cwd(), "data", "club-history");
@@ -76,15 +73,7 @@ async function main() {
 
   const fresh = ledgerRowsFromOfficial(bootstrap, fixtures, historyByElement);
   const existing = readSeasonLedger(ROOT, season);
-  const merged = new Map<string, LedgerRow>();
-  for (const r of existing?.rows ?? []) merged.set(`${r.fixture}:${r.code}`, r);
-  let added = 0;
-  for (const r of fresh) {
-    const key = `${r.fixture}:${r.code}`;
-    if (!merged.has(key)) added += 1;
-    merged.set(key, r);
-  }
-  const rows = [...merged.values()];
+  const { rows, added } = mergeArchivedRows(existing?.rows ?? [], fresh);
 
   writeSeasonLedger(ROOT, { season, teams: teamsFromBootstrap(bootstrap), fixtures, rows });
 

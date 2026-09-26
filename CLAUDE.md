@@ -116,7 +116,8 @@ No lint script. Playwright isn't installed but works via
 ## Releasing
 Commit, then `git tag -a vX.Y.Z -m "vX.Y.Z"` and push both master and the tag
 (minor for features, patch for fixes). `.github/workflows/release.yml` builds
-and publishes; installed copies update themselves. Railway hosting is
+and publishes; installed copies update themselves. The club-history
+archive releases a patch by itself when a season completes. Railway hosting is
 retired — `Dockerfile`/`railway.json` are reference only.
 
 ## Quality

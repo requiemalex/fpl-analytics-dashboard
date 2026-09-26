@@ -307,8 +307,18 @@ too.
   part-season sum. Historic Average then averages those stats over the
   window seasons that have them.
 - **End of season:** once the last fixture finishes, the next archive run
-  moves the season into `completedSeasons.generated.ts`. Cut a release
-  before FPL resets the API for the new season (usually mid-July).
+  moves the season into `completedSeasons.generated.ts`, then tags the next
+  patch version and starts `release.yml` on it, so installed apps get the
+  season well before FPL resets the API (usually mid-July). A later FPL
+  correction to that season, before the reset, releases again the same way.
+  The archive's `release_tag` input runs that release step by hand.
+- **Proven behaviours** (`clubHistory/playerRemoval.test.ts`): a mid-season
+  mover's matches count for the club he played each for; a player FPL stops
+  listing keeps every archived appearance (`mergeArchivedRows`), and
+  re-listing him replaces his rows without duplicating them. The app's live
+  season is rebuilt from FPL's current list, so it would miss a dropped
+  player until he's re-listed — FPL hasn't dropped a player mid-season in
+  2019/20–2025/26; it marks leavers unavailable until the summer reset.
 
 ---
 
