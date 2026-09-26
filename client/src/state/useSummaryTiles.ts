@@ -56,7 +56,7 @@ export interface SummaryTileConfig {
   direction: TileDirection;
   /** This tile's own analysis mode — set in the Add/Edit Tile dialog, independent of every other tile's. See Dashboard.tsx / README's Dashboard implementation notes. */
   dataView: AnalysisMode;
-  /** Custom title, set in the Add/Edit dialog — null/"" falls back to the auto-generated "Top 5 — <metric>" title. */
+  /** Custom title, set in the Add/Edit dialog — null/"" falls back to the metric's name. */
   name: string | null;
   /** This tile's own Search/Position/Team/Min Minutes criteria, set in the Add/Edit dialog — independent of every other tile's. Always null for scope "team" (a team tile aggregates a club's whole squad regardless of any player-level filter, same as before this existed). Ignored when `playerIds` is set (see below). */
   criteria: GlobalScoutingFilters | null;

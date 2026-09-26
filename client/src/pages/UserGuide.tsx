@@ -241,7 +241,7 @@ export function UserGuide() {
             (e.g. 450 for five full games) to rank only players with a real sample. The same goes for graphs. Team Tiles show club figures for the season(s) their Data View picks — league standing included (see
             below) — and have no criteria of their own. Every tile needs a name, set in the same dialog.
           </li>
-          <li>Each row's bar shows its value's size relative to the other rows in that tile: every bar starts at the same point and the top row's is full length, so how far a bar falls short shows how far behind that row is. Green/red by above/below-expected for the three "vs xG/xA/xGI" tiles, one flat colour for everything else.</li>
+          <li>A player tile's row reads club pill, position, name, bar, value; a Default tile or bar graph is titled by its metric alone. Each row's bar shows its value's size relative to the other rows in that tile: every bar starts at the same point and the top row's is full length, so how far a bar falls short shows how far behind that row is. Green/red by above/below-expected for the three "vs xG/xA/xGI" tiles, one flat colour for everything else.</li>
         </ul>
         <p className="page-subtitle">
           <strong>Graphs</strong>, below the tile grid (past the divider), work the same way tiles do — built via{" "}
@@ -445,7 +445,7 @@ export function UserGuide() {
           defensive contributions — all off by default); headers sort, drag to reorder and resize, and each has its own ▾ filter;
           the "Team name…" box searches by club name or short name; Reset restores the default columns and clears every filter;
           and Export CSV downloads exactly what's on screen. A team's coloured pill — here, in the Team Profile, and on the
-          Dashboard's team tiles — is clickable anywhere it appears in the app and opens that club's Team Profile: season totals, the
+          Dashboard's tiles — is clickable anywhere it appears in the app and opens that club's Team Profile: season totals, the
           team radars, upcoming fixtures, and the current squad with what each player did <em>for this club</em> in the selected
           season (a new signing shows "—" for last season), with its own "Player Rankings" link through to Player Explorer for the
           full sortable table. The header's league position, points and results follow the Data View too, shown as Team Explorer

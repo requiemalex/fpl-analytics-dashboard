@@ -110,6 +110,13 @@ button {
   outline: 2px solid var(--accent-focus);
   outline-offset: 2px;
 }
+/* ...except on an element only ever focused from code, never tabbed to
+   (tabindex="-1": the profile sheets useDialogFocus moves focus into when
+   they open). The browser treats that as keyboard focus and would ring the
+   whole sheet until the next click; its buttons and links still show theirs. */
+[tabindex="-1"]:focus-visible {
+  outline: none;
+}
 
 @media (prefers-reduced-motion: reduce) {
   * {

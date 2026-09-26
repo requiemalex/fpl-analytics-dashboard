@@ -387,7 +387,8 @@ obvious from the UI.
 - A bar graph ranks by its own `direction` (Order): new graphs and graphs
   saved before it existed get the metric's natural order
   (`defaultGraphDirection` — lowest first when `higherIsBetter` is false, so
-  "Top 15 — League Position" is 1–15).
+  a League Position graph shows 1–15). A graph without a custom name is
+  titled by its metric (bar) or "<X> vs <Y>" (scatter); a tile by its metric.
 - Saved views (`useSavedDashboardViews`) hold one scope's tiles and graphs.
   The selected non-Default view live-syncs every change. **Default** (one
   per scope) is immutable: no add, edit, remove or reorder, and it is

@@ -1,5 +1,5 @@
 import React from "react";
-import { PositionBadge, AvailabilityFlag, availabilityTextClass } from "./primitives";
+import { PositionBadge, TeamBadge, AvailabilityFlag, availabilityTextClass } from "./primitives";
 import { DataViewBadge } from "./DataViewBadge";
 import { MinutesFloorBadge } from "./MinutesFloorBadge";
 import { CardEditRemoveButtons } from "./IconToolbar";
@@ -90,10 +90,10 @@ export function TopList({
           {rows.map(({ player, value }) => (
             <div className="stat-row" key={player.id} onClick={() => onSelect?.(player.id)} style={{ cursor: onSelect ? "pointer" : "default" }}>
               <span className="stat-row-name">
+                <TeamBadge teamId={player.teamId} shortName={player.teamShortName} />
                 <PositionBadge position={player.position} />
                 <span className={availabilityTextClass(player.status)}>{player.name}</span>
                 <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />
-                <span className="team">{player.teamShortName}</span>
               </span>
               <span className="stat-row-bar-track">
                 <span

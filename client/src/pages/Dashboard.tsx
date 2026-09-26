@@ -117,23 +117,17 @@ export function topN<T extends { value: number | null }>(rowsIn: T[], n: number,
   return eligible.slice(0, n);
 }
 
-function tileTitle(metricLabel: string, direction: TileDirection): string {
-  return `${direction === "desc" ? "Top" : "Bottom"} 5 — ${metricLabel}`;
-}
-
-/** A tile's custom name (set in the Add/Edit dialog) if it has one, else the auto-generated "Top/Bottom 5 — <metric>" title. */
+/** A tile's custom name (set in the Add/Edit dialog) if it has one, else just its metric's name. */
 function displayTileTitle(tile: SummaryTileConfig, metricLabel: string): string {
-  return tile.name && tile.name.trim() ? tile.name : tileTitle(metricLabel, tile.direction);
+  return tile.name && tile.name.trim() ? tile.name : metricLabel;
 }
 
-/** A bar graph in its metric's natural order is its "Top 15" (League Position 1–15, lowest Goals Against…); the other way round is its "Bottom 15". */
+/** A scatter graph is "<X> vs <Y>"; a bar graph is just its metric's name. */
 function graphTitle(graph: DashboardGraphConfig, xLabel: string, yLabel: string): string {
-  if (graph.chartType === "scatter") return `${xLabel} vs ${yLabel}`;
-  const natural = graph.direction === defaultGraphDirection(graph.scope, graph.yMetricKey);
-  return `${natural ? "Top" : "Bottom"} 15 — ${yLabel}`;
+  return graph.chartType === "scatter" ? `${xLabel} vs ${yLabel}` : yLabel;
 }
 
-/** A graph's custom name (set in the Add/Edit dialog) if it has one, else the auto-generated "<X> vs <Y>" / "Top 15 — <Y>" title. */
+/** A graph's custom name (set in the Add/Edit dialog) if it has one, else the auto-generated "<X> vs <Y>" / "<Y>" title. */
 function displayGraphTitle(graph: DashboardGraphConfig, xLabel: string, yLabel: string): string {
   return graph.name && graph.name.trim() ? graph.name : graphTitle(graph, xLabel, yLabel);
 }

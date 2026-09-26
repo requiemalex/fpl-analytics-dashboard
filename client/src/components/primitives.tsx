@@ -19,11 +19,7 @@ export function PositionBadge({ position }: { position: Position }) {
  * small fixed set the way positions are. The two-colour swatch (primary
  * on top, secondary below) exists because several clubs share close to
  * the same primary colour (e.g. Arsenal/Forest/Brentford are all red) —
- * one flat colour made those hard to tell apart at a glance. Used only
- * where a team is a row's own primary subject (Teams, Team Detail, the
- * Dashboard's team tiles) — the small team abbreviation shown next to a
- * player's name elsewhere stays plain text, deliberately subdued relative
- * to the player.
+ * one flat colour made those hard to tell apart at a glance.
  *
  * Clicking it opens that club's team profile overlay (see
  * TeamDetailOverlay.tsx) — the same `?teamProfile=` query-param pattern

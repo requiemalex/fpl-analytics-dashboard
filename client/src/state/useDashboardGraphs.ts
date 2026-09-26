@@ -53,7 +53,7 @@ export type DashboardGraphType = "scatter" | "bar";
 export interface DashboardGraphConfig {
   id: string;
   scope: SummaryTileScope;
-  /** Custom title, set in the Add/Edit dialog — null/"" falls back to an auto-generated "<X> vs <Y>" / "Top 15 — <Y>" title (see Dashboard.tsx). */
+  /** Custom title, set in the Add/Edit dialog — null/"" falls back to an auto-generated "<X> vs <Y>" / "<Y>" title (see Dashboard.tsx). */
   name: string | null;
   chartType: DashboardGraphType;
   /** X axis metric key (into PLAYER_COLUMNS/TEAM_COLUMNS depending on `scope`) — unused/ignored for a "bar" graph, which only ranks by yMetricKey. */
