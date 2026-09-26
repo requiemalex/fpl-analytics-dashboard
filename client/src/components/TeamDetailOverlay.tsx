@@ -356,6 +356,9 @@ export function TeamDetailOverlay() {
         <hr className="profile-divider" />
 
         <div className="profile-section">
+          <div className="profile-section-heading">
+            <h3>Squad</h3>
+          </div>
           <div className="card">
             <div className="table-wrap">
               <table className="data-table">
@@ -420,11 +423,11 @@ export function TeamDetailOverlay() {
         <hr className="profile-divider" />
 
         <div className="profile-section">
+          <PointsHistoryHeader
+            trend={seasonHistory.length > 0 ? seasonTrend : null}
+            titleHint={`Each bar is the FPL points scored for ${team.name} that season by whoever was playing for the club then — not the current squad. Seasons ${team.name} weren't in the Premier League don't appear.`}
+          />
           <div className="card">
-            <PointsHistoryHeader
-              trend={seasonHistory.length > 0 ? seasonTrend : null}
-              titleHint={`Each bar is the FPL points scored for ${team.name} that season by whoever was playing for the club then — not the current squad. Seasons ${team.name} weren't in the Premier League don't appear.`}
-            />
             {historicStatus === "loading" && seasonHistory.length === 0 ? (
               <p className="page-subtitle">Loading club history…</p>
             ) : seasonHistory.length === 0 ? (

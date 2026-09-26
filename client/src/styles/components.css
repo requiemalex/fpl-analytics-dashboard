@@ -1494,24 +1494,22 @@ select:focus {
 
 /* Points History (player and team profiles, components/playerProfile/
    PointsHistory.tsx) — bars with their own figures, no axis or gridlines;
-   a level line marks the average across the counted seasons. */
+   a level line marks the average across the counted seasons. Type follows
+   the rest of the app: figures in the mono face (as in tables and stat
+   tiles), season labels at the other charts' 11px axis-tick size. */
 .points-history-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 18px;
-}
-.points-history-title {
-  font-size: 15px;
-  color: var(--text-primary);
 }
 .points-trend {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  font-family: var(--font-mono);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   cursor: default;
 }
@@ -1540,8 +1538,9 @@ select:focus {
   justify-content: flex-end;
 }
 .points-history-value {
-  font-size: 11.5px;
-  color: color-mix(in srgb, var(--text-primary) 45%, var(--text-secondary));
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   margin-bottom: 5px;
@@ -1551,7 +1550,7 @@ select:focus {
 }
 .points-history-value.is-latest {
   color: var(--text-primary);
-  font-weight: 700;
+  font-weight: 600;
 }
 .points-history-bar {
   display: block;
@@ -1587,14 +1586,12 @@ select:focus {
   flex: 1 1 0;
   min-width: 0;
   text-align: center;
-  font-size: 11.5px;
-  font-weight: 500;
-  color: color-mix(in srgb, var(--text-primary) 60%, var(--text-secondary));
+  font-size: 11px;
+  color: var(--text-secondary);
   white-space: nowrap;
 }
 .points-history-axis span.is-muted {
   color: var(--text-muted);
-  font-weight: 400;
 }
 .points-history-stats {
   display: flex;
@@ -1607,8 +1604,9 @@ select:focus {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13.5px;
-  font-weight: 700;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
   cursor: default;

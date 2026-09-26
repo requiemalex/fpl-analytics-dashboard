@@ -79,7 +79,8 @@ export function AssistsIcon() {
 }
 
 /**
- * The card's title, with the latest season-on-season change top right as an
+ * The section heading above the card — the same heading every profile
+ * section uses — with the latest season-on-season change at the right as an
  * icon and a signed figure; hovering it says which two seasons it compares.
  * `titleHint` is optional hover text on the title itself.
  */
@@ -87,10 +88,8 @@ export function PointsHistoryHeader({ trend, titleHint }: { trend: SeasonTrend |
   const showTrend = trend !== null && trend.direction !== "unknown";
   const trendText = showTrend ? `${fmtSigned(trend.pointsDelta, 0)} pts, ${trend.previousSeason} → ${trend.latestSeason}` : "";
   return (
-    <div className="points-history-head">
-      <h4 className="points-history-title" title={titleHint}>
-        Points History
-      </h4>
+    <div className="profile-section-heading points-history-head">
+      <h3 title={titleHint}>Points History</h3>
       {showTrend && (
         <span className={`points-trend is-${trend.direction}`} title={trendText} aria-label={trendText}>
           {trend.direction === "up" ? <TrendUpIcon /> : trend.direction === "down" ? <TrendDownIcon /> : <TrendFlatIcon />}

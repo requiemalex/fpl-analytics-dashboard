@@ -712,9 +712,11 @@ export function PlayerDetailOverlay() {
                 return <PlayingTimeIcon averageMinutes={averageMinutes} matches={matches} />;
               })()}
           </div>
+        </div>
 
-        <div className="card" style={{ marginTop: 16 }}>
+        <div className="profile-section">
           <PointsHistoryHeader trend={history.status === "ready" ? computeSeasonTrend(history.seasonHistory) : null} />
+          <div className="card">
           {history.status === "loading" && <p className="page-subtitle">Loading points history…</p>}
           {history.status === "error" && (
             <p className="page-subtitle">
