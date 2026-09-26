@@ -196,8 +196,9 @@ export function UserGuide() {
           seasons of 450+ minutes count, so a player who never reached 450 in any of the last 4 seasons has no Historic Average
           there. In the player profile, Player Comparison and the Team Profile's squad, a player under the floor is a{" "}
           <em>small sample</em>: he's shown, but gets no percentile and no green/red colour, and Player Comparison's summary doesn't
-          count him, so a cameo can't read as the best in the league. The Default view's per-game tiles and graphs leave players
-          under the floor out.
+          count him, so a cameo can't read as the best in the league. The Default view's player tiles and graphs leave players
+          under the floor out. Wherever this fixed floor is in force you'll see a small stopwatch badge — by the mode toggle, or in a
+          Dashboard tile's or graph's header — and hovering it says what the floor is there.
         </p>
         <p className="page-subtitle" style={{ margin: 0 }}>
           One thing that deliberately never changes: price is always today's real price, in every mode — in the identity line (like
@@ -240,7 +241,7 @@ export function UserGuide() {
             (e.g. 450 for five full games) to rank only players with a real sample. The same goes for graphs. Team Tiles show club figures for the season(s) their Data View picks — league standing included (see
             below) — and have no criteria of their own. Every tile needs a name, set in the same dialog.
           </li>
-          <li>Each row's bar shows its value's size relative to the other rows in that tile — green/red by above/below-expected for the three "vs xG/xA/xGI" tiles, one flat colour for everything else.</li>
+          <li>Each row's bar shows its value's size relative to the other rows in that tile: every bar starts at the same point and the top row's is full length, so how far a bar falls short shows how far behind that row is. Green/red by above/below-expected for the three "vs xG/xA/xGI" tiles, one flat colour for everything else.</li>
         </ul>
         <p className="page-subtitle">
           <strong>Graphs</strong>, below the tile grid (past the divider), work the same way tiles do — built via{" "}
@@ -259,8 +260,9 @@ export function UserGuide() {
           <strong>xG vs Goals</strong> and <strong>xA vs Assists</strong> (both with the reference line on, showing finishing/creativity
           over- or under-performance) and <strong>Price vs Points</strong> (no reference line — price and points aren't on a
           comparable scale); for Teams, <strong>Team xG vs Goals</strong> and <strong>Team xGC vs Goals Against</strong>, the same
-          idea applied to each club. The default Player graphs only include players with at least 900 minutes in the
-          graph's Data View — without that floor, hundreds of fringe players pile up at zero and hide everyone else. Graphs without
+          idea applied to each club. Like every Default player tile, the default Player graphs only include players at or above the
+          fixed minutes floor for the graph's Data View (see Minimum minutes above) — without it, hundreds of fringe players pile up
+          at zero and hide everyone else. Graphs without
           the reference line fit their axes to the data's own range (so Price vs Points starts near £4m, not £0).
         </p>
         <p className="page-subtitle">

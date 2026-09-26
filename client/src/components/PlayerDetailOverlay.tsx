@@ -20,6 +20,7 @@ import { computeSeasonTrend } from "../metrics/careerMetrics";
 import { buildHistoricPlayerProfile, nextSeasonName, HISTORIC_WINDOW_SEASONS } from "../metrics/historicAnalysis";
 import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode, modeDataKnown, type AnalysisMode, type ResolveOptions } from "../metrics/resolvePlayerStats";
 import { AnalysisModeToggle, ANALYSIS_MODE_OPTIONS } from "./AnalysisModeToggle";
+import { profileFloorNote } from "./MinutesFloorBadge";
 import { PositionBadge } from "./primitives";
 import { fmtDecimal, fmtPrice, fmtPercent, DASH } from "../utils/format";
 import type { NormalizedPlayer, PlayerSeasonHistory, PlayerGameweekHistory } from "../types/normalized";
@@ -514,11 +515,11 @@ export function PlayerDetailOverlay() {
               </tr>
             ))}
           </tbody>
-          <tfoot>
+          <tfoot className="table-footer">
             <tr style={{ fontWeight: 600 }}>
               {columns.map((c, i) =>
                 i === 0 ? (
-                  <td key={c.key} style={{ textAlign: "center", fontFamily: "var(--font-body)" }} colSpan={identityColumns.length}>
+                  <td key={c.key} className="table-footer-label" colSpan={identityColumns.length}>
                     Totals
                   </td>
                 ) : i < identityColumns.length ? null : (
@@ -531,7 +532,7 @@ export function PlayerDetailOverlay() {
             <tr>
               {columns.map((c, i) =>
                 i === 0 ? (
-                  <td key={c.key} style={{ textAlign: "center", fontFamily: "var(--font-body)" }} colSpan={identityColumns.length}>
+                  <td key={c.key} className="table-footer-label" colSpan={identityColumns.length}>
                     Average
                   </td>
                 ) : i < identityColumns.length ? null : (
@@ -571,7 +572,7 @@ export function PlayerDetailOverlay() {
 
         {player.status !== "a" && player.news && <div className="banner stale">{player.news}</div>}
 
-        <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
+        <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} floorNote={profileFloorNote(analysisMode)} />
 
         {skippedByServer && (
           <div className="banner info" style={{ marginBottom: 16 }}>

@@ -3443,3 +3443,18 @@ tiles/graphs only:
   releases back in v1.70.0. The Live Data Totals/Average centring and the
   Team Explorer "Player Rankings" removal from those releases were kept.
 - **Last commit with it:** `bda8c4c`.
+
+### Default Dashboard's per-game-only floor and 900-minute graph floor (replaced 2026-09-26)
+- **What it did:** the packaged Default view applied the fixed minutes
+  floor only to tiles and graphs showing a per-game rate
+  (`applyRateStatFloor` in `pages/Dashboard.tsx`, keyed off
+  `PlayerTileMetric.ratePerMinutes` / `isRatePerMinutesColumnKey` in
+  `components/summaryTileMetrics.ts`), so its totals tiles had no floor. Its
+  three player graphs instead carried their own 900-minute Min Minutes
+  (`DEFAULT_GRAPH_MIN_MINUTES` in `state/useDashboardGraphs.ts`).
+- **Why it went:** the owner wants every section where the user can't set
+  minimum minutes to follow the one fixed-floor rule. The Default view now
+  applies the fixed floor (90 Current Season, 450 otherwise) to every
+  player tile and graph (`applyDefaultViewFloor`), and marks each with the
+  minutes-floor badge.
+- **Last commit with it:** `89f5852`.

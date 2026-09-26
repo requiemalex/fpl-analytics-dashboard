@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { applyRateStatFloor, gameweekDisplay, playersForDashboardItem, poolForDashboardItem, LIVE_RATE_STAT_MIN_MINUTES, RATE_STAT_MIN_MINUTES } from "./Dashboard";
+import { applyDefaultViewFloor, dashboardItemFloorNote, gameweekDisplay, playersForDashboardItem, poolForDashboardItem, LIVE_DEFAULT_VIEW_MIN_MINUTES, DEFAULT_VIEW_MIN_MINUTES } from "./Dashboard";
+import { DEFAULT_DASHBOARD_GRAPHS } from "../state/useDashboardGraphs";
 import { DEFAULT_SUMMARY_TILES } from "../state/useSummaryTiles";
 import { isDefaultViewSelected } from "../state/useSavedDashboardViews";
 import { DEFAULT_FILTERS } from "../state/scoutingFilters";
@@ -29,19 +30,19 @@ describe("rankBars — a bar graph's Order", () => {
   });
 });
 
-describe("applyRateStatFloor", () => {
+describe("applyDefaultViewFloor", () => {
   const p = (id: number, minutes: number | null) => ({ id, minutes }) as NormalizedPlayer;
   const pool = [p(1, 1), p(2, 89), p(3, 90), p(4, 449), p(5, 450), p(6, null)];
 
   it("needs one full match in Current Season", () => {
-    expect(LIVE_RATE_STAT_MIN_MINUTES).toBe(90);
-    expect(applyRateStatFloor(pool, "live").map((x) => x.id)).toEqual([3, 4, 5]);
+    expect(LIVE_DEFAULT_VIEW_MIN_MINUTES).toBe(90);
+    expect(applyDefaultViewFloor(pool, "live").map((x) => x.id)).toEqual([3, 4, 5]);
   });
 
   it("needs five full matches in the other views", () => {
-    expect(RATE_STAT_MIN_MINUTES).toBe(450);
-    expect(applyRateStatFloor(pool, "lastSeason").map((x) => x.id)).toEqual([5]);
-    expect(applyRateStatFloor(pool, "historicAverage").map((x) => x.id)).toEqual([5]);
+    expect(DEFAULT_VIEW_MIN_MINUTES).toBe(450);
+    expect(applyDefaultViewFloor(pool, "lastSeason").map((x) => x.id)).toEqual([5]);
+    expect(applyDefaultViewFloor(pool, "historicAverage").map((x) => x.id)).toEqual([5]);
   });
 });
 
@@ -87,31 +88,30 @@ describe("gameweekDisplay — the Gameweek Status card", () => {
   });
 });
 
-describe("playersForDashboardItem — the per-game minutes floor is for the Default view only (audit 2026-09-25 M1)", () => {
+describe("playersForDashboardItem — the fixed minutes floor is for the Default view only, on every player tile and graph (audit 2026-09-25 M1)", () => {
   // Reed-style one-cameo player next to a regular.
   const cameo = makePlayer({ id: 1, position: "MID", minutes: 89 });
   const regular = makePlayer({ id: 2, position: "MID", minutes: 2700 });
   const pool = [cameo, regular];
   const item = { dataView: "lastSeason" as const, criteria: DEFAULT_FILTERS, playerIds: null };
 
-  it("a tile or graph the user built ranks everyone its own criteria let through, even on a per-game metric", () => {
-    const ids = playersForDashboardItem(item, pool, { showsRate: true, defaultViewShown: false }).map((p) => p.id);
+  it("a tile or graph the user built ranks everyone its own criteria let through", () => {
+    const ids = playersForDashboardItem(item, pool, { defaultViewShown: false }).map((p) => p.id);
     expect(ids).toEqual([1, 2]);
   });
 
   it("its own Min Minutes is how the user sets a floor", () => {
     const withMin = { ...item, criteria: { ...DEFAULT_FILTERS, minMinutes: 450 } };
-    expect(playersForDashboardItem(withMin, pool, { showsRate: true, defaultViewShown: false }).map((p) => p.id)).toEqual([2]);
+    expect(playersForDashboardItem(withMin, pool, { defaultViewShown: false }).map((p) => p.id)).toEqual([2]);
   });
 
-  it("a packaged default showing a per-game metric still gets the floor", () => {
-    expect(playersForDashboardItem(item, pool, { showsRate: true, defaultViewShown: true }).map((p) => p.id)).toEqual([2]);
-    expect(playersForDashboardItem(item, pool, { showsRate: false, defaultViewShown: true }).map((p) => p.id)).toEqual([1, 2]);
+  it("the Default view floors every player tile and graph, totals as well as per-game rates", () => {
+    expect(playersForDashboardItem(item, pool, { defaultViewShown: true }).map((p) => p.id)).toEqual([2]);
   });
 
   it("picked players are never floored", () => {
     const picked = { ...item, playerIds: [1] };
-    expect(playersForDashboardItem(picked, pool, { showsRate: true, defaultViewShown: true }).map((p) => p.id)).toEqual([1]);
+    expect(playersForDashboardItem(picked, pool, { defaultViewShown: true }).map((p) => p.id)).toEqual([1]);
   });
 
   it("R2: 'Default view' means the Default view is selected — not a tile carrying a packaged id, as views saved before v1.35.0 can", () => {
@@ -141,5 +141,30 @@ describe("poolForDashboardItem — Historic Average from fixed-floor seasons in 
     expect(poolForDashboardItem("historicAverage", false, pools).map((x) => x.id)).toEqual([3]);
     expect(poolForDashboardItem("lastSeason", true, pools).map((x) => x.id)).toEqual([2]);
     expect(poolForDashboardItem("live", true, pools).map((x) => x.id)).toEqual([1]);
+  });
+});
+
+describe("dashboardItemFloorNote — the minutes-floor badge shows exactly where the Default view applies a floor", () => {
+  const item = { dataView: "lastSeason" as const, playerIds: null };
+
+  it("every player tile or graph in the Default view gets the badge, naming the floor for its Data View", () => {
+    expect(dashboardItemFloorNote(item, { defaultViewShown: true })).toContain(`${DEFAULT_VIEW_MIN_MINUTES}+ minutes`);
+    expect(dashboardItemFloorNote({ ...item, dataView: "live" }, { defaultViewShown: true })).toContain(`${LIVE_DEFAULT_VIEW_MIN_MINUTES}+ minutes`);
+  });
+
+  it("Historic Average in the Default view also says only 450+ minute seasons count", () => {
+    expect(dashboardItemFloorNote({ ...item, dataView: "historicAverage" }, { defaultViewShown: true })).toContain("Historic Average counts only seasons");
+  });
+
+  it("no badge where no floor applies: any view the user builds, and picked players outside Historic Average", () => {
+    expect(dashboardItemFloorNote(item, { defaultViewShown: false })).toBeNull();
+    expect(dashboardItemFloorNote({ ...item, dataView: "historicAverage" }, { defaultViewShown: false })).toBeNull();
+    expect(dashboardItemFloorNote({ ...item, playerIds: [1] }, { defaultViewShown: true })).toBeNull();
+  });
+
+  it("every packaged Default player tile and graph shows it", () => {
+    for (const d of [...DEFAULT_SUMMARY_TILES, ...DEFAULT_DASHBOARD_GRAPHS].filter((t) => t.scope === "player")) {
+      expect(dashboardItemFloorNote(d, { defaultViewShown: true }), d.id).not.toBeNull();
+    }
   });
 });

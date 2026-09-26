@@ -1,6 +1,7 @@
 import React from "react";
 import { useAppState } from "../state/AppStateContext";
 import { AnalysisModeIcon } from "./AnalysisModeIcon";
+import { MinutesFloorBadge } from "./MinutesFloorBadge";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 
 /** Exported so anything else needing these exact labels (Dashboard's per-tile Data View select, DataViewBadge's tooltips) stays in sync with what this toggle itself shows, rather than re-typing the strings. */
@@ -20,7 +21,16 @@ const OPTIONS = ANALYSIS_MODE_OPTIONS;
  * bulk historic dataset is fetched once and reused by every page,
  * unlike which MODE a given page currently has selected.
  */
-export function AnalysisModeToggle({ mode, onChange }: { mode: AnalysisMode; onChange: (mode: AnalysisMode) => void }) {
+export function AnalysisModeToggle({
+  mode,
+  onChange,
+  floorNote,
+}: {
+  mode: AnalysisMode;
+  onChange: (mode: AnalysisMode) => void;
+  /** Set on a section where the fixed minutes floor applies (<fixed_minutes_floor>) — shows its badge at the right of the toggle, with this as its hover text. */
+  floorNote?: string;
+}) {
   const { historicStatus, historicErrorMessage, historicSkippedPlayerIds, refreshHistoricData, historicRefreshing } = useAppState();
 
   return (
@@ -54,6 +64,11 @@ export function AnalysisModeToggle({ mode, onChange }: { mode: AnalysisMode; onC
             <button type="button" className="chip" style={{ marginLeft: 8 }} onClick={refreshHistoricData} disabled={historicRefreshing}>
               {historicRefreshing ? "Retrying…" : "Retry"}
             </button>
+          </span>
+        )}
+        {floorNote && (
+          <span style={{ marginLeft: "auto" }}>
+            <MinutesFloorBadge note={floorNote} />
           </span>
         )}
       </div>

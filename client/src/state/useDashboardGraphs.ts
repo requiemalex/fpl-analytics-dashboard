@@ -30,19 +30,15 @@ const STORAGE_KEY = "fpl-dashboard:dashboard:graphs:v1";
  * xGC, Price, etc.) — the same default a new graph gets — via
  * normalizeDashboardGraph. An unrecognised `dataView` also falls back to
  * the default instead of crashing the page.
+ *
+ * Bumped 5 -> 6 when the player defaults dropped their own 900-minute
+ * floor: the Default view now applies the app-wide fixed floor to every
+ * player tile and graph (applyDefaultViewFloor, Dashboard.tsx), so the
+ * defaults' criteria are plain DEFAULT_FILTERS. migrate() swaps a stored
+ * default for the current packaged one.
  */
-const STORAGE_VERSION = 5;
+const STORAGE_VERSION = 6;
 const DEFAULT_DATA_VIEW: AnalysisMode = "lastSeason";
-
-/**
- * Minimum minutes for the packaged player default graphs — about ten full
- * games. With no floor, every player in the game is plotted (~670), and
- * the hundreds with a handful of minutes pile up at 0,0 and hide the
- * players worth reading. Only the defaults carry this; a user-built graph
- * keeps whatever Min Minutes it was created with.
- */
-const DEFAULT_GRAPH_MIN_MINUTES = 900;
-const DEFAULT_GRAPH_PLAYER_CRITERIA: GlobalScoutingFilters = { ...DEFAULT_FILTERS, minMinutes: DEFAULT_GRAPH_MIN_MINUTES };
 
 /**
  * A graph takes a lot more screen space than a tile to be useful (see the
@@ -103,9 +99,11 @@ export function normalizeDashboardGraph(g: Partial<DashboardGraphConfig>): Dashb
  * scope, ported over from the old Underlying Numbers page's most broadly
  * useful "expected vs actual" and "value" charts (never its Thematic
  * Analysis line charts, which don't fit this per-graph, single-analysis-
- * mode model). Player defaults use DEFAULT_FILTERS plus a
- * DEFAULT_GRAPH_MIN_MINUTES floor; team defaults have no criteria at all,
- * same as every other team tile/graph.
+ * mode model). Player defaults use DEFAULT_FILTERS: the Default view's
+ * fixed minutes floor (applyDefaultViewFloor, Dashboard.tsx) keeps the
+ * hundreds of players with a handful of minutes from piling up at 0,0.
+ * Team defaults have no criteria at all, same as every other team
+ * tile/graph.
  */
 export const DEFAULT_DASHBOARD_GRAPHS: DashboardGraphConfig[] = [
   {
@@ -118,7 +116,7 @@ export const DEFAULT_DASHBOARD_GRAPHS: DashboardGraphConfig[] = [
     yMetricKey: "goals",
     dataView: DEFAULT_DATA_VIEW,
     showReferenceLine: true,
-    criteria: DEFAULT_GRAPH_PLAYER_CRITERIA,
+    criteria: DEFAULT_FILTERS,
     playerIds: null,
     teamIds: null,
   },
@@ -132,7 +130,7 @@ export const DEFAULT_DASHBOARD_GRAPHS: DashboardGraphConfig[] = [
     yMetricKey: "assists",
     dataView: DEFAULT_DATA_VIEW,
     showReferenceLine: true,
-    criteria: DEFAULT_GRAPH_PLAYER_CRITERIA,
+    criteria: DEFAULT_FILTERS,
     playerIds: null,
     teamIds: null,
   },
@@ -146,7 +144,7 @@ export const DEFAULT_DASHBOARD_GRAPHS: DashboardGraphConfig[] = [
     yMetricKey: "totalPoints",
     dataView: DEFAULT_DATA_VIEW,
     showReferenceLine: false,
-    criteria: DEFAULT_GRAPH_PLAYER_CRITERIA,
+    criteria: DEFAULT_FILTERS,
     playerIds: null,
     teamIds: null,
   },

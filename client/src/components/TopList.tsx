@@ -1,6 +1,7 @@
 import React from "react";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass } from "./primitives";
 import { DataViewBadge } from "./DataViewBadge";
+import { MinutesFloorBadge } from "./MinutesFloorBadge";
 import { CardEditRemoveButtons } from "./IconToolbar";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import type { NormalizedPlayer } from "../types/normalized";
@@ -32,6 +33,7 @@ export function TopList({
   onDrop,
   dataView,
   signed,
+  floorNote,
 }: {
   title: string;
   rows: TopListRow[];
@@ -52,6 +54,8 @@ export function TopList({
   dataView?: AnalysisMode;
   /** True for a +/- comparison metric (Goals vs xG, etc.) — colours each row's bar green/red by its own sign instead of one accent colour for the whole tile. */
   signed?: boolean;
+  /** Dashboard-only: hover text for the minutes-floor badge when the fixed floor applies to this tile (dashboardItemFloorNote); no badge when absent. */
+  floorNote?: string | null;
 }) {
   const maxAbs = Math.max(0, ...rows.map((r) => Math.abs(r.value ?? 0)));
 
@@ -72,6 +76,7 @@ export function TopList({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div className="card-title">{title}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          {floorNote && <MinutesFloorBadge note={floorNote} />}
           {dataView && <DataViewBadge mode={dataView} />}
           <CardEditRemoveButtons noun="tile" onEdit={onEdit} onRemove={onRemove} />
         </div>
@@ -81,26 +86,28 @@ export function TopList({
           {emptyMessage}
         </p>
       ) : (
-        rows.map(({ player, value }) => (
-          <div className="stat-row" key={player.id} onClick={() => onSelect?.(player.id)} style={{ cursor: onSelect ? "pointer" : "default" }}>
-            <span className="stat-row-name">
-              <PositionBadge position={player.position} />
-              <span className={availabilityTextClass(player.status)}>{player.name}</span>
-              <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />
-              <span className="team">{player.teamShortName}</span>
-            </span>
-            <span className="stat-row-bar-track">
-              <span
-                className="stat-row-bar-fill"
-                style={{
-                  width: `${barWidthPercent(value, maxAbs)}%`,
-                  background: signed ? (value !== null && value < 0 ? "var(--accent-negative)" : "var(--accent-positive)") : "var(--accent-focus)",
-                }}
-              />
-            </span>
-            <span className="stat-row-value">{format(value)}</span>
-          </div>
-        ))
+        <div className="stat-list">
+          {rows.map(({ player, value }) => (
+            <div className="stat-row" key={player.id} onClick={() => onSelect?.(player.id)} style={{ cursor: onSelect ? "pointer" : "default" }}>
+              <span className="stat-row-name">
+                <PositionBadge position={player.position} />
+                <span className={availabilityTextClass(player.status)}>{player.name}</span>
+                <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />
+                <span className="team">{player.teamShortName}</span>
+              </span>
+              <span className="stat-row-bar-track">
+                <span
+                  className="stat-row-bar-fill"
+                  style={{
+                    width: `${barWidthPercent(value, maxAbs)}%`,
+                    background: signed ? (value !== null && value < 0 ? "var(--accent-negative)" : "var(--accent-positive)") : "var(--accent-focus)",
+                  }}
+                />
+              </span>
+              <span className="stat-row-value">{format(value)}</span>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

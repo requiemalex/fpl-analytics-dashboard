@@ -120,7 +120,22 @@
 
 /* A row's magnitude as a small horizontal bar, between the name and the
    value — TopList/TeamTopList size it relative to the largest |value|
-   among the rows shown, so the top row is always full-width. */
+   among the rows shown, so the top row is always full-width. Their rows
+   sit in one .stat-list grid (each row a subgrid), so the name column is
+   as wide as the tile's longest name and every bar starts at the same
+   point: only a bar's length says how far behind the leader a row is. */
+.stat-list {
+  display: grid;
+  grid-template-columns: auto minmax(32px, 1fr) auto;
+}
+.stat-list > .stat-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+}
+.stat-list .stat-row-value {
+  text-align: right;
+}
 .stat-row-bar-track {
   flex: 1 1 auto;
   min-width: 32px;
@@ -338,6 +353,24 @@ table.data-table td:first-child {
 table.data-table.compact td,
 table.data-table.compact th {
   padding: 4px 8px;
+}
+
+/* Summary rows under a table (the profile's Live Data Totals/Average): a
+   firmer rule sets them apart from the rows they sum, and the label —
+   spanning the identity columns (GW, Opponent, Result) — starts where the
+   first column's values do, styled like the column headers above it,
+   rather than floating centred across the span. */
+table.data-table tfoot.table-footer tr:first-child td {
+  border-top: 1px solid var(--border-strong);
+}
+table.data-table td.table-footer-label {
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
 }
 
 table.data-table tbody tr {

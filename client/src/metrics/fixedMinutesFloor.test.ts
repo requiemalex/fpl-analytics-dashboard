@@ -4,7 +4,7 @@ import { buildHistoricPlayerProfile } from "./historicAnalysis";
 import { resolvePlayerStats } from "./resolvePlayerStats";
 import { computePositionPercentiles } from "./percentiles";
 import { makePlayer, makeSeason } from "../test/fixtures";
-import { LIVE_RATE_STAT_MIN_MINUTES, RATE_STAT_MIN_MINUTES } from "../pages/Dashboard";
+import { LIVE_DEFAULT_VIEW_MIN_MINUTES, DEFAULT_VIEW_MIN_MINUTES } from "../pages/Dashboard";
 
 // Audit 2026-09-25 player-team-profiles: the minimum-minutes principle (H1, V2).
 
@@ -13,8 +13,8 @@ describe("the fixed minutes floor", () => {
     expect(fixedFloorMinutes("live")).toBe(90);
     expect(fixedFloorMinutes("lastSeason")).toBe(450);
     expect(fixedFloorMinutes("historicAverage")).toBe(450);
-    expect(LIVE_RATE_STAT_MIN_MINUTES).toBe(FIXED_FLOOR_LIVE_MINUTES);
-    expect(RATE_STAT_MIN_MINUTES).toBe(FIXED_FLOOR_MINUTES);
+    expect(LIVE_DEFAULT_VIEW_MIN_MINUTES).toBe(FIXED_FLOOR_LIVE_MINUTES);
+    expect(DEFAULT_VIEW_MIN_MINUTES).toBe(FIXED_FLOOR_MINUTES);
   });
 
   it("marks a small sample, but not missing data", () => {

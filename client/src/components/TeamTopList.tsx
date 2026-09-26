@@ -79,18 +79,20 @@ export function TeamTopList({
           {emptyMessage}
         </p>
       ) : (
-        rows.map((row) => (
-          <div className="stat-row" key={row.teamId} onClick={() => onSelect?.(row.teamId)} style={{ cursor: onSelect ? "pointer" : "default" }}>
-            <span className="stat-row-name">
-              <TeamBadge teamId={row.teamId} shortName={row.shortName} />
-              {row.name}
-            </span>
-            <span className="stat-row-bar-track">
-              <span className="stat-row-bar-fill" style={{ width: `${barWidthPercent(row.value, maxAbs)}%`, background: "var(--accent-focus)" }} />
-            </span>
-            <span className="stat-row-value">{format(row.value)}</span>
-          </div>
-        ))
+        <div className="stat-list">
+          {rows.map((row) => (
+            <div className="stat-row" key={row.teamId} onClick={() => onSelect?.(row.teamId)} style={{ cursor: onSelect ? "pointer" : "default" }}>
+              <span className="stat-row-name">
+                <TeamBadge teamId={row.teamId} shortName={row.shortName} />
+                {row.name}
+              </span>
+              <span className="stat-row-bar-track">
+                <span className="stat-row-bar-fill" style={{ width: `${barWidthPercent(row.value, maxAbs)}%`, background: "var(--accent-focus)" }} />
+              </span>
+              <span className="stat-row-value">{format(row.value)}</span>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

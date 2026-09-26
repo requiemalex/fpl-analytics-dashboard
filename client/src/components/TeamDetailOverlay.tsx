@@ -24,6 +24,7 @@ import { computeClubSeasonWindow } from "../metrics/teamSeasonHistory";
 import { computeSeasonTrend } from "../metrics/careerMetrics";
 import { relativeCellTint, percentileTint } from "../utils/colorScale";
 import { AnalysisModeToggle } from "./AnalysisModeToggle";
+import { profileFloorNote } from "./MinutesFloorBadge";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass, FixtureChips } from "./primitives";
 import { PercentileRadarChart } from "./PlayerRadarChart";
 import { AverageLineIcon, PointsHistoryChart, PointsHistoryHeader, PointsHistoryStats } from "./playerProfile/PointsHistory";
@@ -307,7 +308,7 @@ export function TeamDetailOverlay() {
           </div>
         </div>
 
-        <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
+        <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} floorNote={profileFloorNote(analysisMode)} />
 
         <div className="profile-section">
           <div className="profile-section-heading">

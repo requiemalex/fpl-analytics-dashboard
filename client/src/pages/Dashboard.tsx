@@ -4,6 +4,7 @@ import { useAppState } from "../state/AppStateContext";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { FIXED_FLOOR_LIVE_MINUTES, FIXED_FLOOR_MINUTES, fixedFloorMinutes } from "../metrics/fixedMinutesFloor";
+import { dashboardFloorNote } from "../components/MinutesFloorBadge";
 import { filterPlayers } from "../state/useFilteredPlayers";
 import { computeTeamAggregates, type TeamAggregate } from "../metrics/teamStats";
 import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFilters";
@@ -24,7 +25,6 @@ import {
   TEAM_TILE_METRICS,
   playerTileMetricByKey,
   teamTileMetricByKey,
-  isRatePerMinutesColumnKey,
   type SummaryTileScope,
 } from "../components/summaryTileMetrics";
 import { useSummaryTiles, createSummaryTile, MAX_SUMMARY_TILES, type TileDirection, type SummaryTileConfig } from "../state/useSummaryTiles";
@@ -48,18 +48,17 @@ const MAX_TILE_TEAMS = 5;
 /** Every mode a tile can be built from — used to pre-compute one resolved/eligible/aggregate bucket per mode (see below), since tiles now each carry their own data view rather than sharing one page-wide mode. */
 const MODES: AnalysisMode[] = ["live", "lastSeason", "historicAverage"];
 
-// A rate-per-game metric (PPG, xG/Game, xGC/Game, DC/Game, Goals/Game, etc.
-// — see PlayerTileMetric.ratePerMinutes / isRatePerMinutesColumnKey) still
-// needs a real sample to mean anything, even with the estimated-games basis
-// (see <per_game_not_per_90> in metrics/calculations.ts). Applied only to the
-// packaged Default view's tiles and graphs, whose criteria the user can't
-// edit — a tile or graph the user builds has its own Min Minutes for this
-// (the minimum-minutes principle, <fixed_minutes_floor>). Never applied to
-// specifically picked players. The floor itself is the app-wide fixed one.
-export const LIVE_RATE_STAT_MIN_MINUTES = FIXED_FLOOR_LIVE_MINUTES;
-export const RATE_STAT_MIN_MINUTES = FIXED_FLOOR_MINUTES;
+// The packaged Default view is a fixed-floor section (the minimum-minutes
+// principle, <fixed_minutes_floor>): the user can't edit its criteria, so
+// every player tile and graph in it leaves out players under the app-wide
+// fixed floor — totals as well as per-game rates, so a cameo can't top a
+// per-game list and every Default ranking and plot is built the same way.
+// A tile or graph the user builds has its own Min Minutes instead. Never
+// applied to specifically picked players.
+export const LIVE_DEFAULT_VIEW_MIN_MINUTES = FIXED_FLOOR_LIVE_MINUTES;
+export const DEFAULT_VIEW_MIN_MINUTES = FIXED_FLOOR_MINUTES;
 
-export function applyRateStatFloor(players: NormalizedPlayer[], dataView: AnalysisMode): NormalizedPlayer[] {
+export function applyDefaultViewFloor(players: NormalizedPlayer[], dataView: AnalysisMode): NormalizedPlayer[] {
   const floor = fixedFloorMinutes(dataView);
   return players.filter((p) => p.minutes !== null && p.minutes >= floor);
 }
@@ -82,21 +81,34 @@ export function poolForDashboardItem(
 /**
  * The players one player-scope tile or graph ranks or plots: its picked
  * players if it has any (no criteria, no floor), otherwise its criteria
- * applied to the pool — plus the rate-stat floor when it shows a per-game
- * rate and the packaged Default view is the one on screen (see
- * applyRateStatFloor above).
+ * applied to the pool — plus the fixed floor when the packaged Default view
+ * is the one on screen (see applyDefaultViewFloor above).
  */
 export function playersForDashboardItem(
   item: { dataView: AnalysisMode; criteria: GlobalScoutingFilters | null; playerIds: number[] | null },
   pool: NormalizedPlayer[],
-  { showsRate, defaultViewShown }: { showsRate: boolean; defaultViewShown: boolean },
+  { defaultViewShown }: { defaultViewShown: boolean },
 ): NormalizedPlayer[] {
   if (item.playerIds && item.playerIds.length > 0) {
     const idSet = new Set(item.playerIds);
     return pool.filter((p) => idSet.has(p.id));
   }
   const players = filterPlayers(pool, item.criteria ?? DEFAULT_FILTERS, item.dataView, true);
-  return showsRate && defaultViewShown ? applyRateStatFloor(players, item.dataView) : players;
+  return defaultViewShown ? applyDefaultViewFloor(players, item.dataView) : players;
+}
+
+/**
+ * The hover text for a player-scope tile or graph's minutes-floor badge, or
+ * null when no floor applies to it — exactly when playersForDashboardItem
+ * or poolForDashboardItem applies one (the Default view only).
+ */
+export function dashboardItemFloorNote(
+  item: { dataView: AnalysisMode; playerIds: number[] | null },
+  { defaultViewShown }: { defaultViewShown: boolean },
+): string | null {
+  if (!defaultViewShown) return null;
+  const picked = !!item.playerIds && item.playerIds.length > 0;
+  return dashboardFloorNote(item.dataView, { playerFloor: !picked, historicSeasons: item.dataView === "historicAverage" });
 }
 
 export function topN<T extends { value: number | null }>(rowsIn: T[], n: number, ascending = false): T[] {
@@ -597,13 +609,11 @@ export function Dashboard() {
         if (tile.scope === "player") {
           const metric = playerTileMetricByKey(tile.metricKey);
           if (!metric) return { tile, kind: "unavailable" as const };
-          const sourcePlayers = playersForDashboardItem(tile, poolForDashboardItem(tile.dataView, playerDefaultViewShown, playerPools), {
-            showsRate: !!metric.ratePerMinutes,
-            defaultViewShown: playerDefaultViewShown,
-          });
+          const floorOptions = { defaultViewShown: playerDefaultViewShown };
+          const sourcePlayers = playersForDashboardItem(tile, poolForDashboardItem(tile.dataView, playerDefaultViewShown, playerPools), floorOptions);
           const rows = sourcePlayers.map((p) => ({ player: p, derived: getPlayerDerivedMetrics(p) }));
           const valueRows: TopListRow[] = rows.map((r) => ({ player: r.player, value: metric.getValue(r.player, r.derived) }));
-          return { tile, metric, kind: "player" as const, topRows: topN(valueRows, 5, tile.direction === "asc") };
+          return { tile, metric, kind: "player" as const, topRows: topN(valueRows, 5, tile.direction === "asc"), floorNote: dashboardItemFloorNote(tile, floorOptions) };
         }
         const metric = teamTileMetricByKey(tile.metricKey);
         if (!metric) return { tile, kind: "unavailable" as const };
@@ -640,10 +650,8 @@ export function Dashboard() {
           const yColumn = playerColumnByKey(graph.yMetricKey);
           const xColumn = graph.chartType === "scatter" ? playerColumnByKey(graph.xMetricKey) : undefined;
           if (!yColumn || (graph.chartType === "scatter" && !xColumn)) return { graph, kind: "unavailable" as const };
-          const sourcePlayers = playersForDashboardItem(graph, poolForDashboardItem(graph.dataView, playerDefaultViewShown, playerPools), {
-            showsRate: isRatePerMinutesColumnKey(graph.yMetricKey) || (graph.chartType === "scatter" && isRatePerMinutesColumnKey(graph.xMetricKey)),
-            defaultViewShown: playerDefaultViewShown,
-          });
+          const floorOptions = { defaultViewShown: playerDefaultViewShown };
+          const sourcePlayers = playersForDashboardItem(graph, poolForDashboardItem(graph.dataView, playerDefaultViewShown, playerPools), floorOptions);
           const scatterData: ScatterPoint[] = [];
           const barData: BarDatum[] = [];
           for (const p of sourcePlayers) {
@@ -667,6 +675,7 @@ export function Dashboard() {
             xFormat: xColumn?.format,
             scatterData,
             barData,
+            floorNote: dashboardItemFloorNote(graph, floorOptions),
           };
         }
         const yColumn = teamColumnByKey(graph.yMetricKey);
@@ -699,6 +708,7 @@ export function Dashboard() {
           xFormat: xColumn?.format,
           scatterData,
           barData,
+          floorNote: null,
         };
       });
   }, [graphsState.graphs, playerPools, teamAggregatesByMode, playerDefaultViewShown]);
@@ -1146,7 +1156,7 @@ export function Dashboard() {
               ...dragProps,
             };
             return row.kind === "player" ? (
-              <TopList key={tile.id} {...common} rows={row.topRows as TopListRow[]} onSelect={select} signed={row.metric.signed} />
+              <TopList key={tile.id} {...common} rows={row.topRows as TopListRow[]} onSelect={select} signed={row.metric.signed} floorNote={row.floorNote} />
             ) : (
               <TeamTopList key={tile.id} {...common} rows={row.topRows as TeamTopListRow[]} onSelect={selectTeam} />
             );
@@ -1196,6 +1206,7 @@ export function Dashboard() {
               emptyMessage={emptyMessageFor(graph)}
               showReferenceLine={graph.showReferenceLine}
               dataView={graph.dataView}
+              floorNote={row.floorNote}
               onSelect={kind === "player" ? select : selectTeam}
               draggable={!selectedViewIsDefault}
               isDragOver={dragOverGraphId === graph.id}

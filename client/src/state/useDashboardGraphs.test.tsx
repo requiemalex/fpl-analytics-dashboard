@@ -68,10 +68,21 @@ describe("useDashboardGraphs — <update_safety> defaults and migration", () => 
     expect(result.current.graphs).toEqual([kept]);
   });
 
-  it("player default graphs carry a 900-minute floor", () => {
+  it("player default graphs carry no floor of their own — the Default view's fixed floor applies instead", () => {
     for (const g of DEFAULT_DASHBOARD_GRAPHS.filter((g) => g.scope === "player")) {
-      expect(g.criteria?.minMinutes).toBe(900);
+      expect(g.criteria).toEqual(DEFAULT_FILTERS);
     }
+  });
+
+  it("v5 -> v6: a stored player default with the old 900-minute floor is swapped for the current one", () => {
+    const current = DEFAULT_DASHBOARD_GRAPHS[0];
+    const old = { ...current, criteria: { ...DEFAULT_FILTERS, minMinutes: 900 } };
+    const userGraph = { ...createDashboardGraph({ ...old, name: "Mine" }), id: "graph-user" };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 5, data: [old, userGraph] }));
+    const { result } = renderHook(() => useDashboardGraphs());
+    expect(result.current.graphs[0]).toEqual(current);
+    // A user's own graph keeps the Min Minutes it was built with.
+    expect(result.current.graphs[1].criteria?.minMinutes).toBe(900);
   });
 });
 

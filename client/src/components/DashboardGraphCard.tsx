@@ -1,5 +1,6 @@
 import React from "react";
 import { DataViewBadge } from "./DataViewBadge";
+import { MinutesFloorBadge } from "./MinutesFloorBadge";
 import { CardEditRemoveButtons } from "./IconToolbar";
 import { ScatterWithReference, type ScatterPoint } from "./charts/ScatterWithReference";
 import { BarTopN, type BarDatum } from "./charts/BarTopN";
@@ -28,6 +29,7 @@ export function DashboardGraphCard({
   ascending,
   showReferenceLine,
   dataView,
+  floorNote,
   emptyMessage: emptyMessageOverride,
   onSelect,
   onEdit,
@@ -55,6 +57,8 @@ export function DashboardGraphCard({
   ascending?: boolean;
   showReferenceLine: boolean;
   dataView: AnalysisMode;
+  /** Hover text for the minutes-floor badge when the fixed floor applies to this graph (dashboardItemFloorNote); no badge when absent. */
+  floorNote?: string | null;
   onSelect?: (id: number) => void;
   onEdit?: () => void;
   onRemove?: () => void;
@@ -88,6 +92,7 @@ export function DashboardGraphCard({
           {title}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          {floorNote && <MinutesFloorBadge note={floorNote} />}
           <DataViewBadge mode={dataView} />
           <CardEditRemoveButtons noun="graph" onEdit={onEdit} onRemove={onRemove} />
         </div>

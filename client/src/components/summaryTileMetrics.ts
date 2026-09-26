@@ -16,43 +16,8 @@ export interface PlayerTileMetric {
   format: (v: number | null) => string;
   /** Used only to pick a sensible default sort direction when this metric is first selected in the Add Tile form. */
   higherIsBetter: boolean;
-  /**
-   * True for a metric divided by an estimate of games played (see
-   * <per_game_not_per_90> in metrics/calculations.ts) — PPG, Goals/Game,
-   * Assists/Game, DC/Game. Even with that estimated-games basis (rather
-   * than the old, more easily-amplified per-90-minutes one), a genuinely
-   * tiny sample can still read as a better rate than a player's normal
-   * output. Dashboard.tsx uses this flag to apply a minimum-minutes floor
-   * to exactly these metrics' Top-5 leaderboards (see RATE_STAT_MIN_MINUTES
-   * there), leaving count-based and price-based metrics (Points, Goals,
-   * Points/£m, etc.) — which aren't distorted by a small sample the same
-   * way — ungated by anything beyond the page's own Min Minutes setting.
-   */
-  ratePerMinutes?: boolean;
   /** True for a +/- comparison metric (Goals vs xG, etc.) — Dashboard's tile bar colours these green/red per row by sign, rather than a single accent colour for the whole tile. */
   signed?: boolean;
-}
-
-/**
- * See `PlayerTileMetric.ratePerMinutes` — every PLAYER_COLUMNS key that's a
- * per-game rate, since those are spread in below rather than declared with
- * the flag directly. Must list EVERY per-game column: one left out goes
- * unfloored, and a single cameo tops its leaderboard (xG/Game led by a
- * 63-minute player, lowest xGC/Game by 1-minute players).
- */
-const RATE_PER_MINUTES_COLUMN_KEYS = new Set([
-  "pointsPerGame",
-  "xGPerGame",
-  "xAPerGame",
-  "xGIPerGame",
-  "xGCPerGame",
-  "defensiveContributionsPerGame",
-  "defensiveRewardPerGame",
-]);
-
-/** Whether a PLAYER_COLUMNS key is a per-game rate — Dashboard graphs apply the same minutes floor as tiles when they plot one. */
-export function isRatePerMinutesColumnKey(key: string): boolean {
-  return RATE_PER_MINUTES_COLUMN_KEYS.has(key);
 }
 
 export interface TeamTileMetric {
@@ -78,7 +43,6 @@ export const PLAYER_TILE_METRICS: PlayerTileMetric[] = [
     getValue: c.getValue,
     format: c.format,
     higherIsBetter: c.higherIsBetter ?? true,
-    ratePerMinutes: RATE_PER_MINUTES_COLUMN_KEYS.has(c.key),
   })),
   { key: "goalsMinusXG", label: "Goals vs xG (Goals − xG)", getValue: (_p, d) => d.goalsMinusXG, format: fmtSigned, higherIsBetter: true, signed: true },
   {
@@ -99,8 +63,8 @@ export const PLAYER_TILE_METRICS: PlayerTileMetric[] = [
   },
   // No separate "Points/Game" tile — that's just PPG (already above, via
   // PLAYER_COLUMNS' "pointsPerGame"/"PPG" entry), not a distinct metric.
-  { key: "goalsPerGame", label: "Goals/Game", getValue: (_p, d) => d.goalsPerGame, format: num(2), higherIsBetter: true, ratePerMinutes: true },
-  { key: "assistsPerGame", label: "Assists/Game", getValue: (_p, d) => d.assistsPerGame, format: num(2), higherIsBetter: true, ratePerMinutes: true },
+  { key: "goalsPerGame", label: "Goals/Game", getValue: (_p, d) => d.goalsPerGame, format: num(2), higherIsBetter: true },
+  { key: "assistsPerGame", label: "Assists/Game", getValue: (_p, d) => d.assistsPerGame, format: num(2), higherIsBetter: true },
 ];
 
 /** Every TEAM_COLUMNS metric (League Position, Goals For/Against, FPL Points, xG/xA/xGI/xGC, etc. — the same club-figure catalogue Dashboard's team graphs use) — the full set a user can build a Dashboard Team Tile from. */

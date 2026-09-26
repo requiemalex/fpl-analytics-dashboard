@@ -202,6 +202,15 @@ colour. Player Comparison's table follows the same rule as its radars: a
 small sample's column gets no better/worse colour or bold, the others are
 coloured among themselves, and the Summary doesn't count him.
 
+**The badge.** Wherever the fixed floor is applied, a small stopwatch-on-a-
+line badge (`components/MinutesFloorBadge.tsx`) says so, its hover text
+naming the floor for the mode, so a missing player or an uncoloured cell
+isn't taken for missing data. The profile, Player Comparison and the Team
+Profile show it at the right of their mode toggle (`profileFloorNote`). On
+the Dashboard it's per tile or graph, and only where a floor really applies
+(`dashboardItemFloorNote`): every player tile and graph in the Default view
+(not on picked players, and not on team tiles or graphs).
+
 **Historic Average there counts only seasons of 450+ minutes** (the
 owner's rule, `HistoricPlayerProfile.floorWindowAverage`, used through
 `resolvePlayerStats`'s `fixedFloorSeasons`; the Team Profile squad's
@@ -225,21 +234,21 @@ Details:
 - **Dashboard tiles and graphs apply it in every mode**, Current Season
   included (`applyMinMinutesInLive`).
 - Per-game rates (PPG, xG/xA/xGI/xGC/DC/Def. Reward per game, Goals/Game,
-  Assists/Game — `PlayerTileMetric.ratePerMinutes`,
-  `isRatePerMinutesColumnKey`) have **no built-in floor** anywhere the user
-  can set Min Minutes or a Mins filter: a Dashboard tile or graph the user
-  builds, and Player Explorer. A one-cameo player can top them; raising Min
-  Minutes is the user's call.
-- Only the packaged Default view, which the user can't edit, adds the fixed
-  floor to a tile or graph showing a per-game rate
-  (`applyRateStatFloor`, `playersForDashboardItem`), and reads Historic
-  Average from 450+ minute seasons only (`poolForDashboardItem`). Both are
-  decided by the Players Default view being the one selected
-  (`isDefaultViewSelected`), not by a tile's id: views saved before v1.35.0
-  can hold copies of Default tiles, ids included. None of the current
-  defaults shows a per-game rate or uses Historic Average, so today neither
-  changes anything on screen. Specifically picked players are never
-  floored. A top-5 list of totals needs no floor: a cameo can't top one.
+  Assists/Game) have **no built-in floor** anywhere the user can set Min
+  Minutes or a Mins filter: a Dashboard tile or graph the user builds, and
+  Player Explorer. A one-cameo player can top them; raising Min Minutes is
+  the user's call.
+- The packaged Default view, which the user can't edit, leaves players
+  under the fixed floor out of **every** player tile and graph, totals and
+  per-game rates alike (`applyDefaultViewFloor`, `playersForDashboardItem`),
+  and reads Historic Average from 450+ minute seasons only
+  (`poolForDashboardItem`). Its player graphs have no Min Minutes of their
+  own (plain `DEFAULT_FILTERS`); the fixed floor is what keeps the hundreds
+  of fringe players from piling up at 0,0. Both are decided by the Players
+  Default view being the one selected (`isDefaultViewSelected`), not by a
+  tile's id: views saved before v1.35.0 can hold copies of Default tiles,
+  ids included. Specifically picked players are never floored. Team tiles
+  and graphs are club figures and have no floor.
 - Min Minutes takes any whole number as typed; the arrow buttons step by 90.
 - Player Explorer has no Min Minutes control — its MINS column filter does
   that job.

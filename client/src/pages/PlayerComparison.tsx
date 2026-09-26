@@ -8,6 +8,7 @@ import { computeRadarData } from "../metrics/radarStats";
 import { fixedFloorMinutes, isFixedFloorSmallSample } from "../metrics/fixedMinutesFloor";
 import { buildMultiSeriesTrend, playerMetricTrendDataKey, type TrendMetricKey } from "../metrics/careerTrends";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
+import { profileFloorNote } from "../components/MinutesFloorBadge";
 import { PercentileRadarChart } from "../components/PlayerRadarChart";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass } from "../components/primitives";
@@ -291,7 +292,7 @@ export function PlayerComparison() {
         </div>
       </div>
 
-      <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
+      <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} floorNote={profileFloorNote(analysisMode)} />
 
       <div className="card" style={{ marginBottom: 22 }}>
         <div className="card-title">
