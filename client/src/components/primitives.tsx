@@ -11,17 +11,19 @@ export function PositionBadge({ position }: { position: Position }) {
 }
 
 /**
- * A club's tag: a ~12% tinted fill led by a small rounded two-colour
- * pill — colours come from teamDisplayColors()
+ * Same visual language as PositionBadge (flush-left flag shape, ~12%
+ * tinted fill) but for a team — colours come from teamDisplayColors()
  * (that club's real primary/secondary colours where known, else a
  * generated per-id fallback for both — see utils/teamColors.ts) as inline
  * styles rather than a fixed --pos-* token, since the team list isn't a
  * small fixed set the way positions are. The two-colour swatch (primary
  * on top, secondary below) exists because several clubs share close to
  * the same primary colour (e.g. Arsenal/Forest/Brentford are all red) —
- * one flat colour made those hard to tell apart at a glance. Used
- * wherever the app shows a club by its short name, a player's club
- * included — the pitch card's plate is the one exception.
+ * one flat colour made those hard to tell apart at a glance. Used only
+ * where a team is a row's own primary subject (Teams, Team Detail, the
+ * Dashboard's team tiles) — the small team abbreviation shown next to a
+ * player's name elsewhere stays plain text, deliberately subdued relative
+ * to the player.
  *
  * Clicking it opens that club's team profile overlay (see
  * TeamDetailOverlay.tsx) — the same `?teamProfile=` query-param pattern
@@ -29,8 +31,7 @@ export function PositionBadge({ position }: { position: Position }) {
  * this badge appears on without each page wiring its own handler.
  * stopPropagation keeps a badge click from also firing whatever the
  * enclosing row does (e.g. Teams.tsx's row click, which opens the same
- * overlay anyway). `linked={false}` drops that inside a search dropdown,
- * where a click on the badge should pick the row like any other click.
+ * overlay anyway).
  *
  * The badge's dominant colour (text/border/background tint) comes from
  * teamIdentityColor() — a primary/secondary blend — rather than the plain
@@ -40,7 +41,7 @@ export function PositionBadge({ position }: { position: Position }) {
  * "the same colour"; the swatch stripe below stays literal primary/
  * secondary, unblended, so it still shows each club's real colours too.
  */
-export function TeamBadge({ teamId, shortName, linked = true }: { teamId: number; shortName: string; linked?: boolean }) {
+export function TeamBadge({ teamId, shortName }: { teamId: number; shortName: string }) {
   const { primary, secondary } = teamDisplayColors(teamId, shortName);
   const identity = teamIdentityColor(teamId, shortName);
   const [, setSearchParams] = useSearchParams();
@@ -54,22 +55,10 @@ export function TeamBadge({ teamId, shortName, linked = true }: { teamId: number
     });
   }
 
-  const swatch = <span className="team-badge-swatch" style={{ background: `linear-gradient(180deg, ${primary} 50%, ${secondary} 50%)` }} />;
-  const tint = { color: identity, background: `color-mix(in srgb, ${identity} 12%, transparent)` };
-
-  if (!linked) {
-    return (
-      <span className="badge team-badge" style={tint}>
-        {swatch}
-        {shortName}
-      </span>
-    );
-  }
-
   return (
     <span
       className="badge team-badge"
-      style={{ ...tint, cursor: "pointer" }}
+      style={{ color: identity, background: `color-mix(in srgb, ${identity} 12%, transparent)`, cursor: "pointer" }}
       onClick={openProfile}
       onKeyDown={(e) => {
         // A role="button" answers Enter and Space like a real button.
@@ -83,7 +72,7 @@ export function TeamBadge({ teamId, shortName, linked = true }: { teamId: number
       title={`View ${shortName} team profile`}
       aria-label={`View ${shortName} team profile`}
     >
-      {swatch}
+      <span className="team-badge-swatch" style={{ background: `linear-gradient(180deg, ${primary} 50%, ${secondary} 50%)` }} />
       {shortName}
     </span>
   );

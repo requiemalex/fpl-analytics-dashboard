@@ -1,5 +1,5 @@
 import React from "react";
-import { PositionBadge, TeamBadge, AvailabilityFlag, availabilityTextClass } from "./primitives";
+import { PositionBadge, AvailabilityFlag, availabilityTextClass } from "./primitives";
 import { DataViewBadge } from "./DataViewBadge";
 import { CardEditRemoveButtons } from "./IconToolbar";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
@@ -57,7 +57,7 @@ export function TopList({
 
   return (
     <div
-      className="card tile"
+      className="card"
       draggable={draggable}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
@@ -69,11 +69,11 @@ export function TopList({
           : undefined
       }
     >
-      <div className="tile-header">
-        <div className="card-title tile-title">{title}</div>
-        <div className="tile-actions">
-          <CardEditRemoveButtons noun="tile" onEdit={onEdit} onRemove={onRemove} />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+        <div className="card-title">{title}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {dataView && <DataViewBadge mode={dataView} />}
+          <CardEditRemoveButtons noun="tile" onEdit={onEdit} onRemove={onRemove} />
         </div>
       </div>
       {rows.length === 0 ? (
@@ -81,28 +81,26 @@ export function TopList({
           {emptyMessage}
         </p>
       ) : (
-        <div className="tile-rows">
-          {rows.map(({ player, value }) => (
-            <div className="stat-row" key={player.id} onClick={() => onSelect?.(player.id)} style={{ cursor: onSelect ? "pointer" : "default" }}>
-              <span className="stat-row-name">
-                <TeamBadge teamId={player.teamId} shortName={player.teamShortName} />
-                <PositionBadge position={player.position} />
-                <span className={availabilityTextClass(player.status)}>{player.name}</span>
-                <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />
-              </span>
-              <span className="stat-row-bar-track">
-                <span
-                  className="stat-row-bar-fill"
-                  style={{
-                    width: `${barWidthPercent(value, maxAbs)}%`,
-                    background: signed ? (value !== null && value < 0 ? "var(--accent-negative)" : "var(--accent-positive)") : "var(--accent-focus)",
-                  }}
-                />
-              </span>
-              <span className="stat-row-value">{format(value)}</span>
-            </div>
-          ))}
-        </div>
+        rows.map(({ player, value }) => (
+          <div className="stat-row" key={player.id} onClick={() => onSelect?.(player.id)} style={{ cursor: onSelect ? "pointer" : "default" }}>
+            <span className="stat-row-name">
+              <PositionBadge position={player.position} />
+              <span className={availabilityTextClass(player.status)}>{player.name}</span>
+              <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />
+              <span className="team">{player.teamShortName}</span>
+            </span>
+            <span className="stat-row-bar-track">
+              <span
+                className="stat-row-bar-fill"
+                style={{
+                  width: `${barWidthPercent(value, maxAbs)}%`,
+                  background: signed ? (value !== null && value < 0 ? "var(--accent-negative)" : "var(--accent-positive)") : "var(--accent-focus)",
+                }}
+              />
+            </span>
+            <span className="stat-row-value">{format(value)}</span>
+          </div>
+        ))
       )}
     </div>
   );

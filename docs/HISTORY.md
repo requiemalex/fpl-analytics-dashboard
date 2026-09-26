@@ -3430,3 +3430,16 @@ tiles/graphs only:
   name and badge. The Team Profile's own "Player Rankings" link still does
   the same hand-off, and Player Explorer still reads `?team=`.
 - **Last commit with it:** `7409f7b`.
+
+### Dashboard tile restyle and app-wide badge style (rolled back 2026-09-26)
+- **What it did:** v1.68.0 gave Dashboard tiles and graph cards a quieter
+  `.tile` style (sentence-case title, outlined icon buttons, no row
+  dividers, thinner bars, club badge leading each player row); v1.69.0
+  made positions plain coloured text and club badges a rounded pill
+  everywhere, and swapped plain club codes for badges in search
+  suggestions, Team Building and the Team Profile squad (`TeamBadge`'s
+  `linked` prop).
+- **Why it went:** the owner preferred the original look and rolled both
+  releases back in v1.70.0. The Live Data Totals/Average centring and the
+  Team Explorer "Player Rankings" removal from those releases were kept.
+- **Last commit with it:** `bda8c4c`.

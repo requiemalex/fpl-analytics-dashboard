@@ -150,85 +150,6 @@
   cursor: default;
 }
 
-/* ---------- Dashboard tiles and graphs ----------
-   A quieter card than the generic .card: a sentence-case title, one
-   outlined data-view icon, no row dividers, a thin bar and only the
-   leader's value at full strength. Edit/Remove stay visible and share the
-   data-view icon's outlined square. Scoped to .tile because .stat-row is
-   shared with the search pickers and the User Guide. */
-.tile-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-.tile .tile-title {
-  font-family: var(--font-body);
-  font-size: 14.5px;
-  font-weight: 600;
-  text-transform: none;
-  letter-spacing: 0;
-  color: var(--text-primary);
-  margin-bottom: 0;
-}
-.tile-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-.tile .data-view-badge,
-.tile .tile-actions .chip-icon {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--text-muted);
-}
-.tile .tile-actions .chip-icon:hover {
-  color: var(--text-primary);
-  background: var(--surface-hover);
-}
-.tile .stat-row {
-  border-bottom: none;
-  padding: 6px 0;
-  font-size: 13.5px;
-}
-.tile .stat-row-name {
-  gap: 10px;
-}
-/* Fixed widths so every name starts at the same x, whatever the club. */
-.tile .stat-row-name .team-badge {
-  flex: 0 0 auto;
-  min-width: 48px;
-}
-.tile .badge.pos-GKP,
-.tile .badge.pos-DEF,
-.tile .badge.pos-MID,
-.tile .badge.pos-FWD {
-  flex: 0 0 26px;
-}
-.tile .stat-row-bar-track {
-  height: 4px;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--text-muted) 8%, transparent);
-  margin: 0 14px;
-}
-.tile .stat-row-bar-fill {
-  border-radius: 2px;
-}
-.tile .stat-row-value {
-  min-width: 3ch;
-  text-align: right;
-  color: var(--text-secondary);
-}
-.tile-rows .stat-row:first-child .stat-row-value {
-  color: var(--text-primary);
-}
-
 /* ---------- Tables ---------- */
 .table-wrap {
   overflow: auto;
@@ -542,37 +463,49 @@ select:focus {
   white-space: nowrap;
 }
 
-/* A position is plain bold text in its own colour (--pos-*, tokens.css)
-   — no fill, bar or outline — so it sits quietly beside the player's
-   name and the club's pill does the heavier lifting. The pitch's jersey
-   crest is the one exception (see .pitch-card-jersey-position). */
+/* A soft-filled tag with a solid colour bar on the left, rather than a
+   plain outlined pill — a deliberately different silhouette from other
+   FPL tools' position badges (a flush-left flag shape, tinted fill
+   instead of a transparent/bordered capsule), while keeping the same
+   at-a-glance colour coding and overall restraint. Text and the accent
+   bar use the position's full-strength colour (--pos-*, tokens.css);
+   the background is the same colour at ~12% strength via color-mix(),
+   not a separate hand-picked value — a subtle tint behind the text,
+   never competing with the player name next to it. */
 .badge.pos-GKP,
 .badge.pos-DEF,
 .badge.pos-MID,
 .badge.pos-FWD {
   border: none;
-  border-radius: 0;
-  padding: 0;
-  background: transparent;
+  border-radius: 0 4px 4px 0;
+  padding-left: 6px;
   font-weight: 700;
 }
 .badge.pos-GKP {
   color: var(--pos-gkp);
+  background: color-mix(in srgb, var(--pos-gkp) 12%, transparent);
+  border-left: 3px solid var(--pos-gkp);
 }
 .badge.pos-DEF {
   color: var(--pos-def);
+  background: color-mix(in srgb, var(--pos-def) 12%, transparent);
+  border-left: 3px solid var(--pos-def);
 }
 .badge.pos-MID {
   color: var(--pos-mid);
+  background: color-mix(in srgb, var(--pos-mid) 12%, transparent);
+  border-left: 3px solid var(--pos-mid);
 }
 .badge.pos-FWD {
   color: var(--pos-fwd);
+  background: color-mix(in srgb, var(--pos-fwd) 12%, transparent);
+  border-left: 3px solid var(--pos-fwd);
 }
-/* A club is a softly tinted tag led by a small rounded two-colour pill
-   (team-badge-swatch) — colours set inline per team (TeamBadge,
-   primitives.tsx) since the team list isn't a small fixed set the way
-   positions are. Both the club's primary AND secondary colour show, as
-   several clubs share near-identical primaries. */
+/* Same flush-left flag shape as position badges — colours themselves are
+   set inline per team (TeamBadge, primitives.tsx) since the team list
+   isn't a small fixed set the way positions are. The flag is a two-colour
+   swatch (team-badge-swatch) rather than a plain border-left, so a club's
+   primary AND secondary colour both show. */
 .badge.team-badge {
   border: none;
   border-radius: 4px;
@@ -581,10 +514,9 @@ select:focus {
 }
 .team-badge-swatch {
   display: inline-block;
-  align-self: center;
-  width: 5px;
-  height: 11px;
-  border-radius: 3px;
+  align-self: stretch;
+  width: 4px;
+  border-radius: 2px;
   margin-right: 5px;
 }
 
@@ -767,16 +699,17 @@ select:focus {
    legibility here the way it did before this app's position colours
    moved off its own green/blue/gold/red semantic tokens. Overridden
    only in this jersey context — every other place PositionBadge renders
-   (tables, lists, etc.) is untouched. Deliberately kept as a small
-   rounded pill (not the plain coloured text those other places use) —
-   bare text floating on a jersey graphic doesn't read cleanly, so this
-   stays its own already-tested crest shape. */
+   (tables, lists, etc.) is untouched. Deliberately kept as a plain
+   rounded pill (not the flush-left flag shape those other places use)
+   — floating alone on a jersey, an asymmetric tag shape doesn't read as
+   cleanly as a small rounded crest does, so this stays its own
+   already-tested shape. */
 .pitch-card-jersey-position .badge.pos-GKP,
 .pitch-card-jersey-position .badge.pos-DEF,
 .pitch-card-jersey-position .badge.pos-MID,
 .pitch-card-jersey-position .badge.pos-FWD {
   border-radius: 999px;
-  padding: 2px 7px;
+  padding-left: 7px;
   background: var(--bg);
 }
 .pitch-card-jersey-position .badge.pos-GKP {

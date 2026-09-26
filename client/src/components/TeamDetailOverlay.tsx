@@ -399,8 +399,7 @@ export function TeamDetailOverlay() {
                             <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />
                           </span>
                           <span className="meta">
-                            {fmtPrice(player.price)}
-                            <PositionBadge position={player.position} />
+                            <PositionBadge position={player.position} /> {fmtPrice(player.price)}
                           </span>
                         </div>
                       </td>
