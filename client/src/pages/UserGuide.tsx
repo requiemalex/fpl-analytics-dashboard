@@ -443,8 +443,8 @@ export function UserGuide() {
           other team metric the Dashboard offers (played, wins, draws, losses, goal difference, goals, assists, bonus, xGI,
           defensive contributions — all off by default); headers sort, drag to reorder and resize, and each has its own ▾ filter;
           the "Team name…" box searches by club name or short name; Reset restores the default columns and clears every filter;
-          and Export CSV downloads exactly what's on screen. A team's coloured pill — here, in the Team Profile, and on the
-          Dashboard's team tiles — is clickable anywhere it appears in the app and opens that club's Team Profile: season totals, the
+          and Export CSV downloads exactly what's on screen. A team's coloured pill — here, in the Team Profile, and on every
+          Dashboard tile — is clickable anywhere it appears in the app and opens that club's Team Profile: season totals, the
           team radars, upcoming fixtures, and the current squad with what each player did <em>for this club</em> in the selected
           season (a new signing shows "—" for last season), with its own "Player Rankings" link through to Player Explorer for the
           full sortable table. The header's league position, points and results follow the Data View too, shown as Team Explorer

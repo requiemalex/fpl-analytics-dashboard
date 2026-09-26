@@ -172,10 +172,10 @@ export function gameweekDisplay(
 /** Stand-in for a saved tile or graph whose statistic this version doesn't have (e.g. one removed in an update) — says so and can still be removed, rather than vanishing while still counting toward the cap. */
 function UnavailableItemCard({ title, noun, onRemove, minHeight }: { title: string; noun: "tile" | "graph"; onRemove?: () => void; minHeight?: number }) {
   return (
-    <div className="card" style={minHeight ? { minHeight } : undefined}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-        <div className="card-title">{title}</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+    <div className="card tile" style={minHeight ? { minHeight } : undefined}>
+      <div className="tile-header">
+        <div className="card-title tile-title">{title}</div>
+        <div className="tile-actions">
           <CardEditRemoveButtons noun={noun} onRemove={onRemove} />
         </div>
       </div>

@@ -55,7 +55,7 @@ export function TeamTopList({
 
   return (
     <div
-      className="card"
+      className="card tile"
       draggable={draggable}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
@@ -67,11 +67,11 @@ export function TeamTopList({
           : undefined
       }
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-        <div className="card-title">{title}</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          {dataView && <DataViewBadge mode={dataView} />}
+      <div className="tile-header">
+        <div className="card-title tile-title">{title}</div>
+        <div className="tile-actions">
           <CardEditRemoveButtons noun="tile" onEdit={onEdit} onRemove={onRemove} />
+          {dataView && <DataViewBadge mode={dataView} />}
         </div>
       </div>
       {rows.length === 0 ? (
@@ -79,18 +79,20 @@ export function TeamTopList({
           {emptyMessage}
         </p>
       ) : (
-        rows.map((row) => (
-          <div className="stat-row" key={row.teamId} onClick={() => onSelect?.(row.teamId)} style={{ cursor: onSelect ? "pointer" : "default" }}>
-            <span className="stat-row-name">
-              <TeamBadge teamId={row.teamId} shortName={row.shortName} />
-              {row.name}
-            </span>
-            <span className="stat-row-bar-track">
-              <span className="stat-row-bar-fill" style={{ width: `${barWidthPercent(row.value, maxAbs)}%`, background: "var(--accent-focus)" }} />
-            </span>
-            <span className="stat-row-value">{format(row.value)}</span>
-          </div>
-        ))
+        <div className="tile-rows">
+          {rows.map((row) => (
+            <div className="stat-row" key={row.teamId} onClick={() => onSelect?.(row.teamId)} style={{ cursor: onSelect ? "pointer" : "default" }}>
+              <span className="stat-row-name">
+                <TeamBadge teamId={row.teamId} shortName={row.shortName} />
+                {row.name}
+              </span>
+              <span className="stat-row-bar-track">
+                <span className="stat-row-bar-fill" style={{ width: `${barWidthPercent(row.value, maxAbs)}%`, background: "var(--accent-focus)" }} />
+              </span>
+              <span className="stat-row-value">{format(row.value)}</span>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

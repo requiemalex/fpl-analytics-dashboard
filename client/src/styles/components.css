@@ -150,6 +150,94 @@
   cursor: default;
 }
 
+/* ---------- Dashboard tiles and graphs ----------
+   A quieter card than the generic .card: a sentence-case title, one
+   outlined data-view icon, no row dividers, a thin bar and only the
+   leader's value at full strength. Edit/Remove stay visible and share the
+   data-view icon's outlined square. Scoped to .tile because .stat-row is
+   shared with the search pickers and the User Guide. */
+.tile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.tile .tile-title {
+  font-family: var(--font-body);
+  font-size: 14.5px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-primary);
+  margin-bottom: 0;
+}
+.tile-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.tile .data-view-badge,
+.tile .tile-actions .chip-icon {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-muted);
+}
+.tile .tile-actions .chip-icon:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+.tile .stat-row {
+  border-bottom: none;
+  padding: 6px 0;
+  font-size: 13.5px;
+}
+.tile .stat-row-name {
+  gap: 10px;
+}
+/* Fixed widths so every name starts at the same x, whatever the club. */
+.tile .stat-row-name .team-badge {
+  flex: 0 0 auto;
+  min-width: 48px;
+}
+.tile .team-badge-swatch {
+  align-self: center;
+  width: 5px;
+  height: 11px;
+  border-radius: 3px;
+}
+.tile .badge.pos-GKP,
+.tile .badge.pos-DEF,
+.tile .badge.pos-MID,
+.tile .badge.pos-FWD {
+  flex: 0 0 26px;
+  padding: 0;
+  border-left: none;
+  background: transparent;
+}
+.tile .stat-row-bar-track {
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--text-muted) 8%, transparent);
+  margin: 0 14px;
+}
+.tile .stat-row-bar-fill {
+  border-radius: 2px;
+}
+.tile .stat-row-value {
+  min-width: 3ch;
+  text-align: right;
+  color: var(--text-secondary);
+}
+.tile-rows .stat-row:first-child .stat-row-value {
+  color: var(--text-primary);
+}
+
 /* ---------- Tables ---------- */
 .table-wrap {
   overflow: auto;

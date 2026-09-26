@@ -518,7 +518,7 @@ export function PlayerDetailOverlay() {
             <tr style={{ fontWeight: 600 }}>
               {columns.map((c, i) =>
                 i === 0 ? (
-                  <td key={c.key} style={{ textAlign: "left", fontFamily: "var(--font-body)" }} colSpan={identityColumns.length}>
+                  <td key={c.key} style={{ textAlign: "center", fontFamily: "var(--font-body)" }} colSpan={identityColumns.length}>
                     Totals
                   </td>
                 ) : i < identityColumns.length ? null : (
@@ -531,7 +531,7 @@ export function PlayerDetailOverlay() {
             <tr>
               {columns.map((c, i) =>
                 i === 0 ? (
-                  <td key={c.key} style={{ textAlign: "left", fontFamily: "var(--font-body)" }} colSpan={identityColumns.length}>
+                  <td key={c.key} style={{ textAlign: "center", fontFamily: "var(--font-body)" }} colSpan={identityColumns.length}>
                     Average
                   </td>
                 ) : i < identityColumns.length ? null : (

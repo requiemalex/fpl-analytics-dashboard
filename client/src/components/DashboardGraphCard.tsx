@@ -71,7 +71,7 @@ export function DashboardGraphCard({
 
   return (
     <div
-      className="card"
+      className="card tile"
       draggable={draggable}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
@@ -83,13 +83,11 @@ export function DashboardGraphCard({
           : undefined
       }
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
-        <div className="card-title" style={{ marginBottom: 0 }}>
-          {title}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          <DataViewBadge mode={dataView} />
+      <div className="tile-header">
+        <div className="card-title tile-title">{title}</div>
+        <div className="tile-actions">
           <CardEditRemoveButtons noun="graph" onEdit={onEdit} onRemove={onRemove} />
+          <DataViewBadge mode={dataView} />
         </div>
       </div>
       {chartType === "scatter" ? (
