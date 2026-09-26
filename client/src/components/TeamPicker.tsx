@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import type { NormalizedTeam } from "../types/normalized";
+import { TeamBadge } from "./primitives";
 
 /**
  * "Search a team, pick one from suggestions" control for tracking specific
@@ -58,7 +59,8 @@ export function TeamPicker({
               }}
             >
               <span className="stat-row-name">
-                {t.name} <span className="team">{t.shortName}</span>
+                <TeamBadge teamId={t.id} shortName={t.shortName} linked={false} />
+                {t.name}
               </span>
             </div>
           ))}

@@ -205,20 +205,11 @@
   flex: 0 0 auto;
   min-width: 48px;
 }
-.tile .team-badge-swatch {
-  align-self: center;
-  width: 5px;
-  height: 11px;
-  border-radius: 3px;
-}
 .tile .badge.pos-GKP,
 .tile .badge.pos-DEF,
 .tile .badge.pos-MID,
 .tile .badge.pos-FWD {
   flex: 0 0 26px;
-  padding: 0;
-  border-left: none;
-  background: transparent;
 }
 .tile .stat-row-bar-track {
   height: 4px;
@@ -551,49 +542,37 @@ select:focus {
   white-space: nowrap;
 }
 
-/* A soft-filled tag with a solid colour bar on the left, rather than a
-   plain outlined pill — a deliberately different silhouette from other
-   FPL tools' position badges (a flush-left flag shape, tinted fill
-   instead of a transparent/bordered capsule), while keeping the same
-   at-a-glance colour coding and overall restraint. Text and the accent
-   bar use the position's full-strength colour (--pos-*, tokens.css);
-   the background is the same colour at ~12% strength via color-mix(),
-   not a separate hand-picked value — a subtle tint behind the text,
-   never competing with the player name next to it. */
+/* A position is plain bold text in its own colour (--pos-*, tokens.css)
+   — no fill, bar or outline — so it sits quietly beside the player's
+   name and the club's pill does the heavier lifting. The pitch's jersey
+   crest is the one exception (see .pitch-card-jersey-position). */
 .badge.pos-GKP,
 .badge.pos-DEF,
 .badge.pos-MID,
 .badge.pos-FWD {
   border: none;
-  border-radius: 0 4px 4px 0;
-  padding-left: 6px;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
   font-weight: 700;
 }
 .badge.pos-GKP {
   color: var(--pos-gkp);
-  background: color-mix(in srgb, var(--pos-gkp) 12%, transparent);
-  border-left: 3px solid var(--pos-gkp);
 }
 .badge.pos-DEF {
   color: var(--pos-def);
-  background: color-mix(in srgb, var(--pos-def) 12%, transparent);
-  border-left: 3px solid var(--pos-def);
 }
 .badge.pos-MID {
   color: var(--pos-mid);
-  background: color-mix(in srgb, var(--pos-mid) 12%, transparent);
-  border-left: 3px solid var(--pos-mid);
 }
 .badge.pos-FWD {
   color: var(--pos-fwd);
-  background: color-mix(in srgb, var(--pos-fwd) 12%, transparent);
-  border-left: 3px solid var(--pos-fwd);
 }
-/* Same flush-left flag shape as position badges — colours themselves are
-   set inline per team (TeamBadge, primitives.tsx) since the team list
-   isn't a small fixed set the way positions are. The flag is a two-colour
-   swatch (team-badge-swatch) rather than a plain border-left, so a club's
-   primary AND secondary colour both show. */
+/* A club is a softly tinted tag led by a small rounded two-colour pill
+   (team-badge-swatch) — colours set inline per team (TeamBadge,
+   primitives.tsx) since the team list isn't a small fixed set the way
+   positions are. Both the club's primary AND secondary colour show, as
+   several clubs share near-identical primaries. */
 .badge.team-badge {
   border: none;
   border-radius: 4px;
@@ -602,9 +581,10 @@ select:focus {
 }
 .team-badge-swatch {
   display: inline-block;
-  align-self: stretch;
-  width: 4px;
-  border-radius: 2px;
+  align-self: center;
+  width: 5px;
+  height: 11px;
+  border-radius: 3px;
   margin-right: 5px;
 }
 
@@ -787,17 +767,16 @@ select:focus {
    legibility here the way it did before this app's position colours
    moved off its own green/blue/gold/red semantic tokens. Overridden
    only in this jersey context — every other place PositionBadge renders
-   (tables, lists, etc.) is untouched. Deliberately kept as a plain
-   rounded pill (not the flush-left flag shape those other places use)
-   — floating alone on a jersey, an asymmetric tag shape doesn't read as
-   cleanly as a small rounded crest does, so this stays its own
-   already-tested shape. */
+   (tables, lists, etc.) is untouched. Deliberately kept as a small
+   rounded pill (not the plain coloured text those other places use) —
+   bare text floating on a jersey graphic doesn't read cleanly, so this
+   stays its own already-tested crest shape. */
 .pitch-card-jersey-position .badge.pos-GKP,
 .pitch-card-jersey-position .badge.pos-DEF,
 .pitch-card-jersey-position .badge.pos-MID,
 .pitch-card-jersey-position .badge.pos-FWD {
   border-radius: 999px;
-  padding-left: 7px;
+  padding: 2px 7px;
   background: var(--bg);
 }
 .pitch-card-jersey-position .badge.pos-GKP {

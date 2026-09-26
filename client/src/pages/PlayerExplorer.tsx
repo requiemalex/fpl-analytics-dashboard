@@ -254,8 +254,7 @@ export function PlayerExplorer() {
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("lastSeason");
   const [search, setSearch] = useState("");
 
-  // `?team=<id>` is the Teams page's "Player Rankings" hand-off (and the
-  // Team Profile's link). It becomes the Team column's own filter — shown
+  // `?team=<id>` is the Team Profile's "Player Rankings" hand-off. It becomes the Team column's own filter — shown
   // on the column, changeable and clearable like any other — then leaves
   // the address, so nothing re-applies it later. An unknown id is dropped.
   // Seeded at mount (so the first frame is already filtered) and handled

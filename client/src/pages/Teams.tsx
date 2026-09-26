@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import { computeTeamAggregates, clubSeasonsForMode, type TeamAggregate } from "../metrics/teamStats";
@@ -53,7 +53,6 @@ export function Teams() {
   useEffect(() => {
     requestHistoricData();
   }, [requestHistoricData]);
-  const navigate = useNavigate();
   const [, setSearchParams] = useSearchParams();
   // This page's own analysis mode, search and column filters — deliberately
   // not shared with any other page (see state/scoutingFilters.ts).
@@ -184,11 +183,6 @@ export function Teams() {
   }, []);
 
   const seasons = clubSeasonsForMode(analysisMode, historicReferenceSeason);
-
-  /** Jumps to Player Explorer pre-filtered to this club, so its players are immediately sortable/rankable by any column there — a discoverability shortcut into functionality that already exists, not a new ranking system of its own. Handed off via a URL query param, not shared state — Player Explorer reads `?team=` once on mount to seed its own independent filters (see PlayerExplorer.tsx), never kept in sync afterwards. */
-  function goToPlayerRankings(teamId: number) {
-    navigate(`/players?team=${teamId}`);
-  }
 
   /** Opens the team profile overlay (see TeamDetailOverlay.tsx) — same `?teamProfile=` param TeamBadge itself sets on click, kept here too so clicking anywhere else on the row does the same thing. */
   function openTeamProfile(teamId: number) {
@@ -363,18 +357,6 @@ export function Teams() {
                       <span className="name">{t.name}</span>
                       <span className="meta">
                         <TeamBadge teamId={t.teamId} shortName={t.shortName} />
-                        <button
-                          type="button"
-                          className="chip"
-                          style={{ fontSize: 10, padding: "1px 7px" }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            goToPlayerRankings(t.teamId);
-                          }}
-                          title={`See ${t.name}'s players, sortable by any metric, in Player Explorer`}
-                        >
-                          Player Rankings
-                        </button>
                       </span>
                     </div>
                   </td>

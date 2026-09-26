@@ -3421,3 +3421,12 @@ tiles/graphs only:
   figures above each bar, no axis or gridlines, a plain average line over
   the counted seasons, and the trend and averages as icons with hover text.
 - **Last commit with it:** `974e6da`.
+
+### Team Explorer's "Player Rankings" button (removed 2026-09-26)
+- **What it did:** a small "Player Rankings" chip under each club name in
+  Team Explorer's Team column opened Player Explorer filtered to that club
+  (`goToPlayerRankings` in `pages/Teams.tsx`, via `?team=<id>`).
+- **Why it went:** the owner wanted the Team column to be just the club
+  name and badge. The Team Profile's own "Player Rankings" link still does
+  the same hand-off, and Player Explorer still reads `?team=`.
+- **Last commit with it:** `7409f7b`.

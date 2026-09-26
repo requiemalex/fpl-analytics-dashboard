@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useAppState } from "../state/AppStateContext";
-import { PositionBadge } from "./primitives";
+import { PositionBadge, TeamBadge } from "./primitives";
 import type { NormalizedPlayer } from "../types/normalized";
 import { matchesPlayerSearch } from "../utils/playerSearch";
 
@@ -62,9 +62,9 @@ export function PlayerSearch({
               }}
             >
               <span className="stat-row-name">
+                <TeamBadge teamId={m.teamId} shortName={m.teamShortName} linked={false} />
                 <PositionBadge position={m.position} />
                 {m.name}
-                <span className="team">{m.teamShortName}</span>
               </span>
             </div>
           ))}

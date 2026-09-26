@@ -329,7 +329,7 @@ export function UserGuide() {
             With several things open, Escape closes the one opened last.
           </li>
           <li>
-            Arriving from a club's "Player Rankings" link (Team Explorer or the Team Profile) shows all of that club's players: it clears the
+            Arriving from a club's "Player Rankings" link (in the Team Profile) shows all of that club's players: it clears the
             search and any other column filters, then sets the Team column's filter to that club — shown on the column like any other
             filter, so you can change it to another club or clear it.
           </li>
@@ -438,13 +438,12 @@ export function UserGuide() {
         </p>
         <p className="page-subtitle">
           Team Explorer is a league-table view of that season — position, points, goals for and against, clean sheets, xG, xGC, xA and FPL
-          points scored — with a "Player Rankings" shortcut under each club name that jumps straight into Player Explorer
-          pre-filtered to that team. It has the same toolbar and column toolkit as Player Explorer: the Columns picker adds any
+          points scored. It has the same toolbar and column toolkit as Player Explorer: the Columns picker adds any
           other team metric the Dashboard offers (played, wins, draws, losses, goal difference, goals, assists, bonus, xGI,
           defensive contributions — all off by default); headers sort, drag to reorder and resize, and each has its own ▾ filter;
           the "Team name…" box searches by club name or short name; Reset restores the default columns and clears every filter;
-          and Export CSV downloads exactly what's on screen. A team's coloured pill — here, in the Team Profile, and on every
-          Dashboard tile — is clickable anywhere it appears in the app and opens that club's Team Profile: season totals, the
+          and Export CSV downloads exactly what's on screen. A team's coloured pill — shown wherever the app names a club, a player's
+          club included, except in search suggestions, where a click picks that row — opens that club's Team Profile: season totals, the
           team radars, upcoming fixtures, and the current squad with what each player did <em>for this club</em> in the selected
           season (a new signing shows "—" for last season), with its own "Player Rankings" link through to Player Explorer for the
           full sortable table. The header's league position, points and results follow the Data View too, shown as Team Explorer

@@ -87,8 +87,8 @@ expensive-to-fetch data: players, teams, fixtures, events, historic profiles
 `bootstrap-static` silently every 10 minutes. Analysis mode and filters are
 **per page** — each page keeps its own in `useState` and renders the
 controlled `AnalysisModeToggle`/`FiltersBar`; nothing a page does can change
-another page. The one cross-page hand-off (Team Explorer → Player Explorer filtered
-to a club) goes through the `?team=<id>` URL param, which Player Explorer
+another page. The one cross-page hand-off (the Team Profile's Player Rankings link →
+Player Explorer filtered to a club) goes through the `?team=<id>` URL param, which Player Explorer
 turns into its Team column filter and then removes from the address. Arriving
 while the page is already open (the Team Profile's link) also clears the
 search and every other column filter, so both routes show the whole club.

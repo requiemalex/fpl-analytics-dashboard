@@ -21,7 +21,7 @@ import { getUpcomingFixtures, fdrColor, averageFixtureDifficulty, type UpcomingF
 import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, columnByKey, isStaticColumn, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { SquadPitch } from "../components/SquadPitch";
 import { AnalysisModeIcon } from "../components/AnalysisModeIcon";
-import { PositionBadge, AvailabilityFlag, SignedNum, availabilityTextClass } from "../components/primitives";
+import { PositionBadge, TeamBadge, AvailabilityFlag, SignedNum, availabilityTextClass } from "../components/primitives";
 import { IconChipButton, ResetIcon, SparkleIcon, ClockIcon, FilterIcon, DownloadIcon } from "../components/IconToolbar";
 import { fmtPrice, fmtDecimal, fmtPercent, fmtSigned, DASH } from "../utils/format";
 import { relativeCellTint } from "../utils/colorScale";
@@ -217,7 +217,9 @@ const PickerRow = React.memo(function PickerRow({
             <AvailabilityFlag status={row.live.status} news={row.live.news} chanceOfPlayingNextRound={row.live.chanceOfPlayingNextRound} />
           </span>
           <span className="meta">
-            <PositionBadge position={row.live.position} /> {row.live.teamShortName} · {fmtPrice(row.live.price)}
+            {fmtPrice(row.live.price)}
+            <TeamBadge teamId={row.live.teamId} shortName={row.live.teamShortName} />
+            <PositionBadge position={row.live.position} />
             <button
               type="button"
               className="inline-add-btn"
