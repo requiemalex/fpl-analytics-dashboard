@@ -1,7 +1,7 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useEscapeLayer } from "../state/useEscapeLayer";
 import { useDialogFocus } from "../state/useDialogFocus";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { usePlayerHistory } from "../state/usePlayerHistory";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
@@ -99,16 +99,6 @@ function CloseIcon() {
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
       <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
       <line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-/** Two uneven bars — the same bar-chart motif as the app's own icon, reused here for "Compare" since it's visually distinct from every other icon in the header without introducing a new visual language. */
-function CompareIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <rect x="2" y="7" width="4" height="7" rx="1" fill="currentColor" />
-      <rect x="10" y="3" width="4" height="11" rx="1" fill="currentColor" />
     </svg>
   );
 }
@@ -338,7 +328,7 @@ export function PlayerDetailOverlay() {
 
   // The stat cards below use this — identity fields (name, team, position,
   // price/ownership in the header, Points History, Playing-Time
-  // Indicators, the Compare link) all stay on the live `player` throughout,
+  // Indicators) all stay on the live `player` throughout,
   // matching how every other page keeps identity live and only resolves
   // the performance figures.
   const resolvedPlayer = resolvePlayerStats(player, analysisMode, historicProfiles.get(player.id), currentSeasonHasStarted, PROFILE_RESOLVE);
@@ -562,11 +552,6 @@ export function PlayerDetailOverlay() {
               <PositionBadge position={player.position} /> &nbsp;{player.teamName} · {fmtPrice(player.price)} ·{" "}
               {fmtPercent(player.ownership)} owned
             </p>
-          </div>
-          <div className="profile-header-actions">
-            <Link className="profile-icon-btn" to={`/player-comparison?players=${player.id}`} title={`Compare ${player.name}`} aria-label={`Compare ${player.name}`}>
-              <CompareIcon /> Compare
-            </Link>
           </div>
         </div>
 

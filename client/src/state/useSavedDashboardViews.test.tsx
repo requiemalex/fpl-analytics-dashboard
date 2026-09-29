@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useSavedDashboardViews, isDefaultSavedView } from "./useSavedDashboardViews";
+import { useSavedDashboardViews, isDefaultSavedView, resolveSelectedViewIds, MY_VIEW_NAME, STARTER_VIEW_NAME } from "./useSavedDashboardViews";
 import { DEFAULT_SUMMARY_TILES, normalizeSummaryTile, type SummaryTileConfig } from "./useSummaryTiles";
 import { DEFAULT_DASHBOARD_GRAPHS } from "./useDashboardGraphs";
 
@@ -36,12 +36,21 @@ describe("useSavedDashboardViews — Default-view self-healing migration", () =>
 
   it("is a no-op (doesn't duplicate) when both Default views are already present", () => {
     const existing = [
-      { id: "default-view-player", scope: "player", name: "Default", tiles: [], graphs: [], updatedAt: 0 },
-      { id: "default-view-team", scope: "team", name: "Default", tiles: [], graphs: [], updatedAt: 0 },
+      { id: "default-view-player", scope: "player", name: "Starter", tiles: [], graphs: [], updatedAt: 0 },
+      { id: "default-view-team", scope: "team", name: "Starter", tiles: [], graphs: [], updatedAt: 0 },
     ];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 3, data: existing }));
+    // Stored at the current version, so the one-off My View seeding (v6) doesn't run.
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 6, data: existing }));
     const { result } = renderHook(() => useSavedDashboardViews());
     expect(result.current.views).toHaveLength(2);
+  });
+
+  it("names the packaged view Starter, whatever name was stored for it", () => {
+    const existing = [{ id: "default-view-player", scope: "player", name: "Default", tiles: [], graphs: [], updatedAt: 0 }];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 5, data: existing }));
+    const { result } = renderHook(() => useSavedDashboardViews());
+    expect(result.current.views.find((v) => v.id === "default-view-player")?.name).toBe(STARTER_VIEW_NAME);
+    expect(result.current.views.find((v) => v.id === "default-view-team")?.name).toBe(STARTER_VIEW_NAME);
   });
 
   it("migrates un-enveloped legacy data (storedVersion null) the same way", () => {
@@ -191,38 +200,43 @@ describe("isDefaultSavedView", () => {
 });
 
 describe("useSavedDashboardViews — selectedViewIds persistence (which view the dropdown shows per scope)", () => {
-  it("with nothing stored, defaults both scopes' selection to their Default view", () => {
+  const customPlayerView = { id: "view-custom-1", scope: "player", name: "Mine", tiles: [], graphs: [], updatedAt: 1 };
+
+  it("with nothing stored, opens both scopes on their blank My View", () => {
     const { result } = renderHook(() => useSavedDashboardViews());
-    expect(result.current.selectedViewIds).toEqual({ player: "default-view-player", team: "default-view-team" });
+    expect(result.current.selectedViewIds).toEqual({ player: "my-view-player", team: "my-view-team" });
+    const myPlayerView = result.current.views.find((v) => v.id === "my-view-player");
+    expect(myPlayerView).toMatchObject({ name: MY_VIEW_NAME, scope: "player", tiles: [], graphs: [] });
+    expect(isDefaultSavedView(myPlayerView!)).toBe(false);
   });
 
   it("picks up a previously-saved selection on mount, simulating a reload/app restart landing back on the same view", () => {
-    localStorage.setItem(
-      SELECTED_VIEW_STORAGE_KEY,
-      JSON.stringify({ version: 1, data: { player: "view-custom-1", team: "default-view-team" } }),
-    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 6, data: [customPlayerView] }));
+    localStorage.setItem(SELECTED_VIEW_STORAGE_KEY, JSON.stringify({ version: 2, data: { player: "view-custom-1", team: "default-view-team" } }));
     const { result } = renderHook(() => useSavedDashboardViews());
     expect(result.current.selectedViewIds).toEqual({ player: "view-custom-1", team: "default-view-team" });
   });
 
   it("self-heals a partially-malformed stored selection, keeping the valid scope and defaulting the broken one", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 5, data: [customPlayerView] }));
     localStorage.setItem(SELECTED_VIEW_STORAGE_KEY, JSON.stringify({ version: 1, data: { player: "view-custom-1", team: 42 } }));
     const { result } = renderHook(() => useSavedDashboardViews());
-    expect(result.current.selectedViewIds).toEqual({ player: "view-custom-1", team: "default-view-team" });
+    expect(result.current.selectedViewIds).toEqual({ player: "view-custom-1", team: "my-view-team" });
   });
 
   it("falls back to full defaults for genuinely unsalvageable data (not an object at all)", () => {
     localStorage.setItem(SELECTED_VIEW_STORAGE_KEY, JSON.stringify({ version: 1, data: "not an object" }));
     const { result } = renderHook(() => useSavedDashboardViews());
-    expect(result.current.selectedViewIds).toEqual({ player: "default-view-player", team: "default-view-team" });
+    expect(result.current.selectedViewIds).toEqual({ player: "my-view-player", team: "my-view-team" });
   });
 
   it("setSelectedViewId updates just that scope and persists it for the next mount", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 5, data: [customPlayerView] }));
     const { result, unmount } = renderHook(() => useSavedDashboardViews());
     act(() => {
       result.current.setSelectedViewId("player", "view-custom-1");
     });
-    expect(result.current.selectedViewIds).toEqual({ player: "view-custom-1", team: "default-view-team" });
+    expect(result.current.selectedViewIds).toEqual({ player: "view-custom-1", team: "my-view-team" });
     unmount();
 
     const { result: reloaded } = renderHook(() => useSavedDashboardViews());
@@ -313,5 +327,63 @@ describe("useSavedDashboardViews — version 4 -> 5 (embedded tiles and graphs n
     const custom = result.current.views.find((v) => v.id === "view-custom-1");
     expect(custom?.tiles[0]).toMatchObject({ id: "t1", dataView: "lastSeason", playerIds: null, teamIds: null });
     expect(custom?.graphs[0].direction).toBe("asc");
+  });
+});
+
+describe("useSavedDashboardViews — version 5 -> 6 (blank My View, packaged view renamed Starter)", () => {
+  it("adds a blank My View to each scope of an existing install and moves a scope on the packaged view to it", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 5, data: [{ id: "view-custom-1", scope: "player", name: "Mine", tiles: [], graphs: [], updatedAt: 1 }] }));
+    localStorage.setItem(SELECTED_VIEW_STORAGE_KEY, JSON.stringify({ version: 1, data: { player: "view-custom-1", team: "default-view-team" } }));
+    const { result } = renderHook(() => useSavedDashboardViews());
+    expect(result.current.views.filter((v) => v.name === MY_VIEW_NAME).map((v) => v.id).sort()).toEqual(["my-view-player", "my-view-team"]);
+    // A scope on a view of the user's own stays there; one on the packaged view moves to My View.
+    expect(result.current.selectedViewIds).toEqual({ player: "view-custom-1", team: "my-view-team" });
+  });
+
+  it("doesn't add a My View to a scope that already has a view by that name, or is at its view cap", () => {
+    const full = Array.from({ length: 4 }, (_, i) => ({ id: `view-t${i}`, scope: "team", name: `Team ${i}`, tiles: [], graphs: [], updatedAt: 1 }));
+    const existing = [{ id: "view-p", scope: "player", name: "my view", tiles: [], graphs: [], updatedAt: 1 }, ...full];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 5, data: existing }));
+    localStorage.setItem(SELECTED_VIEW_STORAGE_KEY, JSON.stringify({ version: 1, data: { player: "default-view-player", team: "default-view-team" } }));
+    const { result } = renderHook(() => useSavedDashboardViews());
+    expect(result.current.views.some((v) => v.id === "my-view-player" || v.id === "my-view-team")).toBe(false);
+    // With no My View to move to, the selection stays on the packaged Starter view.
+    expect(result.current.selectedViewIds).toEqual({ player: "default-view-player", team: "default-view-team" });
+  });
+
+  it("renames a user's own view called Starter, so it isn't confused with the packaged one", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 5, data: [{ id: "view-s", scope: "player", name: "Starter", tiles: [], graphs: [], updatedAt: 1 }] }));
+    const { result } = renderHook(() => useSavedDashboardViews());
+    expect(result.current.views.find((v) => v.id === "view-s")?.name).toBe("Starter (2)");
+  });
+
+  it("runs once: a My View the user deleted isn't brought back on the next load", () => {
+    const { result, unmount } = renderHook(() => useSavedDashboardViews());
+    act(() => {
+      result.current.remove("my-view-player");
+    });
+    expect(result.current.selectedViewIds.player).toBe("default-view-player");
+    unmount();
+    const { result: reloaded } = renderHook(() => useSavedDashboardViews());
+    expect(reloaded.current.views.some((v) => v.id === "my-view-player")).toBe(false);
+    expect(reloaded.current.selectedViewIds.player).toBe("default-view-player");
+  });
+});
+
+describe("resolveSelectedViewIds", () => {
+  const views = [
+    { id: "default-view-player", scope: "player" as const },
+    { id: "my-view-player", scope: "player" as const },
+    { id: "default-view-team", scope: "team" as const },
+  ];
+  it("keeps a stored selection that exists, and returns the same object when nothing changes", () => {
+    const stored = { player: "default-view-player", team: "default-view-team" };
+    expect(resolveSelectedViewIds(views, stored)).toBe(stored);
+  });
+  it("falls a missing selection back to My View, then to Starter", () => {
+    expect(resolveSelectedViewIds(views, { player: "gone", team: "gone" })).toEqual({ player: "my-view-player", team: "default-view-team" });
+  });
+  it("never picks a view from the other scope", () => {
+    expect(resolveSelectedViewIds(views, { player: "default-view-team", team: "my-view-player" })).toEqual({ player: "my-view-player", team: "default-view-team" });
   });
 });

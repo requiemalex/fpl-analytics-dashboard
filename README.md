@@ -187,28 +187,33 @@ everything:
 
 | | Where | Floor | Historic Average |
 |---|---|---|---|
-| **The user can set minimum minutes** | Player Explorer (MINS filter), Dashboard tiles and graphs the user builds, Team Building | None added by the app | Every window season counts, 0-minute ones included |
-| **The user can't** | Player profile, Player Comparison, the packaged Default Dashboard views | Fixed: 90 minutes in Current Season, 450 otherwise (`metrics/fixedMinutesFloor.ts`, `<fixed_minutes_floor>`) | Only seasons with 450+ minutes count; a season under that is a small sample and none of its figures count |
+| **The user can set minimum minutes** | Player Explorer (MINS filter), Dashboard tiles and graphs the user builds, Player Comparison cards in views the user builds, Team Building | None added by the app | Every window season counts, 0-minute ones included |
+| **The user can't** | Player profile, the packaged Starter views (Dashboard and Player Comparison) | Fixed: 90 minutes in Current Season, 450 otherwise (`metrics/fixedMinutesFloor.ts`, `<fixed_minutes_floor>`) | Only seasons with 450+ minutes count; a season under that is a small sample and none of its figures count |
 
 In the fixed-floor sections the floor applies to **every percentile**,
 totals as well as per-game rates: the pool is everyone at or above it, and
 a player below it is shown as a small sample, with no percentile and no
-colour. Player Comparison's table follows the same rule as its radars: a
-small sample's column gets no better/worse colour or bold, the others are
-coloured among themselves, and the Summary doesn't count him.
+colour. On Player Comparison's Starter view a small sample isn't drawn on
+a radar, has no marker on an Outputs track and is never the bold best —
+the others are ranked among themselves — and a trend season under the
+floor is marked with an amber ring. A card the user builds does the same at its own
+Min Minutes instead (0 by default), card by card.
 
 **The badge.** Wherever the fixed floor is applied, a small stopwatch-on-a-
 line badge (`components/MinutesFloorBadge.tsx`) says so, its hover text
 naming the floor for the mode, so a missing player or an uncoloured cell
-isn't taken for missing data. The profile and Player Comparison show it at
-the right of their mode toggle (`profileFloorNote`). The Team Profile has
+isn't taken for missing data. The profile shows it at the right of its mode
+toggle, and Player Comparison's Starter view in each card's header
+(`profileFloorNote`, `trendFloorNote`); a card the user builds has none. The Team Profile has
 none: club figures have no floor. On
 the Dashboard it's per tile or graph, and only where a floor really applies
-(`dashboardItemFloorNote`): every player tile and graph in the Default view
+(`dashboardItemFloorNote`): every player tile and graph in the Starter view
 (not on picked players, and not on team tiles or graphs). The same icon in
 amber (`SmallSampleBadge`, hover text `smallSampleNote`) marks a small
-sample on the profile's radar titles and on Player Comparison's column
-header and radar — no banner or "(small sample)" text.
+sample on the profile's radar titles and on Player Comparison's radar
+legends and Outputs column headers — no banner or "(small sample)" text.
+On a Player Comparison card the user builds, the same amber badge marks a
+player under the card's Min Minutes (`belowMinimumNote`).
 
 **Historic Average there counts only seasons of 450+ minutes** (the
 owner's rule, `HistoricPlayerProfile.floorWindowAverage`, used through
@@ -236,7 +241,7 @@ Details:
   Minutes or a Mins filter: a Dashboard tile or graph the user builds, and
   Player Explorer. A one-cameo player can top them; raising Min Minutes is
   the user's call.
-- The packaged Default view, which the user can't edit, leaves players
+- The packaged Starter view ("Default" in code), which the user can't edit, leaves players
   under the fixed floor out of **every** player tile and graph, totals and
   per-game rates alike (`applyDefaultViewFloor`, `playersForDashboardItem`),
   and reads Historic Average from 450+ minute seasons only
@@ -363,9 +368,10 @@ by a fraction of one upcoming match.
   shown in the User Guide.
 - **Percentiles** (`metrics/percentiles.ts`) are within-position, against
   the full mode-resolved pool at or above the fixed minutes floor — never a
-  filtered view. Every percentile the app shows is in a fixed-floor section
-  (player profile, Player Comparison's radars), so a player under the
-  floor has none (see "Minimum minutes").
+  filtered view. The player profile's and Player Comparison's Starter
+  radars use the fixed floor, so a player under it has none (see "Minimum
+  minutes"); a Player Comparison radar the user builds uses its own Min
+  Minutes instead.
   Bands: 90+ Excellent, 70–89 Good, 30–69 Average, <30 Poor.
   Lower-is-better stats (xGC, Min/Goal) are flipped. They drive the
   profile's radars (`metrics/radarStats.ts`, position-specific axes; DEF/MID
@@ -412,13 +418,21 @@ obvious from the UI.
   a League Position graph shows 1–15). A graph without a custom name is
   titled by its metric (bar) or "<X> vs <Y>" (scatter); a tile by its metric.
 - Saved views (`useSavedDashboardViews`) hold one scope's tiles and graphs.
-  The selected non-Default view live-syncs every change. **Default** (one
-  per scope) is immutable: no add, edit, remove or reorder, and it is
-  re-synced to the packaged set on every load. A default-id tile or graph
-  can therefore only ever be an unmodified default, and Default's cards
-  aren't draggable. Create View starts blank; Default counts toward the 5
-  views per scope, and names must be unique within a scope. Delete View
-  asks for confirmation.
+  The selected non-Default view live-syncs every change. **Starter** (one
+  per scope; "Default" in code, ids `default-view-*`) is immutable: no
+  add, edit, remove or reorder, and it is re-synced to the packaged set on
+  every load. A default-id tile or graph can therefore only ever be an
+  unmodified default, and Starter's cards aren't draggable. **My View**
+  (`my-view-*`) is seeded blank per scope and is what a new install opens
+  on; otherwise it's an ordinary view. Store v6 added it to existing
+  installs (unless the scope already had a "My View" or was full) and moved
+  a scope that was on the packaged view to it; the selection falls back to
+  My View, then Starter, whenever the stored one doesn't exist
+  (`resolveSelectedViewIds`). The tiles and graphs stores hold a working
+  copy, so the page first loads each scope's selected view onto screen
+  (`hydratedScopes`) before live-sync may write to it. Create View starts
+  blank; Starter counts toward the 5 views per scope, and names must be
+  unique within a scope. Delete View asks for confirmation.
 - Scatter axes follow `<axis_scaling>` (`components/charts/axisScaling.ts`):
   - The y = x trend line is dropped when one axis is ≥5× the other.
   - A crowded axis goes log or √.
@@ -522,14 +536,37 @@ drops responses for a player no longer selected.
   (`useEscapeLayer`). An address naming a player or club that doesn't exist
   shows "not found" instead of nothing.
 
-**Player Comparison** — up to 5 players across every `PLAYER_COLUMNS`
-metric, coloured better/worse (price, ownership, xGC inverted), plus radars.
-A fixed-floor section: a small sample gets no percentile on the radar, no
-colour or bold in the table and no place in the Summary's tally, and
-Historic Average counts only 450+ minute seasons, in the table as well as
-the radars.
-Player Trends (`metrics/careerTrends.ts`) is separate and uses the full
-unwindowed career (`allTimeSeasonsByPlayerId`), outside the mode toggle.
+**Player Comparison** (`pages/PlayerComparison.tsx`, `components/comparison/`)
+— one page-level list of up to 5 players (`?players=`), compared by every
+card in the selected view. Each player's colour is his place in the list
+(`seriesColors.ts`: the app's accent tokens).
+- Views (`useComparisonViews`) are layouts only — never players — of three
+  element kinds, one section each: **radar** (3–8 axes) and **outputs** (up
+  to 12 rows), each with its own Data View, from `COMPARISON_METRICS`
+  (every non-static `PLAYER_COLUMNS` metric); and **trend** (one
+  `TREND_METRICS` key on the y axis, seasons on the x). Max 5 views
+  (Starter and My View included), 6 cards per section. **Starter**
+  (`comparison-starter`) is packaged, read-only and restored on every load;
+  **My View** is seeded blank and selected on first load. Edits save
+  immediately; a stored card of an unknown kind is dropped, one with unknown
+  metric keys shows as "unavailable" but can be removed.
+- Minimum minutes follow the Dashboard's split. On **Starter** every card
+  uses the fixed floor, pools are resolved with `fixedFloorSeasons`, and
+  cards show the stopwatch badge. On any other view each card has its own
+  `minMinutes` (store v2; 0 by default) and pools are resolved without
+  `fixedFloorSeasons`. Either way the threshold is per card: a player under
+  it gets the amber badge on that card, isn't drawn on a radar, has no
+  Outputs marker, doesn't set the Outputs scale and can't be bold.
+- Radar percentiles are within position, among everyone at or above the
+  card's threshold (`comparisonPercentiles`, the same figure as
+  `computePositionPercentiles`), flipped for lower-is-better metrics.
+- An Outputs row is raw figures to scale: its track runs from 0 to the
+  highest figure among the ranked compared players, each marker at
+  value ÷ leader; each row has its own scale.
+- Trends use the full unwindowed career (`allTimeSeasonsByPlayerId`,
+  completed seasons). A season under the card's threshold (450 on Starter)
+  still plots the real figure; its minutes are kept under `trendBelowKey`,
+  so its point is an amber ring and the hover text adds the minutes.
 
 **Team Explorer / Team Profile** (`pages/Teams.tsx`, `components/TeamDetailOverlay.tsx`) — club
 figures per "Club history" above. Club pills use real two-colour kits
@@ -615,6 +652,8 @@ server storage. Each store wraps its data as `{ version, data }` via
 | `fpl-dashboard:dashboard:graphs:v1` | `useDashboardGraphs` |
 | `fpl-dashboard:dashboard:saved-views:v1` | `useSavedDashboardViews` (views embed tiles and graphs) |
 | `fpl-dashboard:dashboard:selected-view:v1` | `useSavedDashboardViews` |
+| `fpl-dashboard:comparison:views:v1` | `useComparisonViews` (views embed their cards) |
+| `fpl-dashboard:comparison:selected-view:v1` | `useComparisonViews` |
 | `fpl-dashboard:saved-squads:v1` | `useSavedSquads` |
 
 **Any change to what a store holds** — a new field, a new default, a

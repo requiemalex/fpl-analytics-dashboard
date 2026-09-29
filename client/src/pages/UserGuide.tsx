@@ -190,15 +190,16 @@ export function UserGuide() {
         </ul>
         <p className="page-subtitle">
           <strong>Minimum minutes.</strong> Where you can set a minutes filter yourself — Player Explorer's Mins column, the tiles and
-          graphs you build on the Dashboard, Team Building — the app adds none of its own: raise it if one short appearance is topping
-          a per-game list. Where you can't — the player profile, Player Comparison and the Dashboard's Default view —
+          graphs you build on the Dashboard, the cards you build on Player Comparison, Team Building — the app adds none of its own:
+          raise it if one short appearance is topping a per-game list. Where you can't — the player profile and the Starter views on
+          the Dashboard and Player Comparison —
           a fixed floor applies: 90 minutes in Current Season, 450 (five full games) otherwise — and in Historic Average only
           seasons of 450+ minutes count, so a player who never reached 450 in any of the last 4 seasons has no Historic Average
-          there. In the player profile and Player Comparison, a player under the floor is a{" "}
-          <em>small sample</em>: he's shown, but gets no percentile and no green/red colour, and Player Comparison's summary doesn't
-          count him, so a cameo can't read as the best in the league. The Default view's player tiles and graphs leave players
+          there. In the player profile and Player Comparison's Starter view, a player under the floor is a{" "}
+          <em>small sample</em>: he's shown, but gets no percentile and no green/red colour, and Player Comparison never marks him the
+          best, so a cameo can't read as the best in the league. The Starter view's player tiles and graphs leave players
           under the floor out. Wherever this fixed floor is in force you'll see a small stopwatch badge — by the mode toggle, or in a
-          Dashboard tile's or graph's header — and hovering it says what the floor is there. The same stopwatch in amber marks a
+          Dashboard or Player Comparison card's header — and hovering it says what the floor is there. The same stopwatch in amber marks a
           player who is under it.
         </p>
         <p className="page-subtitle" style={{ margin: 0 }}>
@@ -217,16 +218,20 @@ export function UserGuide() {
         </p>
         <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
           <li>
-            <strong>Default is fixed</strong> — the original tile/graph layout is itself just a saved view named "Default" (one each
-            for Players/Teams), always there in the dropdown to come back to. It can't be deleted, and while it's selected nothing in
-            it can be added to or removed either, so there's always exactly one unmodified layout to fall back on.
+            <strong>My View</strong> is where you start — a blank view (one each for Players/Teams) with a + card in the tile grid and
+            the graph grid, ready for you to build your own dashboard. It's an ordinary view, so it can be deleted like any other.
+          </li>
+          <li>
+            <strong>Starter is fixed</strong> — the app's ready-made tile/graph layout is a saved view named "Starter" (one each for
+            Players/Teams), always there in the dropdown to look at or come back to. It can't be deleted, and while it's selected nothing
+            in it can be added to or removed either, so there's always exactly one unmodified layout to fall back on.
           </li>
           <li>
             <strong>Create View</strong> (the icon next to the dropdown) starts a new, blank, named view and switches to it
             immediately — from there the + cards at the end of the tile grid and the graph grid add tiles/graphs to it one at a
             time; each one's own pencil icon edits it and its bin icon removes it. Every change saves itself as you make it, so there's nothing
             separate to save and nothing lost by switching views, tabs, or closing the app — up to 5 views each for Player and Team,
-            Default included, each with its own name. The bin icon next to the dropdown deletes the selected view after asking you to
+            Starter included, each with its own name. The bin icon next to the dropdown deletes the selected view after asking you to
             confirm — there's no undo.
             Picking a different view from the dropdown loads it immediately, replacing the live tiles and graphs for that scope only;
             the other scope is untouched.
@@ -242,7 +247,7 @@ export function UserGuide() {
             (e.g. 450 for five full games) to rank only players with a real sample. The same goes for graphs. Team Tiles show club figures for the season(s) their Data View picks — league standing included (see
             below) — and have no criteria of their own. Every tile needs a name, set in the same dialog.
           </li>
-          <li>A player tile's row reads club pill, position, name, bar, value; a Default tile or bar graph is titled by its metric alone. Each row's bar shows its value's size relative to the other rows in that tile: every bar starts at the same point and the top row's is full length, so how far a bar falls short shows how far behind that row is. Green/red by above/below-expected for the three "vs xG/xA/xGI" tiles, one flat colour for everything else.</li>
+          <li>A player tile's row reads club pill, position, name, bar, value; a Starter tile or bar graph is titled by its metric alone. Each row's bar shows its value's size relative to the other rows in that tile: every bar starts at the same point and the top row's is full length, so how far a bar falls short shows how far behind that row is. Green/red by above/below-expected for the three "vs xG/xA/xGI" tiles, one flat colour for everything else.</li>
         </ul>
         <p className="page-subtitle">
           <strong>Graphs</strong>, below the tile grid (past the divider), work the same way tiles do — built via{" "}
@@ -261,7 +266,7 @@ export function UserGuide() {
           <strong>xG vs Goals</strong> and <strong>xA vs Assists</strong> (both with the reference line on, showing finishing/creativity
           over- or under-performance) and <strong>Price vs Points</strong> (no reference line — price and points aren't on a
           comparable scale); for Teams, <strong>Team xG vs Goals</strong> and <strong>Team xGC vs Goals Against</strong>, the same
-          idea applied to each club. Like every Default player tile, the default Player graphs only include players at or above the
+          idea applied to each club. Like every Starter player tile, the Starter Player graphs only include players at or above the
           fixed minutes floor for the graph's Data View (see Minimum minutes above) — without it, hundreds of fringe players pile up
           at zero and hide everyone else. Graphs without
           the reference line fit their axes to the data's own range (so Price vs Points starts near £4m, not £0).
@@ -325,7 +330,7 @@ export function UserGuide() {
             The search box in the toolbar narrows the table by player name. Everything else is filtered at its own column (click
             the ▾ icon on that column's header) — Position and Team by category, and numeric columns like Minutes, Own%, and
             Price with ≤/≥/= fields. Player-name search (here, in
-            Team Building's Add Players table, and in the search-and-add boxes on Player Comparison and Player Trends) is
+            Team Building's Add Players table, and in the search-and-add box on Player Comparison) is
             accent-insensitive (typing "odegaard" or "sesko" finds "Ødegaard" or "Šeško"), matches first and last name in any order
             (so "fernandes bruno" finds Bruno Fernandes, not just "bruno fernandes"), accepts a name typed as FPL shows it
             ("B.Fernandes"), and tolerates small typos on longer names. The Columns picker closes on Escape or a click outside it.
@@ -403,25 +408,48 @@ export function UserGuide() {
 
       <Section id="player-comparison" title="Player Comparison">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Compare up to 5 players side by side across every Player Explorer metric, plus a percentile radar chart per player underneath.
-          The colour scale is better/worse (not just higher/lower) — price, ownership, and xGC are inverted since a lower number is the
-          better one for those three specifically. A Summary card counts how many metrics each player leads on, stated plainly as a
-          mechanical count, not a weighted verdict. The table, the summary and the radars use the fixed minutes floor (see Analysis modes): a player under it is
-          marked with an amber stopwatch badge (hover it for his minutes), has no percentiles or better/worse colours, and isn't counted in the Summary.
+          Build your own side-by-side analysis of up to 5 players. Add them with the search box at the top: each gets a tag showing
+          ownership · price (always today's), club and position, and a colour — blue, gold, green, red, then grey, in the order you added
+          them — that marks him on every chart on the page. Click a name to open his profile; × takes him out. Every chart compares the
+          same players, so swapping one updates the whole page.
         </p>
-        <Try>Add two players you're deciding between, then check whether the "leads on more metrics" summary agrees with your gut — if it doesn't, that's worth investigating why.</Try>
+        <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
+          <li>
+            <strong>Charts</strong> are percentile radars: every player's shape on one chart, each axis his percentile within his own
+            position (outward is always better — for xGC and xGC/Game, where fewer is better, the scale is turned round). Pick 3–8
+            statistics and a Data View.
+          </li>
+          <li>
+            <strong>Outputs</strong> panels list up to 12 statistics as rows, to show how far apart the players really are. Each
+            row's track runs from 0 to the highest figure among them, and each player's marker sits at his own figure — so 239 points
+            against 142 shows as a full track against about 60% — then each player's figure in his colour, the best in bold. Every row
+            has its own scale; the faint ticks are a quarter, half and three quarters of the leader. For xGC and xGC/Game fewer is
+            better, so the best is the one furthest left.
+          </li>
+          <li>
+            <strong>Trends</strong> graphs show one statistic season by season — you pick what's on the y axis (totals such as Points,
+            Minutes or xGI, per-game rates, bonus, ICT Index, end-of-season price…); the x axis is always the completed seasons on
+            record. A season a player has no figure for is a gap in his line, not a zero.
+          </li>
+          <li>
+            <strong>Views</strong> work like the Dashboard's. <strong>My View</strong> is where you start: blank, with a + card in each
+            section that opens a dialog to name the chart, panel or graph, choose what it shows and set its Min Minutes. The pencil icon edits one, the bin
+            removes it, and you can drag cards to reorder them within a section. <strong>Starter</strong> is a ready-made, read-only set
+            (attacking and defensive radars, last season's and this season's output, and points, xGI-per-game and minutes trends) that
+            works for any players as soon as you add them. Create View starts another blank view (up to 5, Starter included); changes
+            save as you make them. A view keeps the layout, not the players.
+          </li>
+        </ul>
         <p className="page-subtitle">
-          <strong>Player Trends</strong>, beneath the comparison table and radar charts, is a separate tool with its own player
-          selection — it isn't tied to the 5 players compared above. It's deliberately built outside the Last Completed Season /
-          Historic Average / Current Season toggle: it needs a genuine multi-season time series, which that single-season toggle can't
-          represent. Starts empty — add up to 5 players via the search box — and plots them against up to 3 metrics at once (Points,
-          Goals, Assists, xG, xA, xGI, Minutes) — every player×metric combination gets its own line, coloured by player and
-          dashed by metric, labelled in the legend as "Player — Metric" once there's more than one of each. A Normalise toggle (on by
-          default) independently scales each metric to 0–100 across the values on screen, which is what makes overlaying metrics on
-          very different scales (Minutes vs xG, say) actually readable. No minutes threshold on any of this — a quiet or injury-hit
-          season is real data worth seeing, not noise to filter out — and xG/xA/xGI show as a gap for seasons before FPL tracked
-          expected stats, not as zero.
+          <strong>Min Minutes</strong> works as on the Dashboard. Every card you build has its own (0 unless you set it — the app adds
+          none of its own). A player under it is marked on that card with an amber stopwatch (hover it for his minutes): he isn't
+          drawn on a radar, has no marker on an Outputs track and can't be the bold best — and a radar only ranks players who reach
+          it. It's card by card: the same player can be greyed on one card and shown in full on another. On a Trends graph, a season
+          under it still shows his real figure, but marked with an amber ring instead of a dot (hover it for his minutes that season),
+          so a short season can't pass for a full one. The Starter view's cards use the fixed floor instead (see Minimum
+          minutes above), shown by the stopwatch badge in their header.
         </p>
+        <Try>Add two players you're deciding between and switch to Starter — if one leads on the season totals but the other is ahead on the per-game rows, the first may just have played more.</Try>
       </Section>
 
       <Section id="teams" title="Team Explorer &amp; Team Profile">
@@ -484,7 +512,7 @@ export function UserGuide() {
           completed season's record; before the season starts it reads zero). The Percentile Radar chart is position-specific — a
           goalkeeper's axes share almost nothing with a forward's — and also resolves per mode. Defenders and midfielders get two
           radars ("Defense" and "Offense"), since both facets genuinely drive their points; goalkeepers and forwards keep one combined
-          radar. A "Compare" button in the header links into Player Comparison, pre-filled. Every figure in Underlying Numbers and
+          radar. Every figure in Underlying Numbers and
           Value is also lightly tinted green/red — same idea as Player Explorer's Comparative Colouring, but relative to this player's
           percentile against others in their own position (the same population the Percentile Radar uses) rather than a visible
           table's rows. Goalkeepers don't get Defensive Contribution tiles: FPL's defensive-contribution points exclude them, so those

@@ -61,13 +61,13 @@ No lint script. Playwright isn't installed but works via
 - Goals−xG and assists−xA use the same source values everywhere.
 - **Minimum minutes — one rule.** A floor exists only to stop tiny samples
   taking over. Where the user can set minimum minutes (Player Explorer,
-  Dashboard tiles/graphs they build, Team Building) the app adds none, and
-  Historic Average counts 0-minute seasons. Where they can't (player
-  profile, Player Comparison, the packaged Default Dashboard views) the
-  fixed floor applies — 90 min in Current Season, 450 otherwise
+  Dashboard tiles/graphs they build, Player Comparison cards in views they
+  build, Team Building) the app adds none, and Historic Average counts
+  0-minute seasons. Where they can't (player profile, the packaged Starter
+  views on the Dashboard and Player Comparison) the fixed floor applies —
+  90 min in Current Season, 450 otherwise
   (`metrics/fixedMinutesFloor.ts`) — to every percentile, totals too; below
-  it is a "small sample" with no percentile or colour (Player Comparison's
-  table too); and Historic Average counts only seasons of 450+ minutes —
+  it is a "small sample" with no percentile or colour; and Historic Average counts only seasons of 450+ minutes —
   a shorter season's figures don't count at all. The Historic Average
   window is always the last 4 completed seasons, never reaching further
   back. Check which side a

@@ -1125,31 +1125,6 @@ select:focus {
   flex-wrap: wrap;
   padding-right: 50px; /* keep clear of the fixed close button */
 }
-.profile-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.profile-icon-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 34px;
-  padding: 0 14px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-strong);
-  background: var(--surface-raised);
-  color: var(--text-secondary);
-  font-size: 13px;
-  cursor: pointer;
-  text-decoration: none;
-}
-.profile-icon-btn:hover {
-  background: var(--surface-hover);
-  color: var(--text-primary);
-}
-
 .profile-columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1623,4 +1598,239 @@ select:focus {
 }
 .points-history-stats-end {
   margin-left: auto;
+}
+
+/* ---------- Player Comparison ---------- */
+
+/* A compared player's tag: name, then ownership · price and his club and
+   position badges. The left edge is his chart colour, in the same
+   flush-left flag shape as the position and club badges, so the tags are
+   the key for every chart on the page. */
+.cmp-player-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.cmp-player-tag {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 160px;
+  padding: 7px 10px 8px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  color: var(--text-primary);
+}
+.cmp-player-tag-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cmp-player-tag-name {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.cmp-player-tag-name:hover {
+  text-decoration: underline;
+}
+.cmp-player-tag-remove {
+  margin-left: auto;
+  padding: 0 0 0 8px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.cmp-player-tag-remove:hover {
+  color: var(--text-primary);
+}
+.cmp-player-tag-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+
+/* The key under a radar or trend graph. */
+.cmp-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 14px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.cmp-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cmp-legend-item.muted {
+  color: var(--text-muted);
+}
+.cmp-legend-item .small-sample-badge {
+  margin-left: 0;
+}
+.cmp-legend-swatch {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+/* Hover box for the comparison charts — the same look as every other
+   chart tooltip in the app. */
+.chart-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+.chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.chart-tooltip-row .mono {
+  margin-left: auto;
+  padding-left: 14px;
+  color: var(--text-secondary);
+}
+
+/* Outputs panel: label | percentile track | one value column per player.
+   Rows are subgrids of one grid (as .stat-list), so every track starts at
+   the same point and every value column lines up. */
+.cmp-outputs {
+  display: grid;
+  column-gap: 12px;
+  font-size: 12.5px;
+}
+.cmp-outputs-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+}
+.cmp-outputs-head {
+  padding-top: 0;
+  border-bottom-color: var(--border-strong);
+}
+.cmp-outputs-group {
+  grid-column: 1 / -1;
+  padding: 10px 0 2px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.cmp-outputs-label {
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+/* The same track as a tile's bar (.stat-row-bar-track), with faint
+   quartile ticks at 25/50/75. */
+.cmp-outputs-track {
+  position: relative;
+  height: 16px;
+}
+.cmp-outputs-track::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 5px;
+  height: 6px;
+  border-radius: 3px;
+  background:
+    linear-gradient(var(--border-strong), var(--border-strong)) 25% 0 / 1px 100% no-repeat,
+    linear-gradient(var(--border-strong), var(--border-strong)) 50% 0 / 1px 100% no-repeat,
+    linear-gradient(var(--border-strong), var(--border-strong)) 75% 0 / 1px 100% no-repeat,
+    color-mix(in srgb, var(--text-muted) 16%, transparent);
+}
+/* A player's place on the track: a short upright bar in his colour, ringed
+   in the card colour so overlapping markers stay distinct. */
+.cmp-outputs-marker {
+  position: absolute;
+  top: 0;
+  width: 6px;
+  height: 16px;
+  margin-left: -3px;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1.5px var(--surface);
+}
+.cmp-outputs-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  text-align: right;
+}
+.cmp-outputs-player {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 700;
+}
+.cmp-outputs-player-name {
+  max-width: 76px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmp-outputs-player .small-sample-badge {
+  margin-left: 3px;
+}
+
+/* Add/Edit dialog's statistic picker. */
+.cmp-metric-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 2px;
+}
+.cmp-metric-picker-group {
+  margin-bottom: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.cmp-metric-picker .chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* A trend season under the card's minimum minutes: an amber ring at the
+   bottom of the dip, amber text in the hover box — the small-sample colour. */
+.cmp-trend-below-dot {
+  fill: var(--surface);
+  stroke: var(--accent-value);
+}
+.chart-tooltip-row .cmp-trend-below {
+  color: var(--accent-value);
 }

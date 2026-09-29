@@ -63,6 +63,17 @@ export function profileFloorNote(mode: AnalysisMode): string {
   return `${PREFIX}: a player under ${fixedFloorMinutes(mode)} minutes${scope} is a small sample — no percentile or colour.`;
 }
 
+/** Hover text for a Starter-view Player Comparison trend graph: a season under the floor is marked (careerTrends.ts `buildSeasonTrend`). */
+export function trendFloorNote(): string {
+  return `${PREFIX}: a season under ${FIXED_FLOOR_MINUTES} minutes is marked with an amber ring — a small sample.`;
+}
+
+/** Hover text for the amber badge on a player below a Player Comparison card's own Min Minutes (a custom view). `minutes` null: no figures for the mode. */
+export function belowMinimumNote(minutes: number | null, minMinutes: number): string {
+  const played = minutes === null ? "no minutes in this mode" : `${fmtDecimal(minutes, 0)} min in this mode`;
+  return `Below this card's Min Minutes — ${played}, under ${fmtDecimal(minMinutes, 0)}: not drawn, not ranked or marked best.`;
+}
+
 /**
  * Hover text for a Default Dashboard tile or graph, or null when no floor
  * applies to it. `playerFloor`: players under the floor are left out;

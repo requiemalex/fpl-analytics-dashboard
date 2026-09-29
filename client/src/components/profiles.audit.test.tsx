@@ -336,18 +336,19 @@ describe("H1: the profile's percentiles use the fixed minutes floor", () => {
     expect(getAllByLabelText(/^Small sample — 60 min in this mode, under the 90-minute floor/).length).toBeGreaterThan(0);
   });
 
-  it("Player Comparison marks the cameo's radar as a small sample", () => {
+  it("Player Comparison marks the cameo as a small sample on its radars and Outputs", () => {
     setApp([CAMEO, REGULAR], { historicProfiles: profiles(LAST_SEASON) });
+    localStorage.setItem("fpl-dashboard:comparison:selected-view:v1", JSON.stringify({ version: 1, data: "comparison-starter" }));
     const { getAllByLabelText } = render(
       <MemoryRouter initialEntries={["/player-comparison?players=1,2"]}>
         <PlayerComparison />
       </MemoryRouter>,
     );
-    // The cameo's radar card and (since the owner's 2026-09-25 follow-up) his
-    // table column — never the regular's.
+    // Starter's two Last Completed Season radars (their legends) and its Last
+    // Season Output panel (his column) — never the regular's.
     const marks = getAllByLabelText(/^Small sample — 136 min/);
-    expect(marks.length).toBe(2);
-    for (const m of marks) expect(m.closest("th, .card-title")!.textContent).toContain("Davies");
+    expect(marks.length).toBe(3);
+    for (const m of marks) expect(m.closest(".cmp-legend-item, .cmp-outputs-player")!.textContent).toContain("Davies");
   });
 
 });
@@ -696,44 +697,45 @@ describe("Historic Average counts only 450+ minute seasons in the fixed-floor se
 
 });
 
-describe("Player Comparison's table treats a small sample as its radars do", () => {
+describe("Player Comparison's Outputs treat a small sample as its radars do", () => {
   const OTHER = makePlayer({ id: 3, name: "Mings", position: "DEF", teamId: 1, teamName: "Arsenal", minutes: 0, totalPoints: 0 });
   const SEASONS = { ...LAST_SEASON, 3: [makeSeason({ seasonName: "2025/26", minutes: 2500, totalPoints: 90, xG: 0.5, xA: 0.5, xGI: 1.0, xGC: 35 })] };
 
-  it("no better/worse colour or bold for the cameo, and the others are coloured among themselves", () => {
-    setApp([CAMEO, REGULAR, OTHER], { historicProfiles: profiles(SEASONS) });
+  /** The Starter view's Last Season Output panel's xG/Game row. */
+  function xgPerGameRow(ids: string): HTMLElement {
+    localStorage.setItem("fpl-dashboard:comparison:selected-view:v1", JSON.stringify({ version: 1, data: "comparison-starter" }));
     const { getByText } = render(
-      <MemoryRouter initialEntries={["/player-comparison?players=1,2,3"]}>
+      <MemoryRouter initialEntries={[`/player-comparison?players=${ids}`]}>
         <PlayerComparison />
       </MemoryRouter>,
     );
-    const cells = [...getByText("xG/Game").closest("tr")!.querySelectorAll("td")].slice(1) as HTMLElement[];
-    // Davies 0.25 would top this row; he's greyed instead, and Konsa (0.03) vs Mings (0.02) decide the colours.
+    const panel = getByText("Last Season Output").closest(".card")!;
+    const label = [...panel.querySelectorAll(".cmp-outputs-label")].find((el) => el.textContent === "xG/Game")!;
+    return label.closest(".cmp-outputs-row") as HTMLElement;
+  }
+
+  it("no colour or bold for the cameo, and the others are ranked among themselves", () => {
+    setApp([CAMEO, REGULAR, OTHER], { historicProfiles: profiles(SEASONS) });
+    const cells = [...xgPerGameRow("1,2,3").querySelectorAll<HTMLElement>(".cmp-outputs-value")];
+    // Davies 0.25 would top this row; he's greyed instead, and Konsa (0.03) vs Mings (0.02) decide the bold.
+    expect(cells.map((c) => c.textContent)).toEqual(["0.25", "0.03", "0.02"]);
     expect(cells[0].style.color).toBe("var(--text-muted)");
     expect(cells[0].style.fontWeight).toBe("");
     expect(cells[1].style.fontWeight).toBe("700");
+    expect(cells[2].style.fontWeight).toBe("");
   });
 
-  it("the Summary doesn't count the cameo, and says so", () => {
+  it("the cameo has no marker on the track; the regulars do", () => {
     setApp([CAMEO, REGULAR, OTHER], { historicProfiles: profiles(SEASONS) });
-    const { getByText } = render(
-      <MemoryRouter initialEntries={["/player-comparison?players=1,2,3"]}>
-        <PlayerComparison />
-      </MemoryRouter>,
-    );
-    const summary = getByText("Summary").closest(".card")!;
-    expect(summary.textContent).toContain("Davies is a small sample in this mode and isn't counted.");
-    expect(summary.textContent).not.toMatch(/Davies (rates|and|are tied)/);
+    const markers = [...xgPerGameRow("1,2,3").querySelectorAll(".cmp-outputs-marker")].map((m) => m.getAttribute("title") ?? "");
+    expect(markers).toHaveLength(2);
+    expect(markers.some((t) => t.startsWith("Davies"))).toBe(false);
   });
 
-  it("with one regular left, there's nothing to compare", () => {
+  it("with one regular left, nothing is bold: there's no one to beat", () => {
     setApp([CAMEO, REGULAR], { historicProfiles: profiles(LAST_SEASON) });
-    const { getByText } = render(
-      <MemoryRouter initialEntries={["/player-comparison?players=1,2"]}>
-        <PlayerComparison />
-      </MemoryRouter>,
-    );
-    expect(getByText(/Fewer than two of these players have enough minutes in this mode to compare/)).toBeTruthy();
+    const cells = [...xgPerGameRow("1,2").querySelectorAll<HTMLElement>(".cmp-outputs-value")];
+    expect(cells.map((c) => c.style.fontWeight)).toEqual(["", ""]);
   });
 });
 

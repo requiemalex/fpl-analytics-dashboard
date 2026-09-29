@@ -10,7 +10,7 @@ import { computeTeamAggregates, type TeamAggregate } from "../metrics/teamStats"
 import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFilters";
 import { ANALYSIS_MODE_OPTIONS } from "../components/AnalysisModeToggle";
 import { FiltersBar } from "../components/FiltersBar";
-import { CardEditRemoveButtons, FilterIcon, TrashIcon, TrendLineIcon } from "../components/IconToolbar";
+import { CardEditRemoveButtons, CreateViewIcon, FilterIcon, PlusIcon, TrashIcon, TrendLineIcon } from "../components/IconToolbar";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { TeamPicker } from "../components/TeamPicker";
 import { TopList, type TopListRow } from "../components/TopList";
@@ -257,28 +257,6 @@ function ClockIcon() {
   );
 }
 
-function PlusIcon({ size = 14 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 16 16" fill="none">
-      <line x1="8" y1="2.5" x2="8" y2="13.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <line x1="2.5" y1="8" x2="13.5" y2="8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-/** A view (window) with a "+" badge — Create View, distinct from the bare "+" used for adding a single tile. */
-function CreateViewIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-      <rect x="1.3" y="2.3" width="10.4" height="8.4" rx="1.2" stroke="currentColor" strokeWidth="1.2" />
-      <line x1="1.3" y1="4.7" x2="11.7" y2="4.7" stroke="currentColor" strokeWidth="1" />
-      <circle cx="11.6" cy="11.6" r="3.2" fill="var(--surface-raised)" stroke="currentColor" strokeWidth="1.2" />
-      <line x1="11.6" y1="10.1" x2="11.6" y2="13.1" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-      <line x1="10.1" y1="11.6" x2="13.1" y2="11.6" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 /** Add Player Tile's "Player Search" toggle icon — plain magnifying glass, paired with FilterIcon's funnel for "Filters". */
 function PlayerSearchIcon() {
   return (
@@ -468,6 +446,16 @@ export function Dashboard() {
   );
   const selectedViewIsDefault = useMemo(() => isDefaultViewSelected(visibleSavedViews, selectedViewId), [visibleSavedViews, selectedViewId]);
 
+  // Whether each scope's on-screen tiles and graphs have been loaded from
+  // its selected view yet. The tiles and graphs stores keep their own
+  // working copy, which can differ from the selected view when the page
+  // first opens: a new install's working copy is the packaged set while
+  // the view it opens on (My View) is blank, and an update moves a scope
+  // that was on the packaged view to My View. Loading the view first, and
+  // holding the live-sync below until then, stops that working copy being
+  // written into the view.
+  const [hydratedScopes, setHydratedScopes] = useState<Record<SummaryTileScope, boolean>>({ player: false, team: false });
+
   // Keeps the currently-selected non-Default view's storage in lock-step
   // with whatever's actually on screen — every add/remove/reorder of a
   // tile OR a graph for this scope re-fires this (via tilesState.tiles or
@@ -477,11 +465,24 @@ export function Dashboard() {
   // (updateView refuses, and this skips the call entirely while Default is
   // selected).
   useEffect(() => {
-    if (selectedViewIsDefault || !selectedViewId) return;
+    if (selectedViewIsDefault || !selectedViewId || !hydratedScopes[tileView]) return;
     const scopeTiles = tilesState.tiles.filter((t) => t.scope === tileView);
     const scopeGraphs = graphsState.graphs.filter((g) => g.scope === tileView);
     savedDashboardViews.updateView(selectedViewId, scopeTiles, scopeGraphs);
-  }, [tilesState.tiles, graphsState.graphs, tileView, selectedViewId, selectedViewIsDefault, savedDashboardViews.updateView]);
+  }, [tilesState.tiles, graphsState.graphs, tileView, selectedViewId, selectedViewIsDefault, hydratedScopes, savedDashboardViews.updateView]);
+
+  // The first time a scope is shown, put its selected view on screen (see
+  // hydratedScopes above). The packaged view is brought on screen by the
+  // effect below instead.
+  useEffect(() => {
+    if (hydratedScopes[tileView]) return;
+    const view = visibleSavedViews.find((v) => v.id === selectedViewId);
+    if (view && !selectedViewIsDefault) {
+      tilesState.replaceScopeTiles(tileView, view.tiles);
+      graphsState.replaceScopeGraphs(tileView, view.graphs);
+    }
+    setHydratedScopes((prev) => ({ ...prev, [tileView]: true }));
+  }, [tileView, hydratedScopes, visibleSavedViews, selectedViewId, selectedViewIsDefault, tilesState.replaceScopeTiles, graphsState.replaceScopeGraphs]);
 
   // One-off reset (self-correcting, so it also guards against any future
   // regression, not just this one time) for anyone whose on-screen tiles or
@@ -544,7 +545,7 @@ export function Dashboard() {
       return;
     }
     if (visibleSavedViews.length >= MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE) {
-      setCreateViewError(`You already have ${MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE} ${tileView} views, Default included — the maximum allowed. Delete one first.`);
+      setCreateViewError(`You already have ${MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE} ${tileView} views, Starter included — the maximum allowed. Delete one first.`);
       return;
     }
     const id = savedDashboardViews.save(tileView, name, [], []);
@@ -1108,7 +1109,7 @@ export function Dashboard() {
           type="button"
           className="chip chip-icon"
           disabled={!selectedViewId || selectedViewIsDefault}
-          title={selectedViewIsDefault ? "The Default view can't be deleted" : "Delete View"}
+          title={selectedViewIsDefault ? "The Starter view can't be deleted" : "Delete View"}
           aria-label="Delete View"
           onClick={() => setShowDeleteViewConfirm(true)}
         >

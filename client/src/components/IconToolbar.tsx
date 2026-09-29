@@ -109,15 +109,48 @@ export function TrendLineIcon() {
   );
 }
 
-/** Edit + Remove icon buttons for a Dashboard tile/graph card header. Either is omitted when its handler isn't set (e.g. the immutable Default view). */
-export function CardEditRemoveButtons({ noun, onEdit, onRemove }: { noun: "tile" | "graph"; onEdit?: () => void; onRemove?: () => void }) {
+/** A plus — the Add card at the end of a Dashboard or Player Comparison grid. */
+export function PlusIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none">
+      <line x1="8" y1="2.5" x2="8" y2="13.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <line x1="2.5" y1="8" x2="13.5" y2="8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** A view (window) with a "+" badge — Create View, distinct from the bare "+" used for adding a single tile. */
+export function CreateViewIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <rect x="1.3" y="2.3" width="10.4" height="8.4" rx="1.2" stroke="currentColor" strokeWidth="1.2" />
+      <line x1="1.3" y1="4.7" x2="11.7" y2="4.7" stroke="currentColor" strokeWidth="1" />
+      <circle cx="11.6" cy="11.6" r="3.2" fill="var(--surface-raised)" stroke="currentColor" strokeWidth="1.2" />
+      <line x1="11.6" y1="10.1" x2="11.6" y2="13.1" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+      <line x1="10.1" y1="11.6" x2="13.1" y2="11.6" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Edit + Remove icon buttons for a Dashboard or Player Comparison card header. Either is omitted when its handler isn't set (e.g. the immutable Starter view). `editHint` replaces the Edit button's default hover text after the dash. */
+export function CardEditRemoveButtons({
+  noun,
+  onEdit,
+  onRemove,
+  editHint,
+}: {
+  noun: "tile" | "graph" | "chart" | "panel";
+  onEdit?: () => void;
+  onRemove?: () => void;
+  editHint?: string;
+}) {
   return (
     <>
       {onEdit && (
         <button
           type="button"
           className="chip chip-icon"
-          title={`Edit ${noun} — change its name, statistic${noun === "graph" ? "s" : ""}, data view or filters`}
+          title={`Edit ${noun} — ${editHint ?? `change its name, statistic${noun === "graph" ? "s" : ""}, data view or filters`}`}
           aria-label={`Edit ${noun}`}
           onClick={onEdit}
         >

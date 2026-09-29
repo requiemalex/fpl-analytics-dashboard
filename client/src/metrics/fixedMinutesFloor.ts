@@ -5,9 +5,10 @@ import type { HistoricPlayerProfile } from "./historicAnalysis";
  * <fixed_minutes_floor>: the minimum-minutes principle (the owner's rule,
  * README "Minimum minutes"). A floor exists only to stop a tiny sample
  * taking over. Where the user can set minimum minutes (Player Explorer's
- * MINS filter, a Dashboard tile or graph they build, Team Building) the
- * app adds nothing. Where they can't — the player profile, Player
- * Comparison and the packaged Default Dashboard views —
+ * MINS filter, a Dashboard tile or graph they build, a Player Comparison
+ * card in a view they build, Team Building) the app adds nothing. Where
+ * they can't — the player profile and the packaged Starter views on the
+ * Dashboard and Player Comparison —
  * this fixed floor applies: one full match in Current Season, five
  * otherwise.
  *

@@ -3489,3 +3489,37 @@ tiles/graphs only:
   opponent's players' xG summed, so one side's xG is always the other's
   xGC and the league's xG and xGC totals are equal every season.
 - **Last commit with it:** `2aa5349`.
+
+### Player Comparison's table, Summary, per-player radars and Player Trends (replaced 2026-09-29)
+- **What it did:** Player Comparison had one page-wide analysis-mode toggle
+  and showed, for up to 5 players: a Summary card counting how many metrics
+  each player led on (overall and for actual output); a table of every
+  `PLAYER_COLUMNS` metric coloured better/worse per row; one percentile radar
+  per player (the position's fixed axes, `computeRadarData`); and, separately,
+  Player Trends — its own player list (up to 5) plotted against up to 3
+  metrics at once, with a Normalise (0–100) toggle
+  (`buildMultiSeriesTrend` in `metrics/careerTrends.ts`).
+- **Why it went:** the owner redesigned the page as a view-based builder like
+  the Dashboard — one player list feeding user-built radar charts (every
+  player on one radar), Outputs panels and single-metric trend graphs, with a
+  read-only Starter view and a blank My View. The Summary's win count had no
+  place in it and was dropped; the Starter view's Outputs panels cover the
+  table's job.
+- **Last commit with it:** `9d86412`.
+
+### "Default" Dashboard view as the view a new install opens on (replaced 2026-09-29)
+- **What it did:** each Dashboard scope opened on the packaged view, named
+  "Default".
+- **Why it went:** the owner wanted users to see first that they can build
+  their own dashboard. The packaged view is now "Starter" (same ids,
+  unchanged content) and a blank "My View" is selected on first load.
+- **Last commit with it:** `9d86412`.
+
+### "Compare" button on the player profile (removed 2026-09-29)
+- **What it did:** a "Compare" button in the player profile's header opened
+  Player Comparison with that player already added
+  (`/player-comparison?players=<id>`).
+- **Why it went:** the owner wants Player Comparison kept as its own
+  section with one clear entry point (the navigation), not reached from
+  other areas.
+- **Last commit with it:** `9d86412`.

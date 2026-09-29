@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SummaryTileScope } from "../components/summaryTileMetrics";
 import { DEFAULT_SUMMARY_TILES, normalizeSummaryTile, type SummaryTileConfig } from "./useSummaryTiles";
 import { DEFAULT_DASHBOARD_GRAPHS, normalizeDashboardGraph, type DashboardGraphConfig } from "./useDashboardGraphs";
@@ -28,8 +28,17 @@ const STORAGE_KEY = "fpl-dashboard:dashboard:saved-views:v1";
  * normalizeDashboardGraph, and its tiles now go through normalizeSummaryTile
  * too (they used to be loaded raw, so a view saved by an older version put
  * older-shaped tiles straight on screen).
+ *
+ * Bumped 5 -> 6 when the packaged view was renamed "Default" -> "Starter"
+ * and a blank, editable "My View" became the view each scope opens on (so
+ * the first thing a user sees is that they can build their own). The
+ * rename needs nothing stored: the packaged entries are replaced by the
+ * canonical ones on every load. migrate() adds a blank "My View" to each
+ * scope stored under an older version — unless that scope already has a
+ * view by that name or is at its view cap — and renames a user's own view
+ * called "Starter", so names stay unique within a scope.
  */
-const STORAGE_VERSION = 5;
+const STORAGE_VERSION = 6;
 
 export interface SavedDashboardView {
   id: string;
@@ -43,23 +52,58 @@ export interface SavedDashboardView {
 /** Same idea as MAX_SAVED_SQUADS — a UI/localStorage-hygiene limit, applied per scope so filling up Player views doesn't block Team views. */
 export const MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE = 5;
 
+/** The packaged view's name. Its ids keep their original `default-view-*` form (from when it was called "Default"), so stored selections still find it. */
+export const STARTER_VIEW_NAME = "Starter";
+/** The blank, editable view each scope opens on for a new install. */
+export const MY_VIEW_NAME = "My View";
+
 /**
  * There's no separate "Reset to Defaults" mechanism any more — the tile
  * layout the Dashboard always used to ship with is just a saved view named
- * "Default", one per scope: loadable, not deletable (see `remove()` and
- * `isDefaultSavedView` below), always occupying one of the per-scope saved
- * slots.
+ * "Starter" (formerly "Default"), one per scope: loadable, not deletable
+ * (see `remove()` and `isDefaultSavedView` below), always occupying one of
+ * the per-scope saved slots. In code it is still "the Default view".
  */
 const DEFAULT_SAVED_DASHBOARD_VIEWS: SavedDashboardView[] = (["player", "team"] as const).map((scope) => ({
   id: `default-view-${scope}`,
   scope,
-  name: "Default",
+  name: STARTER_VIEW_NAME,
   tiles: DEFAULT_SUMMARY_TILES.filter((t) => t.scope === scope),
   graphs: DEFAULT_DASHBOARD_GRAPHS.filter((g) => g.scope === scope),
   updatedAt: 0,
 }));
 
 const DEFAULT_SAVED_VIEW_IDS = new Set(DEFAULT_SAVED_DASHBOARD_VIEWS.map((v) => v.id));
+
+function myViewIdForScope(scope: SummaryTileScope): string {
+  return `my-view-${scope}`;
+}
+
+/** A blank "My View" per scope — an ordinary view (editable, deletable), seeded so a new install opens on an empty, buildable dashboard. */
+const MY_VIEWS: SavedDashboardView[] = (["player", "team"] as const).map((scope) => ({
+  id: myViewIdForScope(scope),
+  scope,
+  name: MY_VIEW_NAME,
+  tiles: [],
+  graphs: [],
+  updatedAt: 0,
+}));
+
+const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/**
+ * Version 6: gives each scope a blank "My View" unless it already has a
+ * view by that name or is at its cap, and renames a user's own "Starter"
+ * so it can't be confused with the packaged one.
+ */
+function addMyViews(views: SavedDashboardView[]): SavedDashboardView[] {
+  const renamed = views.map((v) => (!DEFAULT_SAVED_VIEW_IDS.has(v.id) && sameName(v.name ?? "", STARTER_VIEW_NAME) ? { ...v, name: `${v.name.trim()} (2)` } : v));
+  const additions = MY_VIEWS.filter((mine) => {
+    const inScope = renamed.filter((v) => v.scope === mine.scope);
+    return !inScope.some((v) => v.id === mine.id || sameName(v.name ?? "", MY_VIEW_NAME)) && inScope.length < MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE;
+  });
+  return additions.length > 0 ? [...renamed, ...additions] : renamed;
+}
 
 /** "Default" is a permanent fallback, not a regular saved view — always there to load, never deletable, so a user can never lose every saved view for a scope. */
 export function isDefaultSavedView(view: Pick<SavedDashboardView, "id">): boolean {
@@ -79,13 +123,13 @@ function defaultViewIdForScope(scope: SummaryTileScope): string {
 type SelectedViewIds = Record<SummaryTileScope, string>;
 
 const DEFAULT_SELECTED_VIEW_IDS: SelectedViewIds = {
-  player: defaultViewIdForScope("player"),
-  team: defaultViewIdForScope("team"),
+  player: myViewIdForScope("player"),
+  team: myViewIdForScope("team"),
 };
 
 const SAVED_VIEWS_STORE: VersionedStore<SavedDashboardView[]> = {
   version: STORAGE_VERSION,
-  fallback: DEFAULT_SAVED_DASHBOARD_VIEWS,
+  fallback: [...DEFAULT_SAVED_DASHBOARD_VIEWS, ...MY_VIEWS],
   // Runs on every load, not just once across a version bump. Two things:
   // (1) restores either Default entry if missing entirely (e.g. deleted
   // before the anti-delete guard existed) — a no-op once both are present;
@@ -122,7 +166,8 @@ const SAVED_VIEWS_STORE: VersionedStore<SavedDashboardView[]> = {
         graphs: graphs.map(clearUnappliedLiveMinMinutes),
       };
     });
-    return missingDefaults.length > 0 ? [...normalized, ...missingDefaults] : normalized;
+    const healed = missingDefaults.length > 0 ? [...normalized, ...missingDefaults] : normalized;
+    return storedVersion === null || storedVersion < 6 ? addMyViews(healed) : healed;
   },
 };
 
@@ -135,29 +180,56 @@ function saveToStorage(views: SavedDashboardView[]) {
 }
 
 const SELECTED_VIEW_STORAGE_KEY = "fpl-dashboard:dashboard:selected-view:v1";
-const SELECTED_VIEW_STORAGE_VERSION = 1;
+/**
+ * Bumped 1 -> 2 when a blank "My View" became the view each scope opens on:
+ * a scope still on the packaged view (then "Default", now "Starter") moves
+ * to its My View once, so an existing install also opens on a view it can
+ * build; a scope on a view of the user's own stays there. If that scope has
+ * no My View (no room for one), resolveSelectedViewIds falls it back.
+ */
+const SELECTED_VIEW_STORAGE_VERSION = 2;
 
 /**
  * Which saved view is currently picked in the dropdown, per scope — kept
  * separate from `views` itself since it's "what the user last chose to look
  * at", not saved-view data. Persisted so it survives a page reload or the
- * desktop app being closed and reopened: whichever view (Default or a named
- * one) a user leaves a scope on is the one they land back on, not always
- * Default. Self-heals like SAVED_VIEWS_STORE — a missing/malformed scope key
- * falls back to that scope's Default id rather than failing the whole load.
+ * desktop app being closed and reopened: whichever view (Starter, My View or
+ * a named one) a user leaves a scope on is the one they land back on. A new
+ * install opens on My View. Self-heals like SAVED_VIEWS_STORE — a missing/
+ * malformed scope key falls back to that scope's My View rather than
+ * failing the whole load.
  */
 const SELECTED_VIEW_STORE: VersionedStore<SelectedViewIds> = {
   version: SELECTED_VIEW_STORAGE_VERSION,
   fallback: DEFAULT_SELECTED_VIEW_IDS,
-  migrate(data) {
+  migrate(data, storedVersion) {
     if (!data || typeof data !== "object") return null;
     const raw = data as Partial<Record<SummaryTileScope, unknown>>;
-    return {
-      player: typeof raw.player === "string" ? raw.player : DEFAULT_SELECTED_VIEW_IDS.player,
-      team: typeof raw.team === "string" ? raw.team : DEFAULT_SELECTED_VIEW_IDS.team,
+    const toMyView = storedVersion === null || storedVersion < 2;
+    const pick = (scope: SummaryTileScope): string => {
+      const id = raw[scope];
+      if (typeof id !== "string") return DEFAULT_SELECTED_VIEW_IDS[scope];
+      return toMyView && id === defaultViewIdForScope(scope) ? myViewIdForScope(scope) : id;
     };
+    return { player: pick("player"), team: pick("team") };
   },
 };
+
+/**
+ * The selection actually shown for each scope: the stored one while that
+ * view exists in the scope, else My View, else the packaged Starter — so
+ * the picker never points at a view that isn't there (one deleted, or a My
+ * View there was no room to add).
+ */
+export function resolveSelectedViewIds(views: Pick<SavedDashboardView, "id" | "scope">[], stored: SelectedViewIds): SelectedViewIds {
+  const pick = (scope: SummaryTileScope): string => {
+    const inScope = views.filter((v) => v.scope === scope);
+    if (inScope.some((v) => v.id === stored[scope])) return stored[scope];
+    return inScope.some((v) => v.id === myViewIdForScope(scope)) ? myViewIdForScope(scope) : defaultViewIdForScope(scope);
+  };
+  const resolved = { player: pick("player"), team: pick("team") };
+  return resolved.player === stored.player && resolved.team === stored.team ? stored : resolved;
+}
 
 function loadSelectedViewIdsFromStorage(): SelectedViewIds {
   return loadVersioned(SELECTED_VIEW_STORAGE_KEY, SELECTED_VIEW_STORE);
@@ -181,11 +253,12 @@ export interface UseSavedDashboardViews {
 
 /**
  * A saved Dashboard view is a named set of one scope's tiles and graphs
- * (which metrics, in what order, each with its own data view). "Default"
- * (one per scope) is the one permanent, immutable entry — always loadable,
- * never deletable, and its tiles/graphs always match the packaged
- * DEFAULT_SUMMARY_TILES/DEFAULT_DASHBOARD_GRAPHS (see SAVED_VIEWS_STORE.migrate).
- * Every other view is created blank via Create View (Dashboard.tsx), which
+ * (which metrics, in what order, each with its own data view). "Starter"
+ * (one per scope; "Default" in code) is the one permanent, immutable entry —
+ * always loadable, never deletable, and its tiles/graphs always match the
+ * packaged DEFAULT_SUMMARY_TILES/DEFAULT_DASHBOARD_GRAPHS (see
+ * SAVED_VIEWS_STORE.migrate). "My View" is seeded blank and is otherwise an
+ * ordinary view. Every other view is created blank via Create View (Dashboard.tsx), which
  * also selects it — from then on, every tile/graph add/remove/reorder the
  * user makes while it's selected live-syncs straight into its stored
  * `tiles`/`graphs` via `updateView()`, so there's no separate Save step and
@@ -194,7 +267,8 @@ export interface UseSavedDashboardViews {
  */
 export function useSavedDashboardViews(): UseSavedDashboardViews {
   const [views, setViews] = useState<SavedDashboardView[]>(loadFromStorage);
-  const [selectedViewIds, setSelectedViewIds] = useState<SelectedViewIds>(loadSelectedViewIdsFromStorage);
+  const [storedSelectedViewIds, setSelectedViewIds] = useState<SelectedViewIds>(loadSelectedViewIdsFromStorage);
+  const selectedViewIds = useMemo(() => resolveSelectedViewIds(views, storedSelectedViewIds), [views, storedSelectedViewIds]);
 
   useEffect(() => {
     saveToStorage(views);
@@ -229,12 +303,13 @@ export function useSavedDashboardViews(): UseSavedDashboardViews {
       const removedView = views.find((v) => v.id === id);
       setViews((prev) => prev.filter((v) => v.id !== id));
       // Deleting the view currently selected for its scope falls that
-      // scope's selection back to Default rather than leaving it pointed at
+      // scope's selection back to My View (or Starter, once My View itself
+      // is gone — resolveSelectedViewIds) rather than leaving it pointed at
       // a saved view that no longer exists.
       if (removedView) {
-        setSelectedViewIds((prev) =>
-          prev[removedView.scope] === id ? { ...prev, [removedView.scope]: defaultViewIdForScope(removedView.scope) } : prev,
-        );
+        const scope = removedView.scope;
+        const fallback = id === myViewIdForScope(scope) ? defaultViewIdForScope(scope) : myViewIdForScope(scope);
+        setSelectedViewIds((prev) => (prev[scope] === id ? { ...prev, [scope]: fallback } : prev));
       }
     },
     [views],
