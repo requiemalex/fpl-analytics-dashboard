@@ -152,25 +152,26 @@ function openAppAsIs() {
   showMainWindow();
 }
 
+/** How long the finished "Update downloaded" state stays on screen before the app closes to install. */
+const LAUNCH_INSTALL_DELAY_MS = 900;
+
 function beginLaunchUpdate(version) {
   const window = new BrowserWindow({
-    width: 420,
-    height: 150,
+    width: 400,
+    height: 206,
     frame: false,
+    // Transparent, so the page's rounded card is the window's shape.
+    transparent: true,
+    backgroundColor: "#00000000",
     resizable: false,
+    maximizable: false,
+    fullscreenable: false,
     show: false,
     title: "Updating FPL Analytics Dashboard",
     icon: path.join(__dirname, "../build/icon.png"),
-    backgroundColor: "#0a0f0c",
     webPreferences: { contextIsolation: true, nodeIntegration: false },
   });
-  // Colours from tokens.css (--bg, --text-primary, --text-muted, --accent-positive).
-  const html = `<!doctype html><html><body style="margin:0;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;background:#0a0f0c;color:#e8ede9;font:14px 'Segoe UI',system-ui,sans-serif;user-select:none">
-    <div>Updating to version ${version}…</div>
-    <div id="progress" style="color:#647167;font-size:12px">Downloading</div>
-    <div style="width:240px;height:4px;background:#24312a;border-radius:2px"><div id="bar" style="width:0;height:100%;background:#3fbf7f;border-radius:2px"></div></div>
-  </body></html>`;
-  window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+  window.loadFile(path.join(__dirname, "update-window.html"), { query: { version } });
   window.once("ready-to-show", () => window.show());
   // Closing this window mid-download quits, rather than leaving the hidden main window running with nothing on screen.
   window.on("closed", () => {
@@ -233,10 +234,7 @@ function startUpdateChecks() {
   autoUpdater.on("download-progress", (progress) => {
     if (!launchUpdate || launchUpdate.window.isDestroyed()) return;
     resetLaunchStallTimer();
-    const percent = Math.round(progress.percent);
-    launchUpdate.window.webContents
-      .executeJavaScript(`document.getElementById("progress").textContent = "Downloading ${percent}%"; document.getElementById("bar").style.width = "${percent}%";`)
-      .catch(() => {});
+    launchUpdate.window.webContents.executeJavaScript(`setProgress(${Number(progress.percent) || 0})`).catch(() => {});
   });
   autoUpdater.on("update-downloaded", async (info) => {
     console.log("Update downloaded:", info.version);
@@ -244,8 +242,10 @@ function startUpdateChecks() {
     if (launchUpdate) {
       clearTimeout(launchUpdate.stallTimer);
       launchUpdate.installing = true;
-      // Silent install (no installer wizard), then relaunch on the new version.
-      autoUpdater.quitAndInstall(true, true);
+      const { window } = launchUpdate;
+      if (!window.isDestroyed()) window.webContents.executeJavaScript("setDownloaded()").catch(() => {});
+      // Silent install (no installer wizard), then relaunch on the new version — after a moment, so the finished state is seen.
+      setTimeout(() => autoUpdater.quitAndInstall(true, true), LAUNCH_INSTALL_DELAY_MS);
       return;
     }
     const options = {

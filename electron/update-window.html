@@ -1,0 +1,152 @@
+<!doctype html>
+<!--
+  The "Updating…" window shown when the app finds an update at launch (see
+  beginLaunchUpdate in main.js). main.js drives it through setProgress()
+  and setDownloaded(); the version comes in as ?version=. Colours are the
+  app's own tokens (client/src/styles/tokens.css); icons are inline SVG
+  (Tabler's download/check), so the window needs no network to draw.
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Updating FPL Analytics Dashboard</title>
+    <style>
+      :root {
+        --bg: #0a0f0c;
+        --border: #24312a;
+        --text-primary: #e8ede9;
+        --text-secondary: #9fb0a6;
+        --text-muted: #647167;
+        --accent-positive: #3fbf7f;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: transparent;
+        overflow: hidden;
+        user-select: none;
+        -webkit-app-region: drag;
+      }
+      .card {
+        box-sizing: border-box;
+        height: 100%;
+        padding: 28px 28px 22px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        color: var(--text-primary);
+        font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+      }
+      .top {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .tile {
+        flex: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 11px;
+        background: rgba(63, 191, 127, 0.12);
+        color: var(--accent-positive);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .tile svg {
+        width: 20px;
+        height: 20px;
+      }
+      .title {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 500;
+        line-height: 1.3;
+      }
+      .version {
+        margin: 2px 0 0;
+        font-size: 13px;
+        color: var(--text-muted);
+      }
+      .version b {
+        color: var(--text-secondary);
+        font-weight: 500;
+      }
+      .track {
+        height: 4px;
+        margin-top: 26px;
+        border-radius: 2px;
+        background: rgba(255, 255, 255, 0.08);
+        overflow: hidden;
+      }
+      .fill {
+        width: 0%;
+        height: 100%;
+        border-radius: 2px;
+        background: var(--accent-positive);
+        transition: width 0.18s linear;
+      }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-top: 10px;
+        font-size: 13px;
+        color: var(--text-muted);
+      }
+      .pct {
+        color: var(--text-primary);
+        font-variant-numeric: tabular-nums;
+      }
+      .foot {
+        margin-top: 22px;
+        padding-top: 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.07);
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="top">
+        <div class="tile" id="icon"></div>
+        <div>
+          <p class="title" id="title">Updating FPL Analytics Dashboard</p>
+          <p class="version">Version <b id="version"></b></p>
+        </div>
+      </div>
+      <div class="track"><div class="fill" id="fill"></div></div>
+      <div class="row"><span id="stage">Downloading update</span><span class="pct" id="pct">0%</span></div>
+      <div class="foot" id="foot">Don't close this window</div>
+    </div>
+    <script>
+      const ICONS = {
+        download:
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg>',
+        check:
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5l10 -10"/></svg>',
+      };
+      const $ = (id) => document.getElementById(id);
+      const version = new URLSearchParams(location.search).get("version") ?? "";
+      $("icon").innerHTML = ICONS.download;
+      $("version").textContent = version;
+
+      function setProgress(percent) {
+        const p = Math.max(0, Math.min(100, Math.floor(percent)));
+        $("fill").style.width = `${p}%`;
+        $("pct").textContent = `${p}%`;
+      }
+
+      // The download is done; main.js closes the app a moment later and the installer runs, then reopens it.
+      function setDownloaded() {
+        setProgress(100);
+        $("icon").innerHTML = ICONS.check;
+        $("title").textContent = "Update downloaded";
+        $("stage").textContent = "Installing and restarting";
+        $("foot").textContent = `Opening version ${version} shortly`;
+      }
+    </script>
+  </body>
+</html>
