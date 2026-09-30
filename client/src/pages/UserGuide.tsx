@@ -250,7 +250,7 @@ export function UserGuide() {
           <li>A player tile's row reads club pill, position, name, bar, value; a Starter tile or bar graph is titled by its metric alone. Each row's bar shows its value's size relative to the other rows in that tile: every bar starts at the same point and the top row's is full length, so how far a bar falls short shows how far behind that row is. Green/red by above/below-expected for the three "vs xG/xA/xGI" tiles, one flat colour for everything else.</li>
         </ul>
         <p className="page-subtitle">
-          <strong>Graphs</strong>, below the tile grid (past the divider), work the same way tiles do — built via{" "}
+          <strong>Graphs</strong>, below the tile grid (under their own heading), work the same way tiles do — built via{" "}
           <strong>+ Add Graph</strong>, and changed later with the pencil icon in the graph's header (which reopens the same dialog
           with its current settings). Pick a name, a chart type (a <strong>Scatter Plot</strong> comparing two metrics, or a{" "}
           <strong>Bar Chart</strong> ranking 15 by one, in the Order you pick — it starts as the natural one for the metric, so League

@@ -9,6 +9,7 @@ import { buildSeasonTrend, trendDataKey, trendMetricByKey } from "../metrics/car
 import { belowMinimumNote, profileFloorNote, smallSampleNote, trendFloorNote } from "../components/MinutesFloorBadge";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { CreateViewIcon, PlusIcon, TrashIcon } from "../components/IconToolbar";
+import { SectionHeading, type SectionIcon } from "../components/SectionHeading";
 import { ComparisonPlayerTag } from "../components/comparison/ComparisonPlayerTag";
 import { ComparisonCard } from "../components/comparison/ComparisonCard";
 import { ComparisonRadar, type RadarAxisValues } from "../components/comparison/ComparisonRadar";
@@ -40,10 +41,10 @@ const MAX_COMPARE = 5;
 const STARTER_RESOLVE: ResolveOptions = { fixedFloorSeasons: true };
 const CUSTOM_RESOLVE: ResolveOptions = {};
 
-const SECTIONS: { kind: ComparisonElementKind; title: string; noun: "chart" | "panel" | "graph"; addHeight: number }[] = [
-  { kind: "radar", title: "Charts", noun: "chart", addHeight: 340 },
-  { kind: "outputs", title: "Outputs", noun: "panel", addHeight: 220 },
-  { kind: "trend", title: "Trends", noun: "graph", addHeight: 300 },
+const SECTIONS: { kind: ComparisonElementKind; title: string; icon: SectionIcon; noun: "chart" | "panel" | "graph"; addHeight: number }[] = [
+  { kind: "radar", title: "Charts", icon: "radar", noun: "chart", addHeight: 340 },
+  { kind: "outputs", title: "Outputs", icon: "outputs", noun: "panel", addHeight: 220 },
+  { kind: "trend", title: "Trends", icon: "trends", noun: "graph", addHeight: 300 },
 ];
 
 function useComparisonIds(): [number[], (ids: number[]) => void] {
@@ -433,8 +434,7 @@ export function PlayerComparison() {
         const sectionCards = cards.filter((c) => c.el.kind === section.kind);
         return (
           <React.Fragment key={section.kind}>
-            {i > 0 && <hr className="section-divider" />}
-            <div className="stat-group-title">{section.title}</div>
+            <SectionHeading icon={section.icon}>{section.title}</SectionHeading>
             {i === 0 && (
               <div className="chip-row" style={{ marginBottom: 12 }}>
                 <select aria-label="Comparison view" value={view.id} onChange={(e) => viewsState.selectView(e.target.value)}>

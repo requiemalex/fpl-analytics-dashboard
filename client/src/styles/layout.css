@@ -299,48 +299,43 @@
   margin-top: 4px;
 }
 
+/* Page-section heading (see SectionHeading.tsx): a tinted icon badge in
+   the focus accent, the title in the display face, and a hairline running
+   to the edge that stands in for a divider between sections. The badge is
+   the same 28px square as .chip-icon so it lines up with the icon buttons
+   used throughout, and its tint uses the same color-mix() ratio family as
+   the app's other tinted pills. */
 .section-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-family: var(--font-display);
   font-size: 15px;
   font-weight: 700;
   color: var(--text-primary);
-  margin: 28px 0 10px;
-  padding-top: 18px;
-  border-top: 1px solid var(--border);
+  margin: 34px 0 12px;
 }
 .section-heading:first-of-type {
-  margin-top: 20px;
+  margin-top: 24px;
 }
-
-/* Dashboard's two summary-stat groupings — a bit more colour/presence than
-   .section-heading on purpose, specifically so Player vs Team data reads as
-   two distinct groupings at a glance rather than one long undifferentiated
-   list of cards. Colour is drawn from the existing accent palette (focus
-   blue for players, positive green for teams) rather than introducing a
-   new hue, so it still reads as part of this theme. */
-.stat-group-title {
-  --accent: var(--accent-focus);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-display);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin: 26px 0 10px;
-}
-.stat-group-title::before {
+.section-heading::after {
   content: "";
-  width: 9px;
-  height: 9px;
-  border-radius: 3px;
-  background: var(--accent);
-  flex-shrink: 0;
+  flex: 1;
+  height: 1px;
+  margin-left: 6px;
+  background: var(--border);
 }
-.stat-group-title.team {
-  --accent: var(--accent-positive);
+.section-heading-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  color: var(--accent-focus);
+  background: color-mix(in srgb, var(--accent-focus) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-focus) 22%, transparent);
 }
 
 .btn {

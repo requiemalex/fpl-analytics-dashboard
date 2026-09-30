@@ -11,6 +11,7 @@ import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFi
 import { ANALYSIS_MODE_OPTIONS } from "../components/AnalysisModeToggle";
 import { FiltersBar } from "../components/FiltersBar";
 import { CardEditRemoveButtons, CreateViewIcon, FilterIcon, PlusIcon, TrashIcon, TrendLineIcon } from "../components/IconToolbar";
+import { SectionHeading } from "../components/SectionHeading";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { TeamPicker } from "../components/TeamPicker";
 import { TopList, type TopListRow } from "../components/TopList";
@@ -1089,7 +1090,7 @@ export function Dashboard() {
         </p>
       )}
 
-      <div className="stat-group-title">Summary Tiles</div>
+      <SectionHeading icon="tiles">Summary Tiles</SectionHeading>
       <div className="chip-row" style={{ marginBottom: 12 }}>
         <select
           aria-label="Saved view"
@@ -1164,8 +1165,7 @@ export function Dashboard() {
         </div>
       )}
 
-      <hr className="section-divider" />
-      <div className="stat-group-title">Graphs</div>
+      <SectionHeading icon="graphs">Graphs</SectionHeading>
 
       {visibleGraphRows.length === 0 && selectedViewIsDefault ? (
         <p className="page-subtitle">No {tileView} graphs yet.</p>
