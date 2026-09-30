@@ -145,407 +145,300 @@ export function UserGuide() {
 
       <Section id="overview" title="Overview">
         <p className="page-subtitle" style={{ margin: 0 }}>
-          This is an FPL scouting dashboard built on the official Fantasy Premier League API — no manual data entry, no third-party
-          estimates passed off as fact. Two data sources feed almost everything: the live <code>bootstrap-static</code> snapshot (today's
-          prices, ownership, current-season stats, fixtures) and a bulk fetch of every player's season-by-season history
-          (<code>element-summary</code>'s <code>history_past</code>), used for the historic modes described below.
+          An FPL scouting dashboard built on the official Fantasy Premier League API — no manual data entry, no third-party estimates
+          passed off as fact. Almost everything comes from the live <code>bootstrap-static</code> snapshot (today's prices, ownership,
+          current-season stats, fixtures) and every player's season-by-season history (<code>element-summary</code>'s{" "}
+          <code>history_past</code>), which feeds the historic modes below.
         </p>
         <p className="page-subtitle">
-          One important asymmetry to know up front: every section of this app is <strong>descriptive</strong> — it tells you what has
-          actually happened, never what will — except Team Building, which is explicitly built to predict. That's a deliberate,
-          disclosed exception, not an inconsistency; that section's own guide below explains exactly what it predicts and how.
+          Every section is <strong>descriptive</strong> — it shows what has happened, never what will — except Team Building, which
+          is built to predict. Its guide below explains what it predicts and how.
         </p>
       </Section>
 
       <Section id="modes" title="Analysis modes: Last Completed Season / Historic Average / Current Season">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Most sections (Dashboard, Player Explorer, Player Comparison, Team Explorer, Team Profile, the player profile) show the
-          same toggle near the top of the page — the options are identical everywhere, but each page's toggle is independent: changing
-          one page's mode (or its Search/Position/Team/Min Minutes criteria, where a page has that too) never changes what any other
-          page shows. Switching Player Explorer to Historic Average, for instance, has no effect on the Dashboard open in another tab:
+          Most pages (Dashboard, Player Explorer, Player Comparison, Team Explorer, Team Profile, the player profile) have the same
+          toggle near the top. Each page's toggle — and its Search/Position/Team/Min Minutes criteria, where it has them — is its
+          own: changing one page never changes what another shows.
         </p>
         <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
           <li>
-            <strong>Last Completed Season</strong> — a player's actual totals from the most recently finished FPL season, however much or
-            little they played. No minutes threshold applied — an injury-hit season is real data, not noise, when the question is
-            specifically "what happened last season."
+            <strong>Last Completed Season</strong> — a player's actual totals from the most recently finished season, however much
+            or little he played. An injury-hit season is real data when the question is "what happened last season".
           </li>
           <li>
-            <strong>Historic Average</strong> — averaged across every one of the last 4 completed seasons a player has, light or
-            injury-hit ones included: excluding a bad season used to flatter the average by only ever counting the good ones, so it no
-            longer filters by minutes at all here (a separate, much narrower minutes bar still exists just to flag a season as "light"
-            in the Points History season-by-season table, and for Expected Points' own forward-looking reliability check). Its per-game figures
-            (PPG, xG/Game and the rest) are the seasons' total divided by their total games, with games counted from the seasons'
-            total minutes. Where you can't set minimum minutes yourself (see below), only seasons with at least 450 minutes count: a
-            shorter season — a cameo year, one lost to injury, a year out of the Premier League — is a small sample, and none of its
-            figures count. The window is still the last 4 completed seasons; an older season never takes its place.
+            <strong>Historic Average</strong> — the average of the last 4 completed seasons a player has, light or injury-hit ones
+            included, so a bad season isn't quietly dropped. Per-game figures (PPG, xG/Game and the rest) are the seasons' totals
+            divided by their total games, with games counted from total minutes. Where you can't set minimum minutes yourself (see
+            below), only seasons of 450+ minutes count — a cameo year, one lost to injury or a year out of the Premier League is too
+            small a sample. The window is always the last 4 completed seasons; an older season never takes a skipped one's place.
           </li>
           <li>
-            <strong>Current Season</strong> — this season's live figures. Pre-season, or before a player's team has played, the
-            cumulative fields (points, goals, minutes, etc.) genuinely are zero — not a placeholder, an honest zero, since no games have
-            been played yet. Price, ownership, and availability status are always live regardless of which mode is selected. Live figures
-            update on their own every 10 minutes; the Refresh button at the top fetches everything again straight away, this season's
-            club figures and league table included (those can take up to a minute to rebuild; the current ones stay on screen until then).
+            <strong>Current Season</strong> — this season's live figures. Before a player's team has played, points, goals, minutes
+            and the like are genuinely zero. Live figures update every 10 minutes; the Refresh button at the top fetches everything
+            straight away, this season's club figures and league table included (those can take up to a minute; the current ones
+            stay on screen meanwhile).
           </li>
         </ul>
         <p className="page-subtitle">
-          <strong>Minimum minutes.</strong> Where you can set a minutes filter yourself — Player Explorer's Mins column, the tiles and
+          <strong>Minimum minutes.</strong> Where you set a minutes filter yourself — Player Explorer's Mins column, the tiles and
           graphs you build on the Dashboard, the cards you build on Player Comparison, Team Building — the app adds none of its own:
           raise it if one short appearance is topping a per-game list. Where you can't — the player profile and the Starter views on
-          the Dashboard and Player Comparison —
-          a fixed floor applies: 90 minutes in Current Season, 450 (five full games) otherwise — and in Historic Average only
-          seasons of 450+ minutes count, so a player who never reached 450 in any of the last 4 seasons has no Historic Average
-          there. In the player profile and Player Comparison's Starter view, a player under the floor is a{" "}
-          <em>small sample</em>: he's shown, but gets no percentile and no green/red colour, and Player Comparison never marks him the
-          best, so a cameo can't read as the best in the league. The Starter view's player tiles and graphs leave players
-          under the floor out. Wherever this fixed floor is in force you'll see a small stopwatch badge — by the mode toggle, or in a
-          Dashboard or Player Comparison card's header — and hovering it says what the floor is there. The same stopwatch in amber marks a
-          player who is under it.
+          the Dashboard and Player Comparison — a fixed floor applies: 90 minutes in Current Season, 450 (five full games) otherwise,
+          and Historic Average counts only seasons of 450+ minutes (so a player who never reached 450 in the last 4 seasons has no
+          Historic Average there). In the player profile and Player Comparison's Starter view, a player under the floor is a{" "}
+          <em>small sample</em>: shown, but with no percentile, no green/red colour, and never marked the best. Starter tiles and
+          graphs leave him out. A small stopwatch badge — by the mode toggle, or in a card's header — shows where the floor applies
+          (hover it for the figure); in amber, it marks a player under it.
         </p>
         <p className="page-subtitle" style={{ margin: 0 }}>
-          One thing that deliberately never changes: price is always today's real price, in every mode — in the identity line (like
-          Player Explorer's leftmost column), in the Price column, and in anything worked out from it like Points/£m — because what a
-          player costs right now is what matters for picking a squad. The one exception is Points History's season-by-season table,
-          which shows what a player cost at the time.
+          Price, ownership and availability are always today's, in every mode — including anything worked out from price, like
+          Points/£m — because what a player costs now is what matters for picking a squad. The one exception is Points History's
+          season-by-season table, which shows what a player cost at the time.
         </p>
       </Section>
 
       <Section id="dashboard" title="Dashboard">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          A snapshot, not a workspace — fully customisable Top-5 leaderboard tiles, plus a set of summary graphs underneath. A{" "}
-          <strong>Players / Teams</strong> toggle (top right) switches which set of tiles and graphs is on screen. Click any row or
-          chart point to jump straight to that player's profile or that team's page.
+          A snapshot: Top-5 leaderboard tiles with graphs underneath, all customisable. The <strong>Players / Teams</strong> toggle
+          (top right) switches between the two sets. Click any row or chart point to open that player's profile or that team's page.
         </p>
         <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
           <li>
-            <strong>My View</strong> is where you start — a blank view (one each for Players/Teams) with a + card in the tile grid and
-            the graph grid, ready for you to build your own dashboard. It's an ordinary view, so it can be deleted like any other.
+            <strong>Views.</strong> <strong>My View</strong> is where you start: blank, with a + card in the tile grid and the graph
+            grid. <strong>Starter</strong> is the app's ready-made layout — always in the dropdown, and it can't be changed or
+            deleted. <strong>Create View</strong> (next to the dropdown) starts another blank view, up to 5 each for Players and
+            Teams, Starter included. The pencil icon on a tile or graph edits it and its bin removes it; the bin next to the dropdown
+            deletes the selected view after you confirm (no undo). Everything saves as you go, and switching views changes only the
+            Players or Teams side you're on.
           </li>
           <li>
-            <strong>Starter is fixed</strong> — the app's ready-made tile/graph layout is a saved view named "Starter" (one each for
-            Players/Teams), always there in the dropdown to look at or come back to. It can't be deleted, and while it's selected nothing
-            in it can be added to or removed either, so there's always exactly one unmodified layout to fall back on.
+            <strong>Each tile has its own settings</strong>, set in its dialog: a name, a Data View (shown as an{" "}
+            <code>LS</code>/<code>HA</code>/<code>CS</code> badge in its header) and, for player tiles, its own Search, Position,
+            Team and Min Minutes — so two tiles can watch different slices of the pool. Min Minutes is a slider in whole matches;
+            type in the box beside it for an exact figure. It starts at 0 in every Data View, so per-game statistics rank everyone
+            your criteria let through — raise it (e.g. 450 for five full games) to rank only players with a real sample. Team tiles
+            show club figures for their Data View and have no criteria.
           </li>
           <li>
-            <strong>Create View</strong> (the icon next to the dropdown) starts a new, blank, named view and switches to it
-            immediately — from there the + cards at the end of the tile grid and the graph grid add tiles/graphs to it one at a
-            time; each one's own pencil icon edits it and its bin icon removes it. Every change saves itself as you make it, so there's nothing
-            separate to save and nothing lost by switching views, tabs, or closing the app — up to 5 views each for Player and Team,
-            Starter included, each with its own name. The bin icon next to the dropdown deletes the selected view after asking you to
-            confirm — there's no undo.
-            Picking a different view from the dropdown loads it immediately, replacing the live tiles and graphs for that scope only;
-            the other scope is untouched.
+            Each row reads club pill, position, name, bar, value. Bars start at the same point and the top row's is full length, so
+            a shorter bar shows how far behind that row is. The three "vs xG/xA/xGI" tiles colour green/red for above/below
+            expected; everything else is one colour.
           </li>
-          <li>
-            <strong>Data View and criteria, per tile</strong> — a Player Tile picks its own Last Completed Season / Historic Average /
-            Current Season, and its own Search/Position/Team/Min Minutes criteria, when it's created in the add-tile dialog — not one
-            shared setting for the whole page, so two tiles can watch completely different slices of the player pool side by side. The
-            data view shows as a small <code>LS</code>/<code>HA</code>/<code>CS</code> badge in the tile's header (hover for the full
-            name); in the dialog they're shortened to Last Season / Historic Avg / Current. In a dialog, Min Minutes is a slider in
-            whole matches with the figure beside it — type there for an exact number. Min Minutes applies in every data view, Current Season included — it starts at 0, so raise it as the season goes on
-            if you only want regular starters (e.g. 270 for three full games). Per-game statistics (PPG, xG/Game, xGC/Game, DC/Game and
-            the rest) rank everyone your criteria let through, so a player with one short appearance can top them — set Min Minutes
-            (e.g. 450 for five full games) to rank only players with a real sample. The same goes for graphs. Team Tiles show club figures for the season(s) their Data View picks — league standing included (see
-            below) — and have no criteria of their own. Every tile needs a name, set in the same dialog.
-          </li>
-          <li>A player tile's row reads club pill, position, name, bar, value; a Starter tile or bar graph is titled by its metric alone. Each row's bar shows its value's size relative to the other rows in that tile: every bar starts at the same point and the top row's is full length, so how far a bar falls short shows how far behind that row is. Green/red by above/below-expected for the three "vs xG/xA/xGI" tiles, one flat colour for everything else.</li>
         </ul>
         <p className="page-subtitle">
-          <strong>Graphs</strong>, below the tile grid (under their own heading), work the same way tiles do — built via{" "}
-          <strong>+ Add Graph</strong>, and changed later with the pencil icon in the graph's header (which reopens the same dialog
-          with its current settings). Pick a name, a chart type (a <strong>Scatter Plot</strong> comparing two metrics, or a{" "}
-          <strong>Bar Chart</strong> ranking 15 by one, in the Order you pick — it starts as the natural one for the metric, so League
-          Position or Goals Against lists the best first), the metric(s) to plot from the full Player Explorer/Team metric
-          catalogue, a Data View, and — for a scatter graph — whether to draw a dashed 45° trend line (the <strong>Add Trend Line</strong>{" "}
-          icon; it marks where X and Y are equal, so it's meaningful only when they're on the same scale, e.g. an expected-vs-actual
-          pair like xG and Goals; leave it off for anything else, like Price vs Points). A Player Graph can be scoped the same two ways
-          a Player Tile can — Filters, or up to 5 specific players via Player Search — and a Team Graph the same way a Team Tile can —
-          All Teams, or up to 5 specific teams via Team Selection.
+          <strong>Graphs</strong> work like tiles: add one with the + card, edit it with its pencil. Pick a name, a chart type — a{" "}
+          <strong>Scatter Plot</strong> of two metrics, or a <strong>Bar Chart</strong> ranking 15 by one, in the order you choose
+          (it starts with the natural one, so League Position lists the best first) — the metric(s), a Data View, and what to
+          include: Filters or up to 5 players, or All Teams or up to 5 teams. A scatter plot can add a dashed 45° trend line (
+          <strong>Add Trend Line</strong>) marking where X equals Y — useful only when both are on the same scale, like xG and Goals.
+          The Starter graphs are xG vs Goals, xA vs Assists and Price vs Points for players, and Team xG vs Goals and Team xGC vs
+          Goals Against for teams; the player ones leave out players under the fixed minutes floor, who would otherwise pile up at
+          zero.
         </p>
         <p className="page-subtitle">
-          The Starter graphs are, for Players, <strong>xG vs Goals</strong> and <strong>xA vs Assists</strong> (both with the reference
-          line on, showing finishing/creativity over- or under-performance) and <strong>Price vs Points</strong>; for Teams,{" "}
-          <strong>Team xG vs Goals</strong> and <strong>Team xGC vs Goals Against</strong>. Like every Starter player tile, the Starter
-          Player graphs only include players at or above the fixed minutes floor for the graph's Data View (see Minimum minutes
-          above) — without it, hundreds of fringe players pile up at zero and hide everyone else.
+          Scatter axes fit the data rather than starting at 0. If one axis is five or more times the other's size, the trend line
+          is left out (a note says so). If a few big values crowd everyone else into a narrow band, that axis switches to a log
+          scale (√ if it has zeros) and its title says so; hovering a point always shows the real values. With a trend line, both
+          axes share the same range and scale.
         </p>
         <p className="page-subtitle">
-          Every scatter graph also follows a few automatic rules so any pair of metrics stays readable. Each axis runs from just below
-          its lowest value to just above its highest, rather than from 0 by default — clubs concede between roughly 27 and 58 goals a
-          season, so that's what the axis shows — and starts at 0 only when the data is already close to it. If one axis is five or
-          more times the size of the other (Price against Points, or a club's xG against its FPL points), the reference line is left
-          out even if it was ticked — it would squash the smaller metric into a sliver — and a note under the chart says so. And if
-          most points are crammed into a narrow band of an axis by a few big values (most players cost £4.5–6m while a handful cost
-          £10m+; most players score 0–3 goals while a few score 20+), that axis is stretched onto a log scale (or a square-root one, if
-          it has zeros) to spread the crowd out; the axis title says "(log scale)" or "(√ scale)", and hovering a point always shows
-          its real values. On a graph with the reference line, both axes always share the same range and stretch, so the line keeps
-          meaning "exactly as expected".
+          Team figures are <em>club</em> figures for the tile or graph's Data View — see Team Explorer &amp; Team Profile below. A
+          team tile set to Last Completed Season shows that season's final League Position, League Points, Goals For/Against and so
+          on, not today's table.
         </p>
-        <p className="page-subtitle">
-          Every team metric is a <em>club</em> figure for the season(s) the tile or graph's own Data View picks — see Team Explorer &amp; Team
-          Profile below. That includes the results: a team tile set to Last Completed Season shows that season's final{" "}
-          <strong>League Position</strong>, <strong>League Points</strong>, <strong>Goals For/Against</strong> and so on, not today's
-          table.
-        </p>
-        <Try>Use it as a starting point, not a destination — spot a name in a leaderboard or an outlier on a chart, click through, then dig deeper in Player Explorer or the profile.</Try>
+        <Try>Spot a name in a leaderboard or an outlier on a chart, click through, then dig deeper in Player Explorer or the profile.</Try>
       </Section>
 
       <Section id="player-explorer" title="Player Explorer">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          The full player database as one customisable table. Every column comes from the same shared list used across the app (also
-          what powers Player Comparison and Team Building's Historic/Raw columns), so a metric means the same thing everywhere it
-          appears.
+          The full player database as one customisable table. Its columns come from the same list as Player Comparison and Team
+          Building, so a metric means the same thing everywhere.
         </p>
         <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
-          <li><strong>Reorder</strong> — drag a column header. <strong>Resize</strong> — drag its right edge.</li>
           <li>
-            <strong>Sort</strong> — click a header; shift-click another to add a secondary tiebreaker. A blank (—) is treated as lower
-            than any real value here, not always parked at the end — so it appears first ascending, last descending, like any other low
-            number would. Player names sort alphabetically, ignoring accents and capitals (Ødegaard sits among the Os). Position sorts
-            in pitch order: GKP, DEF, MID, FWD on the first click.
+            <strong>Reorder</strong> — drag a column header. <strong>Resize</strong> — drag its right edge. Columns fit the space
+            available; one you've resized keeps its width until Reset, and the others share the rest. When they can't all fit, the
+            table scrolls sideways.
           </li>
           <li>
-            <strong>Filter</strong> — click the ▾ on a header's edge for an Excel-style filter (Less than or equal to / Greater than or
-            equal to / Equal to). Confirm with Enter (the button or the key); discard with Cancel or Escape. Numbers are compared as the
-            table shows them, so Equal to 15.3 finds a player shown as 15.3. A range nothing can meet (Greater than or equal to above
-            Less than or equal to) can't be applied. Hiding a column clears its filter, and stops the table sorting by it. If a filter
-            leaves nobody, the columns stay on screen so you can change it from its own ▾.
+            <strong>Sort</strong> — click a header; shift-click another to add a tiebreaker. A blank (—) counts as lower than any
+            value. Names sort alphabetically, ignoring accents (Ødegaard sits among the Os); Position sorts GKP, DEF, MID, FWD.
           </li>
           <li>
-            Column widths auto-fit the table to the available space — on load, whenever the visible columns change, and when the window
-            is resized. A column you've resized by hand keeps its width until Reset; the others share the rest, so widening one narrows
-            the others. Next 5 Fixtures is always given room for all five fixtures. When the columns can't all fit, the table scrolls
-            sideways.
+            <strong>Filter</strong> — the ▾ on a header: ≤ / ≥ / = for numbers, a list for Position and Team. Enter confirms, Escape
+            cancels. Numbers compare as shown, so = 15.3 finds a player shown as 15.3. Hiding a column clears its filter and its sort.
           </li>
           <li>
-            The toolbar icons (hover each for its name): <strong>Reset</strong> restores the default columns, order and widths and
-            clears every filter; <strong>Columns</strong> picks which columns show; <strong>Clear filters</strong> empties the search
-            box and every column filter; <strong>Export CSV</strong> is below.
-          </li>
-          <li>Each cell is tinted green/red relative to the rest of its column on screen (comparative colouring).</li>
-          <li>
-            The search box in the toolbar narrows the table by player name. Everything else is filtered at its own column (click
-            the ▾ icon on that column's header) — Position and Team by category, and numeric columns like Minutes, Own%, and
-            Price with ≤/≥/= fields. Player-name search (here, in
-            Team Building's Add Players table, and in the search-and-add box on Player Comparison) is
-            accent-insensitive (typing "odegaard" or "sesko" finds "Ødegaard" or "Šeško"), matches first and last name in any order
-            (so "fernandes bruno" finds Bruno Fernandes, not just "bruno fernandes"), accepts a name typed as FPL shows it
-            ("B.Fernandes"), and tolerates small typos on longer names. The Columns picker closes on Escape or a click outside it.
-            With several things open, Escape closes the one opened last.
+            <strong>Search</strong> — the toolbar box finds players by name, here and on Team Building and Player Comparison. It
+            ignores accents ("odegaard" finds Ødegaard), takes names in any order or as FPL writes them ("B.Fernandes"), and
+            tolerates small typos.
           </li>
           <li>
-            Player Explorer starts fresh each visit: columns, widths, sort and filters go back to the defaults when you leave the page.
+            <strong>Toolbar icons</strong> (hover each for its name): Reset restores the default columns, order and widths and clears
+            every filter; Columns picks which columns show; Clear filters empties the search and every column filter; Export CSV
+            downloads exactly what's on screen.
           </li>
-          <li><strong>Export CSV</strong> downloads exactly what's on screen — the same rows and visible columns, in the same order, with the same formatted values.</li>
+          <li>Each cell is tinted green/red against the rest of its column on screen.</li>
           <li>
-            <strong>Next 5 Fixtures</strong> (off by default — enable it in the Columns picker) is the same fixture-ticker column Team
-            Building's Add Players table has, copied over here for the same at-a-glance planning use. Always the player's live team's
-            actual upcoming fixtures, regardless of the analysis-mode toggle above — moving fixtures between seasons wouldn't mean
-            anything, same reasoning as price and ownership staying live everywhere.
+            <strong>Next 5 Fixtures</strong> (off by default — turn it on in Columns) is always the player's actual upcoming
+            fixtures, whatever the mode.
           </li>
+          <li>The page starts fresh each visit: columns, widths, sort and filters return to the defaults when you leave.</li>
         </ul>
         <Try>
-          Looking for undervalued midfielders? Use the Position column's ▾ to show only MID, click the Pts/£m header to sort
-          descending, and use the Price column's own ▾ filter to cap it at a budget you're working within.
+          Looking for undervalued midfielders? Filter Position to MID, sort Pts/£m descending, and cap Price at your budget with its ▾.
         </Try>
       </Section>
 
       <Section id="team-building" title="Team Building — the one predictive section">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Everywhere else in this app describes what's already happened. Team Building is different on purpose: it's about picking a
-          squad for the season ahead. No squad is loaded by default — use <strong>New Squad</strong> to either create a blank template
-          (just give it a name) or import a real squad by its FPL team ID (the number in your team's own FPL web address — Pick Team →
-          Gameweek History shows it in the URL); importing is a read-only, unauthenticated request to FPL's own public data for that
-          team (no login, nothing written back), and chip usage history comes along with it automatically. The <strong>Add Players</strong>{" "}
-          table and everything else on the page stays hidden until a squad is loaded or created. You can have up to 5 saved squads at
-          once — New Squad tells you if you're at that limit, so delete one first if you need another.
+          Picking a squad for the season ahead. Start with <strong>New Squad</strong>: a blank one (just give it a name), or import
+          a real squad by its FPL team ID — the number in your team's FPL web address (Pick Team → Gameweek History shows it).
+          Importing reads FPL's public data for that team, chip history included; no login, nothing written back. The rest of the
+          page appears once a squad is loaded. Up to 5 squads can be saved; <strong>Delete</strong> asks you to confirm the name
+          first (no undo).
         </p>
         <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
           <li>
-            <strong>Delete</strong> asks you to confirm the squad's name before removing it — there's no undo, so make sure it's the
-            right one.
+            The <strong>pitch</strong> is drag-and-drop: drag a player from Add Players onto the pitch or bench, or one card onto
+            another to swap. Click a name for the profile; click <strong>Captain</strong>/<strong>Vice-Captain</strong>, then a
+            starter, to assign it; <strong>Clear Draft</strong> empties the squad. Cards show live price, ownership, minutes
+            reliability, the next fixtures and both Expected Points figures (doubled for the captain).
           </li>
           <li>
-            The <strong>pitch view</strong> is drag-and-drop: drag a player from the Add Players list onto the pitch or bench, drag a
-            card onto another to swap it, click a player's name for their profile, click <strong>Captain</strong>/<strong>Vice-Captain</strong>{" "}
-            then a starting player to assign that role, and <strong>Clear Draft</strong> empties the whole squad in one click. Each
-            player's card shows their live price, ownership, minutes reliability, next-fixture ticker, and two Expected Points
-            figures — captain's points shown doubled on both.
+            The <strong>GW+1..GW+5 navigator</strong> picks which of each player's next five fixtures the Expected Points figures
+            estimate — his own Nth fixture, not a calendar gameweek, so a blank gameweek has nothing to select and a double
+            gameweek's two fixtures are consecutive steps.
           </li>
           <li>
-            The <strong>GW+1..GW+5 navigator</strong> above the pitch picks which of a player's next five upcoming fixtures both
-            Expected Points figures — on the pitch cards and in the Add Players table below — currently estimate. This is each
-            player's own <em>Nth upcoming fixture</em>, not a calendar gameweek number: a blank gameweek simply has no fixture to
-            select, and a double gameweek's two fixtures both show up as consecutive steps.
+            Two Expected Points figures, never blended: <strong>FPL Official</strong> is FPL's own <code>ep_next</code> prediction
+            (extended to later fixtures using fixture difficulty). <strong>Model Predicted</strong> is this app's independent
+            estimate from live per-90 stats (xG, xA, xGC, defensive contributions, saves) and FPL's scoring rules. Hover it for its
+            caveats: it's a second opinion, rougher for goalkeepers and nailed-on popular picks (see the README's backtest).
           </li>
           <li>
-            Two independent Expected Points figures, side by side, deliberately not blended into one number: <strong>FPL Official</strong>{" "}
-            is FPL's own published `ep_next` prediction (extended to fixtures beyond the very next one using real fixture-difficulty
-            data). <strong>Model Predicted</strong> is this app's own estimate, built entirely independently — from live per-90 stats
-            (xG, xA, xGC, defensive contribution, saves) and FPL's actual scoring rules, never looking at FPL's own prediction at all.
-            Hover the Model Predicted figure for the specific caveats behind it — it's a genuinely useful second opinion, not a
-            replacement for the official one, and is measurably rougher for goalkeepers and for popular "nailed-on" picks specifically
-            (see README for the full backtest).
+            The status line above the pitch shows squad size, budget, composition and any club-limit breach. Going over £100m turns
+            the budget red but never stops you adding a player.
           </li>
           <li>
-            The squad status line above the pitch shows size, budget, composition, and any club-limit breach — budget only ever turns
-            red as a warning when you've gone over £100m, it never stops you adding a player. Nothing here is a hard money constraint;
-            trim the squad back down whenever you're ready.
-          </li>
-          <li>
-            The <strong>Add Players table</strong> has the same reorder/resize/sort/filter/Export-CSV toolkit as Player
-            Explorer, split into two independently-toggled groups: <strong>Predictive</strong> (the two Expected Points columns above,
-            plus Minutes Reliability and a fixture ticker) and <strong>Historic/Raw</strong> (its own Last Completed Season / Historic
-            Average / Current Season toggle) — the two can't be reordered into each other, marked by the vertical divider line. Price
-            and club-limit rules always use today's real price and current club, regardless of any toggle.
+            The <strong>Add Players</strong> table has Player Explorer's toolkit, in two groups either side of a divider:{" "}
+            <strong>Predictive</strong> (the Expected Points columns, Minutes Reliability, a fixture ticker) and{" "}
+            <strong>Historic/Raw</strong> (with its own mode toggle). Price and club limits always use today's price and club.
           </li>
         </ul>
-        <Try>Sort the Add Players table by "Exp. Pts (Model Predicted)" and compare it to the "FPL Official" column for the same players — where they disagree most is usually worth a second look.</Try>
+        <Try>Sort Add Players by "Exp. Pts (Model Predicted)" and compare it with "FPL Official" — where they disagree most is worth a second look.</Try>
       </Section>
 
       <Section id="player-comparison" title="Player Comparison">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Build your own side-by-side analysis of up to 5 players. Add them with the search box at the top: each gets a tag showing
-          ownership · price (always today's), club and position, and a colour — blue, gold, green, red, then grey, in the order you added
-          them — that marks him on every chart on the page. Click a name to open his profile; × takes him out. Every chart compares the
-          same players, so swapping one updates the whole page.
+          Side-by-side analysis of up to 5 players, added with the search box at the top. Each gets a tag (ownership · today's
+          price, club, position) and a colour — blue, gold, green, red, then grey, in the order added — used for him on every chart.
+          Click a name for his profile; × removes him.
         </p>
         <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
           <li>
-            <strong>Charts</strong> are percentile radars: every player's shape on one chart, each axis his percentile within his own
-            position (outward is always better — for xGC and xGC/Game, where fewer is better, the scale is turned round). Pick 3–8
-            statistics and a Data View.
+            <strong>Charts</strong> are percentile radars: each axis is a player's percentile within his position, outward always
+            better (xGC and xGC/Game are turned round, since fewer is better). Pick 3–8 statistics and a Data View.
           </li>
           <li>
-            <strong>Outputs</strong> panels list up to 12 statistics as rows, to show how far apart the players really are. Each
-            row's track runs from 0 to the highest figure among them, and each player's marker sits at his own figure — so 239 points
-            against 142 shows as a full track against about 60% — then each player's figure in his colour, the best in bold. Every row
-            has its own scale; the faint ticks are a quarter, half and three quarters of the leader. For xGC and xGC/Game fewer is
-            better, so the best is the one furthest left.
+            <strong>Outputs</strong> list up to 12 statistics as rows. Each row's track runs from 0 to the highest figure among the
+            players, with each player's marker at his own figure and the best in bold; faint ticks mark a quarter, half and three
+            quarters of the leader. For xGC and xGC/Game, the best is furthest left.
           </li>
           <li>
-            <strong>Trends</strong> graphs show one statistic season by season — you pick what's on the y axis (totals such as Points,
-            Minutes or xGI, per-game rates, bonus, ICT Index, end-of-season price…); the x axis is always the completed seasons on
-            record. A season a player has no figure for is a gap in his line, not a zero.
+            <strong>Trends</strong> graph one statistic season by season across the completed seasons on record. A season with no
+            figure is a gap, not a zero.
           </li>
           <li>
-            <strong>Views</strong> work like the Dashboard's. <strong>My View</strong> is where you start: blank, with a + card in each
-            section that opens a dialog to name the chart, panel or graph, choose what it shows and set its Min Minutes. The pencil icon edits one, the bin
-            removes it, and you can drag cards to reorder them within a section. Each section holds up to 4 cards per view — its + card
-            goes once it's full. <strong>Starter</strong> is a ready-made, read-only set
-            (attacking and defensive radars, last season's and this season's output, and points, xGI-per-game and minutes trends) that
-            works for any players as soon as you add them. Create View starts another blank view (up to 5, Starter included); changes
-            save as you make them. A view keeps the layout, not the players.
+            <strong>Views</strong> work like the Dashboard's: <strong>My View</strong> starts blank, with a + card in each section
+            (up to 4 cards per section); pencil edits, bin removes, and cards drag to reorder. <strong>Starter</strong> is a
+            read-only set of radars, outputs and trends that works for any players. Create View adds another (up to 5, Starter
+            included). A view keeps the layout, not the players.
           </li>
         </ul>
         <p className="page-subtitle">
-          <strong>Min Minutes</strong> works as on the Dashboard. Every card you build has its own (0 unless you set it — the app adds
-          none of its own). A player under it is marked on that card with an amber stopwatch (hover it for his minutes): he isn't
-          drawn on a radar, has no marker on an Outputs track and can't be the bold best — and a radar only ranks players who reach
-          it. It's card by card: the same player can be greyed on one card and shown in full on another. On a Trends graph, a season
-          under it still shows his real figure, but marked with an amber ring instead of a dot (hover it for his minutes that season),
-          so a short season can't pass for a full one. The Starter view's cards use the fixed floor instead (see Minimum
-          minutes above), shown by the stopwatch badge in their header.
+          <strong>Min Minutes</strong> is set per card you build (0 unless you set it). A player under it gets an amber stopwatch on
+          that card (hover for his minutes): he isn't drawn on a radar (radars rank only players who reach it), has no Outputs marker
+          and can't be the best. On a Trends
+          graph, a season under it still shows his figure, but as an amber ring rather than a dot. Starter cards use the fixed floor
+          instead (see Minimum minutes above).
         </p>
-        <Try>Add two players you're deciding between and switch to Starter — if one leads on the season totals but the other is ahead on the per-game rows, the first may just have played more.</Try>
+        <Try>Add two players you're deciding between and switch to Starter — if one leads on totals but the other on per-game rows, the first may just have played more.</Try>
       </Section>
 
       <Section id="teams" title="Team Explorer &amp; Team Profile">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Team analysis is always <em>what the club did</em> in a given season — whoever was playing for it at the time — never what its
-          current players did elsewhere. Every figure comes from a match-by-match record of which club each player was playing for in
-          each game, so a summer signing's previous season stays with his previous club, and a player who leaves mid-season keeps
-          what he did for the club counted for it. "What would this new signing bring?" is player analysis — look at him in Player
-          Explorer or his profile. The Data View picks the season: Current Season, the Last Completed Season, or a Historic Average
-          over the last four completed seasons (only the ones the club was actually in the Premier League — a promoted club shows "—"
-          for a season it was in the Championship, never zero).
+          Team figures are always <em>what the club did</em> that season, whoever was playing for it — built from a match-by-match
+          record of which club each player played for. A summer signing's previous season stays with his previous club; a player
+          who leaves mid-season keeps what he did counted for the club. To judge what a signing would bring, look at the player
+          instead. The Data View picks the season: Current Season, Last Completed Season, or a Historic Average of the last four
+          completed seasons the club was in the Premier League (a season in the Championship shows "—", never zero). Club figures
+          have no minimum-minutes floor.
         </p>
         <p className="page-subtitle">
-          Team Explorer is a league-table view of that season — position, points, goals for and against, clean sheets, xG, xGC, xA and FPL
-          points scored. It has the same toolbar and column toolkit as Player Explorer: the Columns picker adds any
-          other team metric the Dashboard offers (played, wins, draws, losses, goal difference, goals, assists, bonus, xGI,
-          defensive contributions — all off by default); headers sort, drag to reorder and resize, and each has its own ▾ filter;
-          the "Team name…" box searches by club name or short name; Reset restores the default columns and clears every filter;
-          and Export CSV downloads exactly what's on screen. A team's coloured pill — a two-colour swatch of the club's real primary
-          and secondary kit colours where known, so clubs that share a colour are still easy to tell apart — is clickable anywhere
-          it appears in the app and opens that club's Team Profile: season totals, the
-          team radars, upcoming fixtures, and the club's match log. The Team Profile shows club figures only — no players — so
-          nothing on it changes when players come and go; to look at a club's players, use Player Explorer's Team column. The header's league position, points and results follow the Data View too, shown as Team Explorer
-          shows them ("—" for a season the club wasn't in the Premier League). In Historic Average they're averages: position and
-          points are rounded (so two clubs can both be "2nd"), and wins, draws and losses are whole numbers that always add up to the
-          games played. Club figures have no minimum-minutes floor. On the Defense radar,
-          more Defensive Contributions counts as better, as it does for a player — they're FPL points — so a dominant side that
-          rarely has to defend can sit low on that one axis.
+          <strong>Team Explorer</strong> is a league-table view of that season — position, points, goals for and against, clean
+          sheets, xG, xGC, xA and FPL points — with Player Explorer's toolbar and column toolkit. Columns adds more team metrics
+          (played, wins, draws, losses, goal difference, goals, assists, bonus, xGI, defensive contributions), and the "Team name…"
+          box searches by name or short name. A team's pill — a swatch of its real kit colours where known — opens its Team
+          Profile wherever it appears in the app.
         </p>
         <p className="page-subtitle">
-          <strong>Live Data</strong> is the club's match log for this season, like the player profile's gameweek log: one row per
-          match, newest first — the opponent, home or away, the score, then the club's FPL points, goals, assists, xG, xA, xGI, clean
-          sheet, xGC and defensive contributions in that match, with Totals and a per-match Average underneath, coloured against
-          every other club. It always shows this season, whichever Data View is selected. FPL only records xG and the rest per player,
-          so each match's figure adds up whoever played for the club in that match.
+          <strong>Team Profile</strong> shows season totals, the team radars, upcoming fixtures and the match log — club figures
+          only, no players (for a club's players, use Player Explorer's Team column). The header's position, points and results
+          follow the Data View; in Historic Average, position and points are rounded (two clubs can both be "2nd") and wins, draws
+          and losses always add up to the games played. On the Defense radar, more Defensive Contributions counts as better, so a
+          dominant side that rarely defends can sit low on that axis.
         </p>
         <p className="page-subtitle">
-          <strong>Points History</strong>, below Live Data, is the same chart as the player profile's Points History, applied
-          to the club: each bar is the FPL points scored for that club in that season, including this one in progress (an outlined
-          bar), back to 2016/17 — hover the title for a reminder. The average line and the figure beside the line icon underneath
-          use the same rolling 4-season window the player profile does — a season older than that draws grey, marked † when you
-          hover it, rather than counting toward the average. Seasons the club wasn't in the Premier League simply have no bar.
+          <strong>Live Data</strong> is this season's match log, newest first: opponent, home or away, score, then the club's FPL
+          points, goals, assists, xG, xA, xGI, clean sheet, xGC and defensive contributions, with Totals and a per-match Average,
+          coloured against every other club. FPL records xG and the rest per player, so each match adds up whoever played.{" "}
+          <strong>Points History</strong> charts the club's FPL points per season back to 2016/17 (this season as an outlined bar),
+          with the same rolling 4-season average as the player profile; older seasons are grey, marked † on hover, and a season
+          outside the Premier League has no bar.
         </p>
         <p className="page-subtitle">
-          Where the club record comes from: the official FPL API only serves the current season's match-by-match data and wipes it
-          every summer, so 2016/17 to 2025/26 were filled in once from a well-known community archive of FPL's own data (checked
-          against FPL's official season totals, and every match's goals against its real score). From 2026/27 on, the app keeps its
-          own copy straight from the official API, saved twice a week through the season. Club xG, xA and xGC exist from 2023/24:
-          FPL only started tracking them partway through 2022/23, so that season shows "—" rather than a part-season figure, and a
-          Historic Average of them covers only the seasons that have them. Club Defensive Contributions exist for 2025/26 on.
+          Where the club record comes from: the API only serves this season's match data and wipes it each summer, so 2016/17 to
+          2025/26 were filled in once from a well-known community archive of FPL's own data, checked against FPL's season totals and
+          every match's real score. From 2026/27 the app archives it from the official API twice a week. Club xG, xA and xGC start
+          in 2023/24 (FPL began tracking them partway through 2022/23, which shows "—"); club Defensive Contributions start in
+          2025/26.
         </p>
       </Section>
 
       <Section id="player-profile" title="Player Profile">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Click a player's name almost anywhere in the app to open it; the × or Escape closes it. The profile is split into two zones: "Views" (Actual vs
-          Expected, Underlying Numbers, Percentile Radar, Value) resolves per the active analysis mode, while "Live Data" (the
-          gameweek table and Playing Time) and Points History always show today's actual figures regardless of that toggle — Points
-          History shows every prior season on record plus this season in progress (marked "(live)", from live data rather than a
-          completed season's record; before the season starts it reads zero). The Percentile Radar chart is position-specific — a
-          goalkeeper's axes share almost nothing with a forward's — and also resolves per mode. Defenders and midfielders get two
-          radars ("Defense" and "Offense"), since both facets genuinely drive their points; goalkeepers and forwards keep one combined
-          radar. Every figure in Underlying Numbers and
-          Value is also lightly tinted green/red — same idea as Player Explorer's Comparative Colouring, but relative to this player's
-          percentile against others in their own position (the same population the Percentile Radar uses) rather than a visible
-          table's rows. Goalkeepers don't get Defensive Contribution tiles: FPL's defensive-contribution points exclude them, so those
-          could only ever read zero.
+          Click a player's name almost anywhere to open it; × or Escape closes it. The "Views" zone (Actual vs Expected, Underlying
+          Numbers, Percentile Radar, Value) follows the analysis mode; "Live Data", Playing Time and Points History always show real
+          figures. The Percentile Radar is position-specific: defenders and midfielders get Defense and Offense radars, goalkeepers
+          and forwards one combined radar. Underlying Numbers and Value are tinted green/red by his percentile within his position.
+          Goalkeepers get no Defensive Contribution tiles, since FPL's defensive-contribution points exclude them.
         </p>
         <p className="page-subtitle">
-          The profile has no minutes setting, so its percentiles use the fixed minutes floor (see Analysis modes): only players with at
-          least 450 minutes (90 in Current Season) are ranked. A player under it is a <em>small sample</em> — his radars carry an amber
-          stopwatch badge (hover it for his minutes and the floor) and nothing is coloured. Its Historic Average counts only seasons of 450+ minutes. If a
-          player has no figures at all in the mode you've picked, the profile says so and suggests the Data Views that do have some.
+          The profile has no minutes setting, so its percentiles use the fixed floor (see Analysis modes): only players with 450+
+          minutes (90 in Current Season) are ranked. A player under it is a <em>small sample</em> — his radars carry an amber
+          stopwatch (hover for the figures) and nothing is coloured. If he has no figures in the chosen mode, the profile suggests
+          Data Views that do.
         </p>
         <p className="page-subtitle">
-          <strong>Live Data</strong> is a match-by-match table of the live season (a double gameweek is two rows): GW, Opponent and
-          Result, then Points, Minutes, Goals, Assists, xG, xA, xGI, Clean Sheets, xGC, Defensive Contributions and BPS. A
-          goalkeeper's table swaps Defensive Contributions for Saves (FPL's defensive-contribution points exclude goalkeepers, and only
-          they record saves). It scrolls horizontally if needed. The Totals row adds up the matches listed and the Average row
-          divides that by them, including any he didn't play in. Both are tinted green/red against others in his position, using
-          live-season figures and the Current Season floor: Totals by season total, Average by per-match figure — everyone else's
-          season total divided by the matches their club has played — so a late signing's strong per-match numbers show green
-          even while his total is still low. Sourced from the same request as Points History and Playing Time, so they share
-          its loading/error state. <strong>Playing Time</strong> — the minutes-per-match gauge, with the number of matches and average
-          minutes spelled out next to it — sits below the table and above Points History.
+          <strong>Live Data</strong> is a match-by-match table of this season (a double gameweek is two rows): result, then Points,
+          Minutes, Goals, Assists, xG, xA, xGI, Clean Sheets, xGC, Defensive Contributions and BPS — Saves instead of Defensive
+          Contributions for a goalkeeper. Totals adds up the matches listed; Average divides by them, including ones he didn't play.
+          Both are tinted against his position using this season's figures and the Current Season floor — Average per match, so a
+          late signing's strong per-match numbers show green even while his total is low. <strong>Playing Time</strong> — a
+          minutes-per-match gauge with matches and average minutes — sits below.
         </p>
         <p className="page-subtitle">
-          <strong>Points History</strong> has a bar per season with its points above it: green for the seasons counted in the
-          average, grey for those that aren't, and this season in progress as an outline. The line across the green bars is the
-          average — the last 4 completed seasons, as in Historic Average. Top right is the change between the last two completed
-          seasons (hover it to see which). The icons underneath are the per-season averages: points, minutes, goals and assists —
-          hover any of them for what it is. The chevron beside them opens the season-by-season table, where <strong>*</strong>
-          marks a light season (fewer minutes than usual) that still counts, and <strong>†</strong> a season that doesn't: outside
-          the 4-season window, or under 450 minutes. Hovering a bar on the chart uses the same †. Most of the table is tinted
-          relative to this player's own other seasons shown, not the wider player pool. Price is the exception: each season's price
-          (the middle of its start and end price) is compared with every other player's that season who played 450+ minutes (90 for
-          this season) — cheaper is greener, dearer is redder. Past seasons compare with the players still in FPL today, and a
-          season of his under those minutes has no colour.
+          <strong>Points History</strong> has a bar per season: green if counted in the average, grey if not, this season as an
+          outline. The line is the average of the last 4 completed seasons; top right is the change between the last two. The icons
+          underneath are per-season averages of points, minutes, goals and assists (hover for which). The chevron opens the
+          season-by-season table: <strong>*</strong> marks a light season that still counts, <strong>†</strong> one that doesn't
+          (outside the 4 seasons, or under 450 minutes). The table is tinted against his own other seasons, except Price — the
+          middle of that season's start and end price — which is compared with every player who played 450+ minutes that season
+          (90 for this one): cheaper is greener. Past seasons compare with players still in FPL today, and a season of his under
+          those minutes has no colour.
         </p>
       </Section>
 
@@ -619,9 +512,8 @@ export function UserGuide() {
           <div style={{ marginBottom: 20 }}>
             <SubHeading>xGI Cross-Check (development validation)</SubHeading>
             <p className="page-subtitle" style={{ marginBottom: 6 }}>
-              This app independently recomputes xGI as xG + xA and compares it against the API-supplied value (tolerance 0.01) — the
-              API-supplied value is always what's displayed, this check exists purely to surface discrepancies rather than conceal
-              them.
+              The app recomputes xGI as xG + xA and compares it with the API's own figure (tolerance 0.01). The API's figure is
+              always the one shown; this check only surfaces any disagreement.
             </p>
             <div className="stat-row">
               <span className="stat-row-name">Players checked</span>
