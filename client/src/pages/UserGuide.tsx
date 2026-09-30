@@ -263,14 +263,11 @@ export function UserGuide() {
           All Teams, or up to 5 specific teams via Team Selection.
         </p>
         <p className="page-subtitle">
-          The packaged default graphs carry over the most broadly useful charts from the old Underlying Numbers page: for Players,{" "}
-          <strong>xG vs Goals</strong> and <strong>xA vs Assists</strong> (both with the reference line on, showing finishing/creativity
-          over- or under-performance) and <strong>Price vs Points</strong> (no reference line — price and points aren't on a
-          comparable scale); for Teams, <strong>Team xG vs Goals</strong> and <strong>Team xGC vs Goals Against</strong>, the same
-          idea applied to each club. Like every Starter player tile, the Starter Player graphs only include players at or above the
-          fixed minutes floor for the graph's Data View (see Minimum minutes above) — without it, hundreds of fringe players pile up
-          at zero and hide everyone else. Graphs without
-          the reference line fit their axes to the data's own range (so Price vs Points starts near £4m, not £0).
+          The Starter graphs are, for Players, <strong>xG vs Goals</strong> and <strong>xA vs Assists</strong> (both with the reference
+          line on, showing finishing/creativity over- or under-performance) and <strong>Price vs Points</strong>; for Teams,{" "}
+          <strong>Team xG vs Goals</strong> and <strong>Team xGC vs Goals Against</strong>. Like every Starter player tile, the Starter
+          Player graphs only include players at or above the fixed minutes floor for the graph's Data View (see Minimum minutes
+          above) — without it, hundreds of fringe players pile up at zero and hide everyone else.
         </p>
         <p className="page-subtitle">
           Every scatter graph also follows a few automatic rules so any pair of metrics stays readable. Each axis runs from just below
@@ -283,11 +280,6 @@ export function UserGuide() {
           it has zeros) to spread the crowd out; the axis title says "(log scale)" or "(√ scale)", and hovering a point always shows
           its real values. On a graph with the reference line, both axes always share the same range and stretch, so the line keeps
           meaning "exactly as expected".
-        </p>
-        <p className="page-subtitle">
-          The old page's Thematic Analysis charts (average points by position/price tier across
-          every season on record) deliberately aren't among them — they're genuine multi-season time series, not a single-analysis-mode
-          metric-vs-metric graph, so they don't fit this per-graph model and were retired rather than forced in.
         </p>
         <p className="page-subtitle">
           Every team metric is a <em>club</em> figure for the season(s) the tile or graph's own Data View picks — see Team Explorer &amp; Team
@@ -325,7 +317,11 @@ export function UserGuide() {
             the others. Next 5 Fixtures is always given room for all five fixtures. When the columns can't all fit, the table scrolls
             sideways.
           </li>
-          <li><strong>Reset Columns</strong> restores the packaged defaults — order, visibility, and width.</li>
+          <li>
+            The toolbar icons (hover each for its name): <strong>Reset</strong> restores the default columns, order and widths and
+            clears every filter; <strong>Columns</strong> picks which columns show; <strong>Clear filters</strong> empties the search
+            box and every column filter; <strong>Export CSV</strong> is below.
+          </li>
           <li>Each cell is tinted green/red relative to the rest of its column on screen (comparative colouring).</li>
           <li>
             The search box in the toolbar narrows the table by player name. Everything else is filtered at its own column (click
@@ -470,16 +466,16 @@ export function UserGuide() {
           other team metric the Dashboard offers (played, wins, draws, losses, goal difference, goals, assists, bonus, xGI,
           defensive contributions — all off by default); headers sort, drag to reorder and resize, and each has its own ▾ filter;
           the "Team name…" box searches by club name or short name; Reset restores the default columns and clears every filter;
-          and Export CSV downloads exactly what's on screen. A team's coloured pill — here, in the Team Profile, and on the
-          Dashboard's tiles — is clickable anywhere it appears in the app and opens that club's Team Profile: season totals, the
+          and Export CSV downloads exactly what's on screen. A team's coloured pill — a two-colour swatch of the club's real primary
+          and secondary kit colours where known, so clubs that share a colour are still easy to tell apart — is clickable anywhere
+          it appears in the app and opens that club's Team Profile: season totals, the
           team radars, upcoming fixtures, and the club's match log. The Team Profile shows club figures only — no players — so
           nothing on it changes when players come and go; to look at a club's players, use Player Explorer's Team column. The header's league position, points and results follow the Data View too, shown as Team Explorer
           shows them ("—" for a season the club wasn't in the Premier League). In Historic Average they're averages: position and
           points are rounded (so two clubs can both be "2nd"), and wins, draws and losses are whole numbers that always add up to the
           games played. Club figures have no minimum-minutes floor. On the Defense radar,
           more Defensive Contributions counts as better, as it does for a player — they're FPL points — so a dominant side that
-          rarely has to defend can sit low on that one axis. It's a two-colour swatch of that club's real primary and secondary kit colours where known, so same-coloured
-          clubs (several Premier League sides share red or blue as a primary) are still distinguishable at a glance.
+          rarely has to defend can sit low on that one axis.
         </p>
         <p className="page-subtitle">
           <strong>Live Data</strong> is the club's match log for this season, like the player profile's gameweek log: one row per
@@ -625,9 +621,7 @@ export function UserGuide() {
             <p className="page-subtitle" style={{ marginBottom: 6 }}>
               This app independently recomputes xGI as xG + xA and compares it against the API-supplied value (tolerance 0.01) — the
               API-supplied value is always what's displayed, this check exists purely to surface discrepancies rather than conceal
-              them. This used to also cross-check the live API's own per-90 fields (xG/90, xA/90, etc.) against a recomputed rate;
-              retired alongside the app-wide move from per-90 to per-game metrics, since this app no longer reads or surfaces FPL's
-              raw per-90 figures at all for those fields.
+              them.
             </p>
             <div className="stat-row">
               <span className="stat-row-name">Players checked</span>
