@@ -181,13 +181,18 @@ specific to that were found and fixed:
   config skips that step entirely rather than requiring a machine-level
   setting change.
 
-**Auto-updates**: wired via `electron-updater` — `main.js` calls
-`autoUpdater.checkForUpdatesAndNotify()` once the window is up, which
-checks GitHub Releases (`package.json`'s `build.publish` config) for a
-newer tag, downloads it in the background, and shows a native OS
-notification prompting a restart when ready. This is a no-op during
-`npm run electron:start` (electron-updater skips itself for an
-unpackaged dev run).
+**Auto-updates**: wired via `electron-updater` in `main.js`. Nothing
+runs while the app is closed, so on every launch it checks GitHub
+Releases (`package.json`'s `build.publish` config) before showing the
+main window (which loads hidden meanwhile). If there's a newer tag, a
+small "Updating…" window shows the download, then the app installs it
+silently and relaunches on the new version. No answer within 8s, no
+internet, or a download stalled for 30s opens the app as it is. While
+the app is open it checks again every 10 minutes, downloads in the
+background, and a dialog offers "Restart now" (silent install, then
+the app reopens) or "Later" (installs the next time the app is
+closed). This is a no-op during `npm run electron:start`
+(electron-updater skips itself for an unpackaged dev run).
 
 **Release pipeline**: `.github/workflows/release.yml` builds and
 publishes automatically on every `v*` tag push — the exact same

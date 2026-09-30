@@ -28,7 +28,7 @@ header).
 
 ## Getting started
 
-Requires Node.js 18.18+ (20 LTS recommended) and internet access to
+Requires Node.js 18.18+ (24 LTS recommended) and internet access to
 `fantasy.premierleague.com`. npm workspaces — one install covers both
 packages.
 
@@ -697,8 +697,9 @@ SmartScreen prompt on first install). See `DEPLOYMENT.md`.
    — bump the minor version for features, the patch version for fixes.
 
 `.github/workflows/release.yml` builds the installer, takes the version from
-the tag, and publishes a GitHub Release. Installed copies update themselves
-on next launch.
+the tag, and publishes a GitHub Release. A closed copy installs it the next
+time it's opened, before the app appears; an open one finds it within about
+10 minutes and offers to restart into it (or install it when next closed).
 
 ## Known limitations
 

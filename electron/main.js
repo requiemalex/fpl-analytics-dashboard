@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain } = require("electron");
+const { app, BrowserWindow, Menu, dialog, ipcMain } = require("electron");
 const path = require("path");
 const { autoUpdater } = require("electron-updater");
 
@@ -22,6 +22,9 @@ process.env.PORT = process.env.PORT ?? "4317";
 process.env.CLIENT_ORIGIN = `http://localhost:${process.env.PORT}`;
 
 let mainWindow = null;
+let mainWindowReady = false;
+/** True until the launch update check has decided the app can open as it is. */
+let holdMainWindow = true;
 
 /**
  * Starts the embedded server and resolves once it's actually listening —
@@ -84,13 +87,20 @@ function createWindow() {
 
   mainWindow.loadURL(`http://localhost:${process.env.PORT}`);
 
+  mainWindowReady = false;
   mainWindow.once("ready-to-show", () => {
-    mainWindow.show();
+    mainWindowReady = true;
+    showMainWindow();
   });
 
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
+}
+
+/** Shows the main window once its page is ready and the launch update check (see checkAtLaunch) has let it through. */
+function showMainWindow() {
+  if (mainWindow && mainWindowReady && !holdMainWindow && !mainWindow.isVisible()) mainWindow.show();
 }
 
 // The only window-control surface left now that the native frame is gone —
@@ -105,36 +115,167 @@ ipcMain.on("window-close", () => {
   mainWindow?.close();
 });
 
+/** How often a running copy looks for a new release, on top of the check at launch. */
+const UPDATE_CHECK_INTERVAL_MS = 10 * 60 * 1000;
+/** How long launch waits to hear whether there's an update before opening the app anyway. */
+const LAUNCH_CHECK_TIMEOUT_MS = 8000;
+/** How long a launch-time download may go without progress before the app opens anyway. */
+const LAUNCH_DOWNLOAD_STALL_MS = 30000;
+
+/** Set while an update found at launch downloads and installs before the app opens: { window, stallTimer, installing }. */
+let launchUpdate = null;
+
+/**
+ * Update on open: nothing runs while the app is closed, so a release
+ * published since it was last used is installed here, before the main
+ * window appears — the main window loads hidden meanwhile. If the check
+ * finds an update, a small "Updating…" window shows the download, then the
+ * app installs it silently and relaunches on the new version. No answer
+ * within LAUNCH_CHECK_TIMEOUT_MS (slow network), no internet, or a stalled
+ * or failed download all just open the app as it is; the running-app
+ * checks in startUpdateChecks carry on from there.
+ */
+async function checkAtLaunch() {
+  const result = await Promise.race([
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.error("Launch update check failed:", err);
+      return null;
+    }),
+    new Promise((resolve) => setTimeout(() => resolve(null), LAUNCH_CHECK_TIMEOUT_MS)),
+  ]);
+  if (result?.isUpdateAvailable) beginLaunchUpdate(result.updateInfo.version);
+  else openAppAsIs();
+}
+
+function openAppAsIs() {
+  holdMainWindow = false;
+  showMainWindow();
+}
+
+function beginLaunchUpdate(version) {
+  const window = new BrowserWindow({
+    width: 420,
+    height: 150,
+    frame: false,
+    resizable: false,
+    show: false,
+    title: "Updating FPL Analytics Dashboard",
+    icon: path.join(__dirname, "../build/icon.png"),
+    backgroundColor: "#0a0f0c",
+    webPreferences: { contextIsolation: true, nodeIntegration: false },
+  });
+  // Colours from tokens.css (--bg, --text-primary, --text-muted, --accent-positive).
+  const html = `<!doctype html><html><body style="margin:0;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;background:#0a0f0c;color:#e8ede9;font:14px 'Segoe UI',system-ui,sans-serif;user-select:none">
+    <div>Updating to version ${version}…</div>
+    <div id="progress" style="color:#647167;font-size:12px">Downloading</div>
+    <div style="width:240px;height:4px;background:#24312a;border-radius:2px"><div id="bar" style="width:0;height:100%;background:#3fbf7f;border-radius:2px"></div></div>
+  </body></html>`;
+  window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+  window.once("ready-to-show", () => window.show());
+  // Closing this window mid-download quits, rather than leaving the hidden main window running with nothing on screen.
+  window.on("closed", () => {
+    if (launchUpdate?.window === window && !launchUpdate.installing) app.quit();
+  });
+  launchUpdate = { window, stallTimer: null, installing: false };
+  resetLaunchStallTimer();
+}
+
+function resetLaunchStallTimer() {
+  clearTimeout(launchUpdate.stallTimer);
+  launchUpdate.stallTimer = setTimeout(() => {
+    console.error("Launch update download stalled — opening the app as it is.");
+    abandonLaunchUpdate();
+  }, LAUNCH_DOWNLOAD_STALL_MS);
+}
+
+/** Gives up on updating before opening: the app opens as it is, and a download still going finishes in the background (the running-app dialog then offers it). */
+function abandonLaunchUpdate() {
+  if (!launchUpdate) return;
+  const { window, stallTimer } = launchUpdate;
+  clearTimeout(stallTimer);
+  launchUpdate = null;
+  if (!window.isDestroyed()) window.close();
+  openAppAsIs();
+}
+
 /**
  * Checks GitHub Releases (see package.json's build.publish config) for a
- * newer tagged version than this running one, downloads it in the
- * background if found, and shows a native OS notification prompting a
- * restart once it's ready — electron-updater's own default UI, no custom
- * dialog needed for this. This is the entire "push a fix, every install
+ * newer tagged version than this running one — at launch (checkAtLaunch)
+ * and then every UPDATE_CHECK_INTERVAL_MS while the app stays open — and
+ * downloads it in the background. Once a running-app download is ready, a
+ * dialog offers to restart into it straight away; "Later" leaves it to
+ * install when the app is next closed (electron-updater's
+ * autoInstallOnAppQuit). This is the entire "push a fix, every install
  * gets it" mechanism: a new git tag → CI builds + publishes a release
- * (.github/workflows/release.yml) → every running copy of the app finds
- * it here on its next launch.
+ * (.github/workflows/release.yml) → every open copy of the app finds it
+ * here within minutes, and every closed one installs it on next open.
+ *
+ * Checking stops once an update has downloaded: a later check would find
+ * the same version and raise the dialog again after "Later".
  *
  * A no-op in dev (`npm run electron:start`) — electron-updater checks
  * `app.isPackaged` internally and skips entirely for an unpackaged run,
- * so this never tries to hit GitHub while iterating locally. Errors
- * (most commonly: no internet connection) are caught and logged rather
- * than surfaced to the user — a failed update check should never block
- * or interrupt using the app itself.
+ * so this never tries to hit GitHub while iterating locally (the launch
+ * check resolves at once and the app opens). Errors (most commonly: no
+ * internet connection) are caught and logged rather than surfaced to the
+ * user — a failed update check should never block or interrupt using the
+ * app itself; the next scheduled check tries again.
  */
-function checkForUpdates() {
-  autoUpdater.on("error", (err) => console.error("Auto-update error:", err));
+function startUpdateChecks() {
+  let checkTimer = null;
+
+  autoUpdater.on("error", (err) => {
+    console.error("Auto-update error:", err);
+    abandonLaunchUpdate();
+  });
   autoUpdater.on("update-available", (info) => console.log("Update available:", info.version));
   autoUpdater.on("update-not-available", () => console.log("No update available — already on the latest version."));
-  autoUpdater.on("update-downloaded", (info) => console.log("Update downloaded, will prompt to restart:", info.version));
+  autoUpdater.on("download-progress", (progress) => {
+    if (!launchUpdate || launchUpdate.window.isDestroyed()) return;
+    resetLaunchStallTimer();
+    const percent = Math.round(progress.percent);
+    launchUpdate.window.webContents
+      .executeJavaScript(`document.getElementById("progress").textContent = "Downloading ${percent}%"; document.getElementById("bar").style.width = "${percent}%";`)
+      .catch(() => {});
+  });
+  autoUpdater.on("update-downloaded", async (info) => {
+    console.log("Update downloaded:", info.version);
+    clearInterval(checkTimer);
+    if (launchUpdate) {
+      clearTimeout(launchUpdate.stallTimer);
+      launchUpdate.installing = true;
+      // Silent install (no installer wizard), then relaunch on the new version.
+      autoUpdater.quitAndInstall(true, true);
+      return;
+    }
+    const options = {
+      type: "info",
+      title: "Update ready",
+      message: `FPL Analytics Dashboard ${info.version} is ready to install.`,
+      detail: "Restart now to update, or choose Later and it will install the next time you close the app.",
+      buttons: ["Restart now", "Later"],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true,
+    };
+    const { response } = mainWindow ? await dialog.showMessageBox(mainWindow, options) : await dialog.showMessageBox(options);
+    // Silent install (no installer wizard), then relaunch the app.
+    if (response === 0) autoUpdater.quitAndInstall(true, true);
+  });
 
-  autoUpdater.checkForUpdatesAndNotify().catch((err) => console.error("Auto-update check failed:", err));
+  checkTimer = setInterval(
+    () => autoUpdater.checkForUpdates().catch((err) => console.error("Auto-update check failed:", err)),
+    UPDATE_CHECK_INTERVAL_MS,
+  );
 }
 
 app.whenReady().then(async () => {
+  startUpdateChecks();
+  // The launch check runs while the server starts and the page loads hidden, so an up-to-date launch waits on nothing extra.
+  const launchCheck = checkAtLaunch();
   await startEmbeddedServer();
   createWindow();
-  checkForUpdates();
+  await launchCheck;
 
   // macOS convention: clicking the dock icon with no windows open
   // re-creates one rather than doing nothing.
