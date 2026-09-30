@@ -241,7 +241,8 @@ export function UserGuide() {
             Current Season, and its own Search/Position/Team/Min Minutes criteria, when it's created in the add-tile dialog — not one
             shared setting for the whole page, so two tiles can watch completely different slices of the player pool side by side. The
             data view shows as a small <code>LS</code>/<code>HA</code>/<code>CS</code> badge in the tile's header (hover for the full
-            name). Min Minutes applies in every data view, Current Season included — it starts at 0, so raise it as the season goes on
+            name); in the dialog they're shortened to Last Season / Historic Avg / Current. In a dialog, Min Minutes is a slider in
+            whole matches with the figure beside it — type there for an exact number. Min Minutes applies in every data view, Current Season included — it starts at 0, so raise it as the season goes on
             if you only want regular starters (e.g. 270 for three full games). Per-game statistics (PPG, xG/Game, xGC/Game, DC/Game and
             the rest) rank everyone your criteria let through, so a player with one short appearance can top them — set Min Minutes
             (e.g. 450 for five full games) to rank only players with a real sample. The same goes for graphs. Team Tiles show club figures for the season(s) their Data View picks — league standing included (see
@@ -434,7 +435,8 @@ export function UserGuide() {
           <li>
             <strong>Views</strong> work like the Dashboard's. <strong>My View</strong> is where you start: blank, with a + card in each
             section that opens a dialog to name the chart, panel or graph, choose what it shows and set its Min Minutes. The pencil icon edits one, the bin
-            removes it, and you can drag cards to reorder them within a section. <strong>Starter</strong> is a ready-made, read-only set
+            removes it, and you can drag cards to reorder them within a section. Each section holds up to 4 cards per view — its + card
+            goes once it's full. <strong>Starter</strong> is a ready-made, read-only set
             (attacking and defensive radars, last season's and this season's output, and points, xGI-per-game and minutes trends) that
             works for any players as soon as you add them. Create View starts another blank view (up to 5, Starter included); changes
             save as you make them. A view keeps the layout, not the players.

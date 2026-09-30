@@ -27,6 +27,7 @@ import { fmtPrice, fmtDecimal, fmtPercent, fmtSigned, DASH } from "../utils/form
 import { relativeCellTint } from "../utils/colorScale";
 import { downloadCsv } from "../utils/csvExport";
 import type { NormalizedPlayer, Position } from "../types/normalized";
+import { MenuGroupHeading } from "../components/MenuControls";
 
 /** How long a rejected drag's warning message stays visible before clearing itself. */
 const WARNING_DISPLAY_MS = 4000;
@@ -1178,10 +1179,8 @@ export function TeamBuilder() {
             {showHistoricRawColumnPopover && (
               <div className="popover" style={{ left: 0, right: "auto" }}>
                 {HISTORIC_RAW_GROUPS.map((group) => (
-                  <div key={group} style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 10.5, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600, marginBottom: 2 }}>
-                      {group}
-                    </div>
+                  <div key={group}>
+                    <MenuGroupHeading group={group} />
                     {HISTORIC_RAW_COLUMNS.filter((c) => c.group === group).map((c) => (
                       <label key={c.key}>
                         <input

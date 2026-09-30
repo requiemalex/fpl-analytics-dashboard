@@ -325,7 +325,7 @@ export function PlayerComparison() {
     }
     const inSection = view.elements.filter((e) => e.kind === dialog.kind).length;
     if (inSection >= MAX_ELEMENTS_PER_SECTION) {
-      setDialogError(`This section already has ${MAX_ELEMENTS_PER_SECTION} — the maximum allowed. Remove one first.`);
+      setDialogError(`This section already has ${MAX_ELEMENTS_PER_SECTION} — the most one view can hold. Remove one first.`);
       return;
     }
     viewsState.addElement(settings);
@@ -461,7 +461,7 @@ export function PlayerComparison() {
             )}
             <div className="card-grid graph-grid">
               {sectionCards.map((card) => renderCard(card, section.noun))}
-              {!readOnly && (
+              {!readOnly && sectionCards.length < MAX_ELEMENTS_PER_SECTION && (
                 <button
                   type="button"
                   className="add-tile-card"

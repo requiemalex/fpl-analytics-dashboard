@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { ANALYSIS_MODE_OPTIONS } from "../AnalysisModeToggle";
-import type { AnalysisMode } from "../../metrics/resolvePlayerStats";
+import { DATA_VIEW_SEGMENTS } from "../AnalysisModeToggle";
+import { MenuGroupHeading, MinutesSlider, SegmentedControl, SelectionMeter } from "../MenuControls";
 import {
   COMPARISON_GROUP_LABELS,
   COMPARISON_GROUP_ORDER,
@@ -21,9 +21,6 @@ function blankSettings(kind: ComparisonElementKind): ElementSettings {
   if (kind === "trend") return { kind, name: "", dataView: null, metricKeys: [TREND_METRICS[0].key], minMinutes: 0 };
   return { kind, name: "", dataView: "lastSeason", metricKeys: [], minMinutes: 0 };
 }
-
-/** Min Minutes steps by one full match, as the Dashboard's does. */
-const MINUTES_STEP = 90;
 
 /**
  * Add or edit one Player Comparison card. Every card needs a name and has
@@ -48,15 +45,6 @@ export function ComparisonElementDialog({
   onCancel: () => void;
 }) {
   const [settings, setSettings] = useState<ElementSettings>(() => initial ?? blankSettings(kind));
-  // What's typed in Min Minutes, kept while editing so a blank or part-typed
-  // number isn't snapped back (the same as FiltersBar's).
-  const [minMinutesDraft, setMinMinutesDraft] = useState<string | null>(null);
-
-  function typeMinMinutes(raw: string) {
-    setMinMinutesDraft(raw);
-    const n = Math.floor(Number(raw));
-    setSettings((prev) => ({ ...prev, minMinutes: raw.trim() === "" || !Number.isFinite(n) ? 0 : Math.max(0, n) }));
-  }
   const maxMetrics = kind === "radar" ? RADAR_MAX_METRICS : OUTPUTS_MAX_METRICS;
   // Only keys this version knows count (and are shown as picked).
   const picked = settings.metricKeys.filter((k) => COMPARISON_METRICS.some((m) => m.key === k));
@@ -105,80 +93,77 @@ export function ComparisonElementDialog({
         </div>
 
         {kind === "trend" ? (
-          <div className="field">
-            <label htmlFor="cmp-element-y">Y axis</label>
-            <select id="cmp-element-y" value={settings.metricKeys[0] ?? ""} onChange={(e) => setSettings((prev) => ({ ...prev, metricKeys: [e.target.value] }))}>
+          <>
+            <div className="selection-meter">
+              <div className="selection-meter-head">
+                <span className="selection-meter-title">Y axis</span>
+              </div>
+            </div>
+            <div className="menu-chips">
               {TREND_METRIC_GROUP_ORDER.map((group) => (
-                <optgroup key={group} label={group}>
-                  {TREND_METRICS.filter((m) => m.group === group).map((m) => (
-                    <option key={m.key} value={m.key}>
-                      {m.label}
-                    </option>
-                  ))}
-                </optgroup>
+                <div key={group}>
+                  <MenuGroupHeading group={group} />
+                  <div className="chip-row">
+                    {TREND_METRICS.filter((m) => m.group === group).map((m) => {
+                      const on = settings.metricKeys[0] === m.key;
+                      return (
+                        <button
+                          key={m.key}
+                          type="button"
+                          className={`chip${on ? " active" : ""}`}
+                          aria-pressed={on}
+                          onClick={() => setSettings((prev) => ({ ...prev, metricKeys: [m.key] }))}
+                        >
+                          {m.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               ))}
-            </select>
-          </div>
+            </div>
+          </>
         ) : (
           <>
-            <div className="field">
-              <label htmlFor="cmp-element-dataview">Data View</label>
-              <select
-                id="cmp-element-dataview"
-                value={settings.dataView ?? "lastSeason"}
-                onChange={(e) => setSettings((prev) => ({ ...prev, dataView: e.target.value as AnalysisMode }))}
-              >
-                {ANALYSIS_MODE_OPTIONS.map((o) => (
-                  <option key={o.mode} value={o.mode}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label>
-                {kind === "radar" ? "Axes" : "Statistics"} ({picked.length}/{maxMetrics})
-              </label>
-              <div className="cmp-metric-picker">
-                {COMPARISON_GROUP_ORDER.map((group) => (
-                  <div key={group}>
-                    <div className="cmp-metric-picker-group">{COMPARISON_GROUP_LABELS[group]}</div>
-                    <div className="chip-row">
-                      {COMPARISON_METRICS.filter((m) => m.group === group).map((m) => {
-                        const on = picked.includes(m.key);
-                        return (
-                          <button
-                            key={m.key}
-                            type="button"
-                            className={`chip${on ? " active" : ""}`}
-                            aria-pressed={on}
-                            disabled={!on && picked.length >= maxMetrics}
-                            onClick={() => toggleMetric(m.key)}
-                          >
-                            {m.label}
-                          </button>
-                        );
-                      })}
-                    </div>
+            <SegmentedControl
+              label="Data View"
+              options={DATA_VIEW_SEGMENTS}
+              value={settings.dataView ?? "lastSeason"}
+              onChange={(dataView) => setSettings((prev) => ({ ...prev, dataView }))}
+            />
+            <SelectionMeter title={kind === "radar" ? "Axes" : "Statistics"} count={picked.length} max={maxMetrics} />
+            <div className="menu-chips">
+              {COMPARISON_GROUP_ORDER.map((group) => (
+                <div key={group}>
+                  <MenuGroupHeading group={group} label={COMPARISON_GROUP_LABELS[group]} />
+                  <div className="chip-row">
+                    {COMPARISON_METRICS.filter((m) => m.group === group).map((m) => {
+                      const on = picked.includes(m.key);
+                      return (
+                        <button
+                          key={m.key}
+                          type="button"
+                          className={`chip${on ? " active" : ""}`}
+                          aria-pressed={on}
+                          disabled={!on && picked.length >= maxMetrics}
+                          onClick={() => toggleMetric(m.key)}
+                        >
+                          {m.label}
+                        </button>
+                      );
+                    })}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
           </>
         )}
 
-        <div className="field" style={{ marginTop: 10 }}>
-          <label htmlFor="cmp-element-min-minutes">Min minutes</label>
-          <input
-            id="cmp-element-min-minutes"
-            type="number"
-            step={MINUTES_STEP}
-            min={0}
-            value={minMinutesDraft ?? String(settings.minMinutes)}
-            onChange={(e) => typeMinMinutes(e.target.value)}
-            onBlur={() => setMinMinutesDraft(null)}
-          />
-        </div>
+        <MinutesSlider
+          id="cmp-element-min-minutes"
+          value={settings.minMinutes}
+          onChange={(minMinutes) => setSettings((prev) => ({ ...prev, minMinutes }))}
+        />
 
         {error && <div className="banner error">{error}</div>}
         <div className="dialog-actions">

@@ -4,12 +4,15 @@ import { AnalysisModeIcon } from "./AnalysisModeIcon";
 import { MinutesFloorBadge } from "./MinutesFloorBadge";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 
-/** Exported so anything else needing these exact labels (Dashboard's per-tile Data View select, DataViewBadge's tooltips) stays in sync with what this toggle itself shows, rather than re-typing the strings. */
-export const ANALYSIS_MODE_OPTIONS: { mode: AnalysisMode; label: string }[] = [
-  { mode: "lastSeason", label: "Last Completed Season" },
-  { mode: "historicAverage", label: "Historic Average" },
-  { mode: "live", label: "Current Season" },
+/** Exported so anything else needing these exact labels (the dialogs' Data View pickers, DataViewBadge's tooltips) stays in sync with what this toggle itself shows, rather than re-typing the strings. `shortLabel` fits a Data View segment; `label` is its hover text. */
+export const ANALYSIS_MODE_OPTIONS: { mode: AnalysisMode; label: string; shortLabel: string }[] = [
+  { mode: "lastSeason", label: "Last Completed Season", shortLabel: "Last Season" },
+  { mode: "historicAverage", label: "Historic Average", shortLabel: "Historic Avg" },
+  { mode: "live", label: "Current Season", shortLabel: "Current" },
 ];
+
+/** The three Data Views as SegmentedControl options. */
+export const DATA_VIEW_SEGMENTS = ANALYSIS_MODE_OPTIONS.map((o) => ({ value: o.mode, label: o.shortLabel, title: o.label }));
 const OPTIONS = ANALYSIS_MODE_OPTIONS;
 
 /**

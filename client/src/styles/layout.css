@@ -300,11 +300,10 @@
 }
 
 /* Page-section heading (see SectionHeading.tsx): a tinted icon badge in
-   the focus accent, the title in the display face, and a hairline running
-   to the edge that stands in for a divider between sections. The badge is
-   the same 28px square as .chip-icon so it lines up with the icon buttons
-   used throughout, and its tint uses the same color-mix() ratio family as
-   the app's other tinted pills. */
+   the app's green (as on .chip.active), the title in the display face, and
+   a hairline running to the edge that stands in for a divider between
+   sections. The badge is the same 28px square as .chip-icon so it lines up
+   with the icon buttons used throughout. */
 .section-heading {
   display: flex;
   align-items: center;
@@ -333,9 +332,9 @@
   height: 28px;
   flex-shrink: 0;
   border-radius: var(--radius-md);
-  color: var(--accent-focus);
-  background: color-mix(in srgb, var(--accent-focus) 14%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent-focus) 22%, transparent);
+  color: var(--accent-positive);
+  background: color-mix(in srgb, var(--accent-positive) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-positive) 22%, transparent);
 }
 
 .btn {

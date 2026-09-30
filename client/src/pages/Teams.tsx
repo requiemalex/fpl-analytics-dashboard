@@ -15,6 +15,7 @@ import { useEscapeLayer } from "../state/useEscapeLayer";
 import { relativeCellTint } from "../utils/colorScale";
 import { downloadCsv } from "../utils/csvExport";
 import { matchesTeamSearch } from "../utils/playerSearch";
+import { MenuGroupHeading } from "../components/MenuControls";
 
 /** A league-table-style view of each club in the selected season(s) — every column a club figure (see <club_not_squad>, metrics/teamStats.ts). */
 const GROUPS: TeamColumnGroup[] = ["RESULTS", "OUTPUT", "UNDERLYING PERFORMANCE"];
@@ -237,10 +238,8 @@ export function Teams() {
             {showColumnPopover && (
               <div className="popover" style={{ left: 0, right: "auto" }}>
                 {GROUPS.map((group) => (
-                  <div key={group} style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 10.5, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600, marginBottom: 2 }}>
-                      {group}
-                    </div>
+                  <div key={group}>
+                    <MenuGroupHeading group={group} />
                     {TEAM_COLUMNS.filter((c) => c.group === group).map((c) => (
                       <label key={c.key}>
                         <input type="checkbox" checked={visibleColumns.includes(c.key)} onChange={() => handleToggleColumn(c.key)} />

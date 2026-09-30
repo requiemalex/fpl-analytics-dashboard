@@ -19,6 +19,7 @@ import { matchesPlayerSearch } from "../utils/playerSearch";
 import { useEscapeLayer } from "../state/useEscapeLayer";
 import { useProgressiveRowCount, INITIAL_ROW_COUNT } from "../state/useProgressiveRowCount";
 import type { NormalizedPlayer, Position } from "../types/normalized";
+import { MenuGroupHeading } from "../components/MenuControls";
 
 const GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE", "ADVANCED"];
 /** Not a PLAYER_COLUMNS entry (renders fixture chips, not a number), so it shares the reorder/resize/Fit-to-Box engine as a special key, scoped to this page's own default list rather than the shared DEFAULT_VISIBLE_COLUMNS Team Building also uses. Deselected by default. Always the player's live team's upcoming fixtures, regardless of analysis mode — moving between seasons' fixtures wouldn't mean anything, same reasoning as price/ownership staying live. */
@@ -530,10 +531,8 @@ export function PlayerExplorer() {
             {showColumnPopover && (
               <div className="popover" style={{ left: 0, right: "auto" }}>
                 {/* Ownership/Price/Team/Position aren't listed here at all — they're the fixed identity block (IDENTITY_COLUMNS), always shown, never toggleable. */}
-                <div style={{ marginBottom: 8 }}>
-                  <div style={{ fontSize: 10.5, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600, marginBottom: 2 }}>
-                    Other
-                  </div>
+                <div>
+                  <MenuGroupHeading group="Other" />
                   <label>
                     <input
                       type="checkbox"
@@ -544,10 +543,8 @@ export function PlayerExplorer() {
                   </label>
                 </div>
                 {GROUPS.map((group) => (
-                  <div key={group} style={{ marginBottom: 8 }}>
-                    <div style={{ fontSize: 10.5, textTransform: "uppercase", color: "var(--text-muted)", fontWeight: 600, marginBottom: 2 }}>
-                      {group}
-                    </div>
+                  <div key={group}>
+                    <MenuGroupHeading group={group} />
                     {PLAYER_COLUMNS.filter((c) => c.group === group && !FIXED_COLUMN_KEYS.has(c.key)).map((c) => (
                       <label key={c.key}>
                         <input type="checkbox" checked={visibleColumns.includes(c.key)} onChange={() => handleToggleColumn(c.key)} />

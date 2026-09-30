@@ -253,6 +253,9 @@ Details:
   ids included. Specifically picked players are never floored. Team tiles
   and graphs are club figures and have no floor.
 - Min Minutes takes any whole number as typed; the arrow buttons step by 90.
+  In a dialog (Dashboard Add Tile/Add Graph, Player Comparison cards) it is
+  a slider in whole matches up to a season's 3,420 (`MinutesSlider`), with
+  the exact figure beside it — still typeable, any whole number, "Any" at 0.
 - Player Explorer has no Min Minutes control — its MINS column filter does
   that job.
 
@@ -545,7 +548,9 @@ card in the selected view. Each player's colour is his place in the list
   to 12 rows), each with its own Data View, from `COMPARISON_METRICS`
   (every non-static `PLAYER_COLUMNS` metric); and **trend** (one
   `TREND_METRICS` key on the y axis, seasons on the x). Max 5 views
-  (Starter and My View included), 6 cards per section. **Starter**
+  (Starter and My View included), 4 cards per section — the section's +
+  card goes at 4; a view saved with more under the old limit of 6 keeps
+  them but can't add another. **Starter**
   (`comparison-starter`) is packaged, read-only and restored on every load;
   **My View** is seeded blank and selected on first load. Edits save
   immediately; a stored card of an unknown kind is dropped, one with unknown

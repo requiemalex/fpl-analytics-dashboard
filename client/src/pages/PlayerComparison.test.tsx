@@ -80,7 +80,7 @@ describe("PlayerComparison", () => {
     fireEvent.change(getByLabelText("Name"), { target: { value: "Goals race" } });
     expect(save.disabled).toBe(true);
     fireEvent.click(within(dialog).getByRole("button", { name: "Goals" }));
-    fireEvent.change(within(dialog).getByLabelText("Data View"), { target: { value: "live" } });
+    fireEvent.click(within(dialog).getByRole("radio", { name: "Current Season" }));
     expect(save.disabled).toBe(false);
     fireEvent.click(save);
     expect(container.querySelector(".dialog")).toBeNull();
@@ -142,6 +142,19 @@ describe("PlayerComparison", () => {
     expect(getByText("This graph's statistics are no longer available.")).toBeTruthy();
     fireEvent.click(getByRole("button", { name: "Remove graph" }));
     expect(queryByText("Old")).toBeNull();
+  });
+
+  it("a section holds at most 4 cards per view: its Add card goes at 4, the other sections keep theirs", () => {
+    const radar = (n: number) => ({ id: `r${n}`, kind: "radar", name: `Shape ${n}`, dataView: "live", metricKeys: ["goals", "assists", "totalPoints"], minMinutes: 0 });
+    storeView([radar(1), radar(2), radar(3)]);
+    const first = renderPage("1,2");
+    expect(first.getByRole("button", { name: "Add Radar Chart" })).toBeTruthy();
+    cleanup();
+    storeView([radar(1), radar(2), radar(3), radar(4)]);
+    const { queryByRole, getByRole } = renderPage("1,2");
+    expect(queryByRole("button", { name: "Add Radar Chart" })).toBeNull();
+    expect(getByRole("button", { name: "Add Outputs Panel" })).toBeTruthy();
+    expect(getByRole("button", { name: "Add Trend Graph" })).toBeTruthy();
   });
 
   it("the Starter view is read-only: no Add cards, no Edit/Remove, and it can't be deleted", () => {

@@ -1311,22 +1311,310 @@ select:focus {
   font-family: var(--font-display);
   font-size: 17px;
   font-weight: 700;
-  margin-bottom: 10px;
+  margin-bottom: 4px;
   color: var(--text-primary);
 }
+/* "or" between two alternatives, with a hairline either side. */
 .dialog-divider {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   color: var(--text-muted);
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin: 12px 0;
+  font-size: 12px;
+  margin: 14px 0;
+}
+.dialog-divider::before,
+.dialog-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
 }
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  margin-top: 20px;
+}
+
+/* ---------- Menus: dialogs and popovers (components/MenuControls.tsx) ----------
+   Inside a menu, field labels are plain sentence-case text rather than the
+   small upper-case captions page toolbars use, fields get room between
+   them, and inputs are a size up so the form reads calmly. */
+.dialog > * + * {
+  margin-top: 14px;
+}
+.dialog > .dialog-actions {
+  margin-top: 22px;
+}
+.dialog .field label,
+.popover .field label,
+.field .field-label {
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.dialog .field {
+  gap: 6px;
+}
+.dialog .field input:not([type="range"]):not(.minutes-slider-value),
+.dialog .field select {
+  padding: 8px 11px;
+  font-size: 13px;
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  border-color: var(--border);
+}
+.dialog .field input::placeholder {
+  color: var(--text-muted);
+}
+.dialog .field input:focus,
+.dialog .field select:focus {
+  outline: none;
+  border-color: var(--accent-positive);
+}
+/* One-of-a-few choice. Same green selected state as .chip.active. */
+.segmented {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.segmented-option {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.segmented-option:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+.segmented-option.active {
+  color: var(--text-primary);
+  background: var(--accent-positive-dim);
+  border-color: var(--accent-positive);
+}
+.segmented.icon-only {
+  align-self: flex-start;
+}
+.segmented.icon-only .segmented-option {
+  flex: 0 0 auto;
+  width: 36px;
+  padding: 5px 0;
+}
+
+/* Group heading over a list of options: icon, name, hairline to the edge —
+   a smaller .section-heading. */
+.menu-group-heading {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 14px 0 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.menu-chips > :first-child > .menu-group-heading,
+.popover > :first-child > .menu-group-heading {
+  margin-top: 2px;
+}
+.menu-group-heading::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  margin-left: 4px;
+  background: var(--border);
+}
+.menu-group-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--accent-positive);
+  flex-shrink: 0;
+}
+.menu-group-glyph {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
+/* Column menus: a list of checkboxes under each group heading. */
+.popover input[type="checkbox"] {
+  accent-color: var(--accent-positive);
+  margin: 0;
+}
+.popover label:hover {
+  color: var(--text-primary);
+}
+
+/* "Axes — n of 8 selected" over one segment per slot. */
+.selection-meter {
   margin-top: 18px;
+}
+.selection-meter-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.selection-meter-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.selection-meter-count {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.selection-meter-count strong {
+  color: var(--text-primary);
+}
+.selection-meter-track {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+.selection-meter-track span {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border);
+}
+.selection-meter-track span.filled {
+  background: var(--accent-positive);
+}
+
+/* Min Minutes: label and exact (typeable) figure, slider, then its scale. */
+.minutes-slider-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.minutes-slider-note {
+  color: var(--text-muted);
+}
+.field input.minutes-slider-value {
+  width: 72px;
+  min-width: 0;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: right;
+  -moz-appearance: textfield;
+}
+.field input.minutes-slider-value::-webkit-inner-spin-button,
+.field input.minutes-slider-value::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.field input.minutes-slider-value::placeholder {
+  color: var(--text-primary);
+}
+.field input.minutes-slider-value:hover,
+.field input.minutes-slider-value:focus {
+  border-color: var(--border-strong);
+  outline: none;
+}
+.minutes-slider input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  margin: 8px 0 2px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--accent-positive) var(--fill, 0%), var(--border) var(--fill, 0%));
+  cursor: pointer;
+}
+.minutes-slider input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  border: 3px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--border-strong);
+}
+.minutes-slider input[type="range"]::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  border: 3px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--border-strong);
+}
+.minutes-slider input[type="range"]:hover::-webkit-slider-thumb {
+  background: var(--text-primary);
+}
+.minutes-slider-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+.minutes-slider.is-disabled {
+  opacity: 0.5;
+}
+.minutes-slider.is-disabled input[type="range"] {
+  cursor: not-allowed;
+}
+
+/* A picker's chips sit a size up from a toolbar's. */
+.dialog .menu-chips .chip {
+  padding: 6px 12px;
+  font-size: 12.5px;
+}
+.dialog .menu-chips .chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Criteria (Position, Team, price, minutes) inside a dialog: a plain grid
+   instead of a page toolbar's bordered bar. */
+.dialog .filters-bar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: 14px 12px;
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: none;
+}
+.dialog .filters-bar .field input:not([type="range"]):not(.minutes-slider-value),
+.dialog .filters-bar .field select {
+  width: 100%;
+  min-width: 0;
+}
+.dialog .filters-bar .minutes-slider {
+  grid-column: 1 / -1;
+}
+.dialog .filters-bar > .chip-icon {
+  grid-column: 1 / -1;
+  justify-self: end;
 }
 
 /* ---------- Column visibility popover ---------- */
@@ -1797,25 +2085,6 @@ select:focus {
 }
 
 /* Add/Edit dialog's statistic picker. */
-.cmp-metric-picker {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 2px;
-}
-.cmp-metric-picker-group {
-  margin-bottom: 4px;
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-.cmp-metric-picker .chip:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
 /* A trend season under the card's minimum minutes: an amber ring at the
    bottom of the dip, amber text in the hover box — the small-sample colour. */
 .cmp-trend-below-dot {

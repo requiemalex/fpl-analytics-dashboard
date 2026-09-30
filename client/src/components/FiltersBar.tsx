@@ -3,8 +3,10 @@ import { useAppState } from "../state/AppStateContext";
 import type { GlobalScoutingFilters } from "../state/scoutingFilters";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import { ResetIcon } from "./IconToolbar";
+import { MinutesSlider } from "./MenuControls";
 
 const MINUTES_STEP = 90;
+const BYPASSED_HINT = "Not applied in Current Season mode — everyone has low or zero minutes until real gameweeks accumulate";
 
 /**
  * Fully controlled — no page-independent state of its own. Every page
@@ -29,6 +31,7 @@ export function FiltersBar({
   showSearch = true,
   showPrice = false,
   minMinutesInLive = false,
+  inDialog = false,
 }: {
   idPrefix?: string;
   filters: GlobalScoutingFilters;
@@ -43,6 +46,8 @@ export function FiltersBar({
   showPrice?: boolean;
   /** On for the Dashboard Add Tile/Add Graph modals only — Min Minutes stays editable (and is applied, see filterPlayers' `applyMinMinutesInLive`) in Current Season mode instead of being greyed out as bypassed. */
   minMinutesInLive?: boolean;
+  /** On inside a dialog (Dashboard's Add Tile/Add Graph): Min Minutes becomes the menus' slider, still typeable. */
+  inDialog?: boolean;
 }) {
   const { teams } = useAppState();
   const minMinutesBypassed = analysisMode === "live" && !minMinutesInLive;
@@ -149,7 +154,17 @@ export function FiltersBar({
         </div>
       )}
 
-      {showMinMinutes && (
+      {showMinMinutes && inDialog && (
+        <MinutesSlider
+          id={`${idPrefix}-min-minutes`}
+          value={filters.minMinutes}
+          onChange={(minutes) => update("minMinutes", minutes)}
+          disabled={minMinutesBypassed}
+          note={minMinutesBypassed ? "(bypassed)" : undefined}
+          title={minMinutesBypassed ? BYPASSED_HINT : undefined}
+        />
+      )}
+      {showMinMinutes && !inDialog && (
         <div className="field">
           <label htmlFor={`${idPrefix}-min-minutes`}>
             Min minutes {minMinutesBypassed && <span style={{ color: "var(--text-muted)" }}>(bypassed)</span>}
@@ -161,7 +176,7 @@ export function FiltersBar({
             min={0}
             value={minMinutesDraft ?? String(filters.minMinutes)}
             disabled={minMinutesBypassed}
-            title={minMinutesBypassed ? "Not applied in Current Season mode — everyone has low or zero minutes until real gameweeks accumulate" : undefined}
+            title={minMinutesBypassed ? BYPASSED_HINT : undefined}
             onChange={(e) => typeMinMinutes(e.target.value)}
             onBlur={() => setMinMinutesDraft(null)}
           />

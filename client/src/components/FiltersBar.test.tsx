@@ -9,7 +9,7 @@ vi.mock("../state/AppStateContext", () => ({ useAppState: () => ({ teams: [] }) 
 afterEach(cleanup);
 
 /** FiltersBar is fully controlled — this holds its state the way a page does, and exposes every value it reports. */
-function Harness({ seen }: { seen: GlobalScoutingFilters[] }) {
+function Harness({ seen, inDialog = false }: { seen: GlobalScoutingFilters[]; inDialog?: boolean }) {
   const [filters, setFilters] = useState<GlobalScoutingFilters>(DEFAULT_FILTERS);
   return (
     <FiltersBar
@@ -22,6 +22,7 @@ function Harness({ seen }: { seen: GlobalScoutingFilters[] }) {
       onReset={() => setFilters(DEFAULT_FILTERS)}
       analysisMode="lastSeason"
       showPrice
+      inDialog={inDialog}
     />
   );
 }
@@ -72,5 +73,25 @@ describe("FiltersBar — price range", () => {
     fireEvent.change(input, { target: { value: "6.5" } });
     fireEvent.change(input, { target: { value: "" } });
     expect(seen.at(-1)?.maxPrice).toBeNull();
+  });
+});
+
+describe("FiltersBar — in a dialog, Min minutes is a slider that can still be typed", () => {
+  it("the slider steps by whole matches and shows the figure beside it", () => {
+    const seen: GlobalScoutingFilters[] = [];
+    const { container } = render(<Harness seen={seen} inDialog />);
+    const box = container.querySelector("#t-min-minutes") as HTMLInputElement;
+    expect(box.value).toBe(""); // 0 reads as "Any"
+    expect(box.placeholder).toBe("Any");
+    fireEvent.change(container.querySelector('input[type="range"]')!, { target: { value: "900" } });
+    expect(seen.at(-1)?.minMinutes).toBe(900);
+    expect(box.value).toBe("900");
+  });
+
+  it("an exact figure can be typed, not only a multiple of 90", () => {
+    const seen: GlobalScoutingFilters[] = [];
+    const { container } = render(<Harness seen={seen} inDialog />);
+    fireEvent.change(container.querySelector("#t-min-minutes")!, { target: { value: "1000" } });
+    expect(seen.at(-1)?.minMinutes).toBe(1000);
   });
 });

@@ -45,8 +45,8 @@ export interface ComparisonView {
 
 /** Starter and My View included — the same limit as a Dashboard scope's saved views. */
 export const MAX_COMPARISON_VIEWS = 5;
-/** Per section (Charts, Outputs, Trends) of one view. */
-export const MAX_ELEMENTS_PER_SECTION = 6;
+/** Per section (Charts, Outputs, Trends) of one view. A view saved with more under an earlier, higher limit keeps them; it just can't add another. */
+export const MAX_ELEMENTS_PER_SECTION = 4;
 
 export const COMPARISON_STARTER_VIEW_ID = "comparison-starter";
 export const COMPARISON_MY_VIEW_ID = "comparison-my-view";

@@ -8,7 +8,8 @@ import { dashboardFloorNote } from "../components/MinutesFloorBadge";
 import { filterPlayers } from "../state/useFilteredPlayers";
 import { computeTeamAggregates, type TeamAggregate } from "../metrics/teamStats";
 import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFilters";
-import { ANALYSIS_MODE_OPTIONS } from "../components/AnalysisModeToggle";
+import { DATA_VIEW_SEGMENTS } from "../components/AnalysisModeToggle";
+import { SegmentedControl, type SegmentOption } from "../components/MenuControls";
 import { FiltersBar } from "../components/FiltersBar";
 import { CardEditRemoveButtons, CreateViewIcon, FilterIcon, PlusIcon, TrashIcon, TrendLineIcon } from "../components/IconToolbar";
 import { SectionHeading } from "../components/SectionHeading";
@@ -45,6 +46,15 @@ import type { NormalizedPlayer } from "../types/normalized";
 /** Same cap for both, and reused for graphs too (see MAX_TILE_PLAYERS/MAX_TILE_TEAMS usage below) — a tile or graph tracking a handful of specific players/teams is meant for close comparison, not a second way to build a big list. */
 const MAX_TILE_PLAYERS = 5;
 const MAX_TILE_TEAMS = 5;
+
+const ORDER_SEGMENTS: SegmentOption<TileDirection>[] = [
+  { value: "desc", label: "Highest First" },
+  { value: "asc", label: "Lowest First" },
+];
+const GRAPH_TYPE_SEGMENTS: SegmentOption<DashboardGraphType>[] = [
+  { value: "scatter", label: "Scatter Plot", title: "Scatter Plot — one metric against another" },
+  { value: "bar", label: "Bar Chart", title: "Bar Chart — the top 15 by one metric" },
+];
 
 /** Every mode a tile can be built from — used to pre-compute one resolved/eligible/aggregate bucket per mode (see below), since tiles now each carry their own data view rather than sharing one page-wide mode. */
 const MODES: AnalysisMode[] = ["live", "lastSeason", "historicAverage"];
@@ -1255,47 +1265,19 @@ export function Dashboard() {
                 ))}
               </select>
             </div>
-            <div className="field">
-              <label htmlFor="new-tile-dataview">Data View</label>
-              <select id="new-tile-dataview" value={newTileDataView} onChange={(e) => setNewTileDataView(e.target.value as AnalysisMode)}>
-                {ANALYSIS_MODE_OPTIONS.map((o) => (
-                  <option key={o.mode} value={o.mode}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="new-tile-direction">Order</label>
-              <select id="new-tile-direction" value={newTileDirection} onChange={(e) => setNewTileDirection(e.target.value as TileDirection)}>
-                <option value="desc">Highest first</option>
-                <option value="asc">Lowest first</option>
-              </select>
-            </div>
+            <SegmentedControl label="Data View" options={DATA_VIEW_SEGMENTS} value={newTileDataView} onChange={setNewTileDataView} />
+            <SegmentedControl label="Order" options={ORDER_SEGMENTS} value={newTileDirection} onChange={setNewTileDirection} />
             {tileView === "player" && (
               <>
-                <div className="chip-row" style={{ marginTop: 14, marginBottom: 12 }}>
-                  <button
-                    type="button"
-                    className={`chip chip-icon${newTilePlayerMode === "filters" ? " active" : ""}`}
-                    title="Filters — narrow by position, team, and minutes"
-                    aria-label="Filters"
-                    aria-pressed={newTilePlayerMode === "filters"}
-                    onClick={() => togglePlayerTileMode("filters")}
-                  >
-                    <FilterIcon />
-                  </button>
-                  <button
-                    type="button"
-                    className={`chip chip-icon${newTilePlayerMode === "players" ? " active" : ""}`}
-                    title="Player Search — track up to 5 specific players"
-                    aria-label="Player Search"
-                    aria-pressed={newTilePlayerMode === "players"}
-                    onClick={() => togglePlayerTileMode("players")}
-                  >
-                    <PlayerSearchIcon />
-                  </button>
-                </div>
+                <SegmentedControl
+                  label="Players"
+                  options={[
+                    { value: "filters", title: "Filters — narrow by position, team, and minutes", icon: <FilterIcon /> },
+                    { value: "players", title: "Player Search — track up to 5 specific players", icon: <PlayerSearchIcon /> },
+                  ]}
+                  value={newTilePlayerMode}
+                  onChange={togglePlayerTileMode}
+                />
                 {newTilePlayerMode === "filters" ? (
                   <FiltersBar
                     idPrefix="new-tile-criteria"
@@ -1306,11 +1288,12 @@ export function Dashboard() {
                     showSearch={false}
                     showPrice
                     minMinutesInLive
+                    inDialog
                   />
                 ) : (
                   <>
                     {newTilePlayerIds.length > 0 && (
-                      <div className="chip-row" style={{ marginBottom: 8 }}>
+                      <div className="chip-row">
                         {newTilePlayerIds.map((id) => {
                           const p = players.find((pl) => pl.id === id);
                           if (!p) return null;
@@ -1343,32 +1326,19 @@ export function Dashboard() {
             )}
             {tileView === "team" && (
               <>
-                <div className="chip-row" style={{ marginTop: 14, marginBottom: 12 }}>
-                  <button
-                    type="button"
-                    className={`chip chip-icon${newTileTeamMode === "all" ? " active" : ""}`}
-                    title="All Teams — rank every team"
-                    aria-label="All Teams"
-                    aria-pressed={newTileTeamMode === "all"}
-                    onClick={() => toggleTeamTileMode("all")}
-                  >
-                    <AllTeamsIcon />
-                  </button>
-                  <button
-                    type="button"
-                    className={`chip chip-icon${newTileTeamMode === "selected" ? " active" : ""}`}
-                    title="Team Selection — track up to 5 specific teams"
-                    aria-label="Team Selection"
-                    aria-pressed={newTileTeamMode === "selected"}
-                    onClick={() => toggleTeamTileMode("selected")}
-                  >
-                    <TeamSelectionIcon />
-                  </button>
-                </div>
+                <SegmentedControl
+                  label="Teams"
+                  options={[
+                    { value: "all", title: "All Teams — rank every team", icon: <AllTeamsIcon /> },
+                    { value: "selected", title: "Team Selection — track up to 5 specific teams", icon: <TeamSelectionIcon /> },
+                  ]}
+                  value={newTileTeamMode}
+                  onChange={toggleTeamTileMode}
+                />
                 {newTileTeamMode === "selected" && (
                   <>
                     {newTileTeamIds.length > 0 && (
-                      <div className="chip-row" style={{ marginBottom: 8 }}>
+                      <div className="chip-row">
                         {newTileTeamIds.map((id) => {
                           const t = teams.find((tm) => tm.id === id);
                           if (!t) return null;
@@ -1429,13 +1399,7 @@ export function Dashboard() {
                 onChange={(e) => setNewGraphName(e.target.value)}
               />
             </div>
-            <div className="field">
-              <label htmlFor="new-graph-type">Graph Type</label>
-              <select id="new-graph-type" value={newGraphChartType} onChange={(e) => setNewGraphChartType(e.target.value as DashboardGraphType)}>
-                <option value="scatter">Scatter Plot (metric vs metric)</option>
-                <option value="bar">Bar Chart (top 15 by metric)</option>
-              </select>
-            </div>
+            <SegmentedControl label="Graph Type" options={GRAPH_TYPE_SEGMENTS} value={newGraphChartType} onChange={setNewGraphChartType} />
             {newGraphChartType === "scatter" && (
               <div className="field">
                 <label htmlFor="new-graph-x">X axis metric</label>
@@ -1458,63 +1422,38 @@ export function Dashboard() {
                 ))}
               </select>
             </div>
-            <div className="field">
-              <label htmlFor="new-graph-dataview">Data View</label>
-              <select id="new-graph-dataview" value={newGraphDataView} onChange={(e) => setNewGraphDataView(e.target.value as AnalysisMode)}>
-                {ANALYSIS_MODE_OPTIONS.map((o) => (
-                  <option key={o.mode} value={o.mode}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <SegmentedControl label="Data View" options={DATA_VIEW_SEGMENTS} value={newGraphDataView} onChange={setNewGraphDataView} />
             {newGraphChartType === "bar" && (
-              <div className="field">
-                <label htmlFor="new-graph-direction">Order</label>
-                <select id="new-graph-direction" value={newGraphDirection} onChange={(e) => setNewGraphDirection(e.target.value as TileDirection)}>
-                  <option value="desc">Highest first</option>
-                  <option value="asc">Lowest first</option>
-                </select>
-              </div>
+              <SegmentedControl label="Order" options={ORDER_SEGMENTS} value={newGraphDirection} onChange={setNewGraphDirection} />
             )}
             {newGraphChartType === "scatter" && (
-              <div className="chip-row" style={{ marginTop: 10 }}>
-                <button
-                  type="button"
-                  className={`chip chip-icon${newGraphShowReferenceLine ? " active" : ""}`}
-                  title="Add Trend Line"
-                  aria-label="Add Trend Line"
-                  aria-pressed={newGraphShowReferenceLine}
-                  onClick={() => setNewGraphShowReferenceLine((on) => !on)}
-                >
-                  <TrendLineIcon />
-                </button>
+              <div className="field">
+                <span className="field-label">Trend Line</span>
+                <div className="chip-row">
+                  <button
+                    type="button"
+                    className={`chip chip-icon${newGraphShowReferenceLine ? " active" : ""}`}
+                    title="Add Trend Line"
+                    aria-label="Add Trend Line"
+                    aria-pressed={newGraphShowReferenceLine}
+                    onClick={() => setNewGraphShowReferenceLine((on) => !on)}
+                  >
+                    <TrendLineIcon />
+                  </button>
+                </div>
               </div>
             )}
             {tileView === "player" && (
               <>
-                <div className="chip-row" style={{ marginTop: 14, marginBottom: 12 }}>
-                  <button
-                    type="button"
-                    className={`chip chip-icon${newGraphPlayerMode === "filters" ? " active" : ""}`}
-                    title="Filters — narrow by position, team, and minutes"
-                    aria-label="Filters"
-                    aria-pressed={newGraphPlayerMode === "filters"}
-                    onClick={() => togglePlayerGraphMode("filters")}
-                  >
-                    <FilterIcon />
-                  </button>
-                  <button
-                    type="button"
-                    className={`chip chip-icon${newGraphPlayerMode === "players" ? " active" : ""}`}
-                    title="Player Search — plot up to 5 specific players"
-                    aria-label="Player Search"
-                    aria-pressed={newGraphPlayerMode === "players"}
-                    onClick={() => togglePlayerGraphMode("players")}
-                  >
-                    <PlayerSearchIcon />
-                  </button>
-                </div>
+                <SegmentedControl
+                  label="Players"
+                  options={[
+                    { value: "filters", title: "Filters — narrow by position, team, and minutes", icon: <FilterIcon /> },
+                    { value: "players", title: "Player Search — plot up to 5 specific players", icon: <PlayerSearchIcon /> },
+                  ]}
+                  value={newGraphPlayerMode}
+                  onChange={togglePlayerGraphMode}
+                />
                 {newGraphPlayerMode === "filters" ? (
                   <FiltersBar
                     idPrefix="new-graph-criteria"
@@ -1525,11 +1464,12 @@ export function Dashboard() {
                     showSearch={false}
                     showPrice
                     minMinutesInLive
+                    inDialog
                   />
                 ) : (
                   <>
                     {newGraphPlayerIds.length > 0 && (
-                      <div className="chip-row" style={{ marginBottom: 8 }}>
+                      <div className="chip-row">
                         {newGraphPlayerIds.map((id) => {
                           const p = players.find((pl) => pl.id === id);
                           if (!p) return null;
@@ -1562,32 +1502,19 @@ export function Dashboard() {
             )}
             {tileView === "team" && (
               <>
-                <div className="chip-row" style={{ marginTop: 14, marginBottom: 12 }}>
-                  <button
-                    type="button"
-                    className={`chip chip-icon${newGraphTeamMode === "all" ? " active" : ""}`}
-                    title="All Teams — plot every team"
-                    aria-label="All Teams"
-                    aria-pressed={newGraphTeamMode === "all"}
-                    onClick={() => toggleTeamGraphMode("all")}
-                  >
-                    <AllTeamsIcon />
-                  </button>
-                  <button
-                    type="button"
-                    className={`chip chip-icon${newGraphTeamMode === "selected" ? " active" : ""}`}
-                    title="Team Selection — plot up to 5 specific teams"
-                    aria-label="Team Selection"
-                    aria-pressed={newGraphTeamMode === "selected"}
-                    onClick={() => toggleTeamGraphMode("selected")}
-                  >
-                    <TeamSelectionIcon />
-                  </button>
-                </div>
+                <SegmentedControl
+                  label="Teams"
+                  options={[
+                    { value: "all", title: "All Teams — plot every team", icon: <AllTeamsIcon /> },
+                    { value: "selected", title: "Team Selection — plot up to 5 specific teams", icon: <TeamSelectionIcon /> },
+                  ]}
+                  value={newGraphTeamMode}
+                  onChange={toggleTeamGraphMode}
+                />
                 {newGraphTeamMode === "selected" && (
                   <>
                     {newGraphTeamIds.length > 0 && (
-                      <div className="chip-row" style={{ marginBottom: 8 }}>
+                      <div className="chip-row">
                         {newGraphTeamIds.map((id) => {
                           const t = teams.find((tm) => tm.id === id);
                           if (!t) return null;
