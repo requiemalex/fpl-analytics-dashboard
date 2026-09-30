@@ -238,6 +238,9 @@ table.data-table th.col-static,
 table.data-table td.col-static {
   color: var(--col-static);
 }
+/* The pinned name column (Player Explorer's Player, Team Explorer's Team):
+   sized to its widest content, with the same gap before the divider on
+   both pages. */
 table.data-table th.sticky-col,
 table.data-table td.sticky-col {
   position: sticky;
@@ -245,6 +248,7 @@ table.data-table td.sticky-col {
   z-index: 3;
   background: var(--surface-raised);
   text-align: left;
+  padding-right: 20px;
 }
 table.data-table td.sticky-col {
   background: var(--surface);

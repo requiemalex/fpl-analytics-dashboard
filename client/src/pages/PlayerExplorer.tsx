@@ -87,7 +87,7 @@ function columnTint(ranges: ColumnRanges, player: NormalizedPlayer, derived: Pla
 /** The sticky Player cell — shared by real rows and the width-sizer rows, so both measure exactly the same. */
 function PlayerCell({ player }: { player: NormalizedPlayer }) {
   return (
-    <td className="sticky-col" style={{ paddingRight: 6 }}>
+    <td className="sticky-col">
       <div className="player-name-cell">
         <span className={`name ${availabilityTextClass(player.status)}`}>
           {player.name}
@@ -590,7 +590,13 @@ export function PlayerExplorer() {
           <table className="data-table resizable-columns">
             <thead>
               <tr>
-                <th className="sticky-col" ref={stickyColRef} onClick={() => handleHeaderClick("name", false)} style={{ paddingRight: 6 }}>
+                <th
+                  className="sticky-col"
+                  ref={stickyColRef}
+                  onClick={() => handleHeaderClick("name", false)}
+                  // 1px means "as narrow as its content" — see the identity headers below.
+                  style={{ width: 1 }}
+                >
                   Player
                 </th>
                 {IDENTITY_COLUMNS.map((c, idx) => {
@@ -600,8 +606,7 @@ export function PlayerExplorer() {
                   const width = columnWidths[key];
                   const categoryOptions =
                     c === TEAM_COLUMN_KEY ? teamCategoryOptions : c === POSITION_COLUMN_KEY ? POSITION_OPTIONS : undefined;
-                  // A second grey divider, tighter-spaced (6px either side rather than
-                  // the standard 10px), separates the sticky Player column from this
+                  // A second grey divider separates the sticky Player column from this
                   // whole identity block — distinct from the one between this block
                   // and the user-configurable columns further along.
                   const isFirst = idx === 0;
@@ -613,7 +618,11 @@ export function PlayerExplorer() {
                       title="Always today's live figure, regardless of the toggle above · Click to sort · Shift-click to add secondary sort · Drag the right edge to resize"
                       style={{
                         position: "relative",
-                        width: width ? `${width}px` : undefined,
+                        // Unless hand-set, 1px means "as narrow as its content": without it
+                        // this block and Player take a share of the table's spare width on
+                        // the first layout, and fitOnce then measures (and keeps) that
+                        // inflated width (same fix as Team Explorer's Team column).
+                        width: width ? `${width}px` : 1,
                         maxWidth: width ? `${width}px` : undefined,
                         paddingLeft: isFirst ? 6 : undefined,
                       }}

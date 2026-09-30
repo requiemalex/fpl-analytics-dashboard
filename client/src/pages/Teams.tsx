@@ -34,9 +34,6 @@ const TEAM_MIN_COLUMN_WIDTHS: Record<string, number> = Object.fromEntries(
   TEAM_COLUMNS.map((c) => [c.key, 36 + 14 + 8 * Math.max(...c.label.split(/\s+/).map((w) => w.length))]),
 );
 
-/** Space between the Team column's widest content and the divider. */
-const TEAM_COLUMN_GAP = 14;
-
 function getTeamValue(team: TeamAggregate, key: string): number | string | null {
   if (key === "name") return team.name;
   return teamColumnByKey(key)?.getValue(team) ?? null;
@@ -279,7 +276,7 @@ export function Teams() {
                   onClick={(e) => handleHeaderClick("name", e.shiftKey)}
                   title="Click to sort · Shift-click to add secondary sort"
                   // 1px means "as narrow as its content": without it the column takes a share of the table's spare width on the first layout, and fitOnce then measures (and keeps) that inflated width.
-                  style={{ width: 1, paddingRight: TEAM_COLUMN_GAP }}
+                  style={{ width: 1 }}
                 >
                   Team
                   {nameSort && <span className="sort-indicator">{nameSort.direction === "asc" ? "↑" : "↓"}</span>}
@@ -351,7 +348,7 @@ export function Teams() {
               )}
               {sortedRows.map((t) => (
                 <tr key={t.teamId} onClick={() => openTeamProfile(t.teamId)}>
-                  <td className="sticky-col" style={{ paddingRight: TEAM_COLUMN_GAP }}>
+                  <td className="sticky-col">
                     <div className="player-name-cell">
                       <span className="name">{t.name}</span>
                       <span className="meta">
