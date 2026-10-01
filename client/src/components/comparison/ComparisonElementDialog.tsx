@@ -53,7 +53,7 @@ export function ComparisonElementDialog({
   const problem = !name
     ? "Name is required"
     : kind === "radar" && picked.length < RADAR_MIN_METRICS
-      ? `Pick at least ${RADAR_MIN_METRICS} statistics — a radar needs 3 axes for a shape`
+      ? `Pick at least ${RADAR_MIN_METRICS} statistics: a radar needs 3 axes to make a shape`
       : kind === "outputs" && picked.length === 0
         ? "Pick at least one statistic"
         : undefined;

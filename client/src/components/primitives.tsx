@@ -113,7 +113,7 @@ export function AvailabilityFlag({
   if (!info) return null;
   const title = [info.label, chanceOfPlayingNextRound !== null ? `${chanceOfPlayingNextRound}% chance of playing next round` : null, news || null]
     .filter(Boolean)
-    .join(" — ");
+    .join(". ");
   return <span className={`availability-flag ${info.className}`} title={title} aria-label={title} />;
 }
 
@@ -143,7 +143,7 @@ export function FixtureChips({ fixtures, avgTint }: { fixtures: UpcomingFixture[
             key={f.fixtureId}
             className="table-fixture-chip"
             style={{ background: fdrColor(f.difficulty) }}
-            title={`${f.opponentShortName} (${f.isHome ? "H" : "A"}) — FDR ${f.difficulty}`}
+            title={`${f.opponentShortName} (${f.isHome ? "H" : "A"}), FDR ${f.difficulty}`}
           >
             {f.opponentShortName.slice(0, 3)}
           </span>

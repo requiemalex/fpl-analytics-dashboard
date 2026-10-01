@@ -284,7 +284,7 @@ export function TeamDetailOverlay() {
           <div className="profile-columns">
             {teamRadarGroups.map((group) => (
               <div className="card" key={group.label}>
-                <div className="card-title">Team Radar — {group.label}</div>
+                <div className="card-title">Team Radar · {group.label}</div>
                 <PercentileRadarChart data={group.data} />
               </div>
             ))}
@@ -408,7 +408,7 @@ export function TeamDetailOverlay() {
         <div className="profile-section">
           <PointsHistoryHeader
             trend={seasonHistory.length > 0 ? seasonTrend : null}
-            titleHint={`Each bar is the FPL points scored for ${team.name} that season by whoever was playing for the club then — not the current squad. Seasons ${team.name} weren't in the Premier League don't appear.`}
+            titleHint={`Each bar is the FPL points scored for ${team.name} that season by whoever was playing for the club then, not the current squad. Seasons ${team.name} weren't in the Premier League don't appear.`}
           />
           <div className="card">
             {historicStatus === "loading" && seasonHistory.length === 0 ? (

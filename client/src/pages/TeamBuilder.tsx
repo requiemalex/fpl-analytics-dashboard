@@ -22,7 +22,7 @@ import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, columnByKey, isStaticColumn, t
 import { SquadPitch } from "../components/SquadPitch";
 import { AnalysisModeIcon } from "../components/AnalysisModeIcon";
 import { PositionBadge, AvailabilityFlag, SignedNum, availabilityTextClass } from "../components/primitives";
-import { IconChipButton, ResetIcon, SparkleIcon, ClockIcon, FilterIcon, DownloadIcon } from "../components/IconToolbar";
+import { IconChipButton, ResetIcon, ForecastIcon, ClockIcon, FilterIcon, DownloadIcon } from "../components/IconToolbar";
 import { fmtPrice, fmtDecimal, fmtPercent, fmtSigned, DASH } from "../utils/format";
 import { relativeCellTint } from "../utils/colorScale";
 import { downloadCsv } from "../utils/csvExport";
@@ -95,8 +95,8 @@ const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
       <span
         title={
           row.modelCaveats.length > 0
-            ? `This app's own independent estimate, built from live per-event stats and FPL's real scoring rules — not FPL's own figure. ${row.modelCaveats.join(" ")}`
-            : "This app's own independent estimate, built from live per-event stats and FPL's real scoring rules — not FPL's own figure."
+            ? `This app's own independent estimate, built from live per-event stats and FPL's real scoring rules, not FPL's own figure. ${row.modelCaveats.join(" ")}`
+            : "This app's own independent estimate, built from live per-event stats and FPL's real scoring rules, not FPL's own figure."
         }
       >
         {fmtDecimal(row.modelPredicted, 1)}
@@ -129,7 +129,7 @@ const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
                 key={f.fixtureId}
                 className="table-fixture-chip"
                 style={{ background: fdrColor(f.difficulty) }}
-                title={`${f.opponentShortName} (${f.isHome ? "H" : "A"}) — FDR ${f.difficulty}`}
+                title={`${f.opponentShortName} (${f.isHome ? "H" : "A"}), FDR ${f.difficulty}`}
               >
                 {f.opponentShortName.slice(0, 3)}
               </span>
@@ -137,7 +137,7 @@ const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
           </div>
           <span
             style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}
-            title="Average fixture difficulty across the fixtures shown (1 = easiest, 5 = hardest) — this is what the column sorts by"
+            title="Average fixture difficulty across the fixtures shown (1 = easiest, 5 = hardest). The column sorts by this."
           >
             {avgFdr.toFixed(1)}
           </span>
@@ -364,7 +364,7 @@ export function TeamBuilder() {
    */
   async function handleCreateOrImportSquad() {
     if (squads.length >= MAX_SAVED_SQUADS) {
-      setImportError(`You already have ${MAX_SAVED_SQUADS} saved squads — the maximum allowed. Delete one first.`);
+      setImportError(`You already have ${MAX_SAVED_SQUADS} saved squads, which is the maximum. Delete one first.`);
       setImportStatus("error");
       return;
     }
@@ -372,7 +372,7 @@ export function TeamBuilder() {
     if (trimmedTeamId) {
       const teamId = Number(trimmedTeamId);
       if (!Number.isFinite(teamId) || teamId <= 0) {
-        setImportError("Enter a valid FPL team ID — the number in your team's URL (fantasy.premierleague.com/entry/1234567/...).");
+        setImportError("Enter a valid FPL team ID: the number in your team's URL (fantasy.premierleague.com/entry/1234567/...).");
         setImportStatus("error");
         return;
       }
@@ -388,7 +388,7 @@ export function TeamBuilder() {
         setActiveId(squad.id);
         setShowNewSquadModal(false);
         if (warnings.length > 0) {
-          setWarning(`Imported with ${warnings.length} note(s): ${warnings[0]}${warnings.length > 1 ? ` (+${warnings.length - 1} more — check the browser console)` : ""}`);
+          setWarning(`Imported with ${warnings.length} note(s): ${warnings[0]}${warnings.length > 1 ? ` (+${warnings.length - 1} more in the browser console)` : ""}`);
           // eslint-disable-next-line no-console
           console.warn("FPL team import warnings:", warnings);
         }
@@ -397,7 +397,7 @@ export function TeamBuilder() {
         if (err instanceof ApiRequestError) {
           setImportError(err.status === 404 ? "No FPL team found with that ID." : `Couldn't load that team (${err.message}).`);
         } else {
-          setImportError("Couldn't reach the FPL API — check your connection and try again.");
+          setImportError("Couldn't reach the FPL API. Check your connection and try again.");
         }
       }
       return;
@@ -1062,7 +1062,7 @@ export function TeamBuilder() {
           );
         })()}
 
-      <div className="card" style={{ marginBottom: 22 }}>
+      <div className="card" style={{ marginBottom: 24 }}>
         <div className="card-title">
           Squad ({squadPlayers.length}/{SQUAD_RULES.squadSize})
         </div>
@@ -1101,7 +1101,7 @@ export function TeamBuilder() {
       )}
 
       {active && (
-      <div className="card" style={{ marginBottom: 22 }}>
+      <div className="card" style={{ marginBottom: 24 }}>
         <div className="card-title">Add Players</div>
         <div className="filters-bar" style={{ marginBottom: 12 }}>
           <div className="field">
@@ -1141,8 +1141,8 @@ export function TeamBuilder() {
               disabled={pickerHistoricMode === "live"}
               title={
                 pickerHistoricMode === "live"
-                  ? "Not applied in Current Season mode — everyone has low or zero minutes until real gameweeks accumulate"
-                  : "Minutes in whichever Historic/Raw mode is selected below — a player with no data at all for that mode is excluded once a minimum is set"
+                  ? "Not applied in Current Season mode: everyone has low or zero minutes until real gameweeks accumulate"
+                  : "Minutes in whichever Historic/Raw mode is selected below. A player with no data at all for that mode is excluded once a minimum is set"
               }
               onChange={(e) => setPickerMinMinutes(e.target.value === "" ? null : Number(e.target.value))}
             />
@@ -1153,7 +1153,7 @@ export function TeamBuilder() {
           <IconChipButton icon={<ResetIcon />} label="Restore default columns, order, and natural widths" onClick={handleResetPickerColumns} />
           <div style={{ position: "relative" }}>
             <IconChipButton
-              icon={<SparkleIcon />}
+              icon={<ForecastIcon />}
               label={`Predictive Columns (${predictiveCols.visibleColumns.length} shown)`}
               badge={predictiveCols.visibleColumns.length}
               onClick={() => setShowPredictiveColumnPopover((v) => !v)}
@@ -1198,7 +1198,7 @@ export function TeamBuilder() {
           </div>
           <IconChipButton
             icon={<FilterIcon />}
-            label="Clear every picker filter — search, position, team, price, minutes, and any per-column filters"
+            label="Clear every picker filter: search, position, team, price, minutes and any column filters"
             onClick={handleClearPickerFilters}
           />
           <IconChipButton icon={<DownloadIcon />} label="Export the visible columns and current rows to a CSV file" onClick={handleExportPickerCsv} />
@@ -1208,7 +1208,7 @@ export function TeamBuilder() {
           <div>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Predictive columns show:</div>
             <p className="page-subtitle" style={{ margin: 0, maxWidth: 320 }}>
-              GW+{gwOffset} — use the gameweek navigator on the pitch above to change which upcoming fixture both Exp. Pts columns estimate.
+              GW+{gwOffset}. Use the gameweek navigator on the pitch above to change which upcoming fixture both Exp. Pts columns estimate.
             </p>
           </div>
           <div>
@@ -1233,7 +1233,7 @@ export function TeamBuilder() {
         </div>
         {historicStatus === "loading" && (
           <p className="page-subtitle" style={{ marginTop: 0, marginBottom: 12 }}>
-            Still building historic data — Historic/Raw columns and Minutes Reliability will fill in shortly.
+            Still building historic data. Historic/Raw columns and Minutes Reliability will fill in shortly.
           </p>
         )}
 

@@ -114,7 +114,7 @@ describe("PlayerComparison", () => {
     const [regulars, everyone] = [...container.querySelectorAll<HTMLElement>(".cmp-outputs")];
     expect(regulars.querySelectorAll(".cmp-outputs-marker")).toHaveLength(1);
     const badge = regulars.querySelector(".cmp-outputs-head .small-sample-badge")!;
-    expect(badge.getAttribute("title")).toMatch(/^Below this card's Min Minutes — 45 min in this mode, under 90/);
+    expect(badge.getAttribute("title")).toMatch(/^Below this card's Min Minutes: 45 min in this mode, under 90/);
     expect(everyone.querySelectorAll(".cmp-outputs-marker")).toHaveLength(2);
   });
 

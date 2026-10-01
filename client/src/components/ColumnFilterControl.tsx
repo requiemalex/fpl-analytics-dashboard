@@ -28,7 +28,7 @@ export function ColumnFilterControl({
   // something opened after it (a player profile) is on top.
   useEscapeLayer(isOpen, onCancel);
 
-  const iconLabel = isActive ? "Filter active on this column — click to edit" : "Filter this column";
+  const iconLabel = isActive ? "Filter active on this column. Click to edit" : "Filter this column";
   return (
     <>
       <button

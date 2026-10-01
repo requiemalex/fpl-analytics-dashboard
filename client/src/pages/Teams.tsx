@@ -250,7 +250,7 @@ export function Teams() {
           </div>
           <IconChipButton
             icon={<FilterIcon />}
-            label="Clear every filter — the search box and every column filter"
+            label="Clear every filter: the search box and every column filter"
             onClick={() => {
               setSearch("");
               columnFiltersState.resetAllFilters();

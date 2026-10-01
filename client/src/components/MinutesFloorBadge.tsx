@@ -47,9 +47,9 @@ export function SmallSampleBadge({ note }: { note: string }) {
 /** Hover text for SmallSampleBadge. `minutes` null: Historic Average, where no window season reached the floor. */
 export function smallSampleNote(minutes: number | null, mode: AnalysisMode): string {
   if (minutes === null) {
-    return `Small sample — no season in the last ${HISTORIC_WINDOW_SEASONS} with ${FIXED_FLOOR_MINUTES}+ minutes, so nothing counts toward Historic Average: no figures, percentiles or colours.`;
+    return `Small sample. No season in the last ${HISTORIC_WINDOW_SEASONS} with ${FIXED_FLOOR_MINUTES}+ minutes, so nothing counts toward Historic Average: no figures, percentiles or colours.`;
   }
-  return `Small sample — ${fmtDecimal(minutes, 0)} min in this mode, under the ${fixedFloorMinutes(mode)}-minute floor: no percentiles or colours.`;
+  return `Small sample: ${fmtDecimal(minutes, 0)} min in this mode, under the ${fixedFloorMinutes(mode)}-minute floor: no percentiles or colours.`;
 }
 
 const PREFIX = "Minimum minutes applied automatically";
@@ -57,21 +57,21 @@ const PREFIX = "Minimum minutes applied automatically";
 /** Hover text for the player profile and Player Comparison: the floor turns percentiles and colours off below it. */
 export function profileFloorNote(mode: AnalysisMode): string {
   if (mode === "historicAverage") {
-    return `${PREFIX}: Historic Average counts only seasons of ${FIXED_FLOOR_MINUTES}+ minutes. A player with none is a small sample — no figures, percentile or colour.`;
+    return `${PREFIX}: Historic Average counts only seasons of ${FIXED_FLOOR_MINUTES}+ minutes. A player with none is a small sample, with no figures, percentile or colour.`;
   }
   const scope = mode === "live" ? " this season" : "";
-  return `${PREFIX}: a player under ${fixedFloorMinutes(mode)} minutes${scope} is a small sample — no percentile or colour.`;
+  return `${PREFIX}: a player under ${fixedFloorMinutes(mode)} minutes${scope} is a small sample, with no percentile or colour.`;
 }
 
 /** Hover text for a Starter-view Player Comparison trend graph: a season under the floor is marked (careerTrends.ts `buildSeasonTrend`). */
 export function trendFloorNote(): string {
-  return `${PREFIX}: a season under ${FIXED_FLOOR_MINUTES} minutes is marked with an amber ring — a small sample.`;
+  return `${PREFIX}: a season under ${FIXED_FLOOR_MINUTES} minutes is a small sample, marked with an amber ring.`;
 }
 
 /** Hover text for the amber badge on a player below a Player Comparison card's own Min Minutes (a custom view). `minutes` null: no figures for the mode. */
 export function belowMinimumNote(minutes: number | null, minMinutes: number): string {
   const played = minutes === null ? "no minutes in this mode" : `${fmtDecimal(minutes, 0)} min in this mode`;
-  return `Below this card's Min Minutes — ${played}, under ${fmtDecimal(minMinutes, 0)}: not drawn, not ranked or marked best.`;
+  return `Below this card's Min Minutes: ${played}, under ${fmtDecimal(minMinutes, 0)}: not drawn, not ranked or marked best.`;
 }
 
 /**

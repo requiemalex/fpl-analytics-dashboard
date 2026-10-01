@@ -294,7 +294,7 @@ export function PlayerComparison() {
       return;
     }
     if (viewsState.views.length >= MAX_COMPARISON_VIEWS) {
-      setCreateViewError(`You already have ${MAX_COMPARISON_VIEWS} views, Starter included — the maximum allowed. Delete one first.`);
+      setCreateViewError(`You already have ${MAX_COMPARISON_VIEWS} views, Starter included, which is the maximum. Delete one first.`);
       return;
     }
     viewsState.createView(name);
@@ -325,7 +325,7 @@ export function PlayerComparison() {
     }
     const inSection = view.elements.filter((e) => e.kind === dialog.kind).length;
     if (inSection >= MAX_ELEMENTS_PER_SECTION) {
-      setDialogError(`This section already has ${MAX_ELEMENTS_PER_SECTION} — the most one view can hold. Remove one first.`);
+      setDialogError(`This section already has ${MAX_ELEMENTS_PER_SECTION}, the most one view can hold. Remove one first.`);
       return;
     }
     viewsState.addElement(settings);
@@ -401,7 +401,7 @@ export function PlayerComparison() {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 22 }}>
+      <div className="card" style={{ marginBottom: 24 }}>
         <div className="card-title">
           Players ({compared.length}/{MAX_COMPARE})
         </div>

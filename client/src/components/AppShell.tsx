@@ -2,6 +2,7 @@ import React from "react";
 import { NavLink } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { fmtTimeAgo, fmtDate, fmtDateShort } from "../utils/format";
+import { CalendarIcon } from "./IconToolbar";
 
 type NavEntry =
   | { type: "link"; to: string; label: string }
@@ -74,33 +75,24 @@ function getGameweekInfo(gameweekState: ReturnType<typeof useAppState>["gameweek
   return { label: "Pre-season", title: "Pre-season / No active gameweek", deadlineIso: null };
 }
 
-function CalendarIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="5" width="18" height="16" rx="2" />
-      <line x1="3" y1="10" x2="21" y2="10" />
-      <line x1="8" y1="3" x2="8" y2="7" />
-      <line x1="16" y1="3" x2="16" y2="7" />
-    </svg>
-  );
-}
-
+/** One player: head and shoulders, on the shared 16-unit icon grid. */
 function PersonIcon() {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="8" cy="5.2" r="2.7" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M2.8 14c0-2.9 2.3-4.9 5.2-4.9s5.2 2 5.2 4.9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
     </svg>
   );
 }
 
+/** Two arcs chasing each other round: fetch everything again. */
 function RefreshIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M23 4v6h-6" />
-      <path d="M1 20v-6h6" />
-      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10" />
-      <path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14" />
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M13 6.4A5.2 5.2 0 0 0 3.6 4.9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M3 9.6a5.2 5.2 0 0 0 9.4 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M13.4 2.6v3.8H9.6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M2.6 13.4V9.6h3.8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -108,7 +100,7 @@ function RefreshIcon() {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { status, isStale, lastUpdated, refreshing, refresh, players, errorMessage, gameweekState, events } = useAppState();
   const gwInfo = getGameweekInfo(gameweekState, events);
-  const statusTitle = status === "error" ? `Data error — ${errorMessage ?? "unknown"}` : isStale ? "Stale data — showing last successful fetch" : `Live — updated ${fmtTimeAgo(lastUpdated)}`;
+  const statusTitle = status === "error" ? `Data error: ${errorMessage ?? "unknown"}` : isStale ? "Stale data: showing the last successful fetch" : `Live, updated ${fmtTimeAgo(lastUpdated)}`;
 
   return (
     <div className="app-shell">
@@ -149,7 +141,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <>
                 <span className="topbar-divider" />
                 <span className="topbar-status-group" title={gwInfo.title}>
-                  <CalendarIcon />
+                  <CalendarIcon size={13} />
                   {fmtDateShort(gwInfo.deadlineIso)}
                 </span>
               </>
@@ -164,7 +156,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             className={`refresh-btn${refreshing ? " spinning" : ""}`}
             onClick={() => refresh()}
             disabled={refreshing}
-            title={refreshing ? "Refreshing…" : `Refresh data — updated ${fmtTimeAgo(lastUpdated)}`}
+            title={refreshing ? "Refreshing…" : `Refresh data (updated ${fmtTimeAgo(lastUpdated)})`}
             aria-label={refreshing ? "Refreshing…" : "Refresh data"}
           >
             <RefreshIcon />
@@ -176,7 +168,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <main className="main-content">
         {isStale && (
           <div className="banner stale">
-            Showing cached data from {fmtTimeAgo(lastUpdated)} — the live API request failed. This is not necessarily current.
+            Showing cached data from {fmtTimeAgo(lastUpdated)} because the live API request failed. It may not be current.
           </div>
         )}
         {errorMessage && status !== "error" && <div className="banner error">Refresh failed: {errorMessage}</div>}

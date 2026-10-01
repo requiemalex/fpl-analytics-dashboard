@@ -135,7 +135,7 @@ export async function buildBulkHistoricData(bypassCache: boolean): Promise<BulkR
   // mostly-empty result that would silently look like "nobody has
   // career history" for 12 hours.
   if (skippedPlayerIds.length > playerIds.length * 0.5) {
-    throw new Error(`Historic bulk build failed for ${skippedPlayerIds.length}/${playerIds.length} players — the upstream API may be unavailable`);
+    throw new Error(`Historic bulk build failed for ${skippedPlayerIds.length}/${playerIds.length} players. The upstream API may be unavailable`);
   }
 
   const liveClubSeasons = fixtures.ok ? buildLiveClubSeasons(bootstrap.data, fixtures.data, historyByElement) : [];

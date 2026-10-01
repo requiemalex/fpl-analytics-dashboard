@@ -44,10 +44,10 @@ export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
     apiFields: ["total_points", "minutes"],
     suppliedByFPL: false,
     derived: true,
-    formula: "total points / estimated games played (minutes ÷ 90, rounded UP so any appearance beyond a full match counts as another game, floored at 1 appearance) — the same games figure as every other per-game rate, in every Data View. Historic Average: the seasons' total points / games from their total minutes.",
+    formula: "total points / estimated games played (minutes ÷ 90, rounded UP so any appearance beyond a full match counts as another game, floored at 1 appearance): the same games figure as every other per-game rate, in every Data View. Historic Average: the seasons' total points / games from their total minutes.",
     units: "points/game",
     caveats:
-      "Not FPL's own points_per_game, which divides by appearances (a 10-minute cameo counts as a whole game). Games are estimated from minutes, so this is close for regular starters and less precise for players used mainly as substitutes. A player with 0 minutes and 0 points shows 0.0 once the season has started; pre-season, Current Season PPG is — for everyone.",
+      "Not FPL's own points_per_game, which divides by appearances (a 10-minute cameo counts as a whole game). Games are estimated from minutes, so this is close for regular starters and less precise for players used mainly as substitutes. A player with 0 minutes and 0 points shows 0.0 once the season has started; pre-season, Current Season PPG shows \"—\" for everyone.",
     availabilityNote: "Always available.",
   }),
   goals: def({
@@ -460,7 +460,7 @@ export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
     derived: false,
     formula: null,
     units: "points/game, recent rolling window",
-    caveats: "FPL's own short-term form window (stats_form_days in game_settings — currently 30 days), distinct from season-long Points Per Game.",
+    caveats: "FPL's own short-term form window (stats_form_days in game_settings, currently 30 days), distinct from season-long Points Per Game.",
     availabilityNote: "Displayed as \u2014 if the live API omits this field; presence is checked at load time.",
   }),
   transfersInEvent: def({
@@ -472,7 +472,7 @@ export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
     derived: false,
     formula: null,
     units: "transfers",
-    caveats: "Resets at each gameweek deadline, not daily — \"this event\" means \"since the last deadline\", not \"today\".",
+    caveats: "Resets at each gameweek deadline, not daily: \"this event\" means \"since the last deadline\", not \"today\".",
     availabilityNote: "Displayed as \u2014 if the live API omits this field; presence is checked at load time.",
   }),
   transfersOutEvent: def({
@@ -484,7 +484,7 @@ export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
     derived: false,
     formula: null,
     units: "transfers",
-    caveats: "Resets at each gameweek deadline, not daily — \"this event\" means \"since the last deadline\", not \"today\".",
+    caveats: "Resets at each gameweek deadline, not daily: \"this event\" means \"since the last deadline\", not \"today\".",
     availabilityNote: "Displayed as \u2014 if the live API omits this field; presence is checked at load time.",
   }),
   netTransfersEvent: def({
@@ -509,7 +509,7 @@ export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
     formula: "(transfersInEvent - transfersOutEvent) / (ownership% \u00d7 total_players)",
     units: "share of estimated current owners",
     caveats:
-      "A supporting/explanatory figure, not a competing prediction — normalises net transfers against roughly how many managers currently own the player, so it's comparable across very differently-owned players. Not FPL's own methodology.",
+      "A supporting/explanatory figure, not a competing prediction. It normalises net transfers against roughly how many managers currently own the player, so it's comparable across very differently-owned players. Not FPL's own methodology.",
     availabilityNote: "\u2014 if ownership, total_players, or transfer counts are unavailable.",
   }),
   costChangeEvent: def({
@@ -546,7 +546,7 @@ export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
     formula: null,
     units: "% progress toward today's threshold",
     caveats:
-      "FPL's own official Price Change Predictor, new for 2026/27 — not this app's estimate. FPL describes over 100% as \"expected to cross the threshold at the next 00:00 UK update\", but explicitly not a guarantee: late transfer activity can still pull a player back before the deadline. The per-day \"likelihood\" figure inside the projections (observed roughly -5..5) has no official published meaning beyond sign = direction, magnitude = FPL's own confidence.",
+      "FPL's own official Price Change Predictor, new for 2026/27, not this app's estimate. FPL describes over 100% as \"expected to cross the threshold at the next 00:00 UK update\", but explicitly not a guarantee: late transfer activity can still pull a player back before the deadline. The per-day \"likelihood\" figure inside the projections (observed roughly -5..5) has no official published meaning beyond sign = direction, magnitude = FPL's own confidence.",
     availabilityNote: "Displayed as \u2014 if the live API omits this field (a brand-new field for 2026/27); presence is checked at load time.",
   }),
 };

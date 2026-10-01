@@ -3523,3 +3523,14 @@ tiles/graphs only:
   section with one clear entry point (the navigation), not reached from
   other areas.
 - **Last commit with it:** `9d86412`.
+
+### Dashboard summary cards row (replaced 2026-10-01)
+- **What it did:** the Dashboard opened with three equal cards, each with an
+  icon, an uppercase label and a large value: Gameweek Status (with a
+  deadline progress bar), Players Tracked, and Data Last Updated
+  (`CalendarIcon`/`UsersIcon`/`ClockIcon` and the `.summary-card-*` styles).
+- **Why it went:** part of a pass removing generic, template-looking UI
+  patterns. Players Tracked and Data Last Updated repeated what the top bar
+  already shows (player count, refresh time). Gameweek Status and its
+  progress bar now sit in one slim line under the page title (`.gw-strip`).
+- **Last commit with it:** `5dcf9d5`.

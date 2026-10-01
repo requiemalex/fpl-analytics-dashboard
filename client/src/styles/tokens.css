@@ -11,7 +11,7 @@
 
   --text-primary: #e8ede9;
   --text-secondary: #9fb0a6;
-  --text-muted: #647167;
+  --text-muted: #808d84;
 
   --accent-positive: #3fbf7f;
   --accent-positive-dim: #2a5c42;
@@ -29,7 +29,7 @@
      "bad value") — used only to flag a column/row-label as an "always
      live" static figure (see .col-static in components.css). Deliberately
      duller than accent-negative so it never reads as a warning. */
-  --col-static: #a8695f;
+  --col-static: #b8766a;
 
   /* Position colours — reverted to this app's original red/green/blue/
      yellow set (the same hues as the semantic accent tokens above,
@@ -47,8 +47,23 @@
   --pos-fwd: #e0654a;
 
   --font-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
-  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Roboto Mono", monospace;
+
+  /* Spacing scale. Layout-level spacing (page and card padding, gaps
+     between cards and sections) uses these steps only; finer values inside
+     chips and badges stay on the 2px grid. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
 
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -69,7 +84,6 @@ body,
 body {
   margin: 0;
   background: var(--bg);
-  background-image: radial-gradient(ellipse 1200px 600px at 50% -10%, rgba(63, 191, 127, 0.05), transparent);
   color: var(--text-primary);
   font-family: var(--font-body);
   font-size: 14px;

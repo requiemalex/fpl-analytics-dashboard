@@ -74,8 +74,8 @@ export const DEFENSIVE_CONTRIBUTION_THRESHOLD: Record<Position, number | null> =
 
 /** Deliberately-omitted components, always surfaced so nobody mistakes silence for "this model accounts for everything". Cards, red cards, own goals, and penalty misses are small, rare, and this app has no per-player historic rate for any of them normalized anywhere — modelling them from nothing would be worse than naming the gap. Penalty saves are the same story for goalkeepers specifically. */
 const OMITTED_EVENT_CAVEATS = [
-  "Yellow cards, red cards, own goals, and penalty misses are not modelled (assumed zero) — small, rare events with no per-player historic rate normalized in this app.",
-  "Penalty saves are not modelled (assumed zero) — most goalkeepers face none all season, and there's no per-player penalty-save rate available to estimate one from.",
+  "Yellow cards, red cards, own goals, and penalty misses are not modelled (assumed zero): small, rare events with no per-player historic rate normalized in this app.",
+  "Penalty saves are not modelled (assumed zero): most goalkeepers face none all season, and there's no per-player penalty-save rate available to estimate one from.",
 ];
 
 export interface ExpectedPointsV2Breakdown {
@@ -216,16 +216,16 @@ export function computeExpectedPointsV2ForFixture(
   let goals = 0;
   let assists = 0;
   if (xGPer90 !== null) goals = xGPer90 * minutesModel.expectedMinutesFraction * attackMultiplier * rules.goal;
-  else caveats.push("No xG/90 data available for this player — goal contribution assumed zero.");
+  else caveats.push("No xG/90 data available for this player, so goal contribution is assumed zero.");
   if (xAPer90 !== null) assists = xAPer90 * minutesModel.expectedMinutesFraction * attackMultiplier * rules.assist;
-  else caveats.push("No xA/90 data available for this player — assist contribution assumed zero.");
+  else caveats.push("No xA/90 data available for this player, so assist contribution is assumed zero.");
 
   let cleanSheet = 0;
   if (rules.cleanSheet > 0) {
     const ownStrength = fixture.isHome ? (ownTeam?.strengthOverallHome ?? null) : (ownTeam?.strengthOverallAway ?? null);
     const oppStrength = fixture.isHome ? (opponentTeam?.strengthOverallAway ?? null) : (opponentTeam?.strengthOverallHome ?? null);
     if (ownStrength === null || oppStrength === null) {
-      caveats.push("Team strength ratings unavailable for this fixture — clean-sheet probability falls back to a flat league-average estimate.");
+      caveats.push("Team strength ratings unavailable for this fixture, so clean-sheet probability falls back to a flat league-average estimate.");
     }
     const pCleanSheet = estimateCleanSheetProbability(ownStrength, oppStrength);
     cleanSheet = pCleanSheet * minutesModel.p60Plus * rules.cleanSheet;
@@ -245,7 +245,7 @@ export function computeExpectedPointsV2ForFixture(
       // operates on anyway.
       goalsConceded = (expectedConceded / 2) * rules.everyTwoConceded;
     } else {
-      caveats.push("No xGC/90 data available for this player — goals-conceded deduction assumed zero.");
+      caveats.push("No xGC/90 data available for this player, so the goals-conceded deduction is assumed zero.");
     }
   }
 
@@ -255,7 +255,7 @@ export function computeExpectedPointsV2ForFixture(
       const expectedSaves = savesPer90 * minutesModel.expectedMinutesFraction;
       saves = (expectedSaves / 3) * rules.everyThreeSaves;
     } else {
-      caveats.push("No saves/90 data available for this goalkeeper — saves contribution assumed zero.");
+      caveats.push("No saves/90 data available for this goalkeeper, so saves contribution is assumed zero.");
     }
   }
 
@@ -267,10 +267,10 @@ export function computeExpectedPointsV2ForFixture(
       const pThresholdReached = poissonAtLeast(dcThreshold, expectedActionsThisMatch);
       defensiveContribution = pThresholdReached * rules.defensiveContribution;
     } else {
-      caveats.push("No defensive-contribution/90 data available for this player — defensive-contribution points assumed zero.");
+      caveats.push("No defensive-contribution/90 data available for this player, so defensive-contribution points are assumed zero.");
     }
     caveats.push(
-      "Defensive contribution is a threshold on a PER-MATCH total, but only a per-90 season rate is available for the live model — approximated here via a Poisson distribution rather than real match-by-match action counts. This is the least certain component in this model; see README.",
+      "Defensive contribution is a threshold on a PER-MATCH total, but only a per-90 season rate is available for the live model, so it's approximated here with a Poisson distribution rather than real match-by-match action counts. This is the least certain component in this model; see README.",
     );
   }
 
@@ -287,10 +287,10 @@ export function computeExpectedPointsV2ForFixture(
     const bonusPer90 = (qualifyingAvg.avgBonusPerSeason / qualifyingAvg.avgMinutesPerSeason) * 90;
     bonus = bonusPer90 * minutesModel.expectedMinutesFraction * attackMultiplier;
   } else {
-    caveats.push("No qualifying historic season available for a bonus-points rate — bonus contribution assumed zero.");
+    caveats.push("No qualifying historic season available for a bonus-points rate, so bonus contribution is assumed zero.");
   }
   caveats.push(
-    "Bonus points are the roughest approximation in this model — BPS depends on how a player compares to 21 others in the same match, which nothing in this app's data can see directly. This is a historic bonus-per-90 rate scaled by fixture favourability, nothing more.",
+    "Bonus points are the roughest approximation in this model. BPS depends on how a player compares to 21 others in the same match, which nothing in this app's data can see directly. This is a historic bonus-per-90 rate scaled by fixture favourability, nothing more.",
   );
 
   const total = appearance + goals + assists + cleanSheet + goalsConceded + saves + defensiveContribution + bonus;

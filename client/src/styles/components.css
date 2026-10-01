@@ -3,7 +3,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 16px 18px;
+  padding: var(--space-4);
   box-shadow: var(--shadow-card);
 }
 
@@ -20,40 +20,35 @@
   margin-bottom: 10px;
 }
 
-/* ---------- Dashboard summary cards (Gameweek Status / Players Tracked / Data Last Updated) ---------- */
-.summary-card-icon {
-  color: var(--text-muted);
-  margin-bottom: 10px;
+/* ---------- Dashboard gameweek strip: status line and deadline progress ---------- */
+.gw-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-6);
+  border-bottom: 1px solid var(--border);
 }
-.summary-card-label {
-  font-size: 11.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  font-weight: 600;
-  margin-bottom: 6px;
-}
-.summary-card-value {
-  font-size: 20px;
+.gw-strip-heading {
+  font-family: var(--font-display);
+  font-size: 15px;
   font-weight: 700;
   color: var(--text-primary);
-  font-family: var(--font-mono);
 }
-.summary-card-sub {
+.gw-strip-sub {
   font-size: 12.5px;
   color: var(--text-secondary);
-  margin-top: 4px;
 }
-.summary-card-progress-track {
-  margin-top: 12px;
-  height: 5px;
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--text-muted) 16%, transparent);
+.gw-strip-track {
+  flex: 0 0 160px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
   overflow: hidden;
 }
-.summary-card-progress-fill {
+.gw-strip-fill {
   height: 100%;
-  border-radius: 3px;
   background: var(--accent-positive);
 }
 
@@ -72,7 +67,7 @@
      instead, leaving any leftover width as normal trailing space. */
   grid-template-columns: repeat(auto-fit, minmax(260px, 400px));
   gap: 16px;
-  margin-bottom: 22px;
+  margin-bottom: var(--space-6);
 }
 
 /* Dashboard graphs: a fixed 2 per row rather than auto-fit — at 3 per row
@@ -92,7 +87,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 7px 0;
+  padding: var(--space-2) 0;
   border-bottom: 1px solid var(--border);
   font-size: 13px;
 }
@@ -439,7 +434,7 @@ table.data-table tbody tr:hover td {
   gap: 10px;
   align-items: flex-end;
   margin-bottom: 16px;
-  padding: 12px 14px;
+  padding: var(--space-3) var(--space-4);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -1098,7 +1093,7 @@ select:focus {
   position: relative;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 26px 32px 60px;
+  padding: var(--space-6) var(--space-8) var(--space-16);
   min-height: 100%;
 }
 .profile-close {
@@ -1233,7 +1228,7 @@ select:focus {
 .playing-time-row {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: var(--space-4);
 }
 .playing-time-summary {
   display: flex;
@@ -1308,7 +1303,7 @@ select:focus {
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
-  padding: 22px 24px;
+  padding: var(--space-6);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
 }
 .dialog-title {
@@ -1325,7 +1320,7 @@ select:focus {
   gap: 10px;
   color: var(--text-muted);
   font-size: 12px;
-  margin: 14px 0;
+  margin: var(--space-4) 0;
 }
 .dialog-divider::before,
 .dialog-divider::after {
@@ -1346,10 +1341,10 @@ select:focus {
    small upper-case captions page toolbars use, fields get room between
    them, and inputs are a size up so the form reads calmly. */
 .dialog > * + * {
-  margin-top: 14px;
+  margin-top: var(--space-4);
 }
 .dialog > .dialog-actions {
-  margin-top: 22px;
+  margin-top: var(--space-6);
 }
 .dialog .field label,
 .popover .field label,
@@ -1365,7 +1360,7 @@ select:focus {
 }
 .dialog .field input:not([type="range"]):not(.minutes-slider-value),
 .dialog .field select {
-  padding: 8px 11px;
+  padding: var(--space-2) var(--space-3);
   font-size: 13px;
   border-radius: var(--radius-md);
   background: var(--bg);
@@ -1429,7 +1424,7 @@ select:focus {
   display: flex;
   align-items: center;
   gap: 7px;
-  margin: 14px 0 8px;
+  margin: var(--space-4) 0 var(--space-2);
   font-size: 12.5px;
   font-weight: 600;
   color: var(--text-secondary);
@@ -1471,7 +1466,7 @@ select:focus {
 
 /* "Axes — n of 8 selected" over one segment per slot. */
 .selection-meter {
-  margin-top: 18px;
+  margin-top: var(--space-4);
 }
 .selection-meter-head {
   display: flex;
@@ -1602,7 +1597,7 @@ select:focus {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: end;
-  gap: 14px 12px;
+  gap: var(--space-4) var(--space-3);
   padding: 0;
   margin: 0;
   background: none;
@@ -1862,7 +1857,7 @@ select:focus {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px 22px;
+  gap: var(--space-2) var(--space-6);
   margin-top: 16px;
 }
 .points-history-stat {
@@ -1900,17 +1895,22 @@ select:focus {
   flex-direction: column;
   gap: 5px;
   min-width: 160px;
-  padding: 7px 10px 8px;
+  padding: var(--space-2) var(--space-3);
   background: var(--surface-raised);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--border-strong);
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  border-radius: var(--radius-md);
   color: var(--text-primary);
 }
 .cmp-player-tag-top {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+.cmp-player-tag-swatch {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
 }
 .cmp-player-tag-name {
   background: none;
@@ -1952,7 +1952,7 @@ select:focus {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 6px 14px;
+  gap: 6px var(--space-4);
   margin-top: 6px;
   font-size: 12px;
   color: var(--text-secondary);
@@ -2097,4 +2097,28 @@ select:focus {
 }
 .chart-tooltip-row .cmp-trend-below {
   color: var(--accent-value);
+}
+
+/* User Guide sections: plain cards, numbered in the mono face. */
+.guide-section {
+  margin-bottom: var(--space-6);
+  scroll-margin-top: var(--space-4);
+}
+.guide-section-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  font-size: 16px;
+  margin-bottom: var(--space-3);
+}
+.guide-section-number {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.guide-subheading {
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
 }

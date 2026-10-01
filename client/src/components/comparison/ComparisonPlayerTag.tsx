@@ -6,15 +6,15 @@ import type { ComparedPlayer } from "./seriesColors";
 /**
  * How a compared player is presented on Player Comparison: name (in his
  * availability colour, opens his profile), then ownership · price and his
- * club and position badges — with his chart colour as the tag's left edge,
- * the same flush-left flag shape the app's badges use, so the tag doubles
- * as the key for every chart below.
+ * club and position badges. A swatch of his chart colour leads the name,
+ * so the tag doubles as the key for every chart below.
  */
 export function ComparisonPlayerTag({ entry, onOpen, onRemove }: { entry: ComparedPlayer; onOpen: (id: number) => void; onRemove: (id: number) => void }) {
   const { player: p, color } = entry;
   return (
-    <div className="cmp-player-tag" style={{ borderLeftColor: color }}>
+    <div className="cmp-player-tag">
       <div className="cmp-player-tag-top">
+        <span className="cmp-player-tag-swatch" style={{ background: color }} aria-hidden="true" />
         <button type="button" className="cmp-player-tag-name" onClick={() => onOpen(p.id)} title={`View ${p.name}'s profile`}>
           <span className={availabilityTextClass(p.status)}>{p.name}</span>
         </button>

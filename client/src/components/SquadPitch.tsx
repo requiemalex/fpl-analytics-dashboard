@@ -19,7 +19,7 @@ function FixtureTicker({ fixtures }: { fixtures: UpcomingFixture[] }) {
           key={f.fixtureId}
           className="pitch-card-fixture"
           style={{ background: fdrColor(f.difficulty) }}
-          title={`${f.opponentShortName} (${f.isHome ? "H" : "A"}) — FDR ${f.difficulty}`}
+          title={`${f.opponentShortName} (${f.isHome ? "H" : "A"}), FDR ${f.difficulty}`}
         >
           {f.opponentShortName.slice(0, 3)}
         </span>
@@ -161,14 +161,14 @@ function PlayerCard({
       </div>
       <div
         className="pitch-card-model-points"
-        title="Expected Points Tier 2 — this app's own independent estimate for the same gameweek, built from live per-event stats and FPL's real scoring rules (captain doubled)"
+        title="Expected Points Tier 2: this app's own independent estimate for the same gameweek, built from live per-event stats and FPL's real scoring rules (captain doubled)"
       >
         Model {displayModelPredicted !== null ? fmtDecimal(displayModelPredicted, 1) : DASH}
       </div>
       <div className="pitch-card-meta">
         <span title="Price">{fmtPrice(player.price)}</span>
         <span title="Ownership">{fmtPercent(player.ownership, 1)}</span>
-        <span className="pitch-card-reliability" title="Minutes reliability — blended historic and live playing time, adjusted for current availability">
+        <span className="pitch-card-reliability" title="Minutes reliability: blended historic and live playing time, adjusted for current availability">
           <span className={`reliability-dot ${reliabilityBand ?? ""}`} />
           {reliability !== null ? fmtPercent(reliability * 100, 0) : DASH}
         </span>
@@ -269,7 +269,7 @@ export function SquadPitch({
             aria-pressed={gwOffset === offset}
             style={gwOffset === offset ? { borderColor: "var(--accent-positive)", color: "var(--accent-positive)" } : undefined}
             onClick={() => onGwOffsetChange(offset)}
-            title={`Each player's ${offset === 1 ? "very next" : `${offset}${offset === 2 ? "nd" : offset === 3 ? "rd" : "th"}`} upcoming fixture — not a calendar gameweek number, so a blank gameweek simply has no fixture to select here.`}
+            title={`Each player's ${offset === 1 ? "very next" : `${offset}${offset === 2 ? "nd" : offset === 3 ? "rd" : "th"}`} upcoming fixture, not a calendar gameweek number, so a blank gameweek has no fixture to select here.`}
           >
             GW+{offset}
           </button>
@@ -277,7 +277,7 @@ export function SquadPitch({
       </div>
       {captainPickMode && (
         <p className="page-subtitle" style={{ marginTop: 0, marginBottom: 8 }}>
-          Click a starting player to make them {captainPickMode === "captain" ? "captain" : "vice-captain"} — or click the tile again to
+          Click a starting player to make them {captainPickMode === "captain" ? "captain" : "vice-captain"}, or click the tile again to
           cancel. Click a player's name instead to view their profile.
         </p>
       )}

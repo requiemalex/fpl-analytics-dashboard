@@ -66,7 +66,7 @@ export function ComparisonOutputs({ rows, entries }: { rows: OutputsRow[]; entri
                 <span className="cmp-outputs-label">{row.label}</span>
                 <span
                   className="cmp-outputs-track"
-                  title={`0 to ${row.format(leader)}, the highest here${row.higherIsBetter ? "" : " — fewer is better for this one"}`}
+                  title={`0 to ${row.format(leader)}, the highest here${row.higherIsBetter ? "" : "; fewer is better for this one"}`}
                 >
                   {leader > 0 &&
                     ranked.map(({ player, color }) => {
@@ -78,7 +78,7 @@ export function ComparisonOutputs({ rows, entries }: { rows: OutputsRow[]; entri
                           key={player.id}
                           className="cmp-outputs-marker"
                           style={{ left: `${pct}%`, background: color }}
-                          title={`${player.name} — ${row.format(value)} (${Math.round(pct)}% of the leader)`}
+                          title={`${player.name}: ${row.format(value)} (${Math.round(pct)}% of the leader)`}
                         />
                       );
                     })}

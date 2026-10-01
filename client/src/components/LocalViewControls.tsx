@@ -45,8 +45,8 @@ export function LocalViewControls({
   }
 
   return (
-    <div className="card" style={{ marginBottom: 14 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", marginBottom: 12 }}>
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", marginBottom: 12 }}>
         <div style={{ display: "flex", gap: 6 }}>
           {MODE_OPTIONS.map((o) => (
             <button
@@ -65,7 +65,7 @@ export function LocalViewControls({
         </div>
         {state.analysisMode !== "live" && historicStatus === "loading" && (
           <span className="page-subtitle" style={{ margin: 0 }}>
-            Building the historic dataset — this can take up to a minute the first time, then it's cached.
+            Building the historic dataset. This can take up to a minute the first time, then it's cached.
           </span>
         )}
         {state.analysisMode !== "live" && historicStatus === "error" && (
@@ -79,7 +79,7 @@ export function LocalViewControls({
       </div>
       {state.analysisMode !== "live" && historicStatus === "ready" && historicSkippedPlayerIds.length > 0 && (
         <p className="page-subtitle" style={{ marginTop: 0, marginBottom: 12 }}>
-          {historicSkippedPlayerIds.length} player(s) had no historic data available this session (a transient fetch issue) — everyone else
+          {historicSkippedPlayerIds.length} player(s) had no historic data available this session (a transient fetch issue). Everyone else
           is unaffected.
         </p>
       )}

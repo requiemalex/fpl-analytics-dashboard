@@ -307,7 +307,7 @@ describe("H1: the profile's percentiles use the fixed minutes floor", () => {
       </MemoryRouter>,
     );
     // No banner: a badge on each radar (Defense and Offense) explains on hover.
-    const badges = getAllByLabelText(/^Small sample — 136 min in this mode, under the 450-minute floor/);
+    const badges = getAllByLabelText(/^Small sample: 136 min in this mode, under the 450-minute floor/);
     expect(badges.length).toBe(2);
     for (const b of badges) expect(b.getAttribute("title")).toBe(b.getAttribute("aria-label"));
     // No tint on any tile.
@@ -333,7 +333,7 @@ describe("H1: the profile's percentiles use the fixed minutes floor", () => {
       </MemoryRouter>,
     );
     fireEvent.click(getByLabelText("Current Season"));
-    expect(getAllByLabelText(/^Small sample — 60 min in this mode, under the 90-minute floor/).length).toBeGreaterThan(0);
+    expect(getAllByLabelText(/^Small sample: 60 min in this mode, under the 90-minute floor/).length).toBeGreaterThan(0);
   });
 
   it("Player Comparison marks the cameo as a small sample on its radars and Outputs", () => {
@@ -346,7 +346,7 @@ describe("H1: the profile's percentiles use the fixed minutes floor", () => {
     );
     // Starter's two Last Completed Season radars (their legends) and its Last
     // Season Output panel (his column) — never the regular's.
-    const marks = getAllByLabelText(/^Small sample — 136 min/);
+    const marks = getAllByLabelText(/^Small sample: 136 min/);
     expect(marks.length).toBe(3);
     for (const m of marks) expect(m.closest(".cmp-legend-item, .cmp-outputs-player")!.textContent).toContain("Davies");
   });
@@ -379,7 +379,7 @@ describe("In the profile, only seasons of 450+ minutes count toward Historic Ave
     for (const [season, pattern] of [["2022/23", /^2022\/23/], ["2024/25", /^2024\/25/]] as const) {
       const row = getByText(pattern).closest("tr")!;
       expect(row.textContent).toContain(`${season} †`);
-      expect(row.getAttribute("title")).toBe("Under 450 minutes this season — a small sample, not counted in the average above");
+      expect(row.getAttribute("title")).toBe("Under 450 minutes this season: a small sample, not counted in the average above");
     }
   });
 });
@@ -691,7 +691,7 @@ describe("Historic Average counts only 450+ minute seasons in the fixed-floor se
       </MemoryRouter>,
     );
     fireEvent.click(getByRole("button", { name: "Historic Average" }));
-    expect(getAllByLabelText(/^Small sample — no season in the last 4 with 450\+ minutes/).length).toBeGreaterThan(0);
+    expect(getAllByLabelText(/^Small sample. No season in the last 4 with 450\+ minutes/).length).toBeGreaterThan(0);
     expect(queryByText(/No data for Saliba/)).toBeNull();
   });
 

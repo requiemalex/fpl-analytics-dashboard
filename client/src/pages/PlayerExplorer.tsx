@@ -558,7 +558,7 @@ export function PlayerExplorer() {
           </div>
           <IconChipButton
             icon={<FilterIcon />}
-            label="Clear every filter — the search box and every column filter"
+            label="Clear every filter: the search box and every column filter"
             onClick={() => {
               setSearch("");
               columnFiltersState.resetAllFilters();
@@ -580,7 +580,7 @@ export function PlayerExplorer() {
 
       {advancedFieldAvailability && !advancedFieldAvailability.defensive_contribution && (
         <div className="banner info">
-          Defensive Contributions is not present on this build of the live API — affected columns will show —. See the User Guide's
+          Defensive Contributions is not present on this build of the live API, so affected columns show "—". See the User Guide's
           metric reference for details.
         </div>
       )}
@@ -729,7 +729,7 @@ export function PlayerExplorer() {
                       // A number filter fails every "—", and every historic figure is "—" until the build finishes.
                       <div className="empty-state">
                         <h3>Building the historic dataset…</h3>
-                        <p>This runs once per session and can take up to a minute — it'll be quick after that.</p>
+                        <p>This runs once per session and can take up to a minute; after that it's quick.</p>
                       </div>
                     ) : (
                       <div className="empty-state">

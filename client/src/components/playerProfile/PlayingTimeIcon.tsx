@@ -35,7 +35,7 @@ export function PlayingTimeIcon({ averageMinutes, matches }: { averageMinutes: n
     <div className="playing-time-row">
       <div
         className={`playing-time-icon tier-${tier}`}
-        title={`${tierLabel} — ${fmtDecimal(averageMinutes, 0)} min average across ${matches} match${matches === 1 ? "" : "es"} this season`}
+        title={`${tierLabel}: ${fmtDecimal(averageMinutes, 0)} min average across ${matches} match${matches === 1 ? "" : "es"} this season`}
         aria-label={`${tierLabel}, averaging ${fmtDecimal(averageMinutes, 0)} minutes per match this season`}
       >
         <svg width="56" height="56" viewBox="0 0 56 56">

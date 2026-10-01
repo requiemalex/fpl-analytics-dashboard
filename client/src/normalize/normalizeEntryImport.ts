@@ -30,13 +30,13 @@ export function normalizeEntryImport(
 
   const rawPicks = picks.picks ?? [];
   if (rawPicks.length === 0) {
-    warnings.push(`FPL returned no picks for Gameweek ${eventId} — the team may not have been entered yet that week.`);
+    warnings.push(`FPL returned no picks for Gameweek ${eventId}. The team may not have been entered yet that week.`);
   }
 
   for (const pick of rawPicks) {
     const player = livePlayersById.get(pick.element);
     if (!player) {
-      warnings.push(`Pick for player id ${pick.element} couldn't be matched to a current player — skipped (they may have left the league).`);
+      warnings.push(`Pick for player id ${pick.element} couldn't be matched to a current player and was skipped (they may have left the league).`);
       continue;
     }
     squad.playerIds.push(player.id);
@@ -49,14 +49,14 @@ export function normalizeEntryImport(
   }
 
   if (squad.playerIds.length !== 15) {
-    warnings.push(`Imported ${squad.playerIds.length} of 15 players — the rest either didn't match a current player or weren't in this gameweek's picks.`);
+    warnings.push(`Imported ${squad.playerIds.length} of 15 players. The rest either didn't match a current player or weren't in this gameweek's picks.`);
   }
 
   const usedChips: UsedChip[] = [];
   for (const c of history.chips ?? []) {
     const normalizedName = c.name.toLowerCase();
     if (!KNOWN_CHIPS.includes(normalizedName as ChipWindow["chip"])) {
-      warnings.push(`FPL reported a chip named "${c.name}" this app doesn't recognise — it won't be reflected in Chip Planner's availability.`);
+      warnings.push(`FPL reported a chip named "${c.name}" this app doesn't recognise, so it won't be reflected in Chip Planner's availability.`);
       continue;
     }
     usedChips.push({ chip: normalizedName as ChipWindow["chip"], event: c.event });

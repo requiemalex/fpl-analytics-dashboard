@@ -567,7 +567,7 @@ export function PlayerDetailOverlay() {
         )}
         {noDataForMode && (
           <div className="banner info" style={{ marginBottom: 16 }}>
-            No data for {player.name} in this mode — every field below shows {DASH}.
+            No data for {player.name} in this mode, so every field below shows {DASH}.
             {modesWithData.length > 0 && ` Try ${modesWithData.join(" or ")}.`} Live Data and Points History below are unaffected.
           </div>
         )}
@@ -580,7 +580,7 @@ export function PlayerDetailOverlay() {
             {radarGroups.map((group) => (
               <div className="card" key={group.label || "combined"}>
                 <div className="card-title">
-                  Percentile Radar{group.label ? ` — ${group.label}` : ` — ${player.position}`}
+                  Percentile Radar{group.label ? ` · ${group.label}` : ` · ${player.position}`}
                   {smallSample && <SmallSampleBadge note={smallSampleNote(resolvedPlayer.minutes, analysisMode)} />}
                 </div>
                 <PercentileRadarChart data={group.data} smallSample={smallSample} />
@@ -705,7 +705,7 @@ export function PlayerDetailOverlay() {
             </p>
           )}
           {history.status === "ready" && combinedSeasonHistory.length === 0 && (
-            <p className="page-subtitle">No season data — {player.name} doesn't appear in the FPL API before this season.</p>
+            <p className="page-subtitle">No season data: {player.name} doesn't appear in the FPL API before this season.</p>
           )}
           {history.status === "ready" && combinedSeasonHistory.length > 0 && historicReferenceSeason === null && (historicStatus === "idle" || historicStatus === "loading") && (
             <p className="page-subtitle">Determining the historic-average window (uses the same historic dataset as the rest of the app)…</p>
@@ -852,11 +852,11 @@ export function PlayerDetailOverlay() {
                                   style={isLight || outsideWindow || underFloor ? { color: "var(--text-muted)" } : undefined}
                                   title={
                                     outsideWindow
-                                      ? `Outside the ${HISTORIC_WINDOW_SEASONS}-season averaging window — not counted in the average above`
+                                      ? `Outside the ${HISTORIC_WINDOW_SEASONS}-season averaging window, so not counted in the average above`
                                       : underFloor
-                                        ? `Under ${FIXED_FLOOR_MINUTES} minutes this season — a small sample, not counted in the average above`
+                                        ? `Under ${FIXED_FLOOR_MINUTES} minutes this season: a small sample, not counted in the average above`
                                         : isLight
-                                          ? "Light season (fewer minutes than usual — e.g. injury) — still counted in the average above"
+                                          ? "Light season (fewer minutes than usual, e.g. injury), still counted in the average above"
                                           : undefined
                                   }
                                 >

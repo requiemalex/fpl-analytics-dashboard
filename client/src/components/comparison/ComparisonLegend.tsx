@@ -17,7 +17,7 @@ export function ComparisonLegend({ entries }: { entries: LegendEntry[] }) {
       {entries.map(({ player, color, smallSampleNote, absent }) => {
         const muted = absent || !!smallSampleNote;
         return (
-          <span key={player.id} className={`cmp-legend-item${muted ? " muted" : ""}`} title={absent ? `${player.name} — no data here` : undefined}>
+          <span key={player.id} className={`cmp-legend-item${muted ? " muted" : ""}`} title={absent ? `${player.name}: no data here` : undefined}>
             <span className="cmp-legend-swatch" style={{ background: color }} />
             {player.name}
             {smallSampleNote && <SmallSampleBadge note={smallSampleNote} />}

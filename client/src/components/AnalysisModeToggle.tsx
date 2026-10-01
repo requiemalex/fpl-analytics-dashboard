@@ -37,8 +37,8 @@ export function AnalysisModeToggle({
   const { historicStatus, historicErrorMessage, historicSkippedPlayerIds, refreshHistoricData, historicRefreshing } = useAppState();
 
   return (
-    <div className="card" style={{ marginBottom: 22 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+    <div className="card" style={{ marginBottom: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
         <div style={{ display: "flex", gap: 6 }}>
           {OPTIONS.map((o) => (
             <button
@@ -58,7 +58,7 @@ export function AnalysisModeToggle({
 
         {mode !== "live" && historicStatus === "loading" && (
           <span className="page-subtitle" style={{ margin: 0 }}>
-            Building the historic dataset — this can take up to a minute the first time, then it's cached.
+            Building the historic dataset. This can take up to a minute the first time, then it's cached.
           </span>
         )}
         {mode !== "live" && historicStatus === "error" && (
@@ -77,7 +77,7 @@ export function AnalysisModeToggle({
       </div>
       {mode !== "live" && historicStatus === "ready" && historicSkippedPlayerIds.length > 0 && (
         <p className="page-subtitle" style={{ marginTop: 6, marginBottom: 0 }}>
-          {historicSkippedPlayerIds.length} player(s) had no historic data available this session (a transient fetch issue) — everyone else
+          {historicSkippedPlayerIds.length} player(s) had no historic data available this session (a transient fetch issue). Everyone else
           is unaffected.
         </p>
       )}

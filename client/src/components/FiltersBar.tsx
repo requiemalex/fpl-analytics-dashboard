@@ -6,7 +6,7 @@ import { ResetIcon } from "./IconToolbar";
 import { MinutesSlider } from "./MenuControls";
 
 const MINUTES_STEP = 90;
-const BYPASSED_HINT = "Not applied in Current Season mode — everyone has low or zero minutes until real gameweeks accumulate";
+const BYPASSED_HINT = "Not applied in Current Season mode: everyone has low or zero minutes until real gameweeks accumulate";
 
 /**
  * Fully controlled — no page-independent state of its own. Every page

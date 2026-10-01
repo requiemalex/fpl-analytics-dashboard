@@ -39,7 +39,7 @@ import {
   type DashboardGraphConfig,
 } from "../state/useDashboardGraphs";
 import { useSavedDashboardViews, isDefaultViewSelected, MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE, type SavedDashboardView } from "../state/useSavedDashboardViews";
-import { fmtDate, fmtTimeAgo } from "../utils/format";
+import { fmtDate } from "../utils/format";
 import { useEscapeLayer } from "../state/useEscapeLayer";
 import type { NormalizedPlayer } from "../types/normalized";
 
@@ -52,8 +52,8 @@ const ORDER_SEGMENTS: SegmentOption<TileDirection>[] = [
   { value: "asc", label: "Lowest First" },
 ];
 const GRAPH_TYPE_SEGMENTS: SegmentOption<DashboardGraphType>[] = [
-  { value: "scatter", label: "Scatter Plot", title: "Scatter Plot — one metric against another" },
-  { value: "bar", label: "Bar Chart", title: "Bar Chart — the top 15 by one metric" },
+  { value: "scatter", label: "Scatter Plot", title: "Scatter Plot: one metric against another" },
+  { value: "bar", label: "Bar Chart", title: "Bar Chart: the top 15 by one metric" },
 ];
 
 /** Every mode a tile can be built from — used to pre-compute one resolved/eligible/aggregate bucket per mode (see below), since tiles now each carry their own data view rather than sharing one page-wide mode. */
@@ -170,7 +170,7 @@ export function gameweekDisplay(
     const current = gameweekState.event;
     const next = events.find((e) => e.isNext);
     if (current.finished) {
-      if (!next) return { heading: current.name, sub: "Finished — awaiting next gameweek", progress: null };
+      if (!next) return { heading: current.name, sub: "Finished, awaiting the next gameweek", progress: null };
       return { heading: next.name, sub: `Deadline ${fmtDate(next.deadlineTime)}`, progress: timeProgressPercent(current.deadlineTime, next.deadlineTime) };
     }
     if (!next) return { heading: current.name, sub: "In progress", progress: null };
@@ -211,29 +211,7 @@ function timeProgressPercent(startISO: string, endISO: string): number | null {
   return Math.min(100, Math.max(0, ((Date.now() - start) / (end - start)) * 100));
 }
 
-function CalendarIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="summary-card-icon">
-      <rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
-      <line x1="2" y1="6.5" x2="14" y2="6.5" stroke="currentColor" strokeWidth="1.3" />
-      <line x1="5" y1="1.5" x2="5" y2="4.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-      <line x1="11" y1="1.5" x2="11" y2="4.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function UsersIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="summary-card-icon">
-      <circle cx="6" cy="5.5" r="2.3" stroke="currentColor" strokeWidth="1.3" />
-      <path d="M1.6 14c0-2.4 2-4 4.4-4s4.4 1.6 4.4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-      <circle cx="11.6" cy="6.2" r="1.8" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M10.3 9.3c1.9-.2 3.7.9 4 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-/** Header view toggle — same two-person mark as UsersIcon above (the "Players Tracked" summary tile), just without that component's summary-card-icon styling (margin/colour meant for a card corner, not a button). */
+/** Header view toggle: a two-person mark for "Players". */
 function PlayersViewIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -255,15 +233,6 @@ function TeamsViewIcon() {
         strokeWidth="1.3"
         strokeLinejoin="round"
       />
-    </svg>
-  );
-}
-
-function ClockIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="summary-card-icon">
-      <circle cx="8" cy="8" r="6.2" stroke="currentColor" strokeWidth="1.3" />
-      <path d="M8 4.6V8l2.6 1.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -306,7 +275,6 @@ export function Dashboard() {
     teams,
     gameweekState,
     events,
-    lastUpdated,
     historicProfiles,
     historicStatus,
     historicErrorMessage,
@@ -556,7 +524,7 @@ export function Dashboard() {
       return;
     }
     if (visibleSavedViews.length >= MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE) {
-      setCreateViewError(`You already have ${MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE} ${tileView} views, Starter included — the maximum allowed. Delete one first.`);
+      setCreateViewError(`You already have ${MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE} ${tileView} views, Starter included, which is the maximum. Delete one first.`);
       return;
     }
     const id = savedDashboardViews.save(tileView, name, [], []);
@@ -570,12 +538,12 @@ export function Dashboard() {
   function handleLoadView(view: SavedDashboardView): boolean {
     const otherScopeTileCount = tilesState.tiles.filter((t) => t.scope !== tileView).length;
     if (otherScopeTileCount + view.tiles.length > MAX_SUMMARY_TILES) {
-      setLoadViewError(`Loading "${view.name}" would push you past the ${MAX_SUMMARY_TILES}-tile limit (counted across Players and Teams) — remove some tiles first.`);
+      setLoadViewError(`Loading "${view.name}" would push you past the ${MAX_SUMMARY_TILES}-tile limit (counted across Players and Teams). Remove some tiles first.`);
       return false;
     }
     const otherScopeGraphCount = graphsState.graphs.filter((g) => g.scope !== tileView).length;
     if (otherScopeGraphCount + view.graphs.length > MAX_DASHBOARD_GRAPHS) {
-      setLoadViewError(`Loading "${view.name}" would push you past the ${MAX_DASHBOARD_GRAPHS}-graph limit (counted across Players and Teams) — remove a graph first.`);
+      setLoadViewError(`Loading "${view.name}" would push you past the ${MAX_DASHBOARD_GRAPHS}-graph limit (counted across Players and Teams). Remove a graph first.`);
       return false;
     }
     setLoadViewError(null);
@@ -840,7 +808,7 @@ export function Dashboard() {
       const here = tilesState.tiles.filter((t) => t.scope === tileView).length;
       const other = tilesState.tiles.length - here;
       setNewTileError(
-        `You already have ${MAX_SUMMARY_TILES} tiles across Players and Teams (${here} here, ${other} in ${tileView === "player" ? "Teams" : "Players"}) — the maximum allowed. Remove one first.`,
+        `You already have ${MAX_SUMMARY_TILES} tiles across Players and Teams (${here} here, ${other} in ${tileView === "player" ? "Teams" : "Players"}), which is the maximum. Remove one first.`,
       );
       return;
     }
@@ -977,7 +945,7 @@ export function Dashboard() {
       const here = graphsState.graphs.filter((g) => g.scope === tileView).length;
       const other = graphsState.graphs.length - here;
       setNewGraphError(
-        `You already have ${MAX_DASHBOARD_GRAPHS} graphs across Players and Teams (${here} here, ${other} in ${tileView === "player" ? "Teams" : "Players"}) — the maximum allowed. Remove one first.`,
+        `You already have ${MAX_DASHBOARD_GRAPHS} graphs across Players and Teams (${here} here, ${other} in ${tileView === "player" ? "Teams" : "Players"}), which is the maximum. Remove one first.`,
       );
       return;
     }
@@ -1030,7 +998,7 @@ export function Dashboard() {
             <button
               type="button"
               className={`chip chip-icon${tileView === "player" ? " active" : ""}`}
-              title="Players — track player-based leaderboards"
+              title="Players: player leaderboards and graphs"
               aria-label="Players"
               aria-pressed={tileView === "player"}
               onClick={() => changeTileView("player")}
@@ -1040,7 +1008,7 @@ export function Dashboard() {
             <button
               type="button"
               className={`chip chip-icon${tileView === "team" ? " active" : ""}`}
-              title="Teams — track team-based leaderboards"
+              title="Teams: club leaderboards and graphs"
               aria-label="Teams"
               aria-pressed={tileView === "team"}
               onClick={() => changeTileView("team")}
@@ -1051,38 +1019,20 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="card-grid">
-        <div className="card">
-          <CalendarIcon />
-          <div className="summary-card-label">Gameweek Status</div>
-          <div className="summary-card-value" style={{ fontSize: 17 }}>
-            {gwDisplay.heading}
+      <div className="gw-strip">
+        <span className="gw-strip-heading">{gwDisplay.heading}</span>
+        <span className="gw-strip-sub">{gwDisplay.sub}</span>
+        {gwDisplay.progress !== null && (
+          <div className="gw-strip-track" title={`${gwDisplay.progress.toFixed(0)}% of the way to this deadline`}>
+            <div className="gw-strip-fill" style={{ width: `${gwDisplay.progress}%` }} />
           </div>
-          <div className="summary-card-sub">{gwDisplay.sub}</div>
-          {gwDisplay.progress !== null && (
-            <div className="summary-card-progress-track" title={`${gwDisplay.progress.toFixed(0)}% of the way to this deadline`}>
-              <div className="summary-card-progress-fill" style={{ width: `${gwDisplay.progress}%` }} />
-            </div>
-          )}
-        </div>
-        <div className="card">
-          <UsersIcon />
-          <div className="summary-card-label">Players Tracked</div>
-          <div className="summary-card-value">{players.length.toLocaleString("en-GB")}</div>
-        </div>
-        <div className="card">
-          <ClockIcon />
-          <div className="summary-card-label">Data Last Updated</div>
-          <div className="summary-card-value" style={{ fontSize: 17 }}>
-            {fmtTimeAgo(lastUpdated)}
-          </div>
-        </div>
+        )}
       </div>
 
       {usesHistoricData && historicStatus === "loading" && (
         <div className="empty-state">
           <h3>Building the historic dataset…</h3>
-          <p>This runs once per session and can take up to a minute — it'll be quick after that. Needed because at least one tile or graph uses Last Completed Season, Historic Average, or team figures.</p>
+          <p>This runs once per session and can take up to a minute; after that it's quick. Needed because at least one tile or graph uses Last Completed Season, Historic Average, or team figures.</p>
         </div>
       )}
       {usesHistoricData && historicStatus === "error" && (
@@ -1095,7 +1045,7 @@ export function Dashboard() {
       )}
       {usesHistoricData && historicStatus === "ready" && historicSkippedPlayerIds.length > 0 && (
         <p className="page-subtitle">
-          {historicSkippedPlayerIds.length} player(s) had no historic data available this session (a transient fetch issue) — everyone else
+          {historicSkippedPlayerIds.length} player(s) had no historic data available this session (a transient fetch issue). Everyone else
           is unaffected.
         </p>
       )}
@@ -1272,8 +1222,8 @@ export function Dashboard() {
                 <SegmentedControl
                   label="Players"
                   options={[
-                    { value: "filters", title: "Filters — narrow by position, team, and minutes", icon: <FilterIcon /> },
-                    { value: "players", title: "Player Search — track up to 5 specific players", icon: <PlayerSearchIcon /> },
+                    { value: "filters", title: "Filters: narrow by position, team and minutes", icon: <FilterIcon /> },
+                    { value: "players", title: "Player Search: track up to 5 specific players", icon: <PlayerSearchIcon /> },
                   ]}
                   value={newTilePlayerMode}
                   onChange={togglePlayerTileMode}
@@ -1329,8 +1279,8 @@ export function Dashboard() {
                 <SegmentedControl
                   label="Teams"
                   options={[
-                    { value: "all", title: "All Teams — rank every team", icon: <AllTeamsIcon /> },
-                    { value: "selected", title: "Team Selection — track up to 5 specific teams", icon: <TeamSelectionIcon /> },
+                    { value: "all", title: "All Teams: rank every team", icon: <AllTeamsIcon /> },
+                    { value: "selected", title: "Team Selection: track up to 5 specific teams", icon: <TeamSelectionIcon /> },
                   ]}
                   value={newTileTeamMode}
                   onChange={toggleTeamTileMode}
@@ -1448,8 +1398,8 @@ export function Dashboard() {
                 <SegmentedControl
                   label="Players"
                   options={[
-                    { value: "filters", title: "Filters — narrow by position, team, and minutes", icon: <FilterIcon /> },
-                    { value: "players", title: "Player Search — plot up to 5 specific players", icon: <PlayerSearchIcon /> },
+                    { value: "filters", title: "Filters: narrow by position, team and minutes", icon: <FilterIcon /> },
+                    { value: "players", title: "Player Search: plot up to 5 specific players", icon: <PlayerSearchIcon /> },
                   ]}
                   value={newGraphPlayerMode}
                   onChange={togglePlayerGraphMode}
@@ -1505,8 +1455,8 @@ export function Dashboard() {
                 <SegmentedControl
                   label="Teams"
                   options={[
-                    { value: "all", title: "All Teams — plot every team", icon: <AllTeamsIcon /> },
-                    { value: "selected", title: "Team Selection — plot up to 5 specific teams", icon: <TeamSelectionIcon /> },
+                    { value: "all", title: "All Teams: plot every team", icon: <AllTeamsIcon /> },
+                    { value: "selected", title: "Team Selection: plot up to 5 specific teams", icon: <TeamSelectionIcon /> },
                   ]}
                   value={newGraphTeamMode}
                   onChange={toggleTeamGraphMode}

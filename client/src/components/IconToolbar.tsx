@@ -33,11 +33,24 @@ export function ColumnsIcon() {
   );
 }
 
-export function SparkleIcon() {
+/** Predictive columns: a solid line of past form running on into a dashed projection. */
+export function ForecastIcon() {
   return (
-    <svg width="17" height="17" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <path d="M8 1.5c.35 2.4 1.1 3.6 3.5 4C9.1 5.9 8.35 7.1 8 9.5c-.35-2.4-1.1-3.6-3.5-4 2.4-.4 3.15-1.6 3.5-4Z" />
-      <path d="M12.6 9.2c.2 1.35.6 2 1.9 2.2-1.3.2-1.7.85-1.9 2.2-.2-1.35-.6-2-1.9-2.2 1.3-.2 1.7-.85 1.9-2.2Z" />
+    <svg width="17" height="17" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M1.8 11.5 4.6 8.6l2.2 1.6 2.4-3.4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9.2 6.8 14.2 3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeDasharray="1.2 1.9" />
+      <path d="M1.8 14h12.4" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function CalendarIcon({ size = 17 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+      <line x1="2" y1="6.5" x2="14" y2="6.5" stroke="currentColor" strokeWidth="1.3" />
+      <line x1="5" y1="1.5" x2="5" y2="4.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <line x1="11" y1="1.5" x2="11" y2="4.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
     </svg>
   );
 }
@@ -150,7 +163,7 @@ export function CardEditRemoveButtons({
         <button
           type="button"
           className="chip chip-icon"
-          title={`Edit ${noun} — ${editHint ?? `change its name, statistic${noun === "graph" ? "s" : ""}, data view or filters`}`}
+          title={`Edit ${noun}: ${editHint ?? `change its name, statistic${noun === "graph" ? "s" : ""}, data view or filters`}`}
           aria-label={`Edit ${noun}`}
           onClick={onEdit}
         >
