@@ -1713,7 +1713,9 @@ select:focus {
 }
 
 /* Small count bubble in an icon button's corner (visible-column count,
-   etc.) — same role the old "Columns (11)" text suffix played. */
+   etc.) — same role the old "Columns (11)" text suffix played. Kept in
+   Inter 600 (the app's earlier body face) because its digits read better
+   at this size than Plex Sans; index.html loads just that one weight. */
 .chip-icon-badge {
   position: absolute;
   top: -6px;
@@ -1724,8 +1726,9 @@ select:focus {
   border-radius: 999px;
   background: var(--accent-positive);
   color: #06170f;
+  font-family: "Inter", var(--font-body);
   font-size: 9.5px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 16px;
   text-align: center;
   border: 1.5px solid var(--surface);
