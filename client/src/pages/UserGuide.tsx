@@ -28,27 +28,34 @@ const FIELD_LABELS: Record<string, string> = {
 };
 
 /**
- * One source of truth for section nav and numbering: the "On this page"
- * chips and each section's own heading both read from this, so they can't
- * drift out of sync with each other.
+ * One source of truth for section nav, numbering and colour: the "On this
+ * page" chips and each section's own heading both read from this, so they
+ * can't drift out of sync with each other. Colours are the app's existing
+ * accent tokens; only Known limitations gets the warning colour.
  */
 const SECTION_META = [
-  { id: "overview", label: "Overview" },
-  { id: "modes", label: "Analysis modes" },
-  { id: "dashboard", label: "Dashboard" },
-  { id: "player-explorer", label: "Player Explorer" },
-  { id: "team-building", label: "Team Building" },
-  { id: "player-comparison", label: "Player Comparison" },
-  { id: "teams", label: "Team Explorer" },
-  { id: "player-profile", label: "Player Profile" },
-  { id: "limitations", label: "Data sourcing & known limitations" },
-  { id: "metric-reference", label: "Metric reference" },
+  { id: "overview", label: "Overview", accent: "--accent-positive" },
+  { id: "modes", label: "Analysis modes", accent: "--accent-focus" },
+  { id: "dashboard", label: "Dashboard", accent: "--accent-value" },
+  { id: "player-explorer", label: "Player Explorer", accent: "--accent-positive" },
+  { id: "team-building", label: "Team Building", accent: "--accent-focus" },
+  { id: "player-comparison", label: "Player Comparison", accent: "--accent-value" },
+  { id: "teams", label: "Team Explorer", accent: "--accent-positive" },
+  { id: "player-profile", label: "Player Profile", accent: "--accent-focus" },
+  { id: "limitations", label: "Data sourcing & known limitations", accent: "--accent-negative" },
+  { id: "metric-reference", label: "Metric reference", accent: "--accent-value" },
 ];
 
+/** Sets `--guide-accent`, which the heading, number badge, sub-headings and nav chip read. */
+function accentStyle(accent: string | undefined): React.CSSProperties | undefined {
+  return accent ? ({ "--guide-accent": `var(${accent})` } as React.CSSProperties) : undefined;
+}
+
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
-  const number = SECTION_META.findIndex((s) => s.id === id) + 1;
+  const index = SECTION_META.findIndex((s) => s.id === id);
+  const number = index + 1;
   return (
-    <div className="card guide-section" id={id}>
+    <div className="card guide-section" id={id} style={accentStyle(SECTION_META[index]?.accent)}>
       <h2 className="guide-section-title">
         <span className="guide-section-number">{String(number).padStart(2, "0")}</span>
         {title}
@@ -91,7 +98,7 @@ export function UserGuide() {
         <div className="card-title">On this page</div>
         <div className="chip-row">
           {SECTION_META.map((c) => (
-            <a key={c.id} className="chip" href={`#${c.id}`} style={{ textDecoration: "none" }}>
+            <a key={c.id} className="chip guide-nav-chip" href={`#${c.id}`} style={accentStyle(c.accent)}>
               {c.label}
             </a>
           ))}

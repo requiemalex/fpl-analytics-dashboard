@@ -2102,26 +2102,48 @@ select:focus {
   color: var(--accent-value);
 }
 
-/* User Guide sections: plain cards, numbered in the mono face. */
+/* User Guide sections: each has its own accent colour (--guide-accent, set
+   per section from SECTION_META in UserGuide.tsx) on the heading, its
+   numbered badge, its sub-headings and its "On this page" chip. Tints are
+   derived with color-mix(), the same way the position badges are. */
 .guide-section {
+  --guide-accent: var(--text-muted);
   margin-bottom: var(--space-6);
   scroll-margin-top: var(--space-4);
+  border-top: 2px solid color-mix(in srgb, var(--guide-accent) 55%, transparent);
 }
 .guide-section-title {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-3);
   font-size: 16px;
+  color: var(--guide-accent);
   margin-bottom: var(--space-3);
 }
 .guide-section-number {
   font-family: var(--font-mono);
   font-size: 12px;
-  font-weight: 500;
-  color: var(--text-muted);
+  font-weight: 600;
+  line-height: 1;
+  padding: 4px 7px;
+  border-radius: var(--radius-sm);
+  color: var(--guide-accent);
+  background: color-mix(in srgb, var(--guide-accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--guide-accent) 35%, var(--bg));
 }
 .guide-subheading {
   font-size: 13px;
   color: var(--text-primary);
   margin-bottom: var(--space-2);
+  padding-left: var(--space-2);
+  border-left: 3px solid var(--guide-accent);
+}
+.guide-nav-chip {
+  text-decoration: none;
+  color: var(--guide-accent);
+  border-color: color-mix(in srgb, var(--guide-accent) 35%, var(--bg));
+  background: color-mix(in srgb, var(--guide-accent) 10%, transparent);
+}
+.guide-nav-chip:hover {
+  background: color-mix(in srgb, var(--guide-accent) 20%, transparent);
 }
