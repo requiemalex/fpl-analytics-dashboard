@@ -122,6 +122,18 @@ export function TrendLineIcon() {
   );
 }
 
+/** A page with ruled lines and a folded corner — the notepad. */
+export function NotepadIcon({ size = 15 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M3 2.2h7.2L13 5v8.8H3z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M10 2.2V5.2h3" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+      <line x1="5.2" y1="8" x2="10.8" y2="8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <line x1="5.2" y1="10.7" x2="9.4" y2="10.7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 /** A plus — the Add card at the end of a Dashboard or Player Comparison grid. */
 export function PlusIcon({ size = 14 }: { size?: number }) {
   return (

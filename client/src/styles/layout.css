@@ -216,6 +216,33 @@
   }
 }
 
+/* Notepad toggle, beside Refresh: outlined rather than filled so the one
+   solid button in the topbar stays Refresh. Lit while the notepad is open. */
+.topbar-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  margin-left: calc(var(--space-2) - 16px); /* sit close to Refresh, not a full .topbar-left gap away */
+}
+.topbar-icon-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+.topbar-icon-btn.active {
+  border-color: var(--accent-positive);
+  background: var(--accent-positive-dim);
+  color: var(--text-primary);
+}
+
 .status-dot {
   width: 7px;
   height: 7px;

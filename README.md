@@ -603,6 +603,24 @@ longest word (`TEAM_MIN_COLUMN_WIDTHS`).
   side that rarely has to defend can sit low on that one axis while topping
   the other three. Intended (the owner's decision, audit 2026-09-25 V1).
 
+**Notepad** (`components/Notepad.tsx`, `state/useNotepad.ts`) — not a page:
+a panel mounted once in `AppShell`, so it opens over any page, profile
+included.
+- The backtick key (`` ` ``, `NOTEPAD_KEY`) toggles it from anywhere, even
+  while typing in a field or in the notes themselves (so a backtick can't be
+  typed into a note); Ctrl/Alt/Cmd+backtick and key-repeat are ignored. The
+  topbar button beside Refresh does the same, and Escape closes it through
+  `useEscapeLayer`, so it closes in turn with profiles and dialogs.
+- It slides in from the right below the topbar (the desktop window's
+  minimize/close stay reachable), at z-index 45: over a profile (40), under
+  confirm dialogs (50). The rest of the screen is dimmed but the dim lets
+  clicks and scrolling through, so the page behind can still be read and
+  used while writing. No focus trap, for the same reason.
+- Notes save to localStorage on every change. Tabs can be added, renamed
+  (double-click, or the edit icon) and deleted; deleting a tab that has
+  text asks first. Deleting every tab is kept as an empty notepad, not
+  reseeded with a fresh Notes tab.
+
 ### Team Building — the one predictive section
 
 Everything else in the app describes what happened. Team Building predicts,
@@ -660,6 +678,7 @@ server storage. Each store wraps its data as `{ version, data }` via
 | `fpl-dashboard:comparison:views:v1` | `useComparisonViews` (views embed their cards) |
 | `fpl-dashboard:comparison:selected-view:v1` | `useComparisonViews` |
 | `fpl-dashboard:saved-squads:v1` | `useSavedSquads` |
+| `fpl-dashboard:notepad:v1` | `useNotepad` (tabs, their text, the active tab) |
 
 **Any change to what a store holds** — a new field, a new default, a
 meaning change to an existing field — needs a `STORAGE_VERSION` bump **and**

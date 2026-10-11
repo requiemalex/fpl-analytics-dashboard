@@ -42,6 +42,7 @@ const SECTION_META = [
   { id: "player-comparison", label: "Player Comparison", accent: "--accent-value" },
   { id: "teams", label: "Team Explorer", accent: "--accent-positive" },
   { id: "player-profile", label: "Player Profile", accent: "--accent-focus" },
+  { id: "notepad", label: "Notepad", accent: "--accent-value" },
   { id: "limitations", label: "Data sourcing & known limitations", accent: "--accent-negative" },
   { id: "metric-reference", label: "Metric reference", accent: "--accent-value" },
 ];
@@ -402,6 +403,22 @@ export function UserGuide() {
           (90 for this one): cheaper is greener. Past seasons compare with players still in FPL today, and a season of his under
           those minutes has no colour.
         </p>
+      </Section>
+
+      <Section id="notepad" title="Notepad">
+        <p className="page-subtitle" style={{ marginTop: 0 }}>
+          A place to jot down ideas, players to watch and figures as you build a team. Press the <kbd>`</kbd> key (top left of the
+          keyboard, under Esc) on any page to slide it in from the right; press it again, or Esc, to put it away. The notepad button
+          beside Refresh does the same. The page behind stays visible, just dimmed, and you can still scroll and click it while the
+          notepad is open, so you can read numbers off a table as you write.
+        </p>
+        <p className="page-subtitle">
+          Keep separate tabs for separate jobs (a wildcard plan, differentials, transfers for next week): <strong>+</strong> adds a
+          tab, double-click a tab (or use the pencil) to rename it, and the bin deletes the tab you're on, asking first if it has
+          notes in it. Everything saves as you type and is still there next time you open the app, on this computer only. Because
+          the <kbd>`</kbd> key opens and closes the notepad, it can't be typed into a note.
+        </p>
+        <Try>press <kbd>`</kbd> now, type a note, and press <kbd>`</kbd> again.</Try>
       </Section>
 
       <Section id="limitations" title="Data sourcing & known limitations">

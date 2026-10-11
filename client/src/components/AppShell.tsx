@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { fmtTimeAgo, fmtDate, fmtDateShort } from "../utils/format";
-import { CalendarIcon } from "./IconToolbar";
+import { CalendarIcon, NotepadIcon } from "./IconToolbar";
+import { Notepad, NOTEPAD_KEY, useNotepadHotkey } from "./Notepad";
 
 type NavEntry =
   | { type: "link"; to: string; label: string }
@@ -100,6 +101,10 @@ function RefreshIcon() {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { status, isStale, lastUpdated, refreshing, refresh, players, errorMessage, gameweekState, events } = useAppState();
   const gwInfo = getGameweekInfo(gameweekState, events);
+  const [notepadOpen, setNotepadOpen] = useState(false);
+  const toggleNotepad = useCallback(() => setNotepadOpen((o) => !o), []);
+  const closeNotepad = useCallback(() => setNotepadOpen(false), []);
+  useNotepadHotkey(toggleNotepad);
   const statusTitle = status === "error" ? `Data error: ${errorMessage ?? "unknown"}` : isStale ? "Stale data: showing the last successful fetch" : `Live, updated ${fmtTimeAgo(lastUpdated)}`;
 
   return (
@@ -161,6 +166,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           >
             <RefreshIcon />
           </button>
+          <button
+            type="button"
+            className={`topbar-icon-btn${notepadOpen ? " active" : ""}`}
+            onClick={toggleNotepad}
+            title={`${notepadOpen ? "Close" : "Open"} notepad (${NOTEPAD_KEY})`}
+            aria-label={notepadOpen ? "Close notepad" : "Open notepad"}
+            aria-pressed={notepadOpen}
+          >
+            <NotepadIcon />
+          </button>
         </div>
         <WindowControls />
       </header>
@@ -174,6 +189,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {errorMessage && status !== "error" && <div className="banner error">Refresh failed: {errorMessage}</div>}
         {children}
       </main>
+
+      <Notepad open={notepadOpen} onClose={closeNotepad} />
     </div>
   );
 }
