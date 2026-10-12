@@ -2,15 +2,23 @@ import React from "react";
 
 /**
  * Page-section heading (Dashboard's Summary Tiles / Graphs, Player
- * Comparison's Charts / Outputs / Trends): a tinted icon badge, the title,
+ * Comparison's Saved Views / Charts / Outputs / Trends): a tinted icon badge, the title,
  * then a hairline running to the edge that doubles as the section divider.
  * Icons share IconToolbar's 16-unit grid and stroke weights so they read
  * as one set with the app's chip buttons.
  */
 
-export type SectionIcon = "tiles" | "graphs" | "radar" | "outputs" | "trends";
+export type SectionIcon = "views" | "tiles" | "graphs" | "radar" | "outputs" | "trends";
 
 const ICONS: Record<SectionIcon, React.ReactNode> = {
+  // A view (window, as on Create View) stacked over another — saved layouts.
+  views: (
+    <>
+      <path d="M4.5 2.5h8a1.2 1.2 0 0 1 1.2 1.2v6.6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="2.3" y="5" width="9.4" height="8.5" rx="1.2" stroke="currentColor" strokeWidth="1.3" />
+      <line x1="2.3" y1="7.6" x2="11.7" y2="7.6" stroke="currentColor" strokeWidth="1.1" />
+    </>
+  ),
   // 2×2 grid of tiles.
   tiles: (
     <>

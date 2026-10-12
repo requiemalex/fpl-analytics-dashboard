@@ -430,35 +430,35 @@ export function PlayerComparison() {
         </p>
       )}
 
-      {SECTIONS.map((section, i) => {
+      <SectionHeading icon="views">Saved Views</SectionHeading>
+      <div className="chip-row">
+        <select aria-label="Comparison view" value={view.id} onChange={(e) => viewsState.selectView(e.target.value)}>
+          {viewsState.views.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.name}
+            </option>
+          ))}
+        </select>
+        <button type="button" className="chip chip-icon" title="Create View" aria-label="Create View" onClick={openCreateView}>
+          <CreateViewIcon />
+        </button>
+        <button
+          type="button"
+          className="chip chip-icon"
+          disabled={readOnly}
+          title={readOnly ? "The Starter view can't be deleted" : "Delete View"}
+          aria-label="Delete View"
+          onClick={() => setShowDeleteView(true)}
+        >
+          <TrashIcon />
+        </button>
+      </div>
+
+      {SECTIONS.map((section) => {
         const sectionCards = cards.filter((c) => c.el.kind === section.kind);
         return (
           <React.Fragment key={section.kind}>
             <SectionHeading icon={section.icon}>{section.title}</SectionHeading>
-            {i === 0 && (
-              <div className="chip-row" style={{ marginBottom: 12 }}>
-                <select aria-label="Comparison view" value={view.id} onChange={(e) => viewsState.selectView(e.target.value)}>
-                  {viewsState.views.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name}
-                    </option>
-                  ))}
-                </select>
-                <button type="button" className="chip chip-icon" title="Create View" aria-label="Create View" onClick={openCreateView}>
-                  <CreateViewIcon />
-                </button>
-                <button
-                  type="button"
-                  className="chip chip-icon"
-                  disabled={readOnly}
-                  title={readOnly ? "The Starter view can't be deleted" : "Delete View"}
-                  aria-label="Delete View"
-                  onClick={() => setShowDeleteView(true)}
-                >
-                  <TrashIcon />
-                </button>
-              </div>
-            )}
             <div className="card-grid graph-grid">
               {sectionCards.map((card) => renderCard(card, section.noun))}
               {!readOnly && sectionCards.length < MAX_ELEMENTS_PER_SECTION && (
