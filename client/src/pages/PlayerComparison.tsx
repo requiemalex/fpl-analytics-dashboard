@@ -401,10 +401,8 @@ export function PlayerComparison() {
         </div>
       </div>
 
+      <SectionHeading icon="players">Players</SectionHeading>
       <div className="card" style={{ marginBottom: 24 }}>
-        <div className="card-title">
-          Players ({compared.length}/{MAX_COMPARE})
-        </div>
         {compared.length > 0 && (
           <div className="cmp-player-tags">
             {compared.map((entry) => (
