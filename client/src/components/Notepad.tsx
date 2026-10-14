@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useNotepad, MAX_TAB_TITLE, type NotepadTab } from "../state/useNotepad";
+import { useNotepad, MAX_TAB_TITLE, MAX_TABS, type NotepadTab } from "../state/useNotepad";
 import { useEscapeLayer } from "../state/useEscapeLayer";
 import { EditIcon, PlusIcon, TrashIcon } from "./IconToolbar";
 
@@ -31,6 +31,16 @@ function CloseIcon() {
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
       <line x1="3.5" y1="3.5" x2="12.5" y2="12.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
       <line x1="12.5" y1="3.5" x2="3.5" y2="12.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Double chevrons pointing left (widen the panel to fill the page) or right (shrink it back to the side). */
+function ChevronsIcon({ direction }: { direction: "left" | "right" }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={direction === "right" ? { transform: "scaleX(-1)" } : undefined}>
+      <polyline points="8,3.5 3.5,8 8,12.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points="12.5,3.5 8,8 12.5,12.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -102,13 +112,15 @@ function TabLabel({ tab, active, renaming, onSelect, onStartRename, onFinishRena
  * The notepad: a panel that slides in over the right of the screen, below
  * the topbar, with the page behind it dimmed but still visible — and still
  * scrollable and clickable, so figures can be read off it while writing.
- * Always mounted (hidden when closed) so it can slide both ways; its notes
+ * The arrow at its top left widens it to fill the page below the topbar,
+ * and back. Always mounted (hidden when closed) so it can slide both ways; its notes
  * save as they're typed (useNotepad).
  */
 export function Notepad({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { tabs, activeTab, selectTab, addTab, renameTab, setBody, removeTab } = useNotepad();
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<NotepadTab | null>(null);
+  const [expanded, setExpanded] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const returnFocusTo = useRef<HTMLElement | null>(null);
@@ -139,7 +151,11 @@ export function Notepad({ open, onClose }: { open: boolean; onClose: () => void 
     if (open && renamingId === null) textareaRef.current?.focus({ preventScroll: true });
   }, [activeTab?.id]); // only on a tab switch, not on every rename
 
-  const handleAdd = () => setRenamingId(addTab());
+  const atTabLimit = tabs.length >= MAX_TABS;
+  const handleAdd = () => {
+    const id = addTab();
+    if (id) setRenamingId(id);
+  };
 
   const handleDelete = () => {
     if (!activeTab) return;
@@ -158,11 +174,23 @@ export function Notepad({ open, onClose }: { open: boolean; onClose: () => void 
     <>
       <div className={`notepad-layer${open ? " open" : ""}`} aria-hidden={!open}>
         <div className="notepad-dim" />
-        <div className="notepad-panel" ref={panelRef} role="dialog" aria-modal="false" aria-label="Notepad">
+        <div className={`notepad-panel${expanded ? " expanded" : ""}`} ref={panelRef} role="dialog" aria-modal="false" aria-label="Notepad">
           <div className="notepad-header">
-            <span className="notepad-title">Notepad</span>
+            <div className="notepad-heading">
+              <button
+                type="button"
+                className="chip chip-icon"
+                title={expanded ? "Back to side panel" : "Expand to full page"}
+                aria-label={expanded ? "Back to side panel" : "Expand to full page"}
+                aria-pressed={expanded}
+                onClick={() => setExpanded((e) => !e)}
+              >
+                <ChevronsIcon direction={expanded ? "right" : "left"} />
+              </button>
+              <span className="notepad-title">Notepad</span>
+            </div>
             <div className="notepad-actions">
-              <button type="button" className="chip chip-icon" title="New tab" aria-label="New tab" onClick={handleAdd}>
+              <button type="button" className="chip chip-icon" title="New tab" aria-label="New tab" disabled={atTabLimit} onClick={handleAdd}>
                 <PlusIcon size={13} />
               </button>
               {activeTab && (
@@ -203,7 +231,6 @@ export function Notepad({ open, onClose }: { open: boolean; onClose: () => void 
               className="notepad-body"
               value={activeTab.body}
               onChange={(e) => setBody(activeTab.id, e.target.value)}
-              placeholder="Notes, ideas, players to watch…"
               aria-label={`${activeTab.title} notes`}
             />
           ) : (

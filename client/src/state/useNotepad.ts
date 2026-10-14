@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { loadVersioned, saveVersioned, type VersionedStore } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:notepad:v1";
-/** Version 1: the first shape — `{ tabs: { id, title, body }[], activeTabId }`. */
-const STORAGE_VERSION = 1;
+/**
+ * Version 1: the first shape — `{ tabs: { id, title, body }[], activeTabId }`, names up to 40 characters.
+ * Version 2: same shape, names up to MAX_TAB_TITLE (20) — a longer name from version 1 is cut to fit.
+ */
+const STORAGE_VERSION = 2;
 
 export interface NotepadTab {
   id: string;
@@ -21,8 +24,11 @@ const FIRST_TAB: NotepadTab = { id: "notes", title: "Notes", body: "" };
 
 export const DEFAULT_NOTEPAD: NotepadData = { tabs: [FIRST_TAB], activeTabId: FIRST_TAB.id };
 
-/** Longest tab name kept — the tab strip can't show more, and a pasted paragraph shouldn't become a name. */
-export const MAX_TAB_TITLE = 40;
+/** Longest tab name kept, spaces included — so a full strip of tabs still fits the panel. */
+export const MAX_TAB_TITLE = 20;
+
+/** Most tabs that can be open at once; adding another does nothing until one is deleted. */
+export const MAX_TABS = 5;
 
 function newId(): string {
   return `note-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -74,8 +80,8 @@ export interface UseNotepad {
   tabs: NotepadTab[];
   activeTab: NotepadTab | null;
   selectTab: (id: string) => void;
-  /** Adds an empty tab after the others, makes it the active one, and returns its id. */
-  addTab: () => string;
+  /** Adds an empty tab after the others, makes it the active one, and returns its id — or null, adding nothing, when MAX_TABS are already open. */
+  addTab: () => string | null;
   renameTab: (id: string, title: string) => void;
   setBody: (id: string, body: string) => void;
   /** Removes a tab; if it was active, its right-hand neighbour (or else its left) becomes active. */
@@ -99,9 +105,16 @@ export function useNotepad(): UseNotepad {
     setData((prev) => (prev.tabs.some((t) => t.id === id) ? { ...prev, activeTabId: id } : prev));
   }, []);
 
+  // `data` is read through a ref so addTab can say whether it added a tab without being re-created on every keystroke.
+  const latest = useRef(data);
+  latest.current = data;
+
   const addTab = useCallback(() => {
+    if (latest.current.tabs.length >= MAX_TABS) return null;
     const id = newId();
-    setData((prev) => ({ tabs: [...prev.tabs, { id, title: nextTabTitle(prev.tabs), body: "" }], activeTabId: id }));
+    setData((prev) =>
+      prev.tabs.length >= MAX_TABS ? prev : { tabs: [...prev.tabs, { id, title: nextTabTitle(prev.tabs), body: "" }], activeTabId: id },
+    );
     return id;
   }, []);
 

@@ -410,11 +410,12 @@ export function UserGuide() {
           A place to jot down ideas, players to watch and figures as you build a team. Press the <kbd>`</kbd> key (top left of the
           keyboard, under Esc) on any page to slide it in from the right; press it again, or Esc, to put it away. The notepad button
           beside Refresh does the same. The page behind stays visible, just dimmed, and you can still scroll and click it while the
-          notepad is open, so you can read numbers off a table as you write.
+          notepad is open, so you can read numbers off a table as you write. The double arrow at the notepad's top left widens it
+          to fill the page; press it again to shrink it back to the side.
         </p>
         <p className="page-subtitle">
           Keep separate tabs for separate jobs (a wildcard plan, differentials, transfers for next week): <strong>+</strong> adds a
-          tab, double-click a tab (or use the pencil) to rename it, and the bin deletes the tab you're on, asking first if it has
+          tab (up to five at once, with short names of up to 20 characters), double-click a tab (or use the pencil) to rename it, and the bin deletes the tab you're on, asking first if it has
           notes in it. Everything saves as you type and is still there next time you open the app, on this computer only. Because
           the <kbd>`</kbd> key opens and closes the notepad, it can't be typed into a note.
         </p>

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, act, cleanup } from "@testing-library/react";
 import { Notepad, NOTEPAD_KEY, useNotepadHotkey } from "./Notepad";
+import { MAX_TAB_TITLE, MAX_TABS } from "../state/useNotepad";
 
 /** The same wiring AppShell uses: the hotkey toggles, the panel's own controls close. */
 function Harness() {
@@ -100,6 +101,45 @@ describe("Notepad overlay", () => {
     expect(screen.getByRole("tab", { name: "Differentials" })).toBeTruthy();
     expect(screen.queryByRole("tab", { name: "Discarded" })).toBeNull();
     expect(layer().classList.contains("open")).toBe(true);
+  });
+
+  it("the notes box is blank, with no placeholder text", () => {
+    render(<Harness />);
+    expect(screen.getByRole("textbox", { name: "Notes notes", hidden: true }).getAttribute("placeholder")).toBeNull();
+  });
+
+  it("the arrow widens the panel to the full page and back", () => {
+    render(<Harness />);
+    press(NOTEPAD_KEY);
+    const panel = document.querySelector(".notepad-panel")!;
+    expect(panel.classList.contains("expanded")).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Expand to full page" }));
+    expect(panel.classList.contains("expanded")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Back to side panel" }));
+    expect(panel.classList.contains("expanded")).toBe(false);
+  });
+
+  it(`the new-tab button turns off at ${MAX_TABS} tabs and back on when one is deleted`, () => {
+    render(<Harness />);
+    press(NOTEPAD_KEY);
+    const plus = screen.getByRole("button", { name: "New tab" });
+    for (let i = 1; i < MAX_TABS; i++) {
+      fireEvent.click(plus);
+      fireEvent.keyDown(screen.getByRole("textbox", { name: "Tab name" }), { key: "Enter" });
+    }
+    expect(screen.getAllByRole("tab")).toHaveLength(MAX_TABS);
+    expect(plus).toHaveProperty("disabled", true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete tab" })); // the last tab added, still empty
+    expect(screen.getAllByRole("tab")).toHaveLength(MAX_TABS - 1);
+    expect(plus).toHaveProperty("disabled", false);
+  });
+
+  it(`a tab name stops at ${MAX_TAB_TITLE} characters, spaces included`, () => {
+    render(<Harness />);
+    press(NOTEPAD_KEY);
+    fireEvent.doubleClick(screen.getByRole("tab", { name: "Notes" }));
+    expect(screen.getByRole("textbox", { name: "Tab name" }).getAttribute("maxlength")).toBe(String(MAX_TAB_TITLE));
   });
 
   it("deleting a tab with notes asks first; an empty tab goes straight away", () => {

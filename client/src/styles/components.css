@@ -2190,10 +2190,17 @@ select:focus {
   box-shadow: -16px 0 40px rgba(0, 0, 0, 0.45);
   pointer-events: auto;
   transform: translateX(100%);
-  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition:
+    transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+    width 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .notepad-layer.open .notepad-panel {
   transform: none;
+}
+/* Widened to fill the page below the topbar (the arrow at the panel's top left). */
+.notepad-panel.expanded {
+  width: 100%;
+  border-left: none;
 }
 .notepad-header {
   display: flex;
@@ -2202,6 +2209,11 @@ select:focus {
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   flex-shrink: 0;
+}
+.notepad-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 .notepad-title {
   font-family: var(--font-display);
@@ -2213,20 +2225,27 @@ select:focus {
   align-items: center;
   gap: var(--space-1);
 }
+.notepad-actions .chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+/* Never scrolls: with at most 5 tabs of at most 20 characters, tabs that
+   don't all fit at full width share the strip, each cut short with "…"
+   (the full name shows on hover). The bottom rule is an inset shadow, not
+   a border, so the active tab's underline can cover it without poking out
+   of the strip — that 1px overhang is what used to give it a scrollbar. */
 .notepad-tabs {
   display: flex;
   gap: 2px;
   padding: 0 var(--space-3);
-  border-bottom: 1px solid var(--border);
-  overflow-x: auto;
+  box-shadow: inset 0 -1px 0 var(--border);
+  overflow: hidden;
   flex-shrink: 0;
-  scrollbar-width: thin;
 }
 .notepad-tab {
-  flex-shrink: 0;
-  max-width: 180px;
+  flex: 0 1 auto;
+  min-width: 0;
   padding: var(--space-2) 10px;
-  margin-bottom: -1px;
   border: none;
   border-bottom: 2px solid transparent;
   background: none;
@@ -2270,9 +2289,6 @@ select:focus {
   line-height: 1.6;
   resize: none;
   outline: none;
-}
-.notepad-body::placeholder {
-  color: var(--text-muted);
 }
 .notepad-empty {
   flex: 1;

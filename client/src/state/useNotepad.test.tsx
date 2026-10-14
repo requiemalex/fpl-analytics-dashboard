@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { renderHook, act, cleanup } from "@testing-library/react";
-import { useNotepad, DEFAULT_NOTEPAD, MAX_TAB_TITLE } from "./useNotepad";
+import { useNotepad, DEFAULT_NOTEPAD, MAX_TAB_TITLE, MAX_TABS } from "./useNotepad";
 
 // The store's on-disk key (useNotepad.ts) — part of its persistence contract, so hardcoded here deliberately.
 const STORAGE_KEY = "fpl-dashboard:notepad:v1";
@@ -26,12 +26,12 @@ describe("useNotepad — saved notes", () => {
     act(() => first.result.current.setBody("notes", "Salah vs Palmer?"));
     let newId = "";
     act(() => {
-      newId = first.result.current.addTab();
+      newId = first.result.current.addTab()!;
     });
     act(() => first.result.current.renameTab(newId, "  Wildcard GW8  "));
     act(() => first.result.current.setBody(newId, "3 at the back"));
 
-    expect(stored().version).toBe(1);
+    expect(stored().version).toBe(2);
     first.unmount();
 
     const second = renderHook(() => useNotepad());
@@ -71,10 +71,10 @@ describe("useNotepad — saved notes", () => {
     let b = "";
     let c = "";
     act(() => {
-      b = result.current.addTab();
+      b = result.current.addTab()!;
     });
     act(() => {
-      c = result.current.addTab();
+      c = result.current.addTab()!;
     });
     act(() => result.current.selectTab(b));
     act(() => result.current.removeTab(b));
@@ -111,6 +111,42 @@ describe("useNotepad — saved notes", () => {
       { id: "b", title: "", body: "" },
     ]);
     expect(result.current.activeTab?.id).toBe("a");
+  });
+
+  it(`stops at ${MAX_TABS} tabs: adding another does nothing until one is deleted`, () => {
+    const { result } = renderHook(() => useNotepad());
+    for (let i = 1; i < MAX_TABS; i++) {
+      act(() => {
+        result.current.addTab();
+      });
+    }
+    expect(result.current.tabs).toHaveLength(MAX_TABS);
+    const activeBefore = result.current.activeTab?.id;
+
+    let added: string | null = "";
+    act(() => {
+      added = result.current.addTab();
+    });
+    expect(added).toBeNull();
+    expect(result.current.tabs).toHaveLength(MAX_TABS);
+    expect(result.current.activeTab?.id).toBe(activeBefore);
+
+    act(() => result.current.removeTab("notes"));
+    act(() => {
+      added = result.current.addTab();
+    });
+    expect(added).not.toBeNull();
+    expect(result.current.tabs).toHaveLength(MAX_TABS);
+  });
+
+  it("cuts a longer tab name saved under the old 40-character limit down to 20, and keeps the tabs beyond 5 an older version allowed", () => {
+    const tabs = Array.from({ length: 6 }, (_, i) => ({ id: `t${i}`, title: `Tab ${i}`, body: "" }));
+    tabs[0].title = "Differentials for the run-in";
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, data: { tabs, activeTabId: "t0" } }));
+    const { result } = renderHook(() => useNotepad());
+    expect(MAX_TAB_TITLE).toBe(20);
+    expect(result.current.tabs[0].title).toBe("Differentials for th");
+    expect(result.current.tabs).toHaveLength(6);
   });
 
   it("falls back to the default notepad when the saved data isn't a notepad at all", () => {

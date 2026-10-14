@@ -615,11 +615,20 @@ included.
   minimize/close stay reachable), at z-index 45: over a profile (40), under
   confirm dialogs (50). The rest of the screen is dimmed but the dim lets
   clicks and scrolling through, so the page behind can still be read and
-  used while writing. No focus trap, for the same reason.
+  used while writing. No focus trap, for the same reason. The double-arrow
+  at its top left widens it to fill the page below the topbar, and back
+  (remembered until the app closes, not saved).
 - Notes save to localStorage on every change. Tabs can be added, renamed
   (double-click, or the edit icon) and deleted; deleting a tab that has
   text asks first. Deleting every tab is kept as an empty notepad, not
   reseeded with a fresh Notes tab.
+- At most 5 tabs (`MAX_TABS`; the + button turns off at 5) and tab names
+  of at most 20 characters, spaces included (`MAX_TAB_TITLE`; typing stops
+  there). Neither limit is shown in the UI. With those limits the tab strip
+  never scrolls: tabs that don't fit share the width, cut short with "…".
+  Notes saved before the 20-character limit (store version 1, 40
+  characters) have longer names cut to 20 on load; more than 5 tabs from
+  then are kept, but no more can be added until enough are deleted.
 
 ### Team Building — the one predictive section
 
