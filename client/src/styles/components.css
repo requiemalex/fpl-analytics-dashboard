@@ -2003,25 +2003,22 @@ select:focus {
   color: var(--text-secondary);
 }
 
-/* Outputs panel: label | percentile track | one value column per player.
-   Rows are subgrids of one grid (as .stat-list), so every track starts at
-   the same point and every value column lines up. */
+/* Outputs panel: label | track. Rows are subgrids of one grid (as
+   .stat-list), so every track starts at the same point. Each track has
+   its figures along the top and the bar along the bottom. */
 .cmp-outputs {
   display: grid;
-  column-gap: 12px;
+  grid-template-columns: minmax(84px, max-content) minmax(96px, 1fr);
+  column-gap: 14px;
   font-size: 12.5px;
 }
 .cmp-outputs-row {
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: subgrid;
-  align-items: center;
-  padding: 5px 0;
+  align-items: end;
+  padding: 3px 0 5px;
   border-bottom: 1px solid var(--border);
-}
-.cmp-outputs-head {
-  padding-top: 0;
-  border-bottom-color: var(--border-strong);
 }
 .cmp-outputs-group {
   grid-column: 1 / -1;
@@ -2032,63 +2029,81 @@ select:focus {
   text-transform: uppercase;
   color: var(--text-muted);
 }
+/* Line box centred on the bar (8px tall, 5px up from the track's foot). */
 .cmp-outputs-label {
   color: var(--text-primary);
   white-space: nowrap;
+  line-height: 18px;
 }
-/* The same track as a tile's bar (.stat-row-bar-track), with faint
-   quartile ticks at 25/50/75. */
 .cmp-outputs-track {
   position: relative;
-  height: 16px;
+  height: 34px;
 }
-.cmp-outputs-track::before {
-  content: "";
+/* The same track as a tile's bar (.stat-row-bar-track), a touch thicker so
+   its tints read. Its fills are clipped to its rounded ends. */
+.cmp-outputs-bar {
   position: absolute;
   left: 0;
   right: 0;
-  top: 5px;
-  height: 6px;
-  border-radius: 3px;
-  background:
-    linear-gradient(var(--border-strong), var(--border-strong)) 25% 0 / 1px 100% no-repeat,
-    linear-gradient(var(--border-strong), var(--border-strong)) 50% 0 / 1px 100% no-repeat,
-    linear-gradient(var(--border-strong), var(--border-strong)) 75% 0 / 1px 100% no-repeat,
-    color-mix(in srgb, var(--text-muted) 16%, transparent);
+  bottom: 5px;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--text-muted) 16%, transparent);
 }
-/* A player's place on the track: a short upright bar in his colour, ringed
-   in the card colour so overlapping markers stay distinct. */
-.cmp-outputs-marker {
+/* Faint notches cut into the bar at a quarter, half and three quarters of
+   the leader, over the fills. */
+.cmp-outputs-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(var(--surface), var(--surface)) 25% 0 / 1px 100% no-repeat,
+    linear-gradient(var(--surface), var(--surface)) 50% 0 / 1px 100% no-repeat,
+    linear-gradient(var(--surface), var(--surface)) 75% 0 / 1px 100% no-repeat;
+  opacity: 0.55;
+}
+/* A stretch of the bar: neutral where every ranked player reaches, else a
+   player's colour (set inline) where they're ahead of the one before. */
+.cmp-outputs-fill {
   position: absolute;
   top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--text-muted) 30%, transparent);
+}
+/* A player's place on the bar: a short upright bar in their colour,
+   ringed in the card colour so neighbouring markers stay distinct. */
+.cmp-outputs-marker {
+  position: absolute;
+  bottom: 1px;
   width: 6px;
   height: 16px;
   margin-left: -3px;
   border-radius: 3px;
   box-shadow: 0 0 0 1.5px var(--surface);
 }
+/* Under the card's minimum minutes: hollow and grey, not ranked. */
+.cmp-outputs-marker.small-sample {
+  background: var(--surface);
+  box-sizing: border-box;
+  border: 1.5px solid var(--text-muted);
+  box-shadow: none;
+}
+/* A player's figure above their marker; nudged sideways when two would
+   overlap (ComparisonOutputs places them). */
 .cmp-outputs-value {
+  position: absolute;
+  top: 0;
+  padding: 0 2px;
   font-family: var(--font-mono);
+  font-size: 11.5px;
   font-variant-numeric: tabular-nums;
   font-weight: 500;
-  text-align: right;
-}
-.cmp-outputs-player {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-width: 0;
-  font-size: 11px;
-  font-weight: 700;
-}
-.cmp-outputs-player-name {
-  max-width: 76px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 14px;
   white-space: nowrap;
 }
-.cmp-outputs-player .small-sample-badge {
-  margin-left: 3px;
+.cmp-outputs + .cmp-legend {
+  margin-top: 12px;
 }
 
 /* Add/Edit dialog's statistic picker. */

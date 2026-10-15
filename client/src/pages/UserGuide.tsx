@@ -306,9 +306,11 @@ export function UserGuide() {
             better (xGC and xGC/Game are turned round, since fewer is better). Pick 3–8 statistics and a Data View.
           </li>
           <li>
-            <strong>Outputs</strong> list up to 12 statistics as rows. Each row's track runs from 0 to the highest figure among the
-            players, with each player's marker at his own figure and the best in bold; faint ticks mark a quarter, half and three
-            quarters of the leader. For xGC and xGC/Game, the best is furthest left.
+            <strong>Outputs</strong> list up to 12 statistics as rows. Each row's bar runs from 0 to the highest figure among the
+            players, with each player's marker at their own figure and the figure above it, the best in bold. The bar is grey as
+            far as every player reaches; past that, each stretch is tinted in the colour of the player whose marker ends it, so
+            the length of a colour is how far that player is ahead. Faint notches mark a quarter, half and three quarters of the
+            leader. For xGC and xGC/Game, the best is furthest left.
           </li>
           <li>
             <strong>Trends</strong> graph one statistic season by season across the completed seasons on record. A season with no
@@ -323,8 +325,8 @@ export function UserGuide() {
         </ul>
         <p className="page-subtitle">
           <strong>Min Minutes</strong> is set per card you build (0 unless you set it). A player under it gets an amber stopwatch on
-          that card (hover for his minutes): he isn't drawn on a radar (radars rank only players who reach it), has no Outputs marker
-          and can't be the best. On a Trends
+          that card (hover for his minutes): he isn't drawn on a radar (radars rank only players who reach it), gets a hollow grey
+          Outputs marker that doesn't set the scale or tint the bar, and can't be the best. On a Trends
           graph, a season under it still shows his figure, but as an amber ring rather than a dot. Starter cards use the fixed floor
           instead (see Minimum minutes above).
         </p>

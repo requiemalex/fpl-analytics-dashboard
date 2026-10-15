@@ -101,8 +101,8 @@ describe("PlayerComparison", () => {
     storeView([{ id: "e1", kind: "outputs", name: "Now", dataView: "live", metricKeys: ["goals"], minMinutes: 0 }]);
     const { container } = renderPage("1,3");
     const panel = container.querySelector(".cmp-outputs") as HTMLElement;
-    expect(panel.querySelectorAll(".cmp-outputs-marker")).toHaveLength(2);
-    expect(panel.querySelectorAll(".small-sample-badge")).toHaveLength(0);
+    expect(panel.querySelectorAll(".cmp-outputs-marker:not(.small-sample)")).toHaveLength(2);
+    expect(panel.closest(".card")!.querySelectorAll(".small-sample-badge")).toHaveLength(0);
   });
 
   it("greys a player under the card's own Min Minutes, on that card only", () => {
@@ -112,18 +112,20 @@ describe("PlayerComparison", () => {
     ]);
     const { container } = renderPage("1,3");
     const [regulars, everyone] = [...container.querySelectorAll<HTMLElement>(".cmp-outputs")];
-    expect(regulars.querySelectorAll(".cmp-outputs-marker")).toHaveLength(1);
-    const badge = regulars.querySelector(".cmp-outputs-head .small-sample-badge")!;
+    expect(regulars.querySelectorAll(".cmp-outputs-marker:not(.small-sample)")).toHaveLength(1);
+    expect(regulars.querySelectorAll(".cmp-outputs-marker.small-sample")).toHaveLength(1);
+    const badge = regulars.closest(".card")!.querySelector(".cmp-legend .small-sample-badge")!;
     expect(badge.getAttribute("title")).toMatch(/^Below this card's Min Minutes: 45 min in this mode, under 90/);
-    expect(everyone.querySelectorAll(".cmp-outputs-marker")).toHaveLength(2);
+    expect(everyone.querySelectorAll(".cmp-outputs-marker:not(.small-sample)")).toHaveLength(2);
   });
 
-  it("marks a player under the card's minimum: no marker, no bold, a badge in his column", () => {
+  it("marks a player under the card's minimum: a hollow marker, no bold, a badge in the key", () => {
     storeView([{ id: "e1", kind: "outputs", name: "Now", dataView: "live", metricKeys: ["goals"], minMinutes: 90 }]);
     const { container } = renderPage("1,3");
     const panel = container.querySelector(".cmp-outputs") as HTMLElement;
-    expect(panel.querySelectorAll(".cmp-outputs-marker")).toHaveLength(1);
-    expect(panel.querySelectorAll(".cmp-outputs-head .small-sample-badge")).toHaveLength(1);
+    expect(panel.querySelectorAll(".cmp-outputs-marker:not(.small-sample)")).toHaveLength(1);
+    expect(panel.querySelectorAll(".cmp-outputs-marker.small-sample")).toHaveLength(1);
+    expect(panel.closest(".card")!.querySelectorAll(".cmp-legend .small-sample-badge")).toHaveLength(1);
     const values = panel.querySelectorAll<HTMLElement>(".cmp-outputs-value");
     expect(values[1].style.fontWeight).toBe("");
     // With only one ranked player there's no "best" to bold either.

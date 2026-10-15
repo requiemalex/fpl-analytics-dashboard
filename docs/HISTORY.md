@@ -3534,3 +3534,16 @@ tiles/graphs only:
   already shows (player count, refresh time). Gameweek Status and its
   progress bar now sit in one slim line under the page title (`.gw-strip`).
 - **Last commit with it:** `5dcf9d5`.
+
+### Player Comparison Outputs: marker track and value columns (replaced 2026-10-15)
+- **What it did:** each Outputs row was a plain grey track (0 to the
+  leader) with each player's upright marker on it, then one right-hand
+  column per player holding the figures, the best in bold. The players'
+  names headed those columns, and a small sample's amber badge sat in its
+  column header; a small sample had no marker at all.
+- **Why it went:** the figures were crammed to the right, away from the
+  markers they belonged to, and the bare track didn't show the size of the
+  gaps at a glance. Now the bar is tinted by who is ahead and by how much,
+  each figure sits above its marker, a colour key sits under the panel,
+  and a small sample gets a hollow grey marker.
+- **Last commit with it:** `239d40e`.

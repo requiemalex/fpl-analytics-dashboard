@@ -345,10 +345,10 @@ describe("H1: the profile's percentiles use the fixed minutes floor", () => {
       </MemoryRouter>,
     );
     // Starter's two Last Completed Season radars (their legends) and its Last
-    // Season Output panel (his column) — never the regular's.
+    // Season Output panel (its key) — never the regular's.
     const marks = getAllByLabelText(/^Small sample: 136 min/);
     expect(marks.length).toBe(3);
-    for (const m of marks) expect(m.closest(".cmp-legend-item, .cmp-outputs-player")!.textContent).toContain("Davies");
+    for (const m of marks) expect(m.closest(".cmp-legend-item")!.textContent).toContain("Davies");
   });
 
 });
@@ -718,18 +718,26 @@ describe("Player Comparison's Outputs treat a small sample as its radars do", ()
     setApp([CAMEO, REGULAR, OTHER], { historicProfiles: profiles(SEASONS) });
     const cells = [...xgPerGameRow("1,2,3").querySelectorAll<HTMLElement>(".cmp-outputs-value")];
     // Davies 0.25 would top this row; he's greyed instead, and Konsa (0.03) vs Mings (0.02) decide the bold.
-    expect(cells.map((c) => c.textContent)).toEqual(["0.25", "0.03", "0.02"]);
+    expect(cells.map((c) => c.textContent)).toEqual(["0.25 ▸", "0.03", "0.02"]);
     expect(cells[0].style.color).toBe("var(--text-muted)");
     expect(cells[0].style.fontWeight).toBe("");
     expect(cells[1].style.fontWeight).toBe("700");
     expect(cells[2].style.fontWeight).toBe("");
   });
 
-  it("the cameo has no marker on the track; the regulars do", () => {
+  it("the cameo's marker is hollow and doesn't set the scale or tint the bar; the regulars' do", () => {
     setApp([CAMEO, REGULAR, OTHER], { historicProfiles: profiles(SEASONS) });
-    const markers = [...xgPerGameRow("1,2,3").querySelectorAll(".cmp-outputs-marker")].map((m) => m.getAttribute("title") ?? "");
+    const row = xgPerGameRow("1,2,3");
+    const markers = [...row.querySelectorAll(".cmp-outputs-marker:not(.small-sample)")].map((m) => m.getAttribute("title") ?? "");
     expect(markers).toHaveLength(2);
     expect(markers.some((t) => t.startsWith("Davies"))).toBe(false);
+    // Davies's 0.25 is past Konsa's 0.03, the leader: pinned to the end, flagged with ▸.
+    const cameo = row.querySelector<HTMLElement>(".cmp-outputs-marker.small-sample")!;
+    expect(cameo.getAttribute("title")).toMatch(/^Davies: 0\.25 .*past the end of this scale/);
+    expect(cameo.style.left).toBe("100%");
+    expect(row.querySelectorAll(".cmp-outputs-value")[0].textContent).toBe("0.25 ▸");
+    // The bar: shared to Mings's 0.02, then Konsa's lead in Konsa's colour.
+    expect(row.querySelectorAll(".cmp-outputs-fill")).toHaveLength(2);
   });
 
   it("with one regular left, nothing is bold: there's no one to beat", () => {

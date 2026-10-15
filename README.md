@@ -194,7 +194,7 @@ In the fixed-floor sections the floor applies to **every percentile**,
 totals as well as per-game rates: the pool is everyone at or above it, and
 a player below it is shown as a small sample, with no percentile and no
 colour. On Player Comparison's Starter view a small sample isn't drawn on
-a radar, has no marker on an Outputs track and is never the bold best —
+a radar, gets only a hollow grey marker on an Outputs bar and is never the bold best —
 the others are ranked among themselves — and a trend season under the
 floor is marked with an amber ring. A card the user builds does the same at its own
 Min Minutes instead (0 by default), card by card.
@@ -211,7 +211,7 @@ the Dashboard it's per tile or graph, and only where a floor really applies
 (not on picked players, and not on team tiles or graphs). The same icon in
 amber (`SmallSampleBadge`, hover text `smallSampleNote`) marks a small
 sample on the profile's radar titles and on Player Comparison's radar
-legends and Outputs column headers — no banner or "(small sample)" text.
+and Outputs legends — no banner or "(small sample)" text.
 On a Player Comparison card the user builds, the same amber badge marks a
 player under the card's Min Minutes (`belowMinimumNote`).
 
@@ -560,14 +560,20 @@ card in the selected view. Each player's colour is his place in the list
   cards show the stopwatch badge. On any other view each card has its own
   `minMinutes` (store v2; 0 by default) and pools are resolved without
   `fixedFloorSeasons`. Either way the threshold is per card: a player under
-  it gets the amber badge on that card, isn't drawn on a radar, has no
-  Outputs marker, doesn't set the Outputs scale and can't be bold.
+  it gets the amber badge on that card, isn't drawn on a radar, gets a
+  hollow grey Outputs marker (pinned to the end with ▸ when past the
+  leader), doesn't set the Outputs scale or tint its bar, and can't be bold.
 - Radar percentiles are within position, among everyone at or above the
   card's threshold (`comparisonPercentiles`, the same figure as
   `computePositionPercentiles`), flipped for lower-is-better metrics.
-- An Outputs row is raw figures to scale: its track runs from 0 to the
+- An Outputs row is raw figures to scale: its bar runs from 0 to the
   highest figure among the ranked compared players, each marker at
-  value ÷ leader; each row has its own scale.
+  value ÷ leader with the figure above it; each row has its own scale.
+  The bar is neutral up to the lowest ranked figure, then each stretch is
+  tinted in the colour of the player whose marker ends it — how far they
+  are ahead of the one before. Figures that would overlap are spread
+  apart (`placeLabels`, sized from the mono font's fixed 0.6em width).
+  The colour key sits under the panel, as under a radar.
 - Trends use the full unwindowed career (`allTimeSeasonsByPlayerId`,
   completed seasons). A season under the card's threshold (450 on Starter)
   still plots the real figure; its minutes are kept under `trendBelowKey`,
