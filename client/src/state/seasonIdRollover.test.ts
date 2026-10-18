@@ -72,6 +72,20 @@ describe("saved ids across FPL's summer renumbering (audit 2026-10-18 M6)", () =
     expect(squad).toMatchObject({ playerIds: [411, 380], startingXI: [411], captainId: null, viceCaptainId: 411 });
   });
 
+  it("a tracked list whose players or clubs have all left stays empty and says so, rather than turning into the whole league (audit 2026-10-18 R2)", () => {
+    localStorage.setItem(
+      ID_STORE_KEYS.summaryTiles,
+      JSON.stringify({ version: 6, data: [tile({ name: "Leavers", playerIds: [12] }), tile({ id: "t2", name: "Mixed", playerIds: [12, 430] })] }),
+    );
+    localStorage.setItem(ID_STORE_KEYS.dashboardGraphs, JSON.stringify({ version: 6, data: [{ id: "g", scope: "team", name: "Promoted", teamIds: [9], playerIds: null, criteria: null }] }));
+    rolloverSavedIds("2026/27", NEW.players, NEW.teams);
+
+    const [leavers, mixed] = stored(ID_STORE_KEYS.summaryTiles).data as { name: string; playerIds: number[] }[];
+    expect(leavers).toMatchObject({ name: "Leavers (players no longer in FPL)", playerIds: [] });
+    expect(mixed).toMatchObject({ name: "Mixed", playerIds: [411] }); // someone left: no rename
+    expect((stored(ID_STORE_KEYS.dashboardGraphs).data as Record<string, unknown>[])[0]).toMatchObject({ name: "Promoted (clubs no longer in FPL)", teamIds: [] });
+  });
+
   it("runs once: the next load in the new season leaves the translated ids alone", () => {
     rolloverSavedIds("2026/27", NEW.players, NEW.teams);
     const after = localStorage.getItem(ID_STORE_KEYS.savedSquads);

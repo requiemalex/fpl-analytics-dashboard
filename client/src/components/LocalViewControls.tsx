@@ -79,7 +79,7 @@ export function LocalViewControls({
       </div>
       {state.analysisMode !== "live" && historicStatus === "ready" && historicSkippedPlayerIds.length > 0 && (
         <p className="page-subtitle" style={{ marginTop: 0, marginBottom: 12 }}>
-          {historicSkippedPlayerIds.length} player(s) had no historic data available this session (a transient fetch issue). Everyone else
+          {historicSkippedPlayerIds.length} player(s) had no historic data available this session (a fetch failed, or FPL sent data the app couldn't read). Everyone else
           is unaffected.
         </p>
       )}

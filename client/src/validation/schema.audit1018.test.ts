@@ -57,6 +57,8 @@ describe("audit 2026-10-18 data layer: per-record validation", () => {
     expect(out.skippedPlayerIds).toEqual([7, 2]);
     expect(out.clubSeasons).toEqual([]);
     expect(skippedRecordCount(out.clubSeasons)).toBe(1);
+    // R3: player 2 is only unreadable here; the server fetched him, so its club figures are whole. Player 7 the server couldn't fetch.
+    expect(out.unreadablePlayerIds).toEqual([2]);
   });
 
   it("[DATA-2] a broken top-level shape is still fatal", () => {

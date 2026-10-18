@@ -326,6 +326,10 @@ export const clubSeasonSchema = z
  * which the app already flags, rather than keeping his other seasons and
  * showing a Historic Average built from part of his history. A club-season
  * is likewise kept whole or dropped (and counted).
+ *
+ * Such a player is also listed in `unreadablePlayerIds`: unlike one the
+ * server couldn’t fetch, his matches are in the server’s club figures, so
+ * they stay whole (audit 2026-10-18 R3).
  */
 export const historicBulkSchema = z
   .object({
@@ -338,6 +342,7 @@ export const historicBulkSchema = z
   .transform((bulk) => {
     const players: z.infer<typeof historicBulkPlayerSchema>[] = [];
     const skippedPlayerIds = [...bulk.skippedPlayerIds];
+    const unreadablePlayerIds: number[] = [];
     for (const raw of bulk.players) {
       const parsed = historicBulkPlayerSchema.safeParse(raw);
       if (parsed.success) {
@@ -345,10 +350,12 @@ export const historicBulkSchema = z
         continue;
       }
       const id = raw && typeof raw === "object" ? (raw as { playerId?: unknown }).playerId : undefined;
-      if (typeof id === "number" && !skippedPlayerIds.includes(id)) skippedPlayerIds.push(id);
+      if (typeof id !== "number") continue;
+      if (!skippedPlayerIds.includes(id)) skippedPlayerIds.push(id);
+      if (!unreadablePlayerIds.includes(id)) unreadablePlayerIds.push(id);
     }
     if (players.length < bulk.players.length) skippedCounts.set(players, bulk.players.length - players.length);
-    return { ...bulk, players, skippedPlayerIds };
+    return { ...bulk, players, skippedPlayerIds, unreadablePlayerIds };
   });
 
 export const entryTeamSchema = z

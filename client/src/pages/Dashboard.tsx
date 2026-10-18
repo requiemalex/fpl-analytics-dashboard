@@ -91,16 +91,21 @@ export function poolForDashboardItem(
 
 /**
  * The players one player-scope tile or graph ranks or plots: its picked
- * players if it has any (no criteria, no floor), otherwise its criteria
- * applied to the pool — plus the fixed floor when the packaged Default view
- * is the one on screen (see applyDefaultViewFloor above).
+ * players if it has a picked list (no criteria, no floor), otherwise its
+ * criteria applied to the pool — plus the fixed floor when the packaged
+ * Default view is the one on screen (see applyDefaultViewFloor above).
+ *
+ * A picked list is never empty when saved (the dialog requires a player);
+ * only the season-id rollover can empty one, when every picked player has
+ * left FPL. That still means "these players", so nobody, never the whole
+ * league (audit 2026-10-18 R2). The same holds for a team item's teamIds.
  */
 export function playersForDashboardItem(
   item: { dataView: AnalysisMode; criteria: GlobalScoutingFilters | null; playerIds: number[] | null },
   pool: NormalizedPlayer[],
   { defaultViewShown }: { defaultViewShown: boolean },
 ): NormalizedPlayer[] {
-  if (item.playerIds && item.playerIds.length > 0) {
+  if (item.playerIds !== null) {
     const idSet = new Set(item.playerIds);
     return pool.filter((p) => idSet.has(p.id));
   }
@@ -118,7 +123,7 @@ export function dashboardItemFloorNote(
   { defaultViewShown }: { defaultViewShown: boolean },
 ): string | null {
   if (!defaultViewShown) return null;
-  const picked = !!item.playerIds && item.playerIds.length > 0;
+  const picked = item.playerIds !== null;
   return dashboardFloorNote(item.dataView, { playerFloor: !picked, historicSeasons: item.dataView === "historicAverage" });
 }
 
@@ -286,6 +291,7 @@ export function Dashboard() {
     historicStatus,
     historicErrorMessage,
     historicSkippedPlayerIds,
+    historicFetchSkippedPlayerIds,
     refreshHistoricData,
     historicRefreshing,
     currentSeasonHasStarted,
@@ -336,11 +342,11 @@ export function Dashboard() {
   // the season(s) a tile/graph's own Data View selects, league table
   // included, never a sum over today's squad.
   const teamAggregatesByMode = useMemo(() => {
-    const ctx = { clubSeasons, referenceSeason: historicReferenceSeason, currentSeasonHasStarted, livePlayerSumsPartial: historicSkippedPlayerIds.length > 0 };
+    const ctx = { clubSeasons, referenceSeason: historicReferenceSeason, currentSeasonHasStarted, livePlayerSumsPartial: historicFetchSkippedPlayerIds.length > 0 };
     const map = {} as Record<AnalysisMode, TeamAggregate[]>;
     for (const mode of MODES) map[mode] = computeTeamAggregates(teams, mode, ctx);
     return map;
-  }, [teams, clubSeasons, historicReferenceSeason, currentSeasonHasStarted, historicSkippedPlayerIds]);
+  }, [teams, clubSeasons, historicReferenceSeason, currentSeasonHasStarted, historicFetchSkippedPlayerIds]);
 
   // ---------- Summary Tiles ----------
   //
@@ -604,7 +610,7 @@ export function Dashboard() {
         const metric = teamTileMetricByKey(tile.metricKey);
         if (!metric) return { tile, kind: "unavailable" as const };
         let teamPool = teamAggregatesByMode[tile.dataView];
-        if (tile.teamIds && tile.teamIds.length > 0) {
+        if (tile.teamIds !== null) {
           const idSet = new Set(tile.teamIds);
           teamPool = teamPool.filter((t) => idSet.has(t.teamId));
         }
@@ -668,7 +674,7 @@ export function Dashboard() {
         const xColumn = graph.chartType === "scatter" ? teamColumnByKey(graph.xMetricKey) : undefined;
         if (!yColumn || (graph.chartType === "scatter" && !xColumn)) return { graph, kind: "unavailable" as const };
         let teamPool = teamAggregatesByMode[graph.dataView];
-        if (graph.teamIds && graph.teamIds.length > 0) {
+        if (graph.teamIds !== null) {
           const idSet = new Set(graph.teamIds);
           teamPool = teamPool.filter((t) => idSet.has(t.teamId));
         }
@@ -740,9 +746,9 @@ export function Dashboard() {
     setNewTileDataView(tile.dataView);
     setNewTileName(tile.name ?? "");
     setNewTileCriteria(tile.criteria ?? DEFAULT_FILTERS);
-    setNewTilePlayerMode(tile.playerIds && tile.playerIds.length > 0 ? "players" : "filters");
+    setNewTilePlayerMode(tile.playerIds !== null ? "players" : "filters");
     setNewTilePlayerIds(tile.playerIds ?? []);
-    setNewTileTeamMode(tile.teamIds && tile.teamIds.length > 0 ? "selected" : "all");
+    setNewTileTeamMode(tile.teamIds !== null ? "selected" : "all");
     setNewTileTeamIds(tile.teamIds ?? []);
     setNewTileError(null);
     setEditingTileId(tile.id);
@@ -874,9 +880,9 @@ export function Dashboard() {
     setNewGraphShowReferenceLine(graph.showReferenceLine);
     setNewGraphDirection(graph.direction);
     setNewGraphCriteria(graph.criteria ?? DEFAULT_FILTERS);
-    setNewGraphPlayerMode(graph.playerIds && graph.playerIds.length > 0 ? "players" : "filters");
+    setNewGraphPlayerMode(graph.playerIds !== null ? "players" : "filters");
     setNewGraphPlayerIds(graph.playerIds ?? []);
-    setNewGraphTeamMode(graph.teamIds && graph.teamIds.length > 0 ? "selected" : "all");
+    setNewGraphTeamMode(graph.teamIds !== null ? "selected" : "all");
     setNewGraphTeamIds(graph.teamIds ?? []);
     setNewGraphError(null);
     setEditingGraphId(graph.id);
@@ -1057,7 +1063,7 @@ export function Dashboard() {
       )}
       {usesHistoricData && historicStatus === "ready" && historicSkippedPlayerIds.length > 0 && (
         <p className="page-subtitle">
-          {historicSkippedPlayerIds.length} player(s) had no historic data available this session (a transient fetch issue). Everyone else
+          {historicSkippedPlayerIds.length} player(s) had no historic data available this session (a fetch failed, or FPL sent data the app couldn't read). Everyone else
           is unaffected.
         </p>
       )}

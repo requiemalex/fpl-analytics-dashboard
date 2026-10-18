@@ -8,14 +8,16 @@
  *    3,865 matches), so a warning (<incomplete_shot_list>). (Club xG is NOT the sum of its
  *    shots: Understat counts a shot and its rebound as one chance — see
  *    <club_xg_is_per_chance> in client/src/understat/columns.ts.)
- *  - Understat against FPL: match scores, player goals and own goals are
- *    the same facts in both sources (0 differences in 23,837 player-matches
- *    across 2021/22, 2022/23 and 2026/27), which is why the app shows them
- *    from FPL only, with no source toggle. These checks keep proving that;
- *    if it ever stops being true the run fails and alerts, rather than the
- *    app quietly showing two versions of a goal. Every difference counts,
- *    however few (audit 2026-10-18 H2), unless the owner has reviewed it
- *    and listed it in accepted-differences.csv.
+ *  - Understat against FPL: match scores must agree, since they are how
+ *    the two sources' fixtures are paired. Player goals and own goals are
+ *    each source's own record and may differ (owner's decision, 2026-10-18:
+ *    a stat the two sources record differently is not a problem, e.g. the
+ *    Leeds 0-4 Arsenal goal of 31 Jan 2026 that FPL gives Madueke and
+ *    Understat calls a Darlow own goal). They almost always agree (2 of
+ *    9,386 player-matches in 2025/26, none in the other seasons checked),
+ *    so a handful of differences is only listed in the run report; a share
+ *    above MAX_GOAL_DIFFERENCE_SHARE can only mean player links have gone
+ *    wrong, and stops the run.
  *
  * Errors stop the run (nothing written). Warnings go in the run report.
  */
@@ -30,9 +32,8 @@ export interface CheckResult {
 
 /** Understat rounds each figure separately. */
 const XG_TOLERANCE = 0.02;
-
-/** Key of one reviewed goals difference: season, Understat match id, FPL player code. */
-export const acceptedDifferenceKey = (season: string, understatMatchId: string, fplCode: number) => `${season}|${understatMatchId}|${fplCode}`;
+/** Above this share of linked player-matches with different goals (about 47 in a full season), it's broken player links, not the sources recording a goal differently. */
+const MAX_GOAL_DIFFERENCE_SHARE = 0.005;
 
 export function checkSeasonInternally(data: SeasonData): CheckResult {
   const errors: string[] = [];
@@ -81,25 +82,22 @@ export function checkSeasonInternally(data: SeasonData): CheckResult {
 }
 
 /**
- * FPL and Understat must agree on every linked player's goals and own goals
- * in every paired match. One difference stops the run, unless its key
- * (acceptedDifferenceKey) is in `accepted`: a difference the owner has
- * looked at and listed in accepted-differences.csv, which stays in the
- * run report as a warning.
+ * Compares every linked player's goals and own goals in every paired match.
+ * The sources may record a goal differently (see the header), so a few
+ * differences are warnings; only a share above MAX_GOAL_DIFFERENCE_SHARE,
+ * which means broken player links, is an error.
  */
 export function checkAgainstFpl(
   data: SeasonData,
   ledgerRows: LedgerRow[],
   matchByFixture: Map<number, string>,
   links: Map<number, PlayerLink>,
-  accepted: ReadonlySet<string> = new Set(),
 ): CheckResult & { compared: number } {
   const errors: string[] = [];
   const warnings: string[] = [];
   const byKey = new Map(data.appearances.map((a) => [`${a.matchId}|${a.playerId}`, a]));
   let compared = 0;
   const differences: string[] = [];
-  const acceptedSeen: string[] = [];
   for (const row of ledgerRows) {
     const link = links.get(row.code);
     const match = matchByFixture.get(row.fixture);
@@ -110,18 +108,14 @@ export function checkAgainstFpl(
     const usGoals = us?.goals ?? 0;
     const usOwn = us?.ownGoals ?? 0;
     if (usGoals !== row.goals || (row.ownGoals !== null && usOwn !== row.ownGoals)) {
-      const line = `${link.fplName} (FPL code ${row.code}) in Understat match ${match}: FPL ${row.goals} goals/${row.ownGoals ?? "?"} own goals, Understat ${usGoals}/${usOwn}`;
-      if (accepted.has(acceptedDifferenceKey(data.season, match, row.code))) acceptedSeen.push(line);
-      else differences.push(line);
+      differences.push(`${link.fplName} in match ${match}: FPL ${row.goals} goals/${row.ownGoals ?? "?"} own goals, Understat ${usGoals}/${usOwn}`);
     }
   }
   if (differences.length > 0) {
-    errors.push(
-      `${data.season}: ${differences.length} of ${compared} player-matches have different goals in FPL and Understat (${differences.slice(0, 5).join("; ")}${differences.length > 5 ? "; …" : ""})`,
-    );
-  }
-  if (acceptedSeen.length > 0) {
-    warnings.push(`${data.season}: ${acceptedSeen.length} goals difference${acceptedSeen.length === 1 ? "" : "s"} listed as reviewed in accepted-differences.csv (${acceptedSeen.join("; ")})`);
+    const share = differences.length / Math.max(1, compared);
+    const line = `${data.season}: ${differences.length} of ${compared} player-matches have different goals in FPL and Understat (e.g. ${differences.slice(0, 3).join("; ")})`;
+    if (share > MAX_GOAL_DIFFERENCE_SHARE) errors.push(line);
+    else warnings.push(line);
   }
   return { errors, warnings, compared };
 }

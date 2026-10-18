@@ -29,6 +29,7 @@ vi.mock("../state/AppStateContext", () => ({
     historicStatus: "ready",
     historicErrorMessage: null,
     historicSkippedPlayerIds: [],
+    historicFetchSkippedPlayerIds: [],
     historicRefreshing: false,
     refreshHistoricData: () => {},
     currentSeasonHasStarted: true,

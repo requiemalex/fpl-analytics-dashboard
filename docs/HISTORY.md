@@ -3571,3 +3571,16 @@ tiles/graphs only:
   and alerts. Now every difference stops it unless the owner has listed it
   in `data/understat/accepted-differences.csv` (audit 2026-10-18, H2).
 - **Last commit with it:** `cd191ab`.
+
+### Strict goals agreement and `accepted-differences.csv` for the Understat sync (removed 2026-10-18, never released)
+- **What it did:** any goals or own-goals difference between FPL and
+  Understat for a linked player stopped the daily Understat sync, unless the
+  owner listed it in `data/understat/accepted-differences.csv` (season,
+  Understat match id, FPL player code). Added in audit 2026-10-18 phase 2
+  (H2), pre-filled with the Madueke/Darlow goal of 31 Jan 2026.
+- **Why it went:** the owner decided that a stat both sources record may
+  differ between them, as two sources recording it differently (audit
+  2026-10-18, second remediation pass). The check went back to its earlier
+  form: a few differences are reported, and only more than 0.5% of a
+  season's player-matches (broken player links) stops the run.
+- **Last commit with it:** `d72ab55`.

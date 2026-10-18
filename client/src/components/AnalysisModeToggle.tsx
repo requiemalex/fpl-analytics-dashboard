@@ -37,7 +37,7 @@ export function AnalysisModeToggle({
   /** Set on team views: Current Season club figures are summed from every player's matches, so a skipped player matters there too (audit 2026-10-18 M4). */
   clubFigures?: boolean;
 }) {
-  const { historicStatus, historicErrorMessage, historicSkippedPlayerIds, refreshHistoricData, historicRefreshing } = useAppState();
+  const { historicStatus, historicErrorMessage, historicSkippedPlayerIds, historicFetchSkippedPlayerIds, refreshHistoricData, historicRefreshing } = useAppState();
 
   return (
     <div className="card" style={{ marginBottom: 24 }}>
@@ -78,15 +78,15 @@ export function AnalysisModeToggle({
           </span>
         )}
       </div>
-      {historicStatus === "ready" && historicSkippedPlayerIds.length > 0 && clubFigures && mode === "live" && (
+      {historicStatus === "ready" && historicFetchSkippedPlayerIds.length > 0 && clubFigures && mode === "live" && (
         <p className="page-subtitle" style={{ marginTop: 6, marginBottom: 0 }}>
-          {historicSkippedPlayerIds.length} player(s) couldn't be loaded this session (a transient fetch issue), so this season's club figures
+          {historicFetchSkippedPlayerIds.length} player(s) couldn't be loaded this session (a transient fetch issue), so this season's club figures
           added up from players (FPL points, goals, assists, bonus, xG, xA, xGI, xGC, DC) show "—" for now. Results are unaffected.
         </p>
       )}
       {mode !== "live" && historicStatus === "ready" && historicSkippedPlayerIds.length > 0 && (
         <p className="page-subtitle" style={{ marginTop: 6, marginBottom: 0 }}>
-          {historicSkippedPlayerIds.length} player(s) had no historic data available this session (a transient fetch issue). Everyone else
+          {historicSkippedPlayerIds.length} player(s) had no historic data available this session (a fetch failed, or FPL sent data the app couldn't read). Everyone else
           is unaffected.
         </p>
       )}

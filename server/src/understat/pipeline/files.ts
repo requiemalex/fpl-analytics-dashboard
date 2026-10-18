@@ -5,8 +5,6 @@
  *   status.json                  last successful run: seasons, freshness, link counts
  *   links.csv                    FPL player code <-> Understat player id, with status
  *   overrides.csv                manual link decisions (normally empty)
- *   accepted-differences.csv     FPL/Understat goals differences the owner has
- *                                reviewed (hand-edited; the job never writes it)
  *   seasons/<2025-26>/           what Understat said, per season:
  *     clubs.csv                    FPL club code <-> Understat team id
  *     matches.csv                  one row per match
@@ -247,19 +245,6 @@ export function readOverrides(root: string): LinkOverride[] {
 export function ensureOverridesFile(root: string): void {
   const path = join(root, "overrides.csv");
   if (!existsSync(path)) writeAtomic(path, toCsv(["fpl_code", "understat_id", "action", "note"], []));
-}
-
-/**
- * Goals differences the owner has reviewed and accepted (e.g. one source
- * credits a goal the other calls an own goal), keyed as
- * acceptedDifferenceKey in checks.ts. Every other difference stops the run.
- */
-export function readAcceptedDifferences(root: string): Set<string> {
-  return new Set(
-    readCsvFile(join(root, "accepted-differences.csv"))
-      .filter((r) => r.season && r.understat_match_id && r.fpl_code)
-      .map((r) => `${r.season}|${r.understat_match_id}|${n(r.fpl_code)}`),
-  );
 }
 
 // --- status, control, app files ---------------------------------------------

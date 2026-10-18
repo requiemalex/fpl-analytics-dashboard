@@ -47,7 +47,7 @@ function seasonLabel(seasons: string[]): string {
 }
 
 export function Teams() {
-  const { teams, clubSeasons, historicReferenceSeason, historicStatus, currentSeasonHasStarted, historicSkippedPlayerIds, requestHistoricData } = useAppState();
+  const { teams, clubSeasons, historicReferenceSeason, historicStatus, currentSeasonHasStarted, historicFetchSkippedPlayerIds, requestHistoricData } = useAppState();
   useEffect(() => {
     requestHistoricData();
   }, [requestHistoricData]);
@@ -139,8 +139,8 @@ export function Teams() {
   }, [showColumnPopover]);
 
   const aggregates: TeamAggregate[] = useMemo(
-    () => computeTeamAggregates(teams, analysisMode, { clubSeasons, referenceSeason: historicReferenceSeason, currentSeasonHasStarted, livePlayerSumsPartial: historicSkippedPlayerIds.length > 0 }),
-    [teams, analysisMode, clubSeasons, historicReferenceSeason, currentSeasonHasStarted, historicSkippedPlayerIds],
+    () => computeTeamAggregates(teams, analysisMode, { clubSeasons, referenceSeason: historicReferenceSeason, currentSeasonHasStarted, livePlayerSumsPartial: historicFetchSkippedPlayerIds.length > 0 }),
+    [teams, analysisMode, clubSeasons, historicReferenceSeason, currentSeasonHasStarted, historicFetchSkippedPlayerIds],
   );
 
   const filteredRows = useMemo(() => {

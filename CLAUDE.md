@@ -49,15 +49,18 @@ No lint script. Playwright isn't installed but works via
      (`client/src/understat/separation.test.ts` enforces it), so it can be
      removed in one go or switched off (`data/understat/control.json`).
   2. **Checked continuously.** The daily sync stops (writes nothing) if
-     Understat blocks us, changes format, or disagrees with FPL on scores or
-     goals, and alerts me with a GitHub issue. **Where they disagree, FPL
-     is the source of truth** (points are awarded from FPL's data, so an FPL
-     goal is authoritative; owner's decision, 2026-10-18). A difference I've
-     reviewed is listed in `data/understat/accepted-differences.csv`: it no
-     longer stops the sync, and the app uses FPL's figure for it. A new,
-     unlisted difference still stops the sync and alerts me.
-  Toggles only where the sources genuinely differ (xG family, assists,
-  minutes); identical facts (goals, scores, results) stay FPL only. The same
+     Understat blocks us, changes format, disagrees with FPL on a match
+     score (scores are how fixtures are paired), or disagrees on so many
+     goals (over 0.5% of player-matches) that player links must be wrong,
+     and alerts me with a GitHub issue.
+  **A stat both sources record may differ between them, and that's fine**
+  (owner's decision, 2026-10-18): each column shows its own source's
+  figure, and nothing forces one source to match the other. Goals included:
+  a goal FPL credits to a player that Understat records as an own goal is
+  two sources recording it differently, not an error. Toggles only where the
+  sources usually differ (xG family, assists, minutes); goals, scores and
+  results almost always agree, so they stay FPL only, while Understat's own
+  goal-based columns (Goals − xG, NP Goals) use Understat's count. The same
   data rules apply to it (null not 0, nothing inferred). No other source
   without my approval.
 - **Inspect the live API, never assume a field's shape.** Field availability

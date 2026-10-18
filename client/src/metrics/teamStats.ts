@@ -50,7 +50,9 @@ export interface ClubHistoryContext {
   referenceSeason: string | null;
   currentSeasonHasStarted: boolean;
   /**
-   * True while the historic build skipped any player (historicSkippedPlayerIds).
+   * True while the server's historic build couldn't fetch some player
+   * (historicFetchSkippedPlayerIds; not one the app merely couldn't read,
+   * whose rows the server did count, audit 2026-10-18 R3).
    * The live season's club figures are built from every player's match rows,
    * so a skipped player's rows are simply missing: results (from fixtures)
    * stay whole, but everything summed from players (FPL points, goals,

@@ -12,7 +12,7 @@ const PLAYER_METRICS: [string, string][] = [
   ["Shots, Shots/Game", "Every attempt, blocked ones included."],
   ["On Target, On Target %", "Shots scored or saved (a shot off the post isn't on target), and their share of all shots."],
   ["xG/Shot", "Average chance quality: xG ÷ shots."],
-  ["Goals − xG", "Goals minus Understat xG: finishing above (+) or below (−) the chances' quality."],
+  ["Goals − xG", "Understat's goals minus Understat xG: finishing above (+) or below (−) the chances' quality."],
   ["NP Goals, NPxG, NPxG/Game", "Goals and xG without penalties."],
   ["Headed Shots, Headed xG", "Attempts with the head, and their xG."],
   ["Open-Play / Set-Piece Shots and xG", "Split by how the chance came about. Set pieces are corners, free kicks taken directly, and other set-piece moves; penalties are separate."],
@@ -78,8 +78,9 @@ export function UnderstatGuide() {
         <li>
           <strong>The ⇄ icon on a header</strong> switches that whole column between FPL's figure and Understat's: on xG, xA, xGI
           (and their per-game and per-£m versions), Assists and Minutes, where the two sources disagree. It starts on FPL; the
-          header turns violet while it shows Understat. Goals, own goals, scores and results are identical in both sources, so
-          they're FPL only, and the daily update keeps checking that.
+          header turns violet while it shows Understat. Goals, own goals, scores and results almost always agree in the two
+          sources, so they're FPL only. Understat's own Goals − xG and NP Goals use Understat's goal count, which can differ
+          now and then: a goal one source gives a player, the other may record as an own goal.
         </li>
         <li>
           <strong>The Data Views work the same way:</strong> Current Season, Last Completed Season, or a Historic Average of the

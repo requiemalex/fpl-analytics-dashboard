@@ -56,6 +56,13 @@ interface AppState {
   /** Player IDs the server couldn't build historic data for (a transient upstream blip) — informational, not an error unless it's most of the pool. */
   historicSkippedPlayerIds: number[];
   /**
+   * The players in historicSkippedPlayerIds the server itself couldn't fetch.
+   * Only these make the live season's player-summed club figures partial:
+   * the server built those from every player it fetched, including any whose
+   * history the app then couldn't read (audit 2026-10-18 R3).
+   */
+  historicFetchSkippedPlayerIds: number[];
+  /**
    * Every club's figures for every season on record, live season included
    * — the single source for every team-level figure in the app (see
    * metrics/teamStats.ts). Arrives with the same historic load as
@@ -96,6 +103,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [historicProfiles, setHistoricProfiles] = useState<Map<number, HistoricPlayerProfile>>(new Map());
   const [allTimeSeasonsByPlayerId, setAllTimeSeasonsByPlayerId] = useState<Map<number, PlayerSeasonHistory[]>>(new Map());
   const [historicSkippedPlayerIds, setHistoricSkippedPlayerIds] = useState<number[]>([]);
+  const [historicFetchSkippedPlayerIds, setHistoricFetchSkippedPlayerIds] = useState<number[]>([]);
   const [clubSeasons, setClubSeasons] = useState<ClubSeason[]>([]);
   const [historicErrorMessage, setHistoricErrorMessage] = useState<string | null>(null);
   const [historicRefreshing, setHistoricRefreshing] = useState(false);
@@ -269,6 +277,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       historicProfilesRef.current = profiles;
       setAllTimeSeasonsByPlayerId(seasonsByPlayer);
       setHistoricSkippedPlayerIds(result.data.skippedPlayerIds);
+      const unreadable = new Set(result.data.unreadablePlayerIds ?? []);
+      if (unreadable.size > 0) console.warn(`historic-bulk: ${unreadable.size} player(s) failed validation and were left out`);
+      setHistoricFetchSkippedPlayerIds(result.data.skippedPlayerIds.filter((id) => !unreadable.has(id)));
       setClubSeasons(result.data.clubSeasons ?? []);
       const skippedClubSeasons = skippedRecordCount(result.data.clubSeasons ?? []);
       if (skippedClubSeasons > 0) console.warn(`historic-bulk: ${skippedClubSeasons} club-season record(s) failed validation and were skipped`);
@@ -368,6 +379,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       historicProfiles,
       allTimeSeasonsByPlayerId,
       historicSkippedPlayerIds,
+      historicFetchSkippedPlayerIds,
       clubSeasons,
       historicErrorMessage,
       historicRefreshing,
@@ -399,6 +411,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       historicProfiles,
       allTimeSeasonsByPlayerId,
       historicSkippedPlayerIds,
+      historicFetchSkippedPlayerIds,
       clubSeasons,
       historicErrorMessage,
       historicRefreshing,

@@ -71,6 +71,7 @@ function setApp(players: NormalizedPlayer[], overrides: Record<string, unknown> 
     historicStatus: "ready",
     historicErrorMessage: null,
     historicSkippedPlayerIds: [],
+    historicFetchSkippedPlayerIds: [],
     historicRefreshing: false,
     refreshHistoricData: () => {},
     historicProfiles: new Map(),

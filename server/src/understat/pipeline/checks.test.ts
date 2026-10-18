@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LedgerRow } from "../../clubHistory/types.js";
-import { acceptedDifferenceKey, checkAgainstFpl } from "./checks.js";
+import { checkAgainstFpl } from "./checks.js";
 import type { SeasonData } from "./files.js";
 import type { PlayerLink, UsAppearance } from "./types.js";
 
@@ -18,31 +18,31 @@ const appearance = (r: LedgerRow, goals: number, ownGoals = 0) =>
   ({ matchId: `m${r.fixture}`, playerId: `u${r.code}`, playerName: "", teamId: "t1", side: "h", position: "FW", minutes: 90, goals, ownGoals, shots: 0, xG: 0, assists: 0, xA: 0, keyPasses: 0, xGChain: 0, xGBuildup: 0, yellowCards: 0, redCards: 0 }) as UsAppearance;
 const season = (appearances: UsAppearance[]) => ({ season: "2025/26", appearances }) as SeasonData;
 
-describe("checkAgainstFpl (audit 2026-10-18 H2)", () => {
-  it("agreement on every player-match passes", () => {
+/**
+ * Goals are each source's own record and may differ (owner's decision,
+ * 2026-10-18), so the comparison only guards against broken player links.
+ */
+describe("checkAgainstFpl: goals may differ between the sources", () => {
+  it("agreement on every player-match passes quietly", () => {
     const r = checkAgainstFpl(season(ledgerRows.map((row) => appearance(row, row.goals))), ledgerRows, matchByFixture, links);
     expect(r.compared).toBe(N);
     expect(r.errors).toEqual([]);
+    expect(r.warnings).toEqual([]);
   });
 
-  it("a single goals difference in 400 player-matches (0.25%) stops the run", () => {
-    // Understat gives player 0's goal as an own goal by nobody linked: 0 goals.
-    const r = checkAgainstFpl(season(ledgerRows.map((row, i) => appearance(row, i === 0 ? 0 : row.goals))), ledgerRows, matchByFixture, links);
-    expect(r.errors).toHaveLength(1);
-    expect(r.errors[0]).toContain("1 of 400");
-    expect(r.errors[0]).toContain("FPL code 1000");
+  it("a goal one source gives a player and the other calls an own goal (Madueke/Darlow) is reported, not a stop", () => {
+    // Player 0's goal is an own goal by player 1 in Understat.
+    const apps = ledgerRows.map((row, i) => appearance(row, i === 0 ? 0 : row.goals, i === 1 ? 1 : 0));
+    const r = checkAgainstFpl(season(apps), ledgerRows, matchByFixture, links);
+    expect(r.errors).toEqual([]);
+    expect(r.warnings).toHaveLength(1);
+    expect(r.warnings[0]).toContain("2 of 400");
   });
 
-  it("a difference the owner listed in accepted-differences.csv is a warning, not an error; any other still stops the run", () => {
-    const apps = ledgerRows.map((row, i) => appearance(row, i === 0 ? 0 : row.goals, i === 5 ? 1 : 0));
-    const accepted = new Set([acceptedDifferenceKey("2025/26", "m1", 1000)]);
-    const r = checkAgainstFpl(season(apps), ledgerRows, matchByFixture, links, accepted);
+  it("a share of differences only broken links could cause (above 0.5%) still stops the run", () => {
+    const apps = ledgerRows.map((row, i) => appearance(row, i < 3 ? row.goals + 1 : row.goals));
+    const r = checkAgainstFpl(season(apps), ledgerRows, matchByFixture, links);
     expect(r.errors).toHaveLength(1);
-    expect(r.errors[0]).toContain("FPL code 1005");
-    expect(r.errors[0]).not.toContain("FPL code 1000");
-    expect(r.warnings.some((w) => w.includes("reviewed") && w.includes("FPL code 1000"))).toBe(true);
-
-    const onlyAccepted = checkAgainstFpl(season(ledgerRows.map((row, i) => appearance(row, i === 0 ? 0 : row.goals))), ledgerRows, matchByFixture, links, accepted);
-    expect(onlyAccepted.errors).toEqual([]);
+    expect(r.errors[0]).toContain("3 of 400");
   });
 });

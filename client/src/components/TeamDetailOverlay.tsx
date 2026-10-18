@@ -121,7 +121,7 @@ function StatTile({ label, value, tint }: { label: string; value: React.ReactNod
 }
 
 export function TeamDetailOverlay() {
-  const { teams, teamsById, fixtures, clubSeasons, currentSeasonHasStarted, historicReferenceSeason, historicStatus, historicSkippedPlayerIds, requestHistoricData } = useAppState();
+  const { teams, teamsById, fixtures, clubSeasons, currentSeasonHasStarted, historicReferenceSeason, historicStatus, historicFetchSkippedPlayerIds, requestHistoricData } = useAppState();
   const [team, setTeamId, unknownTeamLink] = useSelectedTeam();
   const isOpen = team !== null;
   // Every club figure here (Current Season included) comes from the historic
@@ -138,8 +138,8 @@ export function TeamDetailOverlay() {
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("lastSeason");
 
   const clubCtx = useMemo(
-    () => ({ clubSeasons, referenceSeason: historicReferenceSeason, currentSeasonHasStarted, livePlayerSumsPartial: historicSkippedPlayerIds.length > 0 }),
-    [clubSeasons, historicReferenceSeason, currentSeasonHasStarted, historicSkippedPlayerIds],
+    () => ({ clubSeasons, referenceSeason: historicReferenceSeason, currentSeasonHasStarted, livePlayerSumsPartial: historicFetchSkippedPlayerIds.length > 0 }),
+    [clubSeasons, historicReferenceSeason, currentSeasonHasStarted, historicFetchSkippedPlayerIds],
   );
 
   // Every club's figures for this view — comparative colouring and the

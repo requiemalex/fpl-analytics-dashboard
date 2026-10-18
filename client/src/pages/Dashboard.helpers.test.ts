@@ -114,6 +114,14 @@ describe("playersForDashboardItem — the fixed minutes floor is for the Default
     expect(playersForDashboardItem(picked, pool, { defaultViewShown: true }).map((p) => p.id)).toEqual([1]);
   });
 
+  it("a picked list emptied by the season-id rollover shows nobody, never the whole league (audit 2026-10-18 R2)", () => {
+    const emptied = { ...item, playerIds: [] as number[] };
+    expect(playersForDashboardItem(emptied, pool, { defaultViewShown: false })).toEqual([]);
+    expect(dashboardItemFloorNote({ dataView: "lastSeason", playerIds: [] }, { defaultViewShown: true })).toBe(
+      dashboardItemFloorNote({ dataView: "lastSeason", playerIds: [1] }, { defaultViewShown: true }),
+    );
+  });
+
   it("R2: 'Default view' means the Default view is selected — not a tile carrying a packaged id, as views saved before v1.35.0 can", () => {
     // A user view saved by the old Save View: a copy of the Default's
     // default-points tile, since edited to PPG (Edit keeps the id).

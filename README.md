@@ -365,11 +365,14 @@ too.
   2019/20–2025/26; it marks leavers unavailable until the summer reset.
 - **A skipped player in the live season** (`livePlayerSumsPartial`,
   `metrics/teamStats.ts`): the live season is built from every player's
-  match rows, so while the historic build skipped anyone, his rows are
-  missing. Results (from fixtures) stay whole; every club figure summed from
-  players (FPL points, goals, assists, bonus, the xG family, DC), its match
-  log and its points-by-season bar show "—" instead of a part-sum, and the
-  team views' Data View note says so.
+  match rows, so while the server's historic build couldn't fetch anyone,
+  his rows are missing. Results (from fixtures) stay whole; every club
+  figure summed from players (FPL points, goals, assists, bonus, the xG
+  family, DC), its match log and its points-by-season bar show "—" instead
+  of a part-sum, and the team views' Data View note says so. A player the
+  app left out only because his history couldn't be read here
+  (`unreadablePlayerIds`) doesn't count: the server fetched him, so his
+  matches are in its club figures, which stay as they are.
 
 ---
 
@@ -439,16 +442,15 @@ pipeline is `server/src/understat/pipeline/`, dependency-free) runs, in order:
    - each match's goals add up from its players;
    - players' xG adds up to their shots' xG;
    - the match and club pages agree on xG;
-   - FPL and Understat agree on every linked player's goals and own goals.
-     **One difference stops the run**, however few, unless the owner has
-     reviewed it and listed it in `accepted-differences.csv` (season,
-     Understat match id, FPL player code, note); a listed one stays in the
-     run report as a warning. Where the two disagree, **FPL is the source
-     of truth** (points are awarded from FPL's data; owner's decision,
-     2026-10-18), so a listed difference counts as FPL has it. The one
-     known case: Leeds 0–4 Arsenal, 31 Jan 2026, a goal FPL gives Madueke
-     and Understat calls a Darlow own goal (2 of 9,386 player-matches in
-     2025/26; none in the other seasons), confirmed by the owner;
+   - every linked player's goals and own goals are compared with FPL's.
+     The two sources may record a goal differently, and that's fine (the
+     owner's decision, 2026-10-18): each column shows its own source's
+     figure. The known case is Leeds 0–4 Arsenal, 31 Jan 2026, a goal FPL
+     gives Madueke and Understat calls a Darlow own goal (2 of 9,386
+     player-matches in 2025/26; none in the other seasons). A few
+     differences are listed in the run report; more than 0.5% of a
+     season's player-matches can only mean broken player links, and stops
+     the run;
    - no more than 5% of saved links may change in one run.
 6. **Write only if all of that passed.** A failed run writes nothing, so the
    app keeps the last good data. The app's figures count only Understat
@@ -469,8 +471,7 @@ While it stays open, its text is refreshed silently (no daily emails). The
 next clean run closes it with a "resolved" comment.
 
 **Files** (`data/understat/`): `control.json`, `status.json`, `links.csv`,
-`overrides.csv`, `accepted-differences.csv` (hand-edited, never written by
-the job), `seasons/<season>/` (clubs, matches, team_matches,
+`overrides.csv`, `seasons/<season>/` (clubs, matches, team_matches,
 appearances, shots: what Understat said) and `app/<season>.json` (the
 season summary the app reads: totals per FPL player code and per FPL club
 code). Coverage: 2016/17 on, the same as club history.
@@ -499,8 +500,11 @@ code). Coverage: 2016/17 on, the same as club history.
   (`<one_source_per_figure>`): value, rate, sort, filter, tint and CSV
   export, so no figure ever mixes the two. Switching clears that column's
   filter; so does Understat going away mid-session, when the column falls
-  back to FPL. Goals, own goals, scores and results are identical in both
-  sources, so they stay FPL only, and the sync keeps proving that.
+  back to FPL. Goals, own goals, scores and results almost always agree in
+  the two sources, so they have no toggle and stay FPL only. Understat's
+  own goal-based columns (Goals − xG, NP Goals) use Understat's goal count,
+  which can differ from FPL's where the sources record a goal differently
+  (see step 5 of the sync above).
 - **Data Views** (`client/src/understat/resolve.ts`), with the same rules
   as FPL figures:
   - **Players:** a player's window is his FPL seasons (Premier League only).
@@ -1003,7 +1007,10 @@ changes still work for the session; they just don't persist.
   squads is translated old id → code → new id. A player or club no longer in
   FPL is dropped from lists and a squad armband on him is cleared; a tile or
   graph filtered to a club no longer in FPL falls back to all clubs, with
-  "(club no longer in FPL)" added to its name. The stores keep their shape
+  "(club no longer in FPL)" added to its name. A tile or graph whose picked
+  players (or clubs) have all left keeps an empty pick list, which shows
+  nobody (never the whole league), with "(players no longer in FPL)" or
+  "(clubs no longer in FPL)" added to its name. The stores keep their shape
   and versions. An install with no ledger yet records the current season as
   is (the ledger arrived mid-2026/27, while every saved id was 2026/27's).
   A session left open across the reset reloads itself once.

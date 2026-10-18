@@ -28,7 +28,6 @@ import { buildAppSeason } from "./aggregate.js";
 import { checkAgainstFpl, checkSeasonInternally } from "./checks.js";
 import {
   ensureOverridesFile,
-  readAcceptedDifferences,
   readControl,
   readLinks,
   readOverrides,
@@ -122,7 +121,6 @@ export async function runSync(opts: SyncOptions): Promise<SyncReport> {
     const previousLinks = readLinks(opts.understatRoot);
     let links = new Map(previousLinks);
     const overrides = readOverrides(opts.understatRoot);
-    const acceptedDifferences = readAcceptedDifferences(opts.understatRoot);
     const previousStatus = readStatus(opts.understatRoot);
 
     const seasons: string[] = [];
@@ -263,10 +261,10 @@ export async function runSync(opts: SyncOptions): Promise<SyncReport> {
       log(`${season}: ${results.length} results, ${pairing.matchByFixture.size}/${finished.length} FPL fixtures paired.`);
     }
 
-    // Goals agreement with FPL uses the final links (a link made in a later season covers earlier ones too).
+    // Goals comparison with FPL (a wrong-links guard, not a rule that the sources agree) uses the final links (a link made in a later season covers earlier ones too).
     let compared = 0;
     for (const p of processed) {
-      const fplCheck = checkAgainstFpl(p.data, p.ledgerRows, p.matchByFixture, links, acceptedDifferences);
+      const fplCheck = checkAgainstFpl(p.data, p.ledgerRows, p.matchByFixture, links);
       compared += fplCheck.compared;
       errors.push(...fplCheck.errors);
       report.warnings.push(...fplCheck.warnings);

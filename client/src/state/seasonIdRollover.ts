@@ -13,7 +13,10 @@
  *  - a player or club no longer in FPL is dropped from lists; a squad's
  *    armband on such a player is cleared;
  *  - a tile or graph filtered to a club no longer in FPL falls back to all
- *    clubs, and its name says so, so the change is visible, not silent.
+ *    clubs, and its name says so, so the change is visible, not silent;
+ *  - a tile or graph whose tracked players (or clubs) have all left keeps
+ *    an empty list, which shows no one rather than the whole league, and
+ *    its name says so (audit 2026-10-18 R2).
  *
  * The ledger is its own store; the stores it rewrites keep their shape and
  * their version (nothing about what they hold changes, only which ids).
@@ -69,6 +72,16 @@ export interface RolloverResult {
 type Translate = (id: number) => number | null;
 
 const CLUB_GONE_SUFFIX = " (club no longer in FPL)";
+const PLAYERS_GONE_SUFFIX = " (players no longer in FPL)";
+const CLUBS_GONE_SUFFIX = " (clubs no longer in FPL)";
+
+function withSuffix(item: Record<string, unknown>, suffix: string): void {
+  const name = typeof item.name === "string" && item.name.trim() !== "" ? item.name : null;
+  item.name = `${name ?? "Tile"}${suffix}`;
+}
+
+/** A tracked list that had ids and has none left after translating. */
+const emptiedByRollover = (before: unknown, after: unknown) => Array.isArray(before) && before.length > 0 && Array.isArray(after) && after.length === 0;
 
 function remapList(list: unknown, translate: Translate, dropped: { n: number }): unknown {
   if (!Array.isArray(list)) return list;
@@ -86,16 +99,22 @@ function remapList(list: unknown, translate: Translate, dropped: { n: number }):
 function remapTileOrGraph(raw: unknown, player: Translate, team: Translate, counts: { players: { n: number }; clubs: { n: number } }): unknown {
   if (!raw || typeof raw !== "object") return raw;
   const item = { ...(raw as Record<string, unknown>) };
-  item.playerIds = remapList(item.playerIds, player, counts.players);
-  item.teamIds = remapList(item.teamIds, team, counts.clubs);
+  // A tracked list whose every player or club has left stays an empty list,
+  // which the Dashboard shows as tracking no one, never as the whole league,
+  // and the name says why (audit 2026-10-18 R2).
+  const playerIds = remapList(item.playerIds, player, counts.players);
+  if (emptiedByRollover(item.playerIds, playerIds)) withSuffix(item, PLAYERS_GONE_SUFFIX);
+  item.playerIds = playerIds;
+  const teamIds = remapList(item.teamIds, team, counts.clubs);
+  if (emptiedByRollover(item.teamIds, teamIds)) withSuffix(item, CLUBS_GONE_SUFFIX);
+  item.teamIds = teamIds;
   const criteria = item.criteria as Record<string, unknown> | null | undefined;
   if (criteria && typeof criteria === "object" && typeof criteria.teamId === "number") {
     const next = team(criteria.teamId);
     if (next === null) {
       counts.clubs.n += 1;
       item.criteria = { ...criteria, teamId: "ALL" };
-      const name = typeof item.name === "string" && item.name.trim() !== "" ? item.name : null;
-      item.name = `${name ?? "Tile"}${CLUB_GONE_SUFFIX}`;
+      withSuffix(item, CLUB_GONE_SUFFIX);
     } else {
       item.criteria = { ...criteria, teamId: next };
     }

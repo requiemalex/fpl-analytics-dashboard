@@ -368,6 +368,8 @@ export interface RawHistoricBulk {
   clubSeasons: RawClubSeason[];
   /** Player IDs the server couldn't fetch history for (a transient upstream failure) — present but not treated as an error unless it's a large fraction of totalPlayers. */
   skippedPlayerIds: number[];
+  /** Added by the app’s validation, never sent by the server: players left out because their history couldn’t be read here (also in skippedPlayerIds). The server did fetch them, so its club figures include them (audit 2026-10-18 R3). */
+  unreadablePlayerIds?: number[];
 }
 
 /**

@@ -10,9 +10,11 @@
  *    rates, Assists and Minutes (players); xG, xA, xGI, xGC and Assists
  *    (clubs). They keep the FPL column's key, so the column's place,
  *    width, sort and filter follow it when its source toggle is flipped.
- *    Goals, own goals, scores and results are the same in both sources (0
- *    differences in 23,837 player-matches checked), so they stay FPL only,
- *    and the daily sync keeps checking that.
+ *    Goals, own goals, scores and results almost always agree (2 of 9,386
+ *    player-matches differ in 2025/26, none in the other seasons checked),
+ *    so they stay FPL only. A stat both sources record may differ between
+ *    them (owner's decision, 2026-10-18), so Understat's own goal-based
+ *    columns (Goals − xG, NP Goals) use Understat's goal count.
  *
  * <incomplete_shot_list>: figures built from Understat's shot list are "—"
  * for a season where that list is missing shots its line-ups count (rare);
