@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAt": "2026-10-18T10:51:12.448Z",
+  "generatedAt": "2026-10-18T20:39:58.607Z",
   "liveSeason": "2026/27",
   "seasons": [
     "2016/17",
@@ -15,7 +15,7 @@
     "2025/26",
     "2026/27"
   ],
-  "latestMatchDate": "2026-10-17",
+  "latestMatchDate": "2026-10-12",
   "missingFixtures": {},
   "links": {
     "confirmed": 587,
