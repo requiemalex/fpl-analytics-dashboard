@@ -1,0 +1,4 @@
+{
+  "enabled": true,
+  "note": "The Understat off-switch. Set enabled to false to hide every Understat figure in every installed app (at its next data refresh, no release needed) and stop the daily sync fetching anything. The FPL side of the app doesn't depend on it."
+}

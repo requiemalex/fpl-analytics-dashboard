@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
-import { useColumnCustomization } from "../state/useColumnCustomization";
+import { useColumnCustomization, MIN_COLUMN_WIDTH } from "../state/useColumnCustomization";
 import { useSortSpec, compareSortValues, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
 import { useColumnFilters, isColumnFilterActive } from "../state/useColumnFilters";
 import { ColumnFilterControl } from "../components/ColumnFilterControl";
@@ -20,6 +20,8 @@ import { useEscapeLayer } from "../state/useEscapeLayer";
 import { useProgressiveRowCount, INITIAL_ROW_COUNT } from "../state/useProgressiveRowCount";
 import type { NormalizedPlayer, Position } from "../types/normalized";
 import { MenuGroupHeading } from "../components/MenuControls";
+import { SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
+import { FPL_SOURCE, useExternalStats, type ColumnSourceChoice } from "../extensions/externalStats";
 
 const GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE", "ADVANCED"];
 /** Not a PLAYER_COLUMNS entry (renders fixture chips, not a number), so it shares the reorder/resize/Fit-to-Box engine as a special key, scoped to this page's own default list rather than the shared DEFAULT_VISIBLE_COLUMNS Team Building also uses. Deselected by default. Always the player's live team's upcoming fixtures, regardless of analysis mode — moving between seasons' fixtures wouldn't mean anything, same reasoning as price/ownership staying live. */
@@ -65,6 +67,8 @@ const FIXED_COLUMN_KEYS = new Set<string>(["ownership", "price", TEAM_COLUMN_KEY
 
 /** Next 5 Fixtures needs room for five fixture chips plus their average; an equal share of the table (about 72px at 1600px wide) showed only two. */
 const EXPLORER_MIN_COLUMN_WIDTHS: Record<string, number> = { [FIXTURES_COLUMN_KEY]: 190 };
+/** Room for a header's source toggle (extensions/externalStats.ts). */
+const SOURCE_TOGGLE_WIDTH = 16;
 /** Position sorts in pitch order, not alphabetically: the first (descending) click gives GKP, DEF, MID, FWD. */
 const POSITION_SORT_RANK: Record<Position, number> = { GKP: 4, DEF: 3, MID: 2, FWD: 1 };
 
@@ -257,6 +261,32 @@ export function PlayerExplorer() {
 
   const columnFiltersState = useColumnFilters();
 
+  // A second data source (Understat), when one is mounted: its own columns,
+  // and its version of figures FPL also has, picked per column by the
+  // header's source toggle (FPL by default). Every column lookup on this
+  // page goes through lookupColumn, so a toggled column's value, sort,
+  // filter, tint and export all come from the one source.
+  const ext = useExternalStats();
+  useEffect(() => {
+    ext?.request();
+  }, [ext]);
+  const extColumns = useMemo(() => ext?.playerColumns(analysisMode) ?? null, [ext, analysisMode]);
+  const extOnlyByKey = useMemo(() => new Map((extColumns?.groups ?? []).flatMap((g) => g.columns).map((c) => [c.key, c])), [extColumns]);
+  const [sourceChoice, setSourceChoice] = useState<ColumnSourceChoice>({});
+  const lookupColumn = useCallback(
+    (key: string): PlayerColumn | undefined => {
+      if (ext && extColumns && sourceChoice[key] === ext.id && extColumns.alternates[key]) return extColumns.alternates[key];
+      return columnByKey(key) ?? extOnlyByKey.get(key);
+    },
+    [ext, extColumns, sourceChoice, extOnlyByKey],
+  );
+
+  const explorerMinWidths = useMemo(() => {
+    const widths: Record<string, number> = { ...EXPLORER_MIN_COLUMN_WIDTHS };
+    for (const key of Object.keys(extColumns?.alternates ?? {})) widths[key] = MIN_COLUMN_WIDTH + SOURCE_TOGGLE_WIDTH;
+    return widths;
+  }, [extColumns]);
+
   const { resolved: resolvedPlayers } = useMemo(
     () => resolvePlayerStatsList(players, analysisMode, historicProfiles, currentSeasonHasStarted),
     [players, analysisMode, historicProfiles, currentSeasonHasStarted],
@@ -297,7 +327,7 @@ export function PlayerExplorer() {
     reorderColumn,
     startResize,
     fitToBox,
-  } = useColumnCustomization(EXPLORER_DEFAULT_VISIBLE_COLUMNS, EXPLORER_MIN_COLUMN_WIDTHS, () => handleFitToBox());
+  } = useColumnCustomization(EXPLORER_DEFAULT_VISIBLE_COLUMNS, explorerMinWidths, () => handleFitToBox());
   const columnPickerRef = useRef<HTMLDivElement>(null);
 
   // A filter or sort on a column the user hides goes with it — either would
@@ -331,7 +361,7 @@ export function PlayerExplorer() {
     if (key === "name") return row.player.name;
     if (key === TEAM_COLUMN_KEY) return row.player.teamShortName;
     if (key === POSITION_COLUMN_KEY) return row.player.position;
-    const col = columnByKey(key);
+    const col = lookupColumn(key);
     return col ? col.getValue(row.player, row.derived) : null;
   }
 
@@ -359,10 +389,11 @@ export function PlayerExplorer() {
       rows.filter((r) =>
         columnFiltersState.passesAllFilters(
           (key) => getRowValue(r, key),
-          (key) => columnByKey(key)?.decimals,
+          (key) => lookupColumn(key)?.decimals,
         ),
       ),
-    [rows, columnFiltersState.columnFilters],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, columnFiltersState.columnFilters, lookupColumn],
   );
 
   const sortedRows = useMemo(() => {
@@ -375,7 +406,8 @@ export function PlayerExplorer() {
       return 0;
     });
     return arr;
-  }, [filteredRows, sort]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredRows, sort, lookupColumn]);
 
   /** Measures the sticky Player column and the fixed identity block (Ownership/Price/Team/Position), then hands only what's left over to the shared engine for the user-configurable columns. */
   function handleFitToBox() {
@@ -430,10 +462,17 @@ export function PlayerExplorer() {
   const columnsInOrder = useMemo(
     () =>
       visibleColumns
-        .map((key) => (key === FIXTURES_COLUMN_KEY ? key : columnByKey(key)))
+        .map((key) => (key === FIXTURES_COLUMN_KEY ? key : lookupColumn(key)))
         .filter((c): c is PlayerColumn | typeof FIXTURES_COLUMN_KEY => !!c),
-    [visibleColumns],
+    [visibleColumns, lookupColumn],
   );
+
+  function toggleColumnSource(key: string) {
+    if (!ext) return;
+    // A filter set on one source's figures doesn't carry over to the other's.
+    columnFiltersState.clearFilter(key);
+    setSourceChoice((prev) => ({ ...prev, [key]: prev[key] === ext.id ? FPL_SOURCE : ext.id }));
+  }
 
   // Per-column min/max across the rows currently shown (post-filter,
   // post-sort) — same scoping as Team Building's tint: "how does this
@@ -491,7 +530,9 @@ export function PlayerExplorer() {
   // formatted values (— for unavailable) — so the export is never a
   // surprise relative to the table it was taken from.
   function handleExportCsv() {
-    const headers = ["Player", ...IDENTITY_COLUMNS.map(columnLabel), ...columnsInOrder.map(columnLabel)];
+    const exportLabel = (c: PlayerColumn | typeof FIXTURES_COLUMN_KEY) =>
+      typeof c !== "string" && ext && c.sourceId === ext.id ? `${columnLabel(c)} (${ext.label})` : columnLabel(c);
+    const headers = ["Player", ...IDENTITY_COLUMNS.map(columnLabel), ...columnsInOrder.map(exportLabel)];
     const rows = sortedRows.map(({ player, derived }) => {
       const identityCells = IDENTITY_COLUMNS.map((c) => cellValue(c, player, derived));
       const cells = columnsInOrder.map((c) => cellValue(c, player, derived));
@@ -517,6 +558,7 @@ export function PlayerExplorer() {
             label="Restore the default columns, order, and natural widths, and clear every filter"
             onClick={() => {
               resetColumns();
+              setSourceChoice({});
               setSearch("");
               columnFiltersState.resetAllFilters();
             }}
@@ -553,6 +595,18 @@ export function PlayerExplorer() {
                     ))}
                   </div>
                 ))}
+                {ext &&
+                  extColumns?.groups.map((group) => (
+                    <div key={group.heading}>
+                      <MenuGroupHeading group={group.heading} icon={ext.icon} className={ext.className} />
+                      {group.columns.map((c) => (
+                        <label key={c.key}>
+                          <input type="checkbox" checked={visibleColumns.includes(c.key)} onChange={() => handleToggleColumn(c.key)} />
+                          {c.label}
+                        </label>
+                      ))}
+                    </div>
+                  ))}
               </div>
             )}
           </div>
@@ -659,8 +713,12 @@ export function PlayerExplorer() {
                   const width = columnWidths[key];
                   // Fixtures is always the player's live figure, regardless of analysis mode.
                   const isStatic = isFixtures || isStaticColumn(c as PlayerColumn);
+                  // The colour index: a second source's figures take its colour (violet for Understat).
+                  const fromExt = !isSpecial && !!ext && c.sourceId === ext.id;
+                  const canSwitchSource = !isSpecial && !!ext && !!extColumns?.alternates[key];
                   // Grey divider between the fixed Ownership/Price/Team/Position block and these user-configurable columns — only the first one carries it.
-                  const className = [isStatic && "col-static", idx === 0 && "column-group-divider"].filter(Boolean).join(" ") || undefined;
+                  const className =
+                    [isStatic && "col-static", fromExt && ext.className, idx === 0 && "column-group-divider"].filter(Boolean).join(" ") || undefined;
                   return (
                     <th
                       key={key}
@@ -698,6 +756,8 @@ export function PlayerExplorer() {
                     >
                       {label}
                       {sortEntry && <span className="sort-indicator">{sortEntry.direction === "asc" ? "\u2191" : "\u2193"}</span>}
+                      {canSwitchSource && <SourceToggle showingExternal={fromExt} externalLabel={ext.label} onToggle={() => toggleColumnSource(key)} />}
+                      {fromExt && ext.staleNote && <SourceStaleMarker note={ext.staleNote} />}
                       {!isFixtures && (
                         <ColumnFilterControl
                           isOpen={columnFiltersState.openFilterKey === key}

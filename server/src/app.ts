@@ -10,6 +10,8 @@ import { elementSummaryRouter } from "./routes/elementSummary.js";
 import { eventLiveRouter } from "./routes/eventLive.js";
 import { historicBulkRouter } from "./routes/historicBulk.js";
 import { entryImportRouter } from "./routes/entryImport.js";
+// Understat (optional second source): this import and the app.use below are its only connection to the server.
+import { createUnderstatRouter } from "./understat/route.js";
 
 /**
  * Builds the configured Express app WITHOUT starting it — callers decide
@@ -30,7 +32,7 @@ import { entryImportRouter } from "./routes/entryImport.js";
  * tells createApp() where client/dist actually is; index.ts's default
  * covers every non-Electron caller unchanged.
  */
-export function createApp(options?: { clientDistPath?: string }): express.Express {
+export function createApp(options?: { clientDistPath?: string; understatLocalDir?: string }): express.Express {
   const app = express();
 
   app.use(cors({ origin: CORS_ORIGIN }));
@@ -46,6 +48,7 @@ export function createApp(options?: { clientDistPath?: string }): express.Expres
   app.use("/api", eventLiveRouter);
   app.use("/api", historicBulkRouter);
   app.use("/api", entryImportRouter);
+  app.use("/api", createUnderstatRouter({ localDir: options?.understatLocalDir }));
 
   // Serves the built client (client/dist) whenever it's present —
   // production standalone runs and the packaged Electron app both hit

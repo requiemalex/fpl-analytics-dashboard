@@ -64,11 +64,11 @@ export function SegmentedControl<T extends string>({
 }
 
 /** Heading over one group of options in a picker or column menu. */
-export function MenuGroupHeading({ group, label }: { group: string; label?: string }) {
+export function MenuGroupHeading({ group, label, icon, className }: { group: string; label?: string; icon?: React.ReactNode; className?: string }) {
   return (
-    <div className="menu-group-heading">
+    <div className={className ? `menu-group-heading ${className}` : "menu-group-heading"}>
       <span className="menu-group-icon" aria-hidden="true">
-        {groupIcon(group)}
+        {icon ?? groupIcon(group)}
       </span>
       {label ?? titleCase(group)}
     </div>

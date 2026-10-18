@@ -16,6 +16,8 @@ on:
 
 permissions:
   contents: write # electron-builder needs this to create the GitHub Release and upload assets
+  actions: read # the alert step reads run history
+  issues: write # the alert issue (scripts/alerts/)
 
 jobs:
   build-and-publish:
@@ -64,3 +66,18 @@ jobs:
             echo "Deleting old release $tag"
             gh release delete "$tag" --yes
           done
+
+      # Alerts the owner at once if the release failed (installed apps would
+      # stop updating — nothing retries it), and closes that alert when a
+      # later release works. See scripts/alerts/.
+      - name: Alert or resolve
+        if: always()
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          npx --yes tsx@4 scripts/alerts/workflow-alert.ts --key release --workflow release.yml
+          --outcome "${{ job.status }}" --policy immediate
+          --title "Action needed: app release failed"
+          --what "Building or publishing the desktop app for ${{ github.ref_name }} failed."
+          --impact "Installed apps stay on the previous version (they keep working) and won't get this update until a release succeeds."

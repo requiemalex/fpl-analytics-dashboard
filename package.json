@@ -21,7 +21,8 @@
     "club-history:snapshot": "tsx scripts/club-history/snapshot-vaastav.ts",
     "club-history:backfill": "tsx scripts/club-history/backfill-vaastav.ts",
     "club-history:archive": "tsx scripts/club-history/archive-current.ts",
-    "club-history:build": "tsx scripts/club-history/build-aggregates.ts"
+    "club-history:build": "tsx scripts/club-history/build-aggregates.ts",
+    "understat:sync": "tsx scripts/understat/sync.ts"
   },
   "devDependencies": {
     "concurrently": "^9.0.1",

@@ -39,6 +39,22 @@ No lint script. Playwright isn't installed but works via
   one-off exception: club history 2016/17–2025/26 was backfilled from the
   vaastav community archive, frozen in `data/vaastav-snapshot/`. Don't extend
   that exception to anything else.
+- **Understat is the one approved second source** (owner's decision,
+  2026-10-18), on two rules (README "Understat (second data source)"):
+  1. **Full separation.** Its figures appear only in their own violet
+     columns, or in a column the user has switched to Understat with the
+     header's FPL/Understat toggle; never mixed into an FPL figure. FPL code
+     never imports Understat code: the only connections are the marked lines
+     in `client/src/App.tsx` and `server/src/app.ts`
+     (`client/src/understat/separation.test.ts` enforces it), so it can be
+     removed in one go or switched off (`data/understat/control.json`).
+  2. **Checked continuously.** The daily sync stops (writes nothing) if
+     Understat blocks us, changes format, or disagrees with FPL on scores or
+     goals, and alerts me with a GitHub issue.
+  Toggles only where the sources genuinely differ (xG family, assists,
+  minutes); identical facts (goals, scores, results) stay FPL only. The same
+  data rules apply to it (null not 0, nothing inferred). No other source
+  without my approval.
 - **Inspect the live API, never assume a field's shape.** Field availability
   is detected at runtime (`normalize/fieldAvailability.ts`).
 - Never fabricate, substitute, or infer a metric when the real value is

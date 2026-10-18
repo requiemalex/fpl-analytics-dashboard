@@ -1,8 +1,10 @@
 # FPL Analytics Dashboard — 2026/27
 
 A scouting and analytics dashboard for Fantasy Premier League, built on the
-**live official FPL API**. No mock data, no database, no accounts — a small
-Express proxy and a React UI, shipped as a Windows desktop app.
+**live official FPL API**, with **Understat** as a clearly separate second
+source in the two Explorers (see "Understat (second data source)"). No mock
+data, no database, no accounts — a small Express proxy and a React UI,
+shipped as a Windows desktop app.
 
 **Just want to use it?** Download the installer from
 [the latest release](https://github.com/requiemalex/fpl-analytics-dashboard/releases/latest).
@@ -47,6 +49,7 @@ npm run dev      # server :4000 + client :5173 (Vite proxies /api/*) — open ht
 | `npm run electron:start` | Builds and launches the desktop app locally |
 | `npm run electron:build` | Packages the Windows installer into `release/` |
 | `npm run club-history:*` | Club-history data scripts — see "Club history" |
+| `npm run understat:sync` | One Understat sync by hand (the daily job's script) — see "Understat (second data source)" |
 
 There is no lint script. TypeScript runs `strict`, with `noUnusedLocals`/
 `noUnusedParameters` off.
@@ -73,12 +76,16 @@ server/src/
   concurrency.ts       worker pool for the historic bulk build
   routes/              one file per proxied endpoint
   clubHistory/         ledger -> per-club season aggregates (see "Club history")
+  understat/           Understat: /api/understat route + the sync pipeline (see "Understat")
   app.ts / index.ts    createApp() (shared with Electron) / dev+prod entry point
 client/src/
   api/ validation/ types/ normalize/ metrics/ state/ components/ pages/ styles/ utils/
+  extensions/          the slot a second data source plugs into (externalStats.ts)
+  understat/           Understat's columns, Data View logic, guide section, colour
 electron/main.js       desktop shell — starts the bundled server on :4317
 scripts/club-history/  snapshot, backfill, archive, build-aggregates
-data/                  club-history ledgers and the frozen vaastav snapshot
+scripts/understat/     the daily Understat sync; scripts/alerts/ raises a workflow's alert issue
+data/                  club-history ledgers, the frozen vaastav snapshot, data/understat/
 ```
 
 **Shared vs per-page state.** `AppStateContext` holds only shared,
@@ -105,6 +112,7 @@ User Guide (`/guide`), plus the player and team profile overlays.
 | `historic-bulk` (app's own) | Every player's `history_past` plus this season's club data, built server-side from hundreds of `element-summary` calls | 12 h |
 | `entry/{id}/`, `entry/{id}/history/`, `entry/{id}/event/{gw}/picks/` | Team Building's FPL team import (read-only, unauthenticated) | 2 min |
 | `event/{gw}/live/` | Proxied, not currently used by the client | 60 s |
+| `understat` (app's own) | Understat season summaries, from this repo's `data/understat/` on GitHub (from disk under `npm run dev`) — never understat.com | 30 min; completed seasons 12 h |
 
 Outbound requests time out after 8 s and retry twice (capped backoff) on
 network errors or 5xx only. Concurrent requests for the same resource share
@@ -327,6 +335,166 @@ too.
   season is rebuilt from FPL's current list, so it would miss a dropped
   player until he's re-listed — FPL hasn't dropped a player mid-season in
   2019/20–2025/26; it marks leavers unavailable until the summer reset.
+
+---
+
+## Understat (second data source)
+
+Understat (understat.com) adds shot-level and creative figures FPL doesn't
+have: shots, key passes, xGChain, PPDA, open-play/set-piece xG and so on,
+in **Player Explorer and Team Explorer only** for now. Approved by the owner
+on two rules, both built in:
+
+1. **Full separation, removable in one go.** Understat figures appear only in
+   their own columns or in a column the user switches to Understat. FPL code
+   never imports Understat code; the app reaches it through one slot,
+   `client/src/extensions/externalStats.ts`.
+2. **Checked continuously.** The daily sync proves it isn't blocked, is
+   fresh, and agrees with FPL, or it writes nothing and alerts the owner.
+
+### How data gets to the app
+
+```
+understat.com -> daily GitHub job (scripts/understat/sync.ts)    pairs, links, checks; commits data/understat/
+              -> GitHub (raw files of this repo)                  published the moment the job commits
+              -> /api/understat (server/src/understat/route.ts)   cached; last good copy if GitHub is down
+              -> UnderstatProvider (client/src/understat/)        columns, Data Views, guide section
+```
+
+The app never contacts understat.com; installed copies read the committed
+files, so new data needs no release. `npm run dev` reads `data/understat/`
+from disk instead (`server/src/index.ts`).
+
+**The sync** (`.github/workflows/understat-sync.yml`, daily 06:00 UTC; the
+pipeline is `server/src/understat/pipeline/`, dependency-free) runs, in order:
+
+1. **Off-switch:** `data/understat/control.json` `"enabled": false` stops
+   everything, and the app then shows no Understat columns at all.
+2. **Fetch politely:** one request at a time with a pause, an honest
+   User-Agent, about 10–20 requests on a normal day. The live season's new
+   matches and the last 7 days' are fetched, to pick up Understat's
+   corrections. A season not yet stored downloads 2 per run (about 380
+   requests each). Every reply is shape-checked. A refusal (HTTP 403/429,
+   or a web page where data should be) stops the run at once
+   (`UnderstatBlockedError`), as does a changed format.
+3. **Pair clubs and fixtures by result, not name** (`pairing.ts`): venue,
+   opponent and score. Last season's pairings seed it, and every one is
+   re-checked. Any disagreeing score stops the run.
+4. **Link players** (`matcher.ts`), FPL permanent `code` to Understat id, in
+   `links.csv`. A link is confirmed only when both of these agree:
+   - **appearances:** match by match, minutes within 20, since FPL counts
+     stoppage time and Understat doesn't;
+   - **names:** accents and nicknames tolerated.
+
+   A club's last unlinked player and its last unlinked Understat player,
+   with every appearance agreeing, are linked whatever their names (Bahoya
+   is "Jean Négoce" on Understat). Anything else uncertain is **held** and
+   shows "—". Saved links are never re-made from scratch, only re-checked;
+   one that stops agreeing is **disputed** and hidden, never re-pointed.
+   `overrides.csv` takes a manual `pair` or `never`. Tested on 2021/22,
+   2022/23 (both graded against vaastav's mapping: 0 disagreements) and
+   2026/27: every player linked, none wrong. Matching on names alone got
+   2–3% wrong.
+5. **Accuracy checks** (`checks.ts`):
+   - each match's goals add up from its players;
+   - players' xG adds up to their shots' xG;
+   - the match and club pages agree on xG;
+   - FPL and Understat agree on every linked player's goals and own goals
+     (0 differences in 23,837 player-matches tested);
+   - no more than 5% of saved links may change in one run.
+6. **Write only if all of that passed.** A failed run writes nothing, so the
+   app keeps the last good data.
+
+**Alerts** (see "Automatic jobs and alerts"): a GitHub issue that @mentions the
+owner, in plain English (what happened, whether app users are affected,
+what to do). It is raised:
+- straight away for a changed format, a failed check, or anything the run
+  lists as needing attention: a disputed link, a player held for 14+ days,
+  or Understat 2+ days behind;
+- only on the second failure in a row for a refusal or a blip.
+
+While it stays open, its text is refreshed silently (no daily emails). The
+next clean run closes it with a "resolved" comment.
+
+**Files** (`data/understat/`): `control.json`, `status.json`, `links.csv`,
+`overrides.csv`, `seasons/<season>/` (clubs, matches, team_matches,
+appearances, shots: what Understat said) and `app/<season>.json` (the
+season summary the app reads: totals per FPL player code and per FPL club
+code). Coverage: 2016/17 on, the same as club history.
+
+### In the app
+
+- **Colour index** (header text):
+
+  | | Changes with the Data View | Always live |
+  |---|---|---|
+  | **FPL** | white | muted red (`--col-static`) |
+  | **Understat** | violet (`--col-understat`, `client/src/understat/understat.css`) | none exist |
+
+  Columns lists Understat columns under violet "Understat ·" headings. A
+  small amber dot on an Understat header means its data is out of date or
+  unavailable; its hover text says which.
+- **Source toggle** (`components/SourceToggle.tsx`): a ⇄ icon on a header,
+  only where the two sources genuinely differ:
+  - players: xG, xA, xGI, their per-game and per-£m rates, Assists, Mins;
+  - clubs: xG, xA, xGI, xGC, Assists.
+
+  It starts on FPL each visit. The whole column switches source
+  (`<one_source_per_figure>`): value, rate, sort, filter, tint and CSV
+  export, so no figure ever mixes the two. Switching clears that column's
+  filter. Goals, own goals, scores and results are identical in both
+  sources, so they stay FPL only, and the sync keeps proving that.
+- **Data Views** (`client/src/understat/resolve.ts`), with the same rules
+  as FPL figures:
+  - **Players:** a player's window is his FPL seasons (Premier League only).
+    A season FPL says he played 0 minutes in is a provable 0; one he played
+    in with no Understat row (held link) is "—". Historic Average is the
+    Explorers' kind: every window season counts, 0-minute ones included.
+  - **Clubs:** clubs use `clubSeasonsForMode`.
+  - **Rates:** per game is from **Understat's own minutes**
+    (`<us_minutes_for_us_rates>`). Ratios (xG/Shot, PPDA) are built from
+    totals.
+- **Club xG is per chance** (`<club_xg_is_per_chance>`): Understat counts a
+  shot and its rebound as one chance, so club xG can be lower than its
+  players' xG added up. xG/Shot and the situation split use individual
+  shots.
+- Player analysis covers today's FPL players only. Club figures count
+  everyone who played for the club in each match, from Understat's own
+  line-ups, with no player links needed.
+- Its User Guide section and metric definitions live in
+  `client/src/understat/guide.tsx`, shown through the slot.
+
+### Removing it
+
+- **Switch off:** set `"enabled": false` in `data/understat/control.json`
+  and commit. Every installed app hides all Understat columns at its next
+  refresh (within about an hour), and the sync stops fetching. No release
+  is needed.
+- **Remove for good:**
+  1. Delete `client/src/understat/`, `server/src/understat/`,
+     `scripts/understat/`, `data/understat/` and
+     `.github/workflows/understat-sync.yml`.
+  2. Delete the two marked connection lines in `client/src/App.tsx` (import
+     and `<UnderstatProvider>`) and `server/src/app.ts` (import and
+     `app.use`), the `understatLocalDir` lines in `server/src/index.ts`,
+     the `understat:sync` script, and `--watch understat-sync.yml:2` in
+     `.github/workflows/watchdog.yml`.
+  3. Record it in `docs/HISTORY.md`.
+
+  The generic slot (`extensions/externalStats.ts`, `SourceToggle`) can stay
+  or go; with nothing mounted, it does nothing.
+  `client/src/understat/separation.test.ts` proves nothing else depends on
+  it.
+
+### Not included yet
+
+- **Shot zones** (six-yard box / box / outside): Understat publishes them
+  per player only on individual player pages, and they can't be reproduced
+  exactly from shot coordinates (tested: 6 of about 700 shots differ), so
+  they wait for an upgrade that fetches those pages.
+- Shot maps, match xG timelines, Understat in profiles, the Dashboard and
+  Player Comparison: later.
+- Pass maps, average positions, sprints: not on Understat at all.
 
 ---
 
@@ -717,6 +885,42 @@ app. Playwright isn't installed, but it works via
 `npx playwright install chromium` plus a throwaway driver script (nothing
 committed).
 
+## Automatic jobs and alerts
+
+Four GitHub workflows run without anyone starting them:
+
+| Workflow | When | What | Alerts the owner |
+|---|---|---|---|
+| `club-history-archive.yml` | Tue & Fri 05:00 UTC | Archives the live season's club history; releases at season end | On the 2nd failure in a row (a missed run loses nothing) |
+| `understat-sync.yml` | Daily 06:00 UTC | Syncs Understat data (see "Understat") | At once for a changed format or failed check; on the 2nd failure in a row for a block or blip; plus held/disputed links and Understat running late |
+| `release.yml` | On a `v*` tag | Builds and publishes the desktop app | At once (installed apps would stop updating) |
+| `watchdog.yml` | Mondays 07:00 UTC | Checks the two scheduled jobs are switched on and succeeded recently (Understat within 2 days, archive within 5), and the latest release didn't fail | When any of that is wrong |
+
+The archive also checks the watchdog itself ran within 9 days, so a
+stopped watchdog is caught too. Every scheduled workflow re-enables its own
+schedule on each run (GitHub switches a public repository's schedules off
+after 60 days without activity).
+
+**An alert is a GitHub issue that @mentions the owner,** so GitHub emails
+them (`scripts/alerts/github.ts`). It's plain English: what happened,
+whether the app is affected, and what to tell Claude. There's one issue per
+job:
+- the first alert opens it (one email);
+- while the problem lasts, its text is refreshed silently;
+- the job's next clean run comments "Resolved" and closes it (one email).
+
+This doesn't rely on GitHub's own failure emails, which for a scheduled job
+go to whoever last re-enabled it, possibly the bot. The scripts:
+- `workflow-alert.ts`: the failure/success step for a workflow without its
+  own report;
+- `alert.ts`: raise or resolve with given text (the Understat sync, the test
+  alert);
+- `watchdog.ts`: the checks above.
+
+**Test alert:** run the Watchdog workflow by hand with `test_alert: raise`
+(Actions → Watchdog → Run workflow, or `gh workflow run watchdog.yml -f
+test_alert=raise`), check the email arrived, then run it with `resolve`.
+
 ## Desktop app and releases
 
 The Windows desktop app (Electron, `electron/main.js`) is the only
@@ -726,7 +930,9 @@ SmartScreen prompt on first install). See `DEPLOYMENT.md`.
 
 **To release:**
 1. Make sure this README reflects the change.
-2. Commit.
+2. Commit, then `git pull --rebase`: the Understat sync (daily) and the
+   club-history archive commit data to master on their own, so a local copy
+   is usually a few data commits behind.
 3. `git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin master && git push origin vX.Y.Z`
    — bump the minor version for features, the patch version for fixes.
 

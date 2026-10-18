@@ -1,0 +1,65 @@
+name: Watchdog
+
+# Weekly check that every automatic job is still switched on and has run
+# recently, and that the latest app release worked (scripts/alerts/
+# watchdog.ts) — the one failure a job can't report itself is that it
+# stopped running. Problems become an alert issue that emails the owner;
+# the next clean check closes it. The club-history archive checks on this
+# watchdog in turn.
+#
+# Run it by hand with "test_alert" to send a test alert email (raise), and
+# again to close it (resolve).
+
+on:
+  schedule:
+    - cron: "0 7 * * 1" # Mondays 07:00 UTC
+  workflow_dispatch:
+    inputs:
+      test_alert:
+        description: "Send a test alert email (raise), or close the test alert (resolve)"
+        required: false
+        default: "none"
+        type: choice
+        options: [none, raise, resolve]
+
+permissions:
+  actions: write # read run history; re-enable this schedule
+  issues: write # the alert issue
+  contents: read
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      # GitHub switches off a public repository's schedules after 60 days without activity.
+      - name: Keep this schedule switched on
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/watchdog.yml/enable"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: Test alert
+        if: inputs.test_alert == 'raise'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >
+          npx --yes tsx@4 scripts/alerts/alert.ts --key alert-test --title "Test alert: please confirm this reached your email"
+          --body "This is a test of the project's alert system — nothing is wrong. Real alerts look like this, and arrive the same way, when an automatic job (Understat sync, club-history archive, app release, or this weekly watchdog) needs you. Once you've seen the email, ask Claude to close the test alert."
+
+      - name: Close the test alert
+        if: inputs.test_alert == 'resolve'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >
+          npx --yes tsx@4 scripts/alerts/alert.ts --key alert-test --resolve "Test complete: alerts reach you."
+
+      - name: Check every scheduled job
+        if: inputs.test_alert == '' || inputs.test_alert == 'none'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: npx --yes tsx@4 scripts/alerts/watchdog.ts --key watchdog --watch understat-sync.yml:2 --watch club-history-archive.yml:5 --release release.yml

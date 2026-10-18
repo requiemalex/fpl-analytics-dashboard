@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
@@ -16,6 +16,8 @@ import { relativeCellTint } from "../utils/colorScale";
 import { downloadCsv } from "../utils/csvExport";
 import { matchesTeamSearch } from "../utils/playerSearch";
 import { MenuGroupHeading } from "../components/MenuControls";
+import { SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
+import { FPL_SOURCE, useExternalStats, type ColumnSourceChoice } from "../extensions/externalStats";
 
 /** A league-table-style view of each club in the selected season(s) — every column a club figure (see <club_not_squad>, metrics/teamStats.ts). */
 const GROUPS: TeamColumnGroup[] = ["RESULTS", "OUTPUT", "UNDERLYING PERFORMANCE"];
@@ -30,14 +32,10 @@ const TEAM_EXPLORER_DEFAULT_SORT: SortSpec[] = [{ key: "leaguePosition", directi
  * about 8px a character — plus the header's padding (10px left, 26px right
  * for the filter icon) and the sort arrow, which can't wrap away from it.
  */
-const TEAM_MIN_COLUMN_WIDTHS: Record<string, number> = Object.fromEntries(
-  TEAM_COLUMNS.map((c) => [c.key, 36 + 14 + 8 * Math.max(...c.label.split(/\s+/).map((w) => w.length))]),
-);
-
-function getTeamValue(team: TeamAggregate, key: string): number | string | null {
-  if (key === "name") return team.name;
-  return teamColumnByKey(key)?.getValue(team) ?? null;
-}
+const minColumnWidth = (c: TeamColumn) => 36 + 14 + 8 * Math.max(...c.label.split(/\s+/).map((w) => w.length));
+const TEAM_MIN_COLUMN_WIDTHS: Record<string, number> = Object.fromEntries(TEAM_COLUMNS.map((c) => [c.key, minColumnWidth(c)]));
+/** Room for a header's source toggle (extensions/externalStats.ts). */
+const SOURCE_TOGGLE_WIDTH = 16;
 
 /** "2025/26", "2026/27", or "2022/23–2025/26" for a Historic Average window. */
 function seasonLabel(seasons: string[]): string {
@@ -59,6 +57,35 @@ export function Teams() {
   const columnFiltersState = useColumnFilters();
   const { sort, setSort, handleHeaderClick } = useSortSpec(TEAM_EXPLORER_DEFAULT_SORT);
 
+  // A second data source (Understat), when one is mounted — same as Player
+  // Explorer: its own club columns, and its version of a figure FPL also has,
+  // per column by the header's source toggle (FPL by default). Every column
+  // lookup goes through lookupColumn.
+  const ext = useExternalStats();
+  useEffect(() => {
+    ext?.request();
+  }, [ext]);
+  const extColumns = useMemo(() => ext?.teamColumns(analysisMode) ?? null, [ext, analysisMode]);
+  const extOnlyByKey = useMemo(() => new Map((extColumns?.groups ?? []).flatMap((g) => g.columns).map((c) => [c.key, c])), [extColumns]);
+  const [sourceChoice, setSourceChoice] = useState<ColumnSourceChoice>({});
+  const lookupColumn = useCallback(
+    (key: string): TeamColumn | undefined => {
+      if (ext && extColumns && sourceChoice[key] === ext.id && extColumns.alternates[key]) return extColumns.alternates[key];
+      return teamColumnByKey(key) ?? extOnlyByKey.get(key);
+    },
+    [ext, extColumns, sourceChoice, extOnlyByKey],
+  );
+  const getTeamValue = useCallback(
+    (team: TeamAggregate, key: string): number | string | null => (key === "name" ? team.name : (lookupColumn(key)?.getValue(team) ?? null)),
+    [lookupColumn],
+  );
+  const minColumnWidths = useMemo(() => {
+    const widths: Record<string, number> = { ...TEAM_MIN_COLUMN_WIDTHS };
+    for (const c of extOnlyByKey.values()) widths[c.key] = minColumnWidth(c);
+    for (const key of Object.keys(extColumns?.alternates ?? {})) widths[key] = (widths[key] ?? 0) + SOURCE_TOGGLE_WIDTH;
+    return widths;
+  }, [extOnlyByKey, extColumns]);
+
   const [showColumnPopover, setShowColumnPopover] = useState(false);
   const {
     visibleColumns,
@@ -71,7 +98,7 @@ export function Teams() {
     reorderColumn,
     startResize,
     fitToBox,
-  } = useColumnCustomization(TEAM_EXPLORER_DEFAULT_VISIBLE_COLUMNS, TEAM_MIN_COLUMN_WIDTHS, () => handleFitToBox());
+  } = useColumnCustomization(TEAM_EXPLORER_DEFAULT_VISIBLE_COLUMNS, minColumnWidths, () => handleFitToBox());
   const columnPickerRef = useRef<HTMLDivElement>(null);
   const tableWrapRef = useRef<HTMLDivElement>(null);
   const stickyColRef = useRef<HTMLTableCellElement>(null);
@@ -109,10 +136,11 @@ export function Teams() {
         (!query || matchesTeamSearch(t, query)) &&
         columnFiltersState.passesAllFilters(
           (key) => getTeamValue(t, key),
-          (key) => teamColumnByKey(key)?.decimals,
+          (key) => lookupColumn(key)?.decimals,
         ),
     );
-  }, [aggregates, search, columnFiltersState.columnFilters]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aggregates, search, columnFiltersState.columnFilters, lookupColumn]);
 
   const sortedRows = useMemo(() => {
     const arr = [...filteredRows];
@@ -124,12 +152,19 @@ export function Teams() {
       return 0;
     });
     return arr;
-  }, [filteredRows, sort]);
+  }, [filteredRows, sort, getTeamValue]);
 
   const columnsInOrder = useMemo(
-    () => visibleColumns.map((key) => teamColumnByKey(key)).filter((c): c is TeamColumn => c !== undefined),
-    [visibleColumns],
+    () => visibleColumns.map((key) => lookupColumn(key)).filter((c): c is TeamColumn => c !== undefined),
+    [visibleColumns, lookupColumn],
   );
+
+  function toggleColumnSource(key: string) {
+    if (!ext) return;
+    // A filter set on one source's figures doesn't carry over to the other's.
+    columnFiltersState.clearFilter(key);
+    setSourceChoice((prev) => ({ ...prev, [key]: prev[key] === ext.id ? FPL_SOURCE : ext.id }));
+  }
 
   // Per-column min/max across the teams currently shown — "how does this
   // compare to what you're looking at", same scoping as Player Explorer.
@@ -194,7 +229,7 @@ export function Teams() {
   // Exactly what's on screen — same rows, same columns in the same order,
   // same formatted values (— for unavailable).
   function handleExportCsv() {
-    const headers = ["Team", ...columnsInOrder.map((c) => c.label)];
+    const headers = ["Team", ...columnsInOrder.map((c) => (ext && c.sourceId === ext.id ? `${c.label} (${ext.label})` : c.label))];
     const rows = sortedRows.map((t) => [t.name, ...columnsInOrder.map((c) => c.format(c.getValue(t)))]);
     downloadCsv(`team-explorer-${analysisMode}-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
   }
@@ -221,6 +256,7 @@ export function Teams() {
             label="Restore the default columns, order, and natural widths, and clear every filter"
             onClick={() => {
               resetColumns();
+              setSourceChoice({});
               setSearch("");
               columnFiltersState.resetAllFilters();
             }}
@@ -245,6 +281,18 @@ export function Teams() {
                     ))}
                   </div>
                 ))}
+                {ext &&
+                  extColumns?.groups.map((group) => (
+                    <div key={group.heading}>
+                      <MenuGroupHeading group={group.heading} icon={ext.icon} className={ext.className} />
+                      {group.columns.map((c) => (
+                        <label key={c.key}>
+                          <input type="checkbox" checked={visibleColumns.includes(c.key)} onChange={() => handleToggleColumn(c.key)} />
+                          {c.label}
+                        </label>
+                      ))}
+                    </div>
+                  ))}
               </div>
             )}
           </div>
@@ -284,11 +332,15 @@ export function Teams() {
                 {columnsInOrder.map((c, idx) => {
                   const sortEntry = sort.find((s) => s.key === c.key);
                   const width = columnWidths[c.key];
+                  // The colour index: a second source's figures take its colour (violet for Understat).
+                  const fromExt = ext !== null && c.sourceId === ext.id;
+                  const canSwitchSource = ext !== null && !!extColumns?.alternates[c.key];
+                  const className = [fromExt && ext?.className, idx === 0 && "column-group-divider"].filter(Boolean).join(" ") || undefined;
                   return (
                     <th
                       key={c.key}
                       draggable
-                      className={idx === 0 ? "column-group-divider" : undefined}
+                      className={className}
                       onDragStart={(e) => e.dataTransfer.setData("text/plain", c.key)}
                       onDragOver={(e) => {
                         e.preventDefault();
@@ -314,6 +366,8 @@ export function Teams() {
                     >
                       {c.label}
                       {sortEntry && <span className="sort-indicator">{sortEntry.direction === "asc" ? "↑" : "↓"}</span>}
+                      {canSwitchSource && ext && <SourceToggle showingExternal={fromExt} externalLabel={ext.label} onToggle={() => toggleColumnSource(c.key)} />}
+                      {fromExt && ext?.staleNote && <SourceStaleMarker note={ext.staleNote} />}
                       <ColumnFilterControl
                         isOpen={columnFiltersState.openFilterKey === c.key}
                         isActive={isColumnFilterActive(columnFiltersState.columnFilters[c.key])}

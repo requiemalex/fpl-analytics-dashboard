@@ -29,6 +29,12 @@ export interface PlayerColumn {
    * .col-static rule in components.css.
    */
   varies?: boolean;
+  /**
+   * Set only on a column from a second data source (see
+   * extensions/externalStats.ts) — its id, e.g. "understat". Unset means
+   * FPL. Drives that source's header colour.
+   */
+  sourceId?: string;
 }
 
 const num = (decimals = 0) => ({ format: (v: number | null) => fmtDecimal(v, decimals), decimals });

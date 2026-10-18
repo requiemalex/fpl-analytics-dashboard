@@ -24,6 +24,7 @@ on:
 permissions:
   contents: write
   actions: write # re-enabling this schedule, and starting release.yml
+  issues: write # the alert issue (scripts/alerts/)
 
 concurrency:
   group: club-history-archive
@@ -97,3 +98,24 @@ jobs:
           git tag -a "$tag" -m "$tag"
           git push origin "$tag"
           gh workflow run release.yml --ref "$tag"
+
+      # A failed archive loses nothing (the next run catches up), so the
+      # owner is alerted only on the second failure in a row; a later clean
+      # run closes the alert. See scripts/alerts/.
+      - name: Alert or resolve
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >
+          npx --yes tsx@4 scripts/alerts/workflow-alert.ts --key club-history-archive --workflow club-history-archive.yml
+          --outcome "${{ job.status }}" --policy repeat
+          --title "Action needed: club-history archive failed"
+          --what "Saving this season's match data from the FPL API failed."
+          --impact "Nothing yet: the app works and nothing is lost while the next run can catch up. It matters before FPL resets its data in the summer, when anything not archived by then is gone."
+
+      # Watches the watchdog (watchdog.yml), so the weekly check can't stop unnoticed either.
+      - name: Check the weekly watchdog is still running
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: npx --yes tsx@4 scripts/alerts/watchdog.ts --key watchdog-watch --watch watchdog.yml:9

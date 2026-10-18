@@ -2332,3 +2332,35 @@ kbd {
   line-height: 1.5;
   text-align: center;
 }
+
+/* Column-header source switch (components/SourceToggle.tsx): a muted icon
+   until hovered; when the second source is showing it takes the header's
+   own colour, which the source's stylesheet sets. */
+.source-toggle {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-left: 4px;
+  padding: 1px;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.source-toggle:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+.source-toggle.on {
+  color: inherit;
+}
+.source-stale-marker {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 4px;
+  border-radius: 50%;
+  vertical-align: middle;
+  background: var(--accent-value);
+}

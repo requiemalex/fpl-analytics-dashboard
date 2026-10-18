@@ -5,6 +5,8 @@ import { AppShell } from "./components/AppShell";
 import { LoadStateGate } from "./components/LoadStateGate";
 import { PlayerDetailOverlay } from "./components/PlayerDetailOverlay";
 import { TeamDetailOverlay } from "./components/TeamDetailOverlay";
+// Understat (optional second source): this import and the provider below are its only connection to the app.
+import { UnderstatProvider } from "./understat/UnderstatProvider";
 
 // Lazy-loaded per route: these pages (and recharts, which only they pull
 // in) previously all sat in one ~880KB bundle parsed upfront on startup,
@@ -20,24 +22,26 @@ const UserGuide = lazy(() => import("./pages/UserGuide").then((m) => ({ default:
 export default function App() {
   return (
     <AppStateProvider>
-      <BrowserRouter>
-        <AppShell>
-          <LoadStateGate>
-            <Suspense fallback={null}>
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/players" element={<PlayerExplorer />} />
-                <Route path="/teams" element={<Teams />} />
-                <Route path="/player-comparison" element={<PlayerComparison />} />
-                <Route path="/team-building" element={<TeamBuilder />} />
-                <Route path="/guide" element={<UserGuide />} />
-              </Routes>
-            </Suspense>
-            <PlayerDetailOverlay />
-            <TeamDetailOverlay />
-          </LoadStateGate>
-        </AppShell>
-      </BrowserRouter>
+      <UnderstatProvider>
+        <BrowserRouter>
+          <AppShell>
+            <LoadStateGate>
+              <Suspense fallback={null}>
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/players" element={<PlayerExplorer />} />
+                  <Route path="/teams" element={<Teams />} />
+                  <Route path="/player-comparison" element={<PlayerComparison />} />
+                  <Route path="/team-building" element={<TeamBuilder />} />
+                  <Route path="/guide" element={<UserGuide />} />
+                </Routes>
+              </Suspense>
+              <PlayerDetailOverlay />
+              <TeamDetailOverlay />
+            </LoadStateGate>
+          </AppShell>
+        </BrowserRouter>
+      </UnderstatProvider>
     </AppStateProvider>
   );
 }

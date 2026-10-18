@@ -13,6 +13,8 @@ export interface TeamColumn {
   decimals?: number;
   /** Whether a higher value is the "better" one for this metric. Defaults to true; false for league position, losses, goals against, and xGC. */
   higherIsBetter?: boolean;
+  /** Set only on a column from a second data source (extensions/externalStats.ts) — its id. Unset means FPL. */
+  sourceId?: string;
 }
 
 const num = (decimals = 0) => (v: number | null) => fmtDecimal(v, decimals);

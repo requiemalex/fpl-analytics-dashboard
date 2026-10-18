@@ -1,0 +1,111 @@
+name: Understat sync
+
+# Pulls new Understat data into data/understat/ once a day (see
+# scripts/understat/sync.ts and server/src/understat/pipeline/sync.ts).
+# Installed apps read the committed files from GitHub, so new data reaches
+# them without a release. A failed run writes and commits nothing — apps keep
+# the last good data.
+#
+# Alerts (scripts/alerts/alert.ts): a GitHub issue that @mentions the owner,
+# so GitHub emails them —
+#  - at once for a problem that won't fix itself (Understat's format changed,
+#    or the data failed an accuracy check) and for anything the run lists as
+#    needing attention (a disputed player link, a player unlinked for two
+#    weeks, Understat two days behind);
+#  - for a refusal/blip (blocked, couldn't connect) only on the second
+#    failure in a row — a one-off retries itself tomorrow;
+#  - and closed, with a "resolved" comment, by the next clean run.
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # daily 06:00 UTC — after the night's matches have settled on Understat
+  workflow_dispatch:
+    inputs:
+      max_new_seasons:
+        description: "Completed seasons not yet stored to download this run (about 380 requests each)"
+        required: false
+        default: "2"
+
+permissions:
+  contents: write
+  actions: write # re-enabling this schedule
+  issues: write # the alert issue
+
+concurrency:
+  group: understat-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      # GitHub switches off a public repository's scheduled workflows after
+      # 60 days without activity — the summer break is longer. Re-enabling on
+      # every run restarts that clock (same as club-history-archive.yml).
+      - name: Keep this schedule switched on
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/understat-sync.yml/enable"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      # The sync uses only Node built-ins plus server/src (dependency-free
+      # pipeline code), so tsx is all it needs — no npm ci.
+      - name: Sync Understat
+        id: sync
+        continue-on-error: true
+        run: npx --yes tsx@4 scripts/understat/sync.ts --max-new-seasons "${{ inputs.max_new_seasons || '2' }}" --report "$RUNNER_TEMP/report.json" --alert-body "$RUNNER_TEMP/alert.md"
+
+      - name: Commit if anything changed
+        if: steps.sync.outcome == 'success'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/understat
+          if git diff --cached --quiet; then
+            echo "No Understat changes."
+            exit 0
+          fi
+          git commit -m "Understat sync ($(date -u +%Y-%m-%d))"
+          git pull --rebase
+          git push
+
+      - name: Alert or resolve
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          report="$RUNNER_TEMP/report.json"
+          if [ ! -f "$report" ]; then
+            echo '{"ok":false,"failure":{"kind":"error","message":"The sync step crashed before writing its report"},"attention":[]}' > "$report"
+            printf 'The daily Understat sync crashed before it could report.\n\n**What to do**\n- Open Claude Code in this project and say: *Look at the open "Understat" GitHub issue and fix it.*\n' > "$RUNNER_TEMP/alert.md"
+          fi
+          ok=$(jq -r '.ok' "$report")
+          kind=$(jq -r '.failure.kind // ""' "$report")
+          attention=$(jq -r '.attention | length' "$report")
+          previous=$(gh run list --workflow understat-sync.yml --limit 5 --json databaseId,conclusion --jq "[.[] | select(.databaseId != ${{ github.run_id }} and .conclusion != null and .conclusion != \"\")][0].conclusion // \"none\"")
+          alert=false
+          if [ "$ok" != "true" ]; then
+            case "$kind" in
+              format|checks) alert=true ;;
+              *) [ "$previous" = "failure" ] && alert=true ;;
+            esac
+          fi
+          [ "$attention" -gt 0 ] && alert=true
+          if [ "$alert" = "true" ]; then
+            npx --yes tsx@4 scripts/alerts/alert.ts --key understat-sync --title "Action needed: Understat data" --body-file "$RUNNER_TEMP/alert.md"
+          elif [ "$ok" = "true" ]; then
+            npx --yes tsx@4 scripts/alerts/alert.ts --key understat-sync --resolve "Today's Understat sync ran cleanly and nothing needs attention."
+          else
+            echo "First failure in a row ($kind) — it retries tomorrow before anyone is alerted."
+          fi
+
+      # Last, so the run shows red in GitHub when the sync failed.
+      - name: Fail the run if the sync failed
+        if: steps.sync.outcome != 'success'
+        run: exit 1

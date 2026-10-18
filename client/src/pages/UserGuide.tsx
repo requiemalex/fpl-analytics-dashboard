@@ -1,6 +1,7 @@
 import React from "react";
 import { useAppState } from "../state/AppStateContext";
 import { METRIC_LIST } from "../metrics/dictionary";
+import { useExternalStats } from "../extensions/externalStats";
 
 const FIELD_LABELS: Record<string, string> = {
   expected_goals: "xG (expected_goals)",
@@ -52,11 +53,15 @@ function accentStyle(accent: string | undefined): React.CSSProperties | undefine
   return accent ? ({ "--guide-accent": `var(${accent})` } as React.CSSProperties) : undefined;
 }
 
+/** The sections actually shown — SECTION_META plus a second data source's own section, when one is mounted (extensions/externalStats.ts). */
+const SectionsContext = React.createContext<{ id: string; label: string; accent: string }[]>(SECTION_META);
+
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
-  const index = SECTION_META.findIndex((s) => s.id === id);
+  const sections = React.useContext(SectionsContext);
+  const index = sections.findIndex((s) => s.id === id);
   const number = index + 1;
   return (
-    <div className="card guide-section" id={id} style={accentStyle(SECTION_META[index]?.accent)}>
+    <div className="card guide-section" id={id} style={accentStyle(sections[index]?.accent)}>
       <h2 className="guide-section-title">
         <span className="guide-section-number">{String(number).padStart(2, "0")}</span>
         {title}
@@ -82,8 +87,16 @@ export function UserGuide() {
   const { advancedFieldAvailability, validationReport, skippedPlayerCount } = useAppState();
   const apiMetrics = METRIC_LIST.filter((m) => m.source === "FPL API");
   const derivedMetrics = METRIC_LIST.filter((m) => m.source === "Derived");
+  const ext = useExternalStats();
+  const extSection = ext?.guideSection ?? null;
+  const sections = React.useMemo(() => {
+    if (!extSection) return SECTION_META;
+    const at = SECTION_META.findIndex((s) => s.id === "limitations");
+    return [...SECTION_META.slice(0, at), { id: extSection.id, label: extSection.navLabel, accent: extSection.accentVar }, ...SECTION_META.slice(at)];
+  }, [extSection]);
 
   return (
+    <SectionsContext.Provider value={sections}>
     <div>
       <div className="page-header">
         <div>
@@ -98,7 +111,7 @@ export function UserGuide() {
       <div className="card guide-section">
         <div className="card-title">On this page</div>
         <div className="chip-row">
-          {SECTION_META.map((c) => (
+          {sections.map((c) => (
             <a key={c.id} className="chip guide-nav-chip" href={`#${c.id}`} style={accentStyle(c.accent)}>
               {c.label}
             </a>
@@ -245,6 +258,11 @@ export function UserGuide() {
           </li>
           <li>Each cell is tinted green/red against the rest of its column on screen.</li>
           <li>
+            <strong>Header colours</strong> say where a figure comes from and whether it follows the Data View: white is an FPL
+            figure for the selected season(s); muted red is always today's live figure (Own%, Price, Team, Position).
+            {ext ? ` ${ext.label}'s figures have their own colour; see "${ext.guideSection.navLabel}" below.` : ""}
+          </li>
+          <li>
             <strong>Next 5 Fixtures</strong> (off by default; turn it on in Columns) is always the player's actual upcoming
             fixtures, whatever the mode.
           </li>
@@ -348,6 +366,7 @@ export function UserGuide() {
           (played, wins, draws, losses, goal difference, goals, assists, bonus, xGI, defensive contributions), and the "Team name…"
           box searches by name or short name. A team's pill, a swatch of its real kit colours where known, opens its Team
           Profile wherever it appears in the app.
+          {ext ? ` ${ext.label}'s club figures are in Columns too, in their own colour; see "${ext.guideSection.navLabel}" below.` : ""}
         </p>
         <p className="page-subtitle">
           <strong>Team Profile</strong> shows season totals, the team radars, upcoming fixtures and the match log: club figures
@@ -423,6 +442,12 @@ export function UserGuide() {
         </p>
         <Try>press <kbd>`</kbd> now, type a note, and press <kbd>`</kbd> again.</Try>
       </Section>
+
+      {extSection && (
+        <Section id={extSection.id} title={extSection.title}>
+          {extSection.body}
+        </Section>
+      )}
 
       <Section id="limitations" title="Data sourcing & known limitations">
         <ul style={{ margin: 0, paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
@@ -520,6 +545,7 @@ export function UserGuide() {
         </div>
       </Section>
     </div>
+    </SectionsContext.Provider>
   );
 }
 

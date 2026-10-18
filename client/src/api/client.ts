@@ -11,7 +11,8 @@ export class ApiRequestError extends Error {
   }
 }
 
-async function getEnvelope<TRaw>(path: string): Promise<ApiEnvelope<TRaw>> {
+/** Exported for a second data source's own fetches (client/src/understat/api.ts) — still relative /api/* paths only. */
+export async function getEnvelope<TRaw>(path: string): Promise<ApiEnvelope<TRaw>> {
   const res = await fetch(path);
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
