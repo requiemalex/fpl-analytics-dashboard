@@ -50,7 +50,12 @@ No lint script. Playwright isn't installed but works via
      removed in one go or switched off (`data/understat/control.json`).
   2. **Checked continuously.** The daily sync stops (writes nothing) if
      Understat blocks us, changes format, or disagrees with FPL on scores or
-     goals, and alerts me with a GitHub issue.
+     goals, and alerts me with a GitHub issue. **Where they disagree, FPL
+     is the source of truth** (points are awarded from FPL's data, so an FPL
+     goal is authoritative; owner's decision, 2026-10-18). A difference I've
+     reviewed is listed in `data/understat/accepted-differences.csv`: it no
+     longer stops the sync, and the app uses FPL's figure for it. A new,
+     unlisted difference still stops the sync and alerts me.
   Toggles only where the sources genuinely differ (xG family, assists,
   minutes); identical facts (goals, scores, results) stay FPL only. The same
   data rules apply to it (null not 0, nothing inferred). No other source

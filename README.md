@@ -443,9 +443,12 @@ pipeline is `server/src/understat/pipeline/`, dependency-free) runs, in order:
      **One difference stops the run**, however few, unless the owner has
      reviewed it and listed it in `accepted-differences.csv` (season,
      Understat match id, FPL player code, note); a listed one stays in the
-     run report as a warning. The one known case: Leeds 0–4 Arsenal,
-     31 Jan 2026, a goal FPL gives Madueke and Understat calls a Darlow own
-     goal (2 of 9,386 player-matches in 2025/26; none in the other seasons);
+     run report as a warning. Where the two disagree, **FPL is the source
+     of truth** (points are awarded from FPL's data; owner's decision,
+     2026-10-18), so a listed difference counts as FPL has it. The one
+     known case: Leeds 0–4 Arsenal, 31 Jan 2026, a goal FPL gives Madueke
+     and Understat calls a Darlow own goal (2 of 9,386 player-matches in
+     2025/26; none in the other seasons), confirmed by the owner;
    - no more than 5% of saved links may change in one run.
 6. **Write only if all of that passed.** A failed run writes nothing, so the
    app keeps the last good data. The app's figures count only Understat
