@@ -16,7 +16,7 @@ import { relativeCellTint } from "../utils/colorScale";
 import { downloadCsv } from "../utils/csvExport";
 import { matchesTeamSearch } from "../utils/playerSearch";
 import { MenuGroupHeading } from "../components/MenuControls";
-import { SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
+import { CrossoverGroupHeading, SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
 import { FPL_SOURCE, useExternalStats, type ColumnSourceChoice } from "../extensions/externalStats";
 
 /** A league-table-style view of each club in the selected season(s) — every column a club figure (see <club_not_squad>, metrics/teamStats.ts). */
@@ -69,6 +69,8 @@ export function Teams() {
   }, [ext]);
   const extColumns = useMemo(() => ext?.teamColumns(analysisMode) ?? null, [ext, analysisMode]);
   const extOnlyByKey = useMemo(() => new Map((extColumns?.groups ?? []).flatMap((g) => g.columns).map((c) => [c.key, c])), [extColumns]);
+  /** FPL columns the second source also has (the ⇄ ones): listed under their own picker heading while it's mounted. */
+  const crossoverKeys = useMemo(() => new Set(ext && extColumns ? Object.keys(extColumns.alternates) : []), [ext, extColumns]);
   const [sourceChoice, setSourceChoice] = useState<ColumnSourceChoice>({});
   const lookupColumn = useCallback(
     (key: string): TeamColumn | undefined => {
@@ -285,10 +287,11 @@ export function Teams() {
             />
             {showColumnPopover && (
               <div className="popover" style={{ left: 0, right: "auto" }}>
+                {/* Three kinds of heading, by source: green FPL only, the crossover colour for figures both sources have (⇄ on the header), then the second source's own. */}
                 {GROUPS.map((group) => (
                   <div key={group}>
-                    <MenuGroupHeading group={group} />
-                    {TEAM_COLUMNS.filter((c) => c.group === group).map((c) => (
+                    <MenuGroupHeading group={group} className="col-source-fpl" />
+                    {TEAM_COLUMNS.filter((c) => c.group === group && !crossoverKeys.has(c.key)).map((c) => (
                       <label key={c.key}>
                         <input type="checkbox" checked={visibleColumns.includes(c.key)} onChange={() => handleToggleColumn(c.key)} />
                         {c.label}
@@ -296,6 +299,17 @@ export function Teams() {
                     ))}
                   </div>
                 ))}
+                {ext && crossoverKeys.size > 0 && (
+                  <div>
+                    <CrossoverGroupHeading externalLabel={ext.label} />
+                    {TEAM_COLUMNS.filter((c) => crossoverKeys.has(c.key)).map((c) => (
+                      <label key={c.key}>
+                        <input type="checkbox" checked={visibleColumns.includes(c.key)} onChange={() => handleToggleColumn(c.key)} />
+                        {c.label}
+                      </label>
+                    ))}
+                  </div>
+                )}
                 {ext &&
                   extColumns?.groups.map((group) => (
                     <div key={group.heading}>

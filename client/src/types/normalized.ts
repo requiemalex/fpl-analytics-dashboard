@@ -82,6 +82,19 @@ export interface NormalizedPlayer {
   /** Season-to-date saves — genuinely 0 (not null) for an outfield player who has made none, same as bonus/bps. Null only if the live build omits the field entirely. See metrics/expectedPointsV2.ts. */
   saves: number | null;
   savesPerGame: number | null;
+  /** Same on-pitch basis as goalsConceded, per estimated game. Set by resolvePlayerStats. */
+  goalsConcededPerGame: number | null;
+  penaltiesSaved: number | null;
+  yellowCards: number | null;
+  redCards: number | null;
+  /** ICT Index's three parts (FPL's own scores). */
+  influence: number | null;
+  creativity: number | null;
+  threat: number | null;
+  /** Defensive Contribution's parts. Tracked in history_past from 2025/26 only (earlier seasons null). */
+  tackles: number | null;
+  clearancesBlocksInterceptions: number | null;
+  recoveries: number | null;
 
   // Expected-stats totals. API-supplied where the field exists on the live response.
   xG: number | null;
@@ -108,6 +121,11 @@ export interface NormalizedPlayer {
 
   /** FPL's own short-term form rating (points/game over a recent rolling window — distinct from season-long pointsPerGame). */
   form: number | null;
+
+  /** FPL's set-piece taker order at the player's club today (1 = first choice; null = not listed). Always live: FPL keeps no history of it. */
+  penaltiesOrder: number | null;
+  directFreekicksOrder: number | null;
+  cornersOrder: number | null;
 
   // Transfer-market fields, all API-supplied. See metrics/priceChange.ts for
   // anything derived from these (e.g. an owner-count estimate).
@@ -248,6 +266,18 @@ export interface PlayerSeasonHistory {
   xGC: number | null;
   /** Null for seasons before 2024/25, when this stat was introduced — never a placeholder 0. See normalizeElementSummary.ts. */
   defensiveContribution: number | null;
+  /** Null only if history_past omits the field for this season. */
+  saves: number | null;
+  penaltiesSaved: number | null;
+  yellowCards: number | null;
+  redCards: number | null;
+  influence: number | null;
+  creativity: number | null;
+  threat: number | null;
+  /** Null for seasons before 2025/26, when FPL started tracking DC's parts — never a placeholder 0. See normalizeElementSummary.ts. */
+  tackles: number | null;
+  clearancesBlocksInterceptions: number | null;
+  recoveries: number | null;
 }
 
 /**

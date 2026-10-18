@@ -1,7 +1,8 @@
 import type { NormalizedPlayer } from "../types/normalized";
 import type { PlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { defensiveRewardPerGame } from "../metrics/defensiveReward";
-import { fmtDecimal, fmtPrice, fmtPercent } from "../utils/format";
+import { perEstimatedGame } from "../metrics/calculations";
+import { fmtDecimal, fmtPrice, fmtPercent, fmtSigned } from "../utils/format";
 
 export type ColumnGroup = "ACTUAL OUTPUT" | "UNDERLYING PERFORMANCE" | "VALUE" | "ADVANCED";
 
@@ -31,13 +32,16 @@ export interface PlayerColumn {
    * (or Team Building's equivalent Historic/Raw toggle) — i.e. whether
    * resolvePlayerStats (resolvePlayerStats.ts) overwrites this field per
    * mode. Defaults true (almost every performance metric does); only
-   * price and ownership are explicitly false — both are always today's
-   * live figure regardless of mode, per resolvePlayerStats.ts's own
-   * price_always_live note. Drives the "always live" header styling
+   * price, ownership, form and the set-piece orders are explicitly false —
+   * all are always today's live figure regardless of mode (price per
+   * resolvePlayerStats.ts's own price_always_live note; FPL keeps no
+   * history of the others). Drives the "always live" header styling
    * shared across every table that lists PLAYER_COLUMNS — see the
    * .col-static rule in components.css.
    */
   varies?: boolean;
+  /** A +/- figure (Goals − xG): shown signed and coloured by sign. Player Comparison leaves these out (its Outputs bars start at 0). */
+  signed?: boolean;
   /**
    * Set only on a column from a second data source (see
    * extensions/externalStats.ts) — its id, e.g. "understat". Unset means
@@ -61,6 +65,42 @@ export const PLAYER_COLUMNS: PlayerColumn[] = [
   { key: "assists", label: "Assists", group: "ACTUAL OUTPUT", metricKey: "assists", getValue: (p) => p.assists, ...num(0) },
   { key: "cleanSheets", label: "CS", group: "ACTUAL OUTPUT", metricKey: "cleanSheets", getValue: (p) => p.cleanSheets, ...num(0) },
   { key: "bonus", label: "Bonus", group: "ACTUAL OUTPUT", metricKey: "bonus", getValue: (p) => p.bonus, ...num(0) },
+  { key: "saves", label: "Saves", group: "ACTUAL OUTPUT", metricKey: "saves", getValue: (p) => p.saves, ...num(0) },
+  { key: "savesPerGame", label: "Saves/Game", group: "ACTUAL OUTPUT", metricKey: "savesPerGame", getValue: (p) => p.savesPerGame, ...num(2) },
+  { key: "penaltiesSaved", label: "Pens Saved", group: "ACTUAL OUTPUT", metricKey: "penaltiesSaved", getValue: (p) => p.penaltiesSaved, ...num(0) },
+  // Lower-is-better totals rank per game (see rankBy), like xGC.
+  {
+    key: "goalsConceded",
+    label: "GC",
+    group: "ACTUAL OUTPUT",
+    metricKey: "goalsConceded",
+    getValue: (p) => p.goalsConceded,
+    ...num(0),
+    higherIsBetter: false,
+    rankBy: (p) => p.goalsConcededPerGame,
+  },
+  { key: "goalsConcededPerGame", label: "GC/Game", group: "ACTUAL OUTPUT", metricKey: "goalsConcededPerGame", getValue: (p) => p.goalsConcededPerGame, ...num(2), higherIsBetter: false },
+  {
+    key: "yellowCards",
+    label: "Yellows",
+    group: "ACTUAL OUTPUT",
+    metricKey: "yellowCards",
+    getValue: (p) => p.yellowCards,
+    ...num(0),
+    higherIsBetter: false,
+    rankBy: (p) => perEstimatedGame(p.yellowCards, p.estimatedGames),
+  },
+  {
+    key: "redCards",
+    label: "Reds",
+    group: "ACTUAL OUTPUT",
+    metricKey: "redCards",
+    getValue: (p) => p.redCards,
+    ...num(0),
+    higherIsBetter: false,
+    rankBy: (p) => perEstimatedGame(p.redCards, p.estimatedGames),
+  },
+  { key: "form", label: "Form", group: "ACTUAL OUTPUT", metricKey: "form", getValue: (p) => p.form, ...num(1), varies: false },
 
   // UNDERLYING PERFORMANCE
   { key: "xG", label: "xG", group: "UNDERLYING PERFORMANCE", metricKey: "xG", getValue: (p) => p.xG, ...num(2) },
@@ -69,6 +109,9 @@ export const PLAYER_COLUMNS: PlayerColumn[] = [
   { key: "xGPerGame", label: "xG/Game", group: "UNDERLYING PERFORMANCE", metricKey: "xGPerGame", getValue: (p) => p.xGPerGame, ...num(2) },
   { key: "xAPerGame", label: "xA/Game", group: "UNDERLYING PERFORMANCE", metricKey: "xAPerGame", getValue: (p) => p.xAPerGame, ...num(2) },
   { key: "xGIPerGame", label: "xGI/Game", group: "UNDERLYING PERFORMANCE", metricKey: "xGIPerGame", getValue: (p) => p.xGIPerGame, ...num(2) },
+  // FPL's goals and assists against FPL's own xG and xA (each source against itself, never mixed).
+  { key: "goalsMinusXG", label: "Goals − xG", group: "UNDERLYING PERFORMANCE", metricKey: "goalsMinusXG", getValue: (_p, d) => d.goalsMinusXG, format: (v) => fmtSigned(v, 2), decimals: 2, signed: true },
+  { key: "assistsMinusXA", label: "Assists − xA", group: "UNDERLYING PERFORMANCE", metricKey: "assistsMinusXA", getValue: (_p, d) => d.assistsMinusXA, format: (v) => fmtSigned(v, 2), decimals: 2, signed: true },
   { key: "xGC", label: "xGC", group: "UNDERLYING PERFORMANCE", metricKey: "xGC", getValue: (p) => p.xGC, ...num(2), higherIsBetter: false, rankBy: (p) => p.xGCPerGame },
   { key: "xGCPerGame", label: "xGC/Game", group: "UNDERLYING PERFORMANCE", metricKey: "xGCPerGame", getValue: (p) => p.xGCPerGame, ...num(2), higherIsBetter: false },
 
@@ -84,6 +127,9 @@ export const PLAYER_COLUMNS: PlayerColumn[] = [
   { key: "starts", label: "Starts", group: "ADVANCED", metricKey: "starts", getValue: (p) => p.starts, ...num(0) },
   { key: "bps", label: "BPS", group: "ADVANCED", metricKey: "bps", getValue: (p) => p.bps, ...num(0) },
   { key: "ictIndex", label: "ICT", group: "ADVANCED", metricKey: "ictIndex", getValue: (p) => p.ictIndex, ...num(1) },
+  { key: "influence", label: "Influence", group: "ADVANCED", metricKey: "influence", getValue: (p) => p.influence, ...num(1) },
+  { key: "creativity", label: "Creativity", group: "ADVANCED", metricKey: "creativity", getValue: (p) => p.creativity, ...num(1) },
+  { key: "threat", label: "Threat", group: "ADVANCED", metricKey: "threat", getValue: (p) => p.threat, ...num(1) },
   {
     key: "defensiveContributions",
     label: "DC",
@@ -108,6 +154,13 @@ export const PLAYER_COLUMNS: PlayerColumn[] = [
     getValue: (p) => defensiveRewardPerGame(p),
     ...num(2),
   },
+  { key: "tackles", label: "Tackles", group: "ADVANCED", metricKey: "tackles", getValue: (p) => p.tackles, ...num(0) },
+  { key: "clearancesBlocksInterceptions", label: "CBI", group: "ADVANCED", metricKey: "clearancesBlocksInterceptions", getValue: (p) => p.clearancesBlocksInterceptions, ...num(0) },
+  { key: "recoveries", label: "Recoveries", group: "ADVANCED", metricKey: "recoveries", getValue: (p) => p.recoveries, ...num(0) },
+  // Set-piece duties: today's order at his club (1 = first choice), whatever the Data View.
+  { key: "penaltiesOrder", label: "Pen Order", group: "ADVANCED", metricKey: "penaltiesOrder", getValue: (p) => p.penaltiesOrder, ...num(0), higherIsBetter: false, varies: false },
+  { key: "directFreekicksOrder", label: "FK Order", group: "ADVANCED", metricKey: "directFreekicksOrder", getValue: (p) => p.directFreekicksOrder, ...num(0), higherIsBetter: false, varies: false },
+  { key: "cornersOrder", label: "Corner Order", group: "ADVANCED", metricKey: "cornersOrder", getValue: (p) => p.cornersOrder, ...num(0), higherIsBetter: false, varies: false },
   {
     key: "ownership",
     label: "Own%",

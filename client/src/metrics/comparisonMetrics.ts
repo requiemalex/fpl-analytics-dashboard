@@ -40,9 +40,10 @@ export interface ComparisonMetric {
  * What a radar chart or Outputs panel can show: every Player Explorer
  * column whose value follows the Data View. Price and ownership are left
  * out — they're always today's figure, and every player tag on the page
- * already shows both.
+ * already shows both. So are +/- figures (Goals − xG): Outputs bars and
+ * radar axes run from 0, so a negative figure would read as nothing.
  */
-export const COMPARISON_METRICS: ComparisonMetric[] = PLAYER_COLUMNS.filter((c) => !isStaticColumn(c)).map((c) => ({
+export const COMPARISON_METRICS: ComparisonMetric[] = PLAYER_COLUMNS.filter((c) => !isStaticColumn(c) && !c.signed).map((c) => ({
   key: c.key,
   label: LABELS[c.key] ?? c.label,
   group: c.group,

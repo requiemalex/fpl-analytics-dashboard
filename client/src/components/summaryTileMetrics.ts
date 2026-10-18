@@ -36,14 +36,8 @@ const num = (decimals = 0) => (v: number | null) => fmtDecimal(v, decimals);
  * only exist as PlayerDerivedMetrics fields, not as their own table column.
  * This is the full set a user can build a Dashboard tile from.
  */
-export const PLAYER_TILE_METRICS: PlayerTileMetric[] = [
-  ...PLAYER_COLUMNS.map((c) => ({
-    key: c.key,
-    label: c.label,
-    getValue: c.getValue,
-    format: c.format,
-    higherIsBetter: c.higherIsBetter ?? true,
-  })),
+/** Tile-only metrics, and fuller tile names for two that are also columns (Goals − xG, Assists − xA: the tile's entry wins). */
+const TILE_EXTRA_METRICS: PlayerTileMetric[] = [
   { key: "goalsMinusXG", label: "Goals vs xG (Goals − xG)", getValue: (_p, d) => d.goalsMinusXG, format: fmtSigned, higherIsBetter: true, signed: true },
   {
     key: "assistsMinusXA",
@@ -65,6 +59,19 @@ export const PLAYER_TILE_METRICS: PlayerTileMetric[] = [
   // PLAYER_COLUMNS' "pointsPerGame"/"PPG" entry), not a distinct metric.
   { key: "goalsPerGame", label: "Goals/Game", getValue: (_p, d) => d.goalsPerGame, format: num(2), higherIsBetter: true },
   { key: "assistsPerGame", label: "Assists/Game", getValue: (_p, d) => d.assistsPerGame, format: num(2), higherIsBetter: true },
+];
+const TILE_EXTRA_KEYS = new Set(TILE_EXTRA_METRICS.map((m) => m.key));
+
+export const PLAYER_TILE_METRICS: PlayerTileMetric[] = [
+  ...PLAYER_COLUMNS.filter((c) => !TILE_EXTRA_KEYS.has(c.key)).map((c) => ({
+    key: c.key,
+    label: c.label,
+    getValue: c.getValue,
+    format: c.format,
+    higherIsBetter: c.higherIsBetter ?? true,
+    signed: c.signed,
+  })),
+  ...TILE_EXTRA_METRICS,
 ];
 
 /** Every TEAM_COLUMNS metric (League Position, Goals For/Against, FPL Points, xG/xA/xGI/xGC, etc. — the same club-figure catalogue Dashboard's team graphs use) — the full set a user can build a Dashboard Team Tile from. */

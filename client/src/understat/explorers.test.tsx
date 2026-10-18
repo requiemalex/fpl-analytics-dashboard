@@ -165,6 +165,43 @@ describe("Player Explorer with Understat mounted", () => {
     const { container, getByRole } = renderExplorer(null);
     expect(within(header(container, "xG")).queryByRole("button", { name: /Click to show/ })).toBeNull();
     fireEvent.click(getByRole("button", { name: /^Columns/ }));
-    expect(container.querySelector(".popover")?.textContent).not.toContain("Understat");
+    const popover = container.querySelector<HTMLElement>(".popover")!;
+    expect(popover.textContent).not.toContain("Understat");
+    // The shared figures are back in their FPL groups.
+    expect(groupOf(popover, "xG")).toBe("Underlying Performance");
+    expect(groupOf(popover, "Mins")).toBe("Advanced");
+  });
+
+  it("Columns picker: green FPL-only groups, a crossover group for every figure with a ⇄ toggle, then Understat's own", () => {
+    const { container, getByRole } = renderExplorer(fakeSource());
+    fireEvent.click(getByRole("button", { name: /^Columns/ }));
+    const popover = container.querySelector<HTMLElement>(".popover")!;
+    const headings = Array.from(popover.querySelectorAll<HTMLElement>(".menu-group-heading"));
+    const crossover = headings.find((h) => h.textContent === "FPL & Understat")!;
+    expect(crossover.classList.contains("col-source-crossover")).toBe(true);
+    // Order: FPL headings, then the crossover heading, then Understat's.
+    const kinds = headings.map((h) => (h.classList.contains("col-source-fpl") ? "fpl" : h.classList.contains("col-source-crossover") ? "both" : "understat"));
+    expect(kinds.join(",")).toMatch(/^(fpl,)+both(,understat)+$/);
+    const alternates = Object.values(understatPlayerColumns(() => resolved).alternates).map((c) => c.label);
+    for (const label of alternates) expect(groupOf(popover, label), label).toBe("FPL & Understat");
+    expect(groupOf(popover, "Goals")).toBe("Actual Output");
+    expect(groupOf(popover, "Shots")).toBe("Understat · Shooting");
+  });
+
+  it("Goals − xG is one column with a toggle: FPL's goals − FPL's xG, or Understat's against Understat's", () => {
+    const { container, getByRole } = renderExplorer(fakeSource());
+    fireEvent.click(getByRole("button", { name: /^Columns/ }));
+    fireEvent.click(within(container.querySelector<HTMLElement>(".popover")!).getByLabelText("Goals − xG"));
+    // Saka: FPL 0 goals − 3.21 xG; Understat 3 − 4.56.
+    expect(cellUnder(container, "Goals − xG", "Saka")).toBe("-3.21");
+    fireEvent.click(within(header(container, "Goals − xG")).getByRole("button", { name: /Click to show Understat's/ }));
+    expect(header(container, "Goals − xG").classList.contains("col-source-understat")).toBe(true);
+    expect(cellUnder(container, "Goals − xG", "Saka")).toBe("-1.56");
   });
 });
+
+/** The picker heading a column's checkbox sits under. */
+function groupOf(popover: HTMLElement, label: string): string | undefined {
+  const input = within(popover).getByLabelText(label);
+  return input.closest("div")?.querySelector(".menu-group-heading")?.textContent ?? undefined;
+}

@@ -31,6 +31,12 @@
      duller than accent-negative so it never reads as a warning. */
   --col-static: #b8766a;
 
+  /* The crossover colour: a figure both data sources have, switchable
+     with the ⇄ header toggle (its icon, and its Columns-picker heading).
+     Rose sits apart from FPL's green, a second source's violet, the
+     always-live muted red and every position / good-bad hue. */
+  --col-crossover: #e38fc4;
+
   /* Position colours — reverted to this app's original red/green/blue/
      yellow set (the same hues as the semantic accent tokens above,
      though kept as their own dedicated values here rather than aliased

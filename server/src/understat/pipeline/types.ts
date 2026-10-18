@@ -156,6 +156,22 @@ export interface ShotSlice {
   xG: number;
 }
 
+/**
+ * More about a set of shots, from Understat's shot list: how they ended
+ * (off the woodwork, blocked), whether a team-mate is named as setting
+ * them up, and the action just before them (a cross, a through ball, a
+ * dribble, a rebound). Counts only; own goals are nobody's shots.
+ */
+export interface ShotDetail {
+  /** Understat's "ShotOnPost". */
+  woodwork: number;
+  /** Understat's "BlockedShot". */
+  blocked: number;
+  /** Shots with a named assisting team-mate. */
+  assisted: number;
+  lastActions: Record<ShotLastAction, ShotSlice>;
+}
+
 export interface PlayerSeasonTotals {
   understatId: string;
   /** Matches with minutes > 0. */
@@ -174,6 +190,7 @@ export interface PlayerSeasonTotals {
   xGBuildup: number;
   situations: Record<ShotSituation, ShotSlice>;
   bodyParts: Record<ShotBodyPart, ShotSlice>;
+  shotDetail: ShotDetail;
   /**
    * <incomplete_shot_list>: false when Understat's shot list for one of his
    * matches is missing shots its own line-up counts (seen once in 3,865
@@ -211,6 +228,8 @@ export interface ClubSeasonTotals {
   shotsOnTargetAgainst: number;
   situationsFor: Record<ShotSituation, ShotSlice>;
   situationsAgainst: Record<ShotSituation, ShotSlice>;
+  shotDetailFor: ShotDetail;
+  shotDetailAgainst: ShotDetail;
   /** <incomplete_shot_list> for the club's own shots, and for its opponents'. */
   shotsCompleteFor: boolean;
   shotsCompleteAgainst: boolean;
@@ -220,6 +239,9 @@ export const SHOT_SITUATIONS = ["OpenPlay", "FromCorner", "SetPiece", "DirectFre
 export type ShotSituation = (typeof SHOT_SITUATIONS)[number];
 export const SHOT_BODY_PARTS = ["RightFoot", "LeftFoot", "Head", "OtherBodyPart"] as const;
 export type ShotBodyPart = (typeof SHOT_BODY_PARTS)[number];
+/** The actions before a shot that ShotDetail splits out (Understat's last_action; "TakeOn" is a dribble). */
+export const SHOT_LAST_ACTIONS = ["Cross", "Throughball", "TakeOn", "Rebound"] as const;
+export type ShotLastAction = (typeof SHOT_LAST_ACTIONS)[number];
 /** Understat shot results that reached the goal frame (scored or saved) — a shot off the post didn't. */
 export const ON_TARGET_RESULTS = new Set(["Goal", "SavedShot"]);
 

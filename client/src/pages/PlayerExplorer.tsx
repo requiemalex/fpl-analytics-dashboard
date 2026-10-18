@@ -20,7 +20,7 @@ import { useEscapeLayer } from "../state/useEscapeLayer";
 import { useProgressiveRowCount, INITIAL_ROW_COUNT } from "../state/useProgressiveRowCount";
 import type { NormalizedPlayer, Position } from "../types/normalized";
 import { MenuGroupHeading } from "../components/MenuControls";
-import { SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
+import { CrossoverGroupHeading, SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
 import { FPL_SOURCE, useExternalStats, type ColumnSourceChoice } from "../extensions/externalStats";
 
 const GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE", "ADVANCED"];
@@ -274,6 +274,8 @@ export function PlayerExplorer() {
   }, [ext]);
   const extColumns = useMemo(() => ext?.playerColumns(analysisMode) ?? null, [ext, analysisMode]);
   const extOnlyByKey = useMemo(() => new Map((extColumns?.groups ?? []).flatMap((g) => g.columns).map((c) => [c.key, c])), [extColumns]);
+  /** FPL columns the second source also has (the ⇄ ones): listed under their own picker heading while it's mounted. */
+  const crossoverKeys = useMemo(() => new Set(ext && extColumns ? Object.keys(extColumns.alternates) : []), [ext, extColumns]);
   const [sourceChoice, setSourceChoice] = useState<ColumnSourceChoice>({});
   const lookupColumn = useCallback(
     (key: string): PlayerColumn | undefined => {
@@ -592,7 +594,7 @@ export function PlayerExplorer() {
               <div className="popover" style={{ left: 0, right: "auto" }}>
                 {/* Ownership/Price/Team/Position aren't listed here at all — they're the fixed identity block (IDENTITY_COLUMNS), always shown, never toggleable. */}
                 <div>
-                  <MenuGroupHeading group="Other" />
+                  <MenuGroupHeading group="Other" className="col-source-fpl" />
                   <label>
                     <input
                       type="checkbox"
@@ -602,10 +604,11 @@ export function PlayerExplorer() {
                     Next 5 Fixtures
                   </label>
                 </div>
+                {/* Three kinds of heading, by source: green FPL only, the crossover colour for figures both sources have (⇄ on the header), then the second source's own. */}
                 {GROUPS.map((group) => (
                   <div key={group}>
-                    <MenuGroupHeading group={group} />
-                    {PLAYER_COLUMNS.filter((c) => c.group === group && !FIXED_COLUMN_KEYS.has(c.key)).map((c) => (
+                    <MenuGroupHeading group={group} className="col-source-fpl" />
+                    {PLAYER_COLUMNS.filter((c) => c.group === group && !FIXED_COLUMN_KEYS.has(c.key) && !crossoverKeys.has(c.key)).map((c) => (
                       <label key={c.key}>
                         <input type="checkbox" checked={visibleColumns.includes(c.key)} onChange={() => handleToggleColumn(c.key)} />
                         {c.label}
@@ -613,6 +616,17 @@ export function PlayerExplorer() {
                     ))}
                   </div>
                 ))}
+                {ext && crossoverKeys.size > 0 && (
+                  <div>
+                    <CrossoverGroupHeading externalLabel={ext.label} />
+                    {PLAYER_COLUMNS.filter((c) => crossoverKeys.has(c.key)).map((c) => (
+                      <label key={c.key}>
+                        <input type="checkbox" checked={visibleColumns.includes(c.key)} onChange={() => handleToggleColumn(c.key)} />
+                        {c.label}
+                      </label>
+                    ))}
+                  </div>
+                )}
                 {ext &&
                   extColumns?.groups.map((group) => (
                     <div key={group.heading}>

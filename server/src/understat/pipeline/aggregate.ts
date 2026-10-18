@@ -10,8 +10,20 @@
  * Totals only: every rate the app shows (per game, per shot, PPDA) is
  * worked out from these totals, never averaged from per-match rates.
  */
-import { ON_TARGET_RESULTS, SHOT_BODY_PARTS, SHOT_SITUATIONS } from "./types.js";
-import type { AppSeasonFile, ClubPairing, ClubSeasonTotals, PlayerLink, PlayerSeasonTotals, ShotBodyPart, ShotSituation, ShotSlice, UsShot } from "./types.js";
+import { ON_TARGET_RESULTS, SHOT_BODY_PARTS, SHOT_LAST_ACTIONS, SHOT_SITUATIONS } from "./types.js";
+import type {
+  AppSeasonFile,
+  ClubPairing,
+  ClubSeasonTotals,
+  PlayerLink,
+  PlayerSeasonTotals,
+  ShotBodyPart,
+  ShotDetail,
+  ShotLastAction,
+  ShotSituation,
+  ShotSlice,
+  UsShot,
+} from "./types.js";
 import type { SeasonData } from "./files.js";
 
 const round = (v: number, dp = 4) => Math.round(v * 10 ** dp) / 10 ** dp;
@@ -27,6 +39,15 @@ function addShot(slice: ShotSlice, s: UsShot) {
 function roundSlices<K extends string>(r: Record<K, ShotSlice>): Record<K, ShotSlice> {
   for (const k of Object.keys(r) as K[]) r[k].xG = round(r[k].xG);
   return r;
+}
+
+const emptyDetail = (): ShotDetail => ({ woodwork: 0, blocked: 0, assisted: 0, lastActions: slices(SHOT_LAST_ACTIONS) });
+
+function addShotDetail(d: ShotDetail, s: UsShot) {
+  if (s.result === "ShotOnPost") d.woodwork += 1;
+  if (s.result === "BlockedShot") d.blocked += 1;
+  if (s.assistedBy !== "") d.assisted += 1;
+  if ((SHOT_LAST_ACTIONS as readonly string[]).includes(s.lastAction)) addShot(d.lastActions[s.lastAction as ShotLastAction], s);
 }
 
 /** Own goals are listed among Understat's shots but aren't the shooter's attempt at his own goal — they count for nobody's shots. */
@@ -82,6 +103,7 @@ export function buildAppSeason(data: SeasonData, links: Map<number, PlayerLink>,
       xGBuildup: 0,
       situations: slices(SHOT_SITUATIONS),
       bodyParts: slices(SHOT_BODY_PARTS),
+      shotDetail: emptyDetail(),
       shotsComplete: !shortPlayers.has(understatId),
     };
     return players[code];
@@ -111,11 +133,13 @@ export function buildAppSeason(data: SeasonData, links: Map<number, PlayerLink>,
     }
     if ((SHOT_SITUATIONS as readonly string[]).includes(s.situation)) addShot(t.situations[s.situation as ShotSituation], s);
     if ((SHOT_BODY_PARTS as readonly string[]).includes(s.shotType)) addShot(t.bodyParts[s.shotType as ShotBodyPart], s);
+    addShotDetail(t.shotDetail, s);
   }
   for (const t of Object.values(players)) {
     for (const k of ["xG", "xA", "npxG", "xGChain", "xGBuildup"] as const) t[k] = round(t[k]);
     roundSlices(t.situations);
     roundSlices(t.bodyParts);
+    roundSlices(t.shotDetail.lastActions);
   }
 
   // --- clubs ---
@@ -150,6 +174,8 @@ export function buildAppSeason(data: SeasonData, links: Map<number, PlayerLink>,
       shotsOnTargetAgainst: 0,
       situationsFor: slices(SHOT_SITUATIONS),
       situationsAgainst: slices(SHOT_SITUATIONS),
+      shotDetailFor: emptyDetail(),
+      shotDetailAgainst: emptyDetail(),
       shotsCompleteFor: true,
       shotsCompleteAgainst: true,
     };
@@ -195,11 +221,13 @@ export function buildAppSeason(data: SeasonData, links: Map<number, PlayerLink>,
       attacking.shots += 1;
       if (onTarget) attacking.shotsOnTarget += 1;
       if (known) addShot(attacking.situationsFor[s.situation as ShotSituation], s);
+      addShotDetail(attacking.shotDetailFor, s);
     }
     if (defending) {
       defending.shotsAgainst += 1;
       if (onTarget) defending.shotsOnTargetAgainst += 1;
       if (known) addShot(defending.situationsAgainst[s.situation as ShotSituation], s);
+      addShotDetail(defending.shotDetailAgainst, s);
     }
   }
   for (const key of shortSides) {
@@ -215,6 +243,8 @@ export function buildAppSeason(data: SeasonData, links: Map<number, PlayerLink>,
     for (const k of ["xG", "xGA", "npxG", "npxGA", "xPts", "xA"] as const) c[k] = round(c[k]);
     roundSlices(c.situationsFor);
     roundSlices(c.situationsAgainst);
+    roundSlices(c.shotDetailFor.lastActions);
+    roundSlices(c.shotDetailAgainst.lastActions);
   }
 
   const resultDates = data.matches.filter((m) => resultMatchIds.has(m.id)).map((m) => m.datetime.slice(0, 10));

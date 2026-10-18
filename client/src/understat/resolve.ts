@@ -25,14 +25,28 @@ import type { NormalizedPlayer, NormalizedTeam } from "../types/normalized";
 import type { HistoricPlayerProfile } from "../metrics/historicAnalysis";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import { clubSeasonsForMode } from "../metrics/teamStats";
-import type { UnderstatData, UsClubTotals, UsPlayerTotals, UsSlice } from "./schema";
+import type { UnderstatData, UsClubTotals, UsPlayerTotals, UsShotDetail, UsSlice } from "./schema";
 
 type EnabledData = Extract<UnderstatData, { enabled: true }>;
 
 const SITUATIONS = ["OpenPlay", "FromCorner", "SetPiece", "DirectFreekick", "Penalty"] as const;
 const BODY_PARTS = ["RightFoot", "LeftFoot", "Head", "OtherBodyPart"] as const;
 
+const LAST_ACTIONS = ["Cross", "Throughball", "TakeOn", "Rebound"] as const;
+
 const zeroSlice = (): UsSlice => ({ shots: 0, goals: 0, xG: 0 });
+const zeroDetail = (): UsShotDetail => ({
+  woodwork: 0,
+  blocked: 0,
+  assisted: 0,
+  lastActions: Object.fromEntries(LAST_ACTIONS.map((k) => [k, zeroSlice()])) as UsShotDetail["lastActions"],
+});
+
+/** Unknown if either side is (a season file from before the sync added it), so a sum never passes for the whole. */
+function addDetail(a: UsShotDetail | undefined, b: UsShotDetail | undefined): UsShotDetail | undefined {
+  if (!a || !b) return undefined;
+  return { woodwork: a.woodwork + b.woodwork, blocked: a.blocked + b.blocked, assisted: a.assisted + b.assisted, lastActions: addSlices(a.lastActions, b.lastActions) };
+}
 
 function zeroPlayer(): UsPlayerTotals {
   return {
@@ -52,6 +66,7 @@ function zeroPlayer(): UsPlayerTotals {
     xGBuildup: 0,
     situations: Object.fromEntries(SITUATIONS.map((k) => [k, zeroSlice()])) as UsPlayerTotals["situations"],
     bodyParts: Object.fromEntries(BODY_PARTS.map((k) => [k, zeroSlice()])) as UsPlayerTotals["bodyParts"],
+    shotDetail: zeroDetail(),
     shotsComplete: true,
   };
 }
@@ -80,6 +95,7 @@ function addPlayers(a: UsPlayerTotals, b: UsPlayerTotals): UsPlayerTotals {
     xGBuildup: a.xGBuildup + b.xGBuildup,
     situations: addSlices(a.situations, b.situations),
     bodyParts: addSlices(a.bodyParts, b.bodyParts),
+    shotDetail: addDetail(a.shotDetail, b.shotDetail),
     shotsComplete: a.shotsComplete && b.shotsComplete,
   };
 }
@@ -174,6 +190,8 @@ function zeroClub(): UsClubTotals {
     shotsOnTargetAgainst: 0,
     situationsFor: s(),
     situationsAgainst: s(),
+    shotDetailFor: zeroDetail(),
+    shotDetailAgainst: zeroDetail(),
     shotsCompleteFor: true,
     shotsCompleteAgainst: true,
   };
@@ -189,6 +207,8 @@ function addClubs(a: UsClubTotals, b: UsClubTotals): UsClubTotals {
   out.understatTeamId = a.understatTeamId || b.understatTeamId;
   out.situationsFor = addSlices(a.situationsFor, b.situationsFor);
   out.situationsAgainst = addSlices(a.situationsAgainst, b.situationsAgainst);
+  out.shotDetailFor = addDetail(a.shotDetailFor, b.shotDetailFor);
+  out.shotDetailAgainst = addDetail(a.shotDetailAgainst, b.shotDetailAgainst);
   out.shotsCompleteFor = a.shotsCompleteFor && b.shotsCompleteFor;
   out.shotsCompleteAgainst = a.shotsCompleteAgainst && b.shotsCompleteAgainst;
   return out;

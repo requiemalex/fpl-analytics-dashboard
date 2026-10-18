@@ -9,6 +9,18 @@ import { z } from "zod";
 const slice = z.object({ shots: z.number(), goals: z.number(), xG: z.number() });
 const situations = z.object({ OpenPlay: slice, FromCorner: slice, SetPiece: slice, DirectFreekick: slice, Penalty: slice });
 const bodyParts = z.object({ RightFoot: slice, LeftFoot: slice, Head: slice, OtherBodyPart: slice });
+/**
+ * Woodwork, blocked and assisted shots, and shots by the action before
+ * them (server/src/understat/pipeline/types.ts ShotDetail). Optional: a
+ * season file written before the sync added it has none, and its figures
+ * are "—" (never 0) until the next sync rewrites it.
+ */
+const shotDetail = z.object({
+  woodwork: z.number(),
+  blocked: z.number(),
+  assisted: z.number(),
+  lastActions: z.object({ Cross: slice, Throughball: slice, TakeOn: slice, Rebound: slice }),
+});
 
 export const usPlayerSchema = z.object({
   understatId: z.string(),
@@ -27,6 +39,7 @@ export const usPlayerSchema = z.object({
   xGBuildup: z.number(),
   situations,
   bodyParts,
+  shotDetail: shotDetail.optional(),
   /** <incomplete_shot_list> (server/src/understat/pipeline/types.ts). */
   shotsComplete: z.boolean().default(true),
 });
@@ -57,6 +70,8 @@ export const usClubSchema = z.object({
   shotsOnTargetAgainst: z.number(),
   situationsFor: situations,
   situationsAgainst: situations,
+  shotDetailFor: shotDetail.optional(),
+  shotDetailAgainst: shotDetail.optional(),
   shotsCompleteFor: z.boolean().default(true),
   shotsCompleteAgainst: z.boolean().default(true),
 });
@@ -64,6 +79,7 @@ export const usClubSchema = z.object({
 export type UsPlayerTotals = z.infer<typeof usPlayerSchema>;
 export type UsClubTotals = z.infer<typeof usClubSchema>;
 export type UsSlice = z.infer<typeof slice>;
+export type UsShotDetail = z.infer<typeof shotDetail>;
 
 const seasonFileShell = z.object({
   season: z.string(),

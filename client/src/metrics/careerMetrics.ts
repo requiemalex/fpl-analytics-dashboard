@@ -23,6 +23,17 @@ export interface CareerAverages {
   avgXGCPerSeason: number | null;
   /** Averaged only over seasons where DC was tracked (2024/25+) — see PlayerSeasonHistory.defensiveContribution. */
   avgDefensiveContributionPerSeason: number | null;
+  avgSavesPerSeason: number | null;
+  avgPenaltiesSavedPerSeason: number | null;
+  avgYellowCardsPerSeason: number | null;
+  avgRedCardsPerSeason: number | null;
+  avgInfluence: number | null;
+  avgCreativity: number | null;
+  avgThreat: number | null;
+  /** DC's parts: averaged only over seasons where they were tracked (2025/26+) — see PlayerSeasonHistory.tackles. */
+  avgTacklesPerSeason: number | null;
+  avgClearancesBlocksInterceptionsPerSeason: number | null;
+  avgRecoveriesPerSeason: number | null;
   /**
    * Per-game rates, each over the SAME seasons its stat is averaged over
    * (<matched_season_rates>): a stat that's null for some seasons (DC before
@@ -37,6 +48,8 @@ export interface CareerAverages {
   xGIPerGame: number | null;
   xGCPerGame: number | null;
   defensiveContributionPerGame: number | null;
+  savesPerGame: number | null;
+  goalsConcededPerGame: number | null;
 }
 
 /**
@@ -68,11 +81,23 @@ export function computeCareerAverages(seasons: PlayerSeasonHistory[]): CareerAve
       avgXGIPerSeason: null,
       avgXGCPerSeason: null,
       avgDefensiveContributionPerSeason: null,
+      avgSavesPerSeason: null,
+      avgPenaltiesSavedPerSeason: null,
+      avgYellowCardsPerSeason: null,
+      avgRedCardsPerSeason: null,
+      avgInfluence: null,
+      avgCreativity: null,
+      avgThreat: null,
+      avgTacklesPerSeason: null,
+      avgClearancesBlocksInterceptionsPerSeason: null,
+      avgRecoveriesPerSeason: null,
       xGPerGame: null,
       xAPerGame: null,
       xGIPerGame: null,
       xGCPerGame: null,
       defensiveContributionPerGame: null,
+      savesPerGame: null,
+      goalsConcededPerGame: null,
     };
   }
 
@@ -110,11 +135,23 @@ export function computeCareerAverages(seasons: PlayerSeasonHistory[]): CareerAve
     avgXGIPerSeason: avgOrNull((s) => s.xGI),
     avgXGCPerSeason: avgOrNull((s) => s.xGC),
     avgDefensiveContributionPerSeason: avgOrNull((s) => s.defensiveContribution),
+    avgSavesPerSeason: avgOrNull((s) => s.saves),
+    avgPenaltiesSavedPerSeason: avgOrNull((s) => s.penaltiesSaved),
+    avgYellowCardsPerSeason: avgOrNull((s) => s.yellowCards),
+    avgRedCardsPerSeason: avgOrNull((s) => s.redCards),
+    avgInfluence: avgOrNull((s) => s.influence),
+    avgCreativity: avgOrNull((s) => s.creativity),
+    avgThreat: avgOrNull((s) => s.threat),
+    avgTacklesPerSeason: avgOrNull((s) => s.tackles),
+    avgClearancesBlocksInterceptionsPerSeason: avgOrNull((s) => s.clearancesBlocksInterceptions),
+    avgRecoveriesPerSeason: avgOrNull((s) => s.recoveries),
     xGPerGame: perGameOverKnownSeasons((s) => s.xG),
     xAPerGame: perGameOverKnownSeasons((s) => s.xA),
     xGIPerGame: perGameOverKnownSeasons((s) => s.xGI),
     xGCPerGame: perGameOverKnownSeasons((s) => s.xGC),
     defensiveContributionPerGame: perGameOverKnownSeasons((s) => s.defensiveContribution),
+    savesPerGame: perGameOverKnownSeasons((s) => s.saves),
+    goalsConcededPerGame: perGameOverKnownSeasons((s) => s.goalsConceded),
   };
 }
 

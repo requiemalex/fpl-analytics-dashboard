@@ -161,8 +161,19 @@ describe("saves per Data View (audit 2026-10-18 L5)", () => {
     expect(resolvePlayerStats(player, "live", undefined, true)).toMatchObject({ saves: 30, savesPerGame: 3 });
     expect(resolvePlayerStats(player, "live", undefined, false).saves).toBe(0);
   });
-  it("Last Completed Season and Historic Average: unknown (history_past has no saves), never today's figure", () => {
+  it("Last Completed Season and Historic Average with no history: unknown, never today's figure", () => {
     expect(resolvePlayerStats(player, "lastSeason", undefined, true)).toMatchObject({ saves: null, savesPerGame: null });
     expect(resolvePlayerStats(player, "historicAverage", undefined, true)).toMatchObject({ saves: null, savesPerGame: null });
+  });
+  // history_past does carry saves (Pickford 2024/25: 122 in 3,420 minutes;
+  // 2025/26: 100 in 3,420; live API checked 2026-10-18), so the historic
+  // views show that season's figure, not "—".
+  it("Last Completed Season and Historic Average: the seasons' own saves from history_past", () => {
+    const s1 = makeSeason({ seasonName: "2024/25", minutes: 3420, saves: 122 });
+    const s2 = makeSeason({ seasonName: "2025/26", minutes: 3420, saves: 100 });
+    const avg = computeCareerAverages([s1, s2]);
+    const profile: HistoricPlayerProfile = { lastCompletedSeason: s2, qualifyingSeasons: [s1, s2], windowAverage: avg, allSeasonsInWindow: [s1, s2], floorSeasonsInWindow: [s1, s2], floorWindowAverage: avg };
+    expect(resolvePlayerStats(player, "lastSeason", profile, true)).toMatchObject({ saves: 100, savesPerGame: 100 / 38 });
+    expect(resolvePlayerStats(player, "historicAverage", profile, true)).toMatchObject({ saves: 111, savesPerGame: 222 / 76 });
   });
 });

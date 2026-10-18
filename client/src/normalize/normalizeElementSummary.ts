@@ -69,6 +69,14 @@ const DEFENSIVE_CONTRIBUTION_TRACKING_START_YEAR = 2024;
  */
 const STARTS_AND_EXPECTED_TRACKING_START_YEAR = 2022;
 
+/**
+ * DC's parts (tackles, CBI, recoveries) are tracked a season after DC
+ * itself, from 2025/26: Gabriel 2024/25 shows DC 159 but 0 / 0 / 0, and
+ * 2025/26 CBI 239 + tackles 38 = DC 277 (live API checked 2026-10-18).
+ * Earlier seasons' 0 is a placeholder, nulled here.
+ */
+const DC_PARTS_TRACKING_START_YEAR = 2025;
+
 function seasonStartYear(seasonName: string): number {
   return parseInt(seasonName.split("/")[0], 10);
 }
@@ -77,6 +85,7 @@ function normalizePastSeasons(historyPast: RawElementSummaryPastSeason[]): Playe
   return (historyPast ?? [])
     .map((s) => {
       const tracked = seasonStartYear(s.season_name) >= STARTS_AND_EXPECTED_TRACKING_START_YEAR;
+      const dcPartsTracked = seasonStartYear(s.season_name) >= DC_PARTS_TRACKING_START_YEAR;
       return {
         seasonName: s.season_name,
         totalPoints: s.total_points,
@@ -97,6 +106,18 @@ function normalizePastSeasons(historyPast: RawElementSummaryPastSeason[]): Playe
         xGC: tracked ? parseNumericString(s.expected_goals_conceded ?? null) : null,
         defensiveContribution:
           seasonStartYear(s.season_name) >= DEFENSIVE_CONTRIBUTION_TRACKING_START_YEAR ? (s.defensive_contribution ?? null) : null,
+        // Tracked in every season history_past covers (Pickford 2016/17–2025/26:
+        // 89–135 saves a season; live API checked 2026-10-18).
+        saves: parseNumberOrNull(s.saves ?? null),
+        penaltiesSaved: parseNumberOrNull(s.penalties_saved ?? null),
+        yellowCards: parseNumberOrNull(s.yellow_cards ?? null),
+        redCards: parseNumberOrNull(s.red_cards ?? null),
+        influence: parseNumericString(s.influence ?? null),
+        creativity: parseNumericString(s.creativity ?? null),
+        threat: parseNumericString(s.threat ?? null),
+        tackles: dcPartsTracked ? parseNumberOrNull(s.tackles ?? null) : null,
+        clearancesBlocksInterceptions: dcPartsTracked ? parseNumberOrNull(s.clearances_blocks_interceptions ?? null) : null,
+        recoveries: dcPartsTracked ? parseNumberOrNull(s.recoveries ?? null) : null,
       };
     })
     .sort((a, b) => a.seasonName.localeCompare(b.seasonName));

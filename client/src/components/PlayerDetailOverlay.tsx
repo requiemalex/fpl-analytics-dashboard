@@ -185,6 +185,16 @@ export function PlayerDetailOverlay() {
       xGI: live.xGI,
       xGC: live.xGC,
       defensiveContribution: live.defensiveContributions,
+      saves: live.saves,
+      penaltiesSaved: live.penaltiesSaved,
+      yellowCards: live.yellowCards,
+      redCards: live.redCards,
+      influence: live.influence,
+      creativity: live.creativity,
+      threat: live.threat,
+      tackles: live.tackles,
+      clearancesBlocksInterceptions: live.clearancesBlocksInterceptions,
+      recoveries: live.recoveries,
     };
   }, [player, historicReferenceSeason, currentSeasonHasStarted]);
 

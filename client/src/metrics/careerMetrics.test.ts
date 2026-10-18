@@ -22,6 +22,16 @@ function season(seasonName: string, minutes: number, dc: number | null, xG: numb
     xGI: xG,
     xGC: xG,
     defensiveContribution: dc,
+    saves: null,
+    penaltiesSaved: null,
+    yellowCards: null,
+    redCards: null,
+    influence: null,
+    creativity: null,
+    threat: null,
+    tackles: null,
+    clearancesBlocksInterceptions: null,
+    recoveries: null,
   };
 }
 

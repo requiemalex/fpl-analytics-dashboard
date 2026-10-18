@@ -3584,3 +3584,15 @@ tiles/graphs only:
   form: a few differences are reported, and only more than 0.5% of a
   season's player-matches (broken player links) stops the run.
 - **Last commit with it:** `d72ab55`.
+
+### Understat's separate "Goals − xG" Explorer column (replaced 2026-10-18)
+- **What it did:** Player Explorer listed Understat's Goals − xG
+  (`us.goalsMinusXG`, `client/src/understat/columns.ts`) as an
+  Understat-only column under "Understat · Shooting"; FPL's Goals − xG
+  wasn't an Explorer column at all (only Dashboard tiles, Team Building and
+  profiles had it).
+- **Why it went:** the owner asked for every figure both sources have to be
+  one column with the ⇄ toggle. Goals − xG (and the new Assists − xA) is now
+  an FPL column whose toggle shows Understat's own version, listed under the
+  crossover "FPL & Understat" heading.
+- **Last commit with it:** `220790e`.

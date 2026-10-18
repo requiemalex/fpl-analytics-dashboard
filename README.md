@@ -178,6 +178,9 @@ every analysis mode — including the Price column and everything derived
 from price, such as Points/£m (`<price_always_live>`,
 `resolvePlayerStats.ts`). The one exception is the Points History
 season-by-season table, which shows what a player cost at the time.
+FPL's Form and its set-piece taker orders (Pen Order, FK Order, Corner
+Order: 1 = first choice at his club, "—" when not listed) are always live
+too: FPL keeps no history of them.
 
 ### Analysis modes
 
@@ -474,7 +477,13 @@ next clean run closes it with a "resolved" comment.
 `overrides.csv`, `seasons/<season>/` (clubs, matches, team_matches,
 appearances, shots: what Understat said) and `app/<season>.json` (the
 season summary the app reads: totals per FPL player code and per FPL club
-code). Coverage: 2016/17 on, the same as club history.
+code). Coverage: 2016/17 on, the same as club history. Every run rebuilds
+every season's summary from the stored files, so a new summary figure
+reaches all seasons at the next run without re-downloading anything. The
+summary's shot detail (`shotDetail`: woodwork, blocked, assisted, and
+shots by the action before them: cross, through ball, dribble, rebound)
+was added on 2026-10-18; a summary written before then has none, and the
+app shows "—" for those figures (never 0) until the next run.
 
 ### In the app
 
@@ -484,8 +493,15 @@ code). Coverage: 2016/17 on, the same as club history.
   |---|---|---|
   | **FPL** | green (`--accent-positive`, `.col-source-fpl`) | muted red (`--col-static`) |
   | **Understat** | violet (`--col-understat`, `client/src/understat/understat.css`) | none exist |
+  | **Both (crossover)** | rose (`--col-crossover`, `.col-source-crossover`): the ⇄ icon, and its Columns heading | — |
 
-  Columns lists Understat columns under violet "Understat ·" headings. A
+  A crossover column's header text is green while it shows FPL's figure
+  and violet while it shows Understat's. The Explorers' Columns picker
+  uses the same index on its headings: green FPL groups (FPL-only
+  figures), one rose "FPL & Understat" group for every figure with a ⇄
+  toggle, then violet "Understat ·" groups (Understat-only figures). With
+  Understat switched off, the crossover figures go back to their FPL
+  groups and the rose heading disappears. A
   small amber dot on an Understat header means its data is out of date or
   unavailable; its hover text says which. "Behind" is judged from FPL's own
   fixtures (`understat/staleness.ts`): a finished match 2+ days old that
@@ -493,7 +509,8 @@ code). Coverage: 2016/17 on, the same as club history.
   stopped writing.
 - **Source toggle** (`components/SourceToggle.tsx`): a ⇄ icon on a header,
   only where the two sources genuinely differ:
-  - players: xG, xA, xGI, their per-game and per-£m rates, Assists, Mins;
+  - players: xG, xA, xGI, their per-game and per-£m rates, Assists, Mins,
+    Goals − xG, Assists − xA;
   - clubs: xG, xA, xGI, xGC, Assists.
 
   It starts on FPL each visit. The whole column switches source
@@ -501,10 +518,13 @@ code). Coverage: 2016/17 on, the same as club history.
   export, so no figure ever mixes the two. Switching clears that column's
   filter; so does Understat going away mid-session, when the column falls
   back to FPL. Goals, own goals, scores and results almost always agree in
-  the two sources, so they have no toggle and stay FPL only. Understat's
-  own goal-based columns (Goals − xG, NP Goals) use Understat's goal count,
-  which can differ from FPL's where the sources record a goal differently
-  (see step 5 of the sync above).
+  the two sources, so they have no toggle and stay FPL only. Goals − xG
+  and Assists − xA compare each source with itself: FPL's goals against
+  FPL's xG, or (switched) Understat's against Understat's. Understat's
+  goal-based figures (Goals − xG, NP Goals, goals by situation) use
+  Understat's goal count, which can differ from FPL's where the sources
+  record a goal differently (see step 5 of the sync above). Player
+  Comparison leaves +/- figures out: its bars and radar axes start at 0.
 - **Data Views** (`client/src/understat/resolve.ts`), with the same rules
   as FPL figures:
   - **Players:** a player's window is his FPL seasons (Premier League only).
@@ -638,7 +658,13 @@ by a fraction of one upcoming match.
   (`DEFENSIVE_CONTRIBUTION_TRACKING_START_YEAR`, `null` before). DC is a
   count of actions, not points: for defenders clearances, blocks,
   interceptions and tackles; for midfielders and forwards recoveries too.
-  `history_past` has no saves, so saves are "—" outside Current Season.
+  DC's parts (Tackles, CBI, Recoveries) are tracked a season later, from
+  2025/26 (`DC_PARTS_TRACKING_START_YEAR`; Gabriel 2024/25: DC 159 but
+  0 / 0 / 0), so they're `null` before then and a Historic Average uses
+  only the tracked seasons. Saves, penalties saved, cards and ICT's three
+  parts (Influence, Creativity, Threat) are in `history_past` for every
+  season (Pickford: 89–135 saves a season since 2016/17; live API checked
+  2026-10-18), so they follow every Data View.
 - **Signed figures** (`fmtSigned`): signed and coloured by the value as
   shown, so a tiny negative reads "0.00", not a red "-0.00".
 

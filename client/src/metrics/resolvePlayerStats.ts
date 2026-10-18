@@ -124,15 +124,18 @@ function nullPerformanceFields(player: NormalizedPlayer): NormalizedPlayer {
     defensiveContributionsPerGame: null,
     saves: null,
     savesPerGame: null,
+    goalsConcededPerGame: null,
+    penaltiesSaved: null,
+    yellowCards: null,
+    redCards: null,
+    influence: null,
+    creativity: null,
+    threat: null,
+    tackles: null,
+    clearancesBlocksInterceptions: null,
+    recoveries: null,
   };
 }
-
-/**
- * Saves outside Current Season: history_past has no saves at all, so they
- * are unknown ("—") in Last Completed Season and Historic Average, never
- * today's live figure carried over (audit 2026-10-18 L5).
- */
-const NO_HISTORIC_SAVES = { saves: null, savesPerGame: null } as const;
 
 /**
  * `fixedFloorSeasons`: Historic Average counts only window seasons that
@@ -171,6 +174,7 @@ export function resolvePlayerStats(
         xGCPerGame: perGame(player.xGC, player.minutes),
         defensiveContributionsPerGame: perGame(player.defensiveContributions, player.minutes),
         savesPerGame: perGame(player.saves, player.minutes),
+        goalsConcededPerGame: perGame(player.goalsConceded, player.minutes),
       };
     }
     return {
@@ -199,6 +203,16 @@ export function resolvePlayerStats(
       defensiveContributionsPerGame: null,
       saves: 0,
       savesPerGame: null,
+      goalsConcededPerGame: null,
+      penaltiesSaved: 0,
+      yellowCards: 0,
+      redCards: 0,
+      influence: 0,
+      creativity: 0,
+      threat: 0,
+      tackles: 0,
+      clearancesBlocksInterceptions: 0,
+      recoveries: 0,
     };
   }
 
@@ -229,7 +243,18 @@ export function resolvePlayerStats(
       xGCPerGame: perGame(s.xGC, s.minutes),
       defensiveContributions: s.defensiveContribution,
       defensiveContributionsPerGame: perGame(s.defensiveContribution, s.minutes),
-      ...NO_HISTORIC_SAVES,
+      saves: s.saves,
+      savesPerGame: perGame(s.saves, s.minutes),
+      goalsConcededPerGame: perGame(s.goalsConceded, s.minutes),
+      penaltiesSaved: s.penaltiesSaved,
+      yellowCards: s.yellowCards,
+      redCards: s.redCards,
+      influence: s.influence,
+      creativity: s.creativity,
+      threat: s.threat,
+      tackles: s.tackles,
+      clearancesBlocksInterceptions: s.clearancesBlocksInterceptions,
+      recoveries: s.recoveries,
     };
   }
 
@@ -265,7 +290,18 @@ export function resolvePlayerStats(
     xGCPerGame: avg.xGCPerGame,
     defensiveContributions: avg.avgDefensiveContributionPerSeason,
     defensiveContributionsPerGame: avg.defensiveContributionPerGame,
-    ...NO_HISTORIC_SAVES,
+    saves: avg.avgSavesPerSeason,
+    savesPerGame: avg.savesPerGame,
+    goalsConcededPerGame: avg.goalsConcededPerGame,
+    penaltiesSaved: avg.avgPenaltiesSavedPerSeason,
+    yellowCards: avg.avgYellowCardsPerSeason,
+    redCards: avg.avgRedCardsPerSeason,
+    influence: avg.avgInfluence,
+    creativity: avg.avgCreativity,
+    threat: avg.avgThreat,
+    tackles: avg.avgTacklesPerSeason,
+    clearancesBlocksInterceptions: avg.avgClearancesBlocksInterceptionsPerSeason,
+    recoveries: avg.avgRecoveriesPerSeason,
   };
 }
 

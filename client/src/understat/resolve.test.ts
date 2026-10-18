@@ -98,3 +98,21 @@ describe("resolveUnderstatClub", () => {
     expect(resolveUnderstatClub(makeTeam({ id: 2, code: 99 }), "lastSeason", { data, referenceSeason: "2025/26", currentSeasonHasStarted: true })).toBeNull();
   });
 });
+
+describe("shot detail across seasons", () => {
+  const detail = (woodwork: number) => ({ woodwork, blocked: 0, assisted: 0, lastActions: { Cross: slice(), Throughball: slice(), TakeOn: slice(), Rebound: slice() } });
+  const withDetail = (seasons: [string, UsPlayerTotals][]) => ({
+    ...data,
+    seasons: new Map(seasons.map(([name, t]) => [name, { season: name, complete: true, latestMatchDate: null, players: new Map([[501, t]]), clubs: new Map() }])),
+  });
+  const ctx = (d: typeof data) => ({ data: d, historicProfiles: profile([{ name: "2024/25", minutes: 900 }, { name: "2025/26", minutes: 900 }], "2025/26"), currentSeasonHasStarted: true });
+  it("Historic Average adds it up over the seasons", () => {
+    const r = resolveUnderstatPlayer(player, "historicAverage", ctx(withDetail([["2024/25", totals({ shotDetail: detail(2) })], ["2025/26", totals({ shotDetail: detail(3) })]])));
+    expect(r?.totals.shotDetail?.woodwork).toBe(5);
+  });
+  it("a season file without it makes the whole Historic Average's shot detail unknown, never a partial sum", () => {
+    const r = resolveUnderstatPlayer(player, "historicAverage", ctx(withDetail([["2024/25", totals({})], ["2025/26", totals({ shotDetail: detail(3) })]])));
+    expect(r?.totals.shotDetail).toBeUndefined();
+    expect(r?.totals.shots).toBe(0);
+  });
+});

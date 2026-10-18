@@ -89,6 +89,26 @@ export interface RawElement {
   /** Season-to-date total saves — goalkeepers only, 0 for outfield players. Used by Expected Points Tier 2's saves-rate estimate. */
   saves?: number | null;
   saves_per_90?: number | null;
+  /**
+   * Season-to-date counts behind FPL's scoring and its ICT and DC figures —
+   * confirmed on the live 2026/27 endpoint (18 Oct 2026). Optional+nullable,
+   * read as null if FPL ever drops one, never assumed 0.
+   */
+  penalties_saved?: number | null;
+  yellow_cards?: number | null;
+  red_cards?: number | null;
+  /** ICT Index's three parts, serialised as strings like ict_index ("279.0"). */
+  influence?: string | null;
+  creativity?: string | null;
+  threat?: string | null;
+  /** Defensive Contribution's parts: DC = CBI + tackles (defenders), + recoveries (midfielders and forwards). */
+  tackles?: number | null;
+  clearances_blocks_interceptions?: number | null;
+  recoveries?: number | null;
+  /** FPL's set-piece taker order for the player's club today: 1 = first choice, null = not on the list. */
+  penalties_order?: number | null;
+  direct_freekicks_order?: number | null;
+  corners_and_indirect_freekicks_order?: number | null;
   /** Missing only if FPL ever drops it — then "" (unknown), never assumed available. */
   status?: string;
   news: string;
@@ -294,6 +314,13 @@ export interface RawElementSummaryPastSeason {
   // expected-stats fields. See normalizeElementSummary.ts, which nulls
   // out the placeholder seasons.
   defensive_contribution?: number | null;
+  // DC's parts are tracked a season later than DC itself: from 2025/26
+  // (Gabriel 2024/25 shows DC 159 but 0 CBI, 0 tackles, 0 recoveries;
+  // 2025/26 239 + 38 = 277 = DC; live API checked 2026-10-18). Earlier
+  // seasons' 0 is a placeholder, nulled in normalizeElementSummary.ts.
+  tackles?: number | null;
+  clearances_blocks_interceptions?: number | null;
+  recoveries?: number | null;
 }
 
 export interface RawElementSummary {

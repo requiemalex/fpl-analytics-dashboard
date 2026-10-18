@@ -260,12 +260,13 @@ export function UserGuide() {
             downloads exactly what's on screen.
           </li>
           <li>
-            Each cell is tinted green/red against the rest of its column on screen. Total xGC is tinted by xGC per game, so a player
-            who has barely played doesn't look like the best defender.
+            Each cell is tinted green/red against the rest of its column on screen. Total xGC, goals conceded and cards are tinted
+            per game, so a player who has barely played doesn't look like the best defender.
           </li>
           <li>
             <strong>Header colours</strong> say where a figure comes from and whether it follows the Data View: green is an FPL
-            figure for the selected season(s); muted red is always today's live figure (Own%, Price, Team, Position).
+            figure for the selected season(s); muted red is always today's live figure (Own%, Price, Team, Position, Form, and the
+            set-piece orders: Pen, FK and Corner Order, where 1 is the club's first choice).
             {ext ? ` ${ext.label}'s figures have their own colour; see "${ext.guideSection.navLabel}" below.` : ""}
           </li>
           <li>
@@ -478,13 +479,13 @@ export function UserGuide() {
             From 2026/27 on it's archived straight from the official API.
           </li>
           <li>
-            <strong>Starts and xG-family stats are placeholder zeros before 2022/23</strong>, shown as "—", and <strong>Defensive Contribution before 2024/25</strong>,
-            confirmed directly against the raw data. Historic Average correctly excludes these rather than diluting an average with a
+            <strong>Starts and xG-family stats are placeholder zeros before 2022/23</strong>, shown as "—", <strong>Defensive Contribution before 2024/25</strong>,
+            and its parts (<strong>Tackles, CBI, Recoveries</strong>) before 2025/26, confirmed directly against the raw data. Historic Average correctly excludes these rather than diluting an average with a
             fake zero.
           </li>
           <li>
-            <strong>Set-piece order data exists</strong> in the API (penalty/free-kick/corner pecking order) but isn't surfaced in this
-            app yet.
+            <strong>Set-piece orders</strong> (penalty, direct free-kick, corner pecking order) are FPL's current list only: FPL keeps no
+            history of who was on duty in a past season, so they show today's order in every Data View.
           </li>
           <li>
             <strong>No predicted-lineup data exists anywhere in the FPL API</strong>. That's third-party editorial judgement on other

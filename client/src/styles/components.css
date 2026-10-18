@@ -240,6 +240,17 @@ table.data-table td.col-static {
 table.data-table th.col-source-fpl {
   color: var(--accent-positive);
 }
+/* The Explorers' Columns picker uses the same index on its headings:
+   green FPL, the crossover colour for figures both sources have, and a
+   second source's own colour (its stylesheet). */
+.menu-group-heading.col-source-fpl,
+.menu-group-heading.col-source-fpl .menu-group-icon {
+  color: var(--accent-positive);
+}
+.menu-group-heading.col-source-crossover,
+.menu-group-heading.col-source-crossover .menu-group-icon {
+  color: var(--col-crossover);
+}
 /* The pinned name column (Player Explorer's Player, Team Explorer's Team):
    sized to its widest content, with the same gap before the divider on
    both pages. */
@@ -2340,9 +2351,10 @@ kbd {
   text-align: center;
 }
 
-/* Column-header source switch (components/SourceToggle.tsx): a muted icon
-   until hovered; when the second source is showing it takes the header's
-   own colour, which the source's stylesheet sets. */
+/* Column-header source switch (components/SourceToggle.tsx): always the
+   crossover colour, so a figure both sources have is recognisable on any
+   header; the header text says which source is showing. Switched to the
+   second source, the icon sits on a faint crossover-coloured chip. */
 .source-toggle {
   display: inline-flex;
   align-items: center;
@@ -2352,15 +2364,14 @@ kbd {
   border: 0;
   border-radius: 3px;
   background: none;
-  color: var(--text-muted);
+  color: var(--col-crossover);
   cursor: pointer;
 }
 .source-toggle:hover {
-  color: var(--text-primary);
   background: var(--surface-hover);
 }
 .source-toggle.on {
-  color: inherit;
+  background: color-mix(in srgb, var(--col-crossover) 22%, transparent);
 }
 .source-stale-marker {
   display: inline-block;

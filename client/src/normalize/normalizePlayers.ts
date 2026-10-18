@@ -102,6 +102,16 @@ function normalizeOnePlayer(
     // Never read savesPerGame/xGPerGame/etc. off a player straight out of
     // this function; always go through resolvePlayerStats first.
     savesPerGame: null,
+    goalsConcededPerGame: null,
+    penaltiesSaved: parseNumberOrNull(el.penalties_saved),
+    yellowCards: parseNumberOrNull(el.yellow_cards),
+    redCards: parseNumberOrNull(el.red_cards),
+    influence: parseNumericString(el.influence ?? null),
+    creativity: parseNumericString(el.creativity ?? null),
+    threat: parseNumericString(el.threat ?? null),
+    tackles: parseNumberOrNull(el.tackles),
+    clearancesBlocksInterceptions: parseNumberOrNull(el.clearances_blocks_interceptions),
+    recoveries: parseNumberOrNull(el.recoveries),
 
     xG: availability.expected_goals ? parseNumericString(el.expected_goals) : null,
     xA: availability.expected_assists ? parseNumericString(el.expected_assists) : null,
@@ -121,6 +131,10 @@ function normalizeOnePlayer(
     chanceOfPlayingNextRound: el.chance_of_playing_next_round,
 
     form: availability.form ? parseNumericString(el.form ?? null) : null,
+
+    penaltiesOrder: parseNumberOrNull(el.penalties_order),
+    directFreekicksOrder: parseNumberOrNull(el.direct_freekicks_order),
+    cornersOrder: parseNumberOrNull(el.corners_and_indirect_freekicks_order),
 
     transfersInEvent: availability.transfers_in_event ? parseNumberOrNull(el.transfers_in_event) : null,
     transfersOutEvent: availability.transfers_out_event ? parseNumberOrNull(el.transfers_out_event) : null,
