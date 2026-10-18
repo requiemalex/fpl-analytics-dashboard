@@ -233,6 +233,13 @@ table.data-table th.col-static,
 table.data-table td.col-static {
   color: var(--col-static);
 }
+/* The colour index's other FPL half: a header whose figure follows the
+   Data View is green, the same green as the Columns picker's group icons
+   (Player Explorer, Team Explorer). A second data source colours its own
+   headers (client/src/understat/understat.css). */
+table.data-table th.col-source-fpl {
+  color: var(--accent-positive);
+}
 /* The pinned name column (Player Explorer's Player, Team Explorer's Team):
    sized to its widest content, with the same gap before the divider on
    both pages. */

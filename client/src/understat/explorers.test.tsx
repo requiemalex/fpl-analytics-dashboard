@@ -105,9 +105,12 @@ describe("Player Explorer with Understat mounted", () => {
     const { container } = renderExplorer(fakeSource());
     const xG = header(container, "xG");
     expect(xG.classList.contains("col-source-understat")).toBe(false);
+    expect(xG.classList.contains("col-source-fpl")).toBe(true);
+    expect(header(container, "Price").classList.contains("col-source-fpl")).toBe(false);
     expect(cellUnder(container, "xG", "Saka")).toBe("3.21");
     fireEvent.click(within(xG).getByRole("button", { name: /Click to show Understat's/ }));
     expect(header(container, "xG").classList.contains("col-source-understat")).toBe(true);
+    expect(header(container, "xG").classList.contains("col-source-fpl")).toBe(false);
     expect(cellUnder(container, "xG", "Saka")).toBe("4.56");
     expect(cellUnder(container, "xG", "Rice")).toBe("—");
     fireEvent.click(within(header(container, "xG")).getByRole("button", { name: /Click to show FPL's/ }));

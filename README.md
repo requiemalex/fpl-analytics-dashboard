@@ -428,7 +428,7 @@ code). Coverage: 2016/17 on, the same as club history.
 
   | | Changes with the Data View | Always live |
   |---|---|---|
-  | **FPL** | white | muted red (`--col-static`) |
+  | **FPL** | green (`--accent-positive`, `.col-source-fpl`) | muted red (`--col-static`) |
   | **Understat** | violet (`--col-understat`, `client/src/understat/understat.css`) | none exist |
 
   Columns lists Understat columns under violet "Understat ·" headings. A

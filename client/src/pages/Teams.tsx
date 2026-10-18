@@ -332,10 +332,10 @@ export function Teams() {
                 {columnsInOrder.map((c, idx) => {
                   const sortEntry = sort.find((s) => s.key === c.key);
                   const width = columnWidths[c.key];
-                  // The colour index: a second source's figures take its colour (violet for Understat).
+                  // The colour index: FPL club figures (they all follow the Data View) are green, a second source's its own colour (violet for Understat).
                   const fromExt = ext !== null && c.sourceId === ext.id;
                   const canSwitchSource = ext !== null && !!extColumns?.alternates[c.key];
-                  const className = [fromExt && ext?.className, idx === 0 && "column-group-divider"].filter(Boolean).join(" ") || undefined;
+                  const className = [fromExt ? ext?.className : "col-source-fpl", idx === 0 && "column-group-divider"].filter(Boolean).join(" ") || undefined;
                   return (
                     <th
                       key={c.key}

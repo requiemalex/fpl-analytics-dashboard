@@ -1,6 +1,6 @@
 /* Understat's colour (the colour index, README "Data sources"): every
    Understat column header and Columns-picker heading is violet — FPL's
-   are white (changes with the Data View) or muted red (always live).
+   are green (changes with the Data View) or muted red (always live).
    Violet is the one hue the app doesn't already use for a meaning (red,
    green, blue and gold are positions and good/bad values). Lives with the
    Understat module so removing it removes the colour too. */

@@ -258,7 +258,7 @@ export function UserGuide() {
           </li>
           <li>Each cell is tinted green/red against the rest of its column on screen.</li>
           <li>
-            <strong>Header colours</strong> say where a figure comes from and whether it follows the Data View: white is an FPL
+            <strong>Header colours</strong> say where a figure comes from and whether it follows the Data View: green is an FPL
             figure for the selected season(s); muted red is always today's live figure (Own%, Price, Team, Position).
             {ext ? ` ${ext.label}'s figures have their own colour; see "${ext.guideSection.navLabel}" below.` : ""}
           </li>

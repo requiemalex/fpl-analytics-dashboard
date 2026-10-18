@@ -713,12 +713,13 @@ export function PlayerExplorer() {
                   const width = columnWidths[key];
                   // Fixtures is always the player's live figure, regardless of analysis mode.
                   const isStatic = isFixtures || isStaticColumn(c as PlayerColumn);
-                  // The colour index: a second source's figures take its colour (violet for Understat).
+                  // The colour index: FPL figures that follow the Data View are green, always-live ones muted red,
+                  // a second source's figures its own colour (violet for Understat).
                   const fromExt = !isSpecial && !!ext && c.sourceId === ext.id;
                   const canSwitchSource = !isSpecial && !!ext && !!extColumns?.alternates[key];
                   // Grey divider between the fixed Ownership/Price/Team/Position block and these user-configurable columns — only the first one carries it.
                   const className =
-                    [isStatic && "col-static", fromExt && ext.className, idx === 0 && "column-group-divider"].filter(Boolean).join(" ") || undefined;
+                    [isStatic && "col-static", !isStatic && !fromExt && "col-source-fpl", fromExt && ext.className, idx === 0 && "column-group-divider"].filter(Boolean).join(" ") || undefined;
                   return (
                     <th
                       key={key}

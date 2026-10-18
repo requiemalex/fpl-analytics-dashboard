@@ -72,7 +72,7 @@ export function UnderstatGuide() {
       <ul style={list}>
         <li>
           <strong>Its colour is <span style={{ color: "var(--col-understat)" }}>violet</span>.</strong> Every Understat column header
-          is violet, and Columns lists Understat's columns under violet "Understat ·" headings. FPL headers are white (they follow
+          is violet, and Columns lists Understat's columns under violet "Understat ·" headings. FPL headers are green (they follow
           the Data View) or muted red (always today's live figure).
         </li>
         <li>
