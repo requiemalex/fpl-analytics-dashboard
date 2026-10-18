@@ -113,8 +113,7 @@ export function UnderstatGuide() {
           are never affected.
         </li>
         <li>
-          Woodwork, blocked and assisted shots and the shot types appear the day after this version arrives (after Understat's daily
-          update); until then they show "—". Not available yet: shot zones, shot maps and match xG timelines. Not available from Understat at all: pass maps, average
+          Not available yet: shot zones, shot maps and match xG timelines. Not available from Understat at all: pass maps, average
           positions and sprint data. Seasons outside the Premier League aren't covered, so a promoted player's previous season shows "—".
         </li>
       </ul>
