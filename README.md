@@ -61,7 +61,7 @@ There is no lint script. TypeScript runs `strict`, with `noUnusedLocals`/
 ```
 FPL API -> Express proxy (server/)       caching, timeouts, retries, stale fallback
         -> api/client.ts                 the only place the client fetches (relative /api/* paths only)
-        -> validation/ (Zod)             per-record: a bad record is skipped and counted, never fatal
+        -> validation/ (Zod)             per-record: a bad record is skipped and counted, never fatal (see below)
         -> types/raw.ts -> normalize/    raw FPL fields never reach the UI
         -> metrics/                      pure, null-safe calculations
         -> state/AppStateContext.tsx     shared data, fetched once
@@ -87,6 +87,22 @@ scripts/club-history/  snapshot, backfill, archive, build-aggregates
 scripts/understat/     the daily Understat sync; scripts/alerts/ raises a workflow's alert issue
 data/                  club-history ledgers, the frozen vaastav snapshot, data/understat/
 ```
+
+**Per-record validation** (`validation/schema.ts`, `perRecord`). The record
+is the smallest unit that can be dropped without leaving a part-total:
+- bootstrap: one player; fixtures: one fixture; historic-bulk: one
+  club-season, and one **whole player** — a player with any unreadable
+  season joins `skippedPlayerIds` (flagged in the app as a skipped player)
+  rather than keeping his other seasons and a part-history average;
+- `element-summary`: one player's whole summary — a bad row fails only that
+  player's profile, since a gameweek log with a row missing would mislead.
+
+Dropped fixtures and club-seasons are counted (`skippedRecordCounts`, in the
+User Guide's data health) and logged; a broken top-level shape is still
+fatal. Validation adds no defaults that would invent a figure: a missing
+`ep_next` is unknown, not 0 points; a missing `status` is unknown, not
+available (Minutes Reliability is then `null`); an imported squad with no
+bank has bank `null`, not £0.0m.
 
 **Shared vs per-page state.** `AppStateContext` holds only shared,
 expensive-to-fetch data: players, teams, fixtures, events, historic profiles
@@ -124,16 +140,27 @@ until it arrives): it carries the live season's club figures, including
 Current Season's league table in Team Explorer and the Team Profile, which
 otherwise stayed as first loaded. The 10-minute background poll refreshes
 bootstrap and fixtures only.
+Each TTL runs from when the upstream request **started**, not from when a
+slow response arrived (`TtlCache.set`), so the client's 10-minute poll lands
+on a fresh `bootstrap-static` every time rather than every other time. The
+timeout covers reading the body too; a 200 whose body isn't JSON is an
+error, not retried.
 If the upstream fails, the server serves its last cached copy and the client
-shows a "stale data" banner — never blank, never presented as current.
+shows a "stale data" banner — never blank, never presented as current. That
+covers fixtures and the historic dataset too: either served from a stale
+copy gets its own banner naming it (`staleDatasets`).
 
 **The historic bulk build** (`server/src/routes/historicBulk.ts`) fetches
 every player's `element-summary` 15 at a time. A cold build takes up to a
 minute, so it is demand-driven: a page that needs historic data calls
 `requestHistoricData()` on mount, and a player or team profile calls it when
-it opens. It never runs at startup. A handful of
-failures are reported as `skippedPlayerIds`; more than half failing counts
-as a failed build and falls back to the stale cache.
+it opens. The Dashboard, the landing page, asks for it on mount, so in
+practice it starts as the app opens (cheap when the server has it cached).
+A handful of failures are reported as `skippedPlayerIds`. A player answered
+only from a stale cached copy counts as failed too: more than half failing
+counts as a failed build and falls back to the stale cache, and a build that
+used any stale input is served as `stale-cache` and cached only 30 minutes,
+never labelled live for 12 hours.
 
 ---
 
@@ -163,7 +190,8 @@ Every analysis page has the same three-way toggle, resolved through
   the player has, light seasons included (`<no_survivorship_bias>`,
   `metrics/historicAnalysis.ts`). In the fixed-floor sections a season with
   0 minutes is left out (see "Minimum minutes"). `MIN_QUALIFYING_SEASON_MINUTES` (900) only
-  marks a season "light" in charts and gates Expected Points' reliability.
+  marks a season "light" in charts and decides which seasons Model
+  Predicted's bonus rate comes from (Minutes Reliability uses every season).
   Per-game rates count games from the **total** minutes across the
   seasons, rounded up once (`<games_from_total_minutes>`,
   `metrics/calculations.ts`), so each is total stat ÷ total games — never
@@ -335,6 +363,13 @@ too.
   season is rebuilt from FPL's current list, so it would miss a dropped
   player until he's re-listed — FPL hasn't dropped a player mid-season in
   2019/20–2025/26; it marks leavers unavailable until the summer reset.
+- **A skipped player in the live season** (`livePlayerSumsPartial`,
+  `metrics/teamStats.ts`): the live season is built from every player's
+  match rows, so while the historic build skipped anyone, his rows are
+  missing. Results (from fixtures) stay whole; every club figure summed from
+  players (FPL points, goals, assists, bonus, the xG family, DC), its match
+  log and its points-by-season bar show "—" instead of a part-sum, and the
+  team views' Data View note says so.
 
 ---
 
@@ -379,7 +414,11 @@ pipeline is `server/src/understat/pipeline/`, dependency-free) runs, in order:
    (`UnderstatBlockedError`), as does a changed format.
 3. **Pair clubs and fixtures by result, not name** (`pairing.ts`): venue,
    opponent and score. Last season's pairings seed it, and every one is
-   re-checked. Any disagreeing score stops the run.
+   re-checked. Any disagreeing score stops the run. The live season pairs
+   against FPL's record **fetched that run** (`scripts/club-history/liveLedger.ts`,
+   the same fetch the archive uses), not the Tue/Fri archive, so a match is
+   checked the day FPL confirms it. If that fetch fails, the run falls back
+   to the archive and says so in its warnings.
 4. **Link players** (`matcher.ts`), FPL permanent `code` to Understat id, in
    `links.csv`. A link is confirmed only when both of these agree:
    - **appearances:** match by match, minutes within 20, since FPL counts
@@ -391,7 +430,8 @@ pipeline is `server/src/understat/pipeline/`, dependency-free) runs, in order:
    is "Jean Négoce" on Understat). Anything else uncertain is **held** and
    shows "—". Saved links are never re-made from scratch, only re-checked;
    one that stops agreeing is **disputed** and hidden, never re-pointed.
-   `overrides.csv` takes a manual `pair` or `never`. Tested on 2021/22,
+   `overrides.csv` takes a manual `pair` or `never`; a `never` also breaks a
+   link already saved, on the next run. Tested on 2021/22,
    2022/23 (both graded against vaastav's mapping: 0 disagreements) and
    2026/27: every player linked, none wrong. Matching on names alone got
    2–3% wrong.
@@ -399,11 +439,18 @@ pipeline is `server/src/understat/pipeline/`, dependency-free) runs, in order:
    - each match's goals add up from its players;
    - players' xG adds up to their shots' xG;
    - the match and club pages agree on xG;
-   - FPL and Understat agree on every linked player's goals and own goals
-     (0 differences in 23,837 player-matches tested);
+   - FPL and Understat agree on every linked player's goals and own goals.
+     **One difference stops the run**, however few, unless the owner has
+     reviewed it and listed it in `accepted-differences.csv` (season,
+     Understat match id, FPL player code, note); a listed one stays in the
+     run report as a warning. The one known case: Leeds 0–4 Arsenal,
+     31 Jan 2026, a goal FPL gives Madueke and Understat calls a Darlow own
+     goal (2 of 9,386 player-matches in 2025/26; none in the other seasons);
    - no more than 5% of saved links may change in one run.
 6. **Write only if all of that passed.** A failed run writes nothing, so the
-   app keeps the last good data.
+   app keeps the last good data. The app's figures count only Understat
+   matches paired with a finished FPL fixture, so checked: a result FPL
+   hasn't confirmed yet waits for a later run.
 
 **Alerts** (see "Automatic jobs and alerts"): a GitHub issue that @mentions the
 owner, in plain English (what happened, whether app users are affected,
@@ -411,13 +458,16 @@ what to do). It is raised:
 - straight away for a changed format, a failed check, or anything the run
   lists as needing attention: a disputed link, a player held for 14+ days,
   or Understat 2+ days behind;
-- only on the second failure in a row for a refusal or a blip.
+- only on the second failure in a row for a refusal or a blip;
+- straight away if the run passed but its data couldn't be committed or
+  pushed (nothing was published).
 
 While it stays open, its text is refreshed silently (no daily emails). The
 next clean run closes it with a "resolved" comment.
 
 **Files** (`data/understat/`): `control.json`, `status.json`, `links.csv`,
-`overrides.csv`, `seasons/<season>/` (clubs, matches, team_matches,
+`overrides.csv`, `accepted-differences.csv` (hand-edited, never written by
+the job), `seasons/<season>/` (clubs, matches, team_matches,
 appearances, shots: what Understat said) and `app/<season>.json` (the
 season summary the app reads: totals per FPL player code and per FPL club
 code). Coverage: 2016/17 on, the same as club history.
@@ -433,7 +483,10 @@ code). Coverage: 2016/17 on, the same as club history.
 
   Columns lists Understat columns under violet "Understat ·" headings. A
   small amber dot on an Understat header means its data is out of date or
-  unavailable; its hover text says which.
+  unavailable; its hover text says which. "Behind" is judged from FPL's own
+  fixtures (`understat/staleness.ts`): a finished match 2+ days old that
+  Understat's figures don't include, so it shows even when the sync has
+  stopped writing.
 - **Source toggle** (`components/SourceToggle.tsx`): a ⇄ icon on a header,
   only where the two sources genuinely differ:
   - players: xG, xA, xGI, their per-game and per-£m rates, Assists, Mins;
@@ -442,7 +495,8 @@ code). Coverage: 2016/17 on, the same as club history.
   It starts on FPL each visit. The whole column switches source
   (`<one_source_per_figure>`): value, rate, sort, filter, tint and CSV
   export, so no figure ever mixes the two. Switching clears that column's
-  filter. Goals, own goals, scores and results are identical in both
+  filter; so does Understat going away mid-session, when the column falls
+  back to FPL. Goals, own goals, scores and results are identical in both
   sources, so they stay FPL only, and the sync keeps proving that.
 - **Data Views** (`client/src/understat/resolve.ts`), with the same rules
   as FPL figures:
@@ -468,8 +522,8 @@ code). Coverage: 2016/17 on, the same as club history.
 
 - **Switch off:** set `"enabled": false` in `data/understat/control.json`
   and commit. Every installed app hides all Understat columns at its next
-  refresh (within about an hour), and the sync stops fetching. No release
-  is needed.
+  refresh (within about an hour), and the sync stops fetching. Switching it
+  back on reaches running apps the same way. No release is needed.
 - **Remove for good:**
   1. Delete `client/src/understat/`, `server/src/understat/`,
      `scripts/understat/`, `data/understat/` and
@@ -484,7 +538,10 @@ code). Coverage: 2016/17 on, the same as club history.
   The generic slot (`extensions/externalStats.ts`, `SourceToggle`) can stay
   or go; with nothing mounted, it does nothing.
   `client/src/understat/separation.test.ts` proves nothing else depends on
-  it.
+  it. It scans code and stylesheets (`.ts`, `.tsx`, `.js`, `.css`…) for any
+  way of loading a module from an `understat` folder: `import … from`,
+  `export … from`, a side-effect `import`, CSS `@import`, `import(…)` and
+  `require(…)` (`understat/separationDetector.ts`).
 
 ### Not included yet
 
@@ -544,7 +601,13 @@ by a fraction of one upcoming match.
   minutes"); a Player Comparison radar the user builds uses its own Min
   Minutes instead.
   Bands: 90+ Excellent, 70–89 Good, 30–69 Average, <30 Poor.
-  Lower-is-better stats (xGC, Min/Goal) are flipped. They drive the
+  Lower-is-better stats (xGC, Min/Goal) are flipped. A lower-is-better
+  **total** that grows with minutes ranks on its rate instead
+  (`PlayerColumn.rankBy`, `rankValue()`): a player's total xGC is ranked,
+  tinted and marked "best" on xGC per game, everywhere (Explorer and Team
+  Building tints, Player Comparison percentiles and Outputs, profile tiles
+  and Totals row). Ranked on itself, the fewer minutes a defender played
+  the better he looked. They drive the
   profile's radars (`metrics/radarStats.ts`, position-specific axes; DEF/MID
   get separate Defence and Offence radars) and stat-tile tints. A radar's
   hover box shows the raw value at the axis's own decimals (whole numbers
@@ -560,10 +623,17 @@ by a fraction of one upcoming match.
 - **Comparative colouring** (`utils/colorScale.ts`): tables tint each column
   relative to the rows on screen; single-player cards tint by
   within-position percentile.
-- **Historic data caveats:** `history_past` reports xG as `"0.00"` for
-  seasons before FPL tracked it (roughly pre-2022/23). Defensive
+- **Historic data caveats:** `history_past` carries FPL's placeholder 0 /
+  `"0.00"` for starts and the xG family (xG, xA, xGI, xGC) before 2022/23
+  (Pickford 2021/22: 3,150 minutes, 0 starts), so those are `null` ("—")
+  before then (`STARTS_AND_EXPECTED_TRACKING_START_YEAR`). Defensive
   contribution is real from 2024/25
-  (`DEFENSIVE_CONTRIBUTION_TRACKING_START_YEAR`, `null` before).
+  (`DEFENSIVE_CONTRIBUTION_TRACKING_START_YEAR`, `null` before). DC is a
+  count of actions, not points: for defenders clearances, blocks,
+  interceptions and tackles; for midfielders and forwards recoveries too.
+  `history_past` has no saves, so saves are "—" outside Current Season.
+- **Signed figures** (`fmtSigned`): signed and coloured by the value as
+  shown, so a tiny negative reads "0.00", not a red "-0.00".
 
 ---
 
@@ -587,7 +657,12 @@ obvious from the UI.
   saved before it existed get the metric's natural order
   (`defaultGraphDirection` — lowest first when `higherIsBetter` is false, so
   a League Position graph shows 1–15). A graph without a custom name is
-  titled by its metric (bar) or "<X> vs <Y>" (scatter); a tile by its metric.
+  titled by its metric (bar) or "<X> vs <Y>" (scatter); a tile by its metric,
+  plus "· Lowest First" when ordered that way (`displayTileTitle`), so the two
+  Starter Goals vs xG tiles read differently. A tile's bars
+  (`components/statBar.ts`) give the top row, its leader, a full-length bar:
+  Highest First (or any +/- metric) as |value| ÷ largest |value|; Lowest First
+  on a non-negative metric as leader ÷ value.
 - Saved views (`useSavedDashboardViews`) hold one scope's tiles and graphs.
   The selected non-Default view live-syncs every change. **Starter** (one
   per scope; "Default" in code, ids `default-view-*`) is immutable: no
@@ -600,8 +675,10 @@ obvious from the UI.
   a scope that was on the packaged view to it; the selection falls back to
   My View, then Starter, whenever the stored one doesn't exist
   (`resolveSelectedViewIds`). The tiles and graphs stores hold a working
-  copy, so the page first loads each scope's selected view onto screen
-  (`hydratedScopes`) before live-sync may write to it. Create View starts
+  copy, so the page records which view each scope's on-screen copy came
+  from (`loadedViewIds`) and loads the selected view whenever they differ —
+  first open, or the selection moving without a load, as when deleting the
+  selected view falls back to My View — before live-sync may write to it. Create View starts
   blank; Starter counts toward the 5 views per scope, and names must be
   unique within a scope. Delete View asks for confirmation.
 - Scatter axes follow `<axis_scaling>` (`components/charts/axisScaling.ts`):
@@ -615,8 +692,10 @@ obvious from the UI.
     axis-triggered tooltip that never fired or named the wrong player.
 
 **Player Explorer / tables** — column reorder, resize, fit and reset
-(`state/useColumnCustomization.ts`), multi-column sort with nulls as lowest
-(`state/useSortSpec.ts`), and ≤/≥/= column filters
+(`state/useColumnCustomization.ts`), multi-column sort (`state/useSortSpec.ts`; a "—"
+sorts below every real value in Player Explorer, at the owner's request,
+and last in either direction everywhere else; Shift-click adds any header,
+the name column included, as a tiebreaker), and ≤/≥/= column filters
 (`state/useColumnFilters.ts`, `components/ColumnFilterControl.tsx`) are
 shared engines, reused by Team Building's Add Players table. Search is
 accent- and order-insensitive with small-typo tolerance, splits the
@@ -627,7 +706,9 @@ word as an initial that must start a name word (`utils/playerSearch.ts`).
   (`roundAsDisplayed`) before ≤/≥/=. A range nothing can meet is refused
   (`columnFilterProblem`). Hiding a column clears its filter (`clearFilter`)
   and drops it from the sort (`sortWithoutHiddenColumn`; the page's default
-  sort takes over if nothing's left).
+  sort takes over if nothing's left). Reset does the same for every column
+  it hides (`sortWithinColumns`). Every Team Explorer column declares its
+  decimals, so a Historic Average mean is filtered as shown (65.75 as 66).
 - When nothing matches, the table keeps its header (so each column's ▾ can
   still change its filter) with the message in the body — "Building the
   historic dataset…" instead while a historic view is still loading, when
@@ -708,7 +789,8 @@ drops responses for a player no longer selected.
   shows "not found" instead of nothing.
 
 **Player Comparison** (`pages/PlayerComparison.tsx`, `components/comparison/`)
-— one page-level list of up to 5 players (`?players=`), compared by every
+— one page-level list of up to 5 players (`?players=`, read as whole ids,
+each once, at most 5), compared by every
 card in the selected view. Each player's colour is his place in the list
 (`seriesColors.ts`: the app's accent tokens).
 - Views (`useComparisonViews`) are layouts only — never players — of three
@@ -739,7 +821,9 @@ card in the selected view. Each player's colour is his place in the list
   value ÷ leader with the figure above it; each row has its own scale.
   The bar is neutral up to the lowest ranked figure, then each stretch is
   tinted in the colour of the player whose marker ends it — how far they
-  are ahead of the one before. Figures that would overlap are spread
+  are past the one before (for a fewer-is-better statistic, how far
+  behind). The bold "best" figure ranks on the column's `rankValue` (total
+  xGC on xGC per game). Figures that would overlap are spread
   apart (`placeLabels`, sized from the mono font's fixed 0.6em width).
   The colour key sits under the panel, as under a radar.
 - Trends use the full unwindowed career (`allTimeSeasonsByPlayerId`,
@@ -810,15 +894,22 @@ Everything else in the app describes what happened. Team Building predicts,
 at the user's request, using **disclosed heuristics, not a fitted model**:
 every weight is a named constant with its reasoning. It has no analysis-mode
 toggle; its Historic/Raw columns have their own. Squads (`useSavedSquads`,
-max 5) are created blank or imported by FPL team ID. Squad rules
+max 5) are created blank or imported by FPL team ID (positions 1–11 are the
+starting XI, also in a Bench Boost week; a Free Hit week imports that week's
+temporary squad). Squad rules
 (`metrics/squadRules.ts`) always use live price and club. Budget over £100m
 is a warning, never a block.
 
+- **GW+1…GW+5** — the navigator picks one of the player's next five
+  fixtures (a blank has none; a double shows two consecutive steps). They
+  start at FPL's `is_next` gameweek (`firstPickableEventId`,
+  `metrics/fixtureTicker.ts`): the one `ep_next` estimates and the first
+  still open for picks. A match that has kicked off (FPL's `started`) is
+  never upcoming, even before FPL marks it `finished` hours after full time,
+  so GW+1 is the same gameweek for every club. The Explorers' Next 5
+  Fixtures use the kick-off rule only.
 - **Exp. Pts (FPL Official)** — `metrics/expectedPoints.ts`. FPL's `ep_next`
-  for the next fixture. Later fixtures are
-  `ep_next × fixtureMultiplier(FDR, position)`. The GW+1…GW+5 navigator picks
-  one of the player's next five fixtures (a blank has none; a double shows
-  two consecutive steps).
+  for GW+1. Later fixtures are `ep_next × fixtureMultiplier(FDR, position)`.
 - **Exp. Pts (Model Predicted)** — Tier 2, `metrics/expectedPointsV2.ts`.
   Never reads `ep_next`. It estimates each scoring event from the app's own
   stats and FPL's 2026/27 scoring rules:
@@ -831,7 +922,8 @@ is a warning, never a block.
   - bonus as a rough historic rate
 
   Cards, own goals and penalties are not modelled. Each estimate carries
-  `caveats[]`, shown on hover.
+  `caveats[]`, shown on hover in the Add Players table (a pitch card's hover
+  is a fixed description).
 - **Last backtest** (`client/scripts/backtestExpectedPoints.ts`, GW2–3
   2026/27, top 20 per position): Tier 2 MAE 2.66 vs a historic-rate baseline
   2.76 — better at FWD, worse at GKP and for ≥15%-owned players. It's an
@@ -840,9 +932,28 @@ is a warning, never a block.
 - **Minutes Reliability** (`metrics/minutesReliabilityBlend.ts`) blends
   historic minutes share with live share. The live weight is
   `min(1, club games / 8)`. The historic side uses every season in the
-  window, weights recent seasons more, and discounts inconsistency. Current
-  ownership adds 15%. The result is multiplied by availability
-  (`chance_of_playing_next_round`, else a status default).
+  window, weights recent seasons more, and discounts inconsistency. Only
+  minutes evidence goes in: ownership plays no part (the owner's decision,
+  audit 2026-10-18), and with no minutes data anywhere the figure is "—".
+  The result is multiplied by availability (`chance_of_playing_next_round`,
+  else a status default; with neither known, no figure).
+- **Availability's limit:** FPL publishes availability for the next round
+  only, with no return date, so it can't tell a one-match ban from a long
+  injury. The same availability applies to all five steps: a one-match ban
+  zeroes GW+1…GW+5 in both models (FPL Official because every later step
+  scales `ep_next`, which FPL already zeroes).
+- **The named weights** (judgement calls, not fitted):
+
+  | Constant | Value | Where |
+  |---|---|---|
+  | `FDR_SENSITIVITY` | GKP 0.08, DEF 0.08, MID 0.10, FWD 0.12 per FDR step from 3 | `expectedPoints.ts` (both models) |
+  | `BASE_CLEAN_SHEET_RATE` | 0.28, ± `CLEAN_SHEET_STRENGTH_SENSITIVITY` 0.06 per strength point, clamped 0.03–0.75 | `expectedPointsV2.ts` |
+  | `MINUTES_SKEW` | 1.5 (`p60 = r^1.5`, `p0 = (1−r)^1.5`) | `expectedPointsV2.ts` |
+  | `DEFENSIVE_CONTRIBUTION_THRESHOLD` | DEF 10, MID/FWD 12 actions (not in `game_config.scoring`) | `expectedPointsV2.ts` |
+  | `GAMES_FOR_FULL_CURRENT_WEIGHT` | 8 club games | `minutesReliabilityBlend.ts` |
+  | recency weights | oldest season 1 … newest n | `minutesReliabilityBlend.ts` |
+  | `MIN_CONSISTENCY_RETENTION` | 0.65 | `minutesReliabilityBlend.ts` |
+  | status defaults | a 1, d 0.5, i/s/u/n 0, unknown → no figure | `minutesReliabilityBlend.ts` |
 
 ---
 
@@ -862,6 +973,7 @@ server storage. Each store wraps its data as `{ version, data }` via
 | `fpl-dashboard:comparison:selected-view:v1` | `useComparisonViews` |
 | `fpl-dashboard:saved-squads:v1` | `useSavedSquads` |
 | `fpl-dashboard:notepad:v1` | `useNotepad` (tabs, their text, the active tab) |
+| `fpl-dashboard:id-ledger:v1` | `state/seasonIdRollover.ts` (the season the saved ids belong to, and each id's permanent code) |
 
 **Any change to what a store holds** — a new field, a new default, a
 meaning change to an existing field — needs a `STORAGE_VERSION` bump **and**
@@ -871,6 +983,27 @@ used only when the key doesn't exist yet. Check `useSavedDashboardViews` too
 whenever tiles or graphs change, since it embeds both. An empty array is a
 valid user state, not a reason to reseed defaults. If localStorage throws,
 changes still work for the session; they just don't persist.
+
+- **One damaged entry costs only itself** (`mapReadableEntries`): tiles,
+  graphs, saved views and saved squads skip an entry that isn't an object or
+  can't be read, as comparison views and the notepad already did, instead of
+  the whole store falling back to its defaults and being overwritten.
+- **Saved squads are repaired on load** (`normalizeSavedSquad`): player lists
+  keep only numbers, the XI and the armbands only players in the squad, and
+  a squad with no id is skipped. Team Building flags any saved id FPL no
+  longer lists (a banner with a remove icon); such an id holds no XI place.
+- **FPL renumbers players and clubs every summer** (`id` is per season; the
+  permanent identity is `code`). The id ledger records, for the season the
+  saved ids belong to, every id's code. When the app first loads a new
+  season (`rolloverSavedIds`, run on each bootstrap before any page reads a
+  store), every saved player and club id in tiles, graphs, saved views and
+  squads is translated old id → code → new id. A player or club no longer in
+  FPL is dropped from lists and a squad armband on him is cleared; a tile or
+  graph filtered to a club no longer in FPL falls back to all clubs, with
+  "(club no longer in FPL)" added to its name. The stores keep their shape
+  and versions. An install with no ledger yet records the current season as
+  is (the ledger arrived mid-2026/27, while every saved id was 2026/27's).
+  A session left open across the reset reloads itself once.
 
 ---
 
@@ -892,7 +1025,7 @@ Four GitHub workflows run without anyone starting them:
 | Workflow | When | What | Alerts the owner |
 |---|---|---|---|
 | `club-history-archive.yml` | Tue & Fri 05:00 UTC | Archives the live season's club history; releases at season end | On the 2nd failure in a row (a missed run loses nothing) |
-| `understat-sync.yml` | Daily 06:00 UTC | Syncs Understat data (see "Understat") | At once for a changed format or failed check; on the 2nd failure in a row for a block or blip; plus held/disputed links and Understat running late |
+| `understat-sync.yml` | Daily 06:00 UTC | Syncs Understat data (see "Understat"); fetches FPL's live record to check it against | At once for a changed format, a failed check, or data it couldn't commit or push; on the 2nd failure in a row for a block or blip; plus held/disputed links and Understat running late |
 | `release.yml` | On a `v*` tag | Builds and publishes the desktop app | At once (installed apps would stop updating) |
 | `watchdog.yml` | Mondays 07:00 UTC | Checks the two scheduled jobs are switched on and succeeded recently (Understat within 2 days, archive within 5), and the latest release didn't fail | When any of that is wrong |
 
@@ -928,6 +1061,12 @@ distribution. The server is bundled by esbuild into one CommonJS file
 (`server/dist/app.bundle.cjs`), `asar` is off, and the app is unsigned (a
 SmartScreen prompt on first install). See `DEPLOYMENT.md`.
 
+It always serves on port 4317, never a `PORT` from the environment: the
+port is part of the page's address, which saved data belongs to. One copy
+runs at a time (`requestSingleInstanceLock`); a second launch brings the
+first one's window forward. If port 4317 is taken by another program, the
+app says so in a dialog and quits, instead of crashing with no window.
+
 **To release:**
 1. Make sure this README reflects the change.
 2. Commit, then `git pull --rebase`: the Understat sync (daily) and the
@@ -953,3 +1092,14 @@ time it's opened, before the app appears; an open one finds it within about
 - Imported squads store chip usage (`usedChips`), but no page shows it at
   the moment. `metrics/chipPlanner.ts` is left over from the retired Chip
   Planner and has no importers.
+- Club figures count only matches FPL has marked `finished`, hours after
+  full time, while players' Current Season totals include a match from
+  kick-off; during a gameweek the league table and club totals run a round
+  behind (the owner's decision: FPL stays the authority). Once FPL confirms
+  a match, fixture-based standings catch up on the 10-minute poll, but the
+  club figures from the historic dataset wait for Refresh Data or the 12-hour
+  cache.
+- Validation still defaults a few counts FPL has always sent (gameweek-row
+  and `history_past` goals, assists, bonus and the like, to 0) and FDR (to 3);
+  if FPL ever dropped one of those fields it would read as a real 0 or an
+  average fixture.

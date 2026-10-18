@@ -100,7 +100,7 @@ describe("Dashboard saved views — working copy vs saved views (audit 2026-10-1
     expect(myView.tiles).toEqual([]);
   });
 
-  it.fails("[AUDIT8-1] deleting the selected view doesn't overwrite My View with the deleted view's tiles", () => {
+  it("[AUDIT8-1] deleting the selected view doesn't overwrite My View with the deleted view's tiles", () => {
     const mine = tile("mine-tile");
     const foo = tile("foo-tile", "assists");
     saveVersioned(VIEWS_KEY, 6, [

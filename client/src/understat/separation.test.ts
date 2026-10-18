@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
+import { IMPORTS_UNDERSTAT, SCANNED_FILE, TEST_FILE } from "./separationDetector";
 
 /**
  * <understat_separation> (the owner's first rule for Understat): FPL code
@@ -19,13 +20,13 @@ function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const path = join(dir, name);
     if (statSync(path).isDirectory()) return name === "understat" || name === "node_modules" ? [] : sourceFiles(path);
-    return /\.(ts|tsx)$/.test(name) && !/\.test\.(ts|tsx)$/.test(name) ? [path] : [];
+    return SCANNED_FILE.test(name) && !TEST_FILE.test(name) ? [path] : [];
   });
 }
 
 function filesImportingUnderstat(root: string): string[] {
   return sourceFiles(root)
-    .filter((path) => /from\s+["'][^"']*\/understat\/|import\(["'][^"']*\/understat\//.test(readFileSync(path, "utf8")))
+    .filter((path) => IMPORTS_UNDERSTAT.test(readFileSync(path, "utf8")))
     .map((path) => relative(root, path).replace(/\\/g, "/"));
 }
 

@@ -17,12 +17,12 @@ import { fetchEntryTeam, fetchEntryHistory, fetchEntryPicks, ApiRequestError } f
 import { normalizeEntryImport } from "../normalize/normalizeEntryImport";
 import { matchesPlayerSearch } from "../utils/playerSearch";
 import { computeBlendedMinutesReliability } from "../metrics/minutesReliabilityBlend";
-import { getUpcomingFixtures, fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
-import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, columnByKey, isStaticColumn, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
+import { getUpcomingFixtures, firstPickableEventId, fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
+import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, columnByKey, isStaticColumn, rankValue, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { SquadPitch } from "../components/SquadPitch";
 import { AnalysisModeIcon } from "../components/AnalysisModeIcon";
 import { PositionBadge, AvailabilityFlag, SignedNum, availabilityTextClass } from "../components/primitives";
-import { IconChipButton, ResetIcon, ForecastIcon, ClockIcon, FilterIcon, DownloadIcon } from "../components/IconToolbar";
+import { IconChipButton, ResetIcon, ForecastIcon, ClockIcon, FilterIcon, DownloadIcon, TrashIcon } from "../components/IconToolbar";
 import { fmtPrice, fmtDecimal, fmtPercent, fmtSigned, DASH } from "../utils/format";
 import { relativeCellTint } from "../utils/colorScale";
 import { downloadCsv } from "../utils/csvExport";
@@ -160,7 +160,7 @@ function predictiveTint(ranges: ColumnRanges, row: PickerRowData, c: PredictiveC
 function historicRawTint(ranges: ColumnRanges, row: PickerRowData, c: PlayerColumn): string | undefined {
   const range = ranges.get(c.key);
   if (!range || !row.historicRaw) return undefined;
-  const v = c.getValue(row.historicRaw, row.historicDerived);
+  const v = rankValue(c, row.historicRaw, row.historicDerived);
   if (v === null) return undefined;
   return relativeCellTint(v, range.min, range.max, c.higherIsBetter !== false);
 }
@@ -288,7 +288,7 @@ export function pickerEffectiveMinMinutes(mode: AnalysisMode, minMinutes: number
 }
 
 export function TeamBuilder() {
-  const { players, teams, teamsById, fixtures, historicProfiles, historicStatus, currentSeasonHasStarted, gameweekState, requestHistoricData } = useAppState();
+  const { players, teams, teamsById, fixtures, events, historicProfiles, historicStatus, currentSeasonHasStarted, gameweekState, requestHistoricData } = useAppState();
   useEffect(() => {
     requestHistoricData();
   }, [requestHistoricData]);
@@ -429,6 +429,20 @@ export function TeamBuilder() {
     updateActive((s) => ({ ...s, playerIds: [...s.playerIds, player.id] }));
   }
 
+  /** Drops every saved id FPL no longer lists (see missingSavedIds) from the squad, the XI and the armbands. */
+  function handleRemoveMissingPlayers() {
+    updateActive((s) => {
+      const listed = (id: number) => playersById.has(id);
+      return {
+        ...s,
+        playerIds: s.playerIds.filter(listed),
+        startingXI: s.startingXI.filter(listed),
+        captainId: s.captainId !== null && listed(s.captainId) ? s.captainId : null,
+        viceCaptainId: s.viceCaptainId !== null && listed(s.viceCaptainId) ? s.viceCaptainId : null,
+      };
+    });
+  }
+
   function handleRemovePlayer(playerId: number) {
     updateActive((s) => ({
       ...s,
@@ -466,14 +480,18 @@ export function TeamBuilder() {
         viceCaptainId: s.viceCaptainId === playerId ? null : s.viceCaptainId,
       };
     }
-    if (s.startingXI.length >= SQUAD_RULES.startingXISize) return s; // full — no-op
+    // Only starters FPL still lists count toward the 11: a saved id it no
+    // longer has can't be shown, so it mustn't hold a place (audit
+    // 2026-10-18 M9). It stays in the squad, flagged, until removed.
+    const listedXI = s.startingXI.filter((id) => playersById.has(id));
+    if (listedXI.length >= SQUAD_RULES.startingXISize) return s; // full — no-op
     const player = playersById.get(playerId);
     if (player?.position === "GKP") {
-      const otherGkpId = s.startingXI.find((id) => playersById.get(id)?.position === "GKP");
-      const withoutOtherGkp = otherGkpId ? s.startingXI.filter((id) => id !== otherGkpId) : s.startingXI;
+      const otherGkpId = listedXI.find((id) => playersById.get(id)?.position === "GKP");
+      const withoutOtherGkp = otherGkpId ? listedXI.filter((id) => id !== otherGkpId) : listedXI;
       return { ...s, startingXI: [...withoutOtherGkp, playerId] };
     }
-    return { ...s, startingXI: [...s.startingXI, playerId] };
+    return { ...s, startingXI: [...listedXI, playerId] };
   }
 
   function handleToggleStarting(playerId: number) {
@@ -682,6 +700,17 @@ export function TeamBuilder() {
     () => (active ? active.playerIds.map((id) => playersById.get(id)).filter((p): p is NormalizedPlayer => !!p) : []),
     [active, playersById],
   );
+  // Saved ids FPL's player list no longer has (a player removed from the
+  // game): they can't be drawn, so they're flagged with a way to remove
+  // them rather than silently holding a place (audit 2026-10-18 M9). Not
+  // judged until players have loaded.
+  const missingSavedIds = useMemo(() => {
+    if (!active || playersById.size === 0) return [];
+    const saved = new Set([...active.playerIds, ...active.startingXI]);
+    if (active.captainId !== null) saved.add(active.captainId);
+    if (active.viceCaptainId !== null) saved.add(active.viceCaptainId);
+    return [...saved].filter((id) => !playersById.has(id));
+  }, [active, playersById]);
   const startingXIPlayers = active ? active.startingXI.map((id) => playersById.get(id)).filter((p): p is NormalizedPlayer => !!p) : [];
   const squadPlayerIdSet = new Set(squadPlayers.map((p) => p.id));
   const benchPlayers = squadPlayers.filter((p) => !(active?.startingXI.includes(p.id) ?? false));
@@ -702,13 +731,16 @@ export function TeamBuilder() {
   // gets a new identity every render even when nothing it's built from
   // has changed, which would silently defeat pickerRows' own
   // memoisation despite that being the whole point of adding it.
+  // GW+1 is the next gameweek still open for picks, the one FPL's ep_next
+  // describes, never a match already played (audit 2026-10-18 H1).
+  const fromEventId = useMemo(() => firstPickableEventId(events), [events]);
   const fixturesByTeamId = useMemo(() => {
     const map = new Map<number, UpcomingFixture[]>();
     for (const team of teamsById.values()) {
-      map.set(team.id, getUpcomingFixtures(team.id, fixtures, teamsById));
+      map.set(team.id, getUpcomingFixtures(team.id, fixtures, teamsById, GW_OFFSETS.length, fromEventId));
     }
     return map;
-  }, [teamsById, fixtures]);
+  }, [teamsById, fixtures, fromEventId]);
 
   // Blended (historic + live, availability-adjusted) minutes reliability,
   // keyed by id — see metrics/minutesReliabilityBlend.ts. Computed ahead
@@ -888,7 +920,7 @@ export function TeamBuilder() {
     const ranges: ColumnRanges = new Map();
     for (const c of historicRawColumnsInOrder) {
       const values = pickerCandidateRows
-        .map((r) => (r.historicRaw ? c.getValue(r.historicRaw, r.historicDerived) : null))
+        .map((r) => (r.historicRaw ? rankValue(c, r.historicRaw, r.historicDerived) : null))
         .filter((v): v is number => v !== null);
       if (values.length > 0) ranges.set(c.key, { min: Math.min(...values), max: Math.max(...values) });
     }
@@ -1066,6 +1098,15 @@ export function TeamBuilder() {
         <div className="card-title">
           Squad ({squadPlayers.length}/{SQUAD_RULES.squadSize})
         </div>
+        {missingSavedIds.length > 0 && (
+          <div className="banner stale" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ flex: 1 }}>
+              {missingSavedIds.length === 1 ? "1 saved player is" : `${missingSavedIds.length} saved players are`} no longer in FPL's player list, so{" "}
+              {missingSavedIds.length === 1 ? "it isn't" : "they aren't"} shown or counted (FPL id {missingSavedIds.join(", ")}).
+            </span>
+            <IconChipButton icon={<TrashIcon />} label="Remove players no longer in FPL from this squad" onClick={handleRemoveMissingPlayers} />
+          </div>
+        )}
         {xiValidation.size > 0 && !xiValidation.valid && <div className="banner info">Formation: {xiValidation.issues.join(" · ")}</div>}
         <SquadPitch
           squadName={active?.name ?? ""}
@@ -1198,7 +1239,7 @@ export function TeamBuilder() {
           </div>
           <IconChipButton
             icon={<FilterIcon />}
-            label="Clear every picker filter: search, position, team, price, minutes and any column filters"
+            label="Clear every picker filter: search, position, team, minutes and any column filters"
             onClick={handleClearPickerFilters}
           />
           <IconChipButton icon={<DownloadIcon />} label="Export the visible columns and current rows to a CSV file" onClick={handleExportPickerCsv} />

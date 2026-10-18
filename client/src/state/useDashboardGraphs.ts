@@ -5,7 +5,7 @@ import { columnByKey as playerColumnByKey } from "../components/playerColumns";
 import { teamColumnByKey } from "../components/teamColumns";
 import type { TileDirection } from "./useSummaryTiles";
 import { clearUnappliedLiveMinMinutes, DEFAULT_FILTERS, type GlobalScoutingFilters } from "./scoutingFilters";
-import { loadVersioned, saveVersioned, type VersionedStore } from "./persistentStorage";
+import { loadVersioned, mapReadableEntries, saveVersioned, type VersionedStore } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:dashboard:graphs:v1";
 /**
@@ -187,7 +187,7 @@ const DASHBOARD_GRAPHS_STORE: VersionedStore<DashboardGraphConfig[]> = {
     // useSummaryTiles.ts. Only a non-array (or missing) payload means
     // there's nothing usable to migrate.
     if (!Array.isArray(data)) return null;
-    const graphs = (data as Partial<DashboardGraphConfig>[]).map(normalizeDashboardGraph);
+    const graphs = mapReadableEntries(data, (g) => normalizeDashboardGraph(g as Partial<DashboardGraphConfig>));
     if (storedVersion !== null && storedVersion >= STORAGE_VERSION) return graphs;
     // Older copies of a packaged default are replaced in place (same
     // position) by the current definition. Safe because a default-id graph

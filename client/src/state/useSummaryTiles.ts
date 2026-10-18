@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { SummaryTileScope } from "../components/summaryTileMetrics";
 import { isAnalysisMode, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { clearUnappliedLiveMinMinutes, DEFAULT_FILTERS, type GlobalScoutingFilters } from "./scoutingFilters";
-import { loadVersioned, saveVersioned, type VersionedStore } from "./persistentStorage";
+import { loadVersioned, mapReadableEntries, saveVersioned, type VersionedStore } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:dashboard:summary-tiles:v1";
 /**
@@ -125,7 +125,7 @@ const SUMMARY_TILES_STORE: VersionedStore<SummaryTileConfig[]> = {
     // same "is an empty array valid?" question. Only a non-array (or
     // missing) payload means there's nothing usable to migrate.
     if (!Array.isArray(data)) return null;
-    const tiles = (data as Partial<SummaryTileConfig>[]).map(normalizeSummaryTile);
+    const tiles = mapReadableEntries(data, (t) => normalizeSummaryTile(t as Partial<SummaryTileConfig>));
     if (storedVersion !== null && storedVersion >= 6) return tiles;
     return tiles.map(clearUnappliedLiveMinMinutes);
   },

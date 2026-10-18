@@ -4,7 +4,7 @@ import { makePlayer, makeSeason } from "../test/fixtures";
 import type { NormalizedFixture } from "../types/normalized";
 
 function fixture(id: number, home: number, away: number, finished = true): NormalizedFixture {
-  return { id, eventId: id, homeTeamId: home, awayTeamId: away, homeScore: null, awayScore: null, kickoffTime: null, finished, homeDifficulty: 3, awayDifficulty: 3 };
+  return { id, eventId: id, homeTeamId: home, awayTeamId: away, homeScore: null, awayScore: null, kickoffTime: null, finished, started: finished, homeDifficulty: 3, awayDifficulty: 3 };
 }
 
 describe("teamMatchesPlayed", () => {

@@ -50,12 +50,10 @@ const SECTIONS: { kind: ComparisonElementKind; title: string; icon: SectionIcon;
 function useComparisonIds(): [number[], (ids: number[]) => void] {
   const [searchParams, setSearchParams] = useSearchParams();
   const raw = searchParams.get("players");
-  const ids = raw
-    ? raw
-        .split(",")
-        .map(Number)
-        .filter((n) => !Number.isNaN(n))
-    : [];
+  // A typed or shared address is held to the same rules as the search box:
+  // whole ids, each once, at most MAX_COMPARE (audit 2026-10-18 L9: a
+  // repeated id gave two cards one key, and a sixth player wrapped colours).
+  const ids = raw ? [...new Set(raw.split(",").filter((part) => part.trim() !== "").map(Number).filter((n) => Number.isInteger(n) && n > 0))].slice(0, MAX_COMPARE) : [];
 
   const setIds = (newIds: number[]) => {
     setSearchParams((prev) => {
@@ -197,6 +195,12 @@ export function PlayerComparison() {
       return p && d ? metric.getValue(p, d) : null;
     }
 
+    function rankFor(metric: ComparisonMetric, pool: ModePool, id: number): number | null {
+      const p = pool.byId.get(id);
+      const d = pool.derivedById.get(id);
+      return p && d ? metric.rankValue(p, d) : null;
+    }
+
     return view.elements.map((el): CardData => {
       if (el.kind === "trend") {
         const metric = trendMetricByKey(el.metricKeys[0] ?? "");
@@ -253,6 +257,7 @@ export function PlayerComparison() {
           higherIsBetter: metric.higherIsBetter,
           format: metric.format,
           cells: new Map(compared.map((c) => [c.player.id, valueFor(metric, pool, c.player.id)])),
+          rankCells: metric.rankValue === metric.getValue ? undefined : new Map(compared.map((c) => [c.player.id, rankFor(metric, pool, c.player.id)])),
         };
       });
       return { el, kind: "outputs", rows, entries, floorNote, message: null };

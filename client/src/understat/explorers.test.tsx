@@ -132,6 +132,28 @@ describe("Player Explorer with Understat mounted", () => {
     expect(within(header(container, "Goals")).queryByRole("button", { name: /Click to show/ })).toBeNull();
   });
 
+  it("audit 2026-10-18 L16: if Understat goes away mid-session, a column switched to it falls back to FPL without keeping its Understat filter", () => {
+    const view = (source: ExternalStatsSource | null) => (
+      <ExternalStatsContext.Provider value={source}>
+        <MemoryRouter>
+          <PlayerExplorer />
+        </MemoryRouter>
+      </ExternalStatsContext.Provider>
+    );
+    const { container, rerender } = renderExplorer(fakeSource());
+    fireEvent.click(within(header(container, "xG")).getByRole("button", { name: /Click to show Understat's/ }));
+    // Understat xG ≥ 4: Saka (4.56) only.
+    fireEvent.click(header(container, "xG").querySelector("button.column-filter-icon")!);
+    const popover = container.querySelector<HTMLElement>(".column-filter-popover")!;
+    fireEvent.change(popover.querySelectorAll("input[type=number]")[1], { target: { value: "4" } });
+    fireEvent.click(within(popover).getByRole("button", { name: "Enter" }));
+    expect(container.querySelectorAll("table.data-table tbody tr .name")).toHaveLength(1);
+    rerender(view(null));
+    // Back on FPL xG (3.21, 1.11), with no leftover filter hiding everyone.
+    expect(header(container, "xG").querySelector("button.column-filter-icon")?.className).not.toContain("active");
+    expect(container.querySelectorAll("table.data-table tbody tr .name")).toHaveLength(2);
+  });
+
   it("marks Understat headers when its data is out of date", () => {
     const { container } = renderExplorer(fakeSource("Understat is behind"));
     fireEvent.click(within(header(container, "xG")).getByRole("button", { name: /Click to show Understat's/ }));

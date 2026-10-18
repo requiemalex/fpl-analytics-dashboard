@@ -25,7 +25,7 @@ describe("history_past placeholders before FPL tracked starts / expected stats",
     expect(s.xGC).toBeCloseTo(66.41);
   });
 
-  it.fails("[CALC-pre2223-placeholders] 2021/22 starts and xG-family are null, not a placeholder 0", () => {
+  it("[CALC-pre2223-placeholders] 2021/22 starts and xG-family are null, not a placeholder 0", () => {
     const s = normalizeSeasonHistory(raw).find((x) => x.seasonName === "2021/22")!;
     expect(s.starts).toBeNull();
     expect(s.xG).toBeNull();

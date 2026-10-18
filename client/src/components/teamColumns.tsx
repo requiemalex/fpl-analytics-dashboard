@@ -9,15 +9,15 @@ export interface TeamColumn {
   group: TeamColumnGroup;
   getValue: (t: TeamAggregate) => number | null;
   format: (v: number | null) => string;
-  /** Decimal places shown — Team Explorer's column filters compare a value as displayed (see columnFilterPasses). Omitted for whole numbers. */
-  decimals?: number;
+  /** Decimal places `format` shows — Team Explorer's column filters compare a value as displayed (see columnFilterPasses). Whole-number columns say 0: a Historic Average figure is a mean (65.75 shown "66"), so leaving it out compared the raw mean (audit 2026-10-18 M15). */
+  decimals: number;
   /** Whether a higher value is the "better" one for this metric. Defaults to true; false for league position, losses, goals against, and xGC. */
   higherIsBetter?: boolean;
   /** Set only on a column from a second data source (extensions/externalStats.ts) — its id. Unset means FPL. */
   sourceId?: string;
 }
 
-const num = (decimals = 0) => (v: number | null) => fmtDecimal(v, decimals);
+const num = (decimals = 0) => ({ format: (v: number | null) => fmtDecimal(v, decimals), decimals });
 
 /**
  * The full set of team-level metrics a Dashboard tile/graph, the Team Explorer
@@ -29,40 +29,41 @@ const num = (decimals = 0) => (v: number | null) => fmtDecimal(v, decimals);
  */
 export const TEAM_COLUMNS: TeamColumn[] = [
   // RESULTS
-  { key: "leaguePosition", label: "League Position", group: "RESULTS", getValue: (t) => t.leaguePosition, format: num(0), higherIsBetter: false },
-  { key: "leaguePoints", label: "League Points", group: "RESULTS", getValue: (t) => t.leaguePoints, format: num(0) },
-  { key: "played", label: "Played", group: "RESULTS", getValue: (t) => t.played, format: num(0) },
-  { key: "wins", label: "Wins", group: "RESULTS", getValue: (t) => t.wins, format: num(0) },
-  { key: "draws", label: "Draws", group: "RESULTS", getValue: (t) => t.draws, format: num(0) },
-  { key: "losses", label: "Losses", group: "RESULTS", getValue: (t) => t.losses, format: num(0), higherIsBetter: false },
-  { key: "goalsFor", label: "Goals For", group: "RESULTS", getValue: (t) => t.goalsFor, format: num(0) },
-  { key: "goalsAgainst", label: "Goals Against", group: "RESULTS", getValue: (t) => t.goalsAgainst, format: num(0), higherIsBetter: false },
+  { key: "leaguePosition", label: "League Position", group: "RESULTS", getValue: (t) => t.leaguePosition, ...num(0), higherIsBetter: false },
+  { key: "leaguePoints", label: "League Points", group: "RESULTS", getValue: (t) => t.leaguePoints, ...num(0) },
+  { key: "played", label: "Played", group: "RESULTS", getValue: (t) => t.played, ...num(0) },
+  { key: "wins", label: "Wins", group: "RESULTS", getValue: (t) => t.wins, ...num(0) },
+  { key: "draws", label: "Draws", group: "RESULTS", getValue: (t) => t.draws, ...num(0) },
+  { key: "losses", label: "Losses", group: "RESULTS", getValue: (t) => t.losses, ...num(0), higherIsBetter: false },
+  { key: "goalsFor", label: "Goals For", group: "RESULTS", getValue: (t) => t.goalsFor, ...num(0) },
+  { key: "goalsAgainst", label: "Goals Against", group: "RESULTS", getValue: (t) => t.goalsAgainst, ...num(0), higherIsBetter: false },
   {
     key: "goalDifference",
     label: "Goal Difference",
     group: "RESULTS",
     getValue: (t) => (t.goalsFor !== null && t.goalsAgainst !== null ? t.goalsFor - t.goalsAgainst : null),
     format: (v) => fmtSigned(v, 0),
+    decimals: 0,
   },
-  { key: "cleanSheets", label: "Clean Sheets", group: "RESULTS", getValue: (t) => t.cleanSheets, format: num(0) },
+  { key: "cleanSheets", label: "Clean Sheets", group: "RESULTS", getValue: (t) => t.cleanSheets, ...num(0) },
 
   // OUTPUT
-  { key: "points", label: "FPL Points", group: "OUTPUT", getValue: (t) => t.points, format: num(0) },
-  { key: "goals", label: "Goals (excl. OGs)", group: "OUTPUT", getValue: (t) => t.goals, format: num(0) },
-  { key: "assists", label: "Assists", group: "OUTPUT", getValue: (t) => t.assists, format: num(0) },
-  { key: "bonus", label: "Bonus Points", group: "OUTPUT", getValue: (t) => t.bonus, format: num(0) },
+  { key: "points", label: "FPL Points", group: "OUTPUT", getValue: (t) => t.points, ...num(0) },
+  { key: "goals", label: "Goals (excl. OGs)", group: "OUTPUT", getValue: (t) => t.goals, ...num(0) },
+  { key: "assists", label: "Assists", group: "OUTPUT", getValue: (t) => t.assists, ...num(0) },
+  { key: "bonus", label: "Bonus Points", group: "OUTPUT", getValue: (t) => t.bonus, ...num(0) },
 
   // UNDERLYING PERFORMANCE
-  { key: "xG", label: "xG", group: "UNDERLYING PERFORMANCE", getValue: (t) => t.xG, format: num(2), decimals: 2 },
-  { key: "xA", label: "xA", group: "UNDERLYING PERFORMANCE", getValue: (t) => t.xA, format: num(2), decimals: 2 },
-  { key: "xGI", label: "xGI", group: "UNDERLYING PERFORMANCE", getValue: (t) => t.xGI, format: num(2), decimals: 2 },
-  { key: "xGC", label: "xGC", group: "UNDERLYING PERFORMANCE", getValue: (t) => t.xGC, format: num(2), decimals: 2, higherIsBetter: false },
+  { key: "xG", label: "xG", group: "UNDERLYING PERFORMANCE", getValue: (t) => t.xG, ...num(2) },
+  { key: "xA", label: "xA", group: "UNDERLYING PERFORMANCE", getValue: (t) => t.xA, ...num(2) },
+  { key: "xGI", label: "xGI", group: "UNDERLYING PERFORMANCE", getValue: (t) => t.xGI, ...num(2) },
+  { key: "xGC", label: "xGC", group: "UNDERLYING PERFORMANCE", getValue: (t) => t.xGC, ...num(2), higherIsBetter: false },
   {
     key: "defensiveContributions",
     label: "Def. Contributions",
     group: "UNDERLYING PERFORMANCE",
     getValue: (t) => t.defensiveContributions,
-    format: num(0),
+    ...num(0),
   },
 ];
 

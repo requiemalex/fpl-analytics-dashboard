@@ -35,6 +35,7 @@ vi.mock("../state/AppStateContext", () => ({
     teams: TEAMS,
     teamsById: new Map(TEAMS.map((t) => [t.id, t])),
     fixtures: [],
+    events: [],
     historicProfiles: new Map(),
     historicStatus: "ready",
     currentSeasonHasStarted: true,

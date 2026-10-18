@@ -84,7 +84,7 @@ function SubHeading({ children }: { children: React.ReactNode }) {
 }
 
 export function UserGuide() {
-  const { advancedFieldAvailability, validationReport, skippedPlayerCount } = useAppState();
+  const { advancedFieldAvailability, validationReport, skippedPlayerCount, skippedRecordCounts } = useAppState();
   const apiMetrics = METRIC_LIST.filter((m) => m.source === "FPL API");
   const derivedMetrics = METRIC_LIST.filter((m) => m.source === "Derived");
   const ext = useExternalStats();
@@ -191,16 +191,18 @@ export function UserGuide() {
           </li>
           <li>
             <strong>Each tile has its own settings</strong>, set in its dialog: a name, a Data View (shown as an{" "}
-            <code>LS</code>/<code>HA</code>/<code>CS</code> badge in its header) and, for player tiles, its own Search, Position,
-            Team and Min Minutes, so two tiles can watch different slices of the pool. Min Minutes is a slider in whole matches;
+            <code>LS</code>/<code>HA</code>/<code>CS</code> badge in its header), an order and, for player tiles, either{" "}
+            <strong>Filters</strong> (Position, Team, a price range and Min Minutes) or <strong>Player Search</strong> (up to 5
+            specific players), so two tiles can watch different slices of the pool. Min Minutes is a slider in whole matches;
             type in the box beside it for an exact figure. It starts at 0 in every Data View, so per-game statistics rank everyone
             your criteria let through. Raise it (e.g. 450 for five full games) to rank only players with a real sample. Team tiles
-            show club figures for their Data View and have no criteria.
+            show club figures for their Data View, for all teams or up to 5 you pick.
           </li>
           <li>
             Each row reads club pill, position, name, bar, value. Bars start at the same point and the top row's is full length, so
-            a shorter bar shows how far behind that row is. The three "vs xG/xA/xGI" tiles colour green/red for above/below
-            expected; everything else is one colour.
+            a shorter bar shows how far behind that row is, whichever way the tile is ordered (on a Lowest First tile, a row with
+            twice the leader's figure has half its bar). A tile ordered Lowest First says so in its title. The three "vs
+            xG/xA/xGI" tiles colour green/red for above/below expected; everything else is one colour.
           </li>
         </ul>
         <p className="page-subtitle">
@@ -239,12 +241,13 @@ export function UserGuide() {
             table scrolls sideways.
           </li>
           <li>
-            <strong>Sort:</strong> click a header; shift-click another to add a tiebreaker. A blank (—) counts as lower than any
-            value. Names sort alphabetically, ignoring accents (Ødegaard sits among the Os); Position sorts GKP, DEF, MID, FWD.
+            <strong>Sort:</strong> click a header; shift-click another (the Player name too) to add a tiebreaker. A blank (—)
+            counts as lower than any value. Names sort alphabetically, ignoring accents (Ødegaard sits among the Os); Position sorts GKP, DEF, MID, FWD.
           </li>
           <li>
             <strong>Filter:</strong> the ▾ on a header. ≤ / ≥ / = for numbers, a list for Position and Team. Enter confirms, Escape
-            cancels. Numbers compare as shown, so = 15.3 finds a player shown as 15.3. Hiding a column clears its filter and its sort.
+            cancels. Numbers compare as shown, so = 15.3 finds a player shown as 15.3. Hiding a column clears its filter and its sort,
+            and so does Reset for every column it hides.
           </li>
           <li>
             <strong>Search:</strong> the toolbar box finds players by name, here and on Team Building and Player Comparison. It
@@ -256,7 +259,10 @@ export function UserGuide() {
             every filter; Columns picks which columns show; Clear filters empties the search and every column filter; Export CSV
             downloads exactly what's on screen.
           </li>
-          <li>Each cell is tinted green/red against the rest of its column on screen.</li>
+          <li>
+            Each cell is tinted green/red against the rest of its column on screen. Total xGC is tinted by xGC per game, so a player
+            who has barely played doesn't look like the best defender.
+          </li>
           <li>
             <strong>Header colours</strong> say where a figure comes from and whether it follows the Data View: green is an FPL
             figure for the selected season(s); muted red is always today's live figure (Own%, Price, Team, Position).
@@ -264,7 +270,7 @@ export function UserGuide() {
           </li>
           <li>
             <strong>Next 5 Fixtures</strong> (off by default; turn it on in Columns) is always the player's actual upcoming
-            fixtures, whatever the mode.
+            fixtures, whatever the mode: matches not yet kicked off.
           </li>
           <li>The page starts fresh each visit: columns, widths, sort and filters return to the defaults when you leave.</li>
         </ul>
@@ -285,19 +291,27 @@ export function UserGuide() {
           <li>
             The <strong>pitch</strong> is drag-and-drop: drag a player from Add Players onto the pitch or bench, or one card onto
             another to swap. Click a name for the profile; click <strong>Captain</strong>/<strong>Vice-Captain</strong>, then a
-            starter, to assign it; <strong>Clear Draft</strong> empties the squad. Cards show live price, ownership, minutes
+            starter, to assign it; <strong>Clear Draft</strong> empties the squad. A saved player FPL no longer lists is named in a
+            banner above the pitch, with a bin to remove him. Cards show live price, ownership, minutes
             reliability, the next fixtures and both Expected Points figures (doubled for the captain).
           </li>
           <li>
             The <strong>GW+1..GW+5 navigator</strong> picks which of each player's next five fixtures the Expected Points figures
             estimate: his own Nth fixture, not a calendar gameweek, so a blank gameweek has nothing to select and a double
-            gameweek's two fixtures are consecutive steps.
+            gameweek's two fixtures are consecutive steps. GW+1 is always in the next gameweek you can still pick for (the one FPL's
+            own estimate is for): once a deadline passes, that gameweek's matches drop out, even before FPL confirms the results.
+          </li>
+          <li>
+            <strong>Minutes reliability</strong> is how much a player is likely to play, from his minutes alone (this season and
+            the last four, recent seasons counting more), times his availability. How many managers own him plays no part.
+            FPL's availability is for the next round only, so a one-match ban shows as 0 across all five steps.
           </li>
           <li>
             Two Expected Points figures, never blended: <strong>FPL Official</strong> is FPL's own <code>ep_next</code> prediction
             (extended to later fixtures using fixture difficulty). <strong>Model Predicted</strong> is this app's independent
             estimate from live per-90 stats (xG, xA, xGC, defensive contributions, saves) and FPL's scoring rules. Hover it for its
-            caveats: it's a second opinion, rougher for goalkeepers and nailed-on popular picks (see the README's backtest).
+            caveats in the Add Players table: it's a second opinion, rougher for goalkeepers and nailed-on popular picks (see the
+            README's backtest).
           </li>
           <li>
             The status line above the pitch shows squad size, budget, composition and any club-limit breach. Going over £100m turns
@@ -321,14 +335,16 @@ export function UserGuide() {
         <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
           <li>
             <strong>Charts</strong> are percentile radars: each axis is a player's percentile within his position, outward always
-            better (xGC and xGC/Game are turned round, since fewer is better). Pick 3–8 statistics and a Data View.
+            better (xGC/Game is turned round, since fewer is better; total xGC is ranked on xGC per game, so fewer minutes don't
+            count as better). Pick 3–8 statistics and a Data View.
           </li>
           <li>
             <strong>Outputs</strong> list up to 12 statistics as rows. Each row's bar runs from 0 to the highest figure among the
             players, with each player's marker at their own figure and the figure above it, the best in bold. The bar is grey as
             far as every player reaches; past that, each stretch is tinted in the colour of the player whose marker ends it, so
-            the length of a colour is how far that player is ahead. Faint notches mark a quarter, half and three quarters of the
-            leader. For xGC and xGC/Game, the best is furthest left.
+            the length of a colour is how far that player is past the one before (for xGC and xGC/Game, where fewer is better,
+            how far behind). Faint notches mark a quarter, half and three quarters of the leader. For xGC/Game the best is
+            furthest left; for total xGC the best is the lowest per game.
           </li>
           <li>
             <strong>Trends</strong> graph one statistic season by season across the completed seasons on record. A season with no
@@ -358,7 +374,9 @@ export function UserGuide() {
           who leaves mid-season keeps what he did counted for the club. To judge what a signing would bring, look at the player
           instead. The Data View picks the season: Current Season, Last Completed Season, or a Historic Average of the last four
           completed seasons the club was in the Premier League (a season in the Championship shows "—", never zero). Club figures
-          have no minimum-minutes floor.
+          have no minimum-minutes floor. This season's club figures count a match once FPL confirms it, a few hours after full
+          time, so during a gameweek the league table can be a round behind players' totals. If a player's data couldn't be
+          loaded, this season's figures added up from players show "—" (the Data View note says so); results are unaffected.
         </p>
         <p className="page-subtitle">
           <strong>Team Explorer</strong> is a league-table view of that season (position, points, goals for and against, clean
@@ -398,7 +416,9 @@ export function UserGuide() {
           Numbers, Percentile Radar, Value) follows the analysis mode; "Live Data", Playing Time and Points History always show real
           figures. The Percentile Radar is position-specific: defenders and midfielders get Defense and Offense radars, goalkeepers
           and forwards one combined radar. Underlying Numbers and Value are tinted green/red by his percentile within his position.
-          Goalkeepers get no Defensive Contribution tiles, since FPL's defensive-contribution points exclude them.
+          Goalkeepers get no Defensive Contribution tiles, since FPL's defensive contributions exclude them. Defensive
+          Contributions are a count of actions (for defenders clearances, blocks, interceptions and tackles; for midfielders and
+          forwards recoveries too), not FPL points.
         </p>
         <p className="page-subtitle">
           The profile has no minutes setting, so its percentiles use the fixed floor (see Analysis modes): only players with 450+
@@ -458,7 +478,7 @@ export function UserGuide() {
             From 2026/27 on it's archived straight from the official API.
           </li>
           <li>
-            <strong>xG-family stats are placeholder zeros before 2022/23</strong> and <strong>Defensive Contribution before 2024/25</strong>,
+            <strong>Starts and xG-family stats are placeholder zeros before 2022/23</strong>, shown as "—", and <strong>Defensive Contribution before 2024/25</strong>,
             confirmed directly against the raw data. Historic Average correctly excludes these rather than diluting an average with a
             fake zero.
           </li>
@@ -510,6 +530,12 @@ export function UserGuide() {
               <p className="page-subtitle">
                 {skippedPlayerCount} player record(s) were excluded (invalid or missing required data, or a reference to an
                 unknown team or position id) and could not be normalised.
+              </p>
+            )}
+            {skippedRecordCounts.fixtures + skippedRecordCounts.clubSeasons > 0 && (
+              <p className="page-subtitle">
+                Also excluded for invalid data: {skippedRecordCounts.fixtures} fixture(s) and {skippedRecordCounts.clubSeasons} club-season(s). Everything
+                else loaded normally.
               </p>
             )}
           </div>

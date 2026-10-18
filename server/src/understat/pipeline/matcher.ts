@@ -109,6 +109,14 @@ export function linkSeason(input: LinkSeasonInput): LinkSeasonResult {
   const usById = new Map(us.map((u) => [u.id, u]));
   const never = new Set(overrides.filter((o) => o.action === "never").map((o) => `${o.fplCode}|${o.understatId}`));
   const forced = new Map(overrides.filter((o) => o.action === "pair").map((o) => [o.fplCode, o]));
+  // "never" forbids a link on every run, so a saved link it names goes too
+  // (audit 2026-10-18 M19); the player is then linked afresh, if he can be.
+  for (const [code, l] of links) {
+    if (never.has(`${code}|${l.understatId}`)) {
+      links.delete(code);
+      events.push(`Unlinked by a manual "never": ${l.fplName} ↔ ${l.understatName}.`);
+    }
+  }
   // Understat players already spoken for by another FPL player's confirmed or disputed link.
   const claimedBy = new Map<string, number>();
   for (const l of links.values()) if (l.status !== "held") claimedBy.set(l.understatId, l.fplCode);

@@ -1,25 +1,45 @@
 import { useCallback, useEffect, useState } from "react";
 import type { SavedSquad } from "../types/team";
-import { loadVersioned, saveVersioned, type VersionedStore } from "./persistentStorage";
+import { loadVersioned, mapReadableEntries, saveVersioned, type VersionedStore } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:saved-squads:v1";
 const STORAGE_VERSION = 1;
+
+const ids = (v: unknown): number[] => (Array.isArray(v) ? v.filter((id): id is number => typeof id === "number" && Number.isFinite(id)) : []);
+const idOrNull = (v: unknown, allowed: number[]): number | null => (typeof v === "number" && allowed.includes(v) ? v : null);
+
+/**
+ * Brings one stored squad to the current shape, repairing what it can so
+ * Team Building never meets a squad it can't draw (audit 2026-10-18 M8: a
+ * squad with no `playerIds` blanked the page). Player lists keep only
+ * numbers; the starting XI and the armbands keep only players in the squad.
+ * A squad saved before usedChips/importedFrom existed gets them defaulted
+ * in, as before. Null (skipped) without an id, since nothing can select it.
+ */
+export function normalizeSavedSquad(raw: Record<string, unknown>): SavedSquad | null {
+  if (typeof raw.id !== "string" || raw.id === "") return null;
+  const playerIds = [...new Set(ids(raw.playerIds))];
+  const startingXI = [...new Set(ids(raw.startingXI))].filter((id) => playerIds.includes(id));
+  return {
+    id: raw.id,
+    name: typeof raw.name === "string" ? raw.name : "Squad",
+    createdAt: typeof raw.createdAt === "number" ? raw.createdAt : 0,
+    updatedAt: typeof raw.updatedAt === "number" ? raw.updatedAt : 0,
+    playerIds,
+    startingXI,
+    captainId: idOrNull(raw.captainId, startingXI),
+    viceCaptainId: idOrNull(raw.viceCaptainId, startingXI),
+    usedChips: Array.isArray(raw.usedChips) ? (raw.usedChips as SavedSquad["usedChips"]) : [],
+    importedFrom: raw.importedFrom && typeof raw.importedFrom === "object" ? (raw.importedFrom as SavedSquad["importedFrom"]) : null,
+  };
+}
 
 const SAVED_SQUADS_STORE: VersionedStore<SavedSquad[]> = {
   version: STORAGE_VERSION,
   fallback: [],
   migrate(data) {
     if (!Array.isArray(data)) return null;
-    // Migration safety: a squad saved before usedChips/importedFrom existed
-    // won't have them in localStorage — default them in rather than let
-    // downstream code (Chip Planner, the "Loaded from FPL" badge) crash on
-    // an undefined array/object for anyone with squads saved from an
-    // earlier version of this app.
-    return (data as Partial<SavedSquad>[]).map((s) => ({
-      ...s,
-      usedChips: s.usedChips ?? [],
-      importedFrom: s.importedFrom ?? null,
-    })) as SavedSquad[];
+    return mapReadableEntries(data, normalizeSavedSquad);
   },
 };
 

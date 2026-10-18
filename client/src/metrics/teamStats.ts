@@ -49,6 +49,23 @@ export interface ClubHistoryContext {
   /** The last COMPLETED season (AppStateContext.historicReferenceSeason). Null until historic data has loaded. */
   referenceSeason: string | null;
   currentSeasonHasStarted: boolean;
+  /**
+   * True while the historic build skipped any player (historicSkippedPlayerIds).
+   * The live season's club figures are built from every player's match rows,
+   * so a skipped player's rows are simply missing: results (from fixtures)
+   * stay whole, but everything summed from players (FPL points, goals,
+   * assists, bonus, the xG family, DC) would be a part-sum, so it's "—"
+   * instead (audit 2026-10-18 M4).
+   */
+  livePlayerSumsPartial?: boolean;
+}
+
+/** The club figures summed from players' match rows, as opposed to results, which come from fixtures. */
+const PLAYER_SUMMED_FIELDS = ["points", "goals", "assists", "bonus", "xG", "xA", "xGI", "xGC", "defensiveContributions"] as const;
+
+/** A live-season match with its player-summed figures blanked (see livePlayerSumsPartial). */
+function withoutPlayerSums(m: ClubMatch): ClubMatch {
+  return { ...m, fantasyPoints: null, goals: null, assists: null, bonus: null, xG: null, xA: null, xGI: null, xGC: null, dc: null };
 }
 
 function seasonStartYear(seasonName: string): number {
@@ -133,7 +150,7 @@ export function computeTeamAggregates(teams: NormalizedTeam[], mode: AnalysisMod
     }
     const pick = (fn: (c: ClubSeason) => number | null) => mean(records.map(fn));
     const results = resultsWithinPlayed(pick((c) => c.played), pick((c) => c.wins), pick((c) => c.draws), pick((c) => c.losses));
-    return {
+    const aggregate: TeamAggregate = {
       teamId: team.id,
       name: team.name,
       shortName: team.shortName,
@@ -153,6 +170,8 @@ export function computeTeamAggregates(teams: NormalizedTeam[], mode: AnalysisMod
       leaguePoints: pick((c) => c.leaguePoints),
       ...results,
     };
+    if (mode === "live" && ctx.livePlayerSumsPartial) for (const field of PLAYER_SUMMED_FIELDS) aggregate[field] = null;
+    return aggregate;
   });
 }
 
@@ -196,7 +215,9 @@ export function resultsWithinPlayed(
  */
 export function clubLiveMatches(clubCode: number | null, ctx: ClubHistoryContext): ClubMatch[] {
   const [live] = clubRecordsForMode(clubCode, "live", ctx);
-  return live ? [...live.matches].sort((a, b) => (b.event ?? 0) - (a.event ?? 0) || b.fixture - a.fixture) : [];
+  if (!live) return [];
+  const matches = ctx.livePlayerSumsPartial ? live.matches.map(withoutPlayerSums) : live.matches;
+  return [...matches].sort((a, b) => (b.event ?? 0) - (a.event ?? 0) || b.fixture - a.fixture);
 }
 
 export interface ClubSeasonPoints {
@@ -208,10 +229,11 @@ export interface ClubSeasonPoints {
 }
 
 /** Every season on record for one club, oldest first — seasons it wasn't in the Premier League simply aren't there. */
-export function clubSeasonHistory(clubCode: number | null, clubSeasons: ClubSeason[]): ClubSeasonPoints[] {
+export function clubSeasonHistory(clubCode: number | null, clubSeasons: ClubSeason[], livePlayerSumsPartial = false): ClubSeasonPoints[] {
   if (clubCode === null) return [];
   return clubSeasons
-    .filter((c) => c.code === clubCode)
+    // The live season's points are a part-sum while a player is skipped (livePlayerSumsPartial): left out, not drawn short.
+    .filter((c) => c.code === clubCode && !(livePlayerSumsPartial && !c.complete))
     .sort((a, b) => a.season.localeCompare(b.season))
     .map((c) => ({ seasonName: c.season, totalPoints: c.fantasyPoints, complete: c.complete }));
 }

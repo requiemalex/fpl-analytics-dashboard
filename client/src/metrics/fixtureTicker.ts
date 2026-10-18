@@ -1,4 +1,4 @@
-import type { NormalizedFixture, NormalizedTeam } from "../types/normalized";
+import type { NormalizedEvent, NormalizedFixture, NormalizedTeam } from "../types/normalized";
 import { DASH } from "../utils/format";
 
 export interface UpcomingFixture {
@@ -11,13 +11,26 @@ export interface UpcomingFixture {
 }
 
 /**
- * The next `count` unplayed fixtures for a club, earliest first. Falls
- * back to gameweek/fixture ordering when kickoff times aren't scheduled
- * yet (common for fixtures a long way out).
+ * The next `count` fixtures for a club that haven't kicked off, earliest
+ * first. A match FPL hasn't marked `finished` yet (it does so hours after
+ * full time) but that has `started` is not upcoming (audit 2026-10-18 H1).
+ * Falls back to gameweek/fixture ordering when kickoff times aren't
+ * scheduled yet (common for fixtures a long way out).
+ *
+ * `fromEventId` (Team Building) also drops every fixture before that
+ * gameweek, and any with no gameweek yet, so the first fixture is in the
+ * gameweek FPL's `ep_next` describes — see firstPickableEventId.
  */
-export function getUpcomingFixtures(teamId: number, fixtures: NormalizedFixture[], teamsById: Map<number, NormalizedTeam>, count = 5): UpcomingFixture[] {
+export function getUpcomingFixtures(
+  teamId: number,
+  fixtures: NormalizedFixture[],
+  teamsById: Map<number, NormalizedTeam>,
+  count = 5,
+  fromEventId: number | null = null,
+): UpcomingFixture[] {
   return fixtures
-    .filter((f) => !f.finished && (f.homeTeamId === teamId || f.awayTeamId === teamId))
+    .filter((f) => !f.finished && f.started !== true && (f.homeTeamId === teamId || f.awayTeamId === teamId))
+    .filter((f) => fromEventId === null || (f.eventId !== null && f.eventId >= fromEventId))
     .sort((a, b) => {
       if (a.kickoffTime && b.kickoffTime) return a.kickoffTime.localeCompare(b.kickoffTime);
       if (a.eventId !== null && b.eventId !== null && a.eventId !== b.eventId) return a.eventId - b.eventId;
@@ -35,6 +48,20 @@ export function getUpcomingFixtures(teamId: number, fixtures: NormalizedFixture[
         difficulty: isHome ? f.homeDifficulty : f.awayDifficulty,
       };
     });
+}
+
+/**
+ * The first gameweek a squad can still be picked for: FPL's `is_next`
+ * event, which is also the gameweek `ep_next` estimates. Once the deadline
+ * passes, the current gameweek's unplayed matches are out of reach, so
+ * Team Building's GW+1 starts here. With events loaded but no next one
+ * (the season's last deadline has passed), nothing is pickable. Null when
+ * events aren't loaded, which leaves only the "not kicked off" rule.
+ */
+export function firstPickableEventId(events: Pick<NormalizedEvent, "id" | "isNext">[]): number | null {
+  if (events.length === 0) return null;
+  const next = events.find((e) => e.isNext);
+  return next ? next.id : Math.max(...events.map((e) => e.id)) + 1;
 }
 
 /** Mean difficulty across a fixture set — null (not 0) when there are none to average, since a fixture-less team isn't "easy," it's unscheduled. */

@@ -11,20 +11,29 @@ function profileWithSeasons(minutesList: number[]): HistoricPlayerProfile {
 }
 
 describe("computeBlendedMinutesReliability", () => {
-  it("full pipeline, hand-computed: current+historic blend, ownership blend, availability multiplier all composed correctly", () => {
+  // Audit 2026-10-18 M12 (owner's decision): ownership no longer enters the
+  // blend, so this hand computation loses its old 15% ownership step.
+  it("full pipeline, hand-computed: current+historic blend and availability multiplier composed correctly", () => {
     // current = min(1, 450/(8*90)) = 0.625
     // historic (1 full season) = 1 (weightedMean of single season, no consistency discount)
     // currentWeight = min(1, 8/8) = 1 -> playingTimeBase = 1*0.625 + 0*1 = 0.625
-    // ownershipSignal = min(1, 20/30) = 0.6666...
-    // blended = 0.625*0.85 + 0.6666...*0.15 = 0.63125
     // availabilityModifier: status "a", chanceOfPlayingNextRound null -> 1
-    // final = 0.63125 * 1 = 0.63125
+    // final = 0.625 * 1 = 0.625
     const player = makePlayer({ id: 1, position: "MID", minutes: 450, ownership: 20, status: "a", chanceOfPlayingNextRound: null });
     const team = makeTeam({ id: 1, played: 8 });
     const profile = profileWithSeasons([FULL_SEASON_MINUTES]);
     const result = computeBlendedMinutesReliability(player, team, profile);
     expect(result.currentWeight).toBe(1);
-    expect(result.value).toBeCloseTo(0.63125, 10);
+    expect(result.value).toBeCloseTo(0.625, 10);
+  });
+
+  it("ownership has no effect: a 0.6%-owned and a 60%-owned player with the same minutes record get the same reliability (audit 2026-10-18 M12)", () => {
+    const team = makeTeam({ id: 1, played: 8 });
+    const profile = profileWithSeasons([FULL_SEASON_MINUTES, FULL_SEASON_MINUTES]);
+    const low = computeBlendedMinutesReliability(makePlayer({ id: 1, position: "DEF", minutes: 720, ownership: 0.6 }), team, profile).value;
+    const high = computeBlendedMinutesReliability(makePlayer({ id: 2, position: "DEF", minutes: 720, ownership: 60 }), team, profile).value;
+    expect(low).toBeCloseTo(1, 10);
+    expect(high).toBeCloseTo(1, 10);
   });
 
   it("<reliability_bug_fix>: a two-season record with one full and one half season applies recency weighting + consistency discount as documented", () => {
@@ -43,15 +52,13 @@ describe("computeBlendedMinutesReliability", () => {
     expect(result.currentWeight).toBe(0);
   });
 
-  it("falls back to ownership alone when there is no playing-time data anywhere (thin-data new signing case)", () => {
+  // Audit 2026-10-18 M12: this used to fall back to ownership alone; with no
+  // minutes evidence anywhere there is now no figure at all.
+  it("returns null when there is no playing-time data anywhere, however widely owned (thin-data new signing case)", () => {
     const player = makePlayer({ id: 1, position: "FWD", minutes: null, ownership: 50, status: "a", chanceOfPlayingNextRound: 75 });
     const team = makeTeam({ id: 1, played: 0 }); // possible = 0 -> current null
     const profile: HistoricPlayerProfile = { lastCompletedSeason: null, qualifyingSeasons: [], windowAverage: null, allSeasonsInWindow: [], floorSeasonsInWindow: [], floorWindowAverage: null }; // historic null
-    const result = computeBlendedMinutesReliability(player, team, profile);
-    // ownershipSignal = min(1, 50/30) = 1 (capped)
-    // playingTimeBase null -> blended = ownership = 1
-    // availabilityModifier: chanceOfPlayingNextRound=75 -> 0.75 (overrides status)
-    expect(result.value).toBeCloseTo(1 * 0.75, 10);
+    expect(computeBlendedMinutesReliability(player, team, profile).value).toBeNull();
   });
 
   it("returns null value when there is no playing-time data AND no ownership data at all", () => {
@@ -88,5 +95,13 @@ describe("computeBlendedMinutesReliability", () => {
     expect(withoutDoubt).not.toBeNull();
     expect(withDoubt as number).toBeLessThan(withoutDoubt as number);
     expect(withDoubt).toBeCloseTo((withoutDoubt as number) * 0.25, 10);
+  });
+});
+
+describe("unknown availability (audit 2026-10-18 L4)", () => {
+  it("a missing status with no chance-of-playing gives no figure, not an 'available' one", () => {
+    const profile = profileWithSeasons([FULL_SEASON_MINUTES]);
+    const player = makePlayer({ id: 1, position: "MID", minutes: 900, status: "", chanceOfPlayingNextRound: null });
+    expect(computeBlendedMinutesReliability(player, makeTeam({ id: 1, played: 10 }), profile).value).toBeNull();
   });
 });

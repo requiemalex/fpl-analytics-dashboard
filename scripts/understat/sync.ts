@@ -19,9 +19,11 @@
  */
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+import type { SeasonLedger } from "../../server/src/clubHistory/ledgerFiles.js";
 import { readStatus } from "../../server/src/understat/pipeline/files.js";
 import { runSync, type SyncReport } from "../../server/src/understat/pipeline/sync.js";
 import { createUnderstatClient } from "../../server/src/understat/pipeline/understatApi.js";
+import { fetchLiveLedger } from "../club-history/liveLedger.js";
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -77,10 +79,21 @@ async function main() {
   let report: SyncReport;
   try {
     const bootstrap = await getFplBootstrap();
+    const clubHistoryRoot = join(process.cwd(), "data", "club-history");
+    // The live season is checked against FPL's record as of now, not the
+    // twice-weekly archive. If that can't be fetched, runSync falls back to
+    // the archive and says so in its warnings.
+    let liveLedger: SeasonLedger | null = null;
+    try {
+      liveLedger = (await fetchLiveLedger(bootstrap, clubHistoryRoot, "fpl-analytics-dashboard understat sync"))?.ledger ?? null;
+    } catch (err) {
+      console.warn(`Couldn't fetch FPL's live record: ${err instanceof Error ? err.message : String(err)}`);
+    }
     report = await runSync({
       understatRoot: join(process.cwd(), "data", "understat"),
-      clubHistoryRoot: join(process.cwd(), "data", "club-history"),
+      clubHistoryRoot,
       bootstrap,
+      liveLedger,
       client: createUnderstatClient({ cacheDir: arg("cache"), delayMs: arg("delay") ? Number(arg("delay")) : undefined }),
       today: new Date().toISOString().slice(0, 10),
       maxNewSeasons: Number(arg("max-new-seasons") ?? 2),

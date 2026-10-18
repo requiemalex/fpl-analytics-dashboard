@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { fmtDecimal, fmtSigned, DASH } from "../utils/format";
+import { fmtDecimal, fmtSigned, roundAsDisplayed, DASH } from "../utils/format";
 import { getMetricDefinition } from "../metrics/dictionary";
 import { fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { teamDisplayColors, teamIdentityColor } from "../utils/teamColors";
@@ -127,7 +127,9 @@ export function SignedNum({ value, decimals = 2 }: { value: number | null | unde
   if (value === null || value === undefined || !Number.isFinite(value)) {
     return <span className="num value-muted">{DASH}</span>;
   }
-  const cls = value > 0 ? "value-positive" : value < 0 ? "value-negative" : "value-muted";
+  // Coloured by the figure as shown: a value that rounds to 0 is neither (audit 2026-10-18 L7).
+  const shown = roundAsDisplayed(value, decimals);
+  const cls = shown > 0 ? "value-positive" : shown < 0 ? "value-negative" : "value-muted";
   return <span className={`num ${cls}`}>{fmtSigned(value, decimals)}</span>;
 }
 

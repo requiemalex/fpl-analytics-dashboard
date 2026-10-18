@@ -17,8 +17,14 @@ Menu.setApplicationMenu(null);
  * already running on the user's machine. Set via env var BEFORE the
  * server module loads, since config.ts reads process.env.PORT once, at
  * import time.
+ *
+ * Always this port, never one from the user's environment: the port is
+ * part of the page's address, and saved data (localStorage) belongs to
+ * that address, so a PORT variable set for something else would make
+ * every saved squad, view and note seem lost (audit 2026-10-18 M5).
  */
-process.env.PORT = process.env.PORT ?? "4317";
+const DESKTOP_PORT = "4317";
+process.env.PORT = DESKTOP_PORT;
 process.env.CLIENT_ORIGIN = `http://localhost:${process.env.PORT}`;
 
 let mainWindow = null;
@@ -53,8 +59,10 @@ async function startEmbeddedServer() {
   const bundlePath = path.join(__dirname, "../server/dist/app.bundle.cjs");
   const { createApp } = require(bundlePath);
   const expressApp = createApp({ clientDistPath: path.join(__dirname, "../client/dist") });
-  await new Promise((resolve) => {
-    expressApp.listen(process.env.PORT, resolve);
+  await new Promise((resolve, reject) => {
+    const server = expressApp.listen(process.env.PORT, resolve);
+    // Port taken (another program on it): reported, not an uncaught crash with no window (audit 2026-10-18 M5).
+    server.once("error", reject);
   });
 }
 
@@ -269,20 +277,48 @@ function startUpdateChecks() {
   );
 }
 
-app.whenReady().then(async () => {
-  startUpdateChecks();
-  // The launch check runs while the server starts and the page loads hidden, so an up-to-date launch waits on nothing extra.
-  const launchCheck = checkAtLaunch();
-  await startEmbeddedServer();
-  createWindow();
-  await launchCheck;
-
-  // macOS convention: clicking the dock icon with no windows open
-  // re-creates one rather than doing nothing.
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+/**
+ * One copy at a time (audit 2026-10-18 M5): a second launch would find the
+ * port taken, and could still run an update install under the first. It
+ * brings the running copy's window forward and quits instead.
+ */
+const isFirstInstance = app.requestSingleInstanceLock();
+if (!isFirstInstance) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    if (mainWindow.isVisible()) mainWindow.focus();
   });
-});
+
+  app.whenReady().then(async () => {
+    try {
+      await startEmbeddedServer();
+    } catch (err) {
+      const inUse = err && err.code === "EADDRINUSE";
+      dialog.showErrorBox(
+        "FPL Analytics Dashboard couldn't start",
+        inUse
+          ? `Another program is using port ${DESKTOP_PORT}, which this app needs. Close that program (or restart the computer) and open the app again. Your saved data is safe.`
+          : `The app's built-in server didn't start: ${err && err.message ? err.message : String(err)}. Your saved data is safe.`,
+      );
+      app.quit();
+      return;
+    }
+    startUpdateChecks();
+    // The launch check runs while the page loads hidden, so an up-to-date launch waits on nothing extra.
+    const launchCheck = checkAtLaunch();
+    createWindow();
+    await launchCheck;
+
+    // macOS convention: clicking the dock icon with no windows open
+    // re-creates one rather than doing nothing.
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  });
+}
 
 // Windows/Linux convention: closing the last window quits the app.
 // macOS convention: the app stays running until explicitly quit (Cmd+Q),

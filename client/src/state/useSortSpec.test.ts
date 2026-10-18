@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { compareSortValues, sortWithoutHiddenColumn, type SortSpec } from "./useSortSpec";
+import { compareSortValues, sortWithinColumns, sortWithoutHiddenColumn, type SortSpec } from "./useSortSpec";
 
 describe("compareSortValues — null handling", () => {
   it("'last' (default): a null always sorts after every real value, in EITHER direction", () => {
@@ -59,5 +59,29 @@ describe("sortWithoutHiddenColumn (audit 2026-09-25: a hidden column kept orderi
   it("hiding a column that isn't sorted leaves the sort exactly as it was", () => {
     const sort: SortSpec[] = [{ key: "xG", direction: "desc" }];
     expect(sortWithoutHiddenColumn(sort, "goals", byPoints)).toBe(sort);
+  });
+});
+const DEFAULT: SortSpec[] = [{ key: "totalPoints", direction: "desc" }];
+const VISIBLE_AFTER_RESET = new Set(["name", "price", "totalPoints", "xG"]);
+
+describe("Reset drops a sort on a column it hides (audit 2026-10-18 M17)", () => {
+  it("a sort on a column Reset hid gives way to the page default", () => {
+    expect(sortWithinColumns([{ key: "xGC", direction: "desc" }], VISIBLE_AFTER_RESET, DEFAULT)).toEqual(DEFAULT);
+  });
+  it("only the hidden part of a multi-column sort goes", () => {
+    expect(
+      sortWithinColumns(
+        [
+          { key: "xGC", direction: "desc" },
+          { key: "price", direction: "asc" },
+        ],
+        VISIBLE_AFTER_RESET,
+        DEFAULT,
+      ),
+    ).toEqual([{ key: "price", direction: "asc" }]);
+  });
+  it("a sort on a column still shown is kept as it was (same object)", () => {
+    const sort: SortSpec[] = [{ key: "xG", direction: "asc" }];
+    expect(sortWithinColumns(sort, VISIBLE_AFTER_RESET, DEFAULT)).toBe(sort);
   });
 });

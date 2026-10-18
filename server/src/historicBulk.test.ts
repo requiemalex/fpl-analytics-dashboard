@@ -215,3 +215,36 @@ describe("buildBulkHistoricData — club seasons", () => {
     expect(result.clubSeasons.some((c) => c.season === "2025/26" && c.complete)).toBe(true);
   });
 });
+
+describe("historic-bulk during an FPL outage (audit 2026-10-18 M3)", () => {
+  const staleSummary = () => ({ ok: true, data: { history_past: [] }, source: "stale-cache", fetchedAt: 1 });
+
+  it("a refresh built from stale cached player data is labelled stale-cache, not live", async () => {
+    cachedFetchMock.mockImplementation(async ({ cacheKey }: { cacheKey: string }) =>
+      cacheKey === "bootstrap-static" ? bootstrapResult([1, 2, 3, 4]) : cacheKey === "fixtures" ? { ok: false, error: "x", status: 502 } : cacheKey === "element-summary:1" ? staleSummary() : elementSummaryResult(),
+    );
+    const res = fakeRes();
+    await findHandler("/refresh/historic-bulk", "post")({}, res);
+    expect((res.body as { meta: { source: string } }).meta.source).toBe("stale-cache");
+    // ...and stays labelled stale when served again from the cache.
+    const again = fakeRes();
+    await findHandler("/historic-bulk", "get")({}, again);
+    expect((again.body as { meta: { source: string } }).meta.source).toBe("stale-cache");
+  });
+
+  it("stale player data counts toward the more-than-half-failed rule", async () => {
+    cachedFetchMock.mockImplementation(async ({ cacheKey }: { cacheKey: string }) =>
+      cacheKey === "bootstrap-static" ? bootstrapResult([1, 2, 3]) : cacheKey === "fixtures" ? { ok: false, error: "x", status: 502 } : cacheKey === "element-summary:3" ? elementSummaryResult() : staleSummary(),
+    );
+    await expect(buildBulkHistoricData(true)).rejects.toThrow(/2\/3 players/);
+  });
+
+  it("a build from fresh data is still live (control)", async () => {
+    cachedFetchMock.mockImplementation(async ({ cacheKey }: { cacheKey: string }) =>
+      cacheKey === "bootstrap-static" ? bootstrapResult([1, 2]) : cacheKey === "fixtures" ? { ok: false, error: "x", status: 502 } : elementSummaryResult(),
+    );
+    const res = fakeRes();
+    await findHandler("/refresh/historic-bulk", "post")({}, res);
+    expect((res.body as { meta: { source: string } }).meta.source).toBe("live");
+  });
+});

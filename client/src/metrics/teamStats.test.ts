@@ -191,3 +191,23 @@ describe("resultsWithinPlayed — Historic Average W/D/L never add up to more th
     expect((avg.wins ?? 0) + (avg.draws ?? 0) + (avg.losses ?? 0)).toBe(avg.played);
   });
 });
+
+describe("a skipped player in the live season (audit 2026-10-18 M4)", () => {
+  it("blanks the live season's player-summed club figures but keeps results; other seasons untouched", () => {
+    const teams = [makeTeam({ id: 1, code: 101 })];
+    const season = (name: string, complete: boolean) =>
+      ({
+        season: name, code: 101, name: "A", shortName: "AAA", complete, played: 8, wins: 5, draws: 2, losses: 1, goalsFor: 15, goalsAgainst: 7, cleanSheets: 3,
+        leaguePoints: 17, leaguePosition: 2, fantasyPoints: 400, goals: 14, assists: 10, bonus: 20, xG: 13.2, xA: 9.1, xGI: 22.3, xGC: 8.4, dc: 120,
+        matches: [{ fixture: 1, event: 1, opponentCode: 102, home: true, goalsFor: 2, goalsAgainst: 0, fantasyPoints: 60, goals: 2, assists: 2, bonus: 4, xG: 1.8, xA: 1.2, xGI: 3.0, xGC: 0.5, dc: 15 }],
+      }) as ClubSeason;
+    const ctx = { clubSeasons: [season("2025/26", true), season("2026/27", false)], referenceSeason: "2025/26", currentSeasonHasStarted: true, livePlayerSumsPartial: true };
+    const [live] = computeTeamAggregates(teams, "live", ctx);
+    expect(live).toMatchObject({ points: null, goals: null, assists: null, bonus: null, xG: null, xGC: null, defensiveContributions: null });
+    expect(live).toMatchObject({ played: 8, wins: 5, goalsFor: 15, goalsAgainst: 7, leaguePoints: 17, leaguePosition: 2, cleanSheets: 3 });
+    expect(computeTeamAggregates(teams, "lastSeason", ctx)[0].points).toBe(400);
+    const [match] = clubLiveMatches(101, ctx);
+    expect(match).toMatchObject({ goalsFor: 2, fantasyPoints: null, goals: null, xG: null });
+    expect(clubSeasonHistory(101, ctx.clubSeasons, true).map((s) => s.seasonName)).toEqual(["2025/26"]);
+  });
+});

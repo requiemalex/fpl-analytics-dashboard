@@ -11,6 +11,7 @@ export function normalizeFixtures(rawFixtures: RawFixture[]): NormalizedFixture[
     awayScore: f.team_a_score,
     kickoffTime: f.kickoff_time,
     finished: f.finished,
+    started: f.started ?? null,
     homeDifficulty: f.team_h_difficulty,
     awayDifficulty: f.team_a_difficulty,
   }));

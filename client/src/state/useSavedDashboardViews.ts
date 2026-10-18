@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SummaryTileScope } from "../components/summaryTileMetrics";
 import { DEFAULT_SUMMARY_TILES, normalizeSummaryTile, type SummaryTileConfig } from "./useSummaryTiles";
 import { DEFAULT_DASHBOARD_GRAPHS, normalizeDashboardGraph, type DashboardGraphConfig } from "./useDashboardGraphs";
-import { loadVersioned, saveVersioned, type VersionedStore } from "./persistentStorage";
+import { loadVersioned, mapReadableEntries, saveVersioned, type VersionedStore } from "./persistentStorage";
 import { clearUnappliedLiveMinMinutes } from "./scoutingFilters";
 
 const STORAGE_KEY = "fpl-dashboard:dashboard:saved-views:v1";
@@ -145,7 +145,9 @@ const SAVED_VIEWS_STORE: VersionedStore<SavedDashboardView[]> = {
   // Default entry already matches, which is the steady-state case.
   migrate(data, storedVersion) {
     if (!Array.isArray(data)) return null;
-    const views = data as Partial<SavedDashboardView>[];
+    // An entry that isn't a view at all (null, say) is skipped, not allowed
+    // to throw away every other view (audit 2026-10-18 M7).
+    const views = mapReadableEntries(data, (v) => v as Partial<SavedDashboardView>);
     const existingIds = new Set(views.map((v) => v.id));
     const missingDefaults = DEFAULT_SAVED_DASHBOARD_VIEWS.filter((d) => !existingIds.has(d.id));
     const clearLiveMinMinutes = storedVersion === null || storedVersion < 4;
@@ -156,8 +158,8 @@ const SAVED_VIEWS_STORE: VersionedStore<SavedDashboardView[]> = {
       // no such field — backfill to an empty list, exactly matching what
       // that view legitimately had at the time, same idea as
       // normalizeSummaryTile backfilling an older tile's missing fields.
-      const graphs = Array.isArray(v.graphs) ? (v.graphs as Partial<DashboardGraphConfig>[]).map(normalizeDashboardGraph) : [];
-      const tiles = Array.isArray(v.tiles) ? (v.tiles as Partial<SummaryTileConfig>[]).map(normalizeSummaryTile) : [];
+      const graphs = Array.isArray(v.graphs) ? mapReadableEntries(v.graphs, (g) => normalizeDashboardGraph(g as Partial<DashboardGraphConfig>)) : [];
+      const tiles = Array.isArray(v.tiles) ? mapReadableEntries(v.tiles, (t) => normalizeSummaryTile(t as Partial<SummaryTileConfig>)) : [];
       const view = { ...v, tiles, graphs } as SavedDashboardView;
       if (!clearLiveMinMinutes) return view;
       return {

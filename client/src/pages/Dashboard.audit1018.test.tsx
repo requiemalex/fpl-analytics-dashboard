@@ -51,7 +51,7 @@ afterEach(cleanup);
 
 describe("audit 2026-10-18: deleting a Dashboard view", () => {
   // README Dashboard notes: deleting the selected view falls back to My View; it must not change My View.
-  it.fails("[PAGES-DELETE-VIEW] deleting view B leaves My View's own tiles intact (not overwritten with B's)", () => {
+  it("[PAGES-DELETE-VIEW] deleting view B leaves My View's own tiles intact (not overwritten with B's)", () => {
     const { getByLabelText, getByRole, queryByText } = render(
       <MemoryRouter>
         <Dashboard />

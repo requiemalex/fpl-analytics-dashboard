@@ -60,33 +60,45 @@ function priceInMillionsOrNull(tenths: number | undefined): number | null {
  */
 const DEFENSIVE_CONTRIBUTION_TRACKING_START_YEAR = 2024;
 
+/**
+ * Starts and the expected-stats family (xG, xA, xGI, xGC) are tracked in
+ * history_past from 2022/23. Earlier seasons carry FPL's placeholder 0 /
+ * "0.00" (Pickford 2021/22: 3,150 minutes, 0 starts, xGC "0.00"; live API
+ * checked 2026-10-18), so they're nulled here and show "—", never as real
+ * figures (audit 2026-10-18 M14).
+ */
+const STARTS_AND_EXPECTED_TRACKING_START_YEAR = 2022;
+
 function seasonStartYear(seasonName: string): number {
   return parseInt(seasonName.split("/")[0], 10);
 }
 
 function normalizePastSeasons(historyPast: RawElementSummaryPastSeason[]): PlayerSeasonHistory[] {
   return (historyPast ?? [])
-    .map((s) => ({
-      seasonName: s.season_name,
-      totalPoints: s.total_points,
-      minutes: s.minutes,
-      starts: parseNumberOrNull(s.starts ?? null),
-      goals: s.goals_scored,
-      assists: s.assists,
-      cleanSheets: s.clean_sheets,
-      goalsConceded: s.goals_conceded ?? null,
-      bonus: s.bonus,
-      bps: s.bps,
-      ictIndex: parseNumericString(s.ict_index ?? null),
-      startCost: priceInMillionsOrNull(s.start_cost),
-      endCost: priceInMillionsOrNull(s.end_cost),
-      xG: parseNumericString(s.expected_goals ?? null),
-      xA: parseNumericString(s.expected_assists ?? null),
-      xGI: parseNumericString(s.expected_goal_involvements ?? null),
-      xGC: parseNumericString(s.expected_goals_conceded ?? null),
-      defensiveContribution:
-        seasonStartYear(s.season_name) >= DEFENSIVE_CONTRIBUTION_TRACKING_START_YEAR ? (s.defensive_contribution ?? null) : null,
-    }))
+    .map((s) => {
+      const tracked = seasonStartYear(s.season_name) >= STARTS_AND_EXPECTED_TRACKING_START_YEAR;
+      return {
+        seasonName: s.season_name,
+        totalPoints: s.total_points,
+        minutes: s.minutes,
+        starts: tracked ? parseNumberOrNull(s.starts ?? null) : null,
+        goals: s.goals_scored,
+        assists: s.assists,
+        cleanSheets: s.clean_sheets,
+        goalsConceded: s.goals_conceded ?? null,
+        bonus: s.bonus,
+        bps: s.bps,
+        ictIndex: parseNumericString(s.ict_index ?? null),
+        startCost: priceInMillionsOrNull(s.start_cost),
+        endCost: priceInMillionsOrNull(s.end_cost),
+        xG: tracked ? parseNumericString(s.expected_goals ?? null) : null,
+        xA: tracked ? parseNumericString(s.expected_assists ?? null) : null,
+        xGI: tracked ? parseNumericString(s.expected_goal_involvements ?? null) : null,
+        xGC: tracked ? parseNumericString(s.expected_goals_conceded ?? null) : null,
+        defensiveContribution:
+          seasonStartYear(s.season_name) >= DEFENSIVE_CONTRIBUTION_TRACKING_START_YEAR ? (s.defensive_contribution ?? null) : null,
+      };
+    })
     .sort((a, b) => a.seasonName.localeCompare(b.seasonName));
 }
 

@@ -1,4 +1,5 @@
 import React from "react";
+import { barWidths } from "./statBar";
 import { TeamBadge } from "./primitives";
 import { DataViewBadge } from "./DataViewBadge";
 import { CardEditRemoveButtons } from "./IconToolbar";
@@ -11,11 +12,6 @@ export interface TeamTopListRow {
   value: number | null;
 }
 
-/** Same scaling as TopList's bar — see its comment. */
-function barWidthPercent(value: number | null, maxAbs: number): number {
-  if (value === null || maxAbs <= 0) return 0;
-  return Math.max(4, (Math.abs(value) / maxAbs) * 100);
-}
 
 export function TeamTopList({
   title,
@@ -51,7 +47,7 @@ export function TeamTopList({
   /** Dashboard-only: which analysis mode this tile was built from — shown as a small badge in the header. */
   dataView?: AnalysisMode;
 }) {
-  const maxAbs = Math.max(0, ...rows.map((r) => Math.abs(r.value ?? 0)));
+  const widths = barWidths(rows.map((r) => r.value));
 
   return (
     <div
@@ -80,14 +76,14 @@ export function TeamTopList({
         </p>
       ) : (
         <div className="stat-list">
-          {rows.map((row) => (
+          {rows.map((row, i) => (
             <div className="stat-row" key={row.teamId} onClick={() => onSelect?.(row.teamId)} style={{ cursor: onSelect ? "pointer" : "default" }}>
               <span className="stat-row-name">
                 <TeamBadge teamId={row.teamId} shortName={row.shortName} />
                 {row.name}
               </span>
               <span className="stat-row-bar-track">
-                <span className="stat-row-bar-fill" style={{ width: `${barWidthPercent(row.value, maxAbs)}%`, background: "var(--accent-focus)" }} />
+                <span className="stat-row-bar-fill" style={{ width: `${widths[i]}%`, background: "var(--accent-focus)" }} />
               </span>
               <span className="stat-row-value">{format(row.value)}</span>
             </div>

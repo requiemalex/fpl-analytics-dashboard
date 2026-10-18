@@ -53,6 +53,28 @@ export function loadVersioned<T>(key: string, store: VersionedStore<T>): T {
   }
 }
 
+/**
+ * Runs each entry of a stored list through `normalize`, skipping any entry
+ * that isn't an object, that `normalize` rejects (null) or that throws, so
+ * one damaged entry costs only itself, never the rest of the list (audit
+ * 2026-10-18 M7). A migrate() that let the throw escape would fall the
+ * whole store back to its defaults, and the next save would make that loss
+ * permanent.
+ */
+export function mapReadableEntries<T>(items: unknown[], normalize: (entry: Record<string, unknown>) => T | null): T[] {
+  const out: T[] = [];
+  for (const item of items) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    try {
+      const value = normalize(item as Record<string, unknown>);
+      if (value !== null) out.push(value);
+    } catch {
+      // unreadable: skipped
+    }
+  }
+  return out;
+}
+
 export function saveVersioned<T>(key: string, version: number, data: T): void {
   try {
     const envelope: Envelope<T> = { version, data };

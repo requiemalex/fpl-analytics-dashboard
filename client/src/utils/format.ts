@@ -49,10 +49,15 @@ export function fmtOrdinal(n: number | null | undefined): string {
   return `${whole}${suffix}`;
 }
 
+/**
+ * A +/- figure: signed by the value as shown, with the same rounding as
+ * every other cell, so a tiny negative reads "0.00", not a red "-0.00"
+ * (audit 2026-10-18 L7).
+ */
 export function fmtSigned(n: number | null | undefined, decimals = 2): string {
   if (!isDisplayable(n)) return DASH;
-  const sign = n > 0 ? "+" : "";
-  return `${sign}${n.toFixed(decimals)}`;
+  const shown = roundAsDisplayed(n, decimals) || 0; // || 0: no "-0"
+  return `${shown > 0 ? "+" : ""}${fixedDecimals(shown, decimals, false)}`;
 }
 
 export function fmtDate(iso: string | null | undefined): string {

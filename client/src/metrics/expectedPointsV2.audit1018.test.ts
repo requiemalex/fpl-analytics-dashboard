@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { SCORING_RULES, splitMinutesProbability, computeExpectedPointsV2ForFixture, computeExpectedPointsV2ForWindow } from "./expectedPointsV2";
 import { computeExpectedPointsForSingleFixture, computeExpectedPointsForWindow } from "./expectedPoints";
-import { getUpcomingFixtures, type UpcomingFixture } from "./fixtureTicker";
+import { getUpcomingFixtures, firstPickableEventId, type UpcomingFixture } from "./fixtureTicker";
 import { computeBlendedMinutesReliability } from "./minutesReliabilityBlend";
 import { buildHistoricPlayerProfile } from "./historicAnalysis";
 import { canAddPlayer, validateSquad } from "./squadRules";
@@ -65,22 +65,25 @@ describe("Expected Points Tier 2 — hand-computed case (Gabriel, ARS, at NFO, G
     "2025/26",
   );
 
-  it("reliability matches the hand blend (0.75 live + 0.25 historic, 15% ownership)", () => {
-    expect(computeBlendedMinutesReliability(player, ars, profile).value).toBeCloseTo(0.90091, 4);
+  // Phase 2 (M12, owner's decision): ownership left the blend, so the hand
+  // figures below were recomputed without it, independently from the
+  // formulas (the same working with ownership reproduces Phase 1's figures).
+  it("reliability matches the hand blend (0.75 live + 0.25 historic, no ownership)", () => {
+    expect(computeBlendedMinutesReliability(player, ars, profile).value).toBeCloseTo(0.93578, 4);
   });
 
   it("each scoring component and the total match the hand computation", () => {
     const r = computeBlendedMinutesReliability(player, ars, profile).value!;
     const b = computeExpectedPointsV2ForFixture(player, fixture({ opponentTeamId: 18, isHome: false, difficulty: 3 }), ars, nfo, r, profile);
-    expect(b.appearance).toBeCloseTo(1.82392, 4);
-    expect(b.goals).toBeCloseTo(0.45946, 4);
-    expect(b.assists).toBeCloseTo(0.0946, 4);
-    expect(b.cleanSheet).toBeCloseTo(1.36818, 4);
-    expect(b.goalsConceded).toBeCloseTo(-0.3491, 4);
-    expect(b.defensiveContribution).toBeCloseTo(0.3204, 4);
-    expect(b.bonus).toBeCloseTo(0.43472, 4);
+    expect(b.appearance).toBeCloseTo(1.88895, 4);
+    expect(b.goals).toBeCloseTo(0.47725, 4);
+    expect(b.assists).toBeCloseTo(0.09826, 4);
+    expect(b.cleanSheet).toBeCloseTo(1.44837, 4);
+    expect(b.goalsConceded).toBeCloseTo(-0.36261, 4);
+    expect(b.defensiveContribution).toBeCloseTo(0.37522, 4);
+    expect(b.bonus).toBeCloseTo(0.45154, 4);
     expect(b.saves).toBe(0);
-    expect(b.total).toBeCloseTo(4.15216, 4);
+    expect(b.total).toBeCloseTo(4.37697, 4);
   });
 });
 
@@ -114,15 +117,34 @@ describe("Expected Points (FPL Official)", () => {
 
 describe("Upcoming fixtures (GW+1..GW+5 navigator)", () => {
   const f = (o: Partial<NormalizedFixture>): NormalizedFixture =>
-    ({ id: 1, eventId: 7, homeTeamId: 1, awayTeamId: 2, homeScore: null, awayScore: null, kickoffTime: null, finished: false, homeDifficulty: 3, awayDifficulty: 3, ...o }) as NormalizedFixture;
+    ({ id: 1, eventId: 7, homeTeamId: 1, awayTeamId: 2, homeScore: null, awayScore: null, kickoffTime: null, finished: false, started: false, homeDifficulty: 3, awayDifficulty: 3, ...o }) as NormalizedFixture;
   const teams = new Map([1, 2, 3].map((id) => [id, makeTeam({ id })]));
 
-  it.fails("[TB-1] a match that has already been played (scored, not yet marked finished) is not the next fixture", () => {
+  // Phase 2: the played fixture now carries `started: true`, the FPL field
+  // its own comment describes (NormalizedFixture gained `started` for H1).
+  it("[TB-1] a match that has already been played (scored, not yet marked finished) is not the next fixture", () => {
     const fixtures = [
-      f({ id: 62, eventId: 7, homeScore: 1, awayScore: 2, kickoffTime: "2026-10-17T14:00:00Z" }), // FPL: started, finished_provisional, finished=false
+      f({ id: 62, eventId: 7, homeScore: 1, awayScore: 2, kickoffTime: "2026-10-17T14:00:00Z", started: true }), // FPL: started, finished_provisional, finished=false
       f({ id: 71, eventId: 8, homeTeamId: 3, awayTeamId: 1, kickoffTime: "2026-10-24T14:00:00Z" }),
     ];
     expect(getUpcomingFixtures(1, fixtures, teams)[0].fixtureId).toBe(71);
+  });
+  it("[TB-1] Team Building's GW+1 is the is_next gameweek, even for a club whose current-gameweek match hasn't kicked off", () => {
+    const fixtures = [
+      f({ id: 69, eventId: 7, kickoffTime: "2026-10-18T15:30:00Z" }), // GW7, after GW7's deadline: no longer pickable
+      f({ id: 71, eventId: 8, homeTeamId: 3, awayTeamId: 1, kickoffTime: "2026-10-24T14:00:00Z" }),
+      f({ id: 80, eventId: null, homeTeamId: 1, awayTeamId: 3, kickoffTime: null }), // postponed, no gameweek yet
+    ];
+    const events = [6, 7, 8, 9].map((id) => ({ id, isNext: id === 8 }));
+    const from = firstPickableEventId(events);
+    expect(from).toBe(8);
+    expect(getUpcomingFixtures(1, fixtures, teams, 5, from).map((x) => x.fixtureId)).toEqual([71]);
+    // The Explorers' Next 5 Fixtures keep every match not yet kicked off.
+    expect(getUpcomingFixtures(1, fixtures, teams).map((x) => x.fixtureId)).toContain(69);
+  });
+  it("[TB-1] with no next gameweek (season over) nothing is pickable; with no events loaded only the kick-off rule applies", () => {
+    expect(firstPickableEventId([{ id: 38, isNext: false }])).toBe(39);
+    expect(firstPickableEventId([])).toBeNull();
   });
 });
 
@@ -161,7 +183,14 @@ describe("Import by FPL team ID", () => {
     expect(squad.importedFrom?.bank).toBe(0.5);
   });
 
-  it.fails("[TB-4] a Bench Boost week (bench multiplier 1) still imports positions 1-11 as the starting XI", () => {
+  it("[L4] a bank FPL doesn't send is unknown (null), not £0.0m", () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { squad } = normalizeEntryImport(team, { current: [{ event: 7 }], chips: [] } as any, picks(0), 7, players);
+    expect(squad.importedFrom?.bank).toBeNull();
+    expect(normalizeEntryImport(team, history, picks(0), 7, players).squad.importedFrom?.bank).toBe(0.5);
+  });
+
+  it("[TB-4] a Bench Boost week (bench multiplier 1) still imports positions 1-11 as the starting XI", () => {
     const { squad } = normalizeEntryImport(team, history, picks(1), 7, players);
     expect(squad.startingXI).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
   });

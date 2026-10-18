@@ -3547,3 +3547,27 @@ tiles/graphs only:
   each figure sits above its marker, a colour key sits under the panel,
   and a small sample gets a hollow grey marker.
 - **Last commit with it:** `239d40e`.
+
+### Ownership in Minutes Reliability (removed 2026-10-18)
+- **What it did:** `metrics/minutesReliabilityBlend.ts` blended 15%
+  (`OWNERSHIP_WEIGHT`) of an ownership signal (`ownership ÷ 30%`, capped at 1,
+  `OWNERSHIP_FULL_CONFIDENCE_PCT`) into Team Building's Minutes Reliability,
+  and used ownership alone when a player had no minutes data anywhere.
+  Reliability feeds Model Predicted's appearance, rate, clean-sheet and
+  bonus parts.
+- **Why it went:** it applied to everyone, not just thin-data players, so a
+  full-minutes player owned by under 1% got about 0.85 instead of 1.0 and
+  differentials were under-predicted by ~15% (more for clean sheets). The
+  owner ruled that ownership must not affect predicted minutes; only minutes
+  evidence does (audit 2026-10-18, M12).
+- **Last commit with it:** `cd191ab`.
+
+### Understat goals check's 0.5% allowance (replaced 2026-10-18)
+- **What it did:** `server/src/understat/pipeline/checks.ts`
+  (`MAX_GOAL_DIFFERENCE_SHARE = 0.005`) let up to 0.5% of a season's linked
+  player-matches disagree with FPL on goals as a warning only: the sync
+  still wrote, and closed any open alert as clean.
+- **Why it went:** the owner's rule is that any disagreement stops the sync
+  and alerts. Now every difference stops it unless the owner has listed it
+  in `data/understat/accepted-differences.csv` (audit 2026-10-18, H2).
+- **Last commit with it:** `cd191ab`.

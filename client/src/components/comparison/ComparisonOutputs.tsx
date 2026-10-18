@@ -11,21 +11,21 @@ export interface OutputsRow {
   format: (v: number | null) => string;
   /** Per player id: his figure. */
   cells: Map<number, number | null>;
+  /** Per player id: what "best" ranks on, when that isn't his figure (a lower-is-better total ranks on its per-game rate; PlayerColumn.rankBy). */
+  rankCells?: Map<number, number | null>;
 }
 
-/** The ranked players' figures in a row (those at or above the card's minimum minutes). */
-function rankedValues(row: OutputsRow, ranked: LegendEntry[]): number[] {
-  return ranked.map((e) => row.cells.get(e.player.id) ?? null).filter((v): v is number => v !== null);
-}
-
-/** The value to bold in a row: the best among the ranked players, when at least two have one and they differ. */
-function bestValue(row: OutputsRow, ranked: LegendEntry[]): number | null {
-  const values = rankedValues(row, ranked);
-  if (values.length < 2) return null;
+/** The player to bold in a row: the best among the ranked players (those at or above the card's minimum minutes), when at least two have a figure and they differ. */
+function bestPlayerIds(row: OutputsRow, ranked: LegendEntry[]): Set<number> {
+  const source = row.rankCells ?? row.cells;
+  const entries = ranked.map((e) => [e.player.id, source.get(e.player.id) ?? null] as const).filter((x): x is readonly [number, number] => x[1] !== null);
+  if (entries.length < 2) return new Set();
+  const values = entries.map(([, v]) => v);
   const max = Math.max(...values);
   const min = Math.min(...values);
-  if (max === min) return null;
-  return row.higherIsBetter ? max : min;
+  if (max === min) return new Set();
+  const best = row.higherIsBetter ? max : min;
+  return new Set(entries.filter(([, v]) => v === best).map(([id]) => id));
 }
 
 /** A figure's label above its marker is JetBrains Mono at 11.5px: every character 0.6em wide. */
@@ -139,8 +139,8 @@ export function ComparisonOutputs({ rows, entries }: { rows: OutputsRow[]; entri
 }
 
 function OutputsTrackRow({ row, entries, ranked, trackWidth }: { row: OutputsRow; entries: LegendEntry[]; ranked: LegendEntry[]; trackWidth: number }) {
-  const best = bestValue(row, ranked);
-  const rankedFigures = rankedValues(row, ranked);
+  const best = bestPlayerIds(row, ranked);
+  const rankedFigures = ranked.map((e) => row.cells.get(e.player.id) ?? null).filter((v): v is number => v !== null);
   // Only when no ranked player has a figure here do the small samples set the scale.
   const scaleFigures = rankedFigures.length > 0 ? rankedFigures : entries.map((e) => row.cells.get(e.player.id) ?? null).filter((v): v is number => v !== null);
   const leader = Math.max(0, ...scaleFigures);
@@ -201,7 +201,7 @@ function OutputsTrackRow({ row, entries, ranked, trackWidth }: { row: OutputsRow
               style={{
                 ...(lefts ? { left: `${(lefts[i] / trackWidth) * 100}%` } : { left: `${m.pct}%`, transform: "translateX(-50%)" }),
                 color: muted ? "var(--text-muted)" : color,
-                fontWeight: !muted && m.value === best ? 700 : undefined,
+                fontWeight: !muted && best.has(player.id) ? 700 : undefined,
               }}
               title={player.name}
             >

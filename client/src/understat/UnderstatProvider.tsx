@@ -9,6 +9,7 @@ import { parseUnderstatPayload, type UnderstatData } from "./schema";
 import { resolveUnderstatClub, resolveUnderstatPlayer, type UsClubResolved, type UsPlayerResolved } from "./resolve";
 import { UNDERSTAT_SOURCE_ID, understatPlayerColumns, understatTeamColumns } from "./columns";
 import { UnderstatGuide } from "./guide";
+import { understatMatchesBehind } from "./staleness";
 import "./understat.css";
 
 /**
@@ -21,8 +22,6 @@ import "./understat.css";
  */
 
 const RELOAD_MS = 60 * 60 * 1000;
-/** A finished FPL match Understat still lacks after this long makes the Understat headers say so. */
-const BEHIND_DAYS = 2;
 
 type Load =
   | { state: "idle" | "loading" }
@@ -42,7 +41,7 @@ function UnderstatIcon() {
 }
 
 export function UnderstatProvider({ children }: { children: React.ReactNode }) {
-  const { players, teams, teamsById, historicProfiles, historicReferenceSeason, currentSeasonHasStarted } = useAppState();
+  const { players, teams, teamsById, historicProfiles, historicReferenceSeason, currentSeasonHasStarted, fixtures } = useAppState();
   const [load, setLoad] = useState<Load>({ state: "idle" });
   const requestedRef = useRef(false);
 
@@ -65,11 +64,15 @@ export function UnderstatProvider({ children }: { children: React.ReactNode }) {
     void fetchData();
   }, [fetchData]);
 
+  // Keeps checking while switched off too, so switching Understat back on
+  // (control.json) reaches a running app within the hour, not only after a
+  // restart (audit 2026-10-18 L15).
+  const polling = load.state !== "idle";
   useEffect(() => {
-    if (load.state === "idle" || load.state === "disabled") return;
+    if (!polling) return;
     const timer = window.setInterval(() => void fetchData(), RELOAD_MS);
     return () => window.clearInterval(timer);
-  }, [load.state, fetchData]);
+  }, [polling, fetchData]);
 
   const source = useMemo<ExternalStatsSource | null>(() => {
     if (load.state === "disabled") return null;
@@ -80,8 +83,7 @@ export function UnderstatProvider({ children }: { children: React.ReactNode }) {
     let staleNote: string | null = null;
     if (load.state === "unavailable") staleNote = "Understat data couldn't be loaded, so its columns show —.";
     else if (load.state === "ready") {
-      const today = Date.now();
-      const behind = Object.values(load.data.missingFixtures).filter((since) => (today - Date.parse(since)) / 86_400_000 >= BEHIND_DAYS).length;
+      const behind = understatMatchesBehind(fixtures, load.data.latestMatchDate, load.data.missingFixtures, Date.now());
       if (load.staleCopy) staleNote = `Couldn't refresh Understat data — showing the copy from ${new Date(load.fetchedAt).toLocaleString("en-GB")}.`;
       else if (behind > 0) staleNote = `Understat is behind: ${behind} finished match${behind === 1 ? " isn't" : "es aren't"} in its figures yet (latest included: ${load.data.latestMatchDate ?? "—"}).`;
     }
@@ -118,7 +120,7 @@ export function UnderstatProvider({ children }: { children: React.ReactNode }) {
         return set;
       },
     };
-  }, [load, request, players, teams, teamsById, historicProfiles, historicReferenceSeason, currentSeasonHasStarted]);
+  }, [load, request, players, teams, teamsById, historicProfiles, historicReferenceSeason, currentSeasonHasStarted, fixtures]);
 
   return <ExternalStatsContext.Provider value={source}>{children}</ExternalStatsContext.Provider>;
 }

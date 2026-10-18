@@ -32,6 +32,8 @@ export interface ComparisonMetric {
   higherIsBetter: boolean;
   format: (v: number | null) => string;
   getValue: (p: NormalizedPlayer, d: PlayerDerivedMetrics) => number | null;
+  /** What percentiles and the "best" mark rank on (PlayerColumn.rankBy): getValue unless that's a lower-is-better total. */
+  rankValue: (p: NormalizedPlayer, d: PlayerDerivedMetrics) => number | null;
 }
 
 /**
@@ -47,6 +49,7 @@ export const COMPARISON_METRICS: ComparisonMetric[] = PLAYER_COLUMNS.filter((c) 
   higherIsBetter: c.higherIsBetter !== false,
   format: c.format,
   getValue: c.getValue,
+  rankValue: c.rankBy ?? c.getValue,
 }));
 
 export function comparisonMetricByKey(key: string): ComparisonMetric | undefined {
@@ -76,7 +79,7 @@ export function comparisonPercentiles(
 ): Map<number, number | null> {
   const valueOf = (p: NormalizedPlayer): number | null => {
     const d = derivedById.get(p.id);
-    return d ? metric.getValue(p, d) : null;
+    return d ? metric.rankValue(p, d) : null;
   };
   const eligible = (p: NormalizedPlayer) => p.minutes !== null && p.minutes >= minMinutes;
   const positions = new Set(targets.map((t) => t.position));

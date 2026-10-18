@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { useColumnCustomization, MIN_COLUMN_WIDTH } from "../state/useColumnCustomization";
-import { useSortSpec, compareSortValues, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
+import { useSortSpec, compareSortValues, sortWithinColumns, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
 import { useColumnFilters, isColumnFilterActive } from "../state/useColumnFilters";
 import { ColumnFilterControl } from "../components/ColumnFilterControl";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
@@ -10,7 +10,7 @@ import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePla
 import { getUpcomingFixtures, formatFixturesForCsv, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { PositionBadge, TeamBadge, AvailabilityFlag, availabilityTextClass, FixtureChips } from "../components/primitives";
-import { PLAYER_COLUMNS, columnByKey, isStaticColumn, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
+import { PLAYER_COLUMNS, columnByKey, isStaticColumn, rankValue, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { IconChipButton, ResetIcon, ColumnsIcon, FilterIcon, DownloadIcon } from "../components/IconToolbar";
 import { fmtPercent, fmtPrice } from "../utils/format";
 import { relativeCellTint } from "../utils/colorScale";
@@ -76,6 +76,8 @@ const EXPLORER_DEFAULT_SORT: SortSpec[] = [{ key: "totalPoints", direction: "des
 
 /** This page's own default visible-column order for the user-configurable columns only — deliberately NOT the shared DEFAULT_VISIBLE_COLUMNS (Team Building also uses that one; changing it would silently change Team Building's defaults too). Ownership/Price/Team/Position are never part of this list — see IDENTITY_COLUMNS above. */
 const EXPLORER_DEFAULT_VISIBLE_COLUMNS = ["totalPoints", "pointsPerGame", "goals", "assists", "pointsPerMillion", "xG", "xA", "xGI", "minutes"];
+/** Every sortable key on screen straight after Reset: the player name, the fixed columns and the default columns. */
+const EXPLORER_KEYS_AFTER_RESET = new Set<string>(["name", ...FIXED_COLUMN_KEYS, ...EXPLORER_DEFAULT_VISIBLE_COLUMNS]);
 
 type ColumnRanges = Map<string, { min: number; max: number }>;
 /** Shared empty list, so a team with no fixtures doesn't hand its rows a new array (and a re-render) every time. */
@@ -83,7 +85,7 @@ const NO_FIXTURES: UpcomingFixture[] = [];
 
 function columnTint(ranges: ColumnRanges, player: NormalizedPlayer, derived: PlayerDerivedMetrics, c: PlayerColumn): string | undefined {
   const range = ranges.get(c.key);
-  const v = c.getValue(player, derived);
+  const v = rankValue(c, player, derived);
   if (!range || v === null) return undefined;
   return relativeCellTint(v, range.min, range.max, c.higherIsBetter !== false);
 }
@@ -280,6 +282,19 @@ export function PlayerExplorer() {
     },
     [ext, extColumns, sourceChoice, extOnlyByKey],
   );
+  // If the second source goes away mid-session, a column switched to it
+  // falls back to FPL; the filter set on the other source's figures goes
+  // with it, and the choice resets (audit 2026-10-18 L16).
+  const { clearFilter } = columnFiltersState;
+  useEffect(() => {
+    const lost = Object.entries(sourceChoice)
+      .filter(([key, source]) => source !== FPL_SOURCE && !(ext && extColumns && source === ext.id && extColumns.alternates[key]))
+      .map(([key]) => key);
+    if (lost.length === 0) return;
+    for (const key of lost) clearFilter(key);
+    setSourceChoice((prev) => Object.fromEntries(Object.entries(prev).filter(([key]) => !lost.includes(key))));
+  }, [ext, extColumns, sourceChoice, clearFilter]);
+
 
   const explorerMinWidths = useMemo(() => {
     const widths: Record<string, number> = { ...EXPLORER_MIN_COLUMN_WIDTHS };
@@ -489,11 +504,13 @@ export function PlayerExplorer() {
     const ranges = new Map<string, { min: number; max: number }>();
     for (const c of [...IDENTITY_COLUMNS, ...columnsInOrder]) {
       if (typeof c === "string") continue;
-      const values = filteredRows.map((r) => c.getValue(r.player, r.derived)).filter((v): v is number => v !== null);
+      const values = filteredRows.map((r) => rankValue(c, r.player, r.derived)).filter((v): v is number => v !== null);
       if (values.length > 0) ranges.set(c.key, { min: Math.min(...values), max: Math.max(...values) });
     }
     return ranges;
   }, [columnsInOrder, filteredRows]);
+
+  const nameSort = sort.find((s) => s.key === "name");
 
   // Rows are drawn in stages (see useProgressiveRowCount); everything above
   // still works on the full sortedRows.
@@ -558,6 +575,7 @@ export function PlayerExplorer() {
             label="Restore the default columns, order, and natural widths, and clear every filter"
             onClick={() => {
               resetColumns();
+              setSort((prev) => sortWithinColumns(prev, EXPLORER_KEYS_AFTER_RESET, EXPLORER_DEFAULT_SORT));
               setSourceChoice({});
               setSearch("");
               columnFiltersState.resetAllFilters();
@@ -647,11 +665,12 @@ export function PlayerExplorer() {
                 <th
                   className="sticky-col"
                   ref={stickyColRef}
-                  onClick={() => handleHeaderClick("name", false)}
+                  onClick={(e) => handleHeaderClick("name", e.shiftKey)}
                   // 1px means "as narrow as its content" — see the identity headers below.
                   style={{ width: 1 }}
                 >
                   Player
+                  {nameSort && <span className="sort-indicator">{nameSort.direction === "asc" ? "↑" : "↓"}</span>}
                 </th>
                 {IDENTITY_COLUMNS.map((c, idx) => {
                   const key = typeof c === "string" ? c : c.key;

@@ -66,6 +66,14 @@ function mergeClubSeasons(live: ClubSeason[]): ClubSeason[] {
 // than riding whatever non-bypassed build happened to already be running).
 const inFlightBuilds = new Map<boolean, Promise<BulkResult>>();
 
+/**
+ * Builds that used upstream data served stale (FPL failing, the proxy
+ * falling back to an old cached copy). They're served as "stale-cache" and
+ * kept only briefly, never presented as a fresh build for 12 hours (audit
+ * 2026-10-18 M3).
+ */
+const builtFromStale = new WeakSet<BulkResult>();
+
 // Exported for testing (L10 regression — see historicBulk.test.ts): whether
 // a "force refresh" build actually bypasses every cache it touches, not
 // just the top-level historic-bulk entry.
@@ -113,12 +121,13 @@ export async function buildBulkHistoricData(bypassCache: boolean): Promise<BulkR
       throw new Error(summary.error);
     }
     const summaryData = summary.data as { history_past?: unknown[]; history?: unknown[] };
-    return { historyPast: summaryData.history_past ?? [], history: summaryData.history ?? [] };
+    return { historyPast: summaryData.history_past ?? [], history: summaryData.history ?? [], stale: summary.source === "stale-cache" };
   });
 
   const players: BulkPlayerHistory[] = [];
   const skippedPlayerIds: number[] = [];
   const historyByElement = new Map<number, unknown[]>();
+  let staleCount = 0;
 
   for (const r of results) {
     if (r.error || r.result === null) {
@@ -127,6 +136,7 @@ export async function buildBulkHistoricData(bypassCache: boolean): Promise<BulkR
     }
     players.push({ playerId: r.item, historyPast: r.result.historyPast });
     historyByElement.set(r.item, r.result.history);
+    if (r.result.stale) staleCount += 1;
   }
 
   // A handful of stragglers (a rate-limit blip, one slow request) is
@@ -134,19 +144,25 @@ export async function buildBulkHistoricData(bypassCache: boolean): Promise<BulkR
   // a real upstream problem — fail the whole build rather than caching a
   // mostly-empty result that would silently look like "nobody has
   // career history" for 12 hours.
-  if (skippedPlayerIds.length > playerIds.length * 0.5) {
-    throw new Error(`Historic bulk build failed for ${skippedPlayerIds.length}/${playerIds.length} players. The upstream API may be unavailable`);
+  // A player answered only from a stale cached copy counts as failed here
+  // too: FPL didn't actually answer for him (audit 2026-10-18 M3).
+  if (skippedPlayerIds.length + staleCount > playerIds.length * 0.5) {
+    throw new Error(`Historic bulk build failed for ${skippedPlayerIds.length + staleCount}/${playerIds.length} players. The upstream API may be unavailable`);
   }
 
   const liveClubSeasons = fixtures.ok ? buildLiveClubSeasons(bootstrap.data, fixtures.data, historyByElement) : [];
-  return { players, totalPlayers: playerIds.length, skippedPlayerIds, clubSeasons: mergeClubSeasons(liveClubSeasons) };
+  const result: BulkResult = { players, totalPlayers: playerIds.length, skippedPlayerIds, clubSeasons: mergeClubSeasons(liveClubSeasons) };
+  const fixturesStale = fixtures.ok && fixtures.source === "stale-cache";
+  if (staleCount > 0 || bootstrap.source === "stale-cache" || fixturesStale) builtFromStale.add(result);
+  return result;
 }
 
 async function handle(bypassCache: boolean) {
   if (!bypassCache) {
     const cached = historicBulkCache.get("historic-bulk");
     if (cached) {
-      return { ok: true as const, data: cached.value as BulkResult, source: "cache" as const, fetchedAt: cached.fetchedAt };
+      const data = cached.value as BulkResult;
+      return { ok: true as const, data, source: builtFromStale.has(data) ? ("stale-cache" as const) : ("cache" as const), fetchedAt: cached.fetchedAt };
     }
   }
 
@@ -160,6 +176,12 @@ async function handle(bypassCache: boolean) {
 
   try {
     const data = await pending;
+    if (builtFromStale.has(data)) {
+      // Kept as briefly as one player's data would be, so the next request
+      // after FPL recovers builds afresh.
+      historicBulkCache.set("historic-bulk", data, CACHE_TTL_MS.elementSummary);
+      return { ok: true as const, data, source: "stale-cache" as const, fetchedAt: Date.now() };
+    }
     historicBulkCache.set("historic-bulk", data, CACHE_TTL_MS.historicBulk);
     return { ok: true as const, data, source: "live" as const, fetchedAt: Date.now() };
   } catch (err) {

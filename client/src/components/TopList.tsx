@@ -1,4 +1,5 @@
 import React from "react";
+import { barWidths } from "./statBar";
 import { PositionBadge, TeamBadge, AvailabilityFlag, availabilityTextClass } from "./primitives";
 import { DataViewBadge } from "./DataViewBadge";
 import { MinutesFloorBadge } from "./MinutesFloorBadge";
@@ -11,11 +12,6 @@ export interface TopListRow {
   value: number | null;
 }
 
-/** Bar width as a % of this row's value relative to the largest |value| among the rows shown — the tile's own top row is always full-width, everything else scaled relative to it. */
-function barWidthPercent(value: number | null, maxAbs: number): number {
-  if (value === null || maxAbs <= 0) return 0;
-  return Math.max(4, (Math.abs(value) / maxAbs) * 100);
-}
 
 export function TopList({
   title,
@@ -57,7 +53,7 @@ export function TopList({
   /** Dashboard-only: hover text for the minutes-floor badge when the fixed floor applies to this tile (dashboardItemFloorNote); no badge when absent. */
   floorNote?: string | null;
 }) {
-  const maxAbs = Math.max(0, ...rows.map((r) => Math.abs(r.value ?? 0)));
+  const widths = barWidths(rows.map((r) => r.value), signed);
 
   return (
     <div
@@ -87,7 +83,7 @@ export function TopList({
         </p>
       ) : (
         <div className="stat-list">
-          {rows.map(({ player, value }) => (
+          {rows.map(({ player, value }, i) => (
             <div className="stat-row" key={player.id} onClick={() => onSelect?.(player.id)} style={{ cursor: onSelect ? "pointer" : "default" }}>
               <span className="stat-row-name">
                 <TeamBadge teamId={player.teamId} shortName={player.teamShortName} />
@@ -99,7 +95,7 @@ export function TopList({
                 <span
                   className="stat-row-bar-fill"
                   style={{
-                    width: `${barWidthPercent(value, maxAbs)}%`,
+                    width: `${widths[i]}%`,
                     background: signed ? (value !== null && value < 0 ? "var(--accent-negative)" : "var(--accent-positive)") : "var(--accent-focus)",
                   }}
                 />

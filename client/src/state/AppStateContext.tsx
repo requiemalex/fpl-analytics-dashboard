@@ -9,7 +9,8 @@ import { deriveGameweekState, normalizeEvents, seasonHasStarted } from "../norma
 import { normalizeChips } from "../normalize/normalizeChips";
 import { runMetricValidation, type ValidationReport } from "../metrics/validation";
 import { buildAllHistoricProfiles, type HistoricPlayerProfile } from "../metrics/historicAnalysis";
-import { SchemaValidationError } from "../validation/schema";
+import { SchemaValidationError, skippedRecordCount } from "../validation/schema";
+import { liveSeasonName, rolloverSavedIds } from "./seasonIdRollover";
 import type { NormalizedPlayer, NormalizedTeam, NormalizedFixture, NormalizedEvent, GameweekState, ChipWindow, PlayerSeasonHistory, ClubSeason } from "../types/normalized";
 import type { AdvancedFieldAvailability } from "../normalize/fieldAvailability";
 
@@ -21,6 +22,8 @@ interface AppState {
   status: DataStatus;
   errorMessage: string | null;
   isStale: boolean;
+  /** Fixtures or the historic dataset served from a stale cached copy (FPL didn't answer) — flagged, never shown as current (audit 2026-10-18 M3). */
+  staleDatasets: { fixtures: boolean; historic: boolean };
   lastUpdated: number | null;
   players: NormalizedPlayer[];
   teams: NormalizedTeam[];
@@ -38,6 +41,8 @@ interface AppState {
   totalPlayers: number | null;
   advancedFieldAvailability: AdvancedFieldAvailability | null;
   skippedPlayerCount: number;
+  /** Fixtures and club-seasons dropped for failing validation, one record at a time (audit 2026-10-18 M2), so the rest still load. Shown in the User Guide's data health. */
+  skippedRecordCounts: { fixtures: number; clubSeasons: number };
   validationReport: ValidationReport | null;
   refreshing: boolean;
   refresh: () => Promise<void>;
@@ -71,6 +76,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<DataStatus>("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isStale, setIsStale] = useState(false);
+  const [staleDatasets, setStaleDatasets] = useState({ fixtures: false, historic: false });
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [players, setPlayers] = useState<NormalizedPlayer[]>([]);
   const [teams, setTeams] = useState<NormalizedTeam[]>([]);
@@ -81,6 +87,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [totalPlayers, setTotalPlayers] = useState<number | null>(null);
   const [advancedFieldAvailability, setAdvancedFieldAvailability] = useState<AdvancedFieldAvailability | null>(null);
   const [skippedPlayerCount, setSkippedPlayerCount] = useState(0);
+  const [skippedRecordCounts, setSkippedRecordCounts] = useState({ fixtures: 0, clubSeasons: 0 });
   const [validationReport, setValidationReport] = useState<ValidationReport | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -138,6 +145,22 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       const normalizedChips = normalizeChips(result.data.chips ?? []);
       const report = runMetricValidation(normalizedPlayers);
 
+      // Before any page reads a saved store: if FPL has renumbered players
+      // and clubs for a new season, translate every saved id first (audit
+      // 2026-10-18 M6, state/seasonIdRollover.ts). Pages only mount once
+      // this first load is ready; if it happens to a session already open
+      // across the reset, a reload makes every page re-read the stores.
+      const season = liveSeasonName(result.data.events);
+      if (season) {
+        const rollover = rolloverSavedIds(season, normalizedPlayers, normalizedTeams);
+        if (rollover.rolledOver) {
+          console.info(`Saved ids moved from ${rollover.fromSeason} to ${season}: ${rollover.droppedPlayers} player and ${rollover.droppedClubs} club reference(s) no longer in FPL were removed.`);
+          if (playersRef.current.length > 0) {
+            window.location.reload();
+            return;
+          }
+        }
+      }
       setPlayers(normalizedPlayers);
       playersRef.current = normalizedPlayers;
       setTeams(normalizedTeams);
@@ -187,6 +210,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     try {
       const fixturesResult = await fixturesPromise;
       setFixtures(normalizeFixtures(fixturesResult.data));
+      const skippedFixtures = skippedRecordCount(fixturesResult.data);
+      if (skippedFixtures > 0) console.warn(`fixtures: ${skippedFixtures} record(s) failed validation and were skipped`);
+      setSkippedRecordCounts((prev) => (prev.fixtures === skippedFixtures ? prev : { ...prev, fixtures: skippedFixtures }));
+      const fixturesStale = fixturesResult.source === "stale-cache";
+      setStaleDatasets((prev) => (prev.fixtures === fixturesStale ? prev : { ...prev, fixtures: fixturesStale }));
     } catch {
       // leave fixtures as-is (empty on first failure) — not fatal.
     }
@@ -242,6 +270,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setAllTimeSeasonsByPlayerId(seasonsByPlayer);
       setHistoricSkippedPlayerIds(result.data.skippedPlayerIds);
       setClubSeasons(result.data.clubSeasons ?? []);
+      const skippedClubSeasons = skippedRecordCount(result.data.clubSeasons ?? []);
+      if (skippedClubSeasons > 0) console.warn(`historic-bulk: ${skippedClubSeasons} club-season record(s) failed validation and were skipped`);
+      setSkippedRecordCounts((prev) => (prev.clubSeasons === skippedClubSeasons ? prev : { ...prev, clubSeasons: skippedClubSeasons }));
+      const historicStale = result.source === "stale-cache";
+      setStaleDatasets((prev) => (prev.historic === historicStale ? prev : { ...prev, historic: historicStale }));
       setHistoricStatus("ready");
       setHistoricErrorMessage(null);
     } catch (err) {
@@ -308,6 +341,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       status,
       errorMessage,
       isStale,
+      staleDatasets,
       lastUpdated,
       players,
       teams: teamsWithRealStandings,
@@ -325,6 +359,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       totalPlayers,
       advancedFieldAvailability,
       skippedPlayerCount,
+      skippedRecordCounts,
       validationReport,
       refreshing,
       refresh,
@@ -343,6 +378,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       status,
       errorMessage,
       isStale,
+      staleDatasets,
       lastUpdated,
       players,
       teamsWithRealStandings,
@@ -354,6 +390,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       totalPlayers,
       advancedFieldAvailability,
       skippedPlayerCount,
+      skippedRecordCounts,
       validationReport,
       refreshing,
       refresh,

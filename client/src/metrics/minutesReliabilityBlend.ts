@@ -10,12 +10,6 @@ const GAMES_FOR_FULL_CURRENT_WEIGHT = 8;
 /** Even at maximum inconsistency, this share of the recency-weighted mean survives — a volatile track record is still some signal, not none. */
 const MIN_CONSISTENCY_RETENTION = 0.65;
 
-/** Weight given to current ownership in the final blend — deliberately modest and secondary. Real playing-time data is still the primary basis; this exists to help thin-data cases (a new signing with no track record at their new club) and as a mild real-world sanity check, not to replace minutes-based evidence with crowd sentiment. */
-const OWNERSHIP_WEIGHT = 0.15;
-
-/** Ownership at/above this is treated as fully confirming starter status for the ownership signal specifically — the rest of the 0-30% range scales linearly below that. */
-const OWNERSHIP_FULL_CONFIDENCE_PCT = 30;
-
 /**
  * Recency-weighted, consistency-discounted average across EVERY season in
  * the window — not just the ones that clear a minutes bar.
@@ -70,18 +64,16 @@ function currentSeasonMinutesReliability(player: NormalizedPlayer, team: Normali
   return Math.min(1, Math.max(0, player.minutes / possible));
 }
 
-/** Chance-of-playing when FPL publishes one; otherwise a status-based default. Never invents a specific percentage for a real doubt FPL hasn't quantified. */
-function availabilityModifier(player: NormalizedPlayer): number {
+/** FPL's unavailable statuses: injured, suspended, unavailable, not available (on loan). */
+const UNAVAILABLE_STATUSES = new Set(["i", "s", "u", "n"]);
+
+/** Chance-of-playing when FPL publishes one; otherwise a status-based default. Never invents a specific percentage for a real doubt FPL hasn't quantified. Null when neither is known (audit 2026-10-18 L4: a missing status isn't "available"). */
+function availabilityModifier(player: NormalizedPlayer): number | null {
   if (player.chanceOfPlayingNextRound !== null) return player.chanceOfPlayingNextRound / 100;
   if (player.status === "a") return 1;
   if (player.status === "d") return 0.5;
-  return 0; // injured, suspended, not available on loan, or unavailable
-}
-
-/** Current ownership as a weak, secondary "does the market believe this player starts" signal — genuinely current (always live, regardless of analysis mode), and useful specifically where minutes-based evidence is thin (a new signing with no track record at their new club). Never the primary basis. */
-function ownershipSignal(player: NormalizedPlayer): number | null {
-  if (player.ownership === null) return null;
-  return Math.min(1, player.ownership / OWNERSHIP_FULL_CONFIDENCE_PCT);
+  if (UNAVAILABLE_STATUSES.has(player.status)) return 0;
+  return null;
 }
 
 export interface BlendedReliability {
@@ -94,9 +86,11 @@ export interface BlendedReliability {
  * Blends current-season and historic minutes reliability, shifting trust
  * toward live data as real gameweeks accumulate (pre-season this is
  * entirely historic; by game 8 of the live season it's entirely
- * current), folds in a modest ownership signal, then multiplies by
- * availability last — so an injured player with a perfect track record
- * still shows near-zero reliability right now. Deliberately independent
+ * current), then multiplies by availability last — so an injured player
+ * with a perfect track record still shows near-zero reliability right now.
+ * Only minutes evidence goes in: ownership is a popularity figure, not a
+ * minutes input, so it plays no part (owner's decision, audit 2026-10-18
+ * M12), and with no minutes data anywhere the value is null. Deliberately independent
  * of any analysis-mode toggle: this is a single predictive figure, not
  * something that should read differently depending on which historic
  * view happens to be selected elsewhere on the page.
@@ -117,12 +111,7 @@ export function computeBlendedMinutesReliability(
   else if (historic === null) playingTimeBase = current;
   else playingTimeBase = currentWeight * current + (1 - currentWeight) * historic;
 
-  const ownership = ownershipSignal(player);
-  let blended: number | null;
-  if (playingTimeBase === null) blended = ownership; // no playing-time data at all anywhere — fall back to ownership rather than showing nothing
-  else if (ownership === null) blended = playingTimeBase;
-  else blended = playingTimeBase * (1 - OWNERSHIP_WEIGHT) + ownership * OWNERSHIP_WEIGHT;
-
-  if (blended === null) return { value: null, currentWeight };
-  return { value: blended * availabilityModifier(player), currentWeight };
+  const availability = availabilityModifier(player);
+  if (playingTimeBase === null || availability === null) return { value: null, currentWeight };
+  return { value: playingTimeBase * availability, currentWeight };
 }

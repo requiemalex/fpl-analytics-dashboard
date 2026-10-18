@@ -35,12 +35,12 @@ describe("saved data — newer-version data loads without a crash", () => {
 });
 
 describe("saved data — one damaged entry must not wipe the rest", () => {
-  it.fails("[AUDIT8-2] a null entry among saved Dashboard views keeps the user's other views", () => {
+  it("[AUDIT8-2] a null entry among saved Dashboard views keeps the user's other views", () => {
     localStorage.setItem(VIEWS_KEY, JSON.stringify({ version: 6, data: [userView, null] }));
     const { result } = renderHook(() => useSavedDashboardViews());
     expect(result.current.views.some((v) => v.id === "view-1")).toBe(true);
   });
-  it.fails("[AUDIT8-2] a null entry among summary tiles keeps the user's other tiles", () => {
+  it("[AUDIT8-2] a null entry among summary tiles keeps the user's other tiles", () => {
     localStorage.setItem(TILES_KEY, JSON.stringify({ version: 6, data: [userTile, null] }));
     const { result } = renderHook(() => useSummaryTiles());
     expect(result.current.tiles.map((t) => t.id)).toEqual(["t1"]);

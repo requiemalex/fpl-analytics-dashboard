@@ -53,7 +53,7 @@ jobs:
         with:
           node-version: "24"
 
-      # The sync uses only Node built-ins plus server/src (dependency-free
+      # The sync uses only Node built-ins plus server/src and scripts/ (dependency-free
       # pipeline code), so tsx is all it needs — no npm ci.
       - name: Sync Understat
         id: sync
@@ -61,7 +61,9 @@ jobs:
         run: npx --yes tsx@4 scripts/understat/sync.ts --max-new-seasons "${{ inputs.max_new_seasons || '2' }}" --report "$RUNNER_TEMP/report.json" --alert-body "$RUNNER_TEMP/alert.md"
 
       - name: Commit if anything changed
+        id: commit
         if: steps.sync.outcome == 'success'
+        continue-on-error: true
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -79,8 +81,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GH_TOKEN: ${{ github.token }}
+          COMMIT_OUTCOME: ${{ steps.commit.outcome }}
         run: |
           report="$RUNNER_TEMP/report.json"
+          # A good run whose data couldn't be committed or pushed published
+          # nothing, so it alerts rather than closing the issue as clean
+          # (audit 2026-10-18 L17).
+          if [ "$COMMIT_OUTCOME" = "failure" ] && [ -f "$report" ]; then
+            jq '.ok = false | .failure = {kind: "error", message: "The sync ran, but committing or pushing its data to the repository failed, so nothing was published."}' "$report" > "$report.tmp" && mv "$report.tmp" "$report"
+            printf 'The daily Understat sync ran, but its data could not be committed or pushed, so installed apps did not get it.\n\n**What to do**\n- Open Claude Code in this project and say: *Look at the open "Understat" GitHub issue and fix it.*\n' > "$RUNNER_TEMP/alert.md"
+          fi
           if [ ! -f "$report" ]; then
             echo '{"ok":false,"failure":{"kind":"error","message":"The sync step crashed before writing its report"},"attention":[]}' > "$report"
             printf 'The daily Understat sync crashed before it could report.\n\n**What to do**\n- Open Claude Code in this project and say: *Look at the open "Understat" GitHub issue and fix it.*\n' > "$RUNNER_TEMP/alert.md"
@@ -91,6 +101,7 @@ jobs:
           previous=$(gh run list --workflow understat-sync.yml --limit 5 --json databaseId,conclusion --jq "[.[] | select(.databaseId != ${{ github.run_id }} and .conclusion != null and .conclusion != \"\")][0].conclusion // \"none\"")
           alert=false
           if [ "$ok" != "true" ]; then
+            [ "$COMMIT_OUTCOME" = "failure" ] && alert=true
             case "$kind" in
               format|checks) alert=true ;;
               *) [ "$previous" = "failure" ] && alert=true ;;
@@ -107,5 +118,5 @@ jobs:
 
       # Last, so the run shows red in GitHub when the sync failed.
       - name: Fail the run if the sync failed
-        if: steps.sync.outcome != 'success'
+        if: steps.sync.outcome != 'success' || steps.commit.outcome == 'failure'
         run: exit 1

@@ -50,9 +50,8 @@ export async function fetchJson<T>(url: string): Promise<T> {
         },
       });
 
-      clearTimeout(timer);
-
       if (!res.ok) {
+        clearTimeout(timer);
         const err = new UpstreamError(`FPL API responded ${res.status} for ${url}`, res.status);
         if (isTransient(res.status, false) && attempt < RETRY_POLICY.maxRetries) {
           lastError = err;
@@ -62,7 +61,18 @@ export async function fetchJson<T>(url: string): Promise<T> {
         throw err;
       }
 
-      return (await res.json()) as T;
+      // The timeout covers reading the body too (bootstrap-static is ~1.8 MB),
+      // not just the headers. A body that isn't JSON is not transient, so it
+      // isn't retried (audit 2026-10-18 L3).
+      let data: T;
+      try {
+        data = (await res.json()) as T;
+      } catch (bodyErr) {
+        if (bodyErr instanceof Error && bodyErr.name === "AbortError") throw bodyErr;
+        throw new UpstreamError(`FPL API sent a response that isn't valid JSON for ${url}`, res.status);
+      }
+      clearTimeout(timer);
+      return data;
     } catch (err) {
       clearTimeout(timer);
 

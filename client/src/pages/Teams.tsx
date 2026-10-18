@@ -10,7 +10,7 @@ import { ColumnFilterControl } from "../components/ColumnFilterControl";
 import { IconChipButton, ResetIcon, ColumnsIcon, FilterIcon, DownloadIcon } from "../components/IconToolbar";
 import { useColumnCustomization } from "../state/useColumnCustomization";
 import { useColumnFilters, isColumnFilterActive } from "../state/useColumnFilters";
-import { useSortSpec, compareSortValues, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
+import { useSortSpec, compareSortValues, sortWithinColumns, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
 import { useEscapeLayer } from "../state/useEscapeLayer";
 import { relativeCellTint } from "../utils/colorScale";
 import { downloadCsv } from "../utils/csvExport";
@@ -24,6 +24,8 @@ const GROUPS: TeamColumnGroup[] = ["RESULTS", "OUTPUT", "UNDERLYING PERFORMANCE"
 /** The league table this page has always opened on. Every other TEAM_COLUMNS metric (the Dashboard's full team catalogue) is in the Columns picker, off by default. */
 const TEAM_EXPLORER_DEFAULT_VISIBLE_COLUMNS = ["leaguePosition", "leaguePoints", "goalsFor", "goalsAgainst", "cleanSheets", "xG", "xGC", "xA", "points"];
 const TEAM_EXPLORER_DEFAULT_SORT: SortSpec[] = [{ key: "leaguePosition", direction: "asc" }];
+/** Every sortable key on screen straight after Reset: the club name and the default columns. */
+const TEAM_EXPLORER_KEYS_AFTER_RESET = new Set<string>(["name", ...TEAM_EXPLORER_DEFAULT_VISIBLE_COLUMNS]);
 
 /**
  * Team headers are longer than Player Explorer's ("Goals Against", "Def.
@@ -45,7 +47,7 @@ function seasonLabel(seasons: string[]): string {
 }
 
 export function Teams() {
-  const { teams, clubSeasons, historicReferenceSeason, historicStatus, currentSeasonHasStarted, requestHistoricData } = useAppState();
+  const { teams, clubSeasons, historicReferenceSeason, historicStatus, currentSeasonHasStarted, historicSkippedPlayerIds, requestHistoricData } = useAppState();
   useEffect(() => {
     requestHistoricData();
   }, [requestHistoricData]);
@@ -75,6 +77,18 @@ export function Teams() {
     },
     [ext, extColumns, sourceChoice, extOnlyByKey],
   );
+  // If the second source goes away mid-session, a column switched to it
+  // falls back to FPL; the filter set on the other source's figures goes
+  // with it, and the choice resets (audit 2026-10-18 L16).
+  const { clearFilter } = columnFiltersState;
+  useEffect(() => {
+    const lost = Object.entries(sourceChoice)
+      .filter(([key, source]) => source !== FPL_SOURCE && !(ext && extColumns && source === ext.id && extColumns.alternates[key]))
+      .map(([key]) => key);
+    if (lost.length === 0) return;
+    for (const key of lost) clearFilter(key);
+    setSourceChoice((prev) => Object.fromEntries(Object.entries(prev).filter(([key]) => !lost.includes(key))));
+  }, [ext, extColumns, sourceChoice, clearFilter]);
   const getTeamValue = useCallback(
     (team: TeamAggregate, key: string): number | string | null => (key === "name" ? team.name : (lookupColumn(key)?.getValue(team) ?? null)),
     [lookupColumn],
@@ -125,8 +139,8 @@ export function Teams() {
   }, [showColumnPopover]);
 
   const aggregates: TeamAggregate[] = useMemo(
-    () => computeTeamAggregates(teams, analysisMode, { clubSeasons, referenceSeason: historicReferenceSeason, currentSeasonHasStarted }),
-    [teams, analysisMode, clubSeasons, historicReferenceSeason, currentSeasonHasStarted],
+    () => computeTeamAggregates(teams, analysisMode, { clubSeasons, referenceSeason: historicReferenceSeason, currentSeasonHasStarted, livePlayerSumsPartial: historicSkippedPlayerIds.length > 0 }),
+    [teams, analysisMode, clubSeasons, historicReferenceSeason, currentSeasonHasStarted, historicSkippedPlayerIds],
   );
 
   const filteredRows = useMemo(() => {
@@ -245,7 +259,7 @@ export function Teams() {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
+        <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} clubFigures />
         {seasons.length > 0 && <span className="value-muted" style={{ fontSize: 12.5 }}>{seasonLabel(seasons)}</span>}
       </div>
 
@@ -256,6 +270,7 @@ export function Teams() {
             label="Restore the default columns, order, and natural widths, and clear every filter"
             onClick={() => {
               resetColumns();
+              setSort((prev) => sortWithinColumns(prev, TEAM_EXPLORER_KEYS_AFTER_RESET, TEAM_EXPLORER_DEFAULT_SORT));
               setSourceChoice({});
               setSearch("");
               columnFiltersState.resetAllFilters();

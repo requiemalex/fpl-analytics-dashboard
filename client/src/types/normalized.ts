@@ -175,6 +175,8 @@ export interface NormalizedFixture {
   awayScore: number | null;
   kickoffTime: string | null;
   finished: boolean;
+  /** Whether the match has kicked off (FPL's `started`); null when FPL didn't send the field. */
+  started: boolean | null;
   /** 1 (easiest) to 5 (hardest), FPL's own rating, from each side's own perspective. */
   homeDifficulty: number;
   awayDifficulty: number;

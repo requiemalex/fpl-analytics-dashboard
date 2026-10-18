@@ -1,5 +1,29 @@
 import { z } from "zod";
 
+const skippedCounts = new WeakMap<object, number>();
+
+/** How many records perRecord() dropped from this parsed list (0 for any other list). */
+export function skippedRecordCount(list: object): number {
+  return skippedCounts.get(list) ?? 0;
+}
+
+/**
+ * An array checked one record at a time (README "Architecture": a bad
+ * record is skipped and counted, never fatal; audit 2026-10-18 M2). Use it
+ * only where a dropped record can't silently become a part-total.
+ */
+function perRecord<T extends z.ZodTypeAny>(item: T) {
+  return z.array(z.unknown()).transform((items) => {
+    const valid: z.infer<T>[] = [];
+    for (const raw of items) {
+      const parsed = item.safeParse(raw);
+      if (parsed.success) valid.push(parsed.data);
+    }
+    if (valid.length < items.length) skippedCounts.set(valid, items.length - valid.length);
+    return valid;
+  });
+}
+
 /**
  * Schema validation happens before anything touches the normalisation
  * layer. Core fields the app cannot function without are required;
@@ -65,7 +89,10 @@ export const elementSchema = z
     selected_by_percent: z.string(),
     total_points: z.number(),
     points_per_game: z.string(),
-    ep_next: z.string().nullable().optional().default("0.0"),
+    // No defaults on these two (audit 2026-10-18 L4): a missing ep_next is
+    // unknown ("—"), not 0 points, and a missing status is unknown, not "a"
+    // (available).
+    ep_next: z.string().nullable().optional(),
     minutes: z.number(),
     starts: z.number().nullable().optional(),
     starts_per_90: z.number().nullable().optional(),
@@ -78,7 +105,7 @@ export const elementSchema = z
     ict_index: z.string(),
     saves: z.number().nullable().optional(),
     saves_per_90: z.number().nullable().optional(),
-    status: z.string().optional().default("a"),
+    status: z.string().optional(),
     news: z.string().optional().default(""),
     chance_of_playing_next_round: z.number().nullable().optional().default(null),
 
@@ -158,12 +185,15 @@ export const fixtureSchema = z
     team_a_score: z.number().nullable(),
     kickoff_time: z.string().nullable(),
     finished: z.boolean(),
+    // No default: a missing `started` stays unknown (null), never "false".
+    started: z.boolean().nullable().optional(),
     team_h_difficulty: z.number().optional().default(3),
     team_a_difficulty: z.number().optional().default(3),
   })
   .passthrough();
 
-export const fixturesSchema = z.array(fixtureSchema);
+/** One unreadable fixture is dropped and counted, never the whole list. */
+export const fixturesSchema = perRecord(fixtureSchema);
 
 export const elementSummaryHistorySchema = z
   .object({
@@ -290,14 +320,36 @@ export const clubSeasonSchema = z
   })
   .passthrough();
 
+/**
+ * Per record (audit 2026-10-18 M2). The record is a whole player: one with
+ * an unreadable season is left out entirely and joins `skippedPlayerIds`,
+ * which the app already flags, rather than keeping his other seasons and
+ * showing a Historic Average built from part of his history. A club-season
+ * is likewise kept whole or dropped (and counted).
+ */
 export const historicBulkSchema = z
   .object({
-    players: z.array(historicBulkPlayerSchema),
+    players: z.array(z.unknown()),
     totalPlayers: z.number(),
-    clubSeasons: z.array(clubSeasonSchema).optional().default([]),
+    clubSeasons: perRecord(clubSeasonSchema).optional().default([]),
     skippedPlayerIds: z.array(z.number()).optional().default([]),
   })
-  .passthrough();
+  .passthrough()
+  .transform((bulk) => {
+    const players: z.infer<typeof historicBulkPlayerSchema>[] = [];
+    const skippedPlayerIds = [...bulk.skippedPlayerIds];
+    for (const raw of bulk.players) {
+      const parsed = historicBulkPlayerSchema.safeParse(raw);
+      if (parsed.success) {
+        players.push(parsed.data);
+        continue;
+      }
+      const id = raw && typeof raw === "object" ? (raw as { playerId?: unknown }).playerId : undefined;
+      if (typeof id === "number" && !skippedPlayerIds.includes(id)) skippedPlayerIds.push(id);
+    }
+    if (players.length < bulk.players.length) skippedCounts.set(players, bulk.players.length - players.length);
+    return { ...bulk, players, skippedPlayerIds };
+  });
 
 export const entryTeamSchema = z
   .object({
@@ -361,7 +413,7 @@ export class SchemaValidationError extends Error {
   }
 }
 
-export function validate<T>(schema: z.ZodType<T>, data: unknown, context: string): T {
+export function validate<T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, data: unknown, context: string): T {
   const result = schema.safeParse(data);
   if (!result.success) {
     throw new SchemaValidationError(context, result.error.issues);

@@ -28,11 +28,14 @@ export function AnalysisModeToggle({
   mode,
   onChange,
   floorNote,
+  clubFigures,
 }: {
   mode: AnalysisMode;
   onChange: (mode: AnalysisMode) => void;
   /** Set on a section where the fixed minutes floor applies (<fixed_minutes_floor>) — shows its badge at the right of the toggle, with this as its hover text. */
   floorNote?: string;
+  /** Set on team views: Current Season club figures are summed from every player's matches, so a skipped player matters there too (audit 2026-10-18 M4). */
+  clubFigures?: boolean;
 }) {
   const { historicStatus, historicErrorMessage, historicSkippedPlayerIds, refreshHistoricData, historicRefreshing } = useAppState();
 
@@ -75,6 +78,12 @@ export function AnalysisModeToggle({
           </span>
         )}
       </div>
+      {historicStatus === "ready" && historicSkippedPlayerIds.length > 0 && clubFigures && mode === "live" && (
+        <p className="page-subtitle" style={{ marginTop: 6, marginBottom: 0 }}>
+          {historicSkippedPlayerIds.length} player(s) couldn't be loaded this session (a transient fetch issue), so this season's club figures
+          added up from players (FPL points, goals, assists, bonus, xG, xA, xGI, xGC, DC) show "—" for now. Results are unaffected.
+        </p>
+      )}
       {mode !== "live" && historicStatus === "ready" && historicSkippedPlayerIds.length > 0 && (
         <p className="page-subtitle" style={{ marginTop: 6, marginBottom: 0 }}>
           {historicSkippedPlayerIds.length} player(s) had no historic data available this session (a transient fetch issue). Everyone else

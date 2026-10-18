@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { fmtNumber, fmtOrdinal, fmtPercent, fmtPrice, roundAsDisplayed, DASH } from "./format";
+import { fmtNumber, fmtOrdinal, fmtPercent, fmtPrice, fmtSigned, roundAsDisplayed, DASH } from "./format";
 
 describe("number formatting and filter rounding agree (audit 2026-09-25)", () => {
   it("price and percent round exactly as every other cell and the column filters do", () => {
@@ -30,5 +30,17 @@ describe("fmtOrdinal (audit 2026-09-25 player-team-profiles L2: the radar said \
     expect(fmtOrdinal(41.6)).toBe("42nd");
     expect(fmtOrdinal(0.4)).toBe("0th");
     expect(fmtOrdinal(null)).toBe(DASH);
+  });
+});
+
+describe("fmtSigned (audit 2026-10-18 L7)", () => {
+  it("a tiny negative that rounds to zero shows 0.00, unsigned", () => {
+    expect(fmtSigned(-0.001)).toBe("0.00");
+    expect(fmtSigned(0.004)).toBe("0.00");
+  });
+  it("real +/- figures keep their sign, rounded like every other cell", () => {
+    expect(fmtSigned(1.235)).toBe("+1.24");
+    expect(fmtSigned(-2.5, 0)).toBe("-3");
+    expect(fmtSigned(null)).toBe("—");
   });
 });

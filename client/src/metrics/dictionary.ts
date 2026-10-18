@@ -274,7 +274,7 @@ export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
     suppliedByFPL: true,
     derived: false,
     formula: null,
-    units: "defensive contribution points",
+    units: "defensive actions (clearances, blocks, interceptions, tackles and, for midfielders and forwards, recoveries); a count, not FPL points",
     caveats: "Never substituted with tackles, interceptions, clearances or recoveries individually.",
     availabilityNote: "Displayed as \u2014 if the live API omits this field; presence is checked at load time.",
   }),

@@ -74,7 +74,7 @@ export interface RawElement {
   total_points: number;
   points_per_game: string;
   /** FPL's own official expected-points prediction for the next gameweek. Usually populated even pre-season, but null for at least some players who currently have no upcoming fixture prediction (e.g. long-term unavailable) — never assume non-null. */
-  ep_next: string | null;
+  ep_next?: string | null;
   minutes: number;
   starts: number | null;
   starts_per_90: number | null;
@@ -89,7 +89,8 @@ export interface RawElement {
   /** Season-to-date total saves — goalkeepers only, 0 for outfield players. Used by Expected Points Tier 2's saves-rate estimate. */
   saves?: number | null;
   saves_per_90?: number | null;
-  status: string;
+  /** Missing only if FPL ever drops it — then "" (unknown), never assumed available. */
+  status?: string;
   news: string;
   /** 0-100, or null when there's no doubt/no data (e.g. straightforwardly available or long-term situations FPL hasn't put a percentage on). */
   chance_of_playing_next_round: number | null;
@@ -193,6 +194,8 @@ export interface RawFixture {
   team_a_score: number | null;
   kickoff_time: string | null;
   finished: boolean;
+  /** True from kick-off. FPL only sets `finished` hours after full time, so this is what tells a played-but-unconfirmed match from an upcoming one. */
+  started?: boolean | null;
   /** 1 (easiest) to 5 (hardest), FPL's own rating, from that team's perspective. Confirmed present even on unplayed fixtures. */
   team_h_difficulty: number;
   team_a_difficulty: number;
@@ -318,10 +321,11 @@ export interface RawClubMatch {
   home: boolean;
   goalsFor: number;
   goalsAgainst: number;
-  fantasyPoints: number;
-  goals: number;
-  assists: number;
-  bonus: number;
+  /** The server always sends these four; null only in the app, while a skipped player makes the live season's player sums partial (teamStats.ts livePlayerSumsPartial). */
+  fantasyPoints: number | null;
+  goals: number | null;
+  assists: number | null;
+  bonus: number | null;
   xG: number | null;
   xA: number | null;
   xGI: number | null;
@@ -410,7 +414,7 @@ export interface RawEntryHistory {
 export interface RawEntryPick {
   element: number;
   position?: number;
-  /** 0 = bench, 1 = normal starting XI, 2 = captain, 3 = triple-captain-active. Not assumed present — see normalizeEntryImport.ts's fallback to `position`. */
+  /** 0 = bench, 1 = normal starting XI (and the bench under Bench Boost), 2 = captain, 3 = triple-captain-active. Only a fallback for a pick without a `position` (normalizeEntryImport.ts). */
   multiplier?: number;
   is_captain?: boolean;
   is_vice_captain?: boolean;

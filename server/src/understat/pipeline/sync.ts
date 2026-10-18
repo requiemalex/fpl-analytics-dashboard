@@ -8,23 +8,27 @@
  *     season's new and recent matches; a season not yet stored, a few per
  *     run), shape-checked as it arrives.
  *  3. Pair clubs and fixtures by result (pairing.ts); every score must
- *     agree.
+ *     agree. The live season pairs against FPL's record fetched this run
+ *     (liveLedger), not the twice-weekly archive, so new matches are
+ *     checked the day FPL confirms them.
  *  4. Re-check every saved player link, then link new players
  *     (matcher.ts).
  *  5. Accuracy checks (checks.ts), and a cap on how many links may change
  *     in one run.
  *  6. Only if all of that passed: write every file. A failed run writes
- *     nothing, so the app keeps the last good data.
+ *     nothing, so the app keeps the last good data. The app's figures
+ *     count only matches paired with an FPL fixture, so checked.
  *
  * The returned report is plain English: the workflow turns its
  * "attention" lines into the GitHub issue that emails the owner.
  */
-import { readSeasonLedger } from "../../clubHistory/ledgerFiles.js";
+import { readSeasonLedger, type SeasonLedger } from "../../clubHistory/ledgerFiles.js";
 import type { LedgerRow } from "../../clubHistory/types.js";
 import { buildAppSeason } from "./aggregate.js";
 import { checkAgainstFpl, checkSeasonInternally } from "./checks.js";
 import {
   ensureOverridesFile,
+  readAcceptedDifferences,
   readControl,
   readLinks,
   readOverrides,
@@ -68,6 +72,8 @@ export interface SyncOptions {
   clubHistoryRoot: string;
   /** FPL bootstrap-static: the live season's name and today's players (names, permanent codes). */
   bootstrap: unknown;
+  /** The live season's FPL record, fetched this run (scripts/club-history/liveLedger.ts). Without it the archived one is used, with a warning. */
+  liveLedger?: SeasonLedger | null;
   client: UnderstatClient;
   /** YYYY-MM-DD */
   today: string;
@@ -116,6 +122,7 @@ export async function runSync(opts: SyncOptions): Promise<SyncReport> {
     const previousLinks = readLinks(opts.understatRoot);
     let links = new Map(previousLinks);
     const overrides = readOverrides(opts.understatRoot);
+    const acceptedDifferences = readAcceptedDifferences(opts.understatRoot);
     const previousStatus = readStatus(opts.understatRoot);
 
     const seasons: string[] = [];
@@ -128,12 +135,16 @@ export async function runSync(opts: SyncOptions): Promise<SyncReport> {
     const missingFixtures: Record<string, string> = {};
 
     for (const season of seasons) {
-      const ledger = readSeasonLedger(opts.clubHistoryRoot, season);
+      const isLive = season === liveSeason;
+      const freshLedger = isLive && opts.liveLedger?.season === season ? opts.liveLedger : null;
+      const ledger = freshLedger ?? readSeasonLedger(opts.clubHistoryRoot, season);
       if (!ledger) {
         report.warnings.push(`${season}: no club-history record to pair with — skipped.`);
         continue;
       }
-      const isLive = season === liveSeason;
+      if (isLive && !freshLedger) {
+        report.warnings.push(`${season}: FPL's live record couldn't be fetched, so this run checked against the archived one; Understat matches FPL confirmed since the last archive wait for a later run.`);
+      }
       const stored = readSeasonData(opts.understatRoot, season);
       const storedComplete = isStoredComplete(stored);
       let data: SeasonData;
@@ -255,7 +266,7 @@ export async function runSync(opts: SyncOptions): Promise<SyncReport> {
     // Goals agreement with FPL uses the final links (a link made in a later season covers earlier ones too).
     let compared = 0;
     for (const p of processed) {
-      const fplCheck = checkAgainstFpl(p.data, p.ledgerRows, p.matchByFixture, links);
+      const fplCheck = checkAgainstFpl(p.data, p.ledgerRows, p.matchByFixture, links, acceptedDifferences);
       compared += fplCheck.compared;
       errors.push(...fplCheck.errors);
       report.warnings.push(...fplCheck.warnings);
@@ -288,7 +299,7 @@ export async function runSync(opts: SyncOptions): Promise<SyncReport> {
     }
     writeLinks(opts.understatRoot, links);
     ensureOverridesFile(opts.understatRoot);
-    const appFiles: AppSeasonFile[] = processed.map((p) => buildAppSeason(p.data, links, p.complete));
+    const appFiles: AppSeasonFile[] = processed.map((p) => buildAppSeason(p.data, links, p.complete, new Set(p.matchByFixture.values())));
     for (const f of appFiles) writeAppSeason(opts.understatRoot, f);
 
     const counts = { confirmed: 0, held: 0, disputed: 0 };

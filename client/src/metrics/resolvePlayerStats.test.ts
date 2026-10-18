@@ -154,3 +154,15 @@ describe("resolvePlayerStats — Historic Average games come from total minutes 
     expect(resolvePlayerStats(makePlayer({ id: 4, position: "MID", minutes: 181 }), "live", undefined, false).estimatedGames).toBe(0);
   });
 });
+
+describe("saves per Data View (audit 2026-10-18 L5)", () => {
+  const player = makePlayer({ id: 1, position: "GKP", minutes: 900, saves: 30 });
+  it("Current Season: the live figure and its per-game rate; before a ball is kicked, 0", () => {
+    expect(resolvePlayerStats(player, "live", undefined, true)).toMatchObject({ saves: 30, savesPerGame: 3 });
+    expect(resolvePlayerStats(player, "live", undefined, false).saves).toBe(0);
+  });
+  it("Last Completed Season and Historic Average: unknown (history_past has no saves), never today's figure", () => {
+    expect(resolvePlayerStats(player, "lastSeason", undefined, true)).toMatchObject({ saves: null, savesPerGame: null });
+    expect(resolvePlayerStats(player, "historicAverage", undefined, true)).toMatchObject({ saves: null, savesPerGame: null });
+  });
+});

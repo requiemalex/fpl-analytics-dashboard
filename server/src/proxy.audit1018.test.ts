@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 describe("audit 2026-10-18 data layer: 10-minute poll vs 10-minute bootstrap TTL", () => {
-  it.fails("[DATA-3] a poll 10 minutes after the previous request started gets a fresh upstream snapshot", async () => {
+  it("[DATA-3] a poll 10 minutes after the previous request started gets a fresh upstream snapshot", async () => {
     let now = 0;
     vi.spyOn(Date, "now").mockImplementation(() => now);
     const upstream = vi.fn(async () => {
@@ -25,7 +25,12 @@ describe("audit 2026-10-18 data layer: 10-minute poll vs 10-minute bootstrap TTL
     const opts = { cache, cacheKey: "bootstrap-static", ttlMs: CACHE_TTL_MS.bootstrapStatic, url: "https://example.invalid/bootstrap-static/" };
 
     await cachedFetch(opts); // initial load starts at t=0, response cached at t=1.5s
-    now = 10 * 60 * 1000; // client setInterval fires 10 min after mount
+    // Phase 2: 1 ms after the 10 minutes, not exactly on them. A real poll
+    // always fires a moment after the request it follows started (the load
+    // runs before the interval is set up), and TtlCache deliberately keeps
+    // an entry valid at exactly its expiry instant (cache.test.ts). Old code
+    // still fails this: its TTL ran from the response, to 10:01.5.
+    now = 10 * 60 * 1000 + 1; // client setInterval fires 10 min after mount
     const poll = await cachedFetch(opts);
 
     expect(upstream).toHaveBeenCalledTimes(2);

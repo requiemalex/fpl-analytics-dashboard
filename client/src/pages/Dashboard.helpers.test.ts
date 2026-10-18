@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { applyDefaultViewFloor, dashboardItemFloorNote, gameweekDisplay, playersForDashboardItem, poolForDashboardItem, LIVE_DEFAULT_VIEW_MIN_MINUTES, DEFAULT_VIEW_MIN_MINUTES } from "./Dashboard";
+import { applyDefaultViewFloor, dashboardItemFloorNote, displayTileTitle, gameweekDisplay, playersForDashboardItem, poolForDashboardItem, LIVE_DEFAULT_VIEW_MIN_MINUTES, DEFAULT_VIEW_MIN_MINUTES } from "./Dashboard";
 import { DEFAULT_DASHBOARD_GRAPHS } from "../state/useDashboardGraphs";
 import { DEFAULT_SUMMARY_TILES } from "../state/useSummaryTiles";
 import { isDefaultViewSelected } from "../state/useSavedDashboardViews";
@@ -166,5 +166,16 @@ describe("dashboardItemFloorNote — the minutes-floor badge shows exactly where
     for (const d of [...DEFAULT_SUMMARY_TILES, ...DEFAULT_DASHBOARD_GRAPHS].filter((t) => t.scope === "player")) {
       expect(dashboardItemFloorNote(d, { defaultViewShown: true }), d.id).not.toBeNull();
     }
+  });
+});
+
+describe("tile titles (audit 2026-10-18 L1)", () => {
+  it("the two Starter Goals vs xG tiles no longer share a title", () => {
+    const [desc, asc] = DEFAULT_SUMMARY_TILES.filter((t) => t.metricKey === "goalsMinusXG");
+    expect(displayTileTitle(desc, "Goals vs xG (Goals − xG)")).toBe("Goals vs xG (Goals − xG)");
+    expect(displayTileTitle(asc, "Goals vs xG (Goals − xG)")).toBe("Goals vs xG (Goals − xG) · Lowest First");
+  });
+  it("a custom name is shown as given", () => {
+    expect(displayTileTitle({ name: "Cheapest", direction: "asc" }, "Price")).toBe("Cheapest");
   });
 });

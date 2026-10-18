@@ -17,6 +17,15 @@ export interface PlayerColumn {
   /** Whether a higher value is the "better" one for this metric — used by Player Comparison's colour scale. Defaults to true; only set false for metrics where lower is genuinely better (price, ownership, xGC). */
   higherIsBetter?: boolean;
   /**
+   * What colour tints, percentiles and "best" marks rank this column on,
+   * when that isn't its own figure. Only for a lower-is-better TOTAL, which
+   * grows with minutes: ranked on itself, the fewer minutes a player played
+   * the better he'd look (a 90-minute cameo out-ranking a regular). Total
+   * xGC ranks on xGC per game instead (audit 2026-10-18 M13). Read it
+   * through rankValue().
+   */
+  rankBy?: (p: NormalizedPlayer, d: PlayerDerivedMetrics) => number | null;
+  /**
    * Whether this column's value actually changes with the page's
    * Last Completed Season / Historic Average / Current Season toggle
    * (or Team Building's equivalent Historic/Raw toggle) — i.e. whether
@@ -37,6 +46,11 @@ export interface PlayerColumn {
   sourceId?: string;
 }
 
+/** The figure a column's tints, percentiles and "best" marks rank on (see PlayerColumn.rankBy). */
+export function rankValue(c: Pick<PlayerColumn, "getValue" | "rankBy">, p: NormalizedPlayer, d: PlayerDerivedMetrics): number | null {
+  return (c.rankBy ?? c.getValue)(p, d);
+}
+
 const num = (decimals = 0) => ({ format: (v: number | null) => fmtDecimal(v, decimals), decimals });
 
 export const PLAYER_COLUMNS: PlayerColumn[] = [
@@ -55,7 +69,7 @@ export const PLAYER_COLUMNS: PlayerColumn[] = [
   { key: "xGPerGame", label: "xG/Game", group: "UNDERLYING PERFORMANCE", metricKey: "xGPerGame", getValue: (p) => p.xGPerGame, ...num(2) },
   { key: "xAPerGame", label: "xA/Game", group: "UNDERLYING PERFORMANCE", metricKey: "xAPerGame", getValue: (p) => p.xAPerGame, ...num(2) },
   { key: "xGIPerGame", label: "xGI/Game", group: "UNDERLYING PERFORMANCE", metricKey: "xGIPerGame", getValue: (p) => p.xGIPerGame, ...num(2) },
-  { key: "xGC", label: "xGC", group: "UNDERLYING PERFORMANCE", metricKey: "xGC", getValue: (p) => p.xGC, ...num(2), higherIsBetter: false },
+  { key: "xGC", label: "xGC", group: "UNDERLYING PERFORMANCE", metricKey: "xGC", getValue: (p) => p.xGC, ...num(2), higherIsBetter: false, rankBy: (p) => p.xGCPerGame },
   { key: "xGCPerGame", label: "xGC/Game", group: "UNDERLYING PERFORMANCE", metricKey: "xGCPerGame", getValue: (p) => p.xGCPerGame, ...num(2), higherIsBetter: false },
 
   // VALUE

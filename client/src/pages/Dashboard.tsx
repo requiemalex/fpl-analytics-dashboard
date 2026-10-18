@@ -129,8 +129,15 @@ export function topN<T extends { value: number | null }>(rowsIn: T[], n: number,
 }
 
 /** A tile's custom name (set in the Add/Edit dialog) if it has one, else just its metric's name. */
-function displayTileTitle(tile: SummaryTileConfig, metricLabel: string): string {
-  return tile.name && tile.name.trim() ? tile.name : metricLabel;
+/**
+ * A tile's custom name if it has one, else its metric's name, plus "Lowest
+ * First" when it's ordered that way: otherwise a Highest First and a Lowest
+ * First tile of one metric (the two Starter "Goals vs xG" tiles) shared a
+ * title, told apart only by their signs (audit 2026-10-18 L1).
+ */
+export function displayTileTitle(tile: Pick<SummaryTileConfig, "name" | "direction">, metricLabel: string): string {
+  if (tile.name && tile.name.trim()) return tile.name;
+  return tile.direction === "asc" ? `${metricLabel} · Lowest First` : metricLabel;
 }
 
 /** A scatter graph is "<X> vs <Y>"; a bar graph is just its metric's name. */
@@ -329,11 +336,11 @@ export function Dashboard() {
   // the season(s) a tile/graph's own Data View selects, league table
   // included, never a sum over today's squad.
   const teamAggregatesByMode = useMemo(() => {
-    const ctx = { clubSeasons, referenceSeason: historicReferenceSeason, currentSeasonHasStarted };
+    const ctx = { clubSeasons, referenceSeason: historicReferenceSeason, currentSeasonHasStarted, livePlayerSumsPartial: historicSkippedPlayerIds.length > 0 };
     const map = {} as Record<AnalysisMode, TeamAggregate[]>;
     for (const mode of MODES) map[mode] = computeTeamAggregates(teams, mode, ctx);
     return map;
-  }, [teams, clubSeasons, historicReferenceSeason, currentSeasonHasStarted]);
+  }, [teams, clubSeasons, historicReferenceSeason, currentSeasonHasStarted, historicSkippedPlayerIds]);
 
   // ---------- Summary Tiles ----------
   //
@@ -425,15 +432,16 @@ export function Dashboard() {
   );
   const selectedViewIsDefault = useMemo(() => isDefaultViewSelected(visibleSavedViews, selectedViewId), [visibleSavedViews, selectedViewId]);
 
-  // Whether each scope's on-screen tiles and graphs have been loaded from
-  // its selected view yet. The tiles and graphs stores keep their own
-  // working copy, which can differ from the selected view when the page
-  // first opens: a new install's working copy is the packaged set while
-  // the view it opens on (My View) is blank, and an update moves a scope
-  // that was on the packaged view to My View. Loading the view first, and
-  // holding the live-sync below until then, stops that working copy being
-  // written into the view.
-  const [hydratedScopes, setHydratedScopes] = useState<Record<SummaryTileScope, boolean>>({ player: false, team: false });
+  // Which view each scope's on-screen tiles and graphs were loaded from
+  // (null until the scope is first shown). The tiles and graphs stores keep
+  // their own working copy, which can differ from the selected view: when
+  // the page first opens (a new install's working copy is the packaged set
+  // while the view it opens on, My View, is blank), and whenever the
+  // selection moves without a load, as when deleting the selected view
+  // falls back to My View (audit 2026-10-18 C1). Loading the selected view
+  // first, and holding the live-sync below until the on-screen copy is that
+  // view's, stops one view's working copy being written into another.
+  const [loadedViewIds, setLoadedViewIds] = useState<Record<SummaryTileScope, string | null>>({ player: null, team: null });
 
   // Keeps the currently-selected non-Default view's storage in lock-step
   // with whatever's actually on screen — every add/remove/reorder of a
@@ -444,24 +452,25 @@ export function Dashboard() {
   // (updateView refuses, and this skips the call entirely while Default is
   // selected).
   useEffect(() => {
-    if (selectedViewIsDefault || !selectedViewId || !hydratedScopes[tileView]) return;
+    if (selectedViewIsDefault || !selectedViewId || loadedViewIds[tileView] !== selectedViewId) return;
     const scopeTiles = tilesState.tiles.filter((t) => t.scope === tileView);
     const scopeGraphs = graphsState.graphs.filter((g) => g.scope === tileView);
     savedDashboardViews.updateView(selectedViewId, scopeTiles, scopeGraphs);
-  }, [tilesState.tiles, graphsState.graphs, tileView, selectedViewId, selectedViewIsDefault, hydratedScopes, savedDashboardViews.updateView]);
+  }, [tilesState.tiles, graphsState.graphs, tileView, selectedViewId, selectedViewIsDefault, loadedViewIds, savedDashboardViews.updateView]);
 
-  // The first time a scope is shown, put its selected view on screen (see
-  // hydratedScopes above). The packaged view is brought on screen by the
+  // Whenever a scope's selected view isn't the one on screen (first shown,
+  // or the selection moved without a load), put it on screen (see
+  // loadedViewIds above). The packaged view is brought on screen by the
   // effect below instead.
   useEffect(() => {
-    if (hydratedScopes[tileView]) return;
+    if (!selectedViewId || loadedViewIds[tileView] === selectedViewId) return;
     const view = visibleSavedViews.find((v) => v.id === selectedViewId);
     if (view && !selectedViewIsDefault) {
       tilesState.replaceScopeTiles(tileView, view.tiles);
       graphsState.replaceScopeGraphs(tileView, view.graphs);
     }
-    setHydratedScopes((prev) => ({ ...prev, [tileView]: true }));
-  }, [tileView, hydratedScopes, visibleSavedViews, selectedViewId, selectedViewIsDefault, tilesState.replaceScopeTiles, graphsState.replaceScopeGraphs]);
+    setLoadedViewIds((prev) => ({ ...prev, [tileView]: selectedViewId }));
+  }, [tileView, loadedViewIds, visibleSavedViews, selectedViewId, selectedViewIsDefault, tilesState.replaceScopeTiles, graphsState.replaceScopeGraphs]);
 
   // One-off reset (self-correcting, so it also guards against any future
   // regression, not just this one time) for anyone whose on-screen tiles or
@@ -531,6 +540,7 @@ export function Dashboard() {
     tilesState.replaceScopeTiles(tileView, []);
     graphsState.replaceScopeGraphs(tileView, []);
     savedDashboardViews.setSelectedViewId(tileView, id);
+    setLoadedViewIds((prev) => ({ ...prev, [tileView]: id }));
     setShowCreateViewModal(false);
   }
 
@@ -555,8 +565,9 @@ export function Dashboard() {
   function handleDeleteSelectedView() {
     setShowDeleteViewConfirm(false);
     if (!selectedViewId) return;
-    // useSavedDashboardViews.remove() already falls the scope's selection
-    // back to Default when the deleted view was the one selected.
+    // useSavedDashboardViews.remove() falls the scope's selection back to
+    // My View (or Starter); the effect above then loads that view onto
+    // screen before the live-sync can write anything into it.
     savedDashboardViews.remove(selectedViewId);
   }
 
@@ -565,6 +576,7 @@ export function Dashboard() {
     if (!view) return;
     if (handleLoadView(view)) {
       savedDashboardViews.setSelectedViewId(tileView, id);
+      setLoadedViewIds((prev) => ({ ...prev, [tileView]: id }));
     }
   }
 

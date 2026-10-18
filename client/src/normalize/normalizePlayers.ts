@@ -116,7 +116,7 @@ function normalizeOnePlayer(
     defensiveContributions: availability.defensive_contribution ? parseNumberOrNull(el.defensive_contribution) : null,
     defensiveContributionsPerGame: null,
 
-    status: el.status,
+    status: el.status ?? "",
     news: el.news,
     chanceOfPlayingNextRound: el.chance_of_playing_next_round,
 

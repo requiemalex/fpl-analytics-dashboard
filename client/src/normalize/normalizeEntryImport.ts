@@ -41,7 +41,11 @@ export function normalizeEntryImport(
     }
     squad.playerIds.push(player.id);
 
-    const inStartingXI = pick.multiplier !== undefined ? pick.multiplier > 0 : (pick.position ?? 12) <= 11;
+    // Positions 1-11 are the starting XI. Not multiplier > 0: under Bench
+    // Boost the bench scores too (multiplier 1), which put all 15 in the XI
+    // (audit 2026-10-18 M10). The multiplier is only a fallback for a pick
+    // without a position.
+    const inStartingXI = pick.position !== undefined ? pick.position <= 11 : (pick.multiplier ?? 0) > 0;
     if (inStartingXI) squad.startingXI.push(player.id);
 
     if (pick.is_captain) squad.captainId = player.id;
@@ -64,14 +68,15 @@ export function normalizeEntryImport(
   squad.usedChips = usedChips;
 
   const latestGw = (history.current ?? []).slice().sort((a, b) => b.event - a.event)[0];
-  const bankTenths = latestGw?.bank ?? team.last_deadline_bank ?? 0;
+  // Unknown, not £0.0m, if FPL sends neither (audit 2026-10-18 L4).
+  const bankTenths = latestGw?.bank ?? team.last_deadline_bank ?? null;
 
   squad.importedFrom = {
     teamId: team.id,
     teamName: team.name,
     managerName: `${team.player_first_name} ${team.player_last_name}`.trim(),
     asOfEvent: eventId,
-    bank: bankTenths / 10,
+    bank: bankTenths === null ? null : bankTenths / 10,
   };
 
   return { squad, warnings };

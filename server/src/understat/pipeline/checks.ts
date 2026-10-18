@@ -13,7 +13,9 @@
  *    across 2021/22, 2022/23 and 2026/27), which is why the app shows them
  *    from FPL only, with no source toggle. These checks keep proving that;
  *    if it ever stops being true the run fails and alerts, rather than the
- *    app quietly showing two versions of a goal.
+ *    app quietly showing two versions of a goal. Every difference counts,
+ *    however few (audit 2026-10-18 H2), unless the owner has reviewed it
+ *    and listed it in accepted-differences.csv.
  *
  * Errors stop the run (nothing written). Warnings go in the run report.
  */
@@ -28,8 +30,9 @@ export interface CheckResult {
 
 /** Understat rounds each figure separately. */
 const XG_TOLERANCE = 0.02;
-/** Above this share of linked player-matches with different goals, something is wrong rather than a one-off correction. */
-const MAX_GOAL_DIFFERENCE_SHARE = 0.005;
+
+/** Key of one reviewed goals difference: season, Understat match id, FPL player code. */
+export const acceptedDifferenceKey = (season: string, understatMatchId: string, fplCode: number) => `${season}|${understatMatchId}|${fplCode}`;
 
 export function checkSeasonInternally(data: SeasonData): CheckResult {
   const errors: string[] = [];
@@ -77,18 +80,26 @@ export function checkSeasonInternally(data: SeasonData): CheckResult {
   return { errors, warnings };
 }
 
-/** FPL and Understat must agree on every linked player's goals and own goals in every paired match. */
+/**
+ * FPL and Understat must agree on every linked player's goals and own goals
+ * in every paired match. One difference stops the run, unless its key
+ * (acceptedDifferenceKey) is in `accepted`: a difference the owner has
+ * looked at and listed in accepted-differences.csv, which stays in the
+ * run report as a warning.
+ */
 export function checkAgainstFpl(
   data: SeasonData,
   ledgerRows: LedgerRow[],
   matchByFixture: Map<number, string>,
   links: Map<number, PlayerLink>,
+  accepted: ReadonlySet<string> = new Set(),
 ): CheckResult & { compared: number } {
   const errors: string[] = [];
   const warnings: string[] = [];
   const byKey = new Map(data.appearances.map((a) => [`${a.matchId}|${a.playerId}`, a]));
   let compared = 0;
   const differences: string[] = [];
+  const acceptedSeen: string[] = [];
   for (const row of ledgerRows) {
     const link = links.get(row.code);
     const match = matchByFixture.get(row.fixture);
@@ -99,14 +110,18 @@ export function checkAgainstFpl(
     const usGoals = us?.goals ?? 0;
     const usOwn = us?.ownGoals ?? 0;
     if (usGoals !== row.goals || (row.ownGoals !== null && usOwn !== row.ownGoals)) {
-      differences.push(`${link.fplName} in match ${match}: FPL ${row.goals} goals/${row.ownGoals ?? "?"} own goals, Understat ${usGoals}/${usOwn}`);
+      const line = `${link.fplName} (FPL code ${row.code}) in Understat match ${match}: FPL ${row.goals} goals/${row.ownGoals ?? "?"} own goals, Understat ${usGoals}/${usOwn}`;
+      if (accepted.has(acceptedDifferenceKey(data.season, match, row.code))) acceptedSeen.push(line);
+      else differences.push(line);
     }
   }
   if (differences.length > 0) {
-    const share = differences.length / Math.max(1, compared);
-    const line = `${data.season}: ${differences.length} of ${compared} player-matches have different goals in FPL and Understat (e.g. ${differences.slice(0, 3).join("; ")})`;
-    if (share > MAX_GOAL_DIFFERENCE_SHARE) errors.push(line);
-    else warnings.push(line);
+    errors.push(
+      `${data.season}: ${differences.length} of ${compared} player-matches have different goals in FPL and Understat (${differences.slice(0, 5).join("; ")}${differences.length > 5 ? "; …" : ""})`,
+    );
+  }
+  if (acceptedSeen.length > 0) {
+    warnings.push(`${data.season}: ${acceptedSeen.length} goals difference${acceptedSeen.length === 1 ? "" : "s"} listed as reviewed in accepted-differences.csv (${acceptedSeen.join("; ")})`);
   }
   return { errors, warnings, compared };
 }

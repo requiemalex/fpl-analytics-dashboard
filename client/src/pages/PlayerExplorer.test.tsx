@@ -244,6 +244,14 @@ describe("Player Explorer — phase 3 findings (2026-09-25 audit, 3-regression.m
     expect(header(container, "Points").textContent).toContain("↓");
   });
 
+  it("audit 2026-10-18 L9: Shift-click on the Player header adds the name as a tiebreaker, as on any other column", () => {
+    const { container } = renderExplorer();
+    fireEvent.click(header(container, "Points"));
+    fireEvent.click(container.querySelector<HTMLElement>("th.sticky-col")!, { shiftKey: true });
+    expect(header(container, "Points").textContent).toMatch(/[↑↓]/);
+    expect(container.querySelector<HTMLElement>("th.sticky-col")!.textContent).toMatch(/[↑↓]/);
+  });
+
   it("R10: Escape closes only the most recently opened layer — the Columns picker, then the filter under it", () => {
     const { container, getByRole } = renderExplorer();
     openColumnFilter(container, "Points");

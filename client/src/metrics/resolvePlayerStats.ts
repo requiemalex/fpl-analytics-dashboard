@@ -122,8 +122,17 @@ function nullPerformanceFields(player: NormalizedPlayer): NormalizedPlayer {
     xGCPerGame: null,
     defensiveContributions: null,
     defensiveContributionsPerGame: null,
+    saves: null,
+    savesPerGame: null,
   };
 }
+
+/**
+ * Saves outside Current Season: history_past has no saves at all, so they
+ * are unknown ("—") in Last Completed Season and Historic Average, never
+ * today's live figure carried over (audit 2026-10-18 L5).
+ */
+const NO_HISTORIC_SAVES = { saves: null, savesPerGame: null } as const;
 
 /**
  * `fixedFloorSeasons`: Historic Average counts only window seasons that
@@ -188,6 +197,7 @@ export function resolvePlayerStats(
       xGCPerGame: null,
       defensiveContributions: 0,
       defensiveContributionsPerGame: null,
+      saves: 0,
       savesPerGame: null,
     };
   }
@@ -219,6 +229,7 @@ export function resolvePlayerStats(
       xGCPerGame: perGame(s.xGC, s.minutes),
       defensiveContributions: s.defensiveContribution,
       defensiveContributionsPerGame: perGame(s.defensiveContribution, s.minutes),
+      ...NO_HISTORIC_SAVES,
     };
   }
 
@@ -254,6 +265,7 @@ export function resolvePlayerStats(
     xGCPerGame: avg.xGCPerGame,
     defensiveContributions: avg.avgDefensiveContributionPerSeason,
     defensiveContributionsPerGame: avg.defensiveContributionPerGame,
+    ...NO_HISTORIC_SAVES,
   };
 }
 

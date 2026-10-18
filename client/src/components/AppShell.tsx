@@ -99,7 +99,8 @@ function RefreshIcon() {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { status, isStale, lastUpdated, refreshing, refresh, players, errorMessage, gameweekState, events } = useAppState();
+  const { status, isStale, staleDatasets, lastUpdated, refreshing, refresh, players, errorMessage, gameweekState, events } = useAppState();
+  const staleParts = [staleDatasets.fixtures && "fixtures", staleDatasets.historic && "historic data"].filter((x): x is string => !!x);
   const gwInfo = getGameweekInfo(gameweekState, events);
   const [notepadOpen, setNotepadOpen] = useState(false);
   const toggleNotepad = useCallback(() => setNotepadOpen((o) => !o), []);
@@ -185,6 +186,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="banner stale">
             Showing cached data from {fmtTimeAgo(lastUpdated)} because the live API request failed. It may not be current.
           </div>
+        )}
+        {!isStale && staleParts.length > 0 && (
+          <div className="banner stale">Showing a cached copy of the {staleParts.join(" and ")} because the live API request failed. It may not be current.</div>
         )}
         {errorMessage && status !== "error" && <div className="banner error">Refresh failed: {errorMessage}</div>}
         {children}

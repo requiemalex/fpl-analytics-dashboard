@@ -8,7 +8,7 @@ import type { PlayerLink } from "./types.js";
  * confirmed (so the app hides it), not stay live.
  */
 describe("overrides.csv never on an existing confirmed link", () => {
-  it.fails("[UNDERSTAT-NEVER] a 'never' override un-confirms a saved wrong link", () => {
+  it("[UNDERSTAT-NEVER] a 'never' override un-confirms a saved wrong link", () => {
     const matchByFixture = new Map([
       [1, "m1"],
       [2, "m2"],

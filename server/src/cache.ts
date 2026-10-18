@@ -38,10 +38,17 @@ export class TtlCache<T = unknown> {
     return { value: entry.value, fetchedAt: entry.fetchedAt };
   }
 
-  set(key: string, value: T, ttlMs: number): void {
+  /**
+   * `startedAt`: when the request that produced `value` began. The TTL runs
+   * from then, not from when a slow response finally arrived, so a client
+   * polling every TTL always lands on a fresh copy (audit 2026-10-18 L2:
+   * a 10-minute poll against a 10-minute TTL got the same snapshot every
+   * other time, so live figures moved every 20 minutes). Defaults to now.
+   */
+  set(key: string, value: T, ttlMs: number, startedAt: number = Date.now()): void {
     this.store.set(key, {
       value,
-      expiresAt: Date.now() + ttlMs,
+      expiresAt: startedAt + ttlMs,
       fetchedAt: Date.now(),
     });
   }

@@ -160,7 +160,7 @@ export function understatTeamColumns(teamsById: Map<number, NormalizedTeam>, loo
     key: string,
     label: string,
     value: (r: UsClubResolved) => number | null,
-    format: { format: (v: number | null) => string; decimals?: number },
+    format: { format: (v: number | null) => string; decimals: number },
     extra: Partial<TeamColumn> = {},
   ): TeamColumn {
     return {
@@ -183,7 +183,7 @@ export function understatTeamColumns(teamsById: Map<number, NormalizedTeam>, loo
   const forShots = (get: (r: UsClubResolved) => number | null) => (r: UsClubResolved) => (r.totals.shotsCompleteFor ? get(r) : null);
   const againstShots = (get: (r: UsClubResolved) => number | null) => (r: UsClubResolved) => (r.totals.shotsCompleteAgainst ? get(r) : null);
   const setPiece = (s: CT["situationsFor"]) => s.FromCorner.xG + s.SetPiece.xG + s.DirectFreekick.xG;
-  const whole = { format: (v: number | null) => fmtDecimal(v, 0) };
+  const whole = fmt(0);
 
   const alternates: Record<string, TeamColumn> = {
     xG: col("xG", "xG", total((t) => t.xG), fmt(2)),

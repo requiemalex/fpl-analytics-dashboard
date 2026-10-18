@@ -172,3 +172,10 @@ describe("PlayerComparison", () => {
     expect((getByRole("button", { name: "Delete View" }) as HTMLButtonElement).disabled).toBe(true);
   });
 });
+
+describe("the players address (audit 2026-10-18 L9)", () => {
+  it("a repeated id is shown once, and junk is ignored", () => {
+    const { container } = renderPage("1,1,2,abc,,-3");
+    expect(container.querySelectorAll(".cmp-player-tag")).toHaveLength(2);
+  });
+});

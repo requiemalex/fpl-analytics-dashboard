@@ -11,76 +11,34 @@
  * record — no community backfill needed.
  *
  * <append_only>: rows are merged into what's already archived and never
- * deleted (mergeArchivedRows, server/src/clubHistory/archive.ts).
+ * deleted (mergeArchivedRows, server/src/clubHistory/archive.ts; the fetch
+ * and merge are in liveLedger.ts, shared with the Understat sync).
  */
 import { join } from "node:path";
 import { checkLedgerAgainstScores } from "../../server/src/clubHistory/aggregate.js";
-import { mergeArchivedRows } from "../../server/src/clubHistory/archive.js";
-import { readSeasonLedger, writeSeasonLedger } from "../../server/src/clubHistory/ledgerFiles.js";
-import { fixturesFromOfficial, ledgerRowsFromOfficial, seasonNameFromBootstrap, teamsFromBootstrap } from "../../server/src/clubHistory/official.js";
+import { writeSeasonLedger } from "../../server/src/clubHistory/ledgerFiles.js";
+import { seasonNameFromBootstrap } from "../../server/src/clubHistory/official.js";
+import { fetchLiveLedger, FPL_API, getJson } from "./liveLedger.js";
 
-const API = "https://fantasy.premierleague.com/api";
 const ROOT = join(process.cwd(), "data", "club-history");
-const CONCURRENCY = 8;
-/** More than this share of element-summary requests failing means the API is having a bad day — write nothing rather than a patchy week. */
-const MAX_FAILURE_SHARE = 0.05;
-
-async function getJson(url: string, attempts = 4): Promise<unknown> {
-  let lastError: unknown;
-  for (let i = 0; i < attempts; i++) {
-    try {
-      const res = await fetch(url, { headers: { "User-Agent": "fpl-analytics-dashboard club-history archive" } });
-      if (res.ok) return await res.json();
-      lastError = new Error(`${url}: HTTP ${res.status}`);
-    } catch (err) {
-      lastError = err;
-    }
-    await new Promise((r) => setTimeout(r, 1000 * 2 ** i));
-  }
-  throw lastError;
-}
+const USER_AGENT = "fpl-analytics-dashboard club-history archive";
 
 async function main() {
-  const bootstrap = await getJson(`${API}/bootstrap-static/`);
-  const season = seasonNameFromBootstrap(bootstrap);
-  if (!season) throw new Error("Couldn't determine the live season's name from bootstrap-static");
-  const fixtures = fixturesFromOfficial(await getJson(`${API}/fixtures/`));
-  if (!fixtures.some((f) => f.finished)) {
-    console.log(`${season}: no finished fixtures yet — nothing to archive.`);
+  const bootstrap = await getJson(`${FPL_API}/bootstrap-static/`, USER_AGENT);
+  const result = await fetchLiveLedger(bootstrap, ROOT, USER_AGENT);
+  if (!result) {
+    console.log(`${seasonNameFromBootstrap(bootstrap)}: no finished fixtures yet — nothing to archive.`);
     return;
   }
+  const { ledger, added, failedRequests } = result;
+  const { season, fixtures, rows } = ledger;
 
-  const elementIds = ((bootstrap as { elements: { id: number }[] }).elements ?? []).map((e) => e.id);
-  const historyByElement = new Map<number, unknown[]>();
-  const failed: number[] = [];
-  let next = 0;
-  await Promise.all(
-    Array.from({ length: CONCURRENCY }, async () => {
-      while (next < elementIds.length) {
-        const id = elementIds[next++];
-        try {
-          const summary = (await getJson(`${API}/element-summary/${id}/`)) as { history?: unknown[] };
-          historyByElement.set(id, summary.history ?? []);
-        } catch {
-          failed.push(id);
-        }
-      }
-    }),
-  );
-  if (failed.length > elementIds.length * MAX_FAILURE_SHARE) {
-    throw new Error(`${failed.length}/${elementIds.length} element-summary requests failed — not archiving a partial week`);
-  }
-
-  const fresh = ledgerRowsFromOfficial(bootstrap, fixtures, historyByElement);
-  const existing = readSeasonLedger(ROOT, season);
-  const { rows, added } = mergeArchivedRows(existing?.rows ?? [], fresh);
-
-  writeSeasonLedger(ROOT, { season, teams: teamsFromBootstrap(bootstrap), fixtures, rows });
+  writeSeasonLedger(ROOT, ledger);
 
   const problems = checkLedgerAgainstScores(fixtures, rows);
   console.log(
     `${season}: ${fixtures.filter((f) => f.finished).length}/${fixtures.length} fixtures finished · ${rows.length} rows (${added} new) · ` +
-      `${failed.length} element-summary failures · score mismatches ${problems.length}`,
+      `${failedRequests} element-summary failures · score mismatches ${problems.length}`,
   );
   // Not fatal — the week's data is still archived — but surfaced in the
   // workflow log: a mismatch means a goal-scorer is missing from the API's

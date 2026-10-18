@@ -144,6 +144,97 @@ describe("runSync", () => {
     expect(existsSync(join(understatRoot, "links.csv"))).toBe(false);
   });
 
+  describe("a result FPL hasn't confirmed (audit 2026-10-18 H3)", () => {
+    // A second match, a week later: Away United 1-0 Home FC, Ali scores. FPL's archive doesn't have it yet.
+    const history2 = (teamId: string, side: "h" | "a", scored: number, missed: number) => ({
+      teamId, datetime: "2026-08-22 15:00:00", side, xG: 0.5, xGA: 0.5, npxG: 0.5, npxGA: 0.5, ppdaAtt: 200, ppdaDef: 20, ppdaAllowedAtt: 150, ppdaAllowedDef: 15,
+      deep: 6, deepAllowed: 4, scored, missed, xPts: 1.5, result: scored > missed ? "w" : "l", pts: scored > missed ? 3 : 0,
+    });
+    const twoMatchLeague = (): UsLeague => {
+      const base = league();
+      return {
+        ...base,
+        teams: [
+          { ...base.teams[0], history: [...base.teams[0].history, history2("71", "a", 0, 1)] },
+          { ...base.teams[1], history: [...base.teams[1].history, history2("72", "h", 1, 0)] },
+        ],
+        matches: [...base.matches, { id: "m2", datetime: "2026-08-22 15:00:00", isResult: true, homeTeamId: "72", awayTeamId: "71", homeGoals: 1, awayGoals: 0, homeXG: 0.5, awayXG: 0.5, forecastWin: 0.4, forecastDraw: 0.3, forecastLoss: 0.3 }],
+      };
+    };
+    const match2: UsMatch = {
+      matchId: "m2",
+      appearances: [
+        { ...app("u3", "Ali Winger", "72", "h", 1, 0.5, 1), matchId: "m2" },
+        { ...app("u4", "Bo Back", "72", "h", 0, 0, 0), matchId: "m2" },
+        { ...app("u1", "Harry Striker", "71", "a", 0, 0.5, 1), matchId: "m2" },
+        { ...app("u2", "Kev Keeper", "71", "a", 0, 0, 0), matchId: "m2" },
+      ],
+      shots: [
+        { ...shot("s5", "u3", "h", "Goal", 0.5), matchId: "m2" },
+        { ...shot("s6", "u1", "a", "SavedShot", 0.5), matchId: "m2" },
+      ],
+    };
+    const client = () => fakeClient({ league: async () => twoMatchLeague(), match: async (id: string) => (id === "m2" ? match2 : match) });
+    const row2 = (element: number, code: number, team: number, wasHome: boolean, goals: number): LedgerRow => ({ ...ledgerRow(element, code, team, wasHome, 90, goals), fixture: 2, round: 2 });
+
+    it("isn't counted until it has been paired with a finished FPL fixture and checked", async () => {
+      const report = await sync(client());
+      expect(report.ok).toBe(true);
+      expect(report.warnings.some((w) => w.includes("archived one"))).toBe(true);
+      const season = JSON.parse(readFileSync(join(understatRoot, "app", "2026-27.json"), "utf8"));
+      expect(season.matchesIncluded).toBe(1);
+      expect(season.latestMatchDate).toBe("2026-08-15");
+      expect(season.players["2001"]).toMatchObject({ goals: 1, appearances: 1 });
+    });
+
+    it("is counted the day FPL confirms it, using FPL's live record rather than the archive", async () => {
+      const liveLedger = {
+        season: "2026/27",
+        teams: [
+          { id: 1, code: 11, name: "Home", shortName: "HOM" },
+          { id: 2, code: 22, name: "Away", shortName: "AWY" },
+        ],
+        fixtures: [
+          { id: 1, event: 1, teamH: 1, teamA: 2, teamHScore: 2, teamAScore: 1, finished: true },
+          { id: 2, event: 2, teamH: 2, teamA: 1, teamHScore: 1, teamAScore: 0, finished: true },
+        ],
+        rows: [
+          ledgerRow(1, 1001, 1, true, 90, 2), ledgerRow(2, 1002, 1, true, 90, 0), ledgerRow(3, 2001, 2, false, 90, 1), ledgerRow(4, 2002, 2, false, 90, 0),
+          row2(1, 1001, 1, false, 0), row2(2, 1002, 1, false, 0), row2(3, 2001, 2, true, 1), row2(4, 2002, 2, true, 0),
+        ],
+      };
+      const report = await runSync({ understatRoot, clubHistoryRoot, bootstrap, liveLedger, client: client(), today: "2026-08-23", maxNewSeasons: 0 });
+      expect(report.failure).toBeUndefined();
+      expect(report.warnings.some((w) => w.includes("archived one"))).toBe(false);
+      const season = JSON.parse(readFileSync(join(understatRoot, "app", "2026-27.json"), "utf8"));
+      expect(season.matchesIncluded).toBe(2);
+      expect(season.players["2001"]).toMatchObject({ goals: 2, appearances: 2 });
+    });
+
+    it("still stops the run when FPL's live record disagrees with Understat on a goal", async () => {
+      const liveLedger = {
+        season: "2026/27",
+        teams: [
+          { id: 1, code: 11, name: "Home", shortName: "HOM" },
+          { id: 2, code: 22, name: "Away", shortName: "AWY" },
+        ],
+        fixtures: [
+          { id: 1, event: 1, teamH: 1, teamA: 2, teamHScore: 2, teamAScore: 1, finished: true },
+          { id: 2, event: 2, teamH: 2, teamA: 1, teamHScore: 1, teamAScore: 0, finished: true },
+        ],
+        // FPL gives match 2's goal to Bo, Understat to Ali.
+        rows: [
+          ledgerRow(1, 1001, 1, true, 90, 2), ledgerRow(2, 1002, 1, true, 90, 0), ledgerRow(3, 2001, 2, false, 90, 1), ledgerRow(4, 2002, 2, false, 90, 0),
+          row2(1, 1001, 1, false, 0), row2(2, 1002, 1, false, 0), row2(3, 2001, 2, true, 0), row2(4, 2002, 2, true, 1),
+        ],
+      };
+      const report = await runSync({ understatRoot, clubHistoryRoot, bootstrap, liveLedger, client: client(), today: "2026-08-23", maxNewSeasons: 0 });
+      expect(report.ok).toBe(false);
+      expect(report.failure?.kind).toBe("checks");
+      expect(existsSync(join(understatRoot, "app"))).toBe(false);
+    });
+  });
+
   it("stops and writes nothing when the sources disagree on a score", async () => {
     const report = await sync(fakeClient({ league: async () => league(3) }));
     expect(report.ok).toBe(false);

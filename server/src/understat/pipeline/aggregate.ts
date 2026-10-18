@@ -32,8 +32,14 @@ function roundSlices<K extends string>(r: Record<K, ShotSlice>): Record<K, ShotS
 /** Own goals are listed among Understat's shots but aren't the shooter's attempt at his own goal — they count for nobody's shots. */
 const isRealShot = (s: UsShot) => s.result !== "OwnGoal";
 
-export function buildAppSeason(data: SeasonData, links: Map<number, PlayerLink>, complete: boolean): AppSeasonFile {
-  const resultMatchIds = new Set(data.matches.filter((m) => m.isResult).map((m) => m.id));
+/**
+ * `checkedMatchIds`: the Understat matches paired with a finished FPL
+ * fixture this run, so checked against FPL (scores, goals). Only those
+ * count; a result FPL hasn't confirmed yet waits for a later run rather
+ * than going out unchecked (audit 2026-10-18 H3).
+ */
+export function buildAppSeason(data: SeasonData, links: Map<number, PlayerLink>, complete: boolean, checkedMatchIds: ReadonlySet<string>): AppSeasonFile {
+  const resultMatchIds = new Set(data.matches.filter((m) => m.isResult && checkedMatchIds.has(m.id)).map((m) => m.id));
   const matchById = new Map(data.matches.map((m) => [m.id, m]));
   const appearances = data.appearances.filter((a) => resultMatchIds.has(a.matchId));
   const shots = data.shots.filter((s) => resultMatchIds.has(s.matchId) && isRealShot(s));
@@ -211,7 +217,7 @@ export function buildAppSeason(data: SeasonData, links: Map<number, PlayerLink>,
     roundSlices(c.situationsAgainst);
   }
 
-  const resultDates = data.matches.filter((m) => m.isResult).map((m) => m.datetime.slice(0, 10));
+  const resultDates = data.matches.filter((m) => resultMatchIds.has(m.id)).map((m) => m.datetime.slice(0, 10));
   return {
     schema: 1,
     season: data.season,

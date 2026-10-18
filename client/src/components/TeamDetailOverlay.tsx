@@ -121,7 +121,7 @@ function StatTile({ label, value, tint }: { label: string; value: React.ReactNod
 }
 
 export function TeamDetailOverlay() {
-  const { teams, teamsById, fixtures, clubSeasons, currentSeasonHasStarted, historicReferenceSeason, historicStatus, requestHistoricData } = useAppState();
+  const { teams, teamsById, fixtures, clubSeasons, currentSeasonHasStarted, historicReferenceSeason, historicStatus, historicSkippedPlayerIds, requestHistoricData } = useAppState();
   const [team, setTeamId, unknownTeamLink] = useSelectedTeam();
   const isOpen = team !== null;
   // Every club figure here (Current Season included) comes from the historic
@@ -138,8 +138,8 @@ export function TeamDetailOverlay() {
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("lastSeason");
 
   const clubCtx = useMemo(
-    () => ({ clubSeasons, referenceSeason: historicReferenceSeason, currentSeasonHasStarted }),
-    [clubSeasons, historicReferenceSeason, currentSeasonHasStarted],
+    () => ({ clubSeasons, referenceSeason: historicReferenceSeason, currentSeasonHasStarted, livePlayerSumsPartial: historicSkippedPlayerIds.length > 0 }),
+    [clubSeasons, historicReferenceSeason, currentSeasonHasStarted, historicSkippedPlayerIds],
   );
 
   // Every club's figures for this view — comparative colouring and the
@@ -177,7 +177,7 @@ export function TeamDetailOverlay() {
   // included) — each bar is what the club's players scored FOR IT that
   // season, so a season before the club was in the Premier League simply
   // isn't there.
-  const seasonHistory = useMemo(() => clubSeasonHistory(team?.code ?? null, clubSeasons), [team, clubSeasons]);
+  const seasonHistory = useMemo(() => clubSeasonHistory(team?.code ?? null, clubSeasons, clubCtx.livePlayerSumsPartial), [team, clubSeasons, clubCtx]);
   const completedSeasonHistory = useMemo(() => seasonHistory.filter((s) => s.complete), [seasonHistory]);
   const liveSeasonName = seasonHistory.find((s) => !s.complete)?.seasonName ?? null;
   // Same 4-season rolling window (HISTORIC_WINDOW_SEASONS) the player
@@ -275,7 +275,7 @@ export function TeamDetailOverlay() {
           </div>
         </div>
 
-        <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
+        <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} clubFigures />
 
         <div className="profile-section">
           <div className="profile-section-heading">

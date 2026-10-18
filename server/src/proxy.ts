@@ -9,6 +9,8 @@ export type ProxyResult<T> =
 // e.g. several browser tabs refreshing at once, or a manual refresh firing
 // while a background fetch is already in flight.
 const inFlight = new Map<string, Promise<unknown>>();
+/** When each upstream request began — the cache's TTL runs from then (TtlCache.set). */
+const requestStartedAt = new WeakMap<Promise<unknown>, number>();
 
 export async function cachedFetch<T>(options: {
   cache: TtlCache<T>;
@@ -30,15 +32,17 @@ export async function cachedFetch<T>(options: {
   let pending = inFlight.get(inFlightKey) as Promise<T> | undefined;
 
   if (!pending) {
+    const startedAt = Date.now();
     pending = fetchJson<T>(url).finally(() => {
       inFlight.delete(inFlightKey);
     });
     inFlight.set(inFlightKey, pending);
+    requestStartedAt.set(pending, startedAt);
   }
 
   try {
     const data = await pending;
-    cache.set(cacheKey, data, ttlMs);
+    cache.set(cacheKey, data, ttlMs, requestStartedAt.get(pending));
     return { ok: true, data, source: "live", fetchedAt: Date.now() };
   } catch (err) {
     // Graceful degradation: if we have any previously-cached value (even

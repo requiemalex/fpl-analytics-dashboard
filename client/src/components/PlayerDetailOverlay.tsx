@@ -36,7 +36,14 @@ const PROFILE_RESOLVE: ResolveOptions = { fixedFloorSeasons: true };
  * known per gameweek for the one player being viewed (usePlayerHistory is
  * lazy-loaded per player), so there's no population to compare them with.
  */
-const LIVE_LOG_METRICS: Record<string, { total: (p: NormalizedPlayer) => number | null; average: (a: GameweekHistoryAverages) => number | null; higherIsBetter: boolean }> = {
+// `rankTotal`: what the Totals row's colour ranks on when it isn't the total
+// itself. A lower-is-better total grows with minutes, so ranked on itself a
+// bench player would look best; xGC ranks on xGC per game (audit 2026-10-18
+// M13, as PlayerColumn.rankBy).
+const LIVE_LOG_METRICS: Record<
+  string,
+  { total: (p: NormalizedPlayer) => number | null; average: (a: GameweekHistoryAverages) => number | null; higherIsBetter: boolean; rankTotal?: (p: NormalizedPlayer) => number | null }
+> = {
   pts: { total: (p) => p.totalPoints, average: (a) => a.points, higherIsBetter: true },
   min: { total: (p) => p.minutes, average: (a) => a.minutes, higherIsBetter: true },
   g: { total: (p) => p.goals, average: (a) => a.goals, higherIsBetter: true },
@@ -45,7 +52,7 @@ const LIVE_LOG_METRICS: Record<string, { total: (p: NormalizedPlayer) => number 
   xa: { total: (p) => p.xA, average: (a) => a.xA, higherIsBetter: true },
   xgi: { total: (p) => p.xGI, average: (a) => a.xGI, higherIsBetter: true },
   cs: { total: (p) => p.cleanSheets, average: (a) => a.cleanSheets, higherIsBetter: true },
-  xgc: { total: (p) => p.xGC, average: (a) => a.xGC, higherIsBetter: false },
+  xgc: { total: (p) => p.xGC, average: (a) => a.xGC, higherIsBetter: false, rankTotal: (p) => p.xGCPerGame },
   dc: { total: (p) => p.defensiveContributions, average: (a) => a.defensiveContribution, higherIsBetter: true },
   saves: { total: (p) => p.saves, average: (a) => a.saves, higherIsBetter: true },
   bps: { total: (p) => p.bps, average: (a) => a.bps, higherIsBetter: true },
@@ -225,7 +232,8 @@ export function PlayerDetailOverlay() {
     if (!player) return {} as Record<string, number | null>;
     const metrics: Record<string, { fn: (p: NormalizedPlayer) => number | null; higherIsBetter: boolean }> = {
       cleanSheets: { fn: (p) => p.cleanSheets, higherIsBetter: true },
-      xGC: { fn: (p) => p.xGC, higherIsBetter: false },
+      // A lower-is-better total ranks on its rate (audit 2026-10-18 M13).
+      xGC: { fn: (p) => p.xGCPerGame, higherIsBetter: false },
       defensiveContributions: { fn: (p) => p.defensiveContributions, higherIsBetter: true },
       xGCPerGame: { fn: (p) => p.xGCPerGame, higherIsBetter: false },
       defensiveContributionsPerGame: { fn: (p) => p.defensiveContributionsPerGame, higherIsBetter: true },
@@ -263,8 +271,8 @@ export function PlayerDetailOverlay() {
   const seasonLogPercentiles = useMemo(() => {
     if (!player) return {} as Record<string, number | null>;
     const result: Record<string, number | null> = {};
-    for (const [key, { total, higherIsBetter }] of Object.entries(LIVE_LOG_METRICS)) {
-      const raw = computePositionPercentiles(liveResolvedPlayers, total, fixedFloorMinutes("live")).get(player.id) ?? null;
+    for (const [key, { total, higherIsBetter, rankTotal }] of Object.entries(LIVE_LOG_METRICS)) {
+      const raw = computePositionPercentiles(liveResolvedPlayers, rankTotal ?? total, fixedFloorMinutes("live")).get(player.id) ?? null;
       result[key] = raw === null ? null : higherIsBetter ? raw : 100 - raw;
     }
     return result;

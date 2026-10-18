@@ -46,6 +46,18 @@ export function sortWithoutHiddenColumn(sort: SortSpec[], hiddenKey: string, fal
   return remaining.length > 0 ? remaining : fallback.filter((s) => s.key !== hiddenKey);
 }
 
+/**
+ * The sort once only `visibleKeys` are on screen (Reset restoring the
+ * default columns): every sort on a column no longer shown drops out, and
+ * if none is left the page's default takes over, as when hiding one column
+ * (audit 2026-10-18 M17: Reset hid the sorted column but kept its order).
+ */
+export function sortWithinColumns(sort: SortSpec[], visibleKeys: ReadonlySet<string>, fallback: SortSpec[]): SortSpec[] {
+  const remaining = sort.filter((s) => visibleKeys.has(s.key));
+  if (remaining.length === sort.length) return sort;
+  return remaining.length > 0 ? remaining : fallback.filter((s) => visibleKeys.has(s.key));
+}
+
 const NAME_COLLATOR = new Intl.Collator("en-GB", { sensitivity: "base" });
 
 /**
