@@ -91,7 +91,10 @@ describe("Team Building — Add Players comparative colouring", () => {
     fireEvent.change(box, { target: { value: "90" } });
     expect(goalsCell(container, "Nwaneri")).toBeUndefined();
     expect(goalsCell(container, "Saka")).toBeDefined();
-    expect(container.querySelector('label[for="picker-min-minutes"] .small-sample-badge')!.getAttribute("title")).toContain("Your minimum minutes: 90");
+    const badge = container.querySelector('label[for="picker-min-minutes"] .minutes-floor-badge')!;
+    expect(badge.getAttribute("title")).toContain("Your minimum minutes: 90");
+    // <marker_follows_data>: everyone left has 90+ minutes, at or above the Current Season floor, so it's grey.
+    expect(badge.classList.contains("small-sample-badge")).toBe(false);
   });
 
   it("a search, or adding a player to the squad, doesn't change anyone's colour", () => {

@@ -31,7 +31,7 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.data-view-picker .small-sample-badge {
+.data-view-picker .minutes-floor-badge {
   margin-left: 0;
   margin-right: var(--space-1);
 }
@@ -192,11 +192,14 @@
   cursor: default;
 }
 
+/* The stopwatch (<minutes_marker>): grey on a view where nothing shown is under its threshold, amber (.small-sample-badge) on an entry under it or a view showing one (<marker_follows_data>). */
+.minutes-floor-badge {
+  margin-left: 6px;
+  vertical-align: middle;
+}
 .small-sample-badge {
   color: var(--accent-value);
   background: color-mix(in srgb, var(--accent-value) 16%, transparent);
-  margin-left: 6px;
-  vertical-align: middle;
 }
 
 /* ---------- Tables ---------- */
@@ -2074,7 +2077,7 @@ button.points-history-col.is-selectable:focus-visible {
 .cmp-legend-item.muted {
   color: var(--text-muted);
 }
-.cmp-legend-item .small-sample-badge {
+.cmp-legend-item .minutes-floor-badge {
   margin-left: 0;
 }
 .cmp-legend-swatch {

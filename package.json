@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.40.0",
   "description": "Scoutline: a scouting and analytics app for Fantasy Premier League managers. Independent; not affiliated with or endorsed by the Premier League.",
-  "author": "Alex Pirie",
+  "author": "Scoutline",
   "license": "SEE LICENSE IN LICENSE.txt",
   "main": "electron/main.js",
   "workspaces": [
@@ -40,7 +40,7 @@
   "build": {
     "appId": "com.fpldashboard.app",
     "productName": "Scoutline",
-    "copyright": "Copyright © 2026 Alex Pirie. All rights reserved.",
+    "copyright": "Copyright © 2026 Scoutline. All rights reserved.",
     "asar": false,
     "files": [
       "electron/**/*",

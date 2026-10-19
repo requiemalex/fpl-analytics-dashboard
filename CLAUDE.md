@@ -103,10 +103,16 @@ No lint script. Playwright isn't installed but works via
   all), over the last 4 completed seasons, never reaching further back.
   Clubs and forward-looking figures (Team Building's Exp. Pts, Minutes
   Reliability, pitch cards) have no floor. **Every** threshold shows the
-  amber stopwatch — on the view where it applies and on each entry under
-  it, and no other symbol (`<minutes_marker>`,
-  `components/MinutesFloorBadge.tsx`). Check which side a section is on
-  before adding or removing any floor.
+  stopwatch — on the view where it applies and on each entry under it,
+  and no other symbol (`<minutes_marker>`,
+  `components/MinutesFloorBadge.tsx`). An entry's is always amber; a
+  view's is amber only while something it shows is under the threshold,
+  grey otherwise (`<marker_follows_data>`, owner's rule 2026-10-20).
+  Where a section lists players chosen by criteria (Player Explorer, Team
+  Building's Add Players, a Dashboard tile or graph the user built), a
+  Hide button — the stopwatch struck through — leaves out the entries
+  under the threshold (`<hide_small_samples>`, off by default). Check
+  which side a section is on before adding or removing any floor.
 - **Comparative colouring — one rule** (owner's decision, 2026-10-19;
   README "Comparative colouring", `metrics/comparativeColour.ts`). Green /
   red on any figure is its rank: a player's within his position among the
@@ -115,7 +121,8 @@ No lint script. Playwright isn't installed but works via
   applies to colour, on every page: under it, no colour and out of the
   pool. More is better (over-performance included); lower price and
   ownership are better; played, draws and style stats are never coloured.
-  Never use green or red as a series or decoration colour.
+  Never use green or red as a series or decoration colour (one exception,
+  the owner's choice: the green "line" in the Scoutline logo).
 
 ## Architecture
 - Client data flows `api/client.ts` → `validation/` → `normalize/` →
@@ -164,6 +171,9 @@ No lint script. Playwright isn't installed but works via
 - Never change `appId`, the root package `name`, the GitHub repo name, the
   saved-data folder (`<saved_data_folder>`) or any `fpl-dashboard:`
   localStorage key: installs would stop updating or lose saved data.
+- **No personal names** anywhere in the app or codebase (owner's decision,
+  2026-10-20): the copyright holder is "the Scoutline developer" /
+  "Scoutline" (`client/src/brand.ts`, `LICENSE.txt`, `package.json`).
 - Terms are `LICENSE.txt`, privacy `PRIVACY.md` (README "Legal"). A
   substantive change to the terms needs a `TERMS_VERSION` bump. After a
   dependency change, run `npm run legal:notices` and commit the result.

@@ -1,7 +1,8 @@
 SCOUTLINE: LICENCE AND TERMS OF USE
-Version 1, 19 October 2026
+Version 2, 20 October 2026
 
-Copyright (c) 2026 Alex Pirie. All rights reserved.
+Copyright (c) 2026 the developer of Scoutline ("the Developer").
+All rights reserved.
 
 These terms apply to Scoutline: the desktop application, its source code,
 its documentation, and everything else in this repository that is not
@@ -12,7 +13,7 @@ If you do not agree, do not install or use it.
 1. OWNERSHIP
 The Software, including its source code, design, user interface, text,
 documentation, metric definitions and methodology, and the name and icon
-"Scoutline", is owned by Alex Pirie and is protected by copyright and other
+"Scoutline", is owned by the Developer and is protected by copyright and other
 intellectual property laws. No rights are granted except those set out in
 these terms. All other rights are reserved.
 
@@ -22,7 +23,7 @@ own or control, for your own personal, non-commercial use. This licence is
 free of charge, non-exclusive, non-transferable and revocable.
 
 3. WHAT YOU MAY NOT DO
-Unless Alex Pirie has agreed in writing, you may not:
+Unless the Developer has agreed in writing, you may not:
   (a) copy the Software, except to install it and to make one backup copy;
   (b) modify, adapt, translate or create derivative works of it;
   (c) sell, rent, lend, sublicense, distribute, publish or otherwise make
@@ -39,7 +40,7 @@ Unless Alex Pirie has agreed in writing, you may not:
 The source code is publicly visible on GitHub. Being able to see it does
 not give you a licence to use it. You may view it, and fork it on GitHub,
 only as GitHub's Terms of Service allow; any other use of the source code
-needs Alex Pirie's written permission.
+needs the Developer's written permission.
 
 5. THIRD-PARTY SOFTWARE
 The Software includes open-source components that belong to their authors
@@ -79,17 +80,17 @@ it.
 To the fullest extent the law allows, the Software is provided "as is" and
 "as available", without warranty or condition of any kind, express or
 implied, including any implied warranty of satisfactory quality, fitness
-for a particular purpose, accuracy, or non-infringement. Alex Pirie does
+for a particular purpose, accuracy, or non-infringement. the Developer does
 not promise that the Software will be error-free or uninterrupted, or that
 any third-party data source will remain available to it.
 
 9. LIMITATION OF LIABILITY
-  (a) To the fullest extent the law allows, Alex Pirie will not be liable
+  (a) To the fullest extent the law allows, the Developer will not be liable
       for any indirect or consequential loss, or for any loss of data,
       profit, revenue, opportunity, prize, game points or ranking, arising
       from or connected with the Software, whether in contract, tort
       (including negligence) or otherwise.
-  (b) To the fullest extent the law allows, Alex Pirie's total liability
+  (b) To the fullest extent the law allows, the Developer's total liability
       arising from or connected with the Software is limited to the
       greater of the amount you paid for it and GBP 10.
   (c) Nothing in these terms excludes or limits liability for death or
@@ -100,7 +101,7 @@ any third-party data source will remain available to it.
 
 10. PRIVACY
 The Software has no accounts, advertising, analytics or tracking, and sends
-no personal data to Alex Pirie. What it stores and which services it
+no personal data to the Developer. What it stores and which services it
 contacts are described in PRIVACY.md and on the app's About & Legal page.
 
 11. UPDATES AND CHANGES TO THESE TERMS

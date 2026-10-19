@@ -5,7 +5,8 @@ import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { clubRanks, colourDirection, positionRanks } from "../metrics/comparativeColour";
 import { FIXED_FLOOR_LIVE_MINUTES, FIXED_FLOOR_MINUTES, fixedFloorMinutes } from "../metrics/fixedMinutesFloor";
-import { dashboardFloorNote } from "../components/MinutesFloorBadge";
+import { dashboardFloorNote, isSmallSample } from "../components/MinutesFloorBadge";
+import { useHiddenSmallSamples } from "../state/useHiddenSmallSamples";
 import { filterPlayers } from "../state/useFilteredPlayers";
 import { computeTeamAggregates, type TeamAggregate } from "../metrics/teamStats";
 import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFilters";
@@ -20,7 +21,7 @@ import { TopList, type TopListRow } from "../components/TopList";
 import { TeamTopList, type TeamTopListRow } from "../components/TeamTopList";
 import { DashboardGraphCard } from "../components/DashboardGraphCard";
 import type { ScatterPoint } from "../components/charts/ScatterWithReference";
-import type { BarDatum } from "../components/charts/BarTopN";
+import { rankBars, type BarDatum } from "../components/charts/BarTopN";
 import { PLAYER_COLUMNS, columnByKey as playerColumnByKey, columnFormatForMode, columnForMode } from "../components/playerColumns";
 import { TEAM_COLUMNS, teamColumnByKey, teamColumnFormatForMode, teamColumnForMode } from "../components/teamColumns";
 import {
@@ -395,6 +396,7 @@ export function Dashboard() {
   // permanently editable inline the way the old Underlying Numbers "User
   // Analysis" graphs were.
   const graphsState = useDashboardGraphs();
+  const hiddenSmallSamples = useHiddenSmallSamples();
   const [dragOverGraphId, setDragOverGraphId] = useState<string | null>(null);
   const [showAddGraphModal, setShowAddGraphModal] = useState(false);
   const [newGraphName, setNewGraphName] = useState("");
@@ -611,7 +613,12 @@ export function Dashboard() {
           const ranks = playerTileRanks(metric, pool, tile.dataView);
           const rows = sourcePlayers.map((p) => ({ player: p, derived: getPlayerDerivedMetrics(p) }));
           const valueRows: TopListRow[] = rows.map((r) => ({ player: r.player, value: metric.getValue(r.player, r.derived), rank: ranks.get(r.player.id) }));
-          return { tile, metric, kind: "player" as const, topRows: topN(valueRows, 5, tile.direction === "asc"), floorNote: dashboardItemFloorNote(tile, floorOptions) };
+          // <hide_small_samples>: with the tile's Hide button on, players under the minutes threshold are left out and the next ones fill in.
+          const hideSmallSamples = hiddenSmallSamples.hidden.has(tile.id);
+          const candidates = hideSmallSamples ? valueRows.filter((r) => !isSmallSample(r.player.minutes, tile.dataView)) : valueRows;
+          const topRows = topN(candidates, 5, tile.direction === "asc");
+          const smallSampleCount = topRows.filter((r) => isSmallSample(r.player.minutes, tile.dataView)).length;
+          return { tile, metric, kind: "player" as const, topRows, floorNote: dashboardItemFloorNote(tile, floorOptions), hideSmallSamples, smallSampleCount };
         }
         const metric = teamTileMetricByKey(tile.metricKey);
         if (!metric) return { tile, kind: "unavailable" as const };
@@ -631,7 +638,7 @@ export function Dashboard() {
         }));
         return { tile, metric, kind: "team" as const, topRows: topN(valueRows, 5, tile.direction === "asc") };
       });
-  }, [tilesState.tiles, resolvedByMode, teamAggregatesByMode, playerDefaultViewShown]);
+  }, [tilesState.tiles, resolvedByMode, teamAggregatesByMode, playerDefaultViewShown, hiddenSmallSamples.hidden]);
 
   // Split for rendering only — reordering still operates on the one
   // underlying `tilesState.tiles` array regardless of scope (drag-drop
@@ -655,7 +662,14 @@ export function Dashboard() {
           const sourcePlayers = playersForDashboardItem(graph, resolvedByMode[graph.dataView], floorOptions);
           const scatterData: ScatterPoint[] = [];
           const barData: BarDatum[] = [];
+          // <hide_small_samples>: with the graph's Hide button on, players under the minutes threshold aren't plotted.
+          const hideSmallSamples = hiddenSmallSamples.hidden.has(graph.id);
+          const smallSampleIds = new Set<number>();
           for (const p of sourcePlayers) {
+            if (isSmallSample(p.minutes, graph.dataView)) {
+              if (hideSmallSamples) continue;
+              smallSampleIds.add(p.id);
+            }
             const derived = getPlayerDerivedMetrics(p);
             const y = yColumn.getValue(p, derived);
             if (graph.chartType === "scatter") {
@@ -677,6 +691,9 @@ export function Dashboard() {
             scatterData,
             barData,
             floorNote: dashboardItemFloorNote(graph, floorOptions),
+            hideSmallSamples,
+            // The ones actually drawn: every scatter point, a bar chart's top 15.
+            smallSampleCount: (graph.chartType === "scatter" ? scatterData : rankBars(barData, graph.direction === "asc")).filter((d) => smallSampleIds.has(d.id)).length,
           };
         }
         const yColumn = teamColumnByKey(graph.yMetricKey);
@@ -710,9 +727,11 @@ export function Dashboard() {
           scatterData,
           barData,
           floorNote: null,
+          hideSmallSamples: false,
+          smallSampleCount: 0,
         };
       });
-  }, [graphsState.graphs, resolvedByMode, teamAggregatesByMode, playerDefaultViewShown]);
+  }, [graphsState.graphs, resolvedByMode, teamAggregatesByMode, playerDefaultViewShown, hiddenSmallSamples.hidden]);
 
   const visibleGraphRows = useMemo(() => graphRows.filter((g) => g.graph.scope === tileView), [graphRows, tileView]);
 
@@ -1140,7 +1159,15 @@ export function Dashboard() {
               ...dragProps,
             };
             return row.kind === "player" ? (
-              <TopList key={tile.id} {...common} rows={row.topRows as TopListRow[]} onSelect={select} signed={row.metric.signed} floorNote={row.floorNote} />
+              <TopList
+                key={tile.id}
+                {...common}
+                rows={row.topRows as TopListRow[]}
+                onSelect={select}
+                signed={row.metric.signed}
+                floorNote={row.floorNote}
+                smallSamples={{ hidden: row.hideSmallSamples, count: row.smallSampleCount, onToggle: () => hiddenSmallSamples.toggle(tile.id) }}
+              />
             ) : (
               <TeamTopList key={tile.id} {...common} rows={row.topRows as TeamTopListRow[]} onSelect={selectTeam} />
             );
@@ -1190,6 +1217,7 @@ export function Dashboard() {
               showReferenceLine={graph.showReferenceLine}
               dataView={graph.dataView}
               floorNote={row.floorNote}
+              smallSamples={kind === "player" ? { hidden: row.hideSmallSamples, count: row.smallSampleCount, onToggle: () => hiddenSmallSamples.toggle(graph.id) } : undefined}
               onSelect={kind === "player" ? select : selectTeam}
               draggable={!selectedViewIsDefault}
               isDragOver={dragOverGraphId === graph.id}

@@ -7,8 +7,13 @@
  */
 export const APP_NAME = "Scoutline";
 
-export const COPYRIGHT_HOLDER = "Alex Pirie";
-export const COPYRIGHT_NOTICE = `© 2026 ${COPYRIGHT_HOLDER}. All rights reserved.`;
+/**
+ * Who holds the copyright, as the app and its terms name them: the product,
+ * never a person. The owner chose not to be identifiable from the app
+ * (2026-10-20), so no personal name goes in the app or the codebase.
+ */
+export const COPYRIGHT_HOLDER = "the Scoutline developer";
+export const COPYRIGHT_NOTICE = `© 2026 ${APP_NAME}. All rights reserved.`;
 
 /** The app's version, from the root package.json at build time (the release workflow sets it from the tag). */
 export const APP_VERSION: string = typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : "dev";
@@ -18,6 +23,6 @@ export const APP_VERSION: string = typeof __APP_VERSION__ === "string" ? __APP_V
  * it whenever LICENSE.txt changes in substance, and everyone is asked to
  * accept the new terms on their next launch (components/TermsGate.tsx).
  */
-export const TERMS_VERSION = "2026-10-19";
+export const TERMS_VERSION = "2026-10-20";
 
 export const SUPPORT_URL = "https://github.com/requiemalex/fpl-analytics-dashboard/issues";

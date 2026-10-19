@@ -43,7 +43,7 @@ export function TermsGate() {
         <ul className="terms-summary">
           <li>{APP_NAME} is independent: not affiliated with or endorsed by the Premier League, any club, or Understat.</li>
           <li>Its figures and predictions are for information only, may be wrong, and aren't betting or financial advice.</li>
-          <li>The football data belongs to its owners; the app itself is © {COPYRIGHT_HOLDER}, licensed for your personal use.</li>
+          <li>The football data belongs to its owners; the app itself belongs to {COPYRIGHT_HOLDER}, licensed for your personal use.</li>
           <li>Your settings and saved work stay on this computer. There is no tracking.</li>
         </ul>
         <details className="legal-details">

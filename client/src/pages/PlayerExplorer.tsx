@@ -18,7 +18,7 @@ import { colourDirection, fixtureDifficultyRanks, positionRanks } from "../metri
 import { downloadCsv } from "../utils/csvExport";
 import { matchesPlayerSearch } from "../utils/playerSearch";
 import { useEscapeLayer } from "../state/useEscapeLayer";
-import { RowSmallSampleBadge, SmallSampleBadge, userMinimumNote } from "../components/MinutesFloorBadge";
+import { HideSmallSamplesButton, isSmallSample, MinutesFloorBadge, RowSmallSampleBadge, smallSamplesShownNote, userMinimumNote } from "../components/MinutesFloorBadge";
 import type { ColumnFilterSpec } from "../state/useColumnFilters";
 import { useProgressiveRowCount, INITIAL_ROW_COUNT } from "../state/useProgressiveRowCount";
 import type { NormalizedPlayer, Position } from "../types/normalized";
@@ -268,6 +268,8 @@ export function PlayerExplorer() {
   const [, setSearchParams] = useSearchParams();
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("lastSeason");
   const [search, setSearch] = useState("");
+  // <hide_small_samples>: off by default, per page like every other filter.
+  const [hideSmallSamples, setHideSmallSamples] = useState(false);
 
   const columnFiltersState = useColumnFilters();
 
@@ -411,7 +413,7 @@ export function PlayerExplorer() {
     [teamsById],
   );
 
-  const filteredRows = useMemo(
+  const columnFilteredRows = useMemo(
     () =>
       rows.filter((r) =>
         columnFiltersState.passesAllFilters(
@@ -422,6 +424,14 @@ export function PlayerExplorer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [rows, columnFiltersState.columnFilters, lookupColumn],
   );
+  // The rows under the minutes threshold (the amber stopwatch) among those the filters leave: what the Hide button
+  // leaves out, and — while shown — what turns the page's stopwatches amber (<marker_follows_data>).
+  const smallSampleCount = useMemo(() => columnFilteredRows.filter((r) => isSmallSample(r.player.minutes, analysisMode)).length, [columnFilteredRows, analysisMode]);
+  const filteredRows = useMemo(
+    () => (hideSmallSamples ? columnFilteredRows.filter((r) => !isSmallSample(r.player.minutes, analysisMode)) : columnFilteredRows),
+    [columnFilteredRows, hideSmallSamples, analysisMode],
+  );
+  const shownSmallSampleCount = hideSmallSamples ? 0 : smallSampleCount;
 
   const sortedRows = useMemo(() => {
     const arr = [...filteredRows];
@@ -586,7 +596,7 @@ export function PlayerExplorer() {
         </div>
       </div>
 
-      <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
+      <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} floorActive={shownSmallSampleCount > 0} />
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
         <div className="icon-toolbar">
@@ -598,6 +608,7 @@ export function PlayerExplorer() {
               setSort((prev) => sortWithinColumns(prev, EXPLORER_KEYS_AFTER_RESET, EXPLORER_DEFAULT_SORT));
               setSourceChoice({});
               setSearch("");
+              setHideSmallSamples(false);
               columnFiltersState.resetAllFilters();
             }}
           />
@@ -662,12 +673,14 @@ export function PlayerExplorer() {
           </div>
           <IconChipButton
             icon={<FilterIcon />}
-            label="Clear every filter: the search box and every column filter"
+            label="Clear every filter: the search box, every column filter and Hide"
             onClick={() => {
               setSearch("");
+              setHideSmallSamples(false);
               columnFiltersState.resetAllFilters();
             }}
           />
+          <HideSmallSamplesButton hidden={hideSmallSamples} count={smallSampleCount} mode={analysisMode} onToggle={() => setHideSmallSamples((h) => !h)} />
           <IconChipButton icon={<DownloadIcon />} label="Export the visible columns and current rows to a CSV file" onClick={handleExportCsv} />
         </div>
         <div className="field" style={{ marginBottom: 0 }}>
@@ -775,7 +788,10 @@ export function PlayerExplorer() {
                       badges={
                         key === "minutes" &&
                         minutesFilterMinimum(columnFiltersState.columnFilters[key]) !== null && (
-                          <SmallSampleBadge note={userMinimumNote(minutesFilterMinimum(columnFiltersState.columnFilters[key])!, analysisMode)} />
+                          <MinutesFloorBadge
+                            note={smallSamplesShownNote(userMinimumNote(minutesFilterMinimum(columnFiltersState.columnFilters[key])!, analysisMode), shownSmallSampleCount, analysisMode)}
+                            active={shownSmallSampleCount > 0}
+                          />
                         )
                       }
                       trailing={

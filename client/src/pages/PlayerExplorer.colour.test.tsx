@@ -103,3 +103,33 @@ describe("Player Explorer — comparative colouring", () => {
     expect(before).not.toBe("");
   });
 });
+
+describe("Player Explorer — <hide_small_samples>", () => {
+  const names = (container: HTMLElement) => Array.from(container.querySelectorAll("table.data-table tbody tr .name")).map((n) => n.textContent?.trim());
+
+  it("the Hide button leaves out the players under the minutes threshold, and Clear filters brings them back", () => {
+    const { container, getByRole } = renderCurrentSeason();
+    expect(names(container)).toContain("Nwaneri");
+    fireEvent.click(getByRole("button", { name: "Hide the 1 player under the 90-minute floor (marked with the amber stopwatch)" }));
+    expect(names(container)).not.toContain("Nwaneri");
+    expect(names(container)).toContain("Saka");
+    // Still there, pressed, so it can be turned off.
+    expect(getByRole("button", { name: /Show the players under the 90-minute floor again/ }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(getByRole("button", { name: /Clear every filter/ }));
+    expect(names(container)).toContain("Nwaneri");
+  });
+
+  it("<marker_follows_data>: in Historic Average the Data View stopwatch is amber while a player under the threshold is shown, grey once they're hidden", () => {
+    const { container, getByRole } = render(
+      <MemoryRouter initialEntries={["/players"]}>
+        <PlayerExplorer />
+      </MemoryRouter>,
+    );
+    fireEvent.click(getByRole("button", { name: "Historic Average" }));
+    const badge = () => container.querySelector(".data-view-picker .minutes-floor-badge")!;
+    // No historic profiles in this pool: nobody has a 450+ season, so everyone is under it.
+    expect(badge().classList.contains("small-sample-badge")).toBe(true);
+    fireEvent.click(getByRole("button", { name: /^Hide the 7 players/ }));
+    expect(badge().classList.contains("small-sample-badge")).toBe(false);
+  });
+});

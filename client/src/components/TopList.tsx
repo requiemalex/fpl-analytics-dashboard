@@ -2,7 +2,7 @@ import React from "react";
 import { barWidths } from "./statBar";
 import { PositionBadge, TeamBadge, AvailabilityFlag, availabilityTextClass } from "./primitives";
 import { DataViewBadge } from "./DataViewBadge";
-import { MinutesFloorBadge, RowSmallSampleBadge } from "./MinutesFloorBadge";
+import { HideSmallSamplesButton, isSmallSample, MinutesFloorBadge, RowSmallSampleBadge, smallSamplesShownNote } from "./MinutesFloorBadge";
 import { CardEditRemoveButtons } from "./IconToolbar";
 import { noRowsMessage } from "./emptyMessages";
 import { percentileTint } from "../utils/colorScale";
@@ -34,6 +34,7 @@ export function TopList({
   dataView,
   signed,
   floorNote,
+  smallSamples,
 }: {
   title: string;
   rows: TopListRow[];
@@ -56,7 +57,11 @@ export function TopList({
   signed?: boolean;
   /** Dashboard-only: hover text for the minutes-floor badge when the fixed floor applies to this tile (dashboardItemFloorNote); no badge when absent. */
   floorNote?: string | null;
+  /** Dashboard-only: the tile's Hide button (<hide_small_samples>): whether it's on, how many players shown are under the threshold, and its toggle. */
+  smallSamples?: { hidden: boolean; count: number; onToggle: () => void };
 }) {
+  // <marker_follows_data>: the tile's stopwatch is amber only while a player it shows is under the threshold.
+  const shownSmallSamples = dataView ? rows.filter((r) => isSmallSample(r.player.minutes, dataView)).length : 0;
   const widths = barWidths(rows.map((r) => r.value), signed);
 
   return (
@@ -76,7 +81,8 @@ export function TopList({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div className="card-title">{title}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          {floorNote && <MinutesFloorBadge note={floorNote} />}
+          {smallSamples && dataView && <HideSmallSamplesButton hidden={smallSamples.hidden} count={smallSamples.count} mode={dataView} onToggle={smallSamples.onToggle} />}
+          {floorNote && dataView && <MinutesFloorBadge note={smallSamplesShownNote(floorNote, shownSmallSamples, dataView)} active={shownSmallSamples > 0} />}
           {dataView && <DataViewBadge mode={dataView} />}
           <CardEditRemoveButtons noun="tile" onEdit={onEdit} onRemove={onRemove} />
         </div>

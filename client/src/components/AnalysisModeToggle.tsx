@@ -35,7 +35,18 @@ export function dataViewSeasonLabel(mode: AnalysisMode, referenceSeason: string 
  * when a minutes floor applies — all inside one box, so it reads as a
  * single control wherever it appears.
  */
-export function DataViewPicker({ mode, onChange, floorNote }: { mode: AnalysisMode; onChange: (mode: AnalysisMode) => void; floorNote?: string }) {
+export function DataViewPicker({
+  mode,
+  onChange,
+  floorNote,
+  floorActive = false,
+}: {
+  mode: AnalysisMode;
+  onChange: (mode: AnalysisMode) => void;
+  floorNote?: string;
+  /** <marker_follows_data>: something the page shows is under the threshold, so the stopwatch is amber, not grey. */
+  floorActive?: boolean;
+}) {
   const { liveSeason, historicReferenceSeason } = useAppState();
   const season = dataViewSeasonLabel(mode, historicReferenceSeason, liveSeason ?? null);
 
@@ -62,7 +73,7 @@ export function DataViewPicker({ mode, onChange, floorNote }: { mode: AnalysisMo
           {season}
         </span>
       )}
-      {floorNote && <MinutesFloorBadge note={floorNote} />}
+      {floorNote && <MinutesFloorBadge note={floorNote} active={floorActive} />}
     </div>
   );
 }
@@ -80,12 +91,15 @@ export function AnalysisModeToggle({
   mode,
   onChange,
   floorNote,
+  floorActive,
   clubFigures,
 }: {
   mode: AnalysisMode;
   onChange: (mode: AnalysisMode) => void;
   /** Set on a section where the fixed minutes floor applies (<fixed_minutes_floor>) — shows its badge inside the picker, with this as its hover text. Without it, a player view's Historic Average still shows the badge for its 450-minute seasons (<minutes_marker>). */
   floorNote?: string;
+  /** <marker_follows_data>: something the page shows is under its threshold (an entry carries the amber stopwatch) — amber, not grey. */
+  floorActive?: boolean;
   /** Set on team views: Current Season club figures are summed from every player's matches, so a skipped player matters there too (audit 2026-10-18 M4). */
   clubFigures?: boolean;
 }) {
@@ -96,7 +110,7 @@ export function AnalysisModeToggle({
   return (
     <div style={{ marginBottom: 24 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-        <DataViewPicker mode={mode} onChange={onChange} floorNote={shownFloorNote} />
+        <DataViewPicker mode={mode} onChange={onChange} floorNote={shownFloorNote} floorActive={floorActive} />
 
         {mode !== "live" && historicStatus === "loading" && (
           <span className="page-subtitle" style={{ margin: 0 }}>

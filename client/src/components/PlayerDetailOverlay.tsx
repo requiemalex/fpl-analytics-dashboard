@@ -857,7 +857,7 @@ export function PlayerDetailOverlay() {
 
         {player.status !== "a" && player.news && <div className="banner stale">{player.news}</div>}
 
-        <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} floorNote={profileFloorNote(analysisMode)} />
+        <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} floorNote={profileFloorNote(analysisMode)} floorActive={smallSample} />
 
         {skippedByServer && (
           <div className="banner info" style={{ marginBottom: 16 }}>

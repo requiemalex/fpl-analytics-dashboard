@@ -5,7 +5,7 @@ import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/p
 import { resolvePlayerStatsList, hasDataForMode, isAnalysisMode, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { FIXED_FLOOR_MINUTES, fixedFloorMinutes, isUnderMinimum } from "../metrics/fixedMinutesFloor";
 import { comparisonMetricByKey, comparisonPercentiles, RADAR_MIN_METRICS, type ComparisonMetric } from "../metrics/comparisonMetrics";
-import { buildSeasonTrend, trendDataKey, trendMetricByKey } from "../metrics/careerTrends";
+import { buildSeasonTrend, trendBelowKey, trendDataKey, trendMetricByKey } from "../metrics/careerTrends";
 import { belowMinimumNote, historicSeasonsNote, profileFloorNote, smallSampleNote, trendFloorNote, userMinimumNote } from "../components/MinutesFloorBadge";
 import { columnFormatForMode } from "../components/playerColumns";
 import { PlayerSearch } from "../components/PlayerSearch";
@@ -377,20 +377,27 @@ export function PlayerComparison() {
     }
     if (card.kind === "radar") {
       return (
-        <ComparisonCard key={el.id} {...common} dataView={el.dataView} floorNote={card.floorNote} message={card.message}>
+        <ComparisonCard key={el.id} {...common} dataView={el.dataView} floorNote={card.floorNote} floorActive={card.entries.some((e) => !!e.smallSampleNote)} message={card.message}>
           <ComparisonRadar axes={card.axes} entries={card.entries} />
         </ComparisonCard>
       );
     }
     if (card.kind === "outputs") {
       return (
-        <ComparisonCard key={el.id} {...common} dataView={el.dataView} floorNote={card.floorNote} message={card.message}>
+        <ComparisonCard key={el.id} {...common} dataView={el.dataView} floorNote={card.floorNote} floorActive={card.entries.some((e) => !!e.smallSampleNote)} message={card.message}>
           <ComparisonOutputs rows={card.rows} entries={card.entries} />
         </ComparisonCard>
       );
     }
     return (
-      <ComparisonCard key={el.id} {...common} floorNote={card.floorNote} message={card.message}>
+      <ComparisonCard
+        key={el.id}
+        {...common}
+        floorNote={card.floorNote}
+        // A season under the card's minimum is marked on the plot (trendBelowKey).
+        floorActive={card.rows.some((r) => card.entries.some((e) => typeof r[trendBelowKey(e.player.id)] === "number"))}
+        message={card.message}
+      >
         <ComparisonTrend metric={card.metric} rows={card.rows} entries={card.entries} minMinutes={card.minMinutes} />
       </ComparisonCard>
     );

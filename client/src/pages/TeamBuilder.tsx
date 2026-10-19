@@ -20,7 +20,7 @@ import { computeBlendedMinutesReliability } from "../metrics/minutesReliabilityB
 import { getUpcomingFixtures, firstPickableEventId, fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, cellText, columnByKey, columnForMode, isStaticColumn, rankValue, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { DataViewPicker } from "../components/AnalysisModeToggle";
-import { historicSeasonsNote, RowSmallSampleBadge, SmallSampleBadge, userMinimumNote } from "../components/MinutesFloorBadge";
+import { HideSmallSamplesButton, historicSeasonsNote, isSmallSample, MinutesFloorBadge, RowSmallSampleBadge, smallSamplesShownNote, userMinimumNote } from "../components/MinutesFloorBadge";
 import { SquadPitch, type PitchColourRanks } from "../components/SquadPitch";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass } from "../components/primitives";
 import { IconChipButton, ResetIcon, ForecastIcon, ClockIcon, FilterIcon, DownloadIcon, TrashIcon } from "../components/IconToolbar";
@@ -292,6 +292,8 @@ export function TeamBuilder() {
   const [pickerPosition, setPickerPosition] = useState<"ALL" | Position>("ALL");
   const [pickerTeamId, setPickerTeamId] = useState<"ALL" | number>("ALL");
   const [pickerMinMinutes, setPickerMinMinutes] = useState<number | null>(null);
+  // <hide_small_samples>: off by default, per page like the picker's other filters.
+  const [pickerHideSmallSamples, setPickerHideSmallSamples] = useState(false);
   const [captainPickMode, setCaptainPickMode] = useState<"captain" | "viceCaptain" | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [gwOffset, setGwOffset] = useState<GwOffset>(1);
@@ -615,6 +617,7 @@ export function TeamBuilder() {
     setPickerPosition("ALL");
     setPickerTeamId("ALL");
     setPickerMinMinutes(null);
+    setPickerHideSmallSamples(false);
     columnFiltersState.resetAllFilters();
   }
 
@@ -873,7 +876,7 @@ export function TeamBuilder() {
       .filter((r) => !search || matchesPlayerSearch(r.live, search));
   }, [pickerAllRows, pickerSearch, pickerPosition, pickerTeamId]);
 
-  const pickerCandidateRows: PickerRowData[] = useMemo(
+  const pickerFilteredRows: PickerRowData[] = useMemo(
     () =>
       pickerBuiltRows
         .filter((row) => !squadPlayerIdSet.has(row.live.id))
@@ -882,6 +885,17 @@ export function TeamBuilder() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [pickerBuiltRows, active?.playerIds, pickerMinMinutes, columnFiltersState.columnFilters],
   );
+  // Rows under the minutes threshold for the Historic/Raw Data View (each marked with the amber stopwatch): what Hide
+  // leaves out, and — while shown — what turns the picker's stopwatches amber (<marker_follows_data>).
+  const pickerSmallSampleCount = useMemo(
+    () => pickerFilteredRows.filter((row) => isSmallSample(row.historicRaw.minutes, pickerHistoricMode)).length,
+    [pickerFilteredRows, pickerHistoricMode],
+  );
+  const pickerCandidateRows: PickerRowData[] = useMemo(
+    () => (pickerHideSmallSamples ? pickerFilteredRows.filter((row) => !isSmallSample(row.historicRaw.minutes, pickerHistoricMode)) : pickerFilteredRows),
+    [pickerFilteredRows, pickerHideSmallSamples, pickerHistoricMode],
+  );
+  const pickerShownSmallSampleCount = pickerHideSmallSamples ? 0 : pickerSmallSampleCount;
 
   const pickerRows: PickerRowData[] = useMemo(
     () =>
@@ -1191,7 +1205,12 @@ export function TeamBuilder() {
           <div className="field">
             <label htmlFor="picker-min-minutes">
               Min minutes
-              {pickerMinMinutes !== null && pickerMinMinutes > 0 && <SmallSampleBadge note={userMinimumNote(pickerMinMinutes, pickerHistoricMode)} />}
+              {pickerMinMinutes !== null && pickerMinMinutes > 0 && (
+                <MinutesFloorBadge
+                  note={smallSamplesShownNote(userMinimumNote(pickerMinMinutes, pickerHistoricMode), pickerShownSmallSampleCount, pickerHistoricMode)}
+                  active={pickerShownSmallSampleCount > 0}
+                />
+              )}
             </label>
             <input
               id="picker-min-minutes"
@@ -1255,8 +1274,14 @@ export function TeamBuilder() {
           </div>
           <IconChipButton
             icon={<FilterIcon />}
-            label="Clear every picker filter: search, position, team, minutes and any column filters"
+            label="Clear every picker filter: search, position, team, minutes, Hide and any column filters"
             onClick={handleClearPickerFilters}
+          />
+          <HideSmallSamplesButton
+            hidden={pickerHideSmallSamples}
+            count={pickerSmallSampleCount}
+            mode={pickerHistoricMode}
+            onToggle={() => setPickerHideSmallSamples((h) => !h)}
           />
           <IconChipButton icon={<DownloadIcon />} label="Export the visible columns and current rows to a CSV file" onClick={handleExportPickerCsv} />
         </div>
@@ -1274,6 +1299,7 @@ export function TeamBuilder() {
               mode={pickerHistoricMode}
               onChange={setPickerHistoricMode}
               floorNote={pickerHistoricMode === "historicAverage" ? historicSeasonsNote() : undefined}
+              floorActive={pickerShownSmallSampleCount > 0}
             />
           </div>
         </div>
@@ -1312,7 +1338,8 @@ export function TeamBuilder() {
                       sortDirection={sortEntry?.direction}
                       onSort={(shiftKey) => handlePickerHeaderClick(c.key, shiftKey)}
                       filters={columnFiltersState}
-                      badges={c.minutesNote && <SmallSampleBadge note={c.minutesNote} />}
+                      // Inside the model: no row is marked under it, so it's grey (<marker_follows_data>).
+                      badges={c.minutesNote && <MinutesFloorBadge note={c.minutesNote} active={false} />}
                     />
                   );
                 })}

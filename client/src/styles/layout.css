@@ -56,9 +56,9 @@
   letter-spacing: -0.01em;
 }
 
-/* Not green: green and red are kept for comparative colouring only (CLAUDE.md "Comparative colouring"). */
+/* The logo's green: the owner's choice (2026-10-20), the one decorative use of green (CLAUDE.md "Comparative colouring"). */
 .sidebar-brand span {
-  color: var(--accent-focus);
+  color: var(--accent-positive);
 }
 
 .sidebar-footer {

@@ -16,26 +16,90 @@ export function MinutesFloorIcon({ size = 13 }: { size?: number }) {
   );
 }
 
+/** The stopwatch struck through: "leave out what's under the minutes threshold" (HideSmallSamplesButton). */
+export function HideSmallSamplesIcon({ size = 15 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="8" cy="7.2" r="4.6" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M8 4.7v2.5l1.7 1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6.6 1.3h2.8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M1.5 14.5h13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M2.2 1.8l11.6 11.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 /**
  * <minutes_marker>: the one sign of a minimum-minutes threshold, anywhere
- * in the app (the owner's rule, 2026-10-19) — the amber stopwatch, and no
- * other symbol. Two uses, the same look:
- * - on a VIEW (a Data View toggle, tile, graph, card, column header or
- *   control) where a threshold is in force, its hover text naming it;
- * - on an ENTRY (a row, season or point) that falls under one, its hover
- *   text saying by how much and what that does.
+ * in the app (the owner's rule, 2026-10-19) — the stopwatch, and no other
+ * symbol. Two uses:
+ * - on an ENTRY (a row, season or point) that falls under one: always
+ *   amber, its hover text saying by how much and what that does;
+ * - on a VIEW (a Data View picker, tile, graph, card, column header or
+ *   control) where a threshold is in force (MinutesFloorBadge): amber when
+ *   something it shows is under the threshold, grey when nothing is
+ *   (<marker_follows_data>, the owner's rule, 2026-10-20).
  */
 export function SmallSampleBadge({ note }: { note: string }) {
   return (
-    <span className="data-view-badge small-sample-badge" title={note} aria-label={note}>
+    <span className="data-view-badge minutes-floor-badge small-sample-badge" title={note} aria-label={note}>
       <MinutesFloorIcon />
     </span>
   );
 }
 
-/** The marker on a view where a threshold is in force (<minutes_marker>) — the same amber stopwatch as an entry's. */
-export function MinutesFloorBadge({ note }: { note: string }) {
-  return <SmallSampleBadge note={note} />;
+/**
+ * The marker on a view where a threshold is in force (<minutes_marker>).
+ * <marker_follows_data>: `active` — something the view shows right now is
+ * under its threshold (marked with an entry stopwatch, or for a graph's
+ * points, counted in the hover) — makes it amber; otherwise it's grey: the
+ * threshold is still in force, nothing shown falls under it.
+ */
+export function MinutesFloorBadge({ note, active }: { note: string; active: boolean }) {
+  if (active) return <SmallSampleBadge note={note} />;
+  const idle = `${note} Nothing shown here is under it.`;
+  return (
+    <span className="data-view-badge minutes-floor-badge" title={idle} aria-label={idle}>
+      <MinutesFloorIcon />
+    </span>
+  );
+}
+
+/**
+ * Whether an entry is a small sample for the mode: under the fixed floor
+ * (90 minutes Current Season, 450 otherwise), no minutes counting as 0
+ * (<no_data_is_zero>). The one test behind every entry stopwatch, every
+ * view stopwatch's amber, and every Hide button.
+ */
+export function isSmallSample(minutes: number | null, mode: AnalysisMode): boolean {
+  return isUnderMinimum(minutes, fixedFloorMinutes(mode));
+}
+
+/** A view stopwatch's hover text, saying how many of the players it shows are under the fixed floor when any are (<marker_follows_data>). */
+export function smallSamplesShownNote(note: string, count: number, mode: AnalysisMode): string {
+  if (count === 0) return note;
+  return `${note} ${count} player${count === 1 ? "" : "s"} shown here ${count === 1 ? "is" : "are"} under the ${fixedFloorMinutes(mode)}-minute floor.`;
+}
+
+/**
+ * <hide_small_samples>: the switch that leaves out the entries under the
+ * minutes threshold — the ones the amber stopwatch marks — wherever a
+ * section lists players the user chose by criteria (Player Explorer, Team
+ * Building's Add Players, a Dashboard tile or graph the user built). Shown
+ * only when there's something to leave out, or while it's on (so it can be
+ * turned off again). Off by default.
+ */
+export function HideSmallSamplesButton({ hidden, count, mode, onToggle }: { hidden: boolean; count: number; mode: AnalysisMode; onToggle: () => void }) {
+  if (!hidden && count === 0) return null;
+  const floor = fixedFloorMinutes(mode);
+  const label = hidden
+    ? `Show the players under the ${floor}-minute floor again (they're hidden now)`
+    : `Hide the ${count} player${count === 1 ? "" : "s"} under the ${floor}-minute floor (marked with the amber stopwatch)`;
+  return (
+    <button type="button" className={`chip chip-icon hide-small-samples${hidden ? " active" : ""}`} title={label} aria-label={label} aria-pressed={hidden} onClick={onToggle}>
+      <HideSmallSamplesIcon />
+    </button>
+  );
 }
 
 /**
@@ -58,7 +122,7 @@ export function smallSampleNote(minutes: number | null, mode: AnalysisMode): str
  * counts as 0, so it's under too (<no_data_is_zero>).
  */
 export function RowSmallSampleBadge({ minutes, mode }: { minutes: number | null; mode: AnalysisMode }) {
-  if (!isUnderMinimum(minutes, fixedFloorMinutes(mode))) return null;
+  if (!isSmallSample(minutes, mode)) return null;
   return <SmallSampleBadge note={smallSampleNote(minutes, mode)} />;
 }
 

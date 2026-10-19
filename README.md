@@ -11,7 +11,7 @@ shipped as a Windows desktop app.
 It updates itself. Everything below is for developing the app.
 
 Scoutline is independent: not affiliated with or endorsed by the Premier
-League. © 2026 Alex Pirie, all rights reserved — see "Legal" below and
+League. © 2026 the Scoutline developer, all rights reserved — see "Legal" below and
 `LICENSE.txt`.
 
 ## Where things are documented
@@ -307,9 +307,16 @@ Both are decided by the Starter view being the one selected
 are never floored.
 
 **The marker** (`<minutes_marker>`, `components/MinutesFloorBadge.tsx`): the
-amber stopwatch is the **one** sign of a minimum-minutes threshold,
-anywhere — no other symbol — so you can see where every threshold lands.
-Its hover text always names the threshold. Two uses:
+stopwatch is the **one** sign of a minimum-minutes threshold, anywhere — no
+other symbol — so you can see where every threshold lands. Its hover text
+always names the threshold. An entry's is always amber. A view's is amber
+only while something it shows is under the threshold, and grey when
+nothing is (`<marker_follows_data>`, the owner's rule, 2026-10-20): "under"
+is the entry stopwatch's own test (`isSmallSample`: under the fixed floor
+for the Data View, no minutes counting as 0); a graph's points aren't
+marked one by one, so its stopwatch's hover counts them. A threshold
+inside a model (Team Building's Model Predicted) marks no entry, so it's
+grey. Two uses:
 - **On a view where a threshold is in force:** the Data View toggle of a
   player view in Historic Average (its 450-minute seasons;
   `historicSeasonsNote`), and the profile's always (`profileFloorNote`);
@@ -331,6 +338,17 @@ Its hover text always names the threshold. Two uses:
   point and Outputs marker; a Team Profile formation's xG/90 and xGA/90
   cells when it was used for under 90 minutes (`FORMATION_MIN_MINUTES`:
   too few for a rate — not a club floor, which clubs don't have).
+
+**Hide** (`<hide_small_samples>`, `HideSmallSamplesButton`): the stopwatch
+struck through, in each section that lists players chosen by criteria —
+Player Explorer's toolbar, Team Building's Add Players toolbar, and the
+header of each Dashboard player tile and graph. On, it leaves out every
+entry under the threshold (a tile's top 5 refills with the next players;
+a bar chart's top 15 likewise). It shows only when there's something to
+leave out, or while it's on. Off by default; the Explorers' and Team
+Building's are per page like their other filters (Clear filters turns it
+off), a Dashboard item's is kept by item id in its own store. Player
+Comparison and the profile have none: those show players the user picked.
 
 Details:
 - Default 0 everywhere you can set it (`DEFAULT_MIN_MINUTES`,
@@ -1277,6 +1295,7 @@ server storage. Each store wraps its data as `{ version, data }` via
 | `fpl-dashboard:notepad:v1` | `useNotepad` (tabs, their text, the active tab) |
 | `fpl-dashboard:id-ledger:v1` | `state/seasonIdRollover.ts` (the season the saved ids belong to, and each id's permanent code) |
 | `scoutline:terms-accepted:v1` | `components/TermsGate.tsx` (the terms version last accepted) |
+| `scoutline:dashboard:hide-small-samples:v1` | `state/useHiddenSmallSamples.ts` (the ids of the Dashboard tiles and graphs whose Hide is on) |
 
 The `fpl-dashboard:` keys keep their names from before the rename to
 Scoutline: renaming a key would lose everyone's saved data.
