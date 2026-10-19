@@ -1,7 +1,7 @@
 import type { RawChip } from "../types/raw";
 import type { ChipWindow } from "../types/normalized";
 
-const KNOWN_CHIPS: ChipWindow["chip"][] = ["wildcard", "freehit", "bboost", "3xc"];
+export const KNOWN_CHIPS: ChipWindow["chip"][] = ["wildcard", "freehit", "bboost", "3xc"];
 
 /**
  * Maps bootstrap-static's top-level "chips" array (confirmed live for

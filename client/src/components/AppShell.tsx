@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from "react";
+import { COPYRIGHT_NOTICE } from "../brand";
 import { NavLink } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { fmtTimeAgo, fmtDate, fmtDateShort } from "../utils/format";
@@ -30,6 +31,7 @@ const NAV_STRUCTURE: NavEntry[] = [
   },
   { type: "separator" },
   { type: "link", to: "/guide", label: "User Guide" },
+  { type: "link", to: "/legal", label: "About & Legal" },
 ];
 
 function WindowControls() {
@@ -112,7 +114,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          FPL<span>Analytics</span>
+          Scout<span>line</span>
         </div>
         {NAV_STRUCTURE.map((entry, i) => {
           if (entry.type === "separator") return <div key={i} className="nav-separator" />;
@@ -134,6 +136,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           );
         })}
+        <div className="sidebar-footer">{COPYRIGHT_NOTICE}</div>
       </aside>
 
       <header className="topbar">

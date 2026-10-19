@@ -14,6 +14,9 @@ import { playerSeasonsRouter } from "./routes/playerSeasons.js";
 // Understat (optional second source): this import and the app.use below are its only connection to the server.
 import { createUnderstatRouter } from "./understat/route.js";
 
+// Re-exported so the desktop app's bundle (electron/main.js loads only this file) can start the server the same way.
+export { listenOnLoopback } from "./listen.js";
+
 /**
  * Builds the configured Express app WITHOUT starting it — callers decide
  * the port and when to call `.listen()`. Split out from index.ts so the
@@ -40,7 +43,7 @@ export function createApp(options?: { clientDistPath?: string; understatLocalDir
   app.use(express.json());
 
   app.get("/api/health", (_req, res) => {
-    res.json({ ok: true, service: "fpl-dashboard-server", time: new Date().toISOString() });
+    res.json({ ok: true, service: "scoutline-server", time: new Date().toISOString() });
   });
 
   app.use("/api", bootstrapRouter);

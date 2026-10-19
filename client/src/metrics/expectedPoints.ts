@@ -23,7 +23,7 @@ export const FDR_SENSITIVITY: Record<Position, number> = {
   FWD: 0.12,
 };
 
-/** Exported for reuse by the Chip Planner, which extends the same fixture-difficulty-scaling logic much further into the season — see metrics/chipPlanner.ts for that extension's own, more prominent caveat. */
+/** How much a fixture's difficulty scales a position's expected points (FDR 3 = no change). */
 export function fixtureMultiplier(difficulty: number, position: Position): number {
   return 1 + (3 - difficulty) * FDR_SENSITIVITY[position];
 }

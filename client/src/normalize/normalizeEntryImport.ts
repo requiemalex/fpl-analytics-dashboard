@@ -2,8 +2,7 @@ import type { RawEntryTeam, RawEntryHistory, RawEntryPicks } from "../types/raw"
 import type { NormalizedPlayer, ChipWindow } from "../types/normalized";
 import type { SavedSquad, UsedChip } from "../types/team";
 import { createBlankSquad } from "../types/team";
-
-const KNOWN_CHIPS: ChipWindow["chip"][] = ["wildcard", "freehit", "bboost", "3xc"];
+import { KNOWN_CHIPS } from "./normalizeChips";
 
 export interface EntryImportResult {
   squad: SavedSquad;
@@ -60,7 +59,7 @@ export function normalizeEntryImport(
   for (const c of history.chips ?? []) {
     const normalizedName = c.name.toLowerCase();
     if (!KNOWN_CHIPS.includes(normalizedName as ChipWindow["chip"])) {
-      warnings.push(`FPL reported a chip named "${c.name}" this app doesn't recognise, so it won't be reflected in Chip Planner's availability.`);
+      warnings.push(`FPL reported a chip named "${c.name}" this app doesn't recognise, so it isn't recorded among the squad's chips.`);
       continue;
     }
     usedChips.push({ chip: normalizedName as ChipWindow["chip"], event: c.event });

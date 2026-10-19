@@ -15,7 +15,7 @@ import { join } from "node:path";
 import type { UsAppearance, UsFormation, UsLeague, UsMatch, UsMatchSummary, UsShot, UsTeamMatch, UsTeamSeason } from "./types.js";
 
 const BASE = "https://understat.com";
-const USER_AGENT = "fpl-analytics-dashboard data sync (+https://github.com/requiemalex/fpl-analytics-dashboard)";
+const USER_AGENT = "Scoutline data sync (+https://github.com/requiemalex/fpl-analytics-dashboard)";
 
 /** Understat refused or challenged us (403/429, or an HTML page where data should be). Never retried past the client's attempts — the run stops. */
 export class UnderstatBlockedError extends Error {

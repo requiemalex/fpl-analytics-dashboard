@@ -46,7 +46,7 @@ export async function fetchJson<T>(url: string): Promise<T> {
         headers: {
           Accept: "application/json",
           // The official FPL API blocks requests with no user agent from some hosts.
-          "User-Agent": "fpl-analytics-dashboard/1.0 (local development proxy)",
+          "User-Agent": "Scoutline/1.0 (+https://github.com/requiemalex/fpl-analytics-dashboard)",
         },
       });
 

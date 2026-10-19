@@ -30,6 +30,7 @@ import { AverageLineIcon, PointsHistoryChart, PointsHistoryHeader, PointsHistory
 import { fmtDecimal, fmtOrdinal, DASH } from "../utils/format";
 import { useExternalStats, type ProfileView } from "../extensions/externalStats";
 import { SourceToggle } from "./SourceToggle";
+import { CloseIcon } from "./IconToolbar";
 import type { ClubMatch, NormalizedTeam } from "../types/normalized";
 
 /**
@@ -66,15 +67,6 @@ function useSelectedTeam(): [NormalizedTeam | null, (id: number | null) => void,
   };
 
   return [team, setId, id !== null && team === null];
-}
-
-function CloseIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
 }
 
 function matchResult(m: ClubMatch): { label: string; outcomeClass: string } {

@@ -1,6 +1,6 @@
-# FPL Analytics Dashboard — 2026/27
+# Scoutline — 2026/27
 
-A scouting and analytics dashboard for Fantasy Premier League, built on the
+Scoutline is a scouting and analytics app for Fantasy Premier League managers, built on the
 **live official FPL API**, with **Understat** as a clearly separate second
 source in the two Explorers (see "Understat (second data source)"). No mock
 data, no database, no accounts — a small Express proxy and a React UI,
@@ -9,6 +9,10 @@ shipped as a Windows desktop app.
 **Just want to use it?** Download the installer from
 [the latest release](https://github.com/requiemalex/fpl-analytics-dashboard/releases/latest).
 It updates itself. Everything below is for developing the app.
+
+Scoutline is independent: not affiliated with or endorsed by the Premier
+League. © 2026 Alex Pirie, all rights reserved — see "Legal" below and
+`LICENSE.txt`.
 
 ## Where things are documented
 
@@ -233,8 +237,21 @@ Every analysis page has the same three-way toggle, resolved through
   (`currentSeasonHasStarted`: a finished fixture, or a finished gameweek
   in case the fixtures request failed — `seasonHasStarted`,
   `normalize/gameweek.ts`), FPL still carries last season's totals in
-  those fields, so cumulative stats are zeroed (a true zero, not unknown)
-  and rates become `null`.
+  those fields, so they're never read: nobody has played yet, so every
+  performance field is `null` ("—").
+
+**0 minutes shows "—", never zeros** (`<no_minutes_no_figures>`,
+`resolvePlayerStats.ts`; the owner's rule, 2026-10-19): a player with 0
+minutes in the selected Data View has every performance figure `null` —
+points, minutes, goals, cards, xG, rates — in every Data View, so a player
+who hasn't played looks the same whichever is selected. Price, ownership,
+status and news stay live. A player who did play keeps a real 0 for a stat
+he didn't record.
+
+**Clubs likewise** (`<no_matches_no_figures>`, `computeTeamAggregates` in
+`metrics/teamStats.ts`, `resolveUnderstatClub`): a club that hasn't played a
+match in the Data View — Current Season before a ball is kicked, or before
+its first match — shows "—" for every figure, never a row of zeros.
 
 The reference season rolls forward on its own: it's the most recent
 `season_name` anywhere in the pool's `history_past`
@@ -592,9 +609,11 @@ app shows "—" for those figures (never 0) until the next run.
 - **Data Views** (`client/src/understat/resolve.ts`), with the same rules
   as FPL figures:
   - **Players:** a player's window is his FPL seasons (Premier League only).
-    A season FPL says he played 0 minutes in is a provable 0; one he played
-    in with no Understat row (held link) is "—". Historic Average is the
-    Explorers' kind: every window season counts, 0-minute ones included.
+    A season FPL says he played 0 minutes in is "—", like his FPL figures
+    (`<no_minutes_no_figures>`), and so is one he played in with no
+    Understat row (held link). Historic Average is the one Historic
+    Average: only window seasons of 450+ FPL minutes count
+    (`floorSeasonsInWindow`), the same seasons as the FPL figure beside it.
   - **Clubs:** clubs use `clubSeasonsForMode`.
   - **Rates:** per game is from **Understat's own minutes**
     (`<us_minutes_for_us_rates>`). Ratios (xG/Shot, PPDA) are built from
@@ -661,9 +680,11 @@ app shows "—" for those figures (never 0) until the next run.
     Understat's own 90/450 minutes, per-match against each other's total ÷
     his club's matches — 38 in a completed season; a club among every
     club) — `<one_source_per_figure>`. A match FPL
-    says the player didn't play is a provable 0; one he played that
-    Understat lacks, or any before its figures load, is "—". Starts on FPL
-    for each profile opened.
+    says the player didn't play is "—" in its row, like his FPL figures
+    (`<no_minutes_no_figures>`), and counts in the Average as a match with
+    nothing in it; one he played that Understat lacks, or any before its
+    figures load, is "—" and left out. Starts on FPL for each profile
+    opened.
   - **Matches Understat lacks in Totals and Average:** a live match
     reaches Understat's files only on the first daily sync after FPL marks
     the fixture `finished` (bonus confirmed), so the latest match often
@@ -744,7 +765,7 @@ game included) divides by it.
 estimatedGames      = minutes > 0 ? max(1, ceil(minutes / 90)) : 0   (any appearance counts as a game)
   Historic Average  = estimatedGames(total minutes over the seasons) / seasons   (per season; may be fractional)
 X / Game            = X / estimatedGames      (so Historic Average X / Game = total X / total games)
-PPG                 = totalPoints / estimatedGames, or / 1 with 0 minutes (0 points in 0 minutes is 0.0)
+PPG                 = totalPoints / estimatedGames   (0 minutes: "—", like every figure — <no_minutes_no_figures>)
 Points / £m         = totalPoints / price;   xG, xA, xGI / £m likewise
 Minutes / Point     = minutes / totalPoints; Minutes / Goal, / Assist likewise
 Goals − xG, Assists − xA, (Goals + Assists) − xGI
@@ -841,9 +862,12 @@ by a fraction of one upcoming match.
   same matches, and when that's only some of the listed matches the cell
   says so on hover ("From the N of M matches that have a figure"; for
   Understat, "…Understat has a figure for"). "—" only when none has one.
-  In a player's log a match he didn't play in is a provable 0 — unless no
-  match he played has the figure (a stat FPL didn't record that season),
-  which is "—", never 0. A cell with no total by design (Understat's
+  In a player's log a match he didn't play in shows "—" for every figure
+  in its row (`<no_minutes_no_figures>`; its opponent and result stay),
+  and counts in the Average as a match with nothing in it — the Average
+  is per match listed, the same basis as the averages it's coloured
+  against — unless no match he played has the figure (a stat FPL didn't
+  record that season), which is "—". A cell with no total by design (Understat's
   Win/Draw/Loss Chance Totals, Position) is blank: "—" always means
   missing data. (A club's *season* figures — Team Explorer, Season Totals
   — follow their own rule, `<season_figures_mostly_complete>` in "Club
@@ -1252,6 +1276,10 @@ server storage. Each store wraps its data as `{ version, data }` via
 | `fpl-dashboard:saved-squads:v1` | `useSavedSquads` |
 | `fpl-dashboard:notepad:v1` | `useNotepad` (tabs, their text, the active tab) |
 | `fpl-dashboard:id-ledger:v1` | `state/seasonIdRollover.ts` (the season the saved ids belong to, and each id's permanent code) |
+| `scoutline:terms-accepted:v1` | `components/TermsGate.tsx` (the terms version last accepted) |
+
+The `fpl-dashboard:` keys keep their names from before the rename to
+Scoutline: renaming a key would lose everyone's saved data.
 
 **Any change to what a store holds** — a new field, a new default, a
 meaning change to an existing field — needs a `STORAGE_VERSION` bump **and**
@@ -1342,11 +1370,54 @@ distribution. The server is bundled by esbuild into one CommonJS file
 (`server/dist/app.bundle.cjs`), `asar` is off, and the app is unsigned (a
 SmartScreen prompt on first install). See `DEPLOYMENT.md`.
 
+It runs on Electron 44 (a supported release line: Electron supports only
+its three newest major versions, so move up at least once a year to keep
+getting its browser's security fixes).
+
 It always serves on port 4317, never a `PORT` from the environment: the
 port is part of the page's address, which saved data belongs to. One copy
 runs at a time (`requestSingleInstanceLock`); a second launch brings the
 first one's window forward. If port 4317 is taken by another program, the
 app says so in a dialog and quits, instead of crashing with no window.
+
+- **This computer only** (`<loopback_only>`, `server/src/listen.ts`): the
+  server listens on the loopback addresses (127.0.0.1 and ::1), never every
+  network interface, so nothing else on the network can use it. `npm run
+  dev` does the same; a container sets `HOST=0.0.0.0` (the reference
+  `Dockerfile` does).
+- **Its own pages only** (`<navigation_guard>`, `electron/main.js`): a
+  window never navigates away from `http://localhost:4317` or opens another
+  window; an outside http(s) link opens in the person's own browser.
+- **The rename** (2026-10-19, "FPL Analytics Dashboard" → Scoutline):
+  `productName` is Scoutline, but the saved-data folder keeps its old name
+  (`app.setPath("userData", …)`, `<saved_data_folder>`), and `appId`, the
+  root package `name` and the GitHub repository keep theirs, so installed
+  copies update in place and keep everything they had saved. Don't change
+  any of those four.
+- The server's memory caches are capped at 2,000 entries each
+  (`TtlCache`, `server/src/cache.ts`), least recently stored out first.
+
+## Legal
+
+- **Terms and licence:** `LICENSE.txt` — proprietary, all rights reserved,
+  with a personal-use licence, no-warranty and limitation-of-liability
+  terms, the independence and trademark statement, and data ownership. The
+  installer shows it (`build.nsis.license`), the app asks for it to be
+  accepted on first launch and whenever it changes (`TermsGate`, bump
+  `TERMS_VERSION` in `client/src/brand.ts` when the terms change in
+  substance), and About & Legal (`pages/Legal.tsx`) shows it in full.
+- **Privacy:** `PRIVACY.md`, summarised on About & Legal — keep the two in
+  step.
+- **Open-source notices:** `client/src/legal/third-party-notices.txt`,
+  generated by `npm run legal:notices` (and before every desktop build by
+  `electron:build`) from every package that ships in the app, shown on
+  About & Legal. Commit it after a dependency change.
+- **Name and copyright** in one place for the client: `client/src/brand.ts`.
+  "FPL", "Fantasy Premier League" and "Premier League" are the Premier
+  League's trademarks: use them only to describe the data (an "FPL" column
+  source, an "FPL team ID"), never in the product's name or titles.
+- **Data credits:** FPL, Understat and the vaastav archive (MIT) are
+  credited on About & Legal and in `LICENSE.txt` section 6.
 
 **To release:**
 1. Make sure this README reflects the change.
@@ -1371,8 +1442,7 @@ time it's opened, before the app appears; an open one finds it within about
 - Restarting the server clears its in-memory cache (cheap — the API is the
   source of truth).
 - Imported squads store chip usage (`usedChips`), but no page shows it at
-  the moment. `metrics/chipPlanner.ts` is left over from the retired Chip
-  Planner and has no importers.
+  the moment.
 - Club figures count only matches FPL has marked `finished`, hours after
   full time, while players' Current Season totals include a match from
   kick-off; during a gameweek the league table and club totals run a round

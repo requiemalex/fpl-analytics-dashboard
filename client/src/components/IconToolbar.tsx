@@ -8,6 +8,16 @@ import React from "react";
  * controls and TeamBuilder's analysis-mode icon buttons.
  */
 
+/** An X: closes a panel or overlay (profiles, the notepad). */
+export function CloseIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function ResetIcon() {
   return (
     <svg width="17" height="17" viewBox="0 0 16 16" fill="none" aria-hidden="true">

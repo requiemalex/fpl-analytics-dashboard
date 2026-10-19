@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { loadVersioned, saveVersioned, type VersionedStore } from "./persistentStorage";
+import { useCallback, useRef } from "react";
+import { type VersionedStore, usePersistentState } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:notepad:v1";
 /**
@@ -95,11 +95,8 @@ export interface UseNotepad {
  * notepad is opened.
  */
 export function useNotepad(): UseNotepad {
-  const [data, setData] = useState<NotepadData>(() => loadVersioned(STORAGE_KEY, NOTEPAD_STORE));
+  const [data, setData] = usePersistentState(STORAGE_KEY, NOTEPAD_STORE);
 
-  useEffect(() => {
-    saveVersioned(STORAGE_KEY, STORAGE_VERSION, data);
-  }, [data]);
 
   const selectTab = useCallback((id: string) => {
     setData((prev) => (prev.tabs.some((t) => t.id === id) ? { ...prev, activeTabId: id } : prev));

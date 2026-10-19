@@ -60,5 +60,7 @@ COPY --from=build /app/client/dist ./client/dist
 # 4000 fallback for local/Docker-without-PORT use. EXPOSE here is
 # documentation, not a requirement those hosts rely on.
 EXPOSE 4000
+# A container must accept outside connections; the server binds loopback only otherwise (<loopback_only>, server/src/listen.ts).
+ENV HOST=0.0.0.0
 
 CMD ["node", "server/dist/index.js"]

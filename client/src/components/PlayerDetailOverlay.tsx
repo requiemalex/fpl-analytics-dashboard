@@ -15,7 +15,7 @@ import { estimatedGamesFromMinutes } from "../metrics/calculations";
 import { PercentileRadarChart } from "./PlayerRadarChart";
 import { ActualVsExpectedBars } from "./playerProfile/ActualVsExpectedBars";
 import { AssistsIcon, AverageLineIcon, GoalsIcon, PointsHistoryChart, PointsHistoryHeader, PointsHistoryStats } from "./playerProfile/PointsHistory";
-import { ClockIcon } from "./IconToolbar";
+import { ClockIcon, CloseIcon } from "./IconToolbar";
 import { PlayingTimeIcon } from "./playerProfile/PlayingTimeIcon";
 import { computeSeasonAverageMinutes } from "../metrics/rotationIndicators";
 import { partialAverage, partialTotal, sumKnown, type PartialSum } from "../metrics/partialTotals";
@@ -190,10 +190,12 @@ const LOG_VALUES: Record<string, { value: (r: MatchLogRow) => number | null; tot
 /**
  * Each column's Totals and Average over a log's matches, whichever season
  * (<partial_totals>): the matches with a figure added up, a match without
- * one left out. A match he didn't play in is a provable 0 for every stat,
- * so it counts as 0 even where FPL wrote nothing — unless no match he
- * played has the figure (a stat FPL didn't record that season, like xG
- * before 2022/23): that column is "—", never 0.
+ * one left out. A match he didn't play in shows "—" in its row
+ * (<no_minutes_no_figures>), but it still counts in the Average as a match
+ * with nothing in it — the Average is per match listed, the basis every
+ * other player's Average it's coloured against uses — even where FPL wrote
+ * nothing; unless no match he played has the figure (a stat FPL didn't
+ * record that season, like xG before 2022/23): that column is "—".
  */
 function logSums(rows: MatchLogRow[]): Record<string, PartialSum | null> {
   const out: Record<string, PartialSum | null> = {};
@@ -232,15 +234,6 @@ function gameweekResult(g: Pick<MatchLogRow, "teamScore" | "opponentScore">): { 
   if (g.teamScore > g.opponentScore) return { label, outcomeClass: "value-positive" };
   if (g.teamScore < g.opponentScore) return { label, outcomeClass: "value-negative" };
   return { label, outcomeClass: "value-muted" };
-}
-
-function CloseIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
 }
 
 /** A season with no match-by-match record (before 2016/17): FPL's season totals, in the Match Log's column order. */
@@ -812,7 +805,8 @@ export function PlayerDetailOverlay() {
               <tr key={g.fixtureId}>
                 {columns.map((c, i) => (
                   <td key={c.key} className={cls(divider(i))} style={c.align === "left" ? { textAlign: "left", fontFamily: "var(--font-body)" } : undefined}>
-                    {c.cell(g)}
+                    {/* <no_minutes_no_figures>: a match FPL says he didn't play in has nothing to show — every figure "—", FPL's and the second source's, never 0. The opponent, score and result stay. */}
+                    {i >= statStart && g.minutes === 0 ? DASH : c.cell(g)}
                   </td>
                 ))}
               </tr>

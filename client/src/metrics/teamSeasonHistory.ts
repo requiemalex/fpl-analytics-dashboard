@@ -1,8 +1,5 @@
 import { HISTORIC_WINDOW_SEASONS } from "./historicAnalysis";
-
-function seasonStartYear(seasonName: string): number {
-  return parseInt(seasonName.split("/")[0], 10);
-}
+import { seasonStartYear } from "../utils/season";
 
 /**
  * Same rolling window historicAnalysis.ts uses for a single player's own

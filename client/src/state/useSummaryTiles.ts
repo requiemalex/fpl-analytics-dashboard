@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import type { SummaryTileScope } from "../components/summaryTileMetrics";
 import { isAnalysisMode, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { clearUnappliedLiveMinMinutes, DEFAULT_FILTERS, type GlobalScoutingFilters } from "./scoutingFilters";
-import { loadVersioned, mapReadableEntries, saveVersioned, type VersionedStore } from "./persistentStorage";
+import { mapReadableEntries, type VersionedStore, usePersistentState } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:dashboard:summary-tiles:v1";
 /**
@@ -131,14 +131,6 @@ const SUMMARY_TILES_STORE: VersionedStore<SummaryTileConfig[]> = {
   },
 };
 
-function loadFromStorage(): SummaryTileConfig[] {
-  return loadVersioned(STORAGE_KEY, SUMMARY_TILES_STORE);
-}
-
-function saveToStorage(tiles: SummaryTileConfig[]) {
-  saveVersioned(STORAGE_KEY, STORAGE_VERSION, tiles);
-}
-
 export function createSummaryTile(config: {
   scope: SummaryTileScope;
   metricKey: string;
@@ -165,11 +157,8 @@ export interface UseSummaryTiles {
 
 /** Saved Dashboard summary tiles, persisted to localStorage only — same no-account, no-server-storage model as Team Building's saved squads and Underlying Numbers' saved User Analysis graphs. */
 export function useSummaryTiles(): UseSummaryTiles {
-  const [tiles, setTiles] = useState<SummaryTileConfig[]>(loadFromStorage);
+  const [tiles, setTiles] = usePersistentState(STORAGE_KEY, SUMMARY_TILES_STORE);
 
-  useEffect(() => {
-    saveToStorage(tiles);
-  }, [tiles]);
 
   const addTile = useCallback((tile: SummaryTileConfig) => {
     setTiles((prev) => (prev.length >= MAX_SUMMARY_TILES ? prev : [...prev, tile]));

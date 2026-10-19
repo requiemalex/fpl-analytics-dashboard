@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { isAnalysisMode, type AnalysisMode } from "../metrics/resolvePlayerStats";
-import { loadVersioned, saveVersioned, type VersionedStore } from "./persistentStorage";
+import { type VersionedStore, usePersistentState } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:comparison:views:v1";
 /**
@@ -180,15 +180,9 @@ export interface UseComparisonViews {
  * Dashboard's views.
  */
 export function useComparisonViews(): UseComparisonViews {
-  const [views, setViews] = useState<ComparisonView[]>(() => loadVersioned(STORAGE_KEY, VIEWS_STORE));
-  const [storedSelectedId, setStoredSelectedId] = useState<string>(() => loadVersioned(SELECTED_VIEW_STORAGE_KEY, SELECTED_VIEW_STORE));
+  const [views, setViews] = usePersistentState(STORAGE_KEY, VIEWS_STORE);
+  const [storedSelectedId, setStoredSelectedId] = usePersistentState(SELECTED_VIEW_STORAGE_KEY, SELECTED_VIEW_STORE);
 
-  useEffect(() => {
-    saveVersioned(STORAGE_KEY, STORAGE_VERSION, views);
-  }, [views]);
-  useEffect(() => {
-    saveVersioned(SELECTED_VIEW_STORAGE_KEY, SELECTED_VIEW_STORAGE_VERSION, storedSelectedId);
-  }, [storedSelectedId]);
 
   const selectedView = useMemo(
     () =>

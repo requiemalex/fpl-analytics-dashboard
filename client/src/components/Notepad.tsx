@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNotepad, MAX_TAB_TITLE, MAX_TABS, type NotepadTab } from "../state/useNotepad";
 import { useEscapeLayer } from "../state/useEscapeLayer";
-import { EditIcon, PlusIcon, TrashIcon } from "./IconToolbar";
+import { CloseIcon, EditIcon, PlusIcon, TrashIcon } from "./IconToolbar";
 
 /** The key that opens and closes the notepad from anywhere in the app — the key left of 1 on UK and US keyboards. */
 export const NOTEPAD_KEY = "`";
@@ -24,15 +24,6 @@ export function useNotepadHotkey(onToggle: () => void): void {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
-}
-
-function CloseIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <line x1="3.5" y1="3.5" x2="12.5" y2="12.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <line x1="12.5" y1="3.5" x2="3.5" y2="12.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
 }
 
 /** Double chevrons pointing left (widen the panel to fill the page) or right (shrink it back to the side). */
@@ -204,7 +195,7 @@ export function Notepad({ open, onClose }: { open: boolean; onClose: () => void 
                 </>
               )}
               <button type="button" className="chip chip-icon" title={`Close notepad (${NOTEPAD_KEY} or Esc)`} aria-label="Close notepad" onClick={onClose}>
-                <CloseIcon />
+                <CloseIcon size={14} />
               </button>
             </div>
           </div>

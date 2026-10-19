@@ -33,7 +33,7 @@ interface AppState {
   /** Independent of the main load — a fixtures failure never blocks the rest of the app, this just stays empty. */
   fixtures: NormalizedFixture[];
   gameweekState: GameweekState | null;
-  /** Every gameweek in the season, not just the current one — used by the Chip Planner to walk deadlines through to the end of the season. */
+  /** Every gameweek in the season, not just the current one. */
   events: NormalizedEvent[];
   /** Per-chip-type, per-half availability windows, sourced directly from bootstrap-static's top-level "chips" array — see normalize/normalizeChips.ts. Empty until data loads or if the live build ever omits this field. */
   chips: ChipWindow[];

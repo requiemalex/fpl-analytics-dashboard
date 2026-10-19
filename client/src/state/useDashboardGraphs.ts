@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import type { SummaryTileScope } from "../components/summaryTileMetrics";
 import { isAnalysisMode, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { columnByKey as playerColumnByKey } from "../components/playerColumns";
 import { teamColumnByKey } from "../components/teamColumns";
 import type { TileDirection } from "./useSummaryTiles";
 import { clearUnappliedLiveMinMinutes, DEFAULT_FILTERS, type GlobalScoutingFilters } from "./scoutingFilters";
-import { loadVersioned, mapReadableEntries, saveVersioned, type VersionedStore } from "./persistentStorage";
+import { mapReadableEntries, type VersionedStore, usePersistentState } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:dashboard:graphs:v1";
 /**
@@ -202,14 +202,6 @@ const DASHBOARD_GRAPHS_STORE: VersionedStore<DashboardGraphConfig[]> = {
   },
 };
 
-function loadFromStorage(): DashboardGraphConfig[] {
-  return loadVersioned(STORAGE_KEY, DASHBOARD_GRAPHS_STORE);
-}
-
-function saveToStorage(graphs: DashboardGraphConfig[]) {
-  saveVersioned(STORAGE_KEY, STORAGE_VERSION, graphs);
-}
-
 export function createDashboardGraph(config: Omit<DashboardGraphConfig, "id">): DashboardGraphConfig {
   return { id: `graph-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, ...config };
 }
@@ -227,11 +219,8 @@ export interface UseDashboardGraphs {
 
 /** Saved Dashboard graphs, persisted to localStorage only — same no-account, no-server-storage model as Dashboard's own summary tiles. */
 export function useDashboardGraphs(): UseDashboardGraphs {
-  const [graphs, setGraphs] = useState<DashboardGraphConfig[]>(loadFromStorage);
+  const [graphs, setGraphs] = usePersistentState(STORAGE_KEY, DASHBOARD_GRAPHS_STORE);
 
-  useEffect(() => {
-    saveToStorage(graphs);
-  }, [graphs]);
 
   const addGraph = useCallback((graph: DashboardGraphConfig) => {
     setGraphs((prev) => (prev.length >= MAX_DASHBOARD_GRAPHS ? prev : [...prev, graph]));

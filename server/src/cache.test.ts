@@ -95,3 +95,16 @@ describe("TtlCache — TTL expiry logic", () => {
     expect(cache.get("missing")).toBeUndefined();
   });
 });
+
+describe("TtlCache — size cap", () => {
+  it("evicts the least recently stored entry past maxEntries, so the store can't grow without limit", () => {
+    const cache = new TtlCache<string>(2);
+    cache.set("a", "1", 1000);
+    cache.set("b", "2", 1000);
+    cache.set("a", "1b", 1000); // re-stored: now the newest
+    cache.set("c", "3", 1000);
+    expect(cache.getStale("b")).toBeUndefined();
+    expect(cache.get("a")?.value).toBe("1b");
+    expect(cache.get("c")?.value).toBe("3");
+  });
+});

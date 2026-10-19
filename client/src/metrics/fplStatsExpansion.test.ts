@@ -109,9 +109,9 @@ describe("per Data View", () => {
     const r = resolvePlayerStats(live, "live", undefined, true);
     expect(r).toMatchObject({ goalsConceded: 6, goalsConcededPerGame: 6 / 5, yellowCards: 2, tackles: 8 });
   });
-  it("before a ball is kicked: cumulative figures are a true 0, GC/Game undefined", () => {
+  it("before a ball is kicked: nobody has played, so every figure is — (null), never FPL's carried-over totals", () => {
     const r = resolvePlayerStats(live, "live", undefined, false);
-    expect(r).toMatchObject({ yellowCards: 0, redCards: 0, influence: 0, creativity: 0, threat: 0, tackles: 0, clearancesBlocksInterceptions: 0, recoveries: 0, penaltiesSaved: 0 });
+    expect(r).toMatchObject({ yellowCards: null, redCards: null, influence: null, creativity: null, threat: null, tackles: null, clearancesBlocksInterceptions: null, recoveries: null, penaltiesSaved: null });
     expect(r.goalsConcededPerGame).toBeNull();
   });
   it("Last Completed Season: that season's own figures", () => {

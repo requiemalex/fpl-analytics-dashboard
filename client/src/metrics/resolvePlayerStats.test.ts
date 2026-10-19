@@ -6,13 +6,14 @@ import type { HistoricPlayerProfile } from "./historicAnalysis";
 import { computeCareerAverages } from "./careerMetrics";
 
 describe("resolvePlayerStats — live mode", () => {
-  it("<live_mode_preseason_fix>: when the season hasn't started, zeroes cumulative fields (genuine zero, not null) and nulls per-game rates", () => {
+  it("<live_mode_preseason_fix>: when the season hasn't started, never reads FPL's carried-over totals — nobody has played, so every figure is null (—)", () => {
     const player = makePlayer({ id: 1, position: "MID", totalPoints: 999, minutes: 999, goals: 5, xG: 3 });
     const resolved = resolvePlayerStats(player, "live", undefined, false);
-    expect(resolved.totalPoints).toBe(0);
-    expect(resolved.minutes).toBe(0);
-    expect(resolved.goals).toBe(0);
-    expect(resolved.xG).toBe(0);
+    expect(resolved.totalPoints).toBeNull();
+    expect(resolved.minutes).toBeNull();
+    expect(resolved.goals).toBeNull();
+    expect(resolved.xG).toBeNull();
+    expect(hasDataForMode(resolved)).toBe(false);
     expect(resolved.pointsPerGame).toBeNull();
     expect(resolved.xGPerGame).toBeNull();
     // identity/price/ownership stay live
@@ -43,9 +44,40 @@ describe("resolvePlayerStats — PPG in Current Season (audit 2026-09-25 M4)", (
     // Haaland-like: 39 points in 450 minutes = 5 games.
     const starter = makePlayer({ id: 2, position: "FWD", totalPoints: 39, minutes: 450, pointsPerGame: 7.8 });
     expect(resolvePlayerStats(starter, "live", undefined, true).pointsPerGame).toBe(7.8);
-    // 0 minutes, 0 points is a real 0.0, as in the historic modes (<ppg_vs_per90>).
+    // 0 minutes: nothing to show (<no_minutes_no_figures>), so no PPG either.
     const unused = makePlayer({ id: 3, position: "GKP", totalPoints: 0, minutes: 0 });
-    expect(resolvePlayerStats(unused, "live", undefined, true).pointsPerGame).toBe(0);
+    expect(resolvePlayerStats(unused, "live", undefined, true).pointsPerGame).toBeNull();
+  });
+});
+
+describe("<no_minutes_no_figures>: 0 minutes shows —, never zeros, in every Data View (owner's rule, 2026-10-19)", () => {
+  const PERFORMANCE = ["totalPoints", "pointsPerGame", "minutes", "goals", "assists", "cleanSheets", "bonus", "bps", "xG", "xGPerGame", "saves", "yellowCards", "defensiveContributions"] as const;
+
+  it("Current Season: a player who hasn't played has every performance figure null, while identity, price, ownership and status stay live", () => {
+    const player = makePlayer({ id: 1, position: "DEF", totalPoints: 0, minutes: 0, goals: 0, xG: 0, price: 4.5, ownership: 1.2, status: "a" });
+    const resolved = resolvePlayerStats(player, "live", undefined, true);
+    for (const key of PERFORMANCE) expect(resolved[key], key).toBeNull();
+    expect(hasDataForMode(resolved)).toBe(false);
+    expect(resolved.name).toBe(player.name);
+    expect(resolved.price).toBe(4.5);
+    expect(resolved.ownership).toBe(1.2);
+    expect(resolved.status).toBe("a");
+  });
+
+  it("Last Completed Season: a season FPL lists him in with 0 minutes is — too, the same as no season at all", () => {
+    const player = makePlayer({ id: 1, position: "GKP" });
+    const season = makeSeason({ seasonName: "2025/26", totalPoints: 0, minutes: 0 });
+    const profile: HistoricPlayerProfile = { lastCompletedSeason: season, qualifyingSeasons: [], allSeasonsInWindow: [season], floorSeasonsInWindow: [], floorWindowAverage: null };
+    const resolved = resolvePlayerStats(player, "lastSeason", profile, true);
+    for (const key of PERFORMANCE) expect(resolved[key], key).toBeNull();
+    expect(hasDataForMode(resolved)).toBe(false);
+  });
+
+  it("a player who played keeps a real 0 for a stat he didn't record", () => {
+    const player = makePlayer({ id: 1, position: "DEF", totalPoints: 2, minutes: 90, goals: 0 });
+    const resolved = resolvePlayerStats(player, "live", undefined, true);
+    expect(resolved.goals).toBe(0);
+    expect(resolved.minutes).toBe(90);
   });
 });
 
@@ -151,15 +183,16 @@ describe("resolvePlayerStats — Historic Average games come from total minutes 
     const last: HistoricPlayerProfile = { lastCompletedSeason: one, qualifyingSeasons: [], allSeasonsInWindow: [one], floorSeasonsInWindow: [one], floorWindowAverage: computeCareerAverages([one]) };
     expect(resolvePlayerStats(makePlayer({ id: 2, position: "MID" }), "lastSeason", last, true).estimatedGames).toBe(1);
     expect(resolvePlayerStats(makePlayer({ id: 3, position: "MID", minutes: 181 }), "live", undefined, true).estimatedGames).toBe(3);
-    expect(resolvePlayerStats(makePlayer({ id: 4, position: "MID", minutes: 181 }), "live", undefined, false).estimatedGames).toBe(0);
+    // Before a ball is kicked nobody has played: no games, "—" (<no_minutes_no_figures>).
+    expect(resolvePlayerStats(makePlayer({ id: 4, position: "MID", minutes: 181 }), "live", undefined, false).estimatedGames).toBeNull();
   });
 });
 
 describe("saves per Data View (audit 2026-10-18 L5)", () => {
   const player = makePlayer({ id: 1, position: "GKP", minutes: 900, saves: 30 });
-  it("Current Season: the live figure and its per-game rate; before a ball is kicked, 0", () => {
+  it("Current Season: the live figure and its per-game rate; before a ball is kicked, — (nobody has played)", () => {
     expect(resolvePlayerStats(player, "live", undefined, true)).toMatchObject({ saves: 30, savesPerGame: 3 });
-    expect(resolvePlayerStats(player, "live", undefined, false).saves).toBe(0);
+    expect(resolvePlayerStats(player, "live", undefined, false).saves).toBeNull();
   });
   it("Last Completed Season and Historic Average with no history: unknown, never today's figure", () => {
     expect(resolvePlayerStats(player, "lastSeason", undefined, true)).toMatchObject({ saves: null, savesPerGame: null });
@@ -175,5 +208,18 @@ describe("saves per Data View (audit 2026-10-18 L5)", () => {
     const profile: HistoricPlayerProfile = { lastCompletedSeason: s2, qualifyingSeasons: [s1, s2], allSeasonsInWindow: [s1, s2], floorSeasonsInWindow: [s1, s2], floorWindowAverage: avg };
     expect(resolvePlayerStats(player, "lastSeason", profile, true)).toMatchObject({ saves: 100, savesPerGame: 100 / 38 });
     expect(resolvePlayerStats(player, "historicAverage", profile, true)).toMatchObject({ saves: 111, savesPerGame: 222 / 76 });
+  });
+});
+
+describe("<shared_resolved_pool>", () => {
+  it("hands every caller with the same pool the same resolved list, and works a new pool out afresh", () => {
+    const players = [makePlayer({ id: 1, position: "MID", minutes: 90, totalPoints: 5 })];
+    const profiles = new Map<number, HistoricPlayerProfile>();
+    const first = resolvePlayerStatsList(players, "live", profiles, true);
+    expect(resolvePlayerStatsList(players, "live", profiles, true)).toBe(first);
+    expect(resolvePlayerStatsList(players, "lastSeason", profiles, true)).not.toBe(first);
+    expect(resolvePlayerStatsList(players, "live", profiles, false)).not.toBe(first);
+    expect(resolvePlayerStatsList([...players], "live", profiles, true)).not.toBe(first);
+    expect(resolvePlayerStatsList(players, "live", new Map(), true)).not.toBe(first);
   });
 });

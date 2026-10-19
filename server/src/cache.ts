@@ -13,8 +13,18 @@ interface CacheEntry<T> {
   fetchedAt: number;
 }
 
+/** Default size cap per cache: comfortably above the ~800 players element-summary holds, so in normal use nothing is ever evicted. */
+export const DEFAULT_MAX_ENTRIES = 2000;
+
 export class TtlCache<T = unknown> {
   private store = new Map<string, CacheEntry<T>>();
+
+  /**
+   * `maxEntries`: past it, the least recently stored entry goes. Keys come
+   * from request paths (any manager's team ID, any player ID), so without a
+   * cap the store could only grow for as long as the process runs.
+   */
+  constructor(private readonly maxEntries: number = DEFAULT_MAX_ENTRIES) {}
 
   get(key: string): { value: T; fetchedAt: number } | undefined {
     const entry = this.store.get(key);
@@ -23,8 +33,7 @@ export class TtlCache<T = unknown> {
     // upstream failure right after a cache miss fall back to getStale() for
     // graceful degradation (see proxy.ts's cachedFetch), which needs the
     // expired entry to still be there. A fresh set() naturally overwrites
-    // it later; there's no unbounded-growth risk since cache keys are drawn
-    // from a bounded set of data domains/player IDs, not arbitrary input.
+    // it later, and maxEntries bounds the store either way.
     if (Date.now() > entry.expiresAt) {
       return undefined;
     }
@@ -46,11 +55,18 @@ export class TtlCache<T = unknown> {
    * other time, so live figures moved every 20 minutes). Defaults to now.
    */
   set(key: string, value: T, ttlMs: number, startedAt: number = Date.now()): void {
+    // Re-inserted, so a Map's insertion order is "least recently stored first" for eviction.
+    this.store.delete(key);
     this.store.set(key, {
       value,
       expiresAt: startedAt + ttlMs,
       fetchedAt: Date.now(),
     });
+    while (this.store.size > this.maxEntries) {
+      const oldest = this.store.keys().next().value;
+      if (oldest === undefined) break;
+      this.store.delete(oldest);
+    }
   }
 
   invalidate(key: string): void {

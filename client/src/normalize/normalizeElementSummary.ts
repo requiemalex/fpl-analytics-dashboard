@@ -1,6 +1,7 @@
 import type { RawElementSummary, RawElementSummaryPastSeason, RawHistoricBulk } from "../types/raw";
 import type { PlayerGameweekHistory, PlayerSeasonHistory } from "../types/normalized";
 import { parseNumericString, parseNumberOrNull } from "./parseNumeric";
+import { seasonStartYear } from "../utils/season";
 
 /**
  * Current-season gameweek-level history only. This is explicitly NOT
@@ -76,10 +77,6 @@ const STARTS_AND_EXPECTED_TRACKING_START_YEAR = 2022;
  * Earlier seasons' 0 is a placeholder, nulled here.
  */
 const DC_PARTS_TRACKING_START_YEAR = 2025;
-
-function seasonStartYear(seasonName: string): number {
-  return parseInt(seasonName.split("/")[0], 10);
-}
 
 function normalizePastSeasons(historyPast: RawElementSummaryPastSeason[]): PlayerSeasonHistory[] {
   return (historyPast ?? [])

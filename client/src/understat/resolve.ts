@@ -117,6 +117,12 @@ export interface PlayerResolveContext {
   currentSeasonHasStarted: boolean;
 }
 
+/**
+ * One season's Understat row for a player: the row, "unknown" when it can't
+ * be found (no link, or a held one), or null when FPL says he played 0
+ * minutes that season — nothing to show (<no_minutes_no_figures>,
+ * resolvePlayerStats.ts), so "—" like his FPL figures.
+ */
 function seasonRow(data: EnabledData, season: string, code: number | null, fplMinutes: number | null): UsPlayerTotals | null | "unknown" {
   if (code === null) return "unknown";
   const file = data.seasons.get(season);
@@ -129,10 +135,10 @@ function seasonRow(data: EnabledData, season: string, code: number | null, fplMi
 export function resolveUnderstatPlayer(player: NormalizedPlayer, mode: AnalysisMode, ctx: PlayerResolveContext): UsPlayerResolved | null {
   const { data } = ctx;
   if (mode === "live") {
-    if (!ctx.currentSeasonHasStarted) return { totals: zeroPlayer(), seasons: 1 };
+    // Before a ball is kicked nobody has played: nothing to show.
+    if (!ctx.currentSeasonHasStarted) return null;
     const row = seasonRow(data, data.liveSeason, player.code, player.minutes);
-    if (row === "unknown") return null;
-    return { totals: row ?? zeroPlayer(), seasons: 1 };
+    return row === "unknown" || row === null ? null : { totals: row, seasons: 1 };
   }
   const profile = ctx.historicProfiles.get(player.id);
   if (!profile) return null;
@@ -140,15 +146,17 @@ export function resolveUnderstatPlayer(player: NormalizedPlayer, mode: AnalysisM
     const s = profile.lastCompletedSeason;
     if (!s) return null;
     const row = seasonRow(data, s.seasonName, player.code, s.minutes);
-    if (row === "unknown") return null;
-    return { totals: row ?? zeroPlayer(), seasons: 1 };
+    return row === "unknown" || row === null ? null : { totals: row, seasons: 1 };
   }
+  // The one Historic Average: only window seasons of 450+ FPL minutes count
+  // (HistoricPlayerProfile.floorSeasonsInWindow), the same seasons as the
+  // FPL figure beside it. A season Understat has nothing for is left out.
   let totals = zeroPlayer();
   let seasons = 0;
-  for (const s of profile.allSeasonsInWindow) {
+  for (const s of profile.floorSeasonsInWindow) {
     const row = seasonRow(data, s.seasonName, player.code, s.minutes);
-    if (row === "unknown") continue;
-    totals = addPlayers(totals, row ?? zeroPlayer());
+    if (row === "unknown" || row === null) continue;
+    totals = addPlayers(totals, row);
     seasons += 1;
   }
   return seasons === 0 ? null : { totals, seasons };
@@ -221,15 +229,19 @@ export interface ClubResolveContext {
   currentSeasonHasStarted: boolean;
 }
 
-/** Same seasons as the FPL club figures (clubSeasonsForMode); a club with no record for the view is null, shown "—". */
+/**
+ * Same seasons as the FPL club figures (clubSeasonsForMode); a club with no
+ * record for the view, or no match played in it (pre-season included), is
+ * null, shown "—" (<no_matches_no_figures>, teamStats.ts).
+ */
 export function resolveUnderstatClub(team: NormalizedTeam, mode: AnalysisMode, ctx: ClubResolveContext): UsClubResolved | null {
   if (team.code === null) return null;
-  if (mode === "live" && !ctx.currentSeasonHasStarted && ctx.referenceSeason !== null) return { totals: zeroClub(), seasons: 1 };
+  if (mode === "live" && !ctx.currentSeasonHasStarted) return null;
   let totals = zeroClub();
   let seasons = 0;
   for (const season of clubSeasonsForMode(mode, ctx.referenceSeason)) {
     const row = ctx.data.seasons.get(season)?.clubs.get(team.code);
-    if (!row) continue;
+    if (!row || row.played === 0) continue;
     totals = addClubs(totals, row);
     seasons += 1;
   }

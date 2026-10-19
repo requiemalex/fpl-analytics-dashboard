@@ -1,4 +1,4 @@
-# FPL Analytics Dashboard — Non-negotiable rules
+# Scoutline — Non-negotiable rules
 
 Claude: read this fully at the start of every session. If this file and your
 memory of a past chat disagree, this file wins.
@@ -13,7 +13,8 @@ memory of a past chat disagree, this file wins.
   click through it unless I ask.
 
 ## Project and docs
-FPL scouting/analytics app on the live official FPL API. TypeScript
+Scoutline (until 2026-10-19 "FPL Analytics Dashboard"): an FPL
+scouting/analytics app on the live official FPL API. TypeScript
 throughout: Express proxy (`server/`) + React/Vite client (`client/`), npm
 workspaces at this root. Shipped as a Windows desktop app (Electron).
 - `README.md` — how the app works **now**. Before non-trivial changes, read
@@ -69,8 +70,11 @@ No lint script. Playwright isn't installed but works via
   is detected at runtime (`normalize/fieldAvailability.ts`).
 - Never fabricate, substitute, or infer a metric when the real value is
   unavailable: leave it `null` and show "—" (`DASH`, `utils/format.ts`), never
-  0 — unless it's provably zero (pre-season cumulative stats,
-  `currentSeasonHasStarted` in `resolvePlayerStats.ts`).
+  0. A player with **0 minutes** in a Data View has nothing to show: every
+  performance figure is "—", never 0, in every Data View, pre-season
+  included (owner's decision, 2026-10-19; `<no_minutes_no_figures>` in
+  `resolvePlayerStats.ts`). A player who did play keeps a real 0 for a
+  stat he didn't record.
 - Never substitute tackles, interceptions, BPS, or any other metric for
   defensive contributions (DC).
 - `now_cost` is £0.1m units. xGI is authoritative from the API where
@@ -151,6 +155,18 @@ No lint script. Playwright isn't installed but works via
 - When a feature is removed or replaced, add an entry to `docs/HISTORY.md`
   under "Removed or replaced since 2026-09-24": what it did, why it went, and
   the last commit that had it.
+
+## Name and legal
+- The product is **Scoutline** (`client/src/brand.ts`, `package.json`
+  `productName`, `electron/main.js`). Never put "FPL", "Fantasy Premier
+  League" or "Premier League" in the product's name or titles; they may
+  only describe the data.
+- Never change `appId`, the root package `name`, the GitHub repo name, the
+  saved-data folder (`<saved_data_folder>`) or any `fpl-dashboard:`
+  localStorage key: installs would stop updating or lose saved data.
+- Terms are `LICENSE.txt`, privacy `PRIVACY.md` (README "Legal"). A
+  substantive change to the terms needs a `TERMS_VERSION` bump. After a
+  dependency change, run `npm run legal:notices` and commit the result.
 
 ## Releasing
 Commit, then `git tag -a vX.Y.Z -m "vX.Y.Z"` and push both master and the tag

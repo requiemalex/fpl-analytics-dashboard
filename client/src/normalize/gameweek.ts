@@ -13,7 +13,7 @@ function toNormalizedEvent(e: RawEvent): NormalizedEvent {
   };
 }
 
-/** The full 38-gameweek events list, normalized — used by the Chip Planner to walk every remaining gameweek's deadline, not just the current one. */
+/** The full 38-gameweek events list, normalized — every gameweek's deadline, not just the current one. */
 export function normalizeEvents(rawEvents: RawEvent[]): NormalizedEvent[] {
   return rawEvents.map(toNormalizedEvent);
 }

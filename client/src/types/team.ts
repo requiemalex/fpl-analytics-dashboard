@@ -42,7 +42,7 @@ export interface SavedSquad {
   startingXI: number[];
   captainId: number | null;
   viceCaptainId: number | null;
-  /** Chips already spent — drives Chip Planner's "still available" filtering. Empty for a squad built from scratch until the user ticks any manually. */
+  /** Chips already spent, from an FPL import. Empty for a squad built from scratch. Stored, but no page shows it at the moment. */
   usedChips: UsedChip[];
   /** Set when this squad was loaded from a real FPL team ID rather than built from scratch — its own bank/value at the time of import, and which team ID/gameweek it came from, purely for display ("Loaded from Team 1234567, GW3") and re-sync. Null for a from-scratch squad. */
   importedFrom: { teamId: number; teamName: string; managerName: string; asOfEvent: number; bank: number | null } | null;

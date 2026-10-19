@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import type { SavedSquad } from "../types/team";
-import { loadVersioned, mapReadableEntries, saveVersioned, type VersionedStore } from "./persistentStorage";
+import { mapReadableEntries, type VersionedStore, usePersistentState } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:saved-squads:v1";
 const STORAGE_VERSION = 1;
@@ -43,14 +43,6 @@ const SAVED_SQUADS_STORE: VersionedStore<SavedSquad[]> = {
   },
 };
 
-function loadFromStorage(): SavedSquad[] {
-  return loadVersioned(STORAGE_KEY, SAVED_SQUADS_STORE);
-}
-
-function saveToStorage(squads: SavedSquad[]) {
-  saveVersioned(STORAGE_KEY, STORAGE_VERSION, squads);
-}
-
 /** Hard cap on saved squads — purely a UI/localStorage-hygiene limit, not an FPL rule. */
 export const MAX_SAVED_SQUADS = 5;
 
@@ -72,11 +64,8 @@ export interface UseSavedSquads {
  * "New Squad" rather than silently seeding a squad nobody asked for.
  */
 export function useSavedSquads(): UseSavedSquads {
-  const [squads, setSquads] = useState<SavedSquad[]>(loadFromStorage);
+  const [squads, setSquads] = usePersistentState(STORAGE_KEY, SAVED_SQUADS_STORE);
 
-  useEffect(() => {
-    saveToStorage(squads);
-  }, [squads]);
 
   const upsert = useCallback((squad: SavedSquad) => {
     setSquads((prev) => {

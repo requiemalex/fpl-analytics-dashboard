@@ -47,7 +47,7 @@ const FETCH_BATCH_SIZE = 10;
 const FETCH_BATCH_DELAY_MS = 300;
 
 async function fetchJson(path: string): Promise<unknown> {
-  const res = await fetch(`${API_BASE}${path}`, { headers: { "User-Agent": "Mozilla/5.0 (FPL Analytics Dashboard backtest script)" } });
+  const res = await fetch(`${API_BASE}${path}`, { headers: { "User-Agent": "Scoutline backtest script (+https://github.com/requiemalex/fpl-analytics-dashboard)" } });
   if (!res.ok) throw new Error(`${path} -> HTTP ${res.status}`);
   return res.json();
 }

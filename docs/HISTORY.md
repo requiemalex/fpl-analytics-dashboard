@@ -3734,3 +3734,30 @@ tiles/graphs only:
   stats) blanks it (`sumMostlyComplete`). No club figure on today's data
   changes.
 - **Last commit with it:** `4edfc00`.
+
+### Zeros for players with 0 minutes (replaced 2026-10-19)
+- **What it did:** in Current Season a player who hadn't played showed
+  FPL's own zeros (0 points, 0 minutes, 0 goals); before the season started
+  `resolvePlayerStats.ts` wrote 0 into every cumulative field for everyone
+  (`<live_mode_preseason_fix>`). Last Completed Season showed zeros for a
+  season FPL listed with 0 minutes; Understat columns did the same.
+- **Why it went:** the same player showed zeros in one Data View and "—" in
+  another. The owner's rule: no minutes, no figures — every performance
+  figure is "—" in every Data View (`<no_minutes_no_figures>`).
+- **Last commit with it:** `7105a0b`.
+
+### Understat Historic Average over every window season (replaced 2026-10-19)
+- **What it did:** on the Explorers, Dashboard and Player Comparison, an
+  Understat column's Historic Average counted every window season,
+  0-minute ones included (`allSeasonsInWindow` in `understat/resolve.ts`).
+- **Why it went:** the FPL figure beside it counts only 450+ minute
+  seasons (the one Historic Average, owner's rule 2026-10-19), so the two
+  columns averaged over different seasons.
+- **Last commit with it:** `7105a0b`.
+
+### `metrics/chipPlanner.ts` (removed 2026-10-20)
+- **What it did:** the last piece of the retired Chip Planner page:
+  `isChipUsedForWindow`, whether a squad's recorded chips covered a chip
+  window. Nothing imported it any more.
+- **Why it went:** unused code (owner's decision).
+- **Last commit with it:** `7105a0b`.

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { DATA_VIEW_SEGMENTS } from "../AnalysisModeToggle";
-import { MenuGroupHeading, MinutesSlider, SegmentedControl, SelectionMeter } from "../MenuControls";
+import { MAX_NAME_LENGTH, MenuGroupHeading, MinutesSlider, SegmentedControl, SelectionMeter } from "../MenuControls";
 import {
   COMPARISON_GROUP_LABELS,
   COMPARISON_GROUP_ORDER,
@@ -11,9 +11,6 @@ import {
 } from "../../metrics/comparisonMetrics";
 import { TREND_METRICS, TREND_METRIC_GROUP_ORDER } from "../../metrics/careerTrends";
 import type { ComparisonElementKind, ElementSettings } from "../../state/useComparisonViews";
-
-/** Longest name a card or view takes — the same limit as the Dashboard's. */
-export const MAX_NAME_LENGTH = 60;
 
 export const ELEMENT_NOUNS: Record<ComparisonElementKind, string> = { radar: "Radar Chart", outputs: "Outputs Panel", trend: "Trend Graph" };
 

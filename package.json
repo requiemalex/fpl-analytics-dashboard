@@ -2,7 +2,9 @@
   "name": "fpl-analytics-dashboard",
   "private": true,
   "version": "1.40.0",
-  "description": "Production-quality Fantasy Premier League analytics dashboard (2026/27 live season)",
+  "description": "Scoutline: a scouting and analytics app for Fantasy Premier League managers. Independent; not affiliated with or endorsed by the Premier League.",
+  "author": "Alex Pirie",
+  "license": "SEE LICENSE IN LICENSE.txt",
   "main": "electron/main.js",
   "workspaces": [
     "server",
@@ -16,7 +18,8 @@
     "server": "npm run dev -w server",
     "client": "npm run dev -w client",
     "build:electron-server": "esbuild server/src/app.ts --bundle --platform=node --format=cjs --log-override:empty-import-meta=silent --outfile=server/dist/app.bundle.cjs",
-    "electron:build": "npm run build -w client && npm run build:electron-server && electron-builder",
+    "legal:notices": "tsx scripts/legal/third-party-notices.ts",
+    "electron:build": "npm run legal:notices && npm run build -w client && npm run build:electron-server && electron-builder",
     "electron:start": "npm run build -w client && npm run build:electron-server && electron .",
     "club-history:snapshot": "tsx scripts/club-history/snapshot-vaastav.ts",
     "club-history:backfill": "tsx scripts/club-history/backfill-vaastav.ts",
@@ -26,7 +29,7 @@
   },
   "devDependencies": {
     "concurrently": "^9.0.1",
-    "electron": "^32.0.0",
+    "electron": "^44.5.1",
     "electron-builder": "^25.1.8",
     "esbuild": "^0.24.0",
     "png-to-ico": "^3.0.2"
@@ -36,14 +39,16 @@
   },
   "build": {
     "appId": "com.fpldashboard.app",
-    "productName": "FPL Analytics Dashboard",
+    "productName": "Scoutline",
+    "copyright": "Copyright © 2026 Alex Pirie. All rights reserved.",
     "asar": false,
     "files": [
       "electron/**/*",
       "server/dist/app.bundle.cjs",
       "client/dist/**/*",
       "build/icon.png",
-      "package.json"
+      "package.json",
+      "LICENSE.txt"
     ],
     "directories": {
       "output": "release"
@@ -61,6 +66,9 @@
     "icon": "build/icon.ico",
     "win": {
       "target": "nsis"
+    },
+    "nsis": {
+      "license": "LICENSE.txt"
     },
     "linux": {
       "target": "AppImage",

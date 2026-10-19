@@ -56,8 +56,16 @@
   letter-spacing: -0.01em;
 }
 
+/* Not green: green and red are kept for comparative colouring only (CLAUDE.md "Comparative colouring"). */
 .sidebar-brand span {
-  color: var(--accent-positive);
+  color: var(--accent-focus);
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: var(--space-4) var(--space-3) 0;
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 .nav-link {

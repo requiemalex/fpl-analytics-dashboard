@@ -10,7 +10,7 @@ import { filterPlayers } from "../state/useFilteredPlayers";
 import { computeTeamAggregates, type TeamAggregate } from "../metrics/teamStats";
 import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFilters";
 import { DATA_VIEW_SEGMENTS } from "../components/AnalysisModeToggle";
-import { SegmentedControl, type SegmentOption } from "../components/MenuControls";
+import { MAX_NAME_LENGTH, SegmentedControl, type SegmentOption } from "../components/MenuControls";
 import { FiltersBar } from "../components/FiltersBar";
 import { CardEditRemoveButtons, CreateViewIcon, FilterIcon, PlusIcon, TrashIcon, TrendLineIcon } from "../components/IconToolbar";
 import { SectionHeading } from "../components/SectionHeading";
@@ -167,9 +167,6 @@ function graphTitle(graph: DashboardGraphConfig, xLabel: string, yLabel: string)
 function displayGraphTitle(graph: DashboardGraphConfig, xLabel: string, yLabel: string): string {
   return graph.name && graph.name.trim() ? graph.name : graphTitle(graph, xLabel, yLabel);
 }
-
-/** Longest custom name a tile, graph or view takes — past this it's no longer a title. */
-const MAX_NAME_LENGTH = 60;
 
 /** Why a Filters-mode price range can't be saved, if it can't. */
 function priceRangeProblem(criteria: GlobalScoutingFilters): string | undefined {

@@ -6,10 +6,10 @@ import { computeTeamAggregates, type TeamAggregate } from "../metrics/teamStats"
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { TeamBadge } from "../components/primitives";
 import { TEAM_COLUMNS, teamColumnByKey, teamColumnForMode, type TeamColumn, type TeamColumnGroup } from "../components/teamColumns";
-import { ColumnFilterControl } from "../components/ColumnFilterControl";
+import { ColumnHeader, columnHeaderTitle } from "../components/ColumnHeader";
 import { IconChipButton, ResetIcon, ColumnsIcon, FilterIcon, DownloadIcon } from "../components/IconToolbar";
 import { useColumnCustomization } from "../state/useColumnCustomization";
-import { useColumnFilters, isColumnFilterActive } from "../state/useColumnFilters";
+import { useColumnFilters } from "../state/useColumnFilters";
 import { useSortSpec, compareSortValues, sortWithinColumns, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
 import { useEscapeLayer } from "../state/useEscapeLayer";
 import { percentileTint } from "../utils/colorScale";
@@ -17,7 +17,7 @@ import { clubRanks, colourDirection } from "../metrics/comparativeColour";
 import { downloadCsv } from "../utils/csvExport";
 import { matchesTeamSearch } from "../utils/playerSearch";
 import { MenuGroupHeading, fplHeading } from "../components/MenuControls";
-import { CrossoverGroupHeading, SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
+import { CrossoverGroupHeading, SOURCE_TOGGLE_WIDTH, SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
 import { FPL_SOURCE, useExternalStats, type ColumnSourceChoice } from "../extensions/externalStats";
 
 /** A league-table-style view of each club in the selected season(s) — every column a club figure (see <club_not_squad>, metrics/teamStats.ts). */
@@ -37,8 +37,6 @@ const TEAM_EXPLORER_KEYS_AFTER_RESET = new Set<string>(["name", ...TEAM_EXPLORER
  */
 const minColumnWidth = (c: TeamColumn) => 36 + 14 + 8 * Math.max(...c.label.split(/\s+/).map((w) => w.length));
 const TEAM_MIN_COLUMN_WIDTHS: Record<string, number> = Object.fromEntries(TEAM_COLUMNS.map((c) => [c.key, minColumnWidth(c)]));
-/** Room for a header's source toggle (extensions/externalStats.ts). */
-const SOURCE_TOGGLE_WIDTH = 16;
 
 /** "2025/26", "2026/27", or "2022/23–2025/26" for a Historic Average window. */
 
@@ -112,6 +110,7 @@ export function Teams() {
     startResize,
     fitToBox,
   } = useColumnCustomization(TEAM_EXPLORER_DEFAULT_VISIBLE_COLUMNS, minColumnWidths, () => handleFitToBox());
+  const headerLayout = { dragOverKey, setDragOverKey, reorderColumn, resizingKey, startResize };
   const columnPickerRef = useRef<HTMLDivElement>(null);
   const tableWrapRef = useRef<HTMLDivElement>(null);
   const stickyColRef = useRef<HTMLTableCellElement>(null);
@@ -356,53 +355,24 @@ export function Teams() {
                   const canSwitchSource = ext !== null && !!extColumns?.alternates[c.key];
                   const className = [fromExt ? ext?.className : "col-source-fpl", idx === 0 && "column-group-divider"].filter(Boolean).join(" ") || undefined;
                   return (
-                    <th
+                    <ColumnHeader
                       key={c.key}
-                      draggable
+                      columnKey={c.key}
+                      label={c.label}
                       className={className}
-                      onDragStart={(e) => e.dataTransfer.setData("text/plain", c.key)}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        if (dragOverKey !== c.key) setDragOverKey(c.key);
-                      }}
-                      onDragLeave={() => setDragOverKey((k) => (k === c.key ? null : k))}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        setDragOverKey(null);
-                        const draggedKey = e.dataTransfer.getData("text/plain");
-                        if (draggedKey && draggedKey !== c.key) reorderColumn(draggedKey, c.key);
-                      }}
-                      onClick={(e) => handleHeaderClick(c.key, e.shiftKey)}
-                      title="Click to sort · Shift-click to add secondary sort · Drag to reorder · Drag the right edge to resize"
-                      style={{
-                        position: "relative",
-                        width: width ? `${width}px` : undefined,
-                        maxWidth: width ? `${width}px` : undefined,
-                        cursor: "grab",
-                        outline: dragOverKey === c.key ? "2px dashed var(--accent-focus)" : undefined,
-                        outlineOffset: dragOverKey === c.key ? -2 : undefined,
-                      }}
-                    >
-                      {c.label}
-                      {sortEntry && <span className="sort-indicator">{sortEntry.direction === "asc" ? "↑" : "↓"}</span>}
-                      {canSwitchSource && ext && <SourceToggle showingExternal={fromExt} externalLabel={ext.label} onToggle={() => toggleColumnSource(c.key)} />}
-                      {fromExt && ext?.staleNote && <SourceStaleMarker note={ext.staleNote} />}
-                      <ColumnFilterControl
-                        isOpen={columnFiltersState.openFilterKey === c.key}
-                        isActive={isColumnFilterActive(columnFiltersState.columnFilters[c.key])}
-                        filterDraft={columnFiltersState.filterDraft}
-                        onOpen={() => columnFiltersState.openFilter(c.key)}
-                        onCancel={columnFiltersState.cancelFilter}
-                        onConfirm={columnFiltersState.confirmFilter}
-                        onDraftChange={columnFiltersState.setFilterDraft}
-                      />
-                      <span
-                        className={`column-resize-handle${resizingKey === c.key ? " resizing" : ""}`}
-                        draggable={false}
-                        onPointerDown={(e) => startResize(e, c.key)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </th>
+                      title={columnHeaderTitle()}
+                      layout={headerLayout}
+                      width={width}
+                      sortDirection={sortEntry?.direction}
+                      onSort={(shiftKey) => handleHeaderClick(c.key, shiftKey)}
+                      filters={columnFiltersState}
+                      trailing={
+                        <>
+                          {canSwitchSource && ext && <SourceToggle showingExternal={fromExt} externalLabel={ext.label} onToggle={() => toggleColumnSource(c.key)} />}
+                          {fromExt && ext?.staleNote && <SourceStaleMarker note={ext.staleNote} />}
+                        </>
+                      }
+                    />
                   );
                 })}
               </tr>

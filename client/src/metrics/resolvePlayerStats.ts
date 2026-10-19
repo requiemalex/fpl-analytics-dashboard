@@ -53,15 +53,11 @@ export function isAnalysisMode(value: unknown): value is AnalysisMode {
  * not reset bootstrap-static's cumulative fields (points, minutes,
  * goals, assists, xG-family, ICT, bonus, bps, DC, starts) at the season
  * boundary — they carry the previous season's final totals until the new
- * season has actually started accumulating real data. Before that, the
- * TRUE current-season value for every one of those fields is genuinely
- * zero (zero games played, zero points scored) — not "unknown", an
- * actual, correct zero — so it's safe to zero them here rather than
- * needing them to be nullable. Per-game rates go to null instead of
- * zero, since a rate is undefined (not zero) with zero minutes played —
- * `perGame(0, 0)` already returns null, so this falls out for free.
+ * season has actually started accumulating real data, so before then
+ * they're never read: nobody has played yet, so every performance field is
+ * null ("—"), as for any player with 0 minutes (<no_minutes_no_figures>).
  * `currentSeasonHasStarted` (any club with `played > 0`) is the signal
- * for whether to trust the raw fields or apply this correction. Price,
+ * for whether to trust the raw fields. Price,
  * ownership, status, news, and chance-of-playing are untouched either
  * way — those are genuinely live regardless of whether the season has
  * started accumulating stats.
@@ -96,47 +92,65 @@ export function modeDataKnown(mode: AnalysisMode, historicStatus: HistoricDataSt
   return historicStatus === "ready" && !historicSkippedPlayerIds.includes(playerId);
 }
 
+/**
+ * Every performance field a Data View resolves — the one list, so a new stat
+ * is added here once rather than in each branch below. Identity, price,
+ * ownership, status/news, form and the transfer/price-change fields are
+ * always live and never in it.
+ */
+const PERFORMANCE_FIELDS = [
+  "totalPoints",
+  "pointsPerGame",
+  "minutes",
+  "estimatedGames",
+  "starts",
+  "goals",
+  "assists",
+  "cleanSheets",
+  "goalsConceded",
+  "bonus",
+  "bps",
+  "ictIndex",
+  "xG",
+  "xA",
+  "xGI",
+  "xGC",
+  "xGPerGame",
+  "xAPerGame",
+  "xGIPerGame",
+  "xGCPerGame",
+  "defensiveContributions",
+  "defensiveContributionsPerGame",
+  "saves",
+  "savesPerGame",
+  "goalsConcededPerGame",
+  "penaltiesSaved",
+  "yellowCards",
+  "redCards",
+  "influence",
+  "creativity",
+  "threat",
+  "tackles",
+  "clearancesBlocksInterceptions",
+  "recoveries",
+] as const satisfies readonly (keyof NormalizedPlayer)[];
+
 /** Every performance field set to null — identity, price, and ownership are the caller's job to keep live, same as every other branch. */
 function nullPerformanceFields(player: NormalizedPlayer): NormalizedPlayer {
-  return {
-    ...player,
-    totalPoints: null,
-    pointsPerGame: null,
-    minutes: null,
-    estimatedGames: null,
-    starts: null,
-    goals: null,
-    assists: null,
-    cleanSheets: null,
-    goalsConceded: null,
-    bonus: null,
-    bps: null,
-    ictIndex: null,
-    xG: null,
-    xA: null,
-    xGI: null,
-    xGC: null,
-    xGPerGame: null,
-    xAPerGame: null,
-    xGIPerGame: null,
-    xGCPerGame: null,
-    defensiveContributions: null,
-    defensiveContributionsPerGame: null,
-    saves: null,
-    savesPerGame: null,
-    goalsConcededPerGame: null,
-    penaltiesSaved: null,
-    yellowCards: null,
-    redCards: null,
-    influence: null,
-    creativity: null,
-    threat: null,
-    tackles: null,
-    clearancesBlocksInterceptions: null,
-    recoveries: null,
-  };
+  const out = { ...player };
+  for (const key of PERFORMANCE_FIELDS) (out as Record<string, unknown>)[key] = null;
+  return out;
 }
 
+/**
+ * <no_minutes_no_figures>: a player with 0 minutes in the Data View has
+ * nothing to show for it, so every performance figure is "—", never a row
+ * of zeros (the owner's rule, 2026-10-19) — the same in every Data View, so
+ * a player who hasn't played looks the same whichever is selected.
+ */
+function noMinutesAsNoData(resolved: NormalizedPlayer): NormalizedPlayer {
+  return resolved.minutes === 0 ? nullPerformanceFields(resolved) : resolved;
+}
 
 export function resolvePlayerStats(
   player: NormalizedPlayer,
@@ -153,7 +167,7 @@ export function resolvePlayerStats(
       // <per_game_not_per_90>, calculations.ts). Every analysis mode
       // resolves these the same way, live included, so PPG means points
       // per estimated game whichever Data View is showing.
-      return {
+      return noMinutesAsNoData({
         ...player,
         pointsPerGame: estimatedPointsPerGame(player.totalPoints, player.minutes),
         estimatedGames: player.minutes === null ? null : estimatedGamesFromMinutes(player.minutes),
@@ -164,51 +178,18 @@ export function resolvePlayerStats(
         defensiveContributionsPerGame: perGame(player.defensiveContributions, player.minutes),
         savesPerGame: perGame(player.saves, player.minutes),
         goalsConcededPerGame: perGame(player.goalsConceded, player.minutes),
-      };
+      });
     }
-    return {
-      ...player,
-      totalPoints: 0,
-      pointsPerGame: null,
-      minutes: 0,
-      estimatedGames: 0,
-      starts: 0,
-      goals: 0,
-      assists: 0,
-      cleanSheets: 0,
-      goalsConceded: 0,
-      bonus: 0,
-      bps: 0,
-      ictIndex: 0,
-      xG: 0,
-      xA: 0,
-      xGI: 0,
-      xGC: 0,
-      xGPerGame: null,
-      xAPerGame: null,
-      xGIPerGame: null,
-      xGCPerGame: null,
-      defensiveContributions: 0,
-      defensiveContributionsPerGame: null,
-      saves: 0,
-      savesPerGame: null,
-      goalsConcededPerGame: null,
-      penaltiesSaved: 0,
-      yellowCards: 0,
-      redCards: 0,
-      influence: 0,
-      creativity: 0,
-      threat: 0,
-      tackles: 0,
-      clearancesBlocksInterceptions: 0,
-      recoveries: 0,
-    };
+    // Before the season starts nobody has played, so nobody has figures
+    // (<no_minutes_no_figures>) — and FPL's raw fields still hold last
+    // season's totals (<live_mode_preseason_fix>), so they're never read.
+    return nullPerformanceFields(player);
   }
 
   if (mode === "lastSeason") {
     const s = historicProfile?.lastCompletedSeason;
     if (!s) return nullPerformanceFields(player);
-    return {
+    return noMinutesAsNoData({
       ...player,
       totalPoints: s.totalPoints,
       pointsPerGame: estimatedPointsPerGame(s.totalPoints, s.minutes),
@@ -244,7 +225,7 @@ export function resolvePlayerStats(
       tackles: s.tackles,
       clearancesBlocksInterceptions: s.clearancesBlocksInterceptions,
       recoveries: s.recoveries,
-    };
+    });
   }
 
   // historicAverage
@@ -309,6 +290,34 @@ export function resolvePlayerStatsList(
   historicProfiles: Map<number, HistoricPlayerProfile>,
   currentSeasonHasStarted: boolean,
 ): { resolved: NormalizedPlayer[]; noDataCount: number } {
+  // <shared_resolved_pool>: every page and the profile resolve the same
+  // shared pool (AppStateContext's `players` and `historicProfiles`), so the
+  // result is kept per input and handed back to every caller with the same
+  // inputs — worked out once, and every page ranks and colours against the
+  // identical list. A refresh brings new arrays and so a fresh result; the
+  // results are read-only.
+  const byProfiles = poolCache.get(players)?.get(historicProfiles);
+  const cacheKey = `${mode}:${currentSeasonHasStarted}`;
+  const cached = byProfiles?.get(cacheKey);
+  if (cached) return cached;
+  const result = resolveList(players, mode, historicProfiles, currentSeasonHasStarted);
+  let forPlayers = poolCache.get(players);
+  if (!forPlayers) poolCache.set(players, (forPlayers = new WeakMap()));
+  let forProfiles = forPlayers.get(historicProfiles);
+  if (!forProfiles) forPlayers.set(historicProfiles, (forProfiles = new Map()));
+  forProfiles.set(cacheKey, result);
+  return result;
+}
+
+type ResolvedPool = { resolved: NormalizedPlayer[]; noDataCount: number };
+const poolCache = new WeakMap<NormalizedPlayer[], WeakMap<Map<number, HistoricPlayerProfile>, Map<string, ResolvedPool>>>();
+
+function resolveList(
+  players: NormalizedPlayer[],
+  mode: AnalysisMode,
+  historicProfiles: Map<number, HistoricPlayerProfile>,
+  currentSeasonHasStarted: boolean,
+): ResolvedPool {
   const resolved: NormalizedPlayer[] = [];
   let noDataCount = 0;
   for (const p of players) {

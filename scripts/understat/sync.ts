@@ -34,7 +34,7 @@ async function getFplBootstrap(attempts = 4): Promise<unknown> {
   let lastError: unknown;
   for (let i = 0; i < attempts; i++) {
     try {
-      const res = await fetch("https://fantasy.premierleague.com/api/bootstrap-static/", { headers: { "User-Agent": "fpl-analytics-dashboard understat sync" } });
+      const res = await fetch("https://fantasy.premierleague.com/api/bootstrap-static/", { headers: { "User-Agent": "Scoutline understat sync (+https://github.com/requiemalex/fpl-analytics-dashboard)" } });
       if (res.ok) return await res.json();
       lastError = new Error(`FPL bootstrap-static: HTTP ${res.status}`);
     } catch (err) {
@@ -85,7 +85,7 @@ async function main() {
     // the archive and says so in its warnings.
     let liveLedger: SeasonLedger | null = null;
     try {
-      liveLedger = (await fetchLiveLedger(bootstrap, clubHistoryRoot, "fpl-analytics-dashboard understat sync"))?.ledger ?? null;
+      liveLedger = (await fetchLiveLedger(bootstrap, clubHistoryRoot, "Scoutline understat sync (+https://github.com/requiemalex/fpl-analytics-dashboard)"))?.ledger ?? null;
     } catch (err) {
       console.warn(`Couldn't fetch FPL's live record: ${err instanceof Error ? err.message : String(err)}`);
     }

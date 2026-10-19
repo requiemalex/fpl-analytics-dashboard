@@ -21,7 +21,7 @@ import { seasonNameFromBootstrap } from "../../server/src/clubHistory/official.j
 import { fetchLiveLedger, FPL_API, getJson } from "./liveLedger.js";
 
 const ROOT = join(process.cwd(), "data", "club-history");
-const USER_AGENT = "fpl-analytics-dashboard club-history archive";
+const USER_AGENT = "Scoutline club-history archive (+https://github.com/requiemalex/fpl-analytics-dashboard)";
 
 async function main() {
   const bootstrap = await getJson(`${FPL_API}/bootstrap-static/`, USER_AGENT);

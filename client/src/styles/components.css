@@ -2480,3 +2480,55 @@ kbd {
   vertical-align: middle;
   background: var(--accent-value);
 }
+
+/* ---------- About & Legal page and the terms dialog (pages/Legal.tsx, components/TermsGate.tsx) ---------- */
+.legal-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 900px;
+}
+.legal-page p,
+.legal-page ul {
+  margin: var(--space-2) 0 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+.legal-page li + li {
+  margin-top: 4px;
+}
+.legal-url {
+  user-select: all;
+  color: var(--text-primary);
+}
+.legal-details > summary {
+  cursor: pointer;
+}
+.legal-text {
+  margin: var(--space-3) 0 0;
+  max-height: 420px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  padding: var(--space-3);
+}
+.terms-dialog {
+  width: min(560px, 100%);
+}
+.terms-dialog .legal-text {
+  max-height: 260px;
+}
+.terms-summary {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+.terms-summary li + li {
+  margin-top: 6px;
+}

@@ -1,3 +1,5 @@
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+
 /**
  * Shared localStorage persistence for user customisation (Dashboard summary
  * tiles, saved User Analysis graphs, saved squads, and any future
@@ -83,4 +85,17 @@ export function saveVersioned<T>(key: string, version: number, data: T): void {
     // localStorage can throw (private browsing, quota) — state still works
     // for the rest of this session, it just won't persist on reload.
   }
+}
+
+/**
+ * React state kept in a versioned store: read once on first render (through
+ * the store's migrate), written back whenever it changes. The one way every
+ * saved-settings hook persists its state, so they all load and save alike.
+ */
+export function usePersistentState<T>(key: string, store: VersionedStore<T>): [T, Dispatch<SetStateAction<T>>] {
+  const [value, setValue] = useState<T>(() => loadVersioned(key, store));
+  useEffect(() => {
+    saveVersioned(key, store.version, value);
+  }, [key, store.version, value]);
+  return [value, setValue];
 }

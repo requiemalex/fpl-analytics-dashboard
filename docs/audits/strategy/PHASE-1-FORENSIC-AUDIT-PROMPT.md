@@ -1,6 +1,6 @@
 # Phase 1 — Forensic Audit
 
-You are performing a forensic audit of the FPL Analytics Dashboard. This is
+You are performing a forensic audit of Scoutline. This is
 an AUDIT ONLY: find and evidence problems, don't fix them. The one exception
 is adding automated tests (see Audit 7). Don't change production code, even
 for problems that look trivial.

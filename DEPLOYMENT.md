@@ -138,6 +138,15 @@ Docker:
 
 ## Electron desktop app: verified working, now the primary distribution path
 
+**Renamed to Scoutline (2026-10-19), on Electron 44.** The installer,
+window and shortcut are now "Scoutline". What lets existing installs update
+in place and keep their saved data is unchanged on purpose: `appId`
+(`com.fpldashboard.app`), the root package `name`, the GitHub repo (the
+update feed and the Understat data URL), and the saved-data folder, which
+`electron/main.js` pins to its old name (`%APPDATA%\FPL Analytics
+Dashboard`, `<saved_data_folder>`). The installer shows `LICENSE.txt`
+(`build.nsis.license`). See README "Desktop app and releases" and "Legal".
+
 Railway's free tier was ending, which prompted moving off a paid shared
 host entirely: each user now runs their own copy of the app locally,
 against their own network connection, at zero hosting cost — the app's

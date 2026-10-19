@@ -5,6 +5,7 @@ import { AppShell } from "./components/AppShell";
 import { LoadStateGate } from "./components/LoadStateGate";
 import { PlayerDetailOverlay } from "./components/PlayerDetailOverlay";
 import { TeamDetailOverlay } from "./components/TeamDetailOverlay";
+import { TermsGate } from "./components/TermsGate";
 // Understat (optional second source): this import and the provider below are its only connection to the app.
 import { UnderstatProvider } from "./understat/UnderstatProvider";
 
@@ -18,6 +19,7 @@ const Teams = lazy(() => import("./pages/Teams").then((m) => ({ default: m.Teams
 const TeamBuilder = lazy(() => import("./pages/TeamBuilder").then((m) => ({ default: m.TeamBuilder })));
 const PlayerComparison = lazy(() => import("./pages/PlayerComparison").then((m) => ({ default: m.PlayerComparison })));
 const UserGuide = lazy(() => import("./pages/UserGuide").then((m) => ({ default: m.UserGuide })));
+const Legal = lazy(() => import("./pages/Legal").then((m) => ({ default: m.Legal })));
 
 export default function App() {
   return (
@@ -34,12 +36,14 @@ export default function App() {
                   <Route path="/player-comparison" element={<PlayerComparison />} />
                   <Route path="/team-building" element={<TeamBuilder />} />
                   <Route path="/guide" element={<UserGuide />} />
+                  <Route path="/legal" element={<Legal />} />
                 </Routes>
               </Suspense>
               <PlayerDetailOverlay />
               <TeamDetailOverlay />
             </LoadStateGate>
           </AppShell>
+          <TermsGate />
         </BrowserRouter>
       </UnderstatProvider>
     </AppStateProvider>

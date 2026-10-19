@@ -103,7 +103,8 @@ export function UserGuide() {
           <h1>User Guide</h1>
           <p className="page-subtitle">
             What each page does, where its numbers come from, and how to use it. Where FPL doesn't supply a figure, the app shows
-            "—" rather than an estimate.
+            "—" rather than an estimate, and a player who hasn't played any minutes in the selected Data View shows "—" for his
+            figures, never a row of zeros.
           </p>
         </div>
       </div>
@@ -121,8 +122,9 @@ export function UserGuide() {
 
       <Section id="overview" title="Overview">
         <p className="page-subtitle" style={{ margin: 0 }}>
-          An FPL scouting dashboard built on the official Fantasy Premier League API, with no manual data entry and no third-party estimates
-          passed off as fact. Almost everything comes from the live <code>bootstrap-static</code> snapshot (today's prices, ownership,
+          Scoutline is an independent scouting dashboard for Fantasy Premier League, built on the game's own live data, with no manual
+          data entry and no third-party estimates passed off as fact. It isn't affiliated with or endorsed by the Premier League; About
+          &amp; Legal, at the bottom of the menu, has the terms, the privacy notice and who owns the data. Almost everything comes from the live <code>bootstrap-static</code> snapshot (today's prices, ownership,
           current-season stats, fixtures) and every player's season-by-season history (<code>element-summary</code>'s{" "}
           <code>history_past</code>), which feeds the historic modes below.
         </p>
@@ -152,8 +154,7 @@ export function UserGuide() {
             Counts (goals, assists, points, cards and the like) show one decimal here, so 0.4 goals a season reads 0.4, not 0.
           </li>
           <li>
-            <strong>Current Season:</strong> this season's live figures. Before a player's team has played, points, goals, minutes
-            and the like are genuinely zero. Player figures update every 10 minutes by themselves, and so does an open profile's
+            <strong>Current Season:</strong> this season's live figures. Player figures update every 10 minutes by themselves, and so does an open profile's
             Match Log; this season's club figures and league table catch up within the hour after FPL confirms a match. The
             Refresh button at the top fetches everything straight away (club figures can take up to a minute; the current ones
             stay on screen meanwhile).
@@ -397,7 +398,7 @@ export function UserGuide() {
           record of which club each player played for. A summer signing's previous season stays with his previous club; a player
           who leaves mid-season keeps what he did counted for the club. To judge what a signing would bring, look at the player
           instead. The Data View picks the season: Current Season, Last Completed Season, or a Historic Average of the last four
-          completed seasons the club was in the Premier League (a season in the Championship shows "—", never zero). Club figures
+          completed seasons the club was in the Premier League (a season in the Championship shows "—", never zero, and so does a club that hasn't played yet this season). Club figures
           have no minimum-minutes floor. This season's club figures count a match once FPL confirms it, a few hours after full
           time, so during a gameweek the league table can be a round behind players' totals. If a player's data couldn't be
           loaded, this season's figures added up from players show "—" (the Data View note says so); results are unaffected.
@@ -459,8 +460,8 @@ export function UserGuide() {
           rows): this season, unless you click another season's bar in Points History (click this season's bar to come back).
           Its heading shows the season's price (start → end; today's for this season). Result, then Points, Minutes, Starts,
           Goals, Assists, xG, xA, xGI, Clean Sheets, xGC, Defensive Contributions and BPS (Saves instead of Defensive
-          Contributions for a goalkeeper). Totals adds up the matches listed; Average divides by them, including
-          ones he didn't play. If a match he played lacks a figure, it's left out of both (hover the cell to see how many matches
+          Contributions for a goalkeeper). A match he didn't play shows "—" for its figures. Totals adds up the matches
+          listed; Average divides by them, including ones he didn't play. If a match he played lacks a figure, it's left out of both (hover the cell to see how many matches
           it covers). If the season he's showing is under the minutes floor, an amber stopwatch by the season says why Totals
           and Average have no colour. This season's are coloured against his position using this season's figures and the Current Season
           floor, Average per match, so a late signing's strong per-match numbers show green even while his total is low. A past

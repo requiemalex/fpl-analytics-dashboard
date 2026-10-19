@@ -2,6 +2,7 @@ import type { ClubMatch, ClubSeason, NormalizedTeam } from "../types/normalized"
 import type { AnalysisMode } from "./resolvePlayerStats";
 import type { RadarDataPoint } from "./radarStats";
 import { HISTORIC_WINDOW_SEASONS, nextSeasonName } from "./historicAnalysis";
+import { seasonNameFromStartYear, seasonStartYear } from "../utils/season";
 
 /**
  * One club's figures for whichever season(s) a view's Data View selects.
@@ -70,14 +71,6 @@ function withoutPlayerSums(m: ClubMatch): ClubMatch {
   return { ...m, fantasyPoints: null, goals: null, assists: null, bonus: null, xG: null, xA: null, xGI: null, xGC: null, dc: null };
 }
 
-function seasonStartYear(seasonName: string): number {
-  return parseInt(seasonName.split("/")[0], 10);
-}
-
-function seasonNameFromStartYear(year: number): string {
-  return `${year}/${String((year + 1) % 100).padStart(2, "0")}`;
-}
-
 /**
  * The season(s) a Data View covers for a club: the live season, the last
  * completed one, or the same HISTORIC_WINDOW_SEASONS-season window a
@@ -106,29 +99,29 @@ function mean(values: (number | null)[]): number | null {
   return present.length === 0 ? null : present.reduce((a, b) => a + b, 0) / present.length;
 }
 
-function emptyAggregate(team: NormalizedTeam, fill: number | null): TeamAggregate {
+function emptyAggregate(team: NormalizedTeam): TeamAggregate {
   return {
     teamId: team.id,
     name: team.name,
     shortName: team.shortName,
-    points: fill,
-    goals: fill,
-    assists: fill,
-    bonus: fill,
-    xG: fill,
-    xA: fill,
-    xGI: fill,
-    xGC: fill,
-    defensiveContributions: fill,
-    cleanSheets: fill,
-    goalsFor: fill,
-    goalsAgainst: fill,
+    points: null,
+    goals: null,
+    assists: null,
+    bonus: null,
+    xG: null,
+    xA: null,
+    xGI: null,
+    xGC: null,
+    defensiveContributions: null,
+    cleanSheets: null,
+    goalsFor: null,
+    goalsAgainst: null,
     leaguePosition: null,
-    leaguePoints: fill,
-    played: fill,
-    wins: fill,
-    draws: fill,
-    losses: fill,
+    leaguePoints: null,
+    played: null,
+    wins: null,
+    draws: null,
+    losses: null,
   };
 }
 
@@ -140,16 +133,16 @@ function emptyAggregate(team: NormalizedTeam, fill: number | null): TeamAggregat
  * record for the view (e.g. promoted this season, looking at last season)
  * gets nulls — shown as "—", never 0.
  *
- * Current Season before a ball is kicked is genuinely zero across the
- * board (same convention as resolvePlayerStats' <live_mode_preseason_fix>).
+ * <no_matches_no_figures>: a club that hasn't played a match in the view —
+ * Current Season before a ball is kicked, or before its first match — has
+ * nothing to show either, so it's "—" too, never a row of zeros (the
+ * owner's rule, 2026-10-20; the club side of resolvePlayerStats'
+ * <no_minutes_no_figures>).
  */
 export function computeTeamAggregates(teams: NormalizedTeam[], mode: AnalysisMode, ctx: ClubHistoryContext): TeamAggregate[] {
   return teams.map((team) => {
-    const records = clubRecordsForMode(team.code, mode, ctx);
-    if (records.length === 0) {
-      const preseasonZero = mode === "live" && !ctx.currentSeasonHasStarted && ctx.referenceSeason !== null;
-      return emptyAggregate(team, preseasonZero ? 0 : null);
-    }
+    const records = clubRecordsForMode(team.code, mode, ctx).filter((c) => c.played !== 0);
+    if (records.length === 0) return emptyAggregate(team);
     const pick = (fn: (c: ClubSeason) => number | null) => mean(records.map(fn));
     const results = resultsWithinPlayed(pick((c) => c.played), pick((c) => c.wins), pick((c) => c.draws), pick((c) => c.losses));
     const aggregate: TeamAggregate = {

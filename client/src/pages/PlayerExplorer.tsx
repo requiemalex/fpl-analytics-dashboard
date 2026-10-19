@@ -3,8 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { useColumnCustomization, MIN_COLUMN_WIDTH } from "../state/useColumnCustomization";
 import { useSortSpec, compareSortValues, sortWithinColumns, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
-import { useColumnFilters, isColumnFilterActive } from "../state/useColumnFilters";
-import { ColumnFilterControl } from "../components/ColumnFilterControl";
+import { useColumnFilters } from "../state/useColumnFilters";
+import { ColumnHeader, columnHeaderTitle } from "../components/ColumnHeader";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { getUpcomingFixtures, formatFixturesForCsv, type UpcomingFixture } from "../metrics/fixtureTicker";
@@ -23,7 +23,7 @@ import type { ColumnFilterSpec } from "../state/useColumnFilters";
 import { useProgressiveRowCount, INITIAL_ROW_COUNT } from "../state/useProgressiveRowCount";
 import type { NormalizedPlayer, Position } from "../types/normalized";
 import { MenuGroupHeading, fplHeading } from "../components/MenuControls";
-import { CrossoverGroupHeading, SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
+import { CrossoverGroupHeading, SOURCE_TOGGLE_WIDTH, SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
 import { FPL_SOURCE, useExternalStats, type ColumnSourceChoice } from "../extensions/externalStats";
 
 const GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE", "ADVANCED"];
@@ -70,8 +70,6 @@ const FIXED_COLUMN_KEYS = new Set<string>(["ownership", "price", TEAM_COLUMN_KEY
 
 /** Next 5 Fixtures needs room for five fixture chips plus their average; an equal share of the table (about 72px at 1600px wide) showed only two. */
 const EXPLORER_MIN_COLUMN_WIDTHS: Record<string, number> = { [FIXTURES_COLUMN_KEY]: 190 };
-/** Room for a header's source toggle (extensions/externalStats.ts). */
-const SOURCE_TOGGLE_WIDTH = 16;
 /** Position sorts in pitch order, not alphabetically: the first (descending) click gives GKP, DEF, MID, FWD. */
 const POSITION_SORT_RANK: Record<Position, number> = { GKP: 4, DEF: 3, MID: 2, FWD: 1 };
 
@@ -356,6 +354,7 @@ export function PlayerExplorer() {
     startResize,
     fitToBox,
   } = useColumnCustomization(EXPLORER_DEFAULT_VISIBLE_COLUMNS, explorerMinWidths, () => handleFitToBox());
+  const headerLayout = { dragOverKey, setDragOverKey, reorderColumn, resizingKey, startResize };
   const columnPickerRef = useRef<HTMLDivElement>(null);
 
   // A filter or sort on a column the user hides goes with it — either would
@@ -717,41 +716,26 @@ export function PlayerExplorer() {
                   // and the user-configurable columns further along.
                   const isFirst = idx === 0;
                   return (
-                    <th
+                    <ColumnHeader
                       key={key}
+                      columnKey={key}
+                      label={label}
                       className={isFirst ? "col-static column-group-divider" : "col-static"}
-                      onClick={(e) => handleHeaderClick(key, e.shiftKey)}
-                      title="Always today's live figure, regardless of the toggle above · Click to sort · Shift-click to add secondary sort · Drag the right edge to resize"
-                      style={{
-                        position: "relative",
-                        // Unless hand-set, 1px means "as narrow as its content": without it
-                        // this block and Player take a share of the table's spare width on
-                        // the first layout, and fitOnce then measures (and keeps) that
-                        // inflated width (same fix as Team Explorer's Team column).
-                        width: width ? `${width}px` : 1,
-                        maxWidth: width ? `${width}px` : undefined,
-                        paddingLeft: isFirst ? 6 : undefined,
-                      }}
-                    >
-                      {label}
-                      {sortEntry && <span className="sort-indicator">{sortEntry.direction === "asc" ? "↑" : "↓"}</span>}
-                      <ColumnFilterControl
-                        isOpen={columnFiltersState.openFilterKey === key}
-                        isActive={isColumnFilterActive(columnFiltersState.columnFilters[key])}
-                        filterDraft={columnFiltersState.filterDraft}
-                        onOpen={() => columnFiltersState.openFilter(key)}
-                        onCancel={columnFiltersState.cancelFilter}
-                        onConfirm={columnFiltersState.confirmFilter}
-                        onDraftChange={columnFiltersState.setFilterDraft}
-                        categoryOptions={categoryOptions}
-                      />
-                      <span
-                        className={`column-resize-handle${resizingKey === key ? " resizing" : ""}`}
-                        draggable={false}
-                        onPointerDown={(e) => startResize(e, key)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </th>
+                      title={columnHeaderTitle({ liveFigure: true, draggable: false })}
+                      layout={headerLayout}
+                      width={width}
+                      // Unless hand-set, 1px means "as narrow as its content": without it
+                      // this block and Player take a share of the table's spare width on
+                      // the first layout, and fitOnce then measures (and keeps) that
+                      // inflated width (same fix as Team Explorer's Team column).
+                      narrowUnlessSet
+                      draggable={false}
+                      sortDirection={sortEntry?.direction}
+                      onSort={(shiftKey) => handleHeaderClick(key, shiftKey)}
+                      filters={columnFiltersState}
+                      categoryOptions={categoryOptions}
+                      style={{ paddingLeft: isFirst ? 6 : undefined }}
+                    />
                   );
                 })}
                 {columnsInOrder.map((c, idx) => {
@@ -773,65 +757,35 @@ export function PlayerExplorer() {
                   const className =
                     [isStatic && "col-static", !isStatic && !fromExt && "col-source-fpl", fromExt && ext.className, idx === 0 && "column-group-divider"].filter(Boolean).join(" ") || undefined;
                   return (
-                    <th
+                    <ColumnHeader
                       key={key}
-                      draggable
+                      columnKey={key}
+                      label={label}
                       className={className}
-                      onDragStart={(e) => e.dataTransfer.setData("text/plain", key)}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        if (dragOverKey !== key) setDragOverKey(key);
-                      }}
-                      onDragLeave={() => setDragOverKey((k) => (k === key ? null : k))}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        setDragOverKey(null);
-                        const draggedKey = e.dataTransfer.getData("text/plain");
-                        if (draggedKey && draggedKey !== key) reorderColumn(draggedKey, key);
-                      }}
-                      onClick={isFixtures ? undefined : (e) => handleHeaderClick(key, e.shiftKey)}
                       title={
                         isFixtures
                           ? "Always the player's live team's upcoming fixtures, regardless of analysis mode · Drag to reorder · Drag the right edge to resize"
-                          : isStatic
-                            ? "Always today's live figure, regardless of the toggle above · Click to sort · Shift-click to add secondary sort · Drag to reorder · Drag the right edge to resize"
-                            : "Click to sort · Shift-click to add secondary sort · Drag to reorder · Drag the right edge to resize"
+                          : columnHeaderTitle({ liveFigure: isStatic })
                       }
-                      style={{
-                        position: "relative",
-                        textAlign: isFixtures ? "left" : undefined,
-                        width: width ? `${width}px` : undefined,
-                        maxWidth: width ? `${width}px` : undefined,
-                        cursor: "grab",
-                        outline: dragOverKey === key ? "2px dashed var(--accent-focus)" : undefined,
-                        outlineOffset: dragOverKey === key ? -2 : undefined,
-                      }}
-                    >
-                      {label}
-                      {key === "minutes" && minutesFilterMinimum(columnFiltersState.columnFilters[key]) !== null && (
-                        <SmallSampleBadge note={userMinimumNote(minutesFilterMinimum(columnFiltersState.columnFilters[key])!, analysisMode)} />
-                      )}
-                      {sortEntry && <span className="sort-indicator">{sortEntry.direction === "asc" ? "\u2191" : "\u2193"}</span>}
-                      {canSwitchSource && <SourceToggle showingExternal={fromExt} externalLabel={ext.label} onToggle={() => toggleColumnSource(key)} />}
-                      {fromExt && ext.staleNote && <SourceStaleMarker note={ext.staleNote} />}
-                      {!isFixtures && (
-                        <ColumnFilterControl
-                          isOpen={columnFiltersState.openFilterKey === key}
-                          isActive={isColumnFilterActive(columnFiltersState.columnFilters[key])}
-                          filterDraft={columnFiltersState.filterDraft}
-                          onOpen={() => columnFiltersState.openFilter(key)}
-                          onCancel={columnFiltersState.cancelFilter}
-                          onConfirm={columnFiltersState.confirmFilter}
-                          onDraftChange={columnFiltersState.setFilterDraft}
-                        />
-                      )}
-                      <span
-                        className={`column-resize-handle${resizingKey === key ? " resizing" : ""}`}
-                        draggable={false}
-                        onPointerDown={(e) => startResize(e, key)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </th>
+                      layout={headerLayout}
+                      width={width}
+                      sortDirection={sortEntry?.direction}
+                      onSort={isFixtures ? undefined : (shiftKey) => handleHeaderClick(key, shiftKey)}
+                      filters={isFixtures ? undefined : columnFiltersState}
+                      badges={
+                        key === "minutes" &&
+                        minutesFilterMinimum(columnFiltersState.columnFilters[key]) !== null && (
+                          <SmallSampleBadge note={userMinimumNote(minutesFilterMinimum(columnFiltersState.columnFilters[key])!, analysisMode)} />
+                        )
+                      }
+                      trailing={
+                        <>
+                          {canSwitchSource && <SourceToggle showingExternal={fromExt} externalLabel={ext.label} onToggle={() => toggleColumnSource(key)} />}
+                          {fromExt && ext.staleNote && <SourceStaleMarker note={ext.staleNote} />}
+                        </>
+                      }
+                      style={{ textAlign: isFixtures ? "left" : undefined }}
+                    />
                   );
                 })}
               </tr>

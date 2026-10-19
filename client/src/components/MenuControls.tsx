@@ -176,7 +176,11 @@ export function SelectionMeter({ title, count, max }: { title: string; count: nu
 
 /** A full season: 38 matches of 90. */
 export const MINUTES_SLIDER_MAX = 3420;
-const MINUTES_STEP = 90;
+/** One match: the step every minutes control moves in. */
+export const MINUTES_STEP = 90;
+
+/** Longest custom name a tile, graph, card or view takes — past this it's no longer a title. */
+export const MAX_NAME_LENGTH = 60;
 
 /**
  * Min Minutes as a slider (whole matches) with the exact figure beside it,

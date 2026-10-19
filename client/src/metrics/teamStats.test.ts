@@ -109,11 +109,20 @@ describe("computeTeamAggregates — <club_not_squad>", () => {
     expect(computeTeamAggregates(teams, "lastSeason", ctx).map((t) => t.teamId)).toEqual([1, 2]);
   });
 
-  it("is genuinely zero in Current Season before a ball is kicked", () => {
+  it("<no_matches_no_figures>: Current Season before a ball is kicked is — (null) across the board, never zeros", () => {
     const preseason = { ...ctx, currentSeasonHasStarted: false, clubSeasons: ctx.clubSeasons.filter((c) => c.season !== "2026/27") };
     const [club] = computeTeamAggregates(teams, "live", preseason);
-    expect(club.leaguePoints).toBe(0);
-    expect(club.leaguePosition).toBeNull();
+    for (const key of ["leaguePoints", "played", "wins", "draws", "losses", "points", "goals", "xG", "cleanSheets", "goalsFor", "leaguePosition"] as const) expect(club[key], key).toBeNull();
+  });
+
+  it("<no_matches_no_figures>: a club whose record shows 0 matches played (season under way, its first match still to come) is — too", () => {
+    const live = ctx.clubSeasons.find((c) => c.season === "2026/27");
+    expect(live).toBeDefined();
+    const notYet = { ...ctx, clubSeasons: ctx.clubSeasons.map((c) => (c === live ? { ...c, played: 0, wins: 0, draws: 0, losses: 0, leaguePoints: 0, goals: 0 } : c)) };
+    const club = computeTeamAggregates(teams, "live", notYet).find((t) => t.teamId === teams.find((tm) => tm.code === live!.code)!.id)!;
+    expect(club.played).toBeNull();
+    expect(club.leaguePoints).toBeNull();
+    expect(club.goals).toBeNull();
   });
 
   it("is null (not 0) before club history has loaded", () => {

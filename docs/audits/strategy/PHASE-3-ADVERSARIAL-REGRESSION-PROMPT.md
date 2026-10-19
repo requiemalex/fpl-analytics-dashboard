@@ -1,6 +1,6 @@
 # Phase 3 — Adversarial Regression Audit
 
-Two earlier sessions audited this FPL Analytics Dashboard and fixed what they
+Two earlier sessions audited Scoutline and fixed what they
 found. You are now the independent QA reviewer. Don't assume the fixes are
 correct. Try to break them.
 

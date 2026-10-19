@@ -42,7 +42,8 @@ const data: Extract<UnderstatData, { enabled: true }> = {
 
 function profile(seasons: { name: string; minutes: number }[], last: string | null): Map<number, HistoricPlayerProfile> {
   const all = seasons.map((s) => makeSeason({ seasonName: s.name, minutes: s.minutes }));
-  return new Map([[1, { lastCompletedSeason: all.find((s) => s.seasonName === last) ?? null, allSeasonsInWindow: all } as unknown as HistoricPlayerProfile]]);
+  // floorSeasonsInWindow as buildHistoricPlayerProfile makes it: the window's 450+ minute seasons.
+  return new Map([[1, { lastCompletedSeason: all.find((s) => s.seasonName === last) ?? null, allSeasonsInWindow: all, floorSeasonsInWindow: all.filter((s) => s.minutes >= 450) } as unknown as HistoricPlayerProfile]]);
 }
 
 describe("resolveUnderstatPlayer", () => {
@@ -52,16 +53,16 @@ describe("resolveUnderstatPlayer", () => {
     expect(r?.seasons).toBe(1);
   });
 
-  it("Current Season before a ball is kicked: a true 0", () => {
-    const r = resolveUnderstatPlayer(player, "live", { data, historicProfiles: new Map(), currentSeasonHasStarted: false });
-    expect(r?.totals.shots).toBe(0);
+  it("Current Season before a ball is kicked: nobody has played, so nothing to show (—)", () => {
+    expect(resolveUnderstatPlayer(player, "live", { data, historicProfiles: new Map(), currentSeasonHasStarted: false })).toBeNull();
   });
 
   it("a player FPL says played but Understat has nothing for (link on hold) is unknown, never 0", () => {
     const unlinked = makePlayer({ id: 2, code: 999, position: "MID", minutes: 450 });
     expect(resolveUnderstatPlayer(unlinked, "live", { data, historicProfiles: new Map(), currentSeasonHasStarted: true })).toBeNull();
+    // FPL says 0 minutes: nothing to show (<no_minutes_no_figures>), "—" like his FPL figures, not zeros.
     const benched = makePlayer({ id: 3, code: 998, position: "MID", minutes: 0 });
-    expect(resolveUnderstatPlayer(benched, "live", { data, historicProfiles: new Map(), currentSeasonHasStarted: true })?.totals.shots).toBe(0);
+    expect(resolveUnderstatPlayer(benched, "live", { data, historicProfiles: new Map(), currentSeasonHasStarted: true })).toBeNull();
   });
 
   it("Last Completed Season: that season, from FPL's season list", () => {
@@ -69,15 +70,17 @@ describe("resolveUnderstatPlayer", () => {
     expect(r?.totals.shots).toBe(90);
   });
 
-  it("Historic Average: a 0-minute season counts as 0, an unknown one is left out", () => {
+  it("Historic Average: the one Historic Average — only seasons of 450+ FPL minutes count (a 0-minute or short season doesn't), an unknown one is left out", () => {
     const seasons = [
       { name: "2023/24", minutes: 1000 },
-      { name: "2024/25", minutes: 0 }, // provably 0: FPL says he didn't play
+      { name: "2024/25", minutes: 0 }, // under the floor: doesn't count
       { name: "2025/26", minutes: 3000 },
     ];
     const r = resolveUnderstatPlayer(player, "historicAverage", { data, historicProfiles: profile(seasons, "2025/26"), currentSeasonHasStarted: true });
-    expect(r?.seasons).toBe(3);
+    expect(r?.seasons).toBe(2);
     expect(r?.totals.shots).toBe(120);
+    const short = [...seasons.slice(0, 1), { name: "2024/25", minutes: 449 }, seasons[2]];
+    expect(resolveUnderstatPlayer(player, "historicAverage", { data, historicProfiles: profile(short, "2025/26"), currentSeasonHasStarted: true })?.seasons).toBe(2);
     const withUnknown = [...seasons.slice(0, 1), { name: "2024/25", minutes: 500 }, seasons[2]];
     const r2 = resolveUnderstatPlayer(player, "historicAverage", { data, historicProfiles: profile(withUnknown, "2025/26"), currentSeasonHasStarted: true });
     expect(r2?.seasons).toBe(2);

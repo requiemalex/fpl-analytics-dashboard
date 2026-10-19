@@ -16,7 +16,8 @@ import { ComparisonCard } from "../components/comparison/ComparisonCard";
 import { ComparisonRadar, type RadarAxisValues } from "../components/comparison/ComparisonRadar";
 import { ComparisonOutputs, type OutputsRow } from "../components/comparison/ComparisonOutputs";
 import { ComparisonTrend } from "../components/comparison/ComparisonTrend";
-import { ComparisonElementDialog, ELEMENT_NOUNS, MAX_NAME_LENGTH } from "../components/comparison/ComparisonElementDialog";
+import { ComparisonElementDialog, ELEMENT_NOUNS } from "../components/comparison/ComparisonElementDialog";
+import { MAX_NAME_LENGTH } from "../components/MenuControls";
 import type { LegendEntry } from "../components/comparison/ComparisonLegend";
 import { seriesColor, type ComparedPlayer } from "../components/comparison/seriesColors";
 import {

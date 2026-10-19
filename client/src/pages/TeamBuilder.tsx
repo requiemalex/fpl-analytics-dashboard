@@ -3,13 +3,13 @@ import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { useSavedSquads, MAX_SAVED_SQUADS } from "../state/useSavedSquads";
 import { useColumnCustomization, MIN_COLUMN_WIDTH, type UseColumnCustomization } from "../state/useColumnCustomization";
-import { useColumnFilters, isColumnFilterActive } from "../state/useColumnFilters";
-import { ColumnFilterControl } from "../components/ColumnFilterControl";
+import { useColumnFilters } from "../state/useColumnFilters";
+import { ColumnHeader, columnHeaderTitle } from "../components/ColumnHeader";
 import { useSortSpec, compareSortValues, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
 import { useProgressiveRowCount } from "../state/useProgressiveRowCount";
 import { SQUAD_RULES, createBlankSquad, type SavedSquad } from "../types/team";
 import { validateSquad, validateStartingXI, canAddPlayer } from "../metrics/squadRules";
-import { resolvePlayerStats, resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
+import { resolvePlayerStats, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { computeExpectedPointsForSingleFixture } from "../metrics/expectedPoints";
 import { computeExpectedPointsV2ForFixture } from "../metrics/expectedPointsV2";
@@ -1301,111 +1301,37 @@ export function TeamBuilder() {
                   const width = predictiveCols.columnWidths[c.key];
                   const sortEntry = pickerSort.find((s) => s.key === c.key);
                   return (
-                    <th
+                    <ColumnHeader
                       key={c.key}
+                      columnKey={c.key}
+                      label={c.label}
                       className={isStaticPredictiveColumn(c) ? "col-static" : undefined}
-                      draggable
-                      onDragStart={(e) => e.dataTransfer.setData("text/plain", c.key)}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        if (predictiveCols.dragOverKey !== c.key) predictiveCols.setDragOverKey(c.key);
-                      }}
-                      onDragLeave={() => predictiveCols.setDragOverKey((k) => (k === c.key ? null : k))}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        predictiveCols.setDragOverKey(null);
-                        const draggedKey = e.dataTransfer.getData("text/plain");
-                        if (draggedKey && draggedKey !== c.key) predictiveCols.reorderColumn(draggedKey, c.key);
-                      }}
-                      onClick={(e) => handlePickerHeaderClick(c.key, e.shiftKey)}
-                      title={
-                        isStaticPredictiveColumn(c)
-                          ? "Always today's live figure, regardless of the toggle above · Click to sort · Shift-click to add secondary sort · Drag to reorder · Drag the right edge to resize"
-                          : "Click to sort · Shift-click to add secondary sort · Drag to reorder · Drag the right edge to resize"
-                      }
-                      style={{
-                        position: "relative",
-                        width: width ? `${width}px` : undefined,
-                        maxWidth: width ? `${width}px` : undefined,
-                        cursor: "grab",
-                        outline: predictiveCols.dragOverKey === c.key ? "2px dashed var(--accent-focus)" : undefined,
-                        outlineOffset: predictiveCols.dragOverKey === c.key ? -2 : undefined,
-                      }}
-                    >
-                      {c.label}
-                      {c.minutesNote && <SmallSampleBadge note={c.minutesNote} />}
-                      {sortEntry && <span className="sort-indicator">{sortEntry.direction === "asc" ? "\u2191" : "\u2193"}</span>}
-                      <ColumnFilterControl
-                        isOpen={columnFiltersState.openFilterKey === c.key}
-                        isActive={isColumnFilterActive(columnFiltersState.columnFilters[c.key])}
-                        filterDraft={columnFiltersState.filterDraft}
-                        onOpen={() => columnFiltersState.openFilter(c.key)}
-                        onCancel={columnFiltersState.cancelFilter}
-                        onConfirm={columnFiltersState.confirmFilter}
-                        onDraftChange={columnFiltersState.setFilterDraft}
-                      />
-                      <span
-                        className={`column-resize-handle${predictiveCols.resizingKey === c.key ? " resizing" : ""}`}
-                        draggable={false}
-                        onPointerDown={(e) => predictiveCols.startResize(e, c.key)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </th>
+                      title={columnHeaderTitle({ liveFigure: isStaticPredictiveColumn(c) })}
+                      layout={predictiveCols}
+                      width={width}
+                      sortDirection={sortEntry?.direction}
+                      onSort={(shiftKey) => handlePickerHeaderClick(c.key, shiftKey)}
+                      filters={columnFiltersState}
+                      badges={c.minutesNote && <SmallSampleBadge note={c.minutesNote} />}
+                    />
                   );
                 })}
                 {historicRawColumnsInOrder.map((c, i) => {
                   const width = historicRawCols.columnWidths[c.key];
                   const sortEntry = pickerSort.find((s) => s.key === c.key);
                   return (
-                    <th
+                    <ColumnHeader
                       key={c.key}
+                      columnKey={c.key}
+                      label={c.label}
                       className={[i === 0 ? "column-group-divider" : null, isStaticColumn(c) ? "col-static" : null].filter(Boolean).join(" ") || undefined}
-                      draggable
-                      onDragStart={(e) => e.dataTransfer.setData("text/plain", c.key)}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        if (historicRawCols.dragOverKey !== c.key) historicRawCols.setDragOverKey(c.key);
-                      }}
-                      onDragLeave={() => historicRawCols.setDragOverKey((k) => (k === c.key ? null : k))}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        historicRawCols.setDragOverKey(null);
-                        const draggedKey = e.dataTransfer.getData("text/plain");
-                        if (draggedKey && draggedKey !== c.key) historicRawCols.reorderColumn(draggedKey, c.key);
-                      }}
-                      onClick={(e) => handlePickerHeaderClick(c.key, e.shiftKey)}
-                      title={
-                        isStaticColumn(c)
-                          ? "Always today's live figure, regardless of the toggle above · Click to sort · Shift-click to add secondary sort · Drag to reorder · Drag the right edge to resize"
-                          : "Click to sort · Shift-click to add secondary sort · Drag to reorder · Drag the right edge to resize"
-                      }
-                      style={{
-                        position: "relative",
-                        width: width ? `${width}px` : undefined,
-                        maxWidth: width ? `${width}px` : undefined,
-                        cursor: "grab",
-                        outline: historicRawCols.dragOverKey === c.key ? "2px dashed var(--accent-focus)" : undefined,
-                        outlineOffset: historicRawCols.dragOverKey === c.key ? -2 : undefined,
-                      }}
-                    >
-                      {c.label}
-                      {sortEntry && <span className="sort-indicator">{sortEntry.direction === "asc" ? "\u2191" : "\u2193"}</span>}
-                      <ColumnFilterControl
-                        isOpen={columnFiltersState.openFilterKey === c.key}
-                        isActive={isColumnFilterActive(columnFiltersState.columnFilters[c.key])}
-                        filterDraft={columnFiltersState.filterDraft}
-                        onOpen={() => columnFiltersState.openFilter(c.key)}
-                        onCancel={columnFiltersState.cancelFilter}
-                        onConfirm={columnFiltersState.confirmFilter}
-                        onDraftChange={columnFiltersState.setFilterDraft}
-                      />
-                      <span
-                        className={`column-resize-handle${historicRawCols.resizingKey === c.key ? " resizing" : ""}`}
-                        draggable={false}
-                        onPointerDown={(e) => historicRawCols.startResize(e, c.key)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </th>
+                      title={columnHeaderTitle({ liveFigure: isStaticColumn(c) })}
+                      layout={historicRawCols}
+                      width={width}
+                      sortDirection={sortEntry?.direction}
+                      onSort={(shiftKey) => handlePickerHeaderClick(c.key, shiftKey)}
+                      filters={columnFiltersState}
+                    />
                   );
                 })}
               </tr>

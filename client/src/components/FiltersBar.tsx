@@ -2,9 +2,8 @@ import React, { useState } from "react";
 import { useAppState } from "../state/AppStateContext";
 import type { GlobalScoutingFilters } from "../state/scoutingFilters";
 import { ResetIcon } from "./IconToolbar";
-import { MinutesSlider } from "./MenuControls";
+import { MINUTES_STEP, MinutesSlider } from "./MenuControls";
 
-const MINUTES_STEP = 90;
 
 /**
  * Fully controlled — no page-independent state of its own. Every page

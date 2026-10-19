@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require("electron");
 const path = require("path");
 const { autoUpdater } = require("electron-updater");
 
@@ -9,6 +9,19 @@ const { autoUpdater } = require("electron-updater");
 // app menu regardless — not a concern since this app is Windows-only for
 // now). Must run before any window is created.
 Menu.setApplicationMenu(null);
+
+/** The product's name, everywhere a person sees it (window titles, dialogs). */
+const APP_NAME = "Scoutline";
+
+/**
+ * <saved_data_folder>: the app was called "FPL Analytics Dashboard" until
+ * 2026-10-19, and Electron keeps a person's saved data (localStorage: squads,
+ * views, notes, settings) in a folder named after the product. Renaming the
+ * product would have moved that to a new, empty folder, so every saved
+ * squad and view would have seemed lost. The folder keeps its original name
+ * for good. Must run before the app is ready.
+ */
+app.setPath("userData", path.join(app.getPath("appData"), "FPL Analytics Dashboard"));
 
 /**
  * A distinct port from the dev-mode default (4000, in server/src/config.ts)
@@ -57,13 +70,48 @@ let holdMainWindow = true;
  */
 async function startEmbeddedServer() {
   const bundlePath = path.join(__dirname, "../server/dist/app.bundle.cjs");
-  const { createApp } = require(bundlePath);
+  const { createApp, listenOnLoopback } = require(bundlePath);
   const expressApp = createApp({ clientDistPath: path.join(__dirname, "../client/dist") });
-  await new Promise((resolve, reject) => {
-    const server = expressApp.listen(process.env.PORT, resolve);
-    // Port taken (another program on it): reported, not an uncaught crash with no window (audit 2026-10-18 M5).
-    server.once("error", reject);
+  // This computer only, never the network (<loopback_only>, server/src/listen.ts).
+  // Port taken (another program on it): rejected and reported, not an uncaught crash with no window (audit 2026-10-18 M5).
+  await listenOnLoopback(expressApp, Number(DESKTOP_PORT));
+}
+
+const APP_ORIGIN = `http://localhost:${DESKTOP_PORT}`;
+
+/**
+ * <navigation_guard>: the app's windows only ever show the app's own pages.
+ * A link to anywhere else (the Legal page's data-source links) opens in the
+ * person's own browser instead, and only for http(s) — never another
+ * window inside the app, and never another kind of address.
+ */
+app.on("web-contents-created", (_event, contents) => {
+  contents.setWindowOpenHandler(({ url }) => {
+    openExternally(url);
+    return { action: "deny" };
   });
+  contents.on("will-navigate", (event, url) => {
+    if (originOf(url) === APP_ORIGIN) return;
+    event.preventDefault();
+    openExternally(url);
+  });
+});
+
+function originOf(url) {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
+function openExternally(url) {
+  try {
+    const { protocol } = new URL(url);
+    if (protocol === "https:" || protocol === "http:") shell.openExternal(url);
+  } catch {
+    // not a valid address: ignored
+  }
 }
 
 function createWindow() {
@@ -72,7 +120,7 @@ function createWindow() {
     height: 900,
     minWidth: 1024,
     minHeight: 700,
-    title: "FPL Analytics Dashboard",
+    title: APP_NAME,
     icon: path.join(__dirname, "../build/icon.png"),
     show: false,
     backgroundColor: "#0a0f0c", // matches --bg (tokens.css) — avoids a white flash before the page paints
@@ -93,7 +141,7 @@ function createWindow() {
     },
   });
 
-  mainWindow.loadURL(`http://localhost:${process.env.PORT}`);
+  mainWindow.loadURL(APP_ORIGIN);
 
   mainWindowReady = false;
   mainWindow.once("ready-to-show", () => {
@@ -175,7 +223,7 @@ function beginLaunchUpdate(version) {
     maximizable: false,
     fullscreenable: false,
     show: false,
-    title: "Updating FPL Analytics Dashboard",
+    title: `Updating ${APP_NAME}`,
     icon: path.join(__dirname, "../build/icon.png"),
     webPreferences: { contextIsolation: true, nodeIntegration: false },
   });
@@ -259,7 +307,7 @@ function startUpdateChecks() {
     const options = {
       type: "info",
       title: "Update ready",
-      message: `FPL Analytics Dashboard ${info.version} is ready to install.`,
+      message: `${APP_NAME} ${info.version} is ready to install.`,
       detail: "Restart now to update, or choose Later and it will install the next time you close the app.",
       buttons: ["Restart now", "Later"],
       defaultId: 0,
@@ -298,7 +346,7 @@ if (!isFirstInstance) {
     } catch (err) {
       const inUse = err && err.code === "EADDRINUSE";
       dialog.showErrorBox(
-        "FPL Analytics Dashboard couldn't start",
+        `${APP_NAME} couldn't start`,
         inUse
           ? `Another program is using port ${DESKTOP_PORT}, which this app needs. Close that program (or restart the computer) and open the app again. Your saved data is safe.`
           : `The app's built-in server didn't start: ${err && err.message ? err.message : String(err)}. Your saved data is safe.`,

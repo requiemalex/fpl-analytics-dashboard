@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SummaryTileScope } from "../components/summaryTileMetrics";
 import { DEFAULT_SUMMARY_TILES, normalizeSummaryTile, type SummaryTileConfig } from "./useSummaryTiles";
 import { DEFAULT_DASHBOARD_GRAPHS, normalizeDashboardGraph, type DashboardGraphConfig } from "./useDashboardGraphs";
-import { loadVersioned, mapReadableEntries, saveVersioned, type VersionedStore } from "./persistentStorage";
+import { loadVersioned, mapReadableEntries, saveVersioned, type VersionedStore, usePersistentState } from "./persistentStorage";
 import { clearUnappliedLiveMinMinutes } from "./scoutingFilters";
 
 const STORAGE_KEY = "fpl-dashboard:dashboard:saved-views:v1";
@@ -173,14 +173,6 @@ const SAVED_VIEWS_STORE: VersionedStore<SavedDashboardView[]> = {
   },
 };
 
-function loadFromStorage(): SavedDashboardView[] {
-  return loadVersioned(STORAGE_KEY, SAVED_VIEWS_STORE);
-}
-
-function saveToStorage(views: SavedDashboardView[]) {
-  saveVersioned(STORAGE_KEY, STORAGE_VERSION, views);
-}
-
 const SELECTED_VIEW_STORAGE_KEY = "fpl-dashboard:dashboard:selected-view:v1";
 /**
  * Bumped 1 -> 2 when a blank "My View" became the view each scope opens on:
@@ -268,13 +260,10 @@ export interface UseSavedDashboardViews {
  * no-account, localStorage-only persistence as saved squads.
  */
 export function useSavedDashboardViews(): UseSavedDashboardViews {
-  const [views, setViews] = useState<SavedDashboardView[]>(loadFromStorage);
+  const [views, setViews] = usePersistentState(STORAGE_KEY, SAVED_VIEWS_STORE);
   const [storedSelectedViewIds, setSelectedViewIds] = useState<SelectedViewIds>(loadSelectedViewIdsFromStorage);
   const selectedViewIds = useMemo(() => resolveSelectedViewIds(views, storedSelectedViewIds), [views, storedSelectedViewIds]);
 
-  useEffect(() => {
-    saveToStorage(views);
-  }, [views]);
 
   useEffect(() => {
     saveSelectedViewIdsToStorage(selectedViewIds);

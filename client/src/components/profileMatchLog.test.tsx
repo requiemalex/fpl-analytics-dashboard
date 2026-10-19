@@ -236,7 +236,26 @@ describe("Player profile — Match Log", () => {
     // The profile opens on Last Completed Season.
     expect(getByText("Shot card for 2025/26")).toBeTruthy();
     fireEvent.click(getByRole("button", { name: /^2024\/25: 150 pts/ }));
-    await waitFor(() => expect(matchLog(container).querySelector("tbody tr")!.textContent).toContain("2024/25:2"));
+    // Most recent first: fixture 2 (a match he sat out) then fixture 1 (one he played).
+    await waitFor(() => expect(matchLog(container).querySelectorAll("tbody tr")[1].textContent).toContain("2024/25:1"));
+    // <no_minutes_no_figures>: the match he didn't play shows "—" for every figure, the second source's too.
+    expect(matchLog(container).querySelector("tbody tr")!.textContent).not.toContain("2024/25:2");
+  });
+
+  it("<no_minutes_no_figures>: a match he sat out shows — for every figure, never 0, while its opponent and result stay", async () => {
+    const { getByRole, container } = renderPlayer();
+    fireEvent.click(getByRole("button", { name: /^2024\/25: 150 pts/ }));
+    await waitFor(() => expect(matchLog(container)).toBeTruthy());
+    const log = matchLog(container);
+    const headers = [...log.querySelectorAll("thead th")].map((th) => th.textContent);
+    const benched = [...log.querySelectorAll("tbody tr")].find((tr) => tr.textContent!.includes("LEI"))!;
+    const cells = [...benched.querySelectorAll("td")].map((td) => td.textContent);
+    expect(cells[headers.indexOf("Opponent")]).toContain("LEI");
+    expect(cells[headers.indexOf("Result")]).toContain("0–1");
+    for (const name of ["Points", "Minutes", "Goals", "Clean Sheets", "BPS"]) expect(cells[headers.indexOf(name)], name).toBe("—");
+    // Totals still add up the matches he played: 8 points from fixture 1.
+    const totalsRow = log.querySelector("tfoot tr")!;
+    expect(totalsRow.querySelectorAll("td")[headers.indexOf("Points") - 2].textContent).toBe("8");
   });
 });
 
