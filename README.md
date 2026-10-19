@@ -496,10 +496,12 @@ next clean run closes it with a "resolved" comment.
 appearances, shots, formations: what Understat said), `app/<season>.json`
 (the season summary the app reads: totals per FPL player code and per FPL
 club code) and `app/profile/<season>.json` (the profiles' per-match
-detail, `pipeline/profile.ts`: each linked player's position and minutes
-in each match and his shots; each club's shots, result chances and
-formations — every row by FPL fixture id, checked matches only; the
-server sends one player or club at a time, never the file). Coverage: 2016/17 on, the same as club history. Every run rebuilds
+detail, `pipeline/profile.ts`: each linked player's position, minutes,
+xG, xA and assists in each match and his shots; each club's shots, result
+chances, xG and xGA (its match line), its players' xA and assists, and
+its formations — every row by FPL fixture id, checked matches only; the
+server sends one player or club at a time, never the file; a field a file
+written before it was added lacks is sent as null, "—"). Coverage: 2016/17 on, the same as club history. Every run rebuilds
 every season's summary from the stored files, so a new summary figure
 reaches all seasons at the next run without re-downloading anything. The
 summary's shot detail (`shotDetail`: woodwork, blocked, assisted, and
@@ -571,17 +573,24 @@ app shows "—" for those figures (never 0) until the next run.
   counts only window seasons of 450+ FPL minutes, the profile's fixed
   floor; a club's only seasons it was in the league). A season Understat
   has nothing for (no link, didn't play) is left out, never counted as 0.
-  - **Shot Map** (`ShotMap.tsx`; a club gets one for shots taken and one
-    for shots faced, its opponents' in its matches): one season draws a
-    dot per shot, filled for a goal, hollow otherwise, sized by xG, with
-    hover detail; a Historic Average shades zones of the half by shots a
-    season. Shots, goals and xG below it, per season when averaged. Own
-    goals are nobody's shots.
-  - **Formations** (clubs): each formation's share of the club's minutes,
-    xG and xGA per 90 and goals for–against, summed over the view's
-    seasons. A formation with under 90 minutes gets no rate ("—"): the
-    profile has no minimum-minutes control, so a fixed floor applies.
-    Season figures only: Understat doesn't record a formation per match.
+  - **Shot Map** (`ShotMap.tsx`): the player's across the full width with
+    its figures beside it; a club's two (shots taken, and shots faced —
+    its opponents' in its matches) side by side, figures below. It draws
+    the last 35 m (`SHOT_MAP_DEPTH`, over 99% of shots, so they have room);
+    a shot from further out is a small arrow on the bottom edge where it
+    was taken across the pitch, and counted — never moved inside. One
+    season draws a dot per shot, solid for a goal, an outline otherwise,
+    sized by xG, part-transparent with 1px outlines, hover for detail; a
+    Historic Average shades zones (12 × 10) by shots a season. Figures:
+    shots, on target (scored or saved), goals, xG, NPxG, xG/shot — per
+    season when averaged. Own goals are nobody's shots.
+  - **Formations** (clubs, full width under the shot maps): each
+    formation's share of the club's minutes, xG and xGA per 90, and goals
+    scored and conceded, summed over the view's seasons. A formation used
+    for under 90 minutes gets no rate ("—": the profile has no
+    minimum-minutes control, so a fixed floor applies); two or more such
+    are one "Other (n)" row, named on hover, with no rates. Season figures
+    only: Understat doesn't record a formation per match.
   - **Match Log columns** (violet headers; the log's heading turns rose,
     "FPL & Understat · Match Log"): a player's **Position** in each match
     (Understat's code, spelled out on hover; "Sub" off the bench), and a
@@ -589,6 +598,14 @@ app shows "—" for those figures (never 0) until the next run.
     from the shots both sides took, worked out *after* the match. Their
     Totals are the wins, draws and defeats the chances add up to, "—" if
     any listed match lacks one.
+  - **Match Log ⇄ toggles** (`playerMatchAlternates`,
+    `clubMatchAlternates`): on the figures both sources have — a player's
+    Minutes, Assists, xG, xA, xGI; a club's Assists, xG, xA, xGI, xGC (its
+    xG against). Switched, the whole column is Understat's: each match,
+    Totals and Average, untinted (`<one_source_per_figure>`). A match FPL
+    says the player didn't play is a provable 0; one he played that
+    Understat lacks, or any before its figures load, is "—". Starts on FPL
+    for each profile opened.
 - Its User Guide section and metric definitions live in
   `client/src/understat/guide.tsx`, shown through the slot.
 
@@ -844,8 +861,15 @@ word as an initial that must start a name word (`utils/playerSearch.ts`).
 mode toggle, and is a fixed-floor section (see "Minimum minutes"). Order:
 "FPL · Views" (green heading; follows the Data View), a second source's
 Views if mounted, then "FPL · Points History" and the **Match Log**
-(`<match_log_follows_season>`) with Playing Time under it. Section
-headings use the colour index (`.profile-section-heading.col-source-*`).
+(`<match_log_follows_season>`), Playing Time at the top of its card.
+Section headings use the colour index
+(`.profile-section-heading.col-source-*`), and so do the Match Log's
+headers (FPL green). Cards sit on `.profile-grid`, two columns laid out
+row by row (`.profile-span-2` for a full-width card): a defender or
+midfielder gets both radars, Underlying Numbers across the width
+(Defensive | Offensive), then Actual vs Expected beside Value; a
+goalkeeper or forward the radar beside Actual vs Expected, then
+Underlying Numbers beside Value.
 The Match Log shows the live season unless a season is picked on Points
 History (each bar is a button; the picked one is outlined, and the live
 bar goes back); it never follows the Data View. A past season's rows come
@@ -947,7 +971,8 @@ longest word (`TEAM_MIN_COLUMN_WIDTHS`).
 - **Club figures only — no players** (the owner's rule, 2026-09-26): no
   squad list, no player names, no link to player pages, and no minutes
   floor or badge.
-- Same layout as the player profile: "FPL · Views", a second source's
+- Same layout as the player profile (the radars, then Season Totals beside
+  Upcoming Fixtures): "FPL · Views", a second source's
   Views, "FPL · Points History", then the **Match Log**
   (`<club_match_log>`): the live season (`clubLiveMatches`) unless a season
   is picked on Points History, then that season's `ClubSeason.matches`,

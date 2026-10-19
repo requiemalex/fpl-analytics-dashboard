@@ -53,14 +53,29 @@ export function buildProfileSeason(
   for (const a of data.appearances) {
     const fixture = fixtureByMatch.get(a.matchId);
     if (fixture === undefined || !matchById.has(a.matchId) || a.minutes <= 0) continue;
-    playerFor(a.playerId)?.matches.push([fixture, a.position, a.minutes]);
+    playerFor(a.playerId)?.matches.push([fixture, a.position, a.minutes, round(a.xG, 4), round(a.xA, 4), a.assists]);
   }
 
+  // Each club's line in each match, and its players' xA and assists in it.
+  const teamLine = new Map(data.teamMatches.map((t) => [`${t.matchId}|${t.teamId}`, t]));
+  const created = new Map<string, { xA: number; assists: number }>();
+  for (const a of data.appearances) {
+    const key = `${a.matchId}|${a.teamId}`;
+    const c = created.get(key) ?? { xA: 0, assists: 0 };
+    c.xA += a.xA;
+    c.assists += a.assists;
+    created.set(key, c);
+  }
+  const clubLine = (m: (typeof data.matches)[number], teamId: string, win: number | null, draw: number | null, loss: number | null) => {
+    const line = teamLine.get(`${m.id}|${teamId}`);
+    const made = created.get(`${m.id}|${teamId}`) ?? { xA: 0, assists: 0 };
+    if (!line) return;
+    clubFor(teamId)?.matches.push([fixtureByMatch.get(m.id)!, win, draw, loss, round(line.xG, 4), round(line.xGA, 4), round(made.xA, 4), made.assists]);
+  };
   for (const m of matchById.values()) {
-    const fixture = fixtureByMatch.get(m.id)!;
     // Understat's forecast is home win / draw / away win.
-    clubFor(m.homeTeamId)?.matches.push([fixture, m.forecastWin, m.forecastDraw, m.forecastLoss]);
-    clubFor(m.awayTeamId)?.matches.push([fixture, m.forecastLoss, m.forecastDraw, m.forecastWin]);
+    clubLine(m, m.homeTeamId, m.forecastWin, m.forecastDraw, m.forecastLoss);
+    clubLine(m, m.awayTeamId, m.forecastLoss, m.forecastDraw, m.forecastWin);
   }
 
   for (const s of data.shots) {

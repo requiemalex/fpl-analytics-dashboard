@@ -70,6 +70,8 @@ function fakeSource(): ExternalStatsSource {
       requestClub: () => {},
       playerMatchColumns: (_code, season) => [{ key: "us-position", header: "Position", cell: (fixture) => `${season}:${fixture}` }],
       clubMatchColumns: () => [{ key: "us-win", header: "Win Chance", cell: (fixture) => `w${fixture}`, total: "1.5", average: "50%" }],
+      playerMatchAlternates: () => ({ xg: { key: "xg", header: "xG", cell: (fixture) => `us-xg-${fixture}`, total: "9.99", average: "4.99" } }),
+      clubMatchAlternates: () => ({ xgc: { key: "xgc", header: "xGC", cell: (fixture) => `us-xgc-${fixture}`, total: "7.77", average: "3.88" } }),
       playerCards: (_code, view) => <div className="card">Shot card for {(view.seasons ?? []).join(", ")}</div>,
       clubCards: (_code, view) => <div className="card">Club card for {(view.seasons ?? []).join(", ")}</div>,
     },
@@ -153,6 +155,21 @@ describe("Player profile — Match Log", () => {
   });
 });
 
+describe("Player profile — Match Log ⇄ toggles", () => {
+  it("FPL headers are green; a figure both sources have switches whole, Totals included", () => {
+    const { container } = renderPlayer(fakeSource());
+    const log = matchLog(container);
+    const header = (name: string) => [...log.querySelectorAll<HTMLElement>("thead th")].find((th) => th.textContent === name)!;
+    for (const name of ["GW", "Opponent", "Points", "Defensive Contributions"]) expect(header(name).classList.contains("col-source-fpl"), name).toBe(true);
+    expect(within(header("Points")).queryByRole("button")).toBeNull();
+    fireEvent.click(within(header("xG")).getByRole("button", { name: /Click to show Understat's/ }));
+    expect(header("xG").classList.contains("col-source-understat")).toBe(true);
+    const xgIndex = [...log.querySelectorAll("thead th")].indexOf(header("xG"));
+    expect(log.querySelector("tbody tr")!.querySelectorAll("td")[xgIndex].textContent).toBe("us-xg-102");
+    expect(log.querySelector("tfoot tr")!.textContent).toContain("9.99");
+  });
+});
+
 describe("Team profile — Match Log", () => {
   const match = (fixture: number, opponentCode: number, overrides: Partial<ClubMatch> = {}): ClubMatch => ({
     fixture, event: fixture, opponentCode, home: true, goalsFor: 2, goalsAgainst: 1, fantasyPoints: 50, goals: 2, assists: 2, bonus: 3, xG: 1.5, xA: 1.2, xGI: 2.7, xGC: 0.9, dc: null,
@@ -194,6 +211,17 @@ describe("Team profile — Match Log", () => {
     const rows = teamLog(container).querySelectorAll("tbody tr");
     expect(rows).toHaveLength(1);
     expect(rows[0].textContent).toContain("BUR (H)");
+  });
+
+  it("FPL headers are green, and xGC switches to the second source's", () => {
+    const { container } = renderTeam(fakeSource());
+    const header = (name: string) => [...teamLog(container).querySelectorAll<HTMLElement>("thead th")].find((th) => th.textContent === name)!;
+    expect(header("GW").classList.contains("col-source-fpl")).toBe(true);
+    expect(header("FPL Points").classList.contains("col-source-fpl")).toBe(true);
+    fireEvent.click(within(header("xGC")).getByRole("button"));
+    expect(header("xGC").classList.contains("col-source-understat")).toBe(true);
+    expect(teamLog(container).querySelector("tbody tr")!.textContent).toContain("us-xgc-12");
+    expect(teamLog(container).querySelector("tfoot tr")!.textContent).toContain("7.77");
   });
 
   it("with a second source: its columns, totals and Views", () => {

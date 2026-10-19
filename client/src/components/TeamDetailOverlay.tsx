@@ -26,6 +26,7 @@ import { PercentileRadarChart } from "./PlayerRadarChart";
 import { AverageLineIcon, PointsHistoryChart, PointsHistoryHeader, PointsHistoryStats } from "./playerProfile/PointsHistory";
 import { fmtDecimal, fmtOrdinal, DASH } from "../utils/format";
 import { useExternalStats, type ProfileView } from "../extensions/externalStats";
+import { SourceToggle } from "./SourceToggle";
 import type { ClubMatch, NormalizedTeam } from "../types/normalized";
 
 /**
@@ -159,6 +160,8 @@ export function TeamDetailOverlay() {
   // next one opens on live.
   const liveSeasonName = clubSeasonsForMode("live", historicReferenceSeason)[0] ?? null;
   const [pickedSeason, setPickedSeason] = useState<{ teamId: number; season: string } | null>(null);
+  // Match Log columns switched to the second source's figure with their ⇄ toggle — FPL for each club opened.
+  const [switchedLog, setSwitchedLog] = useState<{ teamId: number; keys: string[] } | null>(null);
   const pastLogSeason = pickedSeason && pickedSeason.teamId === team?.id && pickedSeason.season !== liveSeasonName ? pickedSeason.season : null;
   const logSeason = pastLogSeason ?? liveSeasonName;
 
@@ -302,10 +305,20 @@ export function TeamDetailOverlay() {
   if (!team || !clubTotals) return null;
 
   // A second source's columns for the shown season (Understat: each match's result chances).
-  const externalColumns =
-    external && team.code !== null && logSeason !== null
-      ? external.profiles.clubMatchColumns(team.code, logSeason, logMatches.map((m) => m.fixture))
-      : [];
+  const logFixtures = logMatches.map((m) => m.fixture);
+  const externalColumns = external && team.code !== null && logSeason !== null ? external.profiles.clubMatchColumns(team.code, logSeason, logFixtures) : [];
+  // A figure both sources have (Assists, xG, xA, xGI, xGC) gets a ⇄ toggle
+  // on its header; switched, the whole column is the second source's — each
+  // match, Totals and Average, untinted — <one_source_per_figure>.
+  const alternates = external && team.code !== null && logSeason !== null ? external.profiles.clubMatchAlternates(team.code, logSeason, logFixtures) : {};
+  const switchedKeys = new Set(switchedLog && switchedLog.teamId === team.id ? switchedLog.keys : []);
+  const switchedAlternate = (key: string) => (switchedKeys.has(key) ? (alternates[key] ?? null) : null);
+  function toggleLogSource(key: string) {
+    const next = new Set(switchedKeys);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setSwitchedLog({ teamId: team!.id, keys: [...next] });
+  }
 
   return (
     <div className="profile-backdrop">
@@ -329,7 +342,8 @@ export function TeamDetailOverlay() {
           <div className="profile-section-heading col-source-fpl">
             <h3>FPL · Views</h3>
           </div>
-          <div className="profile-columns">
+          {/* Two rows: the radars, then Season Totals beside Upcoming Fixtures. */}
+          <div className="profile-grid">
             {teamRadarGroups.map((group) => (
               <div className="card" key={group.label}>
                 <div className="card-title">Team Radar · {group.label}</div>
@@ -373,7 +387,7 @@ export function TeamDetailOverlay() {
             <div className={`profile-section-heading ${external.className}`}>
               <h3>{external.label} · Views</h3>
             </div>
-            <div className="profile-columns profile-columns-balanced">{external.profiles.clubCards(team.code, externalView)}</div>
+            <div className="profile-grid">{external.profiles.clubCards(team.code, externalView)}</div>
           </div>
         )}
 
@@ -430,14 +444,24 @@ export function TeamDetailOverlay() {
                 <table className="data-table compact" aria-label={`${team.name} match log`}>
                   <thead>
                     <tr>
-                      <th style={{ textAlign: "left" }}>GW</th>
-                      <th style={{ textAlign: "left" }}>Opponent</th>
-                      <th style={{ textAlign: "left" }}>Result</th>
-                      {MATCH_LOG_COLUMNS.map((c, i) => (
-                        <th key={c.key} className={i === 0 ? "column-group-divider" : undefined}>
-                          {c.header}
-                        </th>
-                      ))}
+                      <th className="col-source-fpl" style={{ textAlign: "left" }}>
+                        GW
+                      </th>
+                      <th className="col-source-fpl" style={{ textAlign: "left" }}>
+                        Opponent
+                      </th>
+                      <th className="col-source-fpl" style={{ textAlign: "left" }}>
+                        Result
+                      </th>
+                      {MATCH_LOG_COLUMNS.map((c, i) => {
+                        const switched = switchedAlternate(c.key) !== null;
+                        return (
+                          <th key={c.key} className={[i === 0 ? "column-group-divider" : "", switched ? (external?.className ?? "") : "col-source-fpl"].join(" ").trim()}>
+                            {c.header}
+                            {alternates[c.key] && external && <SourceToggle showingExternal={switched} externalLabel={external.label} onToggle={() => toggleLogSource(c.key)} />}
+                          </th>
+                        );
+                      })}
                       {externalColumns.map((c, i) => (
                         <th key={c.key} className={[i === 0 ? "column-group-divider" : "", external?.className ?? ""].join(" ").trim()} title={c.title}>
                           {c.header}
@@ -459,7 +483,7 @@ export function TeamDetailOverlay() {
                           </td>
                           {MATCH_LOG_COLUMNS.map((c, i) => (
                             <td key={c.key} className={i === 0 ? "column-group-divider" : undefined}>
-                              {fmtDecimal(c.value(m), c.decimals)}
+                              {switchedAlternate(c.key)?.cell(m.fixture) ?? fmtDecimal(c.value(m), c.decimals)}
                             </td>
                           ))}
                           {externalColumns.map((c, i) => (
@@ -477,10 +501,11 @@ export function TeamDetailOverlay() {
                         Totals
                       </td>
                       {MATCH_LOG_COLUMNS.map((c, i) => {
+                        const alt = switchedAlternate(c.key);
                         const total = matchLogTotal(logMatches, c.value);
                         return (
-                          <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} style={{ background: matchLogTint(c.key, "total", total, c.higherIsBetter) }}>
-                            {fmtDecimal(total, c.decimals)}
+                          <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} style={alt ? undefined : { background: matchLogTint(c.key, "total", total, c.higherIsBetter) }}>
+                            {alt ? alt.total : fmtDecimal(total, c.decimals)}
                           </td>
                         );
                       })}
@@ -495,11 +520,12 @@ export function TeamDetailOverlay() {
                         Average
                       </td>
                       {MATCH_LOG_COLUMNS.map((c, i) => {
+                        const alt = switchedAlternate(c.key);
                         const total = matchLogTotal(logMatches, c.value);
                         const average = total === null ? null : total / logMatches.length;
                         return (
-                          <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} style={{ background: matchLogTint(c.key, "average", average, c.higherIsBetter) }}>
-                            {fmtDecimal(average, 2)}
+                          <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} style={alt ? undefined : { background: matchLogTint(c.key, "average", average, c.higherIsBetter) }}>
+                            {alt ? alt.average : fmtDecimal(average, 2)}
                           </td>
                         );
                       })}

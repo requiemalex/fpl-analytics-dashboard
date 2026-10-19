@@ -1142,43 +1142,54 @@ select:focus {
   flex-wrap: wrap;
   padding-right: 50px; /* keep clear of the fixed close button */
 }
-.profile-columns {
+/* The profiles' card layout: a two-column grid laid out row by row, so
+   each row's cards line up and share a height; a card with
+   .profile-span-2 takes a whole row. One column on narrow screens. */
+.profile-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  align-items: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  align-items: stretch;
 }
-.profile-col {
+.profile-grid > .card {
+  margin: 0;
+}
+.profile-grid > .profile-span-2 {
+  grid-column: 1 / -1;
+}
+@media (max-width: 900px) {
+  .profile-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* Two tile groups side by side in one card (Underlying Numbers for a
+   defender or midfielder: Defensive | Offensive). */
+.stat-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+@media (max-width: 700px) {
+  .stat-groups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.stat-group-title {
+  margin-bottom: var(--space-2);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+/* The Match Log card's top row: Playing Time for the season shown. */
+.match-log-summary {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  align-items: center;
+  gap: var(--space-6);
+  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
 }
-@media (max-width: 900px) {
-  .profile-columns {
-    grid-template-columns: 1fr;
-  }
-}
-/* "Views" zone only — a variable, position-dependent number of
-   differently-sized cards (defenders/midfielders add a second radar
-   card, taller than everything else on the page) made the fixed
-   left/right grid above badly lopsided: one side could end up almost
-   empty while the other stacked three tall cards. A CSS multi-column
-   flow instead auto-balances total height across both columns —
-   `break-inside: avoid` keeps each card whole, so a card only ever
-   moves to the next column as a unit, never splits across the two. */
-.profile-columns-balanced {
-  display: block;
-  column-count: 2;
-  column-gap: 16px;
-}
-.profile-columns-balanced .card {
-  break-inside: avoid;
-  margin-bottom: 16px;
-}
-@media (max-width: 900px) {
-  .profile-columns-balanced {
-    column-count: 1;
-  }
+.match-log-summary .card-title {
+  margin: 0;
 }
 /* Groups the player profile's cards into two zones — one whose figures
    change with the Last Completed Season / Historic Average / Current

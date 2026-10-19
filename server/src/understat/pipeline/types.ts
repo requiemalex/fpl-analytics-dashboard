@@ -289,12 +289,17 @@ export interface AppSeasonFile {
  * finished FPL fixture (so checked) are in it, and every row carries that
  * FPL fixture id, which is how the profiles' match logs line them up.
  */
-/** [fplFixtureId, position (Understat's code: GK, DC, AMR, FW, …, or Sub), minutes] — matches he played in. */
-export type ProfileMatchRow = [number, string, number];
+/** [fplFixtureId, position (Understat's code: GK, DC, AMR, FW, …, or Sub), minutes, xG, xA, assists] — matches he played in. */
+export type ProfileMatchRow = [number, string, number, number, number, number];
 /** [fplFixtureId, minute, x, y, xG, result, situation, shotType] — x, y as UsShot (from the shooter's side, x towards goal). */
 export type ProfileShotRow = [number, number, number, number, number, string, string, string];
-/** [fplFixtureId, win, draw, loss] — Understat's chances of each result from the match's shots, worked out after it, from this club's side. */
-export type ProfileClubMatchRow = [number, number | null, number | null, number | null];
+/**
+ * [fplFixtureId, win, draw, loss, xG, xGA, xA, assists] — Understat's
+ * chances of each result from the match's shots, worked out after it, from
+ * this club's side; its xG and xG against (the club's match line, per
+ * chance — <club_xg_is_per_chance>); and its players' xA and assists.
+ */
+export type ProfileClubMatchRow = [number, number | null, number | null, number | null, number, number, number, number];
 
 export interface ProfileFormation {
   formation: string;

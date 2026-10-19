@@ -7,6 +7,9 @@ import { getEnvelope } from "../api/client";
  * anything reads it. Every row names the FPL fixture it belongs to.
  */
 
+/** A per-match figure a file written before it was added doesn't have: null ("—"), never 0. */
+const maybe = z.number().nullable().default(null);
+
 const shot = z.object({
   fixture: z.number(),
   minute: z.number(),
@@ -39,7 +42,9 @@ const playerSlice = z.union([
     enabled: z.literal(true),
     available: z.literal(true),
     found: z.literal(true),
-    matches: z.array(z.object({ fixture: z.number(), position: z.string(), minutes: z.number() })),
+    matches: z.array(
+      z.object({ fixture: z.number(), position: z.string(), minutes: z.number(), xG: maybe, xA: maybe, assists: maybe }),
+    ),
     shots: z.array(shot),
   }),
 ]);
@@ -52,7 +57,18 @@ const clubSlice = z.union([
     enabled: z.literal(true),
     available: z.literal(true),
     found: z.literal(true),
-    matches: z.array(z.object({ fixture: z.number(), win: z.number().nullable(), draw: z.number().nullable(), loss: z.number().nullable() })),
+    matches: z.array(
+      z.object({
+        fixture: z.number(),
+        win: z.number().nullable(),
+        draw: z.number().nullable(),
+        loss: z.number().nullable(),
+        xG: maybe,
+        xGA: maybe,
+        xA: maybe,
+        assists: maybe,
+      }),
+    ),
     shots: z.array(shot),
     shotsAgainst: z.array(shot),
     formations: z.array(formation).nullable(),
@@ -63,12 +79,22 @@ export type UsShot = z.infer<typeof shot>;
 export type UsFormation = z.infer<typeof formation>;
 
 export interface UsPlayerSeasonDetail {
-  matches: { fixture: number; position: string; minutes: number }[];
+  matches: { fixture: number; position: string; minutes: number; xG: number | null; xA: number | null; assists: number | null }[];
   shots: UsShot[];
 }
 
 export interface UsClubSeasonDetail {
-  matches: { fixture: number; win: number | null; draw: number | null; loss: number | null }[];
+  matches: {
+    fixture: number;
+    win: number | null;
+    draw: number | null;
+    loss: number | null;
+    /** The club's xG and xG against in the match (per chance), and its players' xA and assists. */
+    xG: number | null;
+    xGA: number | null;
+    xA: number | null;
+    assists: number | null;
+  }[];
   shots: UsShot[];
   shotsAgainst: UsShot[];
   /** Null when the season's formations aren't available (not fetched yet, or the club's didn't check out). */

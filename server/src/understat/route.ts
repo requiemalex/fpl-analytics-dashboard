@@ -139,9 +139,10 @@ export function createUnderstatRouter(options: { localDir?: string } = {}): Rout
 
 /** pipeline/types.ts AppProfileFile, as far as this route reads it (it doesn't import the pipeline). */
 type ShotRow = [number, number, number, number, number, string, string, string];
+/** Rows from before a field was added are shorter; a missing field is sent as null ("—"), never 0. */
 interface ProfileFileLike {
-  players: Record<string, { matches: [number, string, number][]; shots: ShotRow[] }>;
-  clubs: Record<string, { matches: [number, number | null, number | null, number | null][]; shots: ShotRow[]; formations: unknown[] | null }>;
+  players: Record<string, { matches: [number, string, number, number?, number?, number?][]; shots: ShotRow[] }>;
+  clubs: Record<string, { matches: [number, number | null, number | null, number | null, number?, number?, number?, number?][]; shots: ShotRow[]; formations: unknown[] | null }>;
 }
 
 const shotObject = ([fixture, minute, x, y, xG, result, situation, shotType]: ShotRow) => ({ fixture, minute, x, y, xG, result, situation, shotType });
@@ -151,7 +152,7 @@ function playerSlice(file: ProfileFileLike, code: string) {
   if (!p) return { found: false };
   return {
     found: true,
-    matches: p.matches.map(([fixture, position, minutes]) => ({ fixture, position, minutes })),
+    matches: p.matches.map(([fixture, position, minutes, xG, xA, assists]) => ({ fixture, position, minutes, xG: xG ?? null, xA: xA ?? null, assists: assists ?? null })),
     shots: p.shots.map(shotObject),
   };
 }
@@ -169,7 +170,16 @@ function clubSlice(file: ProfileFileLike, code: string) {
   against.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   return {
     found: true,
-    matches: c.matches.map(([fixture, win, draw, loss]) => ({ fixture, win, draw, loss })),
+    matches: c.matches.map(([fixture, win, draw, loss, xG, xGA, xA, assists]) => ({
+      fixture,
+      win,
+      draw,
+      loss,
+      xG: xG ?? null,
+      xGA: xGA ?? null,
+      xA: xA ?? null,
+      assists: assists ?? null,
+    })),
     shots: c.shots.map(shotObject),
     shotsAgainst: against.map(shotObject),
     formations: c.formations,

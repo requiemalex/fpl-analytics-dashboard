@@ -110,14 +110,19 @@ export function UnderstatGuide() {
         </li>
         <li>
           <strong>In the profiles</strong>, an <span style={{ color: "var(--col-understat)" }}>Understat · Views</span> section follows
-          the profile's Data View. A <strong>Shot Map</strong> shows where shots were taken from (a club gets two: shots taken and
-          shots faced): one season has a dot per shot, filled for a goal and bigger for higher xG, hover for the detail; Historic
-          Average shades areas of the pitch by shots a season instead. A club's <strong>Formations</strong> card shows how much of
-          its time it spent in each formation, with xG for and against per 90 minutes and goals (no rate under 90 minutes in a
-          formation). The Match Log gains violet columns: a player's <strong>Position</strong> in each match (hover it for the
-          full name; Sub means off the bench) and a club's <strong>Win, Draw and Loss Chance</strong>: the result its chances
-          deserved, worked out by Understat after the match from the shots both sides took. Their Totals are the wins, draws and
-          defeats those chances add up to.
+          the profile's Data View. A <strong>Shot Map</strong> shows where shots were taken from in the last 35 metres (a club gets
+          two: shots taken and shots faced): one season has a dot per shot, solid for a goal, an outline if not, bigger for higher
+          xG, hover for the detail; Historic Average shades areas of the pitch by shots a season instead. The rare shot from
+          further out is a small arrow on the bottom edge. Beside or under the map: shots, on target, goals, xG, non-penalty xG and
+          xG per shot. A club's <strong>Formations</strong> table shows how much of its time it spent in each formation, with xG
+          for and against per 90 minutes and goals scored and conceded; formations used for under 90 minutes are grouped as
+          "Other" (hover for which), with no rates. The Match Log gains violet columns: a player's <strong>Position</strong> in
+          each match (hover it for the full name; Sub means off the bench) and a club's <strong>Win, Draw and Loss
+          Chance</strong>: the result its chances deserved, worked out by Understat after the match from the shots both sides
+          took. Their Totals are the wins, draws and defeats those chances add up to. Its figures both sources have (a player's
+          Minutes, Assists, xG, xA and xGI; a club's Assists, xG, xA, xGI and xGC) have the{" "}
+          <span style={{ color: "var(--col-crossover)" }}>⇄</span> icon, switching that column, Totals included, to
+          Understat's.
         </li>
         <li>
           <strong>A small amber dot</strong> on an Understat header means its figures are out of date (hover it for why). FPL figures

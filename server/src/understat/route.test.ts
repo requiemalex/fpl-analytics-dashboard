@@ -68,9 +68,9 @@ describe("GET /api/understat/profile", () => {
       JSON.stringify({
         schema: 1,
         season: "2026/27",
-        players: { "1001": { matches: [[1, "FW", 90]], shots: [shot(1, 10)] } },
+        players: { "1001": { matches: [[1, "FW", 90, 0.4, 0.1, 1]], shots: [shot(1, 10)] }, "1002": { matches: [[1, "DC", 90]], shots: [] } },
         clubs: {
-          "11": { matches: [[1, 0.5, 0.3, 0.2]], shots: [shot(1, 10)], formations: [{ formation: "4-3-3", minutes: 90 }] },
+          "11": { matches: [[1, 0.5, 0.3, 0.2, 1.5, 0.7, 0.9, 2]], shots: [shot(1, 10)], formations: [{ formation: "4-3-3", minutes: 90 }] },
           "22": { matches: [[1, 0.2, 0.3, 0.5]], shots: [shot(1, 50)], formations: null },
           "33": { matches: [[2, 0.1, 0.1, 0.8]], shots: [shot(2, 5)], formations: null },
         },
@@ -81,16 +81,22 @@ describe("GET /api/understat/profile", () => {
   it("serves one player's matches and shots", async () => {
     await start(dir);
     const body = await json(await fetch(`${base}/api/understat/profile/player/1001/2026-27`));
-    expect(body.data).toMatchObject({ enabled: true, available: true, found: true, matches: [{ fixture: 1, position: "FW", minutes: 90 }] });
+    expect(body.data).toMatchObject({ enabled: true, available: true, found: true, matches: [{ fixture: 1, position: "FW", minutes: 90, xG: 0.4, xA: 0.1, assists: 1 }] });
     expect(body.data.shots).toEqual([{ fixture: 1, minute: 10, x: 0.9, y: 0.5, xG: 0.2, result: "Goal", situation: "OpenPlay", shotType: "Head" }]);
   });
 
   it("serves a club's shots against from its opponents in its own matches only", async () => {
     await start(dir);
     const body = await json(await fetch(`${base}/api/understat/profile/club/11/2026-27`));
-    expect(body.data.matches).toEqual([{ fixture: 1, win: 0.5, draw: 0.3, loss: 0.2 }]);
+    expect(body.data.matches).toEqual([{ fixture: 1, win: 0.5, draw: 0.3, loss: 0.2, xG: 1.5, xGA: 0.7, xA: 0.9, assists: 2 }]);
     expect(body.data.shotsAgainst.map((s: { minute: number }) => s.minute)).toEqual([50]);
     expect(body.data.formations).toEqual([{ formation: "4-3-3", minutes: 90 }]);
+  });
+
+  it("sends a field a file written before it was added as null, never 0", async () => {
+    await start(dir);
+    const body = await json(await fetch(`${base}/api/understat/profile/player/1002/2026-27`));
+    expect(body.data.matches).toEqual([{ fixture: 1, position: "DC", minutes: 90, xG: null, xA: null, assists: null }]);
   });
 
   it("tells apart a code with no record and a season with no file", async () => {

@@ -25,6 +25,7 @@ import { PositionBadge } from "./primitives";
 import { fmtDecimal, fmtPrice, fmtPercent, DASH } from "../utils/format";
 import { usePlayerPastSeasons } from "../state/usePlayerPastSeasons";
 import { useExternalStats, type ProfileView } from "../extensions/externalStats";
+import { SourceToggle } from "./SourceToggle";
 import type { NormalizedPlayer, PlayerSeasonHistory, PlayerGameweekHistory, PlayerPastMatch } from "../types/normalized";
 
 /** The profile has no minimum-minutes control, so its Historic Average counts only seasons that reach the fixed floor (<fixed_minutes_floor>). */
@@ -272,6 +273,8 @@ export function PlayerDetailOverlay() {
   // The Match Log's season: the live one, unless a season has been picked
   // on Points History. Tied to the player, so the next one opens on live.
   const [pickedSeason, setPickedSeason] = useState<{ playerId: number; season: string } | null>(null);
+  // Match Log columns switched to the second source's figure with their ⇄ toggle — FPL for each player opened.
+  const [switchedLog, setSwitchedLog] = useState<{ playerId: number; keys: string[] } | null>(null);
   const liveSeasonName = currentSeasonEntry?.seasonName ?? null;
   const pastLogSeason = pickedSeason && pickedSeason.playerId === player?.id && pickedSeason.season !== liveSeasonName ? pickedSeason.season : null;
   const logSeason = pastLogSeason ?? liveSeasonName;
@@ -483,6 +486,30 @@ export function PlayerDetailOverlay() {
     setPlayerId(null);
   }
 
+  // Two Views cards placed differently by position (see the grid below).
+  const actualVsExpectedCard = (
+    <div className="card">
+      <div className="card-title">Actual vs Expected</div>
+      <ActualVsExpectedBars
+        rows={[
+          { label: "Goals − xG", value: derived.goalsMinusXG },
+          { label: "Assists − xA", value: derived.assistsMinusXA },
+          { label: "Goal Inv. − xGI", value: derived.goalInvolvementsMinusXGI },
+        ]}
+      />
+    </div>
+  );
+  const valueCard = (
+    <div className="card">
+      <div className="card-title">Value</div>
+      <div className="stat-tile-grid">
+        <StatTile label="Pts/£m" value={fmtDecimal(derived.pointsPerMillion, 1)} percentile={statPercentiles.pointsPerMillion} />
+        <StatTile label="PPG" value={fmtDecimal(resolvedPlayer.pointsPerGame, 1)} percentile={statPercentiles.pointsPerGame} />
+        <StatTile label="Min/Goal" value={fmtDecimal(derived.minutesPerGoal, 0)} percentile={statPercentiles.minutesPerGoal} />
+      </div>
+    </div>
+  );
+
   type GwColumn = { key: string; header: string; align?: "left"; title?: string; className?: string; cell: (g: MatchLogRow) => React.ReactNode };
 
   // <match_log_follows_season>: the Match Log shows one season's matches —
@@ -653,11 +680,33 @@ export function PlayerDetailOverlay() {
       ? external.profiles.playerMatchColumns(player.code, logSeason).map((c) => ({ ...c, className: external.className }))
       : [];
 
+  // A figure both sources have (Minutes, Assists, xG, xA, xGI) gets a ⇄
+  // toggle on its header; switched, the whole column is the second
+  // source's — each match, Totals and Average, untinted (the tints rank
+  // FPL figures) — <one_source_per_figure>.
+  const switchedKeys = new Set(switchedLog && switchedLog.playerId === player.id ? switchedLog.keys : []);
+  function toggleLogSource(key: string) {
+    const next = new Set(switchedKeys);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setSwitchedLog({ playerId: player!.id, keys: [...next] });
+  }
+
   function renderGwLogTable(statColumns: GwColumn[], log: MatchLog) {
-    type Column = GwColumn & { total?: React.ReactNode; average?: React.ReactNode; external?: boolean };
+    type Column = GwColumn & { total?: React.ReactNode; average?: React.ReactNode; external?: boolean; switchable?: boolean; switched?: boolean };
+    const alternates =
+      external && player!.code !== null && logSeason !== null
+        ? external.profiles.playerMatchAlternates(player!.code, logSeason, log.rows.map((r) => ({ fixtureId: r.fixtureId, minutes: r.minutes })))
+        : {};
+    const fplColumn = (c: GwColumn): Column => {
+      const alt = alternates[c.key];
+      if (!alt) return { ...c, className: "col-source-fpl" };
+      if (!switchedKeys.has(c.key)) return { ...c, className: "col-source-fpl", switchable: true };
+      return { ...c, className: external!.className, cell: (g) => alt.cell(g.fixtureId), total: alt.total, average: alt.average, external: true, switchable: true, switched: true };
+    };
     const columns: Column[] = [
-      ...identityColumns,
-      ...statColumns,
+      ...identityColumns.map((c) => ({ ...c, className: "col-source-fpl" })),
+      ...statColumns.map(fplColumn),
       ...externalColumns.map(
         (c): Column => ({ key: c.key, header: c.header, title: c.title, className: c.className, cell: (g) => c.cell(g.fixtureId), total: c.total, average: c.average, external: true }),
       ),
@@ -674,6 +723,7 @@ export function PlayerDetailOverlay() {
               {columns.map((c, i) => (
                 <th key={c.key} className={cls(divider(i), c.className)} title={c.title} style={c.align === "left" ? { textAlign: "left" } : undefined}>
                   {c.header}
+                  {c.switchable && external && <SourceToggle showingExternal={c.switched === true} externalLabel={external.label} onToggle={() => toggleLogSource(c.key)} />}
                 </th>
               ))}
             </tr>
@@ -757,7 +807,12 @@ export function PlayerDetailOverlay() {
           <div className="profile-section-heading col-source-fpl">
             <h3>FPL · Views</h3>
           </div>
-          <div className="profile-columns profile-columns-balanced">
+          {/* Laid out row by row (.profile-grid). A defender or midfielder:
+              both radars, then Underlying Numbers' two groups side by side
+              across the width, then Actual vs Expected and Value. A
+              goalkeeper or forward: the radar beside Actual vs Expected,
+              then Underlying Numbers beside Value. */}
+          <div className="profile-grid">
             {radarGroups.map((group) => (
               <div className="card" key={group.label || "combined"}>
                 <div className="card-title">
@@ -768,83 +823,80 @@ export function PlayerDetailOverlay() {
               </div>
             ))}
 
-            <div className="card">
-              <div className="card-title">Actual vs Expected</div>
-              <ActualVsExpectedBars
-                rows={[
-                  { label: "Goals − xG", value: derived.goalsMinusXG },
-                  { label: "Assists − xA", value: derived.assistsMinusXA },
-                  { label: "Goal Inv. − xGI", value: derived.goalInvolvementsMinusXGI },
-                ]}
-              />
-            </div>
-
-            <div className="card">
-              <div className="card-title">Underlying Numbers</div>
-              {radarGroups.length > 1 ? (
-                <>
-                  <div className="card-title" style={{ marginBottom: 8 }}>Defensive</div>
-                  <div className="stat-tile-grid">
-                    <StatTile label="Clean Sheets" value={fmtDecimal(resolvedPlayer.cleanSheets, 0)} percentile={statPercentiles.cleanSheets} />
-                    <StatTile label="xGC" value={fmtDecimal(resolvedPlayer.xGC, 2)} percentile={statPercentiles.xGC} />
-                    <StatTile label="Def. Contrib." value={fmtDecimal(resolvedPlayer.defensiveContributions, 0)} percentile={statPercentiles.defensiveContributions} />
+            {radarGroups.length > 1 ? (
+              <>
+                <div className="card profile-span-2">
+                  <div className="card-title">Underlying Numbers</div>
+                  <div className="stat-groups">
+                    <div>
+                      <div className="stat-group-title">Defensive</div>
+                      <div className="stat-tile-grid">
+                        <StatTile label="Clean Sheets" value={fmtDecimal(resolvedPlayer.cleanSheets, 0)} percentile={statPercentiles.cleanSheets} />
+                        <StatTile label="xGC" value={fmtDecimal(resolvedPlayer.xGC, 2)} percentile={statPercentiles.xGC} />
+                        <StatTile label="Def. Contrib." value={fmtDecimal(resolvedPlayer.defensiveContributions, 0)} percentile={statPercentiles.defensiveContributions} />
+                      </div>
+                      <div className="stat-tile-grid" style={{ marginTop: 10 }}>
+                        <StatTile label="xGC/Game" value={fmtDecimal(resolvedPlayer.xGCPerGame, 2)} percentile={statPercentiles.xGCPerGame} />
+                        <StatTile label="DC/Game" value={fmtDecimal(resolvedPlayer.defensiveContributionsPerGame, 2)} percentile={statPercentiles.defensiveContributionsPerGame} />
+                        <StatTile label="BPS" value={fmtDecimal(resolvedPlayer.bps, 0)} percentile={statPercentiles.bps} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="stat-group-title">Offensive</div>
+                      <div className="stat-tile-grid">
+                        <StatTile label="xG" value={fmtDecimal(resolvedPlayer.xG, 2)} percentile={statPercentiles.xG} />
+                        <StatTile label="xA" value={fmtDecimal(resolvedPlayer.xA, 2)} percentile={statPercentiles.xA} />
+                        <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} percentile={statPercentiles.xGI} />
+                      </div>
+                      <div className="stat-tile-grid" style={{ marginTop: 10 }}>
+                        <StatTile label="xG/Game" value={fmtDecimal(resolvedPlayer.xGPerGame, 2)} percentile={statPercentiles.xGPerGame} />
+                        <StatTile label="xA/Game" value={fmtDecimal(resolvedPlayer.xAPerGame, 2)} percentile={statPercentiles.xAPerGame} />
+                        <StatTile label="xGI/Game" value={fmtDecimal(resolvedPlayer.xGIPerGame, 2)} percentile={statPercentiles.xGIPerGame} />
+                      </div>
+                    </div>
                   </div>
-                  <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                    <StatTile label="xGC/Game" value={fmtDecimal(resolvedPlayer.xGCPerGame, 2)} percentile={statPercentiles.xGCPerGame} />
-                    <StatTile label="DC/Game" value={fmtDecimal(resolvedPlayer.defensiveContributionsPerGame, 2)} percentile={statPercentiles.defensiveContributionsPerGame} />
-                    <StatTile label="BPS" value={fmtDecimal(resolvedPlayer.bps, 0)} percentile={statPercentiles.bps} />
-                  </div>
-                  <div className="card-title" style={{ marginTop: 16, marginBottom: 8 }}>Offensive</div>
-                  <div className="stat-tile-grid">
-                    <StatTile label="xG" value={fmtDecimal(resolvedPlayer.xG, 2)} percentile={statPercentiles.xG} />
-                    <StatTile label="xA" value={fmtDecimal(resolvedPlayer.xA, 2)} percentile={statPercentiles.xA} />
-                    <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} percentile={statPercentiles.xGI} />
-                  </div>
-                  <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                    <StatTile label="xG/Game" value={fmtDecimal(resolvedPlayer.xGPerGame, 2)} percentile={statPercentiles.xGPerGame} />
-                    <StatTile label="xA/Game" value={fmtDecimal(resolvedPlayer.xAPerGame, 2)} percentile={statPercentiles.xAPerGame} />
-                    <StatTile label="xGI/Game" value={fmtDecimal(resolvedPlayer.xGIPerGame, 2)} percentile={statPercentiles.xGIPerGame} />
-                  </div>
-                </>
-              ) : player.position === "GKP" ? (
-                <>
-                  {/* No Def. Contrib. or DC/Game: FPL's defensive-contribution
-                      points exclude goalkeepers, so both only ever read 0 — the
-                      same reason the gameweek log hides DC for them (audit
-                      2026-09-25 player-team-profiles L4). */}
-                  <div className="stat-tile-grid">
-                    <StatTile label="Clean Sheets" value={fmtDecimal(resolvedPlayer.cleanSheets, 0)} percentile={statPercentiles.cleanSheets} />
-                    <StatTile label="xGC" value={fmtDecimal(resolvedPlayer.xGC, 2)} percentile={statPercentiles.xGC} />
-                    <StatTile label="xGC/Game" value={fmtDecimal(resolvedPlayer.xGCPerGame, 2)} percentile={statPercentiles.xGCPerGame} />
-                  </div>
-                  <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                    <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} percentile={statPercentiles.xGI} />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="stat-tile-grid">
-                    <StatTile label="xG" value={fmtDecimal(resolvedPlayer.xG, 2)} percentile={statPercentiles.xG} />
-                    <StatTile label="xA" value={fmtDecimal(resolvedPlayer.xA, 2)} percentile={statPercentiles.xA} />
-                    <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} percentile={statPercentiles.xGI} />
-                  </div>
-                  <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                    <StatTile label="xG/Game" value={fmtDecimal(resolvedPlayer.xGPerGame, 2)} percentile={statPercentiles.xGPerGame} />
-                    <StatTile label="xA/Game" value={fmtDecimal(resolvedPlayer.xAPerGame, 2)} percentile={statPercentiles.xAPerGame} />
-                    <StatTile label="xGI/Game" value={fmtDecimal(resolvedPlayer.xGIPerGame, 2)} percentile={statPercentiles.xGIPerGame} />
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="card">
-              <div className="card-title">Value</div>
-              <div className="stat-tile-grid">
-                <StatTile label="Pts/£m" value={fmtDecimal(derived.pointsPerMillion, 1)} percentile={statPercentiles.pointsPerMillion} />
-                <StatTile label="PPG" value={fmtDecimal(resolvedPlayer.pointsPerGame, 1)} percentile={statPercentiles.pointsPerGame} />
-                <StatTile label="Min/Goal" value={fmtDecimal(derived.minutesPerGoal, 0)} percentile={statPercentiles.minutesPerGoal} />
-              </div>
-            </div>
+                </div>
+                {actualVsExpectedCard}
+                {valueCard}
+              </>
+            ) : (
+              <>
+                {actualVsExpectedCard}
+                <div className="card">
+                  <div className="card-title">Underlying Numbers</div>
+                  {player.position === "GKP" ? (
+                    <>
+                      {/* No Def. Contrib. or DC/Game: FPL's defensive-contribution
+                          points exclude goalkeepers, so both only ever read 0 — the
+                          same reason the gameweek log hides DC for them (audit
+                          2026-09-25 player-team-profiles L4). */}
+                      <div className="stat-tile-grid">
+                        <StatTile label="Clean Sheets" value={fmtDecimal(resolvedPlayer.cleanSheets, 0)} percentile={statPercentiles.cleanSheets} />
+                        <StatTile label="xGC" value={fmtDecimal(resolvedPlayer.xGC, 2)} percentile={statPercentiles.xGC} />
+                        <StatTile label="xGC/Game" value={fmtDecimal(resolvedPlayer.xGCPerGame, 2)} percentile={statPercentiles.xGCPerGame} />
+                      </div>
+                      <div className="stat-tile-grid" style={{ marginTop: 10 }}>
+                        <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} percentile={statPercentiles.xGI} />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="stat-tile-grid">
+                        <StatTile label="xG" value={fmtDecimal(resolvedPlayer.xG, 2)} percentile={statPercentiles.xG} />
+                        <StatTile label="xA" value={fmtDecimal(resolvedPlayer.xA, 2)} percentile={statPercentiles.xA} />
+                        <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} percentile={statPercentiles.xGI} />
+                      </div>
+                      <div className="stat-tile-grid" style={{ marginTop: 10 }}>
+                        <StatTile label="xG/Game" value={fmtDecimal(resolvedPlayer.xGPerGame, 2)} percentile={statPercentiles.xGPerGame} />
+                        <StatTile label="xA/Game" value={fmtDecimal(resolvedPlayer.xAPerGame, 2)} percentile={statPercentiles.xAPerGame} />
+                        <StatTile label="xGI/Game" value={fmtDecimal(resolvedPlayer.xGIPerGame, 2)} percentile={statPercentiles.xGIPerGame} />
+                      </div>
+                    </>
+                  )}
+                </div>
+                {valueCard}
+              </>
+            )}
           </div>
         </div>
 
@@ -853,7 +905,7 @@ export function PlayerDetailOverlay() {
             <div className={`profile-section-heading ${external.className}`}>
               <h3>{external.label} · Views</h3>
             </div>
-            <div className="profile-columns profile-columns-balanced">{external.profiles.playerCards(player.code, externalView)}</div>
+            <div className="profile-grid">{external.profiles.playerCards(player.code, externalView)}</div>
           </div>
         )}
 
@@ -1091,23 +1143,16 @@ export function PlayerDetailOverlay() {
                 )}
               </>
             )}
-            {matchLog && renderGwLogTable(primeColumns, matchLog)}
-          </div>
-
-          <div className="card" style={{ marginTop: 16, maxWidth: 360 }}>
-            <div className="card-title">Playing Time</div>
-            {(() => {
-              if (pastLogSeason !== null) {
-                if (pastRows === null) return <p className="page-subtitle" style={{ margin: 0 }}>{pastSeasons.status === "error" ? "Couldn't load the season's matches." : "Loading…"}</p>;
-                const { averageMinutes, matches } = computeSeasonAverageMinutes(pastRows);
-                return <PlayingTimeIcon averageMinutes={averageMinutes} matches={matches} />;
-              }
-              if (history.status === "loading") return <p className="page-subtitle" style={{ margin: 0 }}>Loading…</p>;
-              if (history.status === "error") return <p className="page-subtitle" style={{ margin: 0 }}>Couldn't load gameweek history.</p>;
-              if (history.status !== "ready") return null;
-              const { averageMinutes, matches } = computeSeasonAverageMinutes(history.history);
-              return <PlayingTimeIcon averageMinutes={averageMinutes} matches={matches} />;
-            })()}
+            {matchLog && (
+              <>
+                {/* Playing Time for the season shown: minutes a match over its matches. */}
+                <div className="match-log-summary">
+                  <div className="card-title">Playing Time</div>
+                  <PlayingTimeIcon {...computeSeasonAverageMinutes(matchLog.rows)} seasonName={pastLogSeason ?? undefined} />
+                </div>
+                {renderGwLogTable(primeColumns, matchLog)}
+              </>
+            )}
           </div>
         </div>
       </div>

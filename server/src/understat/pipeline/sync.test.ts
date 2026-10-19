@@ -128,12 +128,14 @@ describe("runSync", () => {
     const report = await sync(fakeClient());
     expect(report.ok).toBe(true);
     const profile = JSON.parse(readFileSync(join(understatRoot, "app", "profile", "2026-27.json"), "utf8")) as AppProfileFile;
-    expect(profile.players["1001"].matches).toEqual([[1, "FW", 90]]);
+    // Position, minutes, xG, xA, assists.
+    expect(profile.players["1001"].matches).toEqual([[1, "FW", 90, 1.2, 0.1, 0]]);
     expect(profile.players["1001"].shots).toHaveLength(3);
     expect(profile.players["1001"].shots[0]).toEqual([1, 10, 0.9, 0.5, 0.5, "Goal", "OpenPlay", "RightFoot"]);
     // Understat's forecast is home win / draw / away win; the away club's is turned round to its own side.
-    expect(profile.clubs["11"].matches).toEqual([[1, 0.5, 0.3, 0.2]]);
-    expect(profile.clubs["22"].matches).toEqual([[1, 0.2, 0.3, 0.5]]);
+    // Then the club's xG and xGA (its match line) and its players' xA and assists.
+    expect(profile.clubs["11"].matches).toEqual([[1, 0.5, 0.3, 0.2, 1.2, 0.8, 0.2, 0]]);
+    expect(profile.clubs["22"].matches).toEqual([[1, 0.2, 0.3, 0.5, 0.8, 1.2, 0.2, 0]]);
     expect(profile.clubs["11"].shots).toHaveLength(3);
     expect(profile.clubs["22"].shots).toHaveLength(1);
     expect(profile.clubs["11"].formations).toEqual([{ formation: "4-3-3", minutes: 90, shots: 3, goals: 2, xG: 1.2, shotsAgainst: 1, goalsAgainst: 1, xGA: 0.8 }]);

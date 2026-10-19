@@ -438,7 +438,7 @@ export function UserGuide() {
           floor, Average per match, so a late signing's strong per-match numbers show green even while his total is low; a past
           season's aren't tinted. Match-by-match records go back to 2016/17; FPL didn't record xG and the rest before 2022/23, or
           defensive contributions before 2025/26, so those show "—". <strong>Playing Time</strong>, a minutes-per-match gauge for
-          the season shown, sits below.
+          the season shown, sits at the top of the Match Log.
         </p>
         <p className="page-subtitle">
           <strong>Points History</strong> has a bar per season: green if counted in the average, grey if not, this season as an

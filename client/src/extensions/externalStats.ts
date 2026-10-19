@@ -61,6 +61,16 @@ export interface ExternalProfiles {
   playerMatchColumns: (code: number, season: string) => ExternalMatchColumn[];
   /** `fixtureIds`: the matches the log lists, so a total is never a sum over only some of them. */
   clubMatchColumns: (code: number, season: string, fixtureIds: number[]) => ExternalMatchColumn[];
+  /**
+   * This source's version of Match Log figures both sources have, by the
+   * log's column key (player: min, a, xg, xa, xgi; club: a, xg, xa, xgi,
+   * xgc) — what a column's ⇄ toggle switches to, whole column, Totals and
+   * Average included (<one_source_per_figure>). A player's `matches` carry
+   * FPL's minutes, so a match he didn't play is a provable 0 and one he did
+   * with no figure from this source is "—".
+   */
+  playerMatchAlternates: (code: number, season: string, matches: { fixtureId: number; minutes: number }[]) => Record<string, ExternalMatchColumn>;
+  clubMatchAlternates: (code: number, season: string, fixtureIds: number[]) => Record<string, ExternalMatchColumn>;
   /** The source's own profile cards for a Data View (each a `.card`). */
   playerCards: (code: number, view: ProfileView) => ReactNode;
   clubCards: (code: number, view: ProfileView) => ReactNode;

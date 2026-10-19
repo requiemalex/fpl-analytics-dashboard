@@ -8,11 +8,12 @@ import { fmtDecimal, DASH } from "../../utils/format";
  * text next to the icon, so the card doesn't read as near-empty once the
  * gauge itself (a small fixed-size circle) is all there is to look at.
  */
-export function PlayingTimeIcon({ averageMinutes, matches }: { averageMinutes: number | null; matches: number }) {
+export function PlayingTimeIcon({ averageMinutes, matches, seasonName }: { averageMinutes: number | null; matches: number; seasonName?: string }) {
+  const when = seasonName ? `in ${seasonName}` : "this season";
   if (averageMinutes === null) {
     return (
       <div className="playing-time-row">
-        <div className="playing-time-icon tier-none" title="No matches yet this season" aria-label="No playing-time data yet this season">
+        <div className="playing-time-icon tier-none" title={`No matches ${when}`} aria-label={`No playing-time data ${when}`}>
           <svg width="56" height="56" viewBox="0 0 56 56">
             <circle cx="28" cy="28" r="22" fill="none" stroke="var(--border-strong)" strokeWidth="6" strokeDasharray="4 5" />
           </svg>
@@ -35,8 +36,8 @@ export function PlayingTimeIcon({ averageMinutes, matches }: { averageMinutes: n
     <div className="playing-time-row">
       <div
         className={`playing-time-icon tier-${tier}`}
-        title={`${tierLabel}: ${fmtDecimal(averageMinutes, 0)} min average across ${matches} match${matches === 1 ? "" : "es"} this season`}
-        aria-label={`${tierLabel}, averaging ${fmtDecimal(averageMinutes, 0)} minutes per match this season`}
+        title={`${tierLabel}: ${fmtDecimal(averageMinutes, 0)} min average across ${matches} match${matches === 1 ? "" : "es"} ${when}`}
+        aria-label={`${tierLabel}, averaging ${fmtDecimal(averageMinutes, 0)} minutes per match ${when}`}
       >
         <svg width="56" height="56" viewBox="0 0 56 56">
           <circle cx="28" cy="28" r={radius} fill="none" stroke="var(--border-strong)" strokeWidth="6" />

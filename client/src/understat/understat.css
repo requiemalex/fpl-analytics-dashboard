@@ -15,43 +15,59 @@ table.data-table th.col-source-understat,
   color: var(--col-understat);
 }
 
-/* Shot maps (ShotMap.tsx), drawn in metres — strokes are fractions of one. */
+/* Shot maps (ShotMap.tsx), drawn in metres. Mark outlines are a fixed
+   1px whatever the map's size (non-scaling), so dots stay crisp, not
+   chunky; fills are part-transparent so clustered shots show through. */
 .shot-map {
   margin: 0;
 }
 .shot-map svg {
   display: block;
   width: 100%;
-  max-width: 380px;
   margin: 0 auto;
+}
+.shot-map svg * {
+  vector-effect: non-scaling-stroke;
 }
 .shot-map-pitch {
   fill: var(--surface-raised);
 }
 .shot-map-lines {
   stroke: var(--border-strong);
-  stroke-width: 0.3;
+  stroke-width: 1;
+}
+.shot-map-cut {
+  stroke-dasharray: 3 4;
+  opacity: 0.6;
 }
 .shot-map-spot {
   fill: var(--border-strong);
 }
 .shot-map-goal {
   fill: var(--col-understat);
-  stroke: var(--surface);
-  stroke-width: 0.35;
+  fill-opacity: 0.85;
+  stroke: color-mix(in srgb, var(--col-understat) 60%, var(--text-primary));
+  stroke-width: 1;
 }
 .shot-map-miss {
-  fill: none;
+  fill: var(--text-secondary);
+  fill-opacity: 0.08;
   stroke: var(--text-secondary);
-  stroke-width: 0.3;
+  stroke-opacity: 0.55;
+  stroke-width: 1;
 }
-.shot-map-hit {
-  fill: transparent;
-  cursor: default;
-}
-.shot-map-hit:hover {
+.shot-map-goal:hover,
+.shot-map-miss:hover {
   stroke: var(--text-primary);
-  stroke-width: 0.25;
+  stroke-opacity: 1;
+}
+.shot-map-beyond {
+  fill: var(--text-secondary);
+  fill-opacity: 0.7;
+}
+.shot-map-beyond.is-goal {
+  fill: var(--col-understat);
+  fill-opacity: 1;
 }
 .shot-map-zone {
   fill: var(--col-understat);
@@ -61,21 +77,45 @@ table.data-table th.col-source-understat,
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  gap: var(--space-3);
-  margin-top: var(--space-2);
+  gap: var(--space-2) var(--space-5);
+  margin-top: var(--space-3);
   font-size: 12px;
   color: var(--text-muted);
 }
 .shot-map-key-item {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: 6px;
+  white-space: nowrap;
 }
 .shot-map-ramp {
-  width: 64px;
+  width: 72px;
   height: 8px;
   border-radius: 2px;
-  background: linear-gradient(to right, color-mix(in srgb, var(--col-understat) 12%, var(--surface-raised)), var(--col-understat));
+  background: linear-gradient(to right, color-mix(in srgb, var(--col-understat) 10%, var(--surface-raised)), var(--col-understat));
+}
+
+/* A shot map card (profiles.tsx): map, then its figures. Wide, the figures
+   sit beside the map instead. */
+.shot-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.shot-card-body.is-wide {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(220px, 1fr);
+  align-items: center;
+  gap: var(--space-6);
+}
+.shot-card-body.is-wide .stat-tile-grid {
+  grid-template-columns: repeat(2, 1fr);
+  row-gap: var(--space-3);
+}
+@media (max-width: 900px) {
+  .shot-card-body.is-wide {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Formations (profiles.tsx): the share-of-minutes bar in each row. */
