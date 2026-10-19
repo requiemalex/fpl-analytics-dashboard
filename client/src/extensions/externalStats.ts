@@ -39,7 +39,8 @@ export interface ExternalMatchColumn {
   /** The Totals and Average rows' cells; left blank when omitted. */
   total?: ReactNode;
   average?: ReactNode;
-  /** The Average cell's comparative colour (a CSS background), when the source ranks it. */
+  /** The Totals and Average cells' comparative colours (CSS backgrounds, <comparative_colouring>), when the source ranks them. */
+  totalTint?: string;
   averageTint?: string;
 }
 

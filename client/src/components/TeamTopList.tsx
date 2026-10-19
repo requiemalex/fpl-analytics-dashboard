@@ -1,8 +1,10 @@
 import React from "react";
+import { noRowsMessage } from "./emptyMessages";
 import { barWidths } from "./statBar";
 import { TeamBadge } from "./primitives";
 import { DataViewBadge } from "./DataViewBadge";
 import { CardEditRemoveButtons } from "./IconToolbar";
+import { percentileTint } from "../utils/colorScale";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 
 export interface TeamTopListRow {
@@ -10,6 +12,8 @@ export interface TeamTopListRow {
   name: string;
   shortName: string;
   value: number | null;
+  /** The club's rank among every club for this figure (<comparative_colouring>). */
+  rank?: number;
 }
 
 
@@ -18,7 +22,7 @@ export function TeamTopList({
   rows,
   format,
   onSelect,
-  emptyMessage = "No data available.",
+  emptyMessage = noRowsMessage("team"),
   onEdit,
   onRemove,
   draggable,
@@ -85,7 +89,9 @@ export function TeamTopList({
               <span className="stat-row-bar-track">
                 <span className="stat-row-bar-fill" style={{ width: `${widths[i]}%`, background: "var(--accent-focus)" }} />
               </span>
-              <span className="stat-row-value">{format(row.value)}</span>
+              <span className="stat-row-value" style={{ background: percentileTint(row.rank) }}>
+                {format(row.value)}
+              </span>
             </div>
           ))}
         </div>

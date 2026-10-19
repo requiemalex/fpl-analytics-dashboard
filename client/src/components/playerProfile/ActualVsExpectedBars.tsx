@@ -1,5 +1,5 @@
 import React from "react";
-import { fmtSigned } from "../../utils/format";
+import { fmtSigned, roundAsDisplayed } from "../../utils/format";
 
 export interface ActualVsExpectedRow {
   label: string;
@@ -22,17 +22,19 @@ export function ActualVsExpectedBars({ rows }: { rows: ActualVsExpectedRow[] }) 
     <div className="avx-bars">
       {rows.map((r) => {
         const pct = r.value === null ? 0 : Math.min(100, (Math.abs(r.value) / maxAbs) * 100);
-        const positive = (r.value ?? 0) >= 0;
+        // Coloured by the figure as shown: one that rounds to 0.00 is neither (README "Signed figures").
+        const shown = r.value === null ? 0 : roundAsDisplayed(r.value, 2);
+        const tone = shown > 0 ? "positive" : shown < 0 ? "negative" : "";
         return (
           <div className="avx-row" key={r.label}>
             <span className="avx-label">{r.label}</span>
             <span className="avx-track">
               <span
-                className={`avx-fill ${r.value === null ? "" : positive ? "positive" : "negative"}`}
+                className={`avx-fill ${tone}`}
                 style={{ width: `${r.value === null ? 0 : Math.max(pct, 3)}%` }}
               />
             </span>
-            <span className={`avx-value num ${r.value === null ? "value-muted" : positive ? "value-positive" : "value-negative"}`}>
+            <span className={`avx-value num ${tone ? `value-${tone}` : "value-muted"}`}>
               {r.value === null ? "—" : fmtSigned(r.value, 2)}
             </span>
           </div>

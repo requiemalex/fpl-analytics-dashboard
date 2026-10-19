@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
+import { clubRanks, colourDirection, positionRanks } from "../metrics/comparativeColour";
 import { FIXED_FLOOR_LIVE_MINUTES, FIXED_FLOOR_MINUTES, fixedFloorMinutes } from "../metrics/fixedMinutesFloor";
 import { dashboardFloorNote } from "../components/MinutesFloorBadge";
 import { filterPlayers } from "../state/useFilteredPlayers";
@@ -20,13 +21,14 @@ import { TeamTopList, type TeamTopListRow } from "../components/TeamTopList";
 import { DashboardGraphCard } from "../components/DashboardGraphCard";
 import type { ScatterPoint } from "../components/charts/ScatterWithReference";
 import type { BarDatum } from "../components/charts/BarTopN";
-import { PLAYER_COLUMNS, columnByKey as playerColumnByKey } from "../components/playerColumns";
-import { TEAM_COLUMNS, teamColumnByKey } from "../components/teamColumns";
+import { PLAYER_COLUMNS, columnByKey as playerColumnByKey, columnFormatForMode, columnForMode } from "../components/playerColumns";
+import { TEAM_COLUMNS, teamColumnByKey, teamColumnFormatForMode, teamColumnForMode } from "../components/teamColumns";
 import {
   PLAYER_TILE_METRICS,
   TEAM_TILE_METRICS,
   playerTileMetricByKey,
   teamTileMetricByKey,
+  type PlayerTileMetric,
   type SummaryTileScope,
 } from "../components/summaryTileMetrics";
 import { useSummaryTiles, createSummaryTile, MAX_SUMMARY_TILES, type TileDirection, type SummaryTileConfig } from "../state/useSummaryTiles";
@@ -75,21 +77,6 @@ export function applyDefaultViewFloor(players: NormalizedPlayer[], dataView: Ana
 }
 
 /**
- * The resolved pool a player-scope tile or graph starts from. The packaged
- * Default view is a fixed-floor section (<fixed_minutes_floor>), so its
- * Historic Average counts only seasons that reach the floor; a view the user
- * builds counts every season. None of the current defaults uses Historic
- * Average, so today this changes nothing on screen.
- */
-export function poolForDashboardItem(
-  dataView: AnalysisMode,
-  defaultViewShown: boolean,
-  pools: { byMode: Record<AnalysisMode, NormalizedPlayer[]>; historicFixedFloorSeasons: NormalizedPlayer[] },
-): NormalizedPlayer[] {
-  return defaultViewShown && dataView === "historicAverage" ? pools.historicFixedFloorSeasons : pools.byMode[dataView];
-}
-
-/**
  * The players one player-scope tile or graph ranks or plots: its picked
  * players if it has a picked list (no criteria, no floor), otherwise its
  * criteria applied to the pool — plus the fixed floor when the packaged
@@ -109,22 +96,48 @@ export function playersForDashboardItem(
     const idSet = new Set(item.playerIds);
     return pool.filter((p) => idSet.has(p.id));
   }
-  const players = filterPlayers(pool, item.criteria ?? DEFAULT_FILTERS, item.dataView, true);
+  const players = filterPlayers(pool, item.criteria ?? DEFAULT_FILTERS);
   return defaultViewShown ? applyDefaultViewFloor(players, item.dataView) : players;
 }
 
 /**
- * The hover text for a player-scope tile or graph's minutes-floor badge, or
- * null when no floor applies to it — exactly when playersForDashboardItem
- * or poolForDashboardItem applies one (the Default view only).
+ * The hover text for a player-scope tile or graph's amber stopwatch
+ * (<minutes_marker>), or null when no minimum-minutes threshold applies to
+ * it: the Starter view's fixed floor, the item's own Min Minutes when it's
+ * above 0, and Historic Average's 450-minute seasons (every Historic
+ * Average item, in any view). Picked players are never floored, but a
+ * Historic Average of theirs still counts only 450+ seasons.
  */
 export function dashboardItemFloorNote(
-  item: { dataView: AnalysisMode; playerIds: number[] | null },
+  item: { dataView: AnalysisMode; playerIds: number[] | null; criteria?: GlobalScoutingFilters | null },
   { defaultViewShown }: { defaultViewShown: boolean },
 ): string | null {
-  if (!defaultViewShown) return null;
   const picked = item.playerIds !== null;
-  return dashboardFloorNote(item.dataView, { playerFloor: !picked, historicSeasons: item.dataView === "historicAverage" });
+  return dashboardFloorNote(item.dataView, {
+    playerFloor: defaultViewShown && !picked,
+    userMinimum: picked ? 0 : (item.criteria?.minMinutes ?? 0),
+    historicSeasons: item.dataView === "historicAverage",
+  });
+}
+
+/**
+ * A player tile's colours (<comparative_colouring>): every player ranked
+ * within his position among the tile's whole pool for its Data View — not
+ * only the rows its criteria or picked players leave — anyone under the
+ * fixed floor uncoloured.
+ */
+export function playerTileRanks(metric: PlayerTileMetric, pool: NormalizedPlayer[], dataView: AnalysisMode): Map<number, number> {
+  const higherIsBetter = colourDirection(metric);
+  if (higherIsBetter === null) return new Map();
+  const value = metric.rankBy ?? metric.getValue;
+  return positionRanks(pool, {
+    id: (p) => p.id,
+    position: (p) => p.position,
+    minutes: (p) => p.minutes,
+    mode: dataView,
+    value: (p) => value(p, getPlayerDerivedMetrics(p)),
+    higherIsBetter,
+  });
 }
 
 export function topN<T extends { value: number | null }>(rowsIn: T[], n: number, ascending = false): T[] {
@@ -330,12 +343,6 @@ export function Dashboard() {
     for (const mode of MODES) map[mode] = resolvePlayerStatsList(players, mode, historicProfiles, currentSeasonHasStarted).resolved;
     return map;
   }, [players, historicProfiles, currentSeasonHasStarted]);
-  // The packaged Default view's Historic Average (poolForDashboardItem).
-  const historicFixedFloorSeasons = useMemo(
-    () => resolvePlayerStatsList(players, "historicAverage", historicProfiles, currentSeasonHasStarted, { fixedFloorSeasons: true }).resolved,
-    [players, historicProfiles, currentSeasonHasStarted],
-  );
-  const playerPools = useMemo(() => ({ byMode: resolvedByMode, historicFixedFloorSeasons }), [resolvedByMode, historicFixedFloorSeasons]);
 
   // Club figures per mode — same shared computation Teams and Team Profile
   // use (<club_not_squad>, metrics/teamStats.ts): what each club did in
@@ -602,14 +609,18 @@ export function Dashboard() {
           const metric = playerTileMetricByKey(tile.metricKey);
           if (!metric) return { tile, kind: "unavailable" as const };
           const floorOptions = { defaultViewShown: playerDefaultViewShown };
-          const sourcePlayers = playersForDashboardItem(tile, poolForDashboardItem(tile.dataView, playerDefaultViewShown, playerPools), floorOptions);
+          const pool = resolvedByMode[tile.dataView];
+          const sourcePlayers = playersForDashboardItem(tile, pool, floorOptions);
+          const ranks = playerTileRanks(metric, pool, tile.dataView);
           const rows = sourcePlayers.map((p) => ({ player: p, derived: getPlayerDerivedMetrics(p) }));
-          const valueRows: TopListRow[] = rows.map((r) => ({ player: r.player, value: metric.getValue(r.player, r.derived) }));
+          const valueRows: TopListRow[] = rows.map((r) => ({ player: r.player, value: metric.getValue(r.player, r.derived), rank: ranks.get(r.player.id) }));
           return { tile, metric, kind: "player" as const, topRows: topN(valueRows, 5, tile.direction === "asc"), floorNote: dashboardItemFloorNote(tile, floorOptions) };
         }
         const metric = teamTileMetricByKey(tile.metricKey);
         if (!metric) return { tile, kind: "unavailable" as const };
         let teamPool = teamAggregatesByMode[tile.dataView];
+        const direction = colourDirection(metric);
+        const ranks = direction === null ? new Map<number, number>() : clubRanks(teamPool, { id: (t) => t.teamId, value: metric.getValue, higherIsBetter: direction });
         if (tile.teamIds !== null) {
           const idSet = new Set(tile.teamIds);
           teamPool = teamPool.filter((t) => idSet.has(t.teamId));
@@ -619,10 +630,11 @@ export function Dashboard() {
           name: t.name,
           shortName: t.shortName,
           value: metric.getValue(t),
+          rank: ranks.get(t.teamId),
         }));
         return { tile, metric, kind: "team" as const, topRows: topN(valueRows, 5, tile.direction === "asc") };
       });
-  }, [tilesState.tiles, playerPools, teamAggregatesByMode, playerDefaultViewShown]);
+  }, [tilesState.tiles, resolvedByMode, teamAggregatesByMode, playerDefaultViewShown]);
 
   // Split for rendering only — reordering still operates on the one
   // underlying `tilesState.tiles` array regardless of scope (drag-drop
@@ -643,7 +655,7 @@ export function Dashboard() {
           const xColumn = graph.chartType === "scatter" ? playerColumnByKey(graph.xMetricKey) : undefined;
           if (!yColumn || (graph.chartType === "scatter" && !xColumn)) return { graph, kind: "unavailable" as const };
           const floorOptions = { defaultViewShown: playerDefaultViewShown };
-          const sourcePlayers = playersForDashboardItem(graph, poolForDashboardItem(graph.dataView, playerDefaultViewShown, playerPools), floorOptions);
+          const sourcePlayers = playersForDashboardItem(graph, resolvedByMode[graph.dataView], floorOptions);
           const scatterData: ScatterPoint[] = [];
           const barData: BarDatum[] = [];
           for (const p of sourcePlayers) {
@@ -663,8 +675,8 @@ export function Dashboard() {
             kind: "player" as const,
             xLabel: xColumn?.label ?? "",
             yLabel: yColumn.label,
-            format: yColumn.format,
-            xFormat: xColumn?.format,
+            format: columnForMode(yColumn, graph.dataView).format,
+            xFormat: xColumn && columnForMode(xColumn, graph.dataView).format,
             scatterData,
             barData,
             floorNote: dashboardItemFloorNote(graph, floorOptions),
@@ -696,14 +708,14 @@ export function Dashboard() {
           kind: "team" as const,
           xLabel: xColumn?.label ?? "",
           yLabel: yColumn.label,
-          format: yColumn.format,
-          xFormat: xColumn?.format,
+          format: teamColumnForMode(yColumn, graph.dataView).format,
+          xFormat: xColumn && teamColumnForMode(xColumn, graph.dataView).format,
           scatterData,
           barData,
           floorNote: null,
         };
       });
-  }, [graphsState.graphs, playerPools, teamAggregatesByMode, playerDefaultViewShown]);
+  }, [graphsState.graphs, resolvedByMode, teamAggregatesByMode, playerDefaultViewShown]);
 
   const visibleGraphRows = useMemo(() => graphRows.filter((g) => g.graph.scope === tileView), [graphRows, tileView]);
 
@@ -1122,7 +1134,8 @@ export function Dashboard() {
             };
             const common = {
               title: displayTileTitle(tile, row.metric.label),
-              format: row.metric.format,
+              // As the tile's Data View shows it (<averaged_counts>), the same as the tables.
+              format: (row.kind === "player" ? columnFormatForMode : teamColumnFormatForMode)(row.metric.key, row.metric.format, tile.dataView),
               dataView: tile.dataView,
               emptyMessage: emptyMessageFor(tile),
               onEdit: selectedViewIsDefault ? undefined : () => openEditTileModal(tile),
@@ -1252,10 +1265,8 @@ export function Dashboard() {
                     filters={newTileCriteria}
                     onChange={setNewTileCriteria}
                     onReset={() => setNewTileCriteria(DEFAULT_FILTERS)}
-                    analysisMode={newTileDataView}
                     showSearch={false}
                     showPrice
-                    minMinutesInLive
                     inDialog
                   />
                 ) : (
@@ -1428,10 +1439,8 @@ export function Dashboard() {
                     filters={newGraphCriteria}
                     onChange={setNewGraphCriteria}
                     onReset={() => setNewGraphCriteria(DEFAULT_FILTERS)}
-                    analysisMode={newGraphDataView}
                     showSearch={false}
                     showPrice
-                    minMinutesInLive
                     inDialog
                   />
                 ) : (

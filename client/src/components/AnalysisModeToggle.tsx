@@ -1,7 +1,7 @@
 import React from "react";
 import { useAppState } from "../state/AppStateContext";
 import { AnalysisModeIcon } from "./AnalysisModeIcon";
-import { MinutesFloorBadge } from "./MinutesFloorBadge";
+import { historicSeasonsNote, MinutesFloorBadge } from "./MinutesFloorBadge";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 
 /** Exported so anything else needing these exact labels (the dialogs' Data View pickers, DataViewBadge's tooltips) stays in sync with what this toggle itself shows, rather than re-typing the strings. `shortLabel` fits a Data View segment; `label` is its hover text. */
@@ -32,12 +32,14 @@ export function AnalysisModeToggle({
 }: {
   mode: AnalysisMode;
   onChange: (mode: AnalysisMode) => void;
-  /** Set on a section where the fixed minutes floor applies (<fixed_minutes_floor>) — shows its badge at the right of the toggle, with this as its hover text. */
+  /** Set on a section where the fixed minutes floor applies (<fixed_minutes_floor>) — shows its badge at the right of the toggle, with this as its hover text. Without it, a player view's Historic Average still shows the badge for its 450-minute seasons (<minutes_marker>). */
   floorNote?: string;
   /** Set on team views: Current Season club figures are summed from every player's matches, so a skipped player matters there too (audit 2026-10-18 M4). */
   clubFigures?: boolean;
 }) {
   const { historicStatus, historicErrorMessage, historicSkippedPlayerIds, historicFetchSkippedPlayerIds, refreshHistoricData, historicRefreshing } = useAppState();
+  // Clubs have no minutes floor; a player view's Historic Average counts only 450+ minute seasons.
+  const shownFloorNote = floorNote ?? (!clubFigures && mode === "historicAverage" ? historicSeasonsNote() : undefined);
 
   return (
     <div className="card" style={{ marginBottom: 24 }}>
@@ -72,9 +74,9 @@ export function AnalysisModeToggle({
             </button>
           </span>
         )}
-        {floorNote && (
+        {shownFloorNote && (
           <span style={{ marginLeft: "auto" }}>
-            <MinutesFloorBadge note={floorNote} />
+            <MinutesFloorBadge note={shownFloorNote} />
           </span>
         )}
       </div>

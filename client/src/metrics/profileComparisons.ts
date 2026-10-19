@@ -1,4 +1,4 @@
-import type { NormalizedFixture, NormalizedPlayer, PlayerSeasonHistory, Position } from "../types/normalized";
+import type { NormalizedFixture, NormalizedPlayer, Position } from "../types/normalized";
 import { percentileInPool } from "./percentiles";
 
 /**
@@ -44,39 +44,4 @@ export function perMatchPositionPercentile(
     pool.push(value / matches);
   }
   return percentileInPool(average, pool);
-}
-
-/** A season's price as one figure: the middle of its start and end price, so a range (£5.0m–£5.6m) compares as £5.3m. Null if either end is unknown. */
-export function seasonMidPrice(s: Pick<PlayerSeasonHistory, "startCost" | "endCost">): number | null {
-  return s.startCost !== null && s.endCost !== null ? (s.startCost + s.endCost) / 2 : null;
-}
-
-/**
- * Every player's mid-season price for each completed season on record,
- * across all positions, counting only seasons at or above `minMinutes` —
- * the Points History table's Price comparison pool. Built from current
- * players' full histories, so a past season's pool is the players still in
- * FPL today who played it. `excludePlayerId` (the player being compared)
- * is left out, so the caller adds the figure it shows (seasonPricePercentile).
- */
-export function seasonPricePools(allTimeSeasonsByPlayerId: Map<number, PlayerSeasonHistory[]>, minMinutes: number, excludePlayerId: number | null): Map<string, number[]> {
-  const pools = new Map<string, number[]>();
-  for (const [playerId, seasons] of allTimeSeasonsByPlayerId) {
-    if (playerId === excludePlayerId) continue;
-    for (const s of seasons) {
-      const price = seasonMidPrice(s);
-      if (price === null || s.minutes < minMinutes) continue;
-      const pool = pools.get(s.seasonName) ?? [];
-      pool.push(price);
-      pools.set(s.seasonName, pool);
-    }
-  }
-  return pools;
-}
-
-/** Where `price` ranks among `othersPool` plus itself; lower is better, so 100 is the cheapest. Null with no one else to compare with. */
-export function seasonPricePercentile(price: number | null, othersPool: number[] | undefined): number | null {
-  if (price === null || !othersPool) return null;
-  const raw = percentileInPool(price, [...othersPool, price]);
-  return raw === null ? null : 100 - raw;
 }

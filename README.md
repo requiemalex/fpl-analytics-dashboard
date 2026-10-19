@@ -123,9 +123,9 @@ User Guide (`/guide`), plus the player and team profile overlays.
 | Endpoint (proxied at the same path under `/api/`) | Used for | Cache |
 |---|---|---|
 | `bootstrap-static/` | Players, teams, positions, gameweeks | 10 min |
-| `fixtures/` | Fixtures and FDR | 30 min |
+| `fixtures/` | Fixtures and FDR | 10 min |
 | `element-summary/{id}/` | One player's gameweek history — fetched lazily when a profile opens | 30 min |
-| `historic-bulk` (app's own) | Every player's `history_past` plus this season's club data, built server-side from hundreds of `element-summary` calls | 12 h |
+| `historic-bulk` (app's own) | Every player's `history_past` plus this season's club data, built server-side from hundreds of `element-summary` calls | 30 min |
 | `entry/{id}/`, `entry/{id}/history/`, `entry/{id}/event/{gw}/picks/` | Team Building's FPL team import (read-only, unauthenticated) | 2 min |
 | `event/{gw}/live/` | Proxied, not currently used by the client | 60 s |
 | `understat` (app's own) | Understat season summaries, from this repo's `data/understat/` on GitHub (from disk under `npm run dev`) — never understat.com | 30 min; completed seasons 12 h |
@@ -140,8 +140,26 @@ If the historic dataset has been loaded this session, it is rebuilt too
 (`/api/refresh/historic-bulk`, up to a minute, with the old data on screen
 until it arrives): it carries the live season's club figures, including
 Current Season's league table in Team Explorer and the Team Profile, which
-otherwise stayed as first loaded. The 10-minute background poll refreshes
-bootstrap and fixtures only.
+otherwise stayed as first loaded.
+
+**What refreshes by itself** (a session left open across a match catches up
+without Refresh Data):
+- `bootstrap-static` and `fixtures/`: the silent 10-minute poll.
+- The historic dataset: rebuilt when the poll's fixtures show more finished
+  matches than when it was last built, at most once an hour
+  (`AUTO_HISTORIC_MIN_GAP_MS`), and only once something has asked for it. A
+  build is one request per player, so a match day's kick-off windows cost a
+  few builds, not one per match.
+- An open player profile's Match Log: reloaded quietly with each poll (the
+  proxy's copy, at most 30 minutes old) and fetched afresh by Refresh Data
+  (`liveDataVersion`); its rows stay until the new ones arrive.
+- Understat: checked hourly. When a newer sync has been published
+  (status.json's `generatedAt`), the live season's profile figures already
+  loaded are asked for again, once; a completed season's never. The server
+  likewise re-reads a cached live-season file read under an older sync
+  (`readUnderSync`), so a fresh status never comes with a stale file. The app
+  never contacts understat.com — only the daily sync job does — so none of
+  this adds requests to Understat itself.
 Each TTL runs from when the upstream request **started**, not from when a
 slow response arrived (`TtlCache.set`), so the client's 10-minute poll lands
 on a fresh `bootstrap-static` every time rather than every other time. The
@@ -161,8 +179,7 @@ practice it starts as the app opens (cheap when the server has it cached).
 A handful of failures are reported as `skippedPlayerIds`. A player answered
 only from a stale cached copy counts as failed too: more than half failing
 counts as a failed build and falls back to the stale cache, and a build that
-used any stale input is served as `stale-cache` and cached only 30 minutes,
-never labelled live for 12 hours.
+used any stale input is served as `stale-cache`, never labelled live.
 
 ---
 
@@ -178,8 +195,8 @@ substituted from another statistic.
 availability, and a player's name/club/position are **always live**, in
 every analysis mode — including the Price column and everything derived
 from price, such as Points/£m (`<price_always_live>`,
-`resolvePlayerStats.ts`). The one exception is the Points History
-season-by-season table, which shows what a player cost at the time.
+`resolvePlayerStats.ts`). The one exception is the profile's Match Log
+heading, which shows a past season's start and end price.
 FPL's Form and its set-piece taker orders (Pen Order, FK Order, Corner
 Order: 1 = first choice at his club, "—" when not listed) are always live
 too: FPL keeps no history of them.
@@ -192,10 +209,10 @@ Every analysis page has the same three-way toggle, resolved through
 - **Last Completed Season** — that season's actual totals, however much or
   little the player played.
 - **Historic Average** — the mean across the last **4 completed seasons**
-  the player has, light seasons included (`<no_survivorship_bias>`,
-  `metrics/historicAnalysis.ts`). In the fixed-floor sections a season with
-  0 minutes is left out (see "Minimum minutes"). `MIN_QUALIFYING_SEASON_MINUTES` (900) only
-  marks a season "light" in charts and decides which seasons Model
+  the player has, counting only seasons of 450+ minutes, on every page
+  (see "Minimum minutes"); a light season over that still counts
+  (`<no_survivorship_bias>`, `metrics/historicAnalysis.ts`).
+  `MIN_QUALIFYING_SEASON_MINUTES` (900) only decides which seasons Model
   Predicted's bonus rate comes from (Minutes Reliability uses every season).
   Per-game rates count games from the **total** minutes across the
   seasons, rounded up once (`<games_from_total_minutes>`,
@@ -222,83 +239,94 @@ is **kept, not dropped or zeroed**: every performance field comes back
 
 ### Minimum minutes
 
-**The principle (the owner's rule).** A minutes floor exists only to stop
-tiny samples taking over. Which side of the rule a section is on decides
-everything:
+**The principle (the owner's rule).** A minutes threshold exists only to
+stop tiny samples taking over. The whole of it, as of 2026-10-19:
 
-| | Where | Floor | Historic Average |
+| | Where | Which rows show | Colour (green/red) |
 |---|---|---|---|
-| **The user can set minimum minutes** | Player Explorer (MINS filter), Dashboard tiles and graphs the user builds, Player Comparison cards in views the user builds, Team Building | None added by the app | Every window season counts, 0-minute ones included |
-| **The user can't** | Player profile, the packaged Starter views (Dashboard and Player Comparison) | Fixed: 90 minutes in Current Season, 450 otherwise (`metrics/fixedMinutesFloor.ts`, `<fixed_minutes_floor>`) | Only seasons with 450+ minutes count; a season under that is a small sample and none of its figures count |
+| **You set the minimum** | Player Explorer (Mins column filter), Dashboard tiles and graphs you build (Min Minutes), Player Comparison cards in views you build (Min Minutes), Team Building's Add Players (Min minutes) | Yours, in **every** Data View, Current Season included; 0 by default | Fixed floor |
+| **You can't** | Player profile, the packaged Starter views (Dashboard and Player Comparison) | Fixed floor: 90 minutes in Current Season, 450 otherwise (`metrics/fixedMinutesFloor.ts`, `<fixed_minutes_floor>`) | Fixed floor |
+
+Three rules hold everywhere:
+- **No data is 0** (`<no_data_is_zero>`, `isUnderMinimum`): a player with no
+  minutes for the Data View counts as 0 against any minimum — under it
+  once a minimum is set, kept at the default 0.
+- **One Historic Average**: only window seasons of **450+ minutes** count
+  (`HistoricPlayerProfile.floorWindowAverage`), on every page. A season
+  under that (a cameo year, one lost to injury, a 0) is a small sample and
+  none of its figures count; a light season of 450+ still counts and pulls
+  the average down (`<no_survivorship_bias>`). A player with no such
+  season in the window has no Historic Average. The window is always the
+  last 4 completed seasons; a short one is never replaced by an older one.
+  (Until 2026-10-19 pages where you set minutes counted every season,
+  0-minute ones included, so one player had two Historic Averages.)
+- **Colours use the fixed floor** (the owner's rule, 2026-10-19): a player
+  under 90 minutes in Current Season (450 otherwise) has no colour and
+  isn't in anyone's comparison, even where your own minimum lets his row
+  show (see "Comparative colouring"). Clubs have no floor, and nor do
+  forward-looking figures (Team Building's two Exp. Pts, Minutes
+  Reliability, and every colour on its pitch cards — price and ownership
+  there are ranked among every player in the position).
 
 In the fixed-floor sections the floor applies to **every percentile**,
 totals as well as per-game rates: the pool is everyone at or above it, and
-a player below it is shown as a small sample, with no percentile and no
-colour. On Player Comparison's Starter view a small sample isn't drawn on
-a radar, gets only a hollow grey marker on an Outputs bar and is never the bold best —
-the others are ranked among themselves — and a trend season under the
-floor is marked with an amber ring. A card the user builds does the same at its own
-Min Minutes instead (0 by default), card by card.
+a player below it is a small sample, with no percentile and no colour. On
+Player Comparison's Starter view a small sample isn't drawn on a radar,
+gets the amber stopwatch for a marker on an Outputs bar and is never the
+bold best — the others are ranked among themselves — and a trend season
+under the floor is drawn as the stopwatch instead of a dot. A card you
+build does the same at its own Min Minutes, card by card. The Dashboard's
+Starter view leaves players under the floor out of **every** player tile
+and graph, totals and per-game rates alike (`applyDefaultViewFloor`,
+`playersForDashboardItem`); its graphs have no Min Minutes of their own.
+Both are decided by the Starter view being the one selected
+(`isDefaultViewSelected`), not by a tile's id. Specifically picked players
+are never floored.
 
-**The badge.** Wherever the fixed floor is applied, a small stopwatch-on-a-
-line badge (`components/MinutesFloorBadge.tsx`) says so, its hover text
-naming the floor for the mode, so a missing player or an uncoloured cell
-isn't taken for missing data. The profile shows it at the right of its mode
-toggle, and Player Comparison's Starter view in each card's header
-(`profileFloorNote`, `trendFloorNote`); a card the user builds has none. The Team Profile has
-none: club figures have no floor. On
-the Dashboard it's per tile or graph, and only where a floor really applies
-(`dashboardItemFloorNote`): every player tile and graph in the Starter view
-(not on picked players, and not on team tiles or graphs). The same icon in
-amber (`SmallSampleBadge`, hover text `smallSampleNote`) marks a small
-sample on the profile's radar titles and on Player Comparison's radar
-and Outputs legends — no banner or "(small sample)" text.
-On a Player Comparison card the user builds, the same amber badge marks a
-player under the card's Min Minutes (`belowMinimumNote`).
-
-**Historic Average there counts only seasons of 450+ minutes** (the
-owner's rule, `HistoricPlayerProfile.floorWindowAverage`, used through
-`resolvePlayerStats`'s `fixedFloorSeasons`). Two
-seasons of 1,800 and 450 minutes and one of 300: the average is the first
-two, and none of the 300-minute season's figures count. So every Historic
-Average there is built from real samples, and the floor needs no second
-check on the average. A player who played in the window but never reached
-450 in a season has no Historic Average there: a small sample (figures
-"—"), not "no data" (`isShortOfFixedFloor`, `isFixedFloorSmallSample`).
-Only 0 minutes throughout is "no data". The window is always the last 4
-completed seasons; a season that falls short is never replaced by an older
-one. One qualifying season is enough.
+**The marker** (`<minutes_marker>`, `components/MinutesFloorBadge.tsx`): the
+amber stopwatch is the **one** sign of a minimum-minutes threshold,
+anywhere — no other symbol — so you can see where every threshold lands.
+Its hover text always names the threshold. Two uses:
+- **On a view where a threshold is in force:** the Data View toggle of a
+  player view in Historic Average (its 450-minute seasons;
+  `historicSeasonsNote`), and the profile's always (`profileFloorNote`);
+  Player Explorer's Mins header when a "≥"/"=" filter is set; Team
+  Building's Min minutes label when set, and its Historic/Raw toggle in
+  Historic Average; each Dashboard player tile or graph with a threshold —
+  the Starter floor, its own Min Minutes above 0, or Historic Average
+  (`dashboardItemFloorNote`); each Player Comparison card with one
+  (Starter's floor, a card's Min Minutes above 0, or Historic Average);
+  Team Building's Model Predicted header (its bonus rate uses only window
+  seasons of 900+ minutes, `MIN_QUALIFYING_SEASON_MINUTES`).
+- **On an entry under one:** a row in Player Explorer, Team Building's Add
+  Players and a Dashboard tile (`RowSmallSampleBadge`, no minutes counting
+  as 0); the profile's radar, Underlying Numbers and Value card titles for
+  a small sample; an under-floor season on the profile's Points History
+  chart; the Match Log heading when the shown season is under the floor;
+  the profile's Understat Shot Map title when he's under Understat's own
+  floor for every season shown; a Player Comparison legend entry, trend
+  point and Outputs marker; a Team Profile formation's xG/90 and xGA/90
+  cells when it was used for under 90 minutes (`FORMATION_MIN_MINUTES`:
+  too few for a rate — not a club floor, which clubs don't have).
 
 Details:
-- Default 0 everywhere the user can set it (`DEFAULT_MIN_MINUTES`,
-  `state/scoutingFilters.ts`). A player whose minutes are `null` for the
-  mode is retained, not filtered.
-- Most pages **bypass** Min Minutes in Current Season (`effectiveMinMinutes`,
-  `state/useFilteredPlayers.ts`; Team Building: `pickerEffectiveMinMinutes`).
-- **Dashboard tiles and graphs apply it in every mode**, Current Season
-  included (`applyMinMinutesInLive`).
+- Default 0 everywhere you can set it (`DEFAULT_MIN_MINUTES`,
+  `state/scoutingFilters.ts`). The shared filter is `filterPlayers`
+  (`state/useFilteredPlayers.ts`); Team Building's is
+  `pickerMeetsMinMinutes`. Until 2026-10-19 both skipped Current Season
+  except on the Dashboard.
 - Per-game rates (PPG, xG/xA/xGI/xGC/DC/Def. Reward per game, Goals/Game,
-  Assists/Game) have **no built-in floor** anywhere the user can set Min
-  Minutes or a Mins filter: a Dashboard tile or graph the user builds, and
-  Player Explorer. A one-cameo player can top them; raising Min Minutes is
-  the user's call.
-- The packaged Starter view ("Default" in code), which the user can't edit, leaves players
-  under the fixed floor out of **every** player tile and graph, totals and
-  per-game rates alike (`applyDefaultViewFloor`, `playersForDashboardItem`),
-  and reads Historic Average from 450+ minute seasons only
-  (`poolForDashboardItem`). Its player graphs have no Min Minutes of their
-  own (plain `DEFAULT_FILTERS`); the fixed floor is what keeps the hundreds
-  of fringe players from piling up at 0,0. Both are decided by the Players
-  Default view being the one selected (`isDefaultViewSelected`), not by a
-  tile's id: views saved before v1.35.0 can hold copies of Default tiles,
-  ids included. Specifically picked players are never floored. Team tiles
-  and graphs are club figures and have no floor.
+  Assists/Game) have **no built-in floor** for the rows where you set the
+  minimum: a one-cameo player can top them; raising it is your call.
 - Min Minutes takes any whole number as typed; the arrow buttons step by 90.
   In a dialog (Dashboard Add Tile/Add Graph, Player Comparison cards) it is
   a slider in whole matches up to a season's 3,420 (`MinutesSlider`), with
   the exact figure beside it — still typeable, any whole number, "Any" at 0.
-- Player Explorer has no Min Minutes control — its MINS column filter does
+- Player Explorer has no Min Minutes control — its Mins column filter does
   that job.
+- Other minute figures that aren't sample floors: Minutes Reliability uses
+  every season (a low-minutes season is the signal); the Playing Time
+  gauge's tiers (75% / 40% of 90) classify, they don't exclude.
 
 ### Club history: team figures are club figures
 
@@ -324,8 +352,14 @@ too.
   fixture into a `ClubMatch` per side — the score from the fixture, and
   FPL points, goals, assists, xG, xA, xGI, xGC and DC from that side's
   ledger rows for it (FPL serves xG and the rest per player only, never per
-  team). A season's figures are its matches summed; a stat any match lacks
-  is `null` for the season. Every `ClubSeason` carries its `matches`.
+  team). A season's figures are its matches summed, and a match's are its
+  players' rows summed (`<season_figures_mostly_complete>`,
+  `sumMostlyComplete`, the owner's rule 2026-10-19): an entry or two
+  without a stat doesn't blank it — the ones that have it are added up —
+  but when more than a quarter lack it (`MAX_MISSING_SHARE`), like
+  2022/23's expected stats, which start at GW16, it's `null`, since a sum
+  of part of a season would read as the whole season. On today's data no
+  club figure falls in between. Every `ClubSeason` carries its `matches`.
 - **2016/17–2025/26** were backfilled once from the vaastav community
   archive — the one approved exception to the official-API-only rule,
   because the official API doesn't serve past seasons' match data. It was
@@ -354,8 +388,8 @@ too.
   losses are whole numbers that add up to the games played
   (`resultsWithinPlayed`, `<results_within_played>`, the owner's rule):
   rounding each mean alone could show "38 played · 14W 11D 14L". League
-  position and points stay rounded means, so two clubs can share a
-  position.
+  position stays a rounded mean, so two clubs can share a position; every
+  other count (league points, goals…) shows 1 decimal (`<averaged_counts>`).
 - **Gaps:** club xG/xA/xGI/xGC (and per-player starts) exist from 2023/24;
   club DC from 2025/26. FPL only started tracking starts and expected stats
   at 2022/23 GW16, and the archive carries 0 for earlier gameweeks, so the
@@ -583,33 +617,44 @@ app shows "—" for those figures (never 0) until the next run.
     season draws a dot per shot, solid for a goal, an outline otherwise,
     sized by xG, part-transparent with 1px outlines, hover for detail.
     Understat places every penalty exactly on the spot, so stacked shots
-    hide each other: a point more than one goal was scored from gets a
-    count badge (its hover gives goals and shots from there). A
+    hide each other: a point more than one goal was scored from shows
+    the count in white on its violet dot, no badge behind it (its hover
+    gives goals and shots from there). A
     Historic Average shades zones (12 × 10) by shots a season. Figures:
     shots, on target (scored or saved), goals, xG, NPxG, xG/shot — per
-    season when averaged. Own goals are nobody's shots.
+    season when averaged. Own goals are nobody's shots. Each figure is
+    coloured (`understat/comparisons.ts`, "Comparative colouring"): a
+    player's within his position among every other player's Understat
+    figures for the same season(s), a club's among every club's — shots
+    faced fewer-is-better.
   - **Formations** (clubs, full width under the shot maps): each
     formation's share of the club's minutes, xG and xGA per 90, and goals
     scored and conceded, summed over the view's seasons, most-used first:
     the top 3 (`FORMATIONS_SHOWN`), and a chevron under them listing every
-    one used. A formation used for under 90 minutes gets no rate ("—": the
-    profile has no minimum-minutes control, so a fixed floor applies). Season figures
+    one used. A formation used for under 90 minutes gets no rate: its xG/90
+    and xGA/90 cells carry the amber stopwatch (`<minutes_marker>`), never "—"
+    (missing data) — too few minutes for a rate, not a club floor. Season figures
     only: Understat doesn't record a formation per match.
   - **Match Log columns** (violet headers; the log's heading turns rose,
     "FPL & Understat · Match Log"): a player's **Position** in each match
     (Understat's code, spelled out on hover; "Sub" off the bench), and a
     club's **Win/Draw/Loss Chance**: Understat's chances of each result
     from the shots both sides took, worked out *after* the match. No Totals
-    ("—"). The Average (the mean chance over the listed matches Understat
+    by design, so that cell is blank ("—" means missing data). The Average (the mean chance over the listed matches Understat
     has; see below) is coloured against every club's mean that season
     (`league` in the club slice, from the season's profile file),
-    `relativeCellTint` like the log's FPL columns: more win chance better,
+    ranked like the log's FPL columns ("Comparative colouring"; its own
+    entry in `league` left out): more win chance better,
     more loss chance worse, draw chance uncoloured.
   - **Match Log ⇄ toggles** (`playerMatchAlternates`,
     `clubMatchAlternates`): on the figures both sources have — a player's
     Minutes, Assists, xG, xA, xGI; a club's Assists, xG, xA, xGI, xGC (its
     xG against). Switched, the whole column is Understat's: each match,
-    Totals and Average, untinted (`<one_source_per_figure>`). A match FPL
+    Totals and Average, their colours ranked on Understat's own season
+    figures (`understat/comparisons.ts`: a player within his position at
+    Understat's own 90/450 minutes, per-match against each other's total ÷
+    his club's matches — 38 in a completed season; a club among every
+    club) — `<one_source_per_figure>`. A match FPL
     says the player didn't play is a provable 0; one he played that
     Understat lacks, or any before its figures load, is "—". Starts on FPL
     for each profile opened.
@@ -621,7 +666,8 @@ app shows "—" for those figures (never 0) until the next run.
     worked out over the listed matches it has a figure for, leaving the
     rest out rather than counting them as 0 (a provable 0 above still
     counts); the cell's hover says "From the N of M matches Understat has
-    a figure for". "—" only when it has none of them.
+    a figure for". "—" only when it has none of them. The same rule as
+    every Match Log (`<partial_totals>`, "Totals rows").
 - Its User Guide section and metric definitions live in
   `client/src/understat/guide.tsx`, shown through the slot.
 
@@ -714,7 +760,6 @@ by a fraction of one upcoming match.
   radars use the fixed floor, so a player under it has none (see "Minimum
   minutes"); a Player Comparison radar the user builds uses its own Min
   Minutes instead.
-  Bands: 90+ Excellent, 70–89 Good, 30–69 Average, <30 Poor.
   Lower-is-better stats (xGC, Min/Goal) are flipped. A lower-is-better
   **total** that grows with minutes ranks on its rate instead
   (`PlayerColumn.rankBy`, `rankValue()`): a player's total xGC is ranked,
@@ -734,9 +779,38 @@ by a fraction of one upcoming match.
   minutes per match in the player's log (0-minute matches included; a
   double gameweek is two matches). ≥75% of 90 is a starter, 40–74%
   rotation, <40% fringe.
-- **Comparative colouring** (`utils/colorScale.ts`): tables tint each column
-  relative to the rows on screen; single-player cards tint by
-  within-position percentile.
+- **Comparative colouring** (the owner's rule, 2026-10-19;
+  `metrics/comparativeColour.ts`, `<comparative_colouring>`): one rule for
+  green and red wherever a figure is shown — tables, Dashboard tiles,
+  Team Building's pitch cards, profile tiles, Match Log and Points History
+  rows, Understat's columns and shot figures:
+  - a **player's** figure is ranked within his position (today's) among
+    the whole pool for that view's Data View — never only the rows a
+    filter, search, minimum minutes or picked-player list leaves on screen,
+    so a colour doesn't change as a table is narrowed and matches the
+    profile's;
+  - a **club's** figure is ranked among every club with one (all 20);
+    upcoming fixture difficulty is a club figure wherever it's shown;
+  - a player under the **fixed floor** for the Data View (90 minutes in
+    Current Season, 450 otherwise) has no colour and isn't in anyone's
+    pool — on every page, including those where the user sets minimum
+    minutes for the rows themselves (see "Minimum minutes"). Understat
+    figures check Understat's own minutes. Clubs have no floor, and nor
+    do forward-looking figures: Team Building's two Exp. Pts, Minutes
+    Reliability and every colour on its pitch cards (M20, 2026-10-19);
+  - the rank is a percentile (half of ties below) flipped for
+    lower-is-better figures; `percentileTint` (`utils/colorScale.ts`)
+    turns it into the one scale: no colour at the 50th, stronger green
+    above, stronger red below. A pool of fewer than two has no colour.
+  - More is better for goals, assists, wins, points and the like,
+    over-performance included (Goals − xG, Assists − xA, Pts − xPts).
+    **Price and ownership are coloured, less is better** (cost efficiency,
+    differential points). Never coloured (`noColour`, `colourDirection`):
+    games played, draws and style statistics (Set-Piece xG %, Assisted
+    Shots %, PPDA, Opp. PPDA). A player's own shots blocked count as worse.
+  - Player Comparison's per-player colours and the Dashboard's charts use
+    neither green nor red, so nothing reads as better or worse by its
+    series colour.
 - **Historic data caveats:** `history_past` carries FPL's placeholder 0 /
   `"0.00"` for starts and the xG family (xG, xA, xGI, xGC) before 2022/23
   (Pickford 2021/22: 3,150 minutes, 0 starts), so those are `null` ("—")
@@ -752,8 +826,47 @@ by a fraction of one upcoming match.
   parts (Influence, Creativity, Threat) are in `history_past` for every
   season (Pickford: 89–135 saves a season since 2016/17; live API checked
   2026-10-18), so they follow every Data View.
-- **Signed figures** (`fmtSigned`): signed and coloured by the value as
-  shown, so a tiny negative reads "0.00", not a red "-0.00".
+- **Totals rows** (the owner's rule, 2026-10-19; `metrics/partialTotals.ts`,
+  `<partial_totals>`): one rule for every Totals and Average row under a
+  list of matches — the player and club Match Logs, live and past seasons,
+  FPL and Understat columns, and the past-season comparison pools
+  (`seasonTotals`, server). A match with no figure for a column is left
+  out: Totals adds up the matches that have one, Average divides by those
+  same matches, and when that's only some of the listed matches the cell
+  says so on hover ("From the N of M matches that have a figure"; for
+  Understat, "…Understat has a figure for"). "—" only when none has one.
+  In a player's log a match he didn't play in is a provable 0 — unless no
+  match he played has the figure (a stat FPL didn't record that season),
+  which is "—", never 0. A cell with no total by design (Understat's
+  Win/Draw/Loss Chance Totals, Position) is blank: "—" always means
+  missing data. (A club's *season* figures — Team Explorer, Season Totals
+  — follow their own rule, `<season_figures_mostly_complete>` in "Club
+  history": totalled unless more than a quarter of matches lack the stat.)
+- **Figures a position can't have** (`<position_only_figures>`,
+  `PlayerColumn.positions`, `columnApplies`, `cellText`): FPL never
+  credits a goalkeeper with a defensive contribution (checked: no
+  goalkeeper match in 2025/26 has DC above 0, though they do have tackles,
+  CBI and recoveries), and only a goalkeeper makes saves. So DC and
+  DC/Game are goalkeeper-impossible, and Saves, Saves/Game and Pens Saved
+  outfield-impossible: the figure is `null` for those positions (out of
+  sorts, filters, colours, tiles, graphs and Player Comparison) and the
+  cell is **blank** — not "—" (missing data) and never 0. The profile
+  leaves those columns and tiles out altogether for the one player shown.
+- **Historic Average counts** (`<averaged_counts>`, `columnForMode`,
+  `teamColumnForMode`, `countDecimals`): a Historic Average is a mean of
+  seasons, so a whole-number count (goals, assists, points, cards, saves,
+  clean sheets…) shows **1 decimal** there — 0.4 goals a season reads
+  "0.4", never a "0" that looks like a real zero — in tables and their
+  filters (which compare the figure as shown), CSV exports, Dashboard
+  tiles and graphs, Player Comparison cards and profile tiles. Kept whole:
+  minutes (hundreds a season), a club's league position (a place), games
+  played, and W/D/L (`<results_within_played>`). Every other Data View is
+  unchanged.
+- **Signed figures** (`fmtSigned`): signed by the value as shown, so a
+  tiny negative reads "0.00", not "-0.00". In tables and tiles their
+  colour is the comparative one like any figure; the profile's Actual vs
+  Expected bars show the direction (green over, red under, by the figure
+  as shown).
 
 ---
 
@@ -855,8 +968,9 @@ word as an initial that must start a name word (`utils/playerSearch.ts`).
   full list — and a filter that shrinks the list restages it when cleared.
   Rows are `React.memo` components (`ExplorerRow`, `PickerRow`) with stable
   props, so a filter popover, a sort or a newly staged batch doesn't redraw
-  rows that haven't changed; tint ranges come from the unsorted rows for the
-  same reason. Player Explorer's Player column is sized by the browser to its
+  rows that haven't changed; the colour ranks come from the whole pool
+  (`allRows`, Team Building's `pickerAllRows`), so neither a sort nor a
+  filter recomputes them. Player Explorer's Player column is sized by the browser to its
   widest name, so while rows are staged the likeliest-widest undrawn Player
   cells sit in hidden `visibility: collapse` rows (`.width-sizer-row`, which
   still count towards column widths) — the column is its final width from
@@ -890,8 +1004,10 @@ The Match Log shows the live season unless a season is picked on Points
 History (each bar is a button; the picked one is outlined, and the live
 bar goes back); it never follows the Data View. A past season's rows come
 from `/api/player-seasons` (`usePlayerPastSeasons`, fetched the first time
-one is picked), its Totals "—" for a stat any match he played lacks
-(never a part-sum); a season before 2016/17 has no match record and says
+one is picked); its Totals and Average follow "Totals rows" (the
+matches with a figure added up, the hover saying how many when it's only
+some; a stat FPL didn't record that season, like xG before 2022/23, is
+"—", never 0); a season before 2016/17 has no match record and says
 so. A past season's Totals and Average are tinted like the live season's
 (`<past_season_tints>`): ranked within his position that season (his
 position then, from the ledger) among everyone at or above the fixed
@@ -900,8 +1016,8 @@ his log's matches against each other player's total ÷ theirs (every
 player's full log exists for a past season, so no club-matches stand-in).
 The pool comes with his rows (`peers` in `/api/player-seasons`,
 `peersFor` in `clubHistory/playerMatches.ts`), each player's totals
-under the same null rule. Under the floor, or a stat FPL didn't record,
-no colour. Playing Time follows the shown season. Rows are keyed by fixture,
+under the same Totals rule. Under the floor, or a stat FPL didn't record,
+no colour (positions here are the ledger's for that season). Playing Time follows the shown season. Rows are keyed by fixture,
 so a double gameweek is two rows. With a second source mounted its columns
 join the log (its colour) and the heading reads "FPL & Understat · Match
 Log" (rose). The live log's Totals row is
@@ -913,8 +1029,8 @@ their club's finished matches (`metrics/profileComparisons.ts`,
 Current Season floor for both; no colour if no one else qualifies (e.g.
 fixtures failed to load). Only columns with a whole-pool season total are
 shown, so both rows can be compared. Points History (`playerProfile/PointsHistory.tsx`,
-shared with the Team Profile: bars with their own figures, no axis) uses the profile's Historic Average (window
-seasons of 450+ minutes; the others are marked †); its "(live)" season is resolved as Current Season,
+shared with the Team Profile: bars with their own figures, no axis) uses the Historic Average (window
+seasons of 450+ minutes; a window season under that carries the amber small-sample stopwatch, one outside the window "†"); its "(current season)" season is resolved as Current Season,
 so pre-season it reads 0, not FPL's carried-over totals. The gameweek-history
 fetch (`usePlayerHistory`) is lazy, retries network failures twice, and
 drops responses for a player no longer selected.
@@ -924,13 +1040,14 @@ drops responses for a player no longer selected.
   nothing about the player having no data; Points History then shows its
   seasons with no window marks and no average. "No data in this mode"
   suggests only the other Data Views that do have figures for him.
-- Points History's season-by-season table tints each column against this
-  player's own seasons, except Price: a season's mid price
-  ((start + end) ÷ 2, `seasonMidPrice`) ranked, lower better, among every
-  other player's that season at or above the fixed floor, all positions
-  (`seasonPricePools` over `allTimeSeasonsByPlayerId`, so only players
-  still in FPL; the live season against today's prices at the Current
-  Season floor). A season of his under the floor has no colour.
+- Points History has no season-by-season table (removed 2026-10-19, the
+  owner's call: the Match Log, linked to the chart, holds the same
+  figures). What only the table had moved to the Match Log: a **Starts**
+  column (total and per-match average; the past-season pool carries
+  `starts`), the season's **price** in the heading (start → end; today's
+  for the current season), and, for a season before 2016/17 with no match
+  record, FPL's **season totals** in a one-row table
+  (`SeasonTotalsTable`).
 - Both profiles are modal dialogs (`role="dialog"`, focus moved in and kept
   there, then returned: `state/useDialogFocus.ts`) and close on Escape
   (`useEscapeLayer`). An address naming a player or club that doesn't exist
@@ -940,7 +1057,8 @@ drops responses for a player no longer selected.
 — one page-level list of up to 5 players (`?players=`, read as whole ids,
 each once, at most 5), compared by every
 card in the selected view. Each player's colour is his place in the list
-(`seriesColors.ts`: the app's accent tokens).
+(`seriesColors.ts`, `--series-*`: blue, gold, orange, white, grey — never
+green or red, which mean better and worse, nor a source's violet or rose).
 - Views (`useComparisonViews`) are layouts only — never players — of three
   element kinds, one section each: **radar** (3–8 axes) and **outputs** (up
   to 12 rows), each with its own Data View, from `COMPARISON_METRICS`
@@ -954,12 +1072,13 @@ card in the selected view. Each player's colour is his place in the list
   immediately; a stored card of an unknown kind is dropped, one with unknown
   metric keys shows as "unavailable" but can be removed.
 - Minimum minutes follow the Dashboard's split. On **Starter** every card
-  uses the fixed floor, pools are resolved with `fixedFloorSeasons`, and
-  cards show the stopwatch badge. On any other view each card has its own
-  `minMinutes` (store v2; 0 by default) and pools are resolved without
-  `fixedFloorSeasons`. Either way the threshold is per card: a player under
+  uses the fixed floor. On any other view each card has its own
+  `minMinutes` (store v2; 0 by default), in every Data View. Each card
+  with a threshold — Starter's, its own above 0, or Historic Average's
+  450-minute seasons — shows the amber stopwatch (`<minutes_marker>`). No
+  minutes counts as 0. Either way the threshold is per card: a player under
   it gets the amber badge on that card, isn't drawn on a radar, gets a
-  hollow grey Outputs marker (pinned to the end with ▸ when past the
+  stopwatch for its Outputs marker (pinned to the end with ▸ when past the
   leader), doesn't set the Outputs scale or tint its bar, and can't be bold.
 - Radar percentiles are within position, among everyone at or above the
   card's threshold (`comparisonPercentiles`, the same figure as
@@ -977,7 +1096,7 @@ card in the selected view. Each player's colour is his place in the list
 - Trends use the full unwindowed career (`allTimeSeasonsByPlayerId`,
   completed seasons). A season under the card's threshold (450 on Starter)
   still plots the real figure; its minutes are kept under `trendBelowKey`,
-  so its point is an amber ring and the hover text adds the minutes.
+  so its point is the amber small-sample stopwatch and the hover text adds the minutes.
 
 **Team Explorer / Team Profile** (`pages/Teams.tsx`, `components/TeamDetailOverlay.tsx`) — club
 figures per "Club history" above. Club pills use real two-colour kits
@@ -991,8 +1110,9 @@ off. Headers wrap between words on narrow screens, each column floored at its
 longest word (`TEAM_MIN_COLUMN_WIDTHS`).
 - The Team Profile's header (position, league points, played, W/D/L)
   follows its Data View like every other club figure, formatted as Team
-  Explorer's columns show it (`teamHeaderLine`): a Historic Average is the
-  rounded mean, and a season the club has no record of reads "—".
+  Explorer's columns show it (`teamHeaderLine`): in a Historic Average the
+  league position is the rounded mean, W/D/L the shared-out whole numbers
+  and league points 1 decimal; a season the club has no record of reads "—".
 - **Club figures only — no players** (the owner's rule, 2026-09-26): no
   squad list, no player names, no link to player pages, and no minutes
   floor or badge.
@@ -1005,8 +1125,9 @@ longest word (`TEAM_MIN_COLUMN_WIDTHS`).
   per finished match, most recent first: GW, opponent (H/A), result, then
   FPL Points, Goals, Assists, xG, xA, xGI, Clean Sheets, xGC and Defensive
   Contributions, then any second source's columns. The Totals and Average
-  (per match) rows are tinted against every club's log for the same
-  season (`relativeCellTint`); a column any match lacks shows "—".
+  (per match) rows are coloured against every other club's log for the
+  same season ("Comparative colouring"); a column some matches lack follows
+  "Totals rows".
 - The team Defense radar ranks more Defensive Contributions as better
   (`TEAM_DEFENSE_AXES`), as for a player — they're FPL points. A dominant
   side that rarely has to defend can sit low on that one axis while topping
@@ -1250,9 +1371,9 @@ time it's opened, before the app appears; an open one finds it within about
   full time, while players' Current Season totals include a match from
   kick-off; during a gameweek the league table and club totals run a round
   behind (the owner's decision: FPL stays the authority). Once FPL confirms
-  a match, fixture-based standings catch up on the 10-minute poll, but the
-  club figures from the historic dataset wait for Refresh Data or the 12-hour
-  cache.
+  a match, fixture-based standings catch up on the 10-minute poll, and the
+  club figures from the historic dataset with the automatic rebuild that
+  follows (at most an hour later).
 - Validation still defaults a few counts FPL has always sent (gameweek-row
   and `history_past` goals, assists, bonus and the like, to 0) and FDR (to 3);
   if FPL ever dropped one of those fields it would read as a real 0 or an

@@ -145,20 +145,21 @@ describe("clubSeasonHistory", () => {
 });
 
 describe("teamHeaderLine — the Team Profile header follows the Data View (audit 2026-09-25 player-team-profiles M1)", () => {
-  it("shows a season's league line, and a Historic Average rounded the way Team Explorer shows it", () => {
+  it("shows a season's league line, and a Historic Average shown the way Team Explorer shows it", () => {
     // 2024/25 is a real 38-game record (21W 9D 8L). This fixture used to be
     // 21W 10D 8L — 39 results in 38 games — which hid R1 (3-regression.md).
     const history = { ...ctx, clubSeasons: [clubSeason(101, "2025/26", { leaguePosition: 3, leaguePoints: 71 }), clubSeason(101, "2024/25", { leaguePosition: 4, leaguePoints: 70, wins: 21, draws: 9 })] };
     const [last] = computeTeamAggregates([teams[0]], "lastSeason", history);
-    expect(teamHeaderLine(last)).toBe("3rd in table · 71 pts · 38 played · 20W 10D 8L");
+    expect(teamHeaderLine(last, "lastSeason")).toBe("3rd in table · 71 pts · 38 played · 20W 10D 8L");
     const [avg] = computeTeamAggregates([teams[0]], "historicAverage", history);
-    // 3.5 → 4th, 70.5 → 71; results 20.5W 9.5D 8L share out as 21W 9D 8L = 38, never 21W 10D 8L = 39.
-    expect(teamHeaderLine(avg)).toBe("4th in table · 71 pts · 38 played · 21W 9D 8L");
+    // 3.5 → 4th (a place, kept whole); 70.5 league points shown as Team Explorer shows a Historic Average count (<averaged_counts>);
+    // results 20.5W 9.5D 8L share out as 21W 9D 8L = 38, never 21W 10D 8L = 39.
+    expect(teamHeaderLine(avg, "historicAverage")).toBe("4th in table · 70.5 pts · 38 played · 21W 9D 8L");
   });
 
   it("is — for a season the club has no record of", () => {
     const [none] = computeTeamAggregates([teams[1]], "lastSeason", { ...ctx, clubSeasons: [] });
-    expect(teamHeaderLine(none)).toBe("—");
+    expect(teamHeaderLine(none, "lastSeason")).toBe("—");
   });
 });
 

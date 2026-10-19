@@ -58,35 +58,31 @@ describe("Historic Average counts only seasons with at least the floor (450 min)
     expect(profile.floorSeasonsInWindow.map((s) => s.seasonName)).toEqual(["2023/24", "2025/26"]);
     expect(profile.floorWindowAverage?.seasonsPlayed).toBe(2);
     expect(profile.floorWindowAverage?.avgPointsPerSeason).toBeCloseTo(120 / 2);
-    // Everywhere else still counts every window season.
-    expect(profile.windowAverage?.seasonsPlayed).toBe(4);
+    // There's no second, every-season Historic Average any more (the owner's rule, 2026-10-19).
+    expect("windowAverage" in profile).toBe(false);
   });
 
-  it("resolvePlayerStats uses it only with fixedFloorSeasons", () => {
+  it("resolvePlayerStats' Historic Average is that one, everywhere", () => {
     const player = makePlayer({ id: 1, position: "MID" });
-    const floored = resolvePlayerStats(player, "historicAverage", profile, true, { fixedFloorSeasons: true });
-    expect(floored.totalPoints).toBeCloseTo(60);
-    expect(floored.minutes).toBeCloseTo(1125); // (1800 + 450) / 2 — never under the floor
-    expect(resolvePlayerStats(player, "historicAverage", profile, true).totalPoints).toBeCloseTo(140 / 4);
+    const resolved = resolvePlayerStats(player, "historicAverage", profile, true);
+    expect(resolved.totalPoints).toBeCloseTo(60);
+    expect(resolved.minutes).toBeCloseTo(1125); // (1800 + 450) / 2 — never under the floor
     // No effect on the other modes.
-    expect(resolvePlayerStats(player, "lastSeason", profile, true, { fixedFloorSeasons: true }).totalPoints).toBe(30);
+    expect(resolvePlayerStats(player, "lastSeason", profile, true).totalPoints).toBe(30);
   });
 
   it("a player who played but never reached the floor has no Historic Average there, and is a small sample, not 'no data'", () => {
     const light = buildHistoricPlayerProfile([makeSeason({ seasonName: "2024/25", minutes: 300 }), makeSeason({ seasonName: "2025/26", minutes: 400 })], "2025/26");
     const player = makePlayer({ id: 1, position: "MID" });
-    expect(resolvePlayerStats(player, "historicAverage", light, true, { fixedFloorSeasons: true }).minutes).toBeNull();
+    expect(resolvePlayerStats(player, "historicAverage", light, true).minutes).toBeNull();
     expect(isShortOfFixedFloor(light)).toBe(true);
     expect(isFixedFloorSmallSample(null, "historicAverage", light)).toBe(true);
-    // Where the user sets minutes himself, both seasons still count.
-    expect(resolvePlayerStats(player, "historicAverage", light, true).minutes).toBe(350);
   });
 
   it("only 0-minute seasons is no data, not a small sample", () => {
     const idle = buildHistoricPlayerProfile([makeSeason({ seasonName: "2024/25", minutes: 0 }), makeSeason({ seasonName: "2025/26", minutes: 0 })], "2025/26");
     const player = makePlayer({ id: 1, position: "MID" });
-    expect(resolvePlayerStats(player, "historicAverage", idle, true, { fixedFloorSeasons: true }).totalPoints).toBeNull();
+    expect(resolvePlayerStats(player, "historicAverage", idle, true).totalPoints).toBeNull();
     expect(isFixedFloorSmallSample(null, "historicAverage", idle)).toBe(false);
-    expect(resolvePlayerStats(player, "historicAverage", idle, true).totalPoints).toBe(0);
   });
 });

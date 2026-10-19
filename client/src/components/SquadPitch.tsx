@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass } from "./primitives";
 import { fmtPrice, fmtPercent, fmtDecimal, DASH } from "../utils/format";
 import { fdrColor, type UpcomingFixture } from "../metrics/fixtureTicker";
-import { bandForPercentile } from "../metrics/percentiles";
+import { percentileColour, percentileTint } from "../utils/colorScale";
 import { SQUAD_RULES } from "../types/team";
 import type { SquadValidation } from "../metrics/squadRules";
 import type { NormalizedPlayer, Position } from "../types/normalized";
@@ -54,6 +54,20 @@ function SquadStatusLine({ validation }: { validation: SquadValidation }) {
   );
 }
 
+/** Every player's ranks for the pitch cards' figures, by player id (<comparative_colouring>). */
+export interface PitchColourRanks {
+  points?: Map<number, number>;
+  model?: Map<number, number>;
+  reliability?: Map<number, number>;
+  price?: Map<number, number>;
+  ownership?: Map<number, number>;
+}
+type PitchCardRanks = { [K in keyof PitchColourRanks]?: number };
+
+function pitchCardRanks(ranks: PitchColourRanks, id: number): PitchCardRanks {
+  return { points: ranks.points?.get(id), model: ranks.model?.get(id), reliability: ranks.reliability?.get(id), price: ranks.price?.get(id), ownership: ranks.ownership?.get(id) };
+}
+
 function PlayerCard({
   player,
   zone,
@@ -63,6 +77,7 @@ function PlayerCard({
   expectedPoints,
   modelPredicted,
   reliability,
+  ranks,
   fixtures,
   onDropOnCard,
   onRemove,
@@ -80,6 +95,8 @@ function PlayerCard({
   modelPredicted: number | null;
   /** 0-1 blended reliability share, or null with neither historic nor live data. */
   reliability: number | null;
+  /** His ranks within his position for the card's figures (<comparative_colouring>) — none under the floor. */
+  ranks: PitchCardRanks;
   fixtures: UpcomingFixture[];
   onDropOnCard: (draggedId: number, targetId: number, targetZone: "pitch" | "bench") => void;
   onRemove: (id: number) => void;
@@ -89,7 +106,10 @@ function PlayerCard({
   const [isDragOver, setIsDragOver] = useState(false);
   const displayPoints = expectedPoints !== null && isCaptain ? expectedPoints * 2 : expectedPoints;
   const displayModelPredicted = modelPredicted !== null && isCaptain ? modelPredicted * 2 : modelPredicted;
-  const reliabilityBand = reliability !== null ? bandForPercentile(reliability * 100) : null;
+  const tintStyle = (rank: number | undefined) => {
+    const tint = percentileTint(rank);
+    return tint ? { backgroundImage: `linear-gradient(${tint}, ${tint})` } : undefined;
+  };
 
   return (
     <div
@@ -156,20 +176,25 @@ function PlayerCard({
         </div>
         <div className="pitch-card-team">{player.teamShortName}</div>
       </div>
-      <div className="pitch-card-points" title="FPL's own official expected points for the navigator-selected gameweek (captain doubled)">
+      <div className="pitch-card-points" style={tintStyle(ranks.points)} title="FPL's own official expected points for the navigator-selected gameweek (captain doubled)">
         {displayPoints !== null ? fmtDecimal(displayPoints, 1) : DASH} <span className="pitch-card-points-label">pts</span>
       </div>
       <div
         className="pitch-card-model-points"
+        style={tintStyle(ranks.model)}
         title="Expected Points Tier 2: this app's own independent estimate for the same gameweek, built from live per-event stats and FPL's real scoring rules (captain doubled)"
       >
         Model {displayModelPredicted !== null ? fmtDecimal(displayModelPredicted, 1) : DASH}
       </div>
       <div className="pitch-card-meta">
-        <span title="Price">{fmtPrice(player.price)}</span>
-        <span title="Ownership">{fmtPercent(player.ownership, 1)}</span>
+        <span className="pitch-card-stat" style={tintStyle(ranks.price)} title="Price">
+          {fmtPrice(player.price)}
+        </span>
+        <span className="pitch-card-stat" style={tintStyle(ranks.ownership)} title="Ownership">
+          {fmtPercent(player.ownership, 1)}
+        </span>
         <span className="pitch-card-reliability" title="Minutes reliability: blended historic and live playing time, adjusted for current availability">
-          <span className={`reliability-dot ${reliabilityBand ?? ""}`} />
+          <span className="reliability-dot" style={{ background: percentileColour(ranks.reliability) }} />
           {reliability !== null ? fmtPercent(reliability * 100, 0) : DASH}
         </span>
       </div>
@@ -188,6 +213,7 @@ export function SquadPitch({
   expectedPointsByPlayerId,
   modelPredictedByPlayerId,
   reliabilityByPlayerId,
+  colourRanks,
   fixturesByTeamId,
   gwOffset,
   onGwOffsetChange,
@@ -211,6 +237,8 @@ export function SquadPitch({
   expectedPointsByPlayerId: Map<number, number | null>;
   modelPredictedByPlayerId: Map<number, number | null>;
   reliabilityByPlayerId: Map<number, number | null>;
+  /** Every player's ranks for the cards' figures, from the Add Players table's pool (<comparative_colouring>). */
+  colourRanks: PitchColourRanks;
   fixturesByTeamId: Map<number, UpcomingFixture[]>;
   /** Which of the squad's next 1-5 upcoming fixtures both Exp. Pts figures currently estimate — 1 = the very next fixture. Same "next N fixtures" unit used throughout this app, not a calendar gameweek number (a blank gameweek has no fixture to select). */
   gwOffset: 1 | 2 | 3 | 4 | 5;
@@ -321,6 +349,7 @@ export function SquadPitch({
                   expectedPoints={expectedPointsByPlayerId.get(p.id) ?? null}
                   modelPredicted={modelPredictedByPlayerId.get(p.id) ?? null}
                   reliability={reliabilityByPlayerId.get(p.id) ?? null}
+                  ranks={pitchCardRanks(colourRanks, p.id)}
                   fixtures={fixturesByTeamId.get(p.teamId) ?? []}
                   onDropOnCard={onSwap}
                   onRemove={onRemove}
@@ -360,6 +389,7 @@ export function SquadPitch({
               expectedPoints={expectedPointsByPlayerId.get(p.id) ?? null}
               modelPredicted={modelPredictedByPlayerId.get(p.id) ?? null}
               reliability={reliabilityByPlayerId.get(p.id) ?? null}
+              ranks={pitchCardRanks(colourRanks, p.id)}
               fixtures={fixturesByTeamId.get(p.teamId) ?? []}
               onDropOnCard={onSwap}
               onRemove={onRemove}

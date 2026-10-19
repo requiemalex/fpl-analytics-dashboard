@@ -1,6 +1,7 @@
 import type { NormalizedPlayer, Position } from "../types/normalized";
 import type { PlayerDerivedMetrics } from "./playerMetrics";
 import { PLAYER_COLUMNS, isStaticColumn, type ColumnGroup } from "../components/playerColumns";
+import { isUnderMinimum } from "./fixedMinutesFloor";
 
 /** Section names for Player Comparison's metric pickers and Outputs panels. */
 export const COMPARISON_GROUP_LABELS: Record<ColumnGroup, string> = {
@@ -82,7 +83,8 @@ export function comparisonPercentiles(
     const d = derivedById.get(p.id);
     return d ? metric.rankValue(p, d) : null;
   };
-  const eligible = (p: NormalizedPlayer) => p.minutes !== null && p.minutes >= minMinutes;
+  // No minutes for the mode counts as 0 (<no_data_is_zero>).
+  const eligible = (p: NormalizedPlayer) => !isUnderMinimum(p.minutes, minMinutes);
   const positions = new Set(targets.map((t) => t.position));
   const pools = new Map<Position, number[]>();
   for (const p of population) {

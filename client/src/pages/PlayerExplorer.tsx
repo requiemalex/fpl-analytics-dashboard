@@ -10,13 +10,16 @@ import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePla
 import { getUpcomingFixtures, formatFixturesForCsv, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { PositionBadge, TeamBadge, AvailabilityFlag, availabilityTextClass, FixtureChips } from "../components/primitives";
-import { PLAYER_COLUMNS, columnByKey, isStaticColumn, rankValue, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
+import { PLAYER_COLUMNS, cellText, columnByKey, columnForMode, isStaticColumn, rankValue, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { IconChipButton, ResetIcon, ColumnsIcon, FilterIcon, DownloadIcon } from "../components/IconToolbar";
 import { fmtPercent, fmtPrice } from "../utils/format";
-import { relativeCellTint } from "../utils/colorScale";
+import { percentileTint } from "../utils/colorScale";
+import { colourDirection, fixtureDifficultyRanks, positionRanks } from "../metrics/comparativeColour";
 import { downloadCsv } from "../utils/csvExport";
 import { matchesPlayerSearch } from "../utils/playerSearch";
 import { useEscapeLayer } from "../state/useEscapeLayer";
+import { RowSmallSampleBadge, SmallSampleBadge, userMinimumNote } from "../components/MinutesFloorBadge";
+import type { ColumnFilterSpec } from "../state/useColumnFilters";
 import { useProgressiveRowCount, INITIAL_ROW_COUNT } from "../state/useProgressiveRowCount";
 import type { NormalizedPlayer, Position } from "../types/normalized";
 import { MenuGroupHeading, fplHeading } from "../components/MenuControls";
@@ -79,25 +82,30 @@ const EXPLORER_DEFAULT_VISIBLE_COLUMNS = ["totalPoints", "pointsPerGame", "goals
 /** Every sortable key on screen straight after Reset: the player name, the fixed columns and the default columns. */
 const EXPLORER_KEYS_AFTER_RESET = new Set<string>(["name", ...FIXED_COLUMN_KEYS, ...EXPLORER_DEFAULT_VISIBLE_COLUMNS]);
 
-type ColumnRanges = Map<string, { min: number; max: number }>;
+/** The minimum a Mins column filter sets ("≥" or "="), or null when it sets none — what its header's amber stopwatch names (<minutes_marker>). */
+function minutesFilterMinimum(spec: ColumnFilterSpec | undefined): number | null {
+  const min = spec?.gte ?? spec?.eq ?? null;
+  return min !== null && min > 0 ? min : null;
+}
+
+/** Per column key, each player's rank within his position (<comparative_colouring>). */
+type ColumnRanks = Map<string, Map<number, number>>;
 /** Shared empty list, so a team with no fixtures doesn't hand its rows a new array (and a re-render) every time. */
 const NO_FIXTURES: UpcomingFixture[] = [];
 
-function columnTint(ranges: ColumnRanges, player: NormalizedPlayer, derived: PlayerDerivedMetrics, c: PlayerColumn): string | undefined {
-  const range = ranges.get(c.key);
-  const v = rankValue(c, player, derived);
-  if (!range || v === null) return undefined;
-  return relativeCellTint(v, range.min, range.max, c.higherIsBetter !== false);
+function columnTint(ranks: ColumnRanks, player: NormalizedPlayer, c: PlayerColumn): string | undefined {
+  return percentileTint(ranks.get(c.key)?.get(player.id));
 }
 
 /** The sticky Player cell — shared by real rows and the width-sizer rows, so both measure exactly the same. */
-function PlayerCell({ player }: { player: NormalizedPlayer }) {
+function PlayerCell({ player, mode }: { player: NormalizedPlayer; mode: AnalysisMode }) {
   return (
     <td className="sticky-col">
       <div className="player-name-cell">
         <span className={`name ${availabilityTextClass(player.status)}`}>
           {player.name}
           <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />
+          <RowSmallSampleBadge minutes={player.minutes} mode={mode} />
         </span>
         <span className="meta">
           {fmtPercent(player.ownership)} · {fmtPrice(player.price)}
@@ -112,18 +120,22 @@ function PlayerCell({ player }: { player: NormalizedPlayer }) {
 interface ExplorerRowProps {
   player: NormalizedPlayer;
   derived: PlayerDerivedMetrics;
+  /** The Data View, for the row's small-sample marker. */
+  mode: AnalysisMode;
   columnsInOrder: (PlayerColumn | typeof FIXTURES_COLUMN_KEY)[];
   columnWidths: Record<string, number>;
-  columnRanges: ColumnRanges;
+  columnRanks: ColumnRanks;
   fixtures: UpcomingFixture[];
+  /** His club's next-fixtures difficulty colour (a club figure, ranked among clubs). */
+  fixturesTint: string | undefined;
   onOpenPlayer: (playerId: number) => void;
 }
 
 /** One table row. Memoized: opening a filter, dragging a header or adding more staged rows leaves the rows already drawn alone. */
-const ExplorerRow = React.memo(function ExplorerRow({ player, derived, columnsInOrder, columnWidths, columnRanges, fixtures, onOpenPlayer }: ExplorerRowProps) {
+const ExplorerRow = React.memo(function ExplorerRow({ player, derived, mode, columnsInOrder, columnWidths, columnRanks, fixtures, fixturesTint, onOpenPlayer }: ExplorerRowProps) {
   return (
     <tr onClick={() => onOpenPlayer(player.id)}>
-      <PlayerCell player={player} />
+      <PlayerCell player={player} mode={mode} />
       {IDENTITY_COLUMNS.map((c, idx) => {
         const width = columnWidths[typeof c === "string" ? c : c.key];
         const isFirst = idx === 0;
@@ -139,10 +151,9 @@ const ExplorerRow = React.memo(function ExplorerRow({ player, derived, columnsIn
             </td>
           );
         }
-        const value = c.getValue(player, derived);
         return (
-          <td key={c.key} className={className} style={{ ...widthStyle, backgroundColor: columnTint(columnRanges, player, derived, c) }}>
-            {c.format(value)}
+          <td key={c.key} className={className} style={{ ...widthStyle, backgroundColor: columnTint(columnRanks, player, c) }}>
+            {cellText(c, player, derived)}
           </td>
         );
       })}
@@ -159,11 +170,10 @@ const ExplorerRow = React.memo(function ExplorerRow({ player, derived, columnsIn
                 ...(width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden" } : {}),
               }}
             >
-              <FixtureChips fixtures={fixtures} />
+              <FixtureChips fixtures={fixtures} avgTint={fixturesTint} />
             </td>
           );
         }
-        const value = c.getValue(player, derived);
         const width = columnWidths[c.key];
         return (
           <td
@@ -171,10 +181,10 @@ const ExplorerRow = React.memo(function ExplorerRow({ player, derived, columnsIn
             className={dividerClass}
             style={{
               ...(width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } : {}),
-              backgroundColor: columnTint(columnRanges, player, derived, c),
+              backgroundColor: columnTint(columnRanks, player, c),
             }}
           >
-            {c.format(value)}
+            {cellText(c, player, derived)}
           </td>
         );
       })}
@@ -279,10 +289,11 @@ export function PlayerExplorer() {
   const [sourceChoice, setSourceChoice] = useState<ColumnSourceChoice>({});
   const lookupColumn = useCallback(
     (key: string): PlayerColumn | undefined => {
-      if (ext && extColumns && sourceChoice[key] === ext.id && extColumns.alternates[key]) return extColumns.alternates[key];
-      return columnByKey(key) ?? extOnlyByKey.get(key);
+      const c = ext && extColumns && sourceChoice[key] === ext.id && extColumns.alternates[key] ? extColumns.alternates[key] : (columnByKey(key) ?? extOnlyByKey.get(key));
+      // As this Data View shows it (<averaged_counts>): a Historic Average count has 1 decimal, its filter included.
+      return c && columnForMode(c, analysisMode);
     },
-    [ext, extColumns, sourceChoice, extOnlyByKey],
+    [ext, extColumns, sourceChoice, extOnlyByKey, analysisMode],
   );
   // If the second source goes away mid-session, a column switched to it
   // falls back to FPL; the filter set on the other source's figures goes
@@ -491,26 +502,34 @@ export function PlayerExplorer() {
     setSourceChoice((prev) => ({ ...prev, [key]: prev[key] === ext.id ? FPL_SOURCE : ext.id }));
   }
 
-  // Per-column min/max across the rows currently shown (post-filter,
-  // post-sort) — same scoping as Team Building's tint: "how does this
-  // compare to what you're looking at right now", not an absolute scale.
-  // Covers IDENTITY_COLUMNS too (Ownership/Price keep their comparative
-  // tint even though they're now a fixed block) — special columns are
-  // skipped either way: Fixtures already has its own per-chip FDR colour,
-  // and Team/Position are categorical (a min/max comparative tint would be
-  // meaningless for a team name or position) — a second tint layered on
-  // top would just be noise either way. Built from filteredRows (the same
-  // players as sortedRows, before ordering) so a sort alone doesn't produce
-  // new ranges and redraw every row.
-  const columnRanges = useMemo(() => {
-    const ranges = new Map<string, { min: number; max: number }>();
+  // Each column's colour (<comparative_colouring>): every player ranked
+  // within his position among the whole pool for this Data View (allRows —
+  // never the rows a search or filter leaves), anyone under the fixed floor
+  // left out and uncoloured. So a player's colour doesn't change as the
+  // table is narrowed, and matches his profile's. Covers the fixed columns
+  // too (Ownership, Price: less is better); Team and Position are
+  // categories, and Fixtures has its own club-ranked colour.
+  const columnRanks = useMemo(() => {
+    const ranks: ColumnRanks = new Map();
     for (const c of [...IDENTITY_COLUMNS, ...columnsInOrder]) {
       if (typeof c === "string") continue;
-      const values = filteredRows.map((r) => rankValue(c, r.player, r.derived)).filter((v): v is number => v !== null);
-      if (values.length > 0) ranges.set(c.key, { min: Math.min(...values), max: Math.max(...values) });
+      const higherIsBetter = colourDirection(c);
+      if (higherIsBetter === null) continue;
+      ranks.set(
+        c.key,
+        positionRanks(allRows, {
+          id: (r) => r.player.id,
+          position: (r) => r.player.position,
+          minutes: (r) => r.player.minutes,
+          mode: analysisMode,
+          value: (r) => rankValue(c, r.player, r.derived),
+          higherIsBetter,
+        }),
+      );
     }
-    return ranges;
-  }, [columnsInOrder, filteredRows]);
+    return ranks;
+  }, [columnsInOrder, allRows, analysisMode]);
+  const fixtureRanks = useMemo(() => fixtureDifficultyRanks(fixturesByTeamId), [fixturesByTeamId]);
 
   const nameSort = sort.find((s) => s.key === "name");
 
@@ -540,7 +559,7 @@ export function PlayerExplorer() {
     if (c === FIXTURES_COLUMN_KEY) return formatFixturesForCsv(fixturesByTeamId.get(player.teamId) ?? []);
     if (c === TEAM_COLUMN_KEY) return player.teamShortName;
     if (c === POSITION_COLUMN_KEY) return player.position;
-    return c.format(c.getValue(player, derived));
+    return cellText(c, player, derived);
   }
 
   // Matches exactly what's on screen — same rows (filtered/sorted), same
@@ -789,6 +808,9 @@ export function PlayerExplorer() {
                       }}
                     >
                       {label}
+                      {key === "minutes" && minutesFilterMinimum(columnFiltersState.columnFilters[key]) !== null && (
+                        <SmallSampleBadge note={userMinimumNote(minutesFilterMinimum(columnFiltersState.columnFilters[key])!, analysisMode)} />
+                      )}
                       {sortEntry && <span className="sort-indicator">{sortEntry.direction === "asc" ? "\u2191" : "\u2193"}</span>}
                       {canSwitchSource && <SourceToggle showingExternal={fromExt} externalLabel={ext.label} onToggle={() => toggleColumnSource(key)} />}
                       {fromExt && ext.staleNote && <SourceStaleMarker note={ext.staleNote} />}
@@ -839,16 +861,18 @@ export function PlayerExplorer() {
                   key={player.id}
                   player={player}
                   derived={derived}
+                  mode={analysisMode}
                   columnsInOrder={columnsInOrder}
                   columnWidths={columnWidths}
-                  columnRanges={columnRanges}
+                  columnRanks={columnRanks}
                   fixtures={fixturesByTeamId.get(player.teamId) ?? NO_FIXTURES}
+                  fixturesTint={percentileTint(fixtureRanks.get(player.teamId))}
                   onOpenPlayer={openPlayer}
                 />
               ))}
               {widthSizerRows.map((player) => (
                 <tr key={`sizer-${player.id}`} className="width-sizer-row" aria-hidden="true">
-                  <PlayerCell player={player} />
+                  <PlayerCell player={player} mode={analysisMode} />
                 </tr>
               ))}
             </tbody>

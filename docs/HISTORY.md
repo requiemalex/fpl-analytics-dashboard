@@ -3608,3 +3608,129 @@ tiles/graphs only:
   to sit under Points History. It is now the "Match Log" section, after
   Points History, live by default (`<match_log_follows_season>`).
 - **Last commit with it:** `285e6fc`.
+
+### Several colouring rules, replaced by one comparative colour (replaced 2026-10-19)
+- **What it did:** green/red came from four different rules.
+  - Player Explorer, Team Building's Add Players table and Team Explorer
+    tinted each cell on a straight line between the lowest and highest
+    value among the rows on screen, all positions together
+    (`relativeCellTint`), so the colour changed with every filter.
+  - Points History's season table tinted each season against the
+    player's own other seasons, the live season included; its Price
+    column against every player of every position (`seasonPricePools`).
+  - Team Profile tiles and Match Log rows, and Understat's Win/Loss
+    Chance averages, used the same straight min–max line across clubs.
+  - Team Building coloured +/- cells' text by sign (`SignedNum`) on top of
+    the background tint; Dashboard tiles coloured +/- bars by sign; pitch
+    cards' reliability dot used fixed bands (`bandForPercentile`: 90+
+    Excellent, 70–89 Good, 30–69 Average, <30 Poor); Player Comparison
+    drew its 3rd and 4th players in green and red; Dashboard charts were
+    green.
+- **Why it went:** the owner's universal rule (2026-10-19): a figure's
+  colour is its rank within the player's position over the whole pool, or
+  among all clubs, with the fixed floor on every page. On 2025/26 data the
+  old table tint left 98–99% of players red for Goals (the top-scoring
+  defender red beside Haaland's 27), and the same player was red in Player
+  Explorer and green on his profile.
+- **Last commit with it:** `4edfc00`.
+
+### Totals rows that went "—" when any match lacked a figure (replaced 2026-10-19)
+- **What it did:** three rules for a Match Log's Totals. A player's
+  past-season log showed "—" for a column if any match he played lacked
+  the figure (`pastSeasonTotal`, and the server's comparison pool
+  `seasonTotals`); the club log showed "—" if any match lacked it
+  (`matchLogTotal`); the live log and Understat added up the matches they
+  had, the live log then dividing its Average by every match listed
+  (`computeGameweekTotals` / `computeGameweekAverages` in
+  `metrics/rotationIndicators.ts`).
+- **Why it went:** the owner's universal rule (2026-10-19): a Totals row is
+  the total of the rows that have data, missing ones not counted, with a
+  hover note saying how many matches it covers (`metrics/partialTotals.ts`).
+- **Last commit with it:** `4edfc00`.
+
+### Small-sample markers other than the amber stopwatch (replaced 2026-10-19)
+- **What it did:** a season under the fixed floor was marked "†" in the
+  profile's Points History table and on its chart's hover text (the same
+  mark as a season outside the 4-season window); a Player Comparison trend
+  season under a card's minimum was a hollow amber ring
+  (`cmp-trend-below-dot` circle); an under-minimum player's Outputs marker
+  was a hollow grey bar; tables showed an under-floor player's cells
+  uncoloured with no mark at all.
+- **Why it went:** the owner's display-rules review (2026-10-19, D3): one
+  idea, one signal. The amber stopwatch (`SmallSampleBadge`,
+  `RowSmallSampleBadge`, `MinutesFloorIcon`) is now the only small-sample
+  mark; "†" means only "outside the window".
+- **Last commit with it:** `4edfc00`.
+
+### A goalkeeper's DC and an outfielder's saves shown as 0 (replaced 2026-10-19)
+- **What it did:** Player Explorer, Team Building and the Dashboard showed
+  Defensive Contributions (and DC/Game) for goalkeepers, and Saves,
+  Saves/Game and Pens Saved for outfielders, as 0 — figures FPL never
+  records for those positions — and ranked them; only the profile hid them.
+- **Why it went:** the owner's display-rules review (2026-10-19, D5): the
+  same column mustn't be hidden in one place and 0 everywhere else. They're
+  now blank (and out of every ranking) for those positions
+  (`PlayerColumn.positions`).
+- **Last commit with it:** `4edfc00`.
+
+### LocalViewControls (removed 2026-10-19)
+- **What it did:** a combined analysis-mode toggle and criteria bar in one
+  card (`components/LocalViewControls.tsx`). Nothing had used it since the
+  pages moved to their own `AnalysisModeToggle` and `FiltersBar`.
+- **Why it went:** unused code (display-rules review 2026-10-19, D10).
+- **Last commit with it:** `4edfc00`.
+
+### Points History's season-by-season table (removed 2026-10-19)
+- **What it did:** a chevron under the player profile's Points History
+  chart opened a table of every season (Season, Price start–end, Mins,
+  Starts, Points, Goals, Assists, CS, xG, xA, xGI), each cell coloured
+  against the players in his position (today's) that season
+  (`seasonPositionPools`, `seasonMidPrice` in `metrics/profileComparisons.ts`),
+  "*" marking a light season (under 900 minutes, still counted) and "†" one
+  outside the window.
+- **Why it went:** the owner's call: the Match Log, linked to the chart and
+  carrying Understat's figures, duplicates it. What only the table had
+  moved there — a Starts column, the season's price in the heading, and
+  FPL's season totals for a season before 2016/17. It also ended D7: the
+  table coloured a past season against today's position, the Match Log
+  against his position that season. The light-season "*" went with it.
+- **Last commit with it:** `4edfc00`.
+
+### Two Historic Averages, and Min Minutes skipped in Current Season (replaced 2026-10-19)
+- **What it did:** where the user set minimum minutes (Player Explorer,
+  Dashboard tiles and graphs they build, Comparison cards they build, Team
+  Building), Historic Average counted every window season, 0-minute ones
+  included (`HistoricPlayerProfile.windowAverage`); elsewhere only 450+
+  seasons counted (`ResolveOptions.fixedFloorSeasons`; the Dashboard's
+  `poolForDashboardItem` / `historicFixedFloorSeasons`). Min Minutes was
+  skipped in Current Season (`effectiveMinMinutes`, FiltersBar's
+  "(bypassed)", Team Building's greyed box `pickerEffectiveMinMinutes`)
+  except on the Dashboard (`applyMinMinutesInLive` / `minMinutesInLive`),
+  and a player with no minutes was kept by the Dashboard's filter but
+  dropped by Team Building's. A view's floor badge was a grey stopwatch.
+- **Why it went:** the owner's decisions on the display-rules review (D1,
+  D4): one Historic Average (450+ seasons) everywhere; the user's minimum
+  applies in every Data View; no data counts as 0 minutes; and every
+  minutes threshold shows the amber stopwatch, on the view and on each
+  entry under it.
+- **Last commit with it:** `4edfc00`.
+
+### Team Building colours tied to the Historic/Raw minutes (replaced 2026-10-19)
+- **What it did:** every Add Players colour, the two Exp. Pts and Minutes
+  Reliability included, and every pitch-card colour, left out players under
+  the fixed floor for the Historic/Raw toggle's Data View — so a new
+  signing with no minutes last season had no colour on his Exp. Pts, and
+  the pitch changed colour with the toggle.
+- **Why it went:** the owner's call (M20): forward-looking figures aren't a
+  Data View's sample, so no minutes floor decides their colour.
+- **Last commit with it:** `4edfc00`.
+
+### Club season figures null when any match lacked a stat (replaced 2026-10-19)
+- **What it did:** `aggregateClubSeason` (server) made a club's season xG,
+  xA, xGI, xGC or DC null if a single match lacked it, and a match's null
+  if a single player row did (`sumOrNull`).
+- **Why it went:** the owner's rule: an entry or two missing still totals;
+  only a large share missing (over a quarter, like 2022/23's expected
+  stats) blanks it (`sumMostlyComplete`). No club figure on today's data
+  changes.
+- **Last commit with it:** `4edfc00`.

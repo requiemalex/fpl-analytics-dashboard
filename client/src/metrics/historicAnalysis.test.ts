@@ -41,7 +41,7 @@ describe("buildHistoricPlayerProfile", () => {
     const profile = buildHistoricPlayerProfile(seasons, null);
     expect(profile.lastCompletedSeason).toBeNull();
     expect(profile.allSeasonsInWindow).toEqual([]);
-    expect(profile.windowAverage).toBeNull();
+    expect(profile.floorWindowAverage).toBeNull();
   });
 
   it(`windows exactly the most recent ${HISTORIC_WINDOW_SEASONS} seasons (cutoff = referenceYear - (window-1))`, () => {
@@ -58,27 +58,26 @@ describe("buildHistoricPlayerProfile", () => {
     expect(profile.allSeasonsInWindow.map((s) => s.seasonName)).toEqual(["2022/23", "2023/24", "2024/25", "2025/26"]);
   });
 
-  it("<no_survivorship_bias>: windowAverage is computed over EVERY season in the window, including ones below MIN_QUALIFYING_SEASON_MINUTES", () => {
-    const lightSeason = makeSeason({ seasonName: "2024/25", totalPoints: 20, minutes: 300 }); // well below 900
+  it("<no_survivorship_bias>: the one Historic Average counts a light season of 450+ minutes, but not a season under 450 (the owner's rule, 2026-10-19)", () => {
+    const cameo = makeSeason({ seasonName: "2023/24", totalPoints: 5, minutes: 300 }); // under 450: a small sample, not counted
+    const lightSeason = makeSeason({ seasonName: "2024/25", totalPoints: 20, minutes: 600 }); // light (under 900) but over 450: counted
     const fullSeason = makeSeason({ seasonName: "2025/26", totalPoints: 200, minutes: 3000 });
-    const profile = buildHistoricPlayerProfile([lightSeason, fullSeason], "2025/26");
-    // Both seasons counted in the average -> (20+200)/2 = 110, not 200 (which
-    // is what you'd get if the light season were filtered out).
-    expect(profile.windowAverage?.avgPointsPerSeason).toBe(110);
-    expect(profile.allSeasonsInWindow).toHaveLength(2);
+    const profile = buildHistoricPlayerProfile([cameo, lightSeason, fullSeason], "2025/26");
+    // (20+200)/2 = 110: the light season pulls the average down, never 200; the cameo doesn't count.
+    expect(profile.floorWindowAverage?.avgPointsPerSeason).toBe(110);
+    expect(profile.allSeasonsInWindow).toHaveLength(3);
   });
 
-  it("qualifyingSeasons still filters by MIN_QUALIFYING_SEASON_MINUTES (used for UI 'light season' flagging, not the average)", () => {
+  it("qualifyingSeasons still filters by MIN_QUALIFYING_SEASON_MINUTES (used for Model Predicted's bonus rate, not the average)", () => {
     const lightSeason = makeSeason({ seasonName: "2024/25", minutes: MIN_QUALIFYING_SEASON_MINUTES - 1 });
     const qualifyingSeason = makeSeason({ seasonName: "2025/26", minutes: MIN_QUALIFYING_SEASON_MINUTES });
     const profile = buildHistoricPlayerProfile([lightSeason, qualifyingSeason], "2025/26");
     expect(profile.qualifyingSeasons.map((s) => s.seasonName)).toEqual(["2025/26"]);
   });
 
-  it("windowAverage is null only when the window has zero seasons", () => {
-    const profile = buildHistoricPlayerProfile([], "2025/26");
-    expect(profile.allSeasonsInWindow).toEqual([]);
-    expect(profile.windowAverage).toBeNull();
+  it("Historic Average is null when no window season reaches 450 minutes (or there are none)", () => {
+    expect(buildHistoricPlayerProfile([], "2025/26").floorWindowAverage).toBeNull();
+    expect(buildHistoricPlayerProfile([makeSeason({ seasonName: "2025/26", minutes: 449 })], "2025/26").floorWindowAverage).toBeNull();
   });
 });
 

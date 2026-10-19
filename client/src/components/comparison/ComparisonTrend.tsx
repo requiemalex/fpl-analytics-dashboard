@@ -3,6 +3,7 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tool
 import { trendBelowKey, trendDataKey, type SeasonTrendRow, type TrendMetric } from "../../metrics/careerTrends";
 import { fmtDecimal, fmtPrice } from "../../utils/format";
 import { ComparisonLegend, type LegendEntry } from "./ComparisonLegend";
+import { MinutesFloorIcon } from "../MinutesFloorBadge";
 
 export function formatTrendValue(metric: TrendMetric, v: number | null): string {
   return metric.price ? fmtPrice(v) : fmtDecimal(v, metric.decimals);
@@ -49,14 +50,20 @@ function TrendTooltip({
   );
 }
 
-/** A season's point: a dot in the player's colour, or — for a season under the card's minimum — a hollow amber ring (the small-sample colour). */
+/** Size of the small-sample marker drawn in place of a dot. */
+const BELOW_MARK_PX = 14;
+
+/** A season's point: a dot in the player's colour, or — for a season under the card's minimum — the amber small-sample stopwatch, the one marker the app uses for a small sample (<minutes_marker>). */
 function trendDot(playerId: number, color: string) {
   return function TrendDot(props: { cx?: number; cy?: number; payload?: SeasonTrendRow; index?: number }) {
     const { cx, cy, payload, index } = props;
     if (cx == null || cy == null || !payload) return <g key={index} />;
     const below = typeof payload[trendBelowKey(playerId)] === "number";
     return below ? (
-      <circle key={index} className="cmp-trend-below-dot" cx={cx} cy={cy} r={4} strokeWidth={2} />
+      <g key={index} className="cmp-trend-below-dot" transform={`translate(${cx - BELOW_MARK_PX / 2},${cy - BELOW_MARK_PX / 2})`}>
+        <circle cx={BELOW_MARK_PX / 2} cy={BELOW_MARK_PX / 2} r={BELOW_MARK_PX / 2} />
+        <MinutesFloorIcon size={BELOW_MARK_PX} />
+      </g>
     ) : (
       <circle key={index} cx={cx} cy={cy} r={3} fill={color} />
     );
@@ -68,7 +75,7 @@ function trendDot(playerId: number, color: string) {
  * metric (named on the y axis) up the side, one line per player in his
  * colour. A season with no figure is a gap in his line, not a zero. A
  * season under the card's minimum minutes still shows his real figure, but
- * its point is an amber ring and the hover box adds his minutes, so a
+ * its point is the amber small-sample stopwatch and the hover box adds his minutes, so a
  * small-sample season is never mistaken for a full one.
  */
 export function ComparisonTrend({ metric, rows, entries, minMinutes }: { metric: TrendMetric; rows: SeasonTrendRow[]; entries: LegendEntry[]; minMinutes: number }) {

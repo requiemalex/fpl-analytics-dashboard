@@ -1,19 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { bandForPercentile, computePositionPercentiles, percentileInPool } from "./percentiles";
+import { computePositionPercentiles, percentileInPool } from "./percentiles";
 import { makePlayer } from "../test/fixtures";
-
-describe("bandForPercentile", () => {
-  it("bands per the documented thresholds (90/70/30)", () => {
-    expect(bandForPercentile(100)).toBe("excellent");
-    expect(bandForPercentile(90)).toBe("excellent");
-    expect(bandForPercentile(89.999)).toBe("good");
-    expect(bandForPercentile(70)).toBe("good");
-    expect(bandForPercentile(69.999)).toBe("average");
-    expect(bandForPercentile(30)).toBe("average");
-    expect(bandForPercentile(29.999)).toBe("poor");
-    expect(bandForPercentile(0)).toBe("poor");
-  });
-});
 
 describe("computePositionPercentiles", () => {
   it("computes the mean-rank percentile formula independently for a simple ascending set", () => {

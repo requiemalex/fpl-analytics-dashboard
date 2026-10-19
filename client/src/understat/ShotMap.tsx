@@ -12,7 +12,8 @@ import type { UsShot } from "./profileData";
  * area is cut into zones shaded by shots a season — one hue, light to dark.
  * Every dot and zone says what it is on hover. Shots Understat places at
  * exactly the same point (every penalty is on the spot) draw on top of one
- * another, so a point with more than one goal carries a count of them.
+ * another, so a point with more than one goal carries a count of them,
+ * in white on the goal dot.
  *
  * Drawn in metres on a 105 × 68 pitch, so the box and the arc sit where
  * they really are. Only the last 35 m are drawn (over 99% of shots), which
@@ -169,20 +170,17 @@ export function ShotMap({ shots, seasons, label }: { shots: UsShot[]; seasons: n
             );
           })}
         {!density &&
-          stackedGoals(inside).map((g) => {
-            // A badge at the dot's upper right.
-            const bx = g.cx + g.r * 0.75;
-            const by = g.out - g.r * 0.75;
-            return (
-              <g key={`n${g.cx}-${g.out}`} className="shot-map-count">
-                <title>{`${g.goals} goals from ${g.shots} shots taken from exactly here`}</title>
-                <circle cx={bx} cy={by} r={0.95} />
-                <text x={bx} y={by} dy="0.35em" textAnchor="middle">
-                  {g.goals}
-                </text>
-              </g>
-            );
-          })}
+          stackedGoals(inside).map((g) => (
+            // The count sits on the goal dot itself, sized to fit inside it;
+            // a clear circle over the dot carries the hover.
+            <g key={`n${g.cx}-${g.out}`} className="shot-map-count">
+              <title>{`${g.goals} goals from ${g.shots} shots taken from exactly here`}</title>
+              <circle cx={g.cx} cy={g.out} r={g.r} />
+              <text x={g.cx} y={g.out} dy="0.35em" textAnchor="middle" style={{ fontSize: `${Math.min(1.5, Math.max(0.8, g.r * 1.2))}px` }}>
+                {g.goals}
+              </text>
+            </g>
+          ))}
         {beyond.map((s, i) => {
           const { cx } = place(s);
           const y = SHOT_MAP_DEPTH + 0.2;

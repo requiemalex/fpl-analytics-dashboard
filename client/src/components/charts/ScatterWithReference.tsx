@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { noRowsMessage } from "../emptyMessages";
 import { ResponsiveContainer, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ZAxis, Cell, Label } from "recharts";
 import { planScatterAxes, type AxisScale } from "./axisScaling";
 
@@ -77,7 +78,7 @@ export function ScatterWithReference({
   height = 360,
   xTickStep,
   xTickFormatter,
-  emptyMessage = "No eligible players have data for this chart with the current filters.",
+  emptyMessage = noRowsMessage("player"),
   xFormat,
   yFormat,
 }: {
@@ -194,7 +195,7 @@ export function ScatterWithReference({
           {referenceSegment && <ReferenceLine segment={referenceSegment} stroke="var(--text-muted)" strokeDasharray="4 4" ifOverflow="hidden" />}
           <Scatter data={data} fillOpacity={useBubbleSize ? 0.8 : 0.55} onClick={(point: any) => onPointClick?.(point.id)} cursor={onPointClick ? "pointer" : "default"}>
             {data.map((d) => {
-              let fill = "var(--accent-positive)";
+              let fill = "var(--accent-focus)";
               if (colorScale && zRange && d.z !== undefined && d.z !== null) {
                 const t = zRange.max > zRange.min ? (d.z - zRange.min) / (zRange.max - zRange.min) : 0.5;
                 fill = interpolateColor(t, colorScale.lowColor, colorScale.highColor);

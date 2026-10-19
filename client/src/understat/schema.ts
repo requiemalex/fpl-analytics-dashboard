@@ -117,6 +117,8 @@ export type UnderstatData =
   | { enabled: false }
   | {
       enabled: true;
+      /** When the sync that published this data ran: it changes with each sync. */
+      generatedAt: string;
       liveSeason: string;
       latestMatchDate: string | null;
       /** FPL fixtures finished a while ago that Understat hasn't got yet: id -> first noticed. */
@@ -148,6 +150,7 @@ export function parseUnderstatPayload(raw: unknown): UnderstatData {
   }
   return {
     enabled: true,
+    generatedAt: parsed.status.generatedAt,
     liveSeason: parsed.status.liveSeason,
     latestMatchDate: parsed.status.latestMatchDate,
     missingFixtures: parsed.status.missingFixtures,

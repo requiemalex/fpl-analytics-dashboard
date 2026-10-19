@@ -14,9 +14,13 @@ export interface PlayerTileMetric {
   label: string;
   getValue: (p: NormalizedPlayer, d: PlayerDerivedMetrics) => number | null;
   format: (v: number | null) => string;
-  /** Used only to pick a sensible default sort direction when this metric is first selected in the Add Tile form. */
+  /** The default sort direction when this metric is first picked in the Add Tile form, and its comparative colour's direction (<comparative_colouring>). */
   higherIsBetter: boolean;
-  /** True for a +/- comparison metric (Goals vs xG, etc.) — Dashboard's tile bar colours these green/red per row by sign, rather than a single accent colour for the whole tile. */
+  /** What its colour ranks on when that isn't its own figure (PlayerColumn.rankBy). */
+  rankBy?: (p: NormalizedPlayer, d: PlayerDerivedMetrics) => number | null;
+  /** Never coloured (PlayerColumn.noColour). */
+  noColour?: boolean;
+  /** A +/- comparison metric (Goals vs xG, etc.): its bars measure the size of the figure either side of 0. */
   signed?: boolean;
 }
 
@@ -26,6 +30,8 @@ export interface TeamTileMetric {
   getValue: (t: TeamAggregate) => number | null;
   format: (v: number | null) => string;
   higherIsBetter: boolean;
+  /** Never coloured (TeamColumn.noColour). */
+  noColour?: boolean;
 }
 
 const num = (decimals = 0) => (v: number | null) => fmtDecimal(v, decimals);
@@ -69,6 +75,8 @@ export const PLAYER_TILE_METRICS: PlayerTileMetric[] = [
     getValue: c.getValue,
     format: c.format,
     higherIsBetter: c.higherIsBetter ?? true,
+    rankBy: c.rankBy,
+    noColour: c.noColour,
     signed: c.signed,
   })),
   ...TILE_EXTRA_METRICS,
@@ -81,6 +89,7 @@ export const TEAM_TILE_METRICS: TeamTileMetric[] = TEAM_COLUMNS.map((c) => ({
   getValue: c.getValue,
   format: c.format,
   higherIsBetter: c.higherIsBetter ?? true,
+  noColour: c.noColour,
 }));
 
 export function playerTileMetricByKey(key: string): PlayerTileMetric | undefined {

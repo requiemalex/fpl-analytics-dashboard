@@ -4,8 +4,9 @@ import { useAppState } from "../state/AppStateContext";
 import { useEscapeLayer } from "../state/useEscapeLayer";
 import { useDialogFocus } from "../state/useDialogFocus";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
-import { getUpcomingFixtures, averageFixtureDifficulty } from "../metrics/fixtureTicker";
-import { teamColumnByKey } from "./teamColumns";
+import { getUpcomingFixtures } from "../metrics/fixtureTicker";
+import { teamColumnByKey, teamColumnForMode } from "./teamColumns";
+import { countDecimals } from "./playerColumns";
 import {
   computeTeamAggregates,
   computeTeamRadarData,
@@ -19,9 +20,11 @@ import {
 } from "../metrics/teamStats";
 import { computeClubSeasonWindow } from "../metrics/teamSeasonHistory";
 import { computeSeasonTrend } from "../metrics/careerMetrics";
-import { relativeCellTint } from "../utils/colorScale";
+import { percentileTint } from "../utils/colorScale";
+import { clubRanks, fixtureDifficultyRanks, rankAmong } from "../metrics/comparativeColour";
 import { AnalysisModeToggle } from "./AnalysisModeToggle";
-import { FixtureChips } from "./primitives";
+import { FixtureChips, withCoverage } from "./primitives";
+import { partialAverage, partialTotal, sumKnown, type PartialSum } from "../metrics/partialTotals";
 import { PercentileRadarChart } from "./PlayerRadarChart";
 import { AverageLineIcon, PointsHistoryChart, PointsHistoryHeader, PointsHistoryStats } from "./playerProfile/PointsHistory";
 import { fmtDecimal, fmtOrdinal, DASH } from "../utils/format";
@@ -36,9 +39,12 @@ import type { ClubMatch, NormalizedTeam } from "../types/normalized";
  * Premier League that season) shows "—". It used to show today's table in
  * every Data View (audit 2026-09-25 player-team-profiles M1).
  */
-export function teamHeaderLine(t: TeamAggregate): string {
+export function teamHeaderLine(t: TeamAggregate, mode: AnalysisMode): string {
   if (t.leaguePosition === null && t.leaguePoints === null && t.played === null) return DASH;
-  const show = (key: string, v: number | null) => teamColumnByKey(key)?.format(v) ?? DASH;
+  const show = (key: string, v: number | null) => {
+    const c = teamColumnByKey(key);
+    return c ? teamColumnForMode(c, mode).format(v) : DASH;
+  };
   const position = t.leaguePosition === null ? DASH : fmtOrdinal(Number(show("leaguePosition", t.leaguePosition)));
   return `${position} in table · ${show("leaguePoints", t.leaguePoints)} pts · ${show("played", t.played)} played · ${show("wins", t.wins)}W ${show("draws", t.draws)}D ${show("losses", t.losses)}L`;
 }
@@ -95,26 +101,12 @@ const MATCH_LOG_COLUMNS: { key: string; header: string; decimals: number; higher
   { key: "dc", header: "Defensive Contributions", decimals: 0, higherIsBetter: true, value: (m) => m.dc },
 ];
 
-/** A column summed over the matches — null if any match lacks it (never a partial sum) or there are none. */
-export function matchLogTotal(matches: ClubMatch[], value: (m: ClubMatch) => number | null): number | null {
-  if (matches.length === 0) return null;
-  let total = 0;
-  for (const m of matches) {
-    const v = value(m);
-    if (v === null) return null;
-    total += v;
-  }
-  return total;
+/** A column's Totals and Average over the matches (<partial_totals>): those with a figure added up, a match without one left out; null if none has one. */
+export function matchLogSum(matches: ClubMatch[], value: (m: ClubMatch) => number | null): PartialSum | null {
+  return sumKnown(matches.map(value));
 }
 
-type TintRange = { min: number; max: number } | null;
-
-function valueRange(values: (number | null)[]): TintRange {
-  const present = values.filter((v): v is number => v !== null);
-  return present.length === 0 ? null : { min: Math.min(...present), max: Math.max(...present) };
-}
-
-/** Label-above-value tile — same visual language as the player profile's StatTile. `tint` is a pre-computed CSS colour (from relativeCellTint, comparing this team against every other team) rather than a percentile, since the range here is a simple league-wide min/max, not a within-position percentile. */
+/** Label-above-value tile — same visual language as the player profile's StatTile. `tint` is its comparative colour: the club ranked among every club (<comparative_colouring>). */
 function StatTile({ label, value, tint }: { label: string; value: React.ReactNode; tint?: string }) {
   return (
     <div className="stat-tile" style={tint ? { background: tint } : undefined}>
@@ -186,22 +178,28 @@ export function TeamDetailOverlay() {
     if (pastLogSeason !== null) for (const c of clubSeasons) if (c.season === pastLogSeason) names.set(c.code, c.shortName);
     return names;
   }, [teams, clubSeasons, pastLogSeason]);
-  const matchLogRanges = useMemo(() => {
-    const ranges = new Map<string, { total: TintRange; average: TintRange }>();
+  // The Totals and Average rows' colours (<comparative_colouring>): the
+  // club's figure ranked among every other club's for the same season —
+  // Average as each club's total ÷ its own matches.
+  const matchLogPools = useMemo(() => {
+    const pools = new Map<string, { total: number[]; average: number[] }>();
     for (const c of MATCH_LOG_COLUMNS) {
-      const clubs = [...matchesByCode.values()].map((ms) => ({ total: matchLogTotal(ms, c.value), n: ms.length }));
-      ranges.set(c.key, {
-        total: valueRange(clubs.map((x) => x.total)),
-        average: valueRange(clubs.map((x) => (x.total === null ? null : x.total / x.n))),
-      });
+      const total: number[] = [];
+      const average: number[] = [];
+      for (const [code, ms] of matchesByCode) {
+        if (code === team?.code) continue;
+        const s = matchLogSum(ms, c.value);
+        if (s === null) continue;
+        total.push(partialTotal(s)!);
+        average.push(partialAverage(s)!);
+      }
+      pools.set(c.key, { total, average });
     }
-    return ranges;
-  }, [matchesByCode]);
+    return pools;
+  }, [matchesByCode, team?.code]);
 
   function matchLogTint(key: string, kind: "total" | "average", v: number | null, higherIsBetter: boolean): string | undefined {
-    const range = matchLogRanges.get(key)?.[kind];
-    if (!range || v === null) return undefined;
-    return relativeCellTint(v, range.min, range.max, higherIsBetter);
+    return percentileTint(rankAmong(v, matchLogPools.get(key)?.[kind] ?? [], higherIsBetter));
   }
 
   // FPL points per season for this club, every season on record (live
@@ -219,41 +217,18 @@ export function TeamDetailOverlay() {
   );
   const seasonTrend = useMemo(() => computeSeasonTrend(completedSeasonHistory), [completedSeasonHistory]);
 
-  const totalRanges = useMemo(() => {
-    const ranges = new Map<string, { min: number; max: number }>();
-    const keys: (keyof TeamAggregate)[] = ["points", "goals", "assists", "xG", "xA", "xGI", "xGC", "cleanSheets"];
-    for (const key of keys) {
-      const values = allTeamAggregates.map((t) => t[key]).filter((v): v is number => typeof v === "number");
-      if (values.length > 0) ranges.set(key, { min: Math.min(...values), max: Math.max(...values) });
-    }
-    return ranges;
-  }, [allTeamAggregates]);
-
+  // Season Totals' colours: the club ranked among every club for this Data View.
   function totalsTint(key: keyof TeamAggregate, higherIsBetter = true): string | undefined {
-    const range = totalRanges.get(key);
-    const v = clubTotals?.[key];
-    if (!range || typeof v !== "number") return undefined;
-    return relativeCellTint(v, range.min, range.max, higherIsBetter);
+    if (!clubTotals) return undefined;
+    const value = (t: TeamAggregate) => (typeof t[key] === "number" ? (t[key] as number) : null);
+    return percentileTint(clubRanks(allTeamAggregates, { id: (t) => t.teamId, value, higherIsBetter }).get(clubTotals.teamId));
   }
 
   const upcomingFixtures = useMemo(() => (team ? getUpcomingFixtures(team.id, fixtures, teamsById) : []), [team, fixtures, teamsById]);
 
-  // Average upcoming-fixture difficulty, for every team, so this team's own
-  // average can be tinted relative to the whole league — lower average
-  // difficulty is easier, hence "better" (higherIsBetter: false below).
-  const avgFdrRange = useMemo(() => {
-    const values = teams
-      .map((t) => averageFixtureDifficulty(getUpcomingFixtures(t.id, fixtures, teamsById)))
-      .filter((v): v is number => v !== null);
-    if (values.length === 0) return null;
-    return { min: Math.min(...values), max: Math.max(...values) };
-  }, [teams, fixtures, teamsById]);
-
-  const avgFdrTint = useMemo(() => {
-    const avg = averageFixtureDifficulty(upcomingFixtures);
-    if (avg === null || !avgFdrRange) return undefined;
-    return relativeCellTint(avg, avgFdrRange.min, avgFdrRange.max, false);
-  }, [upcomingFixtures, avgFdrRange]);
+  // Average upcoming-fixture difficulty ranked among every club's — easier is better.
+  const fixtureRanks = useMemo(() => fixtureDifficultyRanks(new Map(teams.map((t) => [t.id, getUpcomingFixtures(t.id, fixtures, teamsById)]))), [teams, fixtures, teamsById]);
+  const avgFdrTint = team ? percentileTint(fixtureRanks.get(team.id)) : undefined;
 
   // A second source's cards follow the Data View over the seasons the
   // club's own figures use: those it was in the league (clubRecordsForMode).
@@ -309,7 +284,8 @@ export function TeamDetailOverlay() {
   const externalColumns = external && team.code !== null && logSeason !== null ? external.profiles.clubMatchColumns(team.code, logSeason, logFixtures) : [];
   // A figure both sources have (Assists, xG, xA, xGI, xGC) gets a ⇄ toggle
   // on its header; switched, the whole column is the second source's — each
-  // match, Totals and Average, untinted — <one_source_per_figure>.
+  // match, Totals and Average, and their colours ranked on that source's
+  // figures — <one_source_per_figure>.
   const alternates = external && team.code !== null && logSeason !== null ? external.profiles.clubMatchAlternates(team.code, logSeason, logFixtures) : {};
   const switchedKeys = new Set(switchedLog && switchedLog.teamId === team.id ? switchedLog.keys : []);
   const switchedAlternate = (key: string) => (switchedKeys.has(key) ? (alternates[key] ?? null) : null);
@@ -331,7 +307,7 @@ export function TeamDetailOverlay() {
           <div>
             <h2 id={headingId} style={{ marginBottom: 2 }}>{team.name}</h2>
             <p className="page-subtitle" style={{ marginTop: 0 }}>
-              {teamHeaderLine(clubTotals)}
+              {teamHeaderLine(clubTotals, analysisMode)}
             </p>
           </div>
         </div>
@@ -354,9 +330,9 @@ export function TeamDetailOverlay() {
             <div className="card">
               <div className="card-title">Season Totals</div>
               <div className="stat-tile-grid">
-                <StatTile label="FPL Points" value={fmtDecimal(clubTotals.points, 0)} tint={totalsTint("points")} />
-                <StatTile label="Goals" value={fmtDecimal(clubTotals.goals, 0)} tint={totalsTint("goals")} />
-                <StatTile label="Assists" value={fmtDecimal(clubTotals.assists, 0)} tint={totalsTint("assists")} />
+                <StatTile label="FPL Points" value={fmtDecimal(clubTotals.points, countDecimals(analysisMode))} tint={totalsTint("points")} />
+                <StatTile label="Goals" value={fmtDecimal(clubTotals.goals, countDecimals(analysisMode))} tint={totalsTint("goals")} />
+                <StatTile label="Assists" value={fmtDecimal(clubTotals.assists, countDecimals(analysisMode))} tint={totalsTint("assists")} />
               </div>
               <div className="stat-tile-grid" style={{ marginTop: 10 }}>
                 <StatTile label="xG" value={fmtDecimal(clubTotals.xG, 2)} tint={totalsTint("xG")} />
@@ -365,7 +341,7 @@ export function TeamDetailOverlay() {
               </div>
               <div className="stat-tile-grid" style={{ marginTop: 10 }}>
                 <StatTile label="xGC" value={fmtDecimal(clubTotals.xGC, 2)} tint={totalsTint("xGC", false)} />
-                <StatTile label="Clean Sheets" value={fmtDecimal(clubTotals.cleanSheets, 0)} tint={totalsTint("cleanSheets")} />
+                <StatTile label="Clean Sheets" value={fmtDecimal(clubTotals.cleanSheets, countDecimals(analysisMode))} tint={totalsTint("cleanSheets")} />
               </div>
             </div>
 
@@ -432,7 +408,7 @@ export function TeamDetailOverlay() {
         <div className="profile-section">
           <div className={`profile-section-heading match-log-head ${externalColumns.length > 0 ? "col-source-crossover" : "col-source-fpl"}`}>
             <h3>{externalColumns.length > 0 && external ? `FPL & ${external.label}` : "FPL"} · Match Log</h3>
-            <span className="match-log-season">{pastLogSeason ?? (liveSeasonName ? `${liveSeasonName} (live)` : "This season")}</span>
+            <span className="match-log-season">{pastLogSeason ?? (liveSeasonName ? `${liveSeasonName} (current season)` : "This season")}</span>
           </div>
           <div className="card">
             {historicStatus === "loading" && logMatches.length === 0 ? (
@@ -502,15 +478,16 @@ export function TeamDetailOverlay() {
                       </td>
                       {MATCH_LOG_COLUMNS.map((c, i) => {
                         const alt = switchedAlternate(c.key);
-                        const total = matchLogTotal(logMatches, c.value);
+                        const sum = matchLogSum(logMatches, c.value);
+                        const total = partialTotal(sum);
                         return (
-                          <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} style={alt ? undefined : { background: matchLogTint(c.key, "total", total, c.higherIsBetter) }}>
-                            {alt ? alt.total : fmtDecimal(total, c.decimals)}
+                          <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} style={{ background: alt ? alt.totalTint : matchLogTint(c.key, "total", total, c.higherIsBetter) }}>
+                            {alt ? alt.total : withCoverage(fmtDecimal(total, c.decimals), sum)}
                           </td>
                         );
                       })}
                       {externalColumns.map((c, i) => (
-                        <td key={c.key} className={i === 0 ? "column-group-divider" : undefined}>
+                        <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} style={c.totalTint ? { background: c.totalTint } : undefined}>
                           {c.total ?? ""}
                         </td>
                       ))}
@@ -521,11 +498,11 @@ export function TeamDetailOverlay() {
                       </td>
                       {MATCH_LOG_COLUMNS.map((c, i) => {
                         const alt = switchedAlternate(c.key);
-                        const total = matchLogTotal(logMatches, c.value);
-                        const average = total === null ? null : total / logMatches.length;
+                        const sum = matchLogSum(logMatches, c.value);
+                        const average = partialAverage(sum);
                         return (
-                          <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} style={alt ? undefined : { background: matchLogTint(c.key, "average", average, c.higherIsBetter) }}>
-                            {alt ? alt.average : fmtDecimal(average, 2)}
+                          <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} style={{ background: alt ? alt.averageTint : matchLogTint(c.key, "average", average, c.higherIsBetter) }}>
+                            {alt ? alt.average : withCoverage(fmtDecimal(average, 2), sum)}
                           </td>
                         );
                       })}

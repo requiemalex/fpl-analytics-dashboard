@@ -24,13 +24,18 @@ export const RETRY_POLICY = {
 /** Cache TTLs, in milliseconds. See <cache_policy> in the project brief. */
 export const CACHE_TTL_MS = {
   bootstrapStatic: 10 * 60 * 1000, // 10 minutes
-  fixtures: 30 * 60 * 1000, // 30 minutes
+  // The client polls every 10 minutes; at 30 a finished match or a new
+  // score could take half an hour to reach the app. One request, so cheap.
+  fixtures: 10 * 60 * 1000, // 10 minutes
   elementSummary: 30 * 60 * 1000, // 30 minutes
   eventLive: 60 * 1000, // 60 seconds
-  // history_past cannot change mid-season — only at a season's end — and
-  // the bulk build costs hundreds of upstream requests, so this is cached
-  // far longer than anything else here.
-  historicBulk: 12 * 60 * 60 * 1000, // 12 hours
+  // The bulk build carries the live season's club figures and every
+  // player's live gameweek log as well as history_past, so it goes out of
+  // date with every match — kept no longer than the per-player data it's
+  // built from. It costs one request per player, so the client asks for it
+  // only once a session, on Refresh Data, and when the fixtures show newly
+  // finished matches (at most hourly: AppStateContext).
+  historicBulk: 30 * 60 * 1000, // 30 minutes
   // Short: a real manager's bank/picks/chips can change the moment they
   // make a transfer, unlike the shared pool data above.
   entryImport: 2 * 60 * 1000, // 2 minutes

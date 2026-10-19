@@ -27,6 +27,7 @@ function club(over: Partial<UsClubTotals>): UsClubTotals {
 const player = makePlayer({ id: 1, code: 501, position: "FWD", minutes: 900 });
 const data: Extract<UnderstatData, { enabled: true }> = {
   enabled: true,
+  generatedAt: "2026-10-18T06:10:00Z",
   liveSeason: "2026/27",
   latestMatchDate: "2026-10-17",
   missingFixtures: {},

@@ -62,18 +62,21 @@ table.data-table th.col-source-understat,
   stroke-opacity: 1;
 }
 /* The count on a point more than one goal was scored from (a penalty
-   taker's spot): a small badge in user units (metres), so it scales with
-   the map like the dots. */
+   taker's spot): white on the goal dot, in user units (metres) so it
+   scales with the map like the dots. The circle over the dot is clear —
+   it only carries the hover. */
 .shot-map-count circle {
-  fill: var(--surface);
-  stroke: var(--col-understat);
+  fill: transparent;
+  stroke: none;
+}
+.shot-map-count:hover circle {
+  stroke: var(--text-primary);
   stroke-width: 1;
 }
 .shot-map-count text {
-  fill: var(--text-primary);
+  fill: #fff;
   font-family: var(--font-mono);
-  font-size: 1.2px;
-  font-weight: 600;
+  font-weight: 700;
   pointer-events: none;
 }
 .shot-map-beyond {

@@ -18,13 +18,18 @@ import { normalizeEntryImport } from "../normalize/normalizeEntryImport";
 import { matchesPlayerSearch } from "../utils/playerSearch";
 import { computeBlendedMinutesReliability } from "../metrics/minutesReliabilityBlend";
 import { getUpcomingFixtures, firstPickableEventId, fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
-import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, columnByKey, isStaticColumn, rankValue, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
-import { SquadPitch } from "../components/SquadPitch";
+import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, cellText, columnByKey, columnForMode, isStaticColumn, rankValue, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
+import { ANALYSIS_MODE_OPTIONS } from "../components/AnalysisModeToggle";
+import { historicSeasonsNote, RowSmallSampleBadge, SmallSampleBadge, userMinimumNote } from "../components/MinutesFloorBadge";
+import { SquadPitch, type PitchColourRanks } from "../components/SquadPitch";
 import { AnalysisModeIcon } from "../components/AnalysisModeIcon";
-import { PositionBadge, AvailabilityFlag, SignedNum, availabilityTextClass } from "../components/primitives";
+import { PositionBadge, AvailabilityFlag, availabilityTextClass } from "../components/primitives";
 import { IconChipButton, ResetIcon, ForecastIcon, ClockIcon, FilterIcon, DownloadIcon, TrashIcon } from "../components/IconToolbar";
 import { fmtPrice, fmtDecimal, fmtPercent, fmtSigned, DASH } from "../utils/format";
-import { relativeCellTint } from "../utils/colorScale";
+import { percentileTint } from "../utils/colorScale";
+import { colourDirection, fixtureDifficultyRanks, positionRanks, rankWithinGroups } from "../metrics/comparativeColour";
+import { isUnderMinimum } from "../metrics/fixedMinutesFloor";
+import { MIN_QUALIFYING_SEASON_MINUTES } from "../metrics/historicAnalysis";
 import { downloadCsv } from "../utils/csvExport";
 import type { NormalizedPlayer, Position } from "../types/normalized";
 import { MenuGroupHeading } from "../components/MenuControls";
@@ -35,11 +40,6 @@ const WARNING_DISPLAY_MS = 4000;
 export type GwOffset = 1 | 2 | 3 | 4 | 5;
 export const GW_OFFSETS: GwOffset[] = [1, 2, 3, 4, 5];
 const HISTORIC_RAW_GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE", "ADVANCED"];
-const PICKER_HISTORIC_MODE_OPTIONS: { mode: AnalysisMode; label: string }[] = [
-  { mode: "lastSeason", label: "Last Completed Season" },
-  { mode: "historicAverage", label: "Historic Average" },
-  { mode: "live", label: "Current Season" },
-];
 /** Own% is a normal Historic/Raw column now (resizable, comparative-coloured), matching Player Explorer — it used to be excluded and pinned separately. */
 const HISTORIC_RAW_COLUMNS = PLAYER_COLUMNS;
 const PICKER_DEFAULT_SORT: SortSpec[] = [{ key: "expFplOfficial", direction: "desc" }];
@@ -76,6 +76,8 @@ interface PredictiveColumnDef {
   higherIsBetter?: boolean;
   /** Same meaning as PlayerColumn.varies (playerColumns.tsx) — whether this column changes with the picker's own Historic/Raw toggle or gameweek navigator. Both predictive figures are navigator-driven, so they vary; Minutes Reliability and fixtures are always the player's live, current figures regardless of either toggle. Defaults true. */
   varies?: boolean;
+  /** A minimum-minutes threshold built into the figure: its header carries the amber stopwatch with this as its hover text (<minutes_marker>). */
+  minutesNote?: string;
 }
 
 const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
@@ -91,6 +93,7 @@ const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
     label: "Exp. Pts (Model Predicted)",
     getValue: (row) => row.modelPredicted,
     decimals: 1,
+    minutesNote: `Minimum minutes applied inside the model: its bonus rate comes only from those of the last 4 completed seasons with ${MIN_QUALIFYING_SEASON_MINUTES}+ minutes.`,
     renderCell: (row) => (
       <span
         title={
@@ -148,25 +151,22 @@ const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
 ];
 const DEFAULT_PREDICTIVE_COLUMN_KEYS = PREDICTIVE_COLUMNS.map((c) => c.key);
 
-type ColumnRanges = Map<string, { min: number; max: number }>;
+/** Per column key, each player's rank — within his position, or for Next 5 Fixtures his club's among clubs (<comparative_colouring>). */
+type ColumnRanks = Map<string, Map<number, number>>;
 
-function predictiveTint(ranges: ColumnRanges, row: PickerRowData, c: PredictiveColumnDef): string | undefined {
-  const range = ranges.get(c.key);
-  const v = c.getValue(row);
-  if (!range || v === null) return undefined;
-  return relativeCellTint(v, range.min, range.max, c.higherIsBetter !== false);
+/** A row's rank key for a column: the player, or for Next 5 Fixtures (a club figure) his club. */
+function rankKey(row: PickerRowData, columnKey: string): number {
+  return columnKey === "fixtures" ? row.live.teamId : row.live.id;
 }
 
-function historicRawTint(ranges: ColumnRanges, row: PickerRowData, c: PlayerColumn): string | undefined {
-  const range = ranges.get(c.key);
-  if (!range || !row.historicRaw) return undefined;
-  const v = rankValue(c, row.historicRaw, row.historicDerived);
-  if (v === null) return undefined;
-  return relativeCellTint(v, range.min, range.max, c.higherIsBetter !== false);
+function cellTint(ranks: ColumnRanks, row: PickerRowData, columnKey: string): string | undefined {
+  return percentileTint(ranks.get(columnKey)?.get(rankKey(row, columnKey)));
 }
 
 interface PickerRowProps {
   row: PickerRowData;
+  /** The Historic/Raw columns' Data View, for the row's small-sample marker. */
+  mode: AnalysisMode;
   canAdd: boolean;
   /** canAddPlayer's reason when the Add button is disabled — shown as its hover text. */
   addBlockedReason: string | undefined;
@@ -174,8 +174,7 @@ interface PickerRowProps {
   historicRawColumns: PlayerColumn[];
   predictiveWidths: Record<string, number>;
   historicRawWidths: Record<string, number>;
-  predictiveRanges: ColumnRanges;
-  historicRawRanges: ColumnRanges;
+  columnRanks: ColumnRanks;
   onAdd: (player: NormalizedPlayer) => void;
   onViewProfile: (playerId: number) => void;
 }
@@ -183,14 +182,14 @@ interface PickerRowProps {
 /** One Add Players row. Memoized: opening a filter, a pitch change or adding more staged rows leaves the rows already drawn alone. */
 const PickerRow = React.memo(function PickerRow({
   row,
+  mode,
   canAdd,
   addBlockedReason,
   predictiveColumns,
   historicRawColumns,
   predictiveWidths,
   historicRawWidths,
-  predictiveRanges,
-  historicRawRanges,
+  columnRanks,
   onAdd,
   onViewProfile,
 }: PickerRowProps) {
@@ -216,6 +215,7 @@ const PickerRow = React.memo(function PickerRow({
           >
             {row.live.name}
             <AvailabilityFlag status={row.live.status} news={row.live.news} chanceOfPlayingNextRound={row.live.chanceOfPlayingNextRound} />
+            <RowSmallSampleBadge minutes={row.historicRaw.minutes} mode={mode} />
           </span>
           <span className="meta">
             <PositionBadge position={row.live.position} /> {row.live.teamShortName} · {fmtPrice(row.live.price)}
@@ -241,7 +241,7 @@ const PickerRow = React.memo(function PickerRow({
             key={c.key}
             style={{
               ...(width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } : {}),
-              backgroundColor: predictiveTint(predictiveRanges, row, c),
+              backgroundColor: cellTint(columnRanks, row, c.key),
             }}
           >
             {c.renderCell(row)}
@@ -249,8 +249,6 @@ const PickerRow = React.memo(function PickerRow({
         );
       })}
       {historicRawColumns.map((c, i) => {
-        const value = row.historicRaw ? c.getValue(row.historicRaw, row.historicDerived) : null;
-        const isSignedMetric = c.key === "goalsMinusXG" || c.key === "assistsMinusXA";
         const width = historicRawWidths[c.key];
         return (
           <td
@@ -258,10 +256,10 @@ const PickerRow = React.memo(function PickerRow({
             className={i === 0 ? "column-group-divider" : undefined}
             style={{
               ...(width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } : {}),
-              backgroundColor: historicRawTint(historicRawRanges, row, c),
+              backgroundColor: cellTint(columnRanks, row, c.key),
             }}
           >
-            {isSignedMetric ? <SignedNum value={value} /> : c.format(value)}
+            {cellText(c, row.historicRaw, row.historicDerived)}
           </td>
         );
       })}
@@ -274,17 +272,13 @@ function isStaticPredictiveColumn(c: PredictiveColumnDef): boolean {
 }
 
 /**
- * The same live-mode bypass every other page's effectiveMinMinutes()
- * applies (see state/useFilteredPlayers.ts) — extracted as its own function
- * here since the Add Players picker's Min Minutes is a standalone number,
- * not part of a GlobalScoutingFilters object. Mid-season, most players
- * haven't accumulated many live-season minutes yet, so a minutes floor in
- * "live" mode would silently collapse the candidate pool rather than narrow
- * it — this control used to be the one exception to that rule (M6 in the
- * Phase 1 audit).
+ * Whether a candidate passes the Add Players Min minutes box: in every
+ * Data View, Current Season included (the owner's rule, 2026-10-19 — it
+ * used to be greyed out there), with no minutes for the mode counting as
+ * 0 (<no_data_is_zero>). Unset (null) lets everyone through.
  */
-export function pickerEffectiveMinMinutes(mode: AnalysisMode, minMinutes: number | null): number | null {
-  return mode === "live" ? null : minMinutes;
+export function pickerMeetsMinMinutes(minutes: number | null, minMinutes: number | null): boolean {
+  return minMinutes === null || !isUnderMinimum(minutes, minMinutes);
 }
 
 export function TeamBuilder() {
@@ -791,8 +785,9 @@ export function TeamBuilder() {
     [predictiveCols.visibleColumns],
   );
   const historicRawColumnsInOrder = useMemo(
-    () => historicRawCols.visibleColumns.map((key) => columnByKey(key)).filter((c): c is PlayerColumn => !!c),
-    [historicRawCols.visibleColumns],
+    // As the selected Data View shows them (<averaged_counts>).
+    () => historicRawCols.visibleColumns.map((key) => columnByKey(key)).filter((c): c is PlayerColumn => !!c).map((c) => columnForMode(c, pickerHistoricMode)),
+    [historicRawCols.visibleColumns, pickerHistoricMode],
   );
 
   /** Resolves a sortable value for ANY column in the table — pinned identity columns, predictive columns, or historic/raw columns — so one comparator can drive header clicks anywhere. */
@@ -809,7 +804,10 @@ export function TeamBuilder() {
   function passesColumnFilters(row: PickerRowData): boolean {
     return columnFiltersState.passesAllFilters(
       (key) => getPickerSortValue(row, key),
-      (key) => (PREDICTIVE_COLUMNS.find((c) => c.key === key) ?? columnByKey(key))?.decimals,
+      (key) => {
+        const historicCol = columnByKey(key);
+        return (PREDICTIVE_COLUMNS.find((c) => c.key === key) ?? (historicCol && columnForMode(historicCol, pickerHistoricMode)))?.decimals;
+      },
     );
   }
 
@@ -835,57 +833,55 @@ export function TeamBuilder() {
   // survives a sort, a column filter or a squad change unchanged, and
   // PickerRow (memoized) only redraws rows whose figures actually changed.
   // Same filters, same order of application, same comparator as before.
+  //
+  // Every player gets a row first (pickerAllRows): the colours rank each
+  // one among the whole pool, never only the rows the filters leave
+  // (<comparative_colouring>), and the pitch cards' colours come from the
+  // same rows.
+  const pickerAllRows: PickerRowData[] = useMemo(() => {
+    return players.map((p): PickerRowData => {
+      const playerFixtures = fixturesByTeamId.get(p.teamId) ?? [];
+      const historicProfile = historicProfiles.get(p.id);
+      const reliability = computeBlendedMinutesReliability(p, teamsById.get(p.teamId), historicProfile).value;
+      const fixture = playerFixtures[gwOffset - 1];
+      const fplOfficial = fixture ? computeExpectedPointsForSingleFixture(p, fixture, gwOffset - 1) : null;
+      let modelPredicted: number | null = null;
+      let modelCaveats: string[] = [];
+      if (fixture && reliability !== null) {
+        const breakdown = computeExpectedPointsV2ForFixture(p, fixture, teamsById.get(p.teamId), teamsById.get(fixture.opponentTeamId), reliability, historicProfile);
+        modelPredicted = breakdown.total;
+        modelCaveats = breakdown.caveats;
+      }
+      const historicRaw = resolvePlayerStats(p, pickerHistoricMode, historicProfile, currentSeasonHasStarted);
+      return {
+        live: p,
+        historicRaw,
+        historicDerived: getPlayerDerivedMetrics(historicRaw),
+        fixtures: playerFixtures.slice(0, 5),
+        fplOfficial,
+        modelPredicted,
+        modelCaveats,
+        reliability,
+      };
+    });
+  }, [players, fixturesByTeamId, historicProfiles, pickerHistoricMode, currentSeasonHasStarted, gwOffset, teamsById]);
+
   const pickerBuiltRows: PickerRowData[] = useMemo(() => {
     const search = pickerSearch.trim();
-    return players
-      .filter((p) => pickerPosition === "ALL" || p.position === pickerPosition)
-      .filter((p) => pickerTeamId === "ALL" || p.teamId === pickerTeamId)
-      .filter((p) => !search || matchesPlayerSearch(p, search))
-      .map((p): PickerRowData => {
-        const playerFixtures = fixturesByTeamId.get(p.teamId) ?? [];
-        const historicProfile = historicProfiles.get(p.id);
-        const reliability = computeBlendedMinutesReliability(p, teamsById.get(p.teamId), historicProfile).value;
-        const fixture = playerFixtures[gwOffset - 1];
-        const fplOfficial = fixture ? computeExpectedPointsForSingleFixture(p, fixture, gwOffset - 1) : null;
-        let modelPredicted: number | null = null;
-        let modelCaveats: string[] = [];
-        if (fixture && reliability !== null) {
-          const breakdown = computeExpectedPointsV2ForFixture(p, fixture, teamsById.get(p.teamId), teamsById.get(fixture.opponentTeamId), reliability, historicProfile);
-          modelPredicted = breakdown.total;
-          modelCaveats = breakdown.caveats;
-        }
-        const historicRaw = resolvePlayerStats(p, pickerHistoricMode, historicProfile, currentSeasonHasStarted);
-        return {
-          live: p,
-          historicRaw,
-          historicDerived: getPlayerDerivedMetrics(historicRaw),
-          fixtures: playerFixtures.slice(0, 5),
-          fplOfficial,
-          modelPredicted,
-          modelCaveats,
-          reliability,
-        };
-      });
-  }, [players, pickerSearch, pickerPosition, pickerTeamId, fixturesByTeamId, historicProfiles, pickerHistoricMode, currentSeasonHasStarted, gwOffset, teamsById]);
+    return pickerAllRows
+      .filter((r) => pickerPosition === "ALL" || r.live.position === pickerPosition)
+      .filter((r) => pickerTeamId === "ALL" || r.live.teamId === pickerTeamId)
+      .filter((r) => !search || matchesPlayerSearch(r.live, search));
+  }, [pickerAllRows, pickerSearch, pickerPosition, pickerTeamId]);
 
   const pickerCandidateRows: PickerRowData[] = useMemo(
     () =>
       pickerBuiltRows
         .filter((row) => !squadPlayerIdSet.has(row.live.id))
-      // A player with no data at all for the selected Historic/Raw mode is
-      // excluded whenever the user has explicitly set a minimum, same as
-      // "doesn't meet the bar" would be — this is a deliberate, opt-in
-      // narrowing filter for finding squad-building candidates (only
-      // applies once pickerMinMinutes is actually set, and never in "live"
-      // mode — see pickerEffectiveMinMinutes above), not the kind of
-      // always-on default exclusion resolvePlayerStats.ts moved away from.
-        .filter((row) => {
-          const threshold = pickerEffectiveMinMinutes(pickerHistoricMode, pickerMinMinutes);
-          return threshold === null || (row.historicRaw.minutes !== null && row.historicRaw.minutes >= threshold);
-        })
+        .filter((row) => pickerMeetsMinMinutes(row.historicRaw.minutes, pickerMinMinutes))
         .filter(passesColumnFilters),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pickerBuiltRows, active?.playerIds, pickerHistoricMode, pickerMinMinutes, columnFiltersState.columnFilters],
+    [pickerBuiltRows, active?.playerIds, pickerMinMinutes, columnFiltersState.columnFilters],
   );
 
   const pickerRows: PickerRowData[] = useMemo(
@@ -901,31 +897,51 @@ export function TeamBuilder() {
     [pickerCandidateRows, pickerSort],
   );
 
-  // Per-column min/max across every currently-filtered candidate — the
-  // tint below is a "how does this compare to what you're currently
-  // looking at" hint, matching how Player Comparison's colour scale is
-  // also scoped to what's visible (with no cap, "visible" now means
-  // everyone who matches the current filters, not a fixed subset).
-  // Built from the unsorted candidates (the same players) so a sort alone
-  // doesn't produce new ranges and redraw every row.
-  const predictiveColumnRanges = useMemo(() => {
-    const ranges: ColumnRanges = new Map();
-    for (const c of predictiveColumnsInOrder) {
-      const values = pickerCandidateRows.map((r) => c.getValue(r)).filter((v): v is number => v !== null);
-      if (values.length > 0) ranges.set(c.key, { min: Math.min(...values), max: Math.max(...values) });
+  // Each column's colour (<comparative_colouring>): every player ranked
+  // within his position among every player (pickerAllRows — never only the
+  // rows the filters, search or minimum minutes leave). A Historic/Raw
+  // column leaves anyone under the fixed floor for its Data View out and
+  // uncoloured. The Predictive columns (the two Exp. Pts and Minutes
+  // Reliability) aren't a Data View's sample but forward-looking estimates,
+  // so no minutes floor decides their colour (the owner's call, 2026-10-19:
+  // a new signing with no minutes last season used to lose the colour on
+  // his Exp. Pts). Next 5 Fixtures is a club figure, ranked among clubs.
+  const pickerColumnRanks = useMemo(() => {
+    const ranks: ColumnRanks = new Map();
+    const rankPlayers = (key: string, value: (r: PickerRowData) => number | null, higherIsBetter: boolean) =>
+      ranks.set(
+        key,
+        positionRanks(pickerAllRows, { id: (r) => r.live.id, position: (r) => r.live.position, minutes: (r) => r.historicRaw.minutes, mode: pickerHistoricMode, value, higherIsBetter }),
+      );
+    for (const c of PREDICTIVE_COLUMNS) {
+      if (c.key === "fixtures") continue;
+      ranks.set(c.key, rankWithinGroups(pickerAllRows, { id: (r) => r.live.id, group: (r) => r.live.position, eligible: () => true, value: c.getValue, higherIsBetter: c.higherIsBetter !== false }));
     }
-    return ranges;
-  }, [predictiveColumnsInOrder, pickerCandidateRows]);
-  const historicRawColumnRanges = useMemo(() => {
-    const ranges: ColumnRanges = new Map();
     for (const c of historicRawColumnsInOrder) {
-      const values = pickerCandidateRows
-        .map((r) => (r.historicRaw ? rankValue(c, r.historicRaw, r.historicDerived) : null))
-        .filter((v): v is number => v !== null);
-      if (values.length > 0) ranges.set(c.key, { min: Math.min(...values), max: Math.max(...values) });
+      const higherIsBetter = colourDirection(c);
+      if (higherIsBetter !== null) rankPlayers(c.key, (r) => rankValue(c, r.historicRaw, r.historicDerived), higherIsBetter);
     }
-    return ranges;
-  }, [historicRawColumnsInOrder, pickerCandidateRows]);
+    const fiveByTeam = new Map([...fixturesByTeamId].map(([teamId, list]) => [teamId, list.slice(0, 5)]));
+    ranks.set("fixtures", fixtureDifficultyRanks(fiveByTeam));
+    return ranks;
+  }, [pickerAllRows, pickerHistoricMode, historicRawColumnsInOrder, fixturesByTeamId]);
+
+  // The pitch cards' colours: the forward-looking figures as the Predictive
+  // columns rank them, and today's price and ownership among every player
+  // in his position — none of them a Data View's sample, so no minutes
+  // floor, and nothing on the pitch changes with the picker's Historic/Raw
+  // toggle (M20, the owner's call 2026-10-19).
+  const pitchColourRanks: PitchColourRanks = useMemo(() => {
+    const live = (value: (r: PickerRowData) => number | null) =>
+      rankWithinGroups(pickerAllRows, { id: (r) => r.live.id, group: (r) => r.live.position, eligible: () => true, value, higherIsBetter: false });
+    return {
+      points: pickerColumnRanks.get("expFplOfficial"),
+      model: pickerColumnRanks.get("expModelPredicted"),
+      reliability: pickerColumnRanks.get("reliability"),
+      price: live((r) => r.live.price),
+      ownership: live((r) => r.live.ownership),
+    };
+  }, [pickerColumnRanks, pickerAllRows]);
 
   // Rows are drawn in stages (see useProgressiveRowCount); sorting,
   // filtering, tints and CSV export above all use the full pickerRows.
@@ -966,9 +982,11 @@ export function TeamBuilder() {
     const rows = pickerRows.map((row) => {
       const predictiveCells = predictiveColumnsInOrder.map((c) => formatPredictiveCellForCsv(row, c));
       const historicRawCells = historicRawColumnsInOrder.map((c) => {
-        const value = row.historicRaw ? c.getValue(row.historicRaw, row.historicDerived) : null;
-        if (c.key === "goalsMinusXG" || c.key === "assistsMinusXA") return value !== null ? fmtSigned(value, 2) : DASH;
-        return c.format(value);
+        if (c.key === "goalsMinusXG" || c.key === "assistsMinusXA") {
+          const value = c.getValue(row.historicRaw, row.historicDerived);
+          return value !== null ? fmtSigned(value, 2) : DASH;
+        }
+        return cellText(c, row.historicRaw, row.historicDerived);
       });
       return [row.live.name, row.live.position, row.live.teamShortName, fmtPrice(row.live.price), ...predictiveCells, ...historicRawCells];
     });
@@ -1118,6 +1136,7 @@ export function TeamBuilder() {
           expectedPointsByPlayerId={expectedPointsByPlayerId}
           modelPredictedByPlayerId={modelPredictedByPlayerId}
           reliabilityByPlayerId={reliabilityByPlayerId}
+          colourRanks={pitchColourRanks}
           fixturesByTeamId={fixturesByTeamId}
           gwOffset={gwOffset}
           onGwOffsetChange={setGwOffset}
@@ -1171,7 +1190,10 @@ export function TeamBuilder() {
             </select>
           </div>
           <div className="field">
-            <label htmlFor="picker-min-minutes">Min minutes</label>
+            <label htmlFor="picker-min-minutes">
+              Min minutes
+              {pickerMinMinutes !== null && pickerMinMinutes > 0 && <SmallSampleBadge note={userMinimumNote(pickerMinMinutes, pickerHistoricMode)} />}
+            </label>
             <input
               id="picker-min-minutes"
               type="number"
@@ -1179,12 +1201,7 @@ export function TeamBuilder() {
               min={0}
               value={pickerMinMinutes ?? ""}
               placeholder="Any"
-              disabled={pickerHistoricMode === "live"}
-              title={
-                pickerHistoricMode === "live"
-                  ? "Not applied in Current Season mode: everyone has low or zero minutes until real gameweeks accumulate"
-                  : "Minutes in whichever Historic/Raw mode is selected below. A player with no data at all for that mode is excluded once a minimum is set"
-              }
+              title="Minutes in whichever Historic/Raw mode is selected below. A player with no minutes there counts as 0"
               onChange={(e) => setPickerMinMinutes(e.target.value === "" ? null : Number(e.target.value))}
             />
           </div>
@@ -1255,7 +1272,7 @@ export function TeamBuilder() {
           <div>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Historic/raw columns show:</div>
             <div style={{ display: "flex", gap: 6 }}>
-              {PICKER_HISTORIC_MODE_OPTIONS.map((o) => (
+              {ANALYSIS_MODE_OPTIONS.map((o) => (
                 <button
                   key={o.mode}
                   type="button"
@@ -1269,6 +1286,7 @@ export function TeamBuilder() {
                   <AnalysisModeIcon mode={o.mode} />
                 </button>
               ))}
+              {pickerHistoricMode === "historicAverage" && <SmallSampleBadge note={historicSeasonsNote()} />}
             </div>
           </div>
         </div>
@@ -1328,6 +1346,7 @@ export function TeamBuilder() {
                       }}
                     >
                       {c.label}
+                      {c.minutesNote && <SmallSampleBadge note={c.minutesNote} />}
                       {sortEntry && <span className="sort-indicator">{sortEntry.direction === "asc" ? "\u2191" : "\u2193"}</span>}
                       <ColumnFilterControl
                         isOpen={columnFiltersState.openFilterKey === c.key}
@@ -1411,14 +1430,14 @@ export function TeamBuilder() {
                   <PickerRow
                     key={row.live.id}
                     row={row}
+                    mode={pickerHistoricMode}
                     canAdd={check.ok}
                     addBlockedReason={check.reason}
                     predictiveColumns={predictiveColumnsInOrder}
                     historicRawColumns={historicRawColumnsInOrder}
                     predictiveWidths={predictiveCols.columnWidths}
                     historicRawWidths={historicRawCols.columnWidths}
-                    predictiveRanges={predictiveColumnRanges}
-                    historicRawRanges={historicRawColumnRanges}
+                    columnRanks={pickerColumnRanks}
                     onAdd={addPickerPlayer}
                     onViewProfile={viewPickerProfile}
                   />

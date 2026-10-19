@@ -1,5 +1,6 @@
 import type { TeamAggregate } from "../metrics/teamStats";
 import { fmtDecimal, fmtSigned } from "../utils/format";
+import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 
 export type TeamColumnGroup = "RESULTS" | "OUTPUT" | "UNDERLYING PERFORMANCE";
 
@@ -11,8 +12,10 @@ export interface TeamColumn {
   format: (v: number | null) => string;
   /** Decimal places `format` shows — Team Explorer's column filters compare a value as displayed (see columnFilterPasses). Whole-number columns say 0: a Historic Average figure is a mean (65.75 shown "66"), so leaving it out compared the raw mean (audit 2026-10-18 M15). */
   decimals: number;
-  /** Whether a higher value is the "better" one for this metric. Defaults to true; false for league position, losses, goals against, and xGC. */
+  /** Whether a higher value is the "better" one — the direction of its comparative colour (<comparative_colouring>). Defaults to true; false for league position, losses, goals against, and xGC. */
   higherIsBetter?: boolean;
+  /** A figure that's neither better nor worse (games played, draws, a style statistic): never coloured (colourDirection). */
+  noColour?: boolean;
   /** Set only on a column from a second data source (extensions/externalStats.ts) — its id. Unset means FPL. */
   sourceId?: string;
 }
@@ -31,9 +34,9 @@ export const TEAM_COLUMNS: TeamColumn[] = [
   // RESULTS
   { key: "leaguePosition", label: "League Position", group: "RESULTS", getValue: (t) => t.leaguePosition, ...num(0), higherIsBetter: false },
   { key: "leaguePoints", label: "League Points", group: "RESULTS", getValue: (t) => t.leaguePoints, ...num(0) },
-  { key: "played", label: "Played", group: "RESULTS", getValue: (t) => t.played, ...num(0) },
+  { key: "played", label: "Played", group: "RESULTS", getValue: (t) => t.played, ...num(0), noColour: true },
   { key: "wins", label: "Wins", group: "RESULTS", getValue: (t) => t.wins, ...num(0) },
-  { key: "draws", label: "Draws", group: "RESULTS", getValue: (t) => t.draws, ...num(0) },
+  { key: "draws", label: "Draws", group: "RESULTS", getValue: (t) => t.draws, ...num(0), noColour: true },
   { key: "losses", label: "Losses", group: "RESULTS", getValue: (t) => t.losses, ...num(0), higherIsBetter: false },
   { key: "goalsFor", label: "Goals For", group: "RESULTS", getValue: (t) => t.goalsFor, ...num(0) },
   { key: "goalsAgainst", label: "Goals Against", group: "RESULTS", getValue: (t) => t.goalsAgainst, ...num(0), higherIsBetter: false },
@@ -83,4 +86,30 @@ export function currentTeamMetricKey(key: string): string {
 export function teamColumnByKey(key: string): TeamColumn | undefined {
   const current = currentTeamMetricKey(key);
   return TEAM_COLUMNS.find((c) => c.key === current);
+}
+
+/**
+ * Whole-number club columns kept whole even as a Historic Average: a league
+ * position is a place, not a count; every completed season is 38 played;
+ * and wins, draws and losses are shared out as whole numbers that add up
+ * to the games played (<results_within_played>, the owner's rule).
+ */
+const WHOLE_WHEN_AVERAGED = new Set(["leaguePosition", "played", "wins", "draws", "losses"]);
+const historicAverageColumns = new WeakMap<TeamColumn, TeamColumn>();
+
+/** The format a figure built from a club column (a Dashboard team tile) has in a Data View: the column's own (playerColumns.tsx columnFormatForMode). */
+export function teamColumnFormatForMode(key: string, format: (v: number | null) => string, mode: AnalysisMode): (v: number | null) => string {
+  const c = teamColumnByKey(key);
+  return c && c.format === format ? teamColumnForMode(c, mode).format : format;
+}
+
+/** <averaged_counts> for a club column (the player rule, playerColumns.tsx columnForMode): a Historic Average count shows 1 decimal. */
+export function teamColumnForMode(c: TeamColumn, mode: AnalysisMode): TeamColumn {
+  if (mode !== "historicAverage" || c.decimals !== 0 || WHOLE_WHEN_AVERAGED.has(c.key)) return c;
+  let shown = historicAverageColumns.get(c);
+  if (!shown) {
+    shown = { ...c, decimals: 1, format: (v) => (c.key === "goalDifference" ? fmtSigned(v, 1) : fmtDecimal(v, 1)) };
+    historicAverageColumns.set(c, shown);
+  }
+  return shown;
 }

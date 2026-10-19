@@ -146,32 +146,52 @@ export function UserGuide() {
           <li>
             <strong>Historic Average:</strong> the average of the last 4 completed seasons a player has, light or injury-hit ones
             included, so a bad season isn't quietly dropped. Per-game figures (PPG, xG/Game and the rest) are the seasons' totals
-            divided by their total games, with games counted from total minutes. Where you can't set minimum minutes yourself (see
-            below), only seasons of 450+ minutes count. A cameo year, one lost to injury or a year out of the Premier League is too
-            small a sample. The window is always the last 4 completed seasons; an older season never takes a skipped one's place.
+            divided by their total games, with games counted from total minutes. Only seasons of 450+ minutes count, on every
+            page: a cameo year, one lost to injury or a year out of the Premier League is too small a sample. The window is always the last 4 completed seasons; an older season never takes a skipped one's place.
+            Counts (goals, assists, points, cards and the like) show one decimal here, so 0.4 goals a season reads 0.4, not 0.
           </li>
           <li>
             <strong>Current Season:</strong> this season's live figures. Before a player's team has played, points, goals, minutes
-            and the like are genuinely zero. Live figures update every 10 minutes; the Refresh button at the top fetches everything
-            straight away, this season's club figures and league table included (those can take up to a minute; the current ones
+            and the like are genuinely zero. Player figures update every 10 minutes by themselves, and so does an open profile's
+            Match Log; this season's club figures and league table catch up within the hour after FPL confirms a match. The
+            Refresh button at the top fetches everything straight away (club figures can take up to a minute; the current ones
             stay on screen meanwhile).
           </li>
         </ul>
         <p className="page-subtitle">
-          <strong>Minimum minutes.</strong> Where you set a minutes filter yourself (Player Explorer's Mins column, the tiles and
-          graphs you build on the Dashboard, the cards you build on Player Comparison, Team Building) the app adds none of its own:
-          raise it if one short appearance is topping a per-game list. Where you can't (the player profile and the Starter views on
-          the Dashboard and Player Comparison) a fixed floor applies: 90 minutes in Current Season, 450 (five full games) otherwise,
-          and Historic Average counts only seasons of 450+ minutes (so a player who never reached 450 in the last 4 seasons has no
-          Historic Average there). In the player profile and Player Comparison's Starter view, a player under the floor is a{" "}
-          <em>small sample</em>: shown, but with no percentile, no green/red colour, and never marked the best. Starter tiles and
-          graphs leave him out. A small stopwatch badge, by the mode toggle or in a card's header, shows where the floor applies
-          (hover it for the figure); in amber, it marks a player under it.
+          <strong>Minimum minutes.</strong> Where you set a minimum yourself (Player Explorer's Mins column, the tiles and graphs
+          you build on the Dashboard, the cards you build on Player Comparison, Team Building's Min minutes) it's the only one that
+          decides which players show, in every mode, Current Season included: raise it if one short appearance is topping a
+          per-game list. Where you can't (the player profile and the Starter views on the Dashboard and Player Comparison) a fixed
+          floor applies: 90 minutes in Current Season, 450 (five full games) otherwise. A player with no minutes counts as 0, so
+          he's under any minimum. Green and red always use the fixed floor. A player under it is a <em>small sample</em>: shown
+          where your minimum lets him, but with no percentile, no green/red colour, and never marked the best; Starter tiles and
+          graphs leave him out. Historic Average counts only seasons of 450+ minutes everywhere, so a player who never reached
+          450 in the last 4 seasons has none.
+        </p>
+        <p className="page-subtitle">
+          The <strong>amber stopwatch</strong> is the one sign of a minutes threshold, and it shows wherever one applies (hover it
+          to see which): on a view where one is in force (the mode toggle in Historic Average, the profile, a tile, graph or card
+          with a floor or your own minimum, Player Explorer's Mins heading when you filter it, Team Building's Min minutes and
+          its Model Predicted column), and on anything under one (a player's row, a season in Points History, the Match Log's
+          season, a card on the profile, a point or marker on Player Comparison). Team Building's Expected Points, Minutes
+          Reliability and pitch cards look ahead rather than back, so no minutes floor touches their colours.
+        </p>
+        <p className="page-subtitle">
+          <strong>Green and red</strong> mean the same everywhere: how a figure compares. A player's is compared with every
+          player in his position for the same Data View, whatever filters or search you've set, so his colour doesn't change
+          as you narrow a table and matches his profile's. A club's is compared with every club. Stronger green is better,
+          stronger red worse, no colour about average. A player under the floor above (90 minutes in Current Season, 450
+          otherwise) has no colour on any page and doesn't count in anyone else's, even where your own minimum shows his row.
+          More goals, assists, wins and points are better, scoring above expected included; a lower price and lower
+          ownership are better. Games played, draws and style figures (set-piece share, assisted-shot share, PPDA) have no
+          colour. Charts that tell players apart by colour never use green or red, so no one reads as better or worse by his
+          colour alone.
         </p>
         <p className="page-subtitle" style={{ margin: 0 }}>
           Price, ownership and availability are always today's, in every mode, including anything worked out from price like
-          Points/£m, because what a player costs now is what matters for picking a squad. The one exception is Points History's
-          season-by-season table, which shows what a player cost at the time.
+          Points/£m, because what a player costs now is what matters for picking a squad. The one exception is the profile's
+          Match Log, whose heading shows a past season's start and end price.
         </p>
       </Section>
 
@@ -201,8 +221,9 @@ export function UserGuide() {
           <li>
             Each row reads club pill, position, name, bar, value. Bars start at the same point and the top row's is full length, so
             a shorter bar shows how far behind that row is, whichever way the tile is ordered (on a Lowest First tile, a row with
-            twice the leader's figure has half its bar). A tile ordered Lowest First says so in its title. The three "vs
-            xG/xA/xGI" tiles colour green/red for above/below expected; everything else is one colour.
+            twice the leader's figure has half its bar). A tile ordered Lowest First says so in its title. Each figure is
+            coloured green/red as everywhere (see Overview), against the whole pool for the tile's Data View, not just the
+            players it lists.
           </li>
         </ul>
         <p className="page-subtitle">
@@ -260,8 +281,9 @@ export function UserGuide() {
             downloads exactly what's on screen.
           </li>
           <li>
-            Each cell is tinted green/red against the rest of its column on screen. Total xGC, goals conceded and cards are tinted
-            per game, so a player who has barely played doesn't look like the best defender.
+            Each cell is coloured green/red against every player in his position (see Overview), not just the rows on screen.
+            Total xGC, goals conceded and cards are compared per game, so a player who has barely played doesn't look like the
+            best defender.
           </li>
           <li>
             <strong>Header colours</strong> say where a figure comes from and whether it follows the Data View: green is an FPL
@@ -330,7 +352,7 @@ export function UserGuide() {
       <Section id="player-comparison" title="Player Comparison">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
           Side-by-side analysis of up to 5 players, added with the search box at the top. Each gets a tag (ownership · today's
-          price, club, position) and a colour (blue, gold, green, red, then grey, in the order added) used for him on every chart.
+          price, club, position) and a colour (blue, gold, orange, white, then grey, in the order added) used for him on every chart.
           Click a name for his profile; × removes him.
         </p>
         <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
@@ -360,9 +382,9 @@ export function UserGuide() {
         </ul>
         <p className="page-subtitle">
           <strong>Min Minutes</strong> is set per card you build (0 unless you set it). A player under it gets an amber stopwatch on
-          that card (hover for his minutes): he isn't drawn on a radar (radars rank only players who reach it), gets a hollow grey
-          Outputs marker that doesn't set the scale or tint the bar, and can't be the best. On a Trends
-          graph, a season under it still shows his figure, but as an amber ring rather than a dot. Starter cards use the fixed floor
+          that card (hover for his minutes): he isn't drawn on a radar (radars rank only players who reach it), his Outputs
+          marker is the amber stopwatch and doesn't set the scale or tint the bar, and he can't be the best. On a Trends
+          graph, a season under it still shows his figure, but as the amber stopwatch rather than a dot. Starter cards use the fixed floor
           instead (see Minimum minutes above).
         </p>
         <Try>Add two players you're deciding between and switch to Starter. If one leads on totals but the other on per-game rows, the first may just have played more.</Try>
@@ -390,8 +412,8 @@ export function UserGuide() {
         <p className="page-subtitle">
           <strong>Team Profile</strong> shows season totals, the team radars, upcoming fixtures, Points History and the Match Log:
           club figures only, no players (for a club's players, use Player Explorer's Team column). The header's position, points and results
-          follow the Data View; in Historic Average, position and points are rounded (two clubs can both be "2nd") and wins, draws
-          and losses always add up to the games played. On the Defense radar, more Defensive Contributions counts as better, so a
+          follow the Data View; in Historic Average, position is rounded (two clubs can both be "2nd"), points show one decimal,
+          and wins, draws and losses are whole numbers that always add up to the games played. On the Defense radar, more Defensive Contributions counts as better, so a
           dominant side that rarely defends can sit low on that axis.
         </p>
         <p className="page-subtitle">
@@ -400,8 +422,9 @@ export function UserGuide() {
           outside the Premier League has no bar. Click a season's bar to show its matches in the <strong>Match Log</strong> below
           (click this season's bar to come back). The Match Log lists that season's matches, newest first: opponent, home or away,
           score, then the club's FPL points, goals, assists, xG, xA, xGI, clean sheet, xGC and defensive contributions, with Totals
-          and a per-match Average, coloured against every other club that season. FPL records xG and the rest per player, so each
-          match adds up whoever played.
+          and a per-match Average, coloured against every other club that season. If some matches lack a figure, Totals adds up
+          the ones that have it and Average divides by them (hover to see how many). FPL records xG and the rest per player, so
+          each match adds up whoever played.
         </p>
         <p className="page-subtitle">
           Where the club record comes from: the API only serves this season's match data and wipes it each summer, so 2016/17 to
@@ -418,40 +441,42 @@ export function UserGuide() {
           Underlying Numbers, Percentile Radar, Value) follows the analysis mode; Points History, the Match Log and Playing Time
           don't. Section headings are coloured by where their figures come from: green for FPL, violet for Understat, and rose for
           the Match Log when it holds both. The Percentile Radar is position-specific: defenders and midfielders get Defense and Offense radars, goalkeepers
-          and forwards one combined radar. Underlying Numbers and Value are tinted green/red by his percentile within his position.
-          Goalkeepers get no Defensive Contribution tiles, since FPL's defensive contributions exclude them. Defensive
+          and forwards one combined radar. Underlying Numbers and Value are coloured green/red against his position.
+          Goalkeepers get no Defensive Contribution tiles, since FPL's defensive contributions exclude them. In tables, a figure
+          a position can't have (a goalkeeper's Defensive Contributions, an outfielder's saves) is left blank, not 0. Defensive
           Contributions are a count of actions (for defenders clearances, blocks, interceptions and tackles; for midfielders and
           forwards recoveries too), not FPL points.
         </p>
         <p className="page-subtitle">
           The profile has no minutes setting, so its percentiles use the fixed floor (see Analysis modes): only players with 450+
-          minutes (90 in Current Season) are ranked. A player under it is a <em>small sample</em>: his radars carry an amber
-          stopwatch (hover for the figures) and nothing is coloured. If he has no figures in the chosen mode, the profile suggests
+          minutes (90 in Current Season) are ranked. A player under it is a <em>small sample</em>: his radars, Underlying
+          Numbers and Value carry an amber stopwatch (hover for the figures) and nothing is coloured. If he has no figures in the chosen mode, the profile suggests
           Data Views that do.
         </p>
         <p className="page-subtitle">
           The <strong>Match Log</strong>, under Points History, is a match-by-match table of one season (a double gameweek is two
           rows): this season, unless you click another season's bar in Points History (click this season's bar to come back).
-          Result, then Points, Minutes, Goals, Assists, xG, xA, xGI, Clean Sheets, xGC, Defensive Contributions and BPS (Saves
-          instead of Defensive Contributions for a goalkeeper). Totals adds up the matches listed; Average divides by them, including
-          ones he didn't play. This season's are tinted against his position using this season's figures and the Current Season
+          Its heading shows the season's price (start → end; today's for this season). Result, then Points, Minutes, Starts,
+          Goals, Assists, xG, xA, xGI, Clean Sheets, xGC, Defensive Contributions and BPS (Saves instead of Defensive
+          Contributions for a goalkeeper). Totals adds up the matches listed; Average divides by them, including
+          ones he didn't play. If a match he played lacks a figure, it's left out of both (hover the cell to see how many matches
+          it covers). If the season he's showing is under the minutes floor, an amber stopwatch by the season says why Totals
+          and Average have no colour. This season's are coloured against his position using this season's figures and the Current Season
           floor, Average per match, so a late signing's strong per-match numbers show green even while his total is low. A past
-          season's are tinted the same way against everyone who played in his position that season, with that season's 450-minute
-          floor. Match-by-match records go back to 2016/17; FPL didn't record xG and the rest before 2022/23, or
+          season's are coloured the same way against everyone who played in his position that season, with that season's 450-minute
+          floor. A column switched to Understat is coloured on Understat's own figures. Match-by-match records go back to 2016/17 (an older season shows FPL's season totals instead); FPL didn't record xG and the rest before 2022/23, or
           defensive contributions before 2025/26, so those show "—". <strong>Playing Time</strong>, a minutes-per-match gauge for
           the season shown, sits at the top of the Match Log. Understat's figures (violet columns, or a column switched with its
           ⇄ toggle) usually arrive a day or so after FPL's, so the latest match can show "—" there for a while; meanwhile
-          Understat's Totals and Average cover the matches it has (hover to see how many).
+          Understat's Totals and Average cover the matches it has, by the same rule (hover to see how many). "—" always means a
+          figure is missing; a cell with nothing to add up by design (Win Chance's Totals, say) is blank.
         </p>
         <p className="page-subtitle">
           <strong>Points History</strong> has a bar per season: green if counted in the average, grey if not, this season as an
           outline. The line is the average of the last 4 completed seasons; top right is the change between the last two. The icons
-          underneath are per-season averages of points, minutes, goals and assists (hover for which). The chevron opens the
-          season-by-season table: <strong>*</strong> marks a light season that still counts, <strong>†</strong> one that doesn't
-          (outside the 4 seasons, or under 450 minutes). The table is tinted against his own other seasons, except Price (the
-          middle of that season's start and end price), which is compared with every player who played 450+ minutes that season
-          (90 for this one): cheaper is greener. Past seasons compare with players still in FPL today, and a season of his under
-          those minutes has no colour.
+          underneath are per-season averages of points, minutes, goals and assists (hover for which). A season under 450
+          minutes carries the amber stopwatch under its bar, and one outside the 4 seasons a † on hover; neither counts. Click a
+          bar for that season's matches in the Match Log below.
         </p>
       </Section>
 

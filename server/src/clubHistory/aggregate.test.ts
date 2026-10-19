@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { aggregateClubSeason, checkLedgerAgainstScores } from "./aggregate.js";
+import { aggregateClubSeason, checkLedgerAgainstScores, sumMostlyComplete } from "./aggregate.js";
 import { parseCsv, toCsv } from "./csv.js";
 import type { LedgerFixture, LedgerRow, LedgerTeam } from "./types.js";
 
@@ -157,5 +157,24 @@ describe("csv", () => {
   it("round-trips quoted fields and empty values", () => {
     const text = toCsv(["a", "b", "c"], [["x, y", null, 'say "hi"']]);
     expect(parseCsv(text)).toEqual([{ a: "x, y", b: "", c: 'say "hi"' }]);
+  });
+});
+
+describe("<season_figures_mostly_complete>: a club figure with an entry or two missing still totals", () => {
+  it("adds up what's there when at most a quarter is missing", () => {
+    // 2 of 38 matches missing a figure: still the season's total of the other 36.
+    const season = [...Array(36).fill(1), null, null];
+    expect(sumMostlyComplete(season)).toBe(36);
+    expect(sumMostlyComplete([2, 3, null, 5])).toBe(10);
+  });
+
+  it("is null when a large share is missing (2022/23's expected stats: 15 of 38 matches) or nothing has it", () => {
+    expect(sumMostlyComplete([...Array(23).fill(1), ...Array(15).fill(null)])).toBeNull();
+    expect(sumMostlyComplete([null, null])).toBeNull();
+    expect(sumMostlyComplete([])).toBeNull();
+  });
+
+  it("keeps a real 0", () => {
+    expect(sumMostlyComplete([0, 0, 0])).toBe(0);
   });
 });

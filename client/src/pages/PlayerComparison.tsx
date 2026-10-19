@@ -2,11 +2,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
-import { resolvePlayerStatsList, hasDataForMode, isAnalysisMode, type AnalysisMode, type ResolveOptions } from "../metrics/resolvePlayerStats";
-import { FIXED_FLOOR_MINUTES, fixedFloorMinutes, isFixedFloorSmallSample } from "../metrics/fixedMinutesFloor";
+import { resolvePlayerStatsList, hasDataForMode, isAnalysisMode, type AnalysisMode } from "../metrics/resolvePlayerStats";
+import { FIXED_FLOOR_MINUTES, fixedFloorMinutes, isUnderMinimum } from "../metrics/fixedMinutesFloor";
 import { comparisonMetricByKey, comparisonPercentiles, RADAR_MIN_METRICS, type ComparisonMetric } from "../metrics/comparisonMetrics";
 import { buildSeasonTrend, trendDataKey, trendMetricByKey } from "../metrics/careerTrends";
-import { belowMinimumNote, profileFloorNote, smallSampleNote, trendFloorNote } from "../components/MinutesFloorBadge";
+import { belowMinimumNote, historicSeasonsNote, profileFloorNote, smallSampleNote, trendFloorNote, userMinimumNote } from "../components/MinutesFloorBadge";
+import { columnFormatForMode } from "../components/playerColumns";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { CreateViewIcon, PlusIcon, TrashIcon } from "../components/IconToolbar";
 import { SectionHeading, type SectionIcon } from "../components/SectionHeading";
@@ -38,8 +39,6 @@ const MAX_COMPARE = 5;
  * view the user builds, each card has its own Min Minutes and the app adds
  * nothing (Historic Average counts every window season).
  */
-const STARTER_RESOLVE: ResolveOptions = { fixedFloorSeasons: true };
-const CUSTOM_RESOLVE: ResolveOptions = {};
 
 const SECTIONS: { kind: ComparisonElementKind; title: string; icon: SectionIcon; noun: "chart" | "panel" | "graph"; addHeight: number }[] = [
   { kind: "radar", title: "Charts", icon: "radar", noun: "chart", addHeight: 340 },
@@ -149,7 +148,7 @@ export function PlayerComparison() {
     const map = new Map<AnalysisMode, ModePool>();
     if (compared.length === 0) return map;
     for (const mode of modesKey.split(",").filter(isAnalysisMode)) {
-      const { resolved } = resolvePlayerStatsList(players, mode, historicProfiles, currentSeasonHasStarted, readOnly ? STARTER_RESOLVE : CUSTOM_RESOLVE);
+      const { resolved } = resolvePlayerStatsList(players, mode, historicProfiles, currentSeasonHasStarted);
       map.set(mode, {
         resolved,
         byId: new Map(resolved.map((p) => [p.id, p])),
@@ -157,7 +156,7 @@ export function PlayerComparison() {
       });
     }
     return map;
-  }, [modesKey, compared.length, readOnly, players, historicProfiles, currentSeasonHasStarted]);
+  }, [modesKey, compared.length, players, historicProfiles, currentSeasonHasStarted]);
 
   const cards: CardData[] = useMemo(() => {
     const historicMessage = historicStatus === "error" ? "Historic data couldn't be loaded." : "Loading historic data…";
@@ -170,11 +169,8 @@ export function PlayerComparison() {
     function modeEntries(el: ComparisonElementConfig, mode: AnalysisMode, pool: ModePool | undefined): LegendEntry[] {
       return compared.map((c) => {
         const resolved = pool?.byId.get(c.player.id);
-        const below =
-          !!resolved &&
-          (readOnly
-            ? isFixedFloorSmallSample(resolved.minutes, mode, historicProfiles.get(c.player.id))
-            : resolved.minutes !== null && resolved.minutes < el.minMinutes);
+        // No minutes for the mode counts as 0 (<no_data_is_zero>), so a player with no data is under any minimum above 0.
+        const below = !!resolved && isUnderMinimum(resolved.minutes, readOnly ? fixedFloorMinutes(mode) : el.minMinutes);
         const note = !below ? null : readOnly ? smallSampleNote(resolved!.minutes, mode) : belowMinimumNote(resolved!.minutes, el.minMinutes);
         return {
           ...c,
@@ -216,7 +212,7 @@ export function PlayerComparison() {
           rows,
           minMinutes,
           entries,
-          floorNote: readOnly ? trendFloorNote() : null,
+          floorNote: readOnly ? trendFloorNote() : el.minMinutes > 0 ? userMinimumNote(el.minMinutes, null) : null,
           message: message ?? (rows.length === 0 ? "No completed seasons on record for these players." : null),
         };
       }
@@ -226,8 +222,9 @@ export function PlayerComparison() {
       const mode: AnalysisMode = el.dataView ?? "lastSeason";
       const pool = poolsByMode.get(mode);
       const message = noPlayers ?? (mode !== "live" && historicStatus !== "ready" ? historicMessage : null);
-      // The stopwatch badge marks a floor the app applied, so only Starter's cards carry it (as on the Dashboard).
-      const floorNote = readOnly ? profileFloorNote(mode) : null;
+      // The amber stopwatch marks any minimum-minutes threshold in force on the card (<minutes_marker>): Starter's fixed floor,
+      // the card's own Min Minutes, or Historic Average's 450-minute seasons.
+      const floorNote = readOnly ? profileFloorNote(mode) : el.minMinutes > 0 ? userMinimumNote(el.minMinutes, mode) : mode === "historicAverage" ? historicSeasonsNote() : null;
       if (message || !pool) {
         const shown = message ?? historicMessage;
         return el.kind === "radar"
@@ -242,7 +239,7 @@ export function PlayerComparison() {
           return {
             key: metric.key,
             label: metric.label,
-            format: metric.format,
+            format: columnFormatForMode(metric.key, metric.format, mode),
             values: new Map(compared.map((c) => [c.player.id, { percentile: percentiles.get(c.player.id) ?? null, raw: valueFor(metric, pool, c.player.id) }])),
           };
         });
@@ -255,7 +252,7 @@ export function PlayerComparison() {
           label: metric.label,
           group: metric.group,
           higherIsBetter: metric.higherIsBetter,
-          format: metric.format,
+          format: columnFormatForMode(metric.key, metric.format, mode),
           cells: new Map(compared.map((c) => [c.player.id, valueFor(metric, pool, c.player.id)])),
           rankCells: metric.rankValue === metric.getValue ? undefined : new Map(compared.map((c) => [c.player.id, rankFor(metric, pool, c.player.id)])),
         };

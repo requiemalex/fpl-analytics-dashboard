@@ -20,7 +20,6 @@ function Harness({ seen, inDialog = false }: { seen: GlobalScoutingFilters[]; in
         setFilters(next);
       }}
       onReset={() => setFilters(DEFAULT_FILTERS)}
-      analysisMode="lastSeason"
       showPrice
       inDialog={inDialog}
     />

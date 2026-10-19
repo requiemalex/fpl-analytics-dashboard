@@ -85,20 +85,33 @@ No lint script. Playwright isn't installed but works via
 - Handle zero minutes and nulls safely — no divide-by-zero, no NaN/Infinity
   in the UI, no silent 0-instead-of-null.
 - Goals−xG and assists−xA use the same source values everywhere.
-- **Minimum minutes — one rule.** A floor exists only to stop tiny samples
-  taking over. Where the user can set minimum minutes (Player Explorer,
-  Dashboard tiles/graphs they build, Player Comparison cards in views they
-  build, Team Building) the app adds none, and Historic Average counts
-  0-minute seasons. Where they can't (player profile, the packaged Starter
-  views on the Dashboard and Player Comparison) the fixed floor applies —
-  90 min in Current Season, 450 otherwise
+- **Minimum minutes — one rule** (owner's decisions, 2026-10-19; README
+  "Minimum minutes"). A floor exists only to stop tiny samples taking over.
+  Where the user can set minimum minutes (Player Explorer, Dashboard
+  tiles/graphs they build, Player Comparison cards in views they build,
+  Team Building) theirs decides the rows, in every Data View, Current
+  Season included. Where they can't (player profile, the packaged Starter
+  views) the fixed floor applies — 90 min in Current Season, 450 otherwise
   (`metrics/fixedMinutesFloor.ts`) — to every percentile, totals too; below
-  it is a "small sample" with no percentile or colour; and Historic Average counts only seasons of 450+ minutes —
-  a shorter season's figures don't count at all. The Historic Average
-  window is always the last 4 completed seasons, never reaching further
-  back. Check which side a
-  section is on before adding or removing any floor (README "Minimum
-  minutes").
+  it is a "small sample" with no percentile or colour. Everywhere: no data
+  counts as 0 minutes (`isUnderMinimum`); **one Historic Average**, counting
+  only seasons of 450+ minutes (a shorter season's figures don't count at
+  all), over the last 4 completed seasons, never reaching further back.
+  Clubs and forward-looking figures (Team Building's Exp. Pts, Minutes
+  Reliability, pitch cards) have no floor. **Every** threshold shows the
+  amber stopwatch — on the view where it applies and on each entry under
+  it, and no other symbol (`<minutes_marker>`,
+  `components/MinutesFloorBadge.tsx`). Check which side a section is on
+  before adding or removing any floor.
+- **Comparative colouring — one rule** (owner's decision, 2026-10-19;
+  README "Comparative colouring", `metrics/comparativeColour.ts`). Green /
+  red on any figure is its rank: a player's within his position among the
+  whole pool for the view's Data View (never just the filtered rows), a
+  club's among all clubs. The fixed floor (90 live / 450 otherwise) always
+  applies to colour, on every page: under it, no colour and out of the
+  pool. More is better (over-performance included); lower price and
+  ownership are better; played, draws and style stats are never coloured.
+  Never use green or red as a series or decoration colour.
 
 ## Architecture
 - Client data flows `api/client.ts` → `validation/` → `normalize/` →

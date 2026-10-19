@@ -65,33 +65,14 @@ export interface HistoricPlayerProfile {
   lastCompletedSeason: PlayerSeasonHistory | null;
   /**
    * Seasons within the window that meet MIN_QUALIFYING_SEASON_MINUTES,
-   * oldest first. No longer used to build the average (see
-   * <no_survivorship_bias> on windowAverage below) — kept only so the UI
-   * can flag a season as "light" (the `*` marker in Points History's
-   * detail table) and for `expectedPoints.ts`'s
-   * forward-prediction reliability gate.
+   * oldest first. Not used for Historic Average — only for Team Building's
+   * Model Predicted bonus rate (`expectedPointsV2.ts`) and
+   * `expectedPoints.ts`'s forward-prediction reliability gate.
    */
   qualifyingSeasons: PlayerSeasonHistory[];
   /**
-   * <no_survivorship_bias>: average across EVERY season in the window
-   * (same set as allSeasonsInWindow below), not just the ones meeting
-   * MIN_QUALIFYING_SEASON_MINUTES — changed directly at the user's
-   * request. Filtering out light seasons before averaging meant an
-   * injury-hit or lost-form season simply vanished from "Historic
-   * Average" instead of dragging it down, which is exactly backwards
-   * for a metric whose job is describing how much a player is really
-   * worth holding across a season: a player who's reliably excellent
-   * when fit but frequently hurt should show a LOWER average than one
-   * who's merely good but always available, not the same or better one
-   * because their bad seasons got quietly dropped. Named `windowAverage`
-   * rather than `qualifyingAverage` (its old name) since nothing is
-   * filtered out anymore. Null only if the window has no seasons at all.
-   */
-  windowAverage: CareerAverages | null;
-  /**
    * EVERY season within the window, oldest first, regardless of minutes
-   * played — the same array windowAverage above is now computed from.
-   * Also what RELIABILITY uses (see minutesReliabilityBlend.ts): a
+   * played. What RELIABILITY uses (see minutesReliabilityBlend.ts): a
    * low-minutes season is exactly the signal that matters there too, so
    * it was never filtered for that purpose either.
    */
@@ -99,17 +80,16 @@ export interface HistoricPlayerProfile {
   /**
    * The window's seasons with at least the fixed minutes floor
    * (FIXED_FLOOR_MINUTES, 450), oldest first — never reaching back past the
-   * window to replace one that falls short. Where the user can't set
-   * minimum minutes (<fixed_minutes_floor>: player profile, Player
-   * Comparison, the packaged Default Dashboard views), only
-   * these seasons count toward Historic Average: a season under the floor
-   * (a cameo year, one lost to injury, or 0 minutes) is a small sample, so
-   * its figures don't count at all — the owner's rule (2026-09-25, replacing
-   * "leave out 0-minute seasons"). Everywhere else keeps windowAverage,
-   * every season included.
+   * window to replace one that falls short. Historic Average counts only
+   * these, everywhere in the app (the owner's rule, 2026-10-19: one Historic
+   * Average, replacing a second version that counted every season, 0-minute
+   * ones included, where the user sets minimum minutes). A season under the
+   * floor (a cameo year, one lost to injury, or 0 minutes) is a small
+   * sample, so its figures don't count at all. A light season of 450+ still
+   * counts and pulls the average down (<no_survivorship_bias>).
    */
   floorSeasonsInWindow: PlayerSeasonHistory[];
-  /** Average over floorSeasonsInWindow. Null when no window season reaches the floor. */
+  /** Historic Average: the average over floorSeasonsInWindow. Null when no window season reaches the floor. */
   floorWindowAverage: CareerAverages | null;
 }
 
@@ -130,7 +110,6 @@ export function buildHistoricPlayerProfile(seasons: PlayerSeasonHistory[], refer
   return {
     lastCompletedSeason,
     qualifyingSeasons,
-    windowAverage: allSeasonsInWindow.length > 0 ? computeCareerAverages(allSeasonsInWindow) : null,
     allSeasonsInWindow,
     floorSeasonsInWindow,
     floorWindowAverage: floorSeasonsInWindow.length > 0 ? computeCareerAverages(floorSeasonsInWindow) : null,

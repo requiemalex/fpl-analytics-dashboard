@@ -132,8 +132,8 @@ export function understatPlayerColumns(lookup: (p: NormalizedPlayer) => UsPlayer
           col("us.npxGPerShot", "NPxG/Shot", fromShots((r) => ratio(r.totals.npxG, r.totals.shots - r.totals.situations.Penalty.shots)), fmt(2)),
           col("us.npGoalsMinusNpxG", "NP Goals − NPxG", fromShots((r) => perSeason(r, r.totals.npGoals - r.totals.npxG)), signed(2)),
           col("us.woodwork", "Woodwork", detailTotal((d) => d.woodwork), fmt(0)),
-          col("us.blockedShots", "Blocked Shots", detailTotal((d) => d.blocked), fmt(0)),
-          col("us.blockedPct", "Blocked %", fromDetail((d, r) => ratio(d.blocked, r.totals.shots, 100)), pct),
+          col("us.blockedShots", "Blocked Shots", detailTotal((d) => d.blocked), fmt(0), { higherIsBetter: false }),
+          col("us.blockedPct", "Blocked %", fromDetail((d, r) => ratio(d.blocked, r.totals.shots, 100)), pct, { higherIsBetter: false }),
           col("us.headedShots", "Headed Shots", fromShots(total((t) => t.bodyParts.Head.shots)), fmt(0)),
           col("us.headedGoals", "Headed Goals", fromShots(total((t) => t.bodyParts.Head.goals)), fmt(0)),
           col("us.headedXG", "Headed xG", fromShots(total((t) => t.bodyParts.Head.xG)), fmt(2)),
@@ -158,13 +158,14 @@ export function understatPlayerColumns(lookup: (p: NormalizedPlayer) => UsPlayer
             "Set-Piece xG %",
             fromShots((r) => ratio(setPieceOf(r.totals.situations).xG, shotXGOf(r.totals.situations) - r.totals.situations.Penalty.xG, 100)),
             pct,
+            { noColour: true },
           ),
         ],
       },
       {
         heading: "Understat · Shot Type",
         columns: [
-          col("us.assistedPct", "Assisted Shots %", fromDetail((d, r) => ratio(d.assisted, r.totals.shots, 100)), pct),
+          col("us.assistedPct", "Assisted Shots %", fromDetail((d, r) => ratio(d.assisted, r.totals.shots, 100)), pct, { noColour: true }),
           col("us.crossShots", "Shots from Crosses", detailTotal((d) => d.lastActions.Cross.shots), fmt(0)),
           col("us.crossXG", "Cross xG", detailTotal((d) => d.lastActions.Cross.xG), fmt(2)),
           col("us.throughBallShots", "Through-Ball Shots", detailTotal((d) => d.lastActions.Throughball.shots), fmt(0)),
@@ -285,8 +286,8 @@ export function understatTeamColumns(teamsById: Map<number, NormalizedTeam>, loo
       {
         heading: "Understat · Style & Luck",
         columns: [
-          col("us.ppda", "PPDA", (r) => ratio(r.totals.ppdaAtt, r.totals.ppdaDef), fmt(2), { higherIsBetter: false }),
-          col("us.oppPpda", "Opp. PPDA", (r) => ratio(r.totals.ppdaAllowedAtt, r.totals.ppdaAllowedDef), fmt(2)),
+          col("us.ppda", "PPDA", (r) => ratio(r.totals.ppdaAtt, r.totals.ppdaDef), fmt(2), { noColour: true }),
+          col("us.oppPpda", "Opp. PPDA", (r) => ratio(r.totals.ppdaAllowedAtt, r.totals.ppdaAllowedDef), fmt(2), { noColour: true }),
           col("us.xGD", "xGD", total((t) => t.xG - t.xGA), signed(2)),
           col("us.npxGD", "NPxGD", total((t) => t.npxG - t.npxGA), signed(2)),
           col("us.xPts", "xPts", total((t) => t.xPts), fmt(1)),

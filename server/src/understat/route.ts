@@ -32,6 +32,8 @@ const cache = new TtlCache<unknown>();
 interface StatusLike {
   liveSeason: string;
   seasons: string[];
+  /** When the sync wrote this status — it changes with every sync that publishes. */
+  generatedAt?: string;
 }
 
 type Source = "live" | "cache" | "stale-cache";
@@ -39,13 +41,26 @@ type Source = "live" | "cache" | "stale-cache";
 export function createUnderstatRouter(options: { localDir?: string } = {}): Router {
   const router = Router();
 
-  async function load(rel: string, ttlMs: number, bypassCache: boolean): Promise<ProxyResult<unknown>> {
+  /**
+   * The sync each cached live-season file was read under (status.json's
+   * `generatedAt`). Status and a live file are each cached 30 minutes, so
+   * a fresh status could otherwise come with a live file cached just before
+   * that sync landed; a file read under an older sync is read again — once
+   * per sync, not per request. A failed re-read still falls back to the
+   * last good copy (cachedFetch).
+   */
+  const readUnderSync = new Map<string, string>();
+
+  async function load(rel: string, ttlMs: number, bypassCache: boolean, sync?: string): Promise<ProxyResult<unknown>> {
     if (options.localDir) {
       const path = join(options.localDir, rel);
       if (!existsSync(path)) return { ok: false, error: `${rel} not found`, status: 404 };
       return { ok: true, data: JSON.parse(readFileSync(path, "utf8")), source: "live", fetchedAt: Date.now() };
     }
-    return cachedFetch({ cache, cacheKey: rel, ttlMs, url: `${UNDERSTAT_REMOTE_BASE}/${rel}`, bypassCache });
+    const stale = sync !== undefined && readUnderSync.has(rel) && readUnderSync.get(rel) !== sync;
+    const result = await cachedFetch({ cache, cacheKey: rel, ttlMs, url: `${UNDERSTAT_REMOTE_BASE}/${rel}`, bypassCache: bypassCache || stale });
+    if (sync !== undefined && result.ok && result.source !== "stale-cache") readUnderSync.set(rel, sync);
+    return result;
   }
 
   async function build(bypassCache: boolean) {
@@ -65,7 +80,8 @@ export function createUnderstatRouter(options: { localDir?: string } = {}): Rout
     const wanted = (s.seasons ?? []).slice(-SEASONS_SERVED);
     const seasons: Record<string, unknown> = {};
     for (const season of wanted) {
-      const file = await load(`app/${season.replace("/", "-")}.json`, season === s.liveSeason ? LIVE_TTL_MS : COMPLETED_TTL_MS, bypassCache);
+      const live = season === s.liveSeason;
+      const file = await load(`app/${season.replace("/", "-")}.json`, live ? LIVE_TTL_MS : COMPLETED_TTL_MS, bypassCache, live ? s.generatedAt : undefined);
       if (!file.ok) return { ok: false as const, status: file.status, error: file.error };
       sources.push(file.source);
       seasons[season] = file.data;
@@ -115,7 +131,8 @@ export function createUnderstatRouter(options: { localDir?: string } = {}): Rout
       }
       const status = await load("status.json", LIVE_TTL_MS, false);
       const live = status.ok ? (status.data as StatusLike).liveSeason.replace("/", "-") === season : true;
-      const file = await load(`app/profile/${season}.json`, live ? LIVE_TTL_MS : COMPLETED_TTL_MS, false);
+      const sync = status.ok && live ? (status.data as StatusLike).generatedAt : undefined;
+      const file = await load(`app/profile/${season}.json`, live ? LIVE_TTL_MS : COMPLETED_TTL_MS, false, sync);
       if (!file.ok) {
         if (file.status === 404) {
           res.json({ data: { enabled: true, available: false }, meta: { source: "live", fetchedAt: Date.now() } });

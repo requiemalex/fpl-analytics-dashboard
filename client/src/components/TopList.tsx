@@ -2,14 +2,18 @@ import React from "react";
 import { barWidths } from "./statBar";
 import { PositionBadge, TeamBadge, AvailabilityFlag, availabilityTextClass } from "./primitives";
 import { DataViewBadge } from "./DataViewBadge";
-import { MinutesFloorBadge } from "./MinutesFloorBadge";
+import { MinutesFloorBadge, RowSmallSampleBadge } from "./MinutesFloorBadge";
 import { CardEditRemoveButtons } from "./IconToolbar";
+import { noRowsMessage } from "./emptyMessages";
+import { percentileTint } from "../utils/colorScale";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import type { NormalizedPlayer } from "../types/normalized";
 
 export interface TopListRow {
   player: NormalizedPlayer;
   value: number | null;
+  /** His rank within his position for this figure (<comparative_colouring>) — none under the floor or for an uncoloured figure. */
+  rank?: number;
 }
 
 
@@ -18,7 +22,7 @@ export function TopList({
   rows,
   format,
   onSelect,
-  emptyMessage = "No eligible players.",
+  emptyMessage = noRowsMessage("player"),
   onEdit,
   onRemove,
   draggable,
@@ -48,7 +52,7 @@ export function TopList({
   onDrop?: (e: React.DragEvent) => void;
   /** Dashboard-only: which analysis mode this tile was built from — shown as a small badge in the header. Omitted (no badge) for every other TopList usage, which has no per-tile mode of its own. */
   dataView?: AnalysisMode;
-  /** True for a +/- comparison metric (Goals vs xG, etc.) — colours each row's bar green/red by its own sign instead of one accent colour for the whole tile. */
+  /** True for a +/- comparison metric (Goals vs xG, etc.): bar lengths measure the size of each figure either side of 0 (statBar.ts). */
   signed?: boolean;
   /** Dashboard-only: hover text for the minutes-floor badge when the fixed floor applies to this tile (dashboardItemFloorNote); no badge when absent. */
   floorNote?: string | null;
@@ -83,24 +87,27 @@ export function TopList({
         </p>
       ) : (
         <div className="stat-list">
-          {rows.map(({ player, value }, i) => (
+          {rows.map(({ player, value, rank }, i) => (
             <div className="stat-row" key={player.id} onClick={() => onSelect?.(player.id)} style={{ cursor: onSelect ? "pointer" : "default" }}>
               <span className="stat-row-name">
                 <TeamBadge teamId={player.teamId} shortName={player.teamShortName} />
                 <PositionBadge position={player.position} />
                 <span className={availabilityTextClass(player.status)}>{player.name}</span>
                 <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />
+                {dataView && <RowSmallSampleBadge minutes={player.minutes} mode={dataView} />}
               </span>
               <span className="stat-row-bar-track">
                 <span
                   className="stat-row-bar-fill"
                   style={{
                     width: `${widths[i]}%`,
-                    background: signed ? (value !== null && value < 0 ? "var(--accent-negative)" : "var(--accent-positive)") : "var(--accent-focus)",
+                    background: "var(--accent-focus)",
                   }}
                 />
               </span>
-              <span className="stat-row-value">{format(value)}</span>
+              <span className="stat-row-value" style={{ background: percentileTint(rank) }}>
+                {format(value)}
+              </span>
             </div>
           ))}
         </div>

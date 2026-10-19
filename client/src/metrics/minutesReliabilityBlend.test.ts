@@ -7,7 +7,7 @@ const FULL_SEASON_MINUTES = 38 * 90; // 3420, documented in minutesReliabilityBl
 
 function profileWithSeasons(minutesList: number[]): HistoricPlayerProfile {
   const seasons = minutesList.map((m, i) => makeSeason({ seasonName: `${2020 + i}/${(21 + i) % 100}`, minutes: m }));
-  return { lastCompletedSeason: seasons.at(-1) ?? null, qualifyingSeasons: seasons, windowAverage: null, allSeasonsInWindow: seasons, floorSeasonsInWindow: [], floorWindowAverage: null };
+  return { lastCompletedSeason: seasons.at(-1) ?? null, qualifyingSeasons: seasons, allSeasonsInWindow: seasons, floorSeasonsInWindow: [], floorWindowAverage: null };
 }
 
 describe("computeBlendedMinutesReliability", () => {
@@ -57,14 +57,14 @@ describe("computeBlendedMinutesReliability", () => {
   it("returns null when there is no playing-time data anywhere, however widely owned (thin-data new signing case)", () => {
     const player = makePlayer({ id: 1, position: "FWD", minutes: null, ownership: 50, status: "a", chanceOfPlayingNextRound: 75 });
     const team = makeTeam({ id: 1, played: 0 }); // possible = 0 -> current null
-    const profile: HistoricPlayerProfile = { lastCompletedSeason: null, qualifyingSeasons: [], windowAverage: null, allSeasonsInWindow: [], floorSeasonsInWindow: [], floorWindowAverage: null }; // historic null
+    const profile: HistoricPlayerProfile = { lastCompletedSeason: null, qualifyingSeasons: [], allSeasonsInWindow: [], floorSeasonsInWindow: [], floorWindowAverage: null }; // historic null
     expect(computeBlendedMinutesReliability(player, team, profile).value).toBeNull();
   });
 
   it("returns null value when there is no playing-time data AND no ownership data at all", () => {
     const player = makePlayer({ id: 1, position: "FWD", minutes: null, ownership: null });
     const team = makeTeam({ id: 1, played: 0 });
-    const profile: HistoricPlayerProfile = { lastCompletedSeason: null, qualifyingSeasons: [], windowAverage: null, allSeasonsInWindow: [], floorSeasonsInWindow: [], floorWindowAverage: null };
+    const profile: HistoricPlayerProfile = { lastCompletedSeason: null, qualifyingSeasons: [], allSeasonsInWindow: [], floorSeasonsInWindow: [], floorWindowAverage: null };
     const result = computeBlendedMinutesReliability(player, team, profile);
     expect(result.value).toBeNull();
   });

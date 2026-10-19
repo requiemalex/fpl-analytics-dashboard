@@ -1,4 +1,5 @@
 import React from "react";
+import { noRowsMessage } from "./emptyMessages";
 import { DataViewBadge } from "./DataViewBadge";
 import { MinutesFloorBadge } from "./MinutesFloorBadge";
 import { CardEditRemoveButtons } from "./IconToolbar";
@@ -71,7 +72,7 @@ export function DashboardGraphCard({
   /** Replaces the default empty-state wording — e.g. while the historic data this graph needs is still loading, or failed. */
   emptyMessage?: string;
 }) {
-  const emptyMessage = emptyMessageOverride ?? `No eligible ${kind === "player" ? "players" : "teams"} have data for this chart with the current filters.`;
+  const emptyMessage = emptyMessageOverride ?? noRowsMessage(kind);
 
   return (
     <div

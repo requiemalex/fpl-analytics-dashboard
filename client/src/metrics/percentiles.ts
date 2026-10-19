@@ -1,14 +1,5 @@
 import type { NormalizedPlayer, Position } from "../types/normalized";
 
-export type PercentileBand = "excellent" | "good" | "average" | "poor";
-
-export function bandForPercentile(percentile: number): PercentileBand {
-  if (percentile >= 90) return "excellent";
-  if (percentile >= 70) return "good";
-  if (percentile >= 30) return "average";
-  return "poor";
-}
-
 /**
  * Position percentiles are calculated against the eligible player
  * population for that position — players meeting the current

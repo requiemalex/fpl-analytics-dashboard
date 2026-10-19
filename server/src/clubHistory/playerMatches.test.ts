@@ -59,10 +59,21 @@ describe("a past season's comparison pool", () => {
     expect(p[at("xG")]).toBe(0.5);
   });
 
-  it("gives a stat any match he played lacks as null, never a part-sum", () => {
+  it("gives a stat no match he played has as null, never 0", () => {
     const peers = peersFor(stored(), 600)["2019/20"];
-    // 500 played two matches with no xG recorded.
+    // 500 played two matches with no xG recorded (and one he didn't play, which mustn't turn it into 0).
     expect(peers.players[0][at("xG")]).toBeNull();
     expect(peers.players[0][at("totalPoints")]).toBe(9);
+  });
+
+  it("adds up the matches that have a figure when a match he played lacks one (<partial_totals>)", () => {
+    const partial = {
+      ...ledger,
+      rows: [...ledger.rows, row(1, 900, 2, 90, { position: 3, xG: 0.3 }), row(2, 900, 2, 60, { position: 3 })],
+    };
+    const peers = peersFor({ schema: 1 as const, fields: [...PLAYER_MATCH_FIELDS], seasons: { "2019/20": buildSeasonPlayerMatches(partial) } }, 500)["2019/20"];
+    const p900 = peers.players.find((p) => p[at("minutes")] === 150)!;
+    expect(p900[at("xG")]).toBe(0.3);
+    expect(p900[at("matches")]).toBe(2);
   });
 });

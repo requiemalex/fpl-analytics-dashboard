@@ -1,4 +1,5 @@
-import type { NormalizedPlayer } from "../types/normalized";
+import type { NormalizedPlayer, Position } from "../types/normalized";
+import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import type { PlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { defensiveRewardPerGame } from "../metrics/defensiveReward";
 import { perEstimatedGame } from "../metrics/calculations";
@@ -15,8 +16,10 @@ export interface PlayerColumn {
   format: (v: number | null) => string;
   /** Decimal places `format` shows — column filters compare values as displayed (see columnFilterPasses). */
   decimals: number;
-  /** Whether a higher value is the "better" one for this metric — used by Player Comparison's colour scale. Defaults to true; only set false for metrics where lower is genuinely better (price, ownership, xGC). */
+  /** Whether a higher value is the "better" one — the direction of its comparative colour (<comparative_colouring>), Player Comparison's percentiles and "best" mark. Defaults to true; false where less is better (price, ownership, xGC, cards, set-piece order). */
   higherIsBetter?: boolean;
+  /** A figure that's neither better nor worse (a style statistic): never coloured (colourDirection). */
+  noColour?: boolean;
   /**
    * What colour tints, percentiles and "best" marks rank this column on,
    * when that isn't its own figure. Only for a lower-is-better TOTAL, which
@@ -48,6 +51,61 @@ export interface PlayerColumn {
    * FPL. Drives that source's header colour.
    */
   sourceId?: string;
+  /**
+   * The positions the figure can exist for, when that isn't every position
+   * (<position_only_figures>): FPL never credits a goalkeeper with a
+   * defensive contribution, and only a goalkeeper makes saves. For anyone
+   * else the figure is null (so out of sorts, filters, colours and
+   * rankings) and the cell is blank — not "—", which means missing data,
+   * and never 0. Read it through columnApplies().
+   */
+  positions?: readonly Position[];
+}
+
+const OUTFIELD: readonly Position[] = ["DEF", "MID", "FWD"];
+const GOALKEEPER: readonly Position[] = ["GKP"];
+
+/** Whether a column's figure can exist for a player in this position (PlayerColumn.positions). */
+export function columnApplies(c: Pick<PlayerColumn, "positions">, position: Position): boolean {
+  return !c.positions || c.positions.includes(position);
+}
+
+/** Limits a column to the positions its figure exists for: anyone else's is null (PlayerColumn.positions). */
+function onlyFor(positions: readonly Position[], c: PlayerColumn): PlayerColumn {
+  return { ...c, positions, getValue: (p, d) => (positions.includes(p.position) ? c.getValue(p, d) : null) };
+}
+
+/** What a table cell shows: blank where the figure can't exist for his position, its formatted figure otherwise ("—" when it's missing). */
+export function cellText(c: PlayerColumn, p: NormalizedPlayer, d: PlayerDerivedMetrics): string {
+  return columnApplies(c, p.position) ? c.format(c.getValue(p, d)) : "";
+}
+
+/** Whole-number columns kept whole even as a Historic Average: minutes run to hundreds a season, so a fraction hides nothing. */
+const WHOLE_WHEN_AVERAGED = new Set(["minutes"]);
+const historicAverageColumns = new WeakMap<PlayerColumn, PlayerColumn>();
+
+/**
+ * <averaged_counts>: a column as a Data View shows it. A Historic Average
+ * is a mean of seasons, so a whole-number count (goals, assists, cards,
+ * saves…) shows 1 decimal there — 0.4 goals a season is "0.4", never a
+ * "0" that reads as a real zero. Every other view, and every column that
+ * isn't a count (rates, price, ownership, the always-live set-piece
+ * orders), is unchanged. Column filters compare the figure as shown, so
+ * `decimals` moves with it.
+ */
+/** Decimal places for a whole-number count outside a table (a profile tile): 1 in a Historic Average (<averaged_counts>), none otherwise. */
+export function countDecimals(mode: AnalysisMode): number {
+  return mode === "historicAverage" ? 1 : 0;
+}
+
+export function columnForMode(c: PlayerColumn, mode: AnalysisMode): PlayerColumn {
+  if (mode !== "historicAverage" || c.decimals !== 0 || c.varies === false || WHOLE_WHEN_AVERAGED.has(c.key)) return c;
+  let shown = historicAverageColumns.get(c);
+  if (!shown) {
+    shown = { ...c, decimals: 1, format: (v) => (c.signed ? fmtSigned(v, 1) : fmtDecimal(v, 1)) };
+    historicAverageColumns.set(c, shown);
+  }
+  return shown;
 }
 
 /** The figure a column's tints, percentiles and "best" marks rank on (see PlayerColumn.rankBy). */
@@ -65,9 +123,9 @@ export const PLAYER_COLUMNS: PlayerColumn[] = [
   { key: "assists", label: "Assists", group: "ACTUAL OUTPUT", metricKey: "assists", getValue: (p) => p.assists, ...num(0) },
   { key: "cleanSheets", label: "CS", group: "ACTUAL OUTPUT", metricKey: "cleanSheets", getValue: (p) => p.cleanSheets, ...num(0) },
   { key: "bonus", label: "Bonus", group: "ACTUAL OUTPUT", metricKey: "bonus", getValue: (p) => p.bonus, ...num(0) },
-  { key: "saves", label: "Saves", group: "ACTUAL OUTPUT", metricKey: "saves", getValue: (p) => p.saves, ...num(0) },
-  { key: "savesPerGame", label: "Saves/Game", group: "ACTUAL OUTPUT", metricKey: "savesPerGame", getValue: (p) => p.savesPerGame, ...num(2) },
-  { key: "penaltiesSaved", label: "Pens Saved", group: "ACTUAL OUTPUT", metricKey: "penaltiesSaved", getValue: (p) => p.penaltiesSaved, ...num(0) },
+  onlyFor(GOALKEEPER, { key: "saves", label: "Saves", group: "ACTUAL OUTPUT", metricKey: "saves", getValue: (p) => p.saves, ...num(0) }),
+  onlyFor(GOALKEEPER, { key: "savesPerGame", label: "Saves/Game", group: "ACTUAL OUTPUT", metricKey: "savesPerGame", getValue: (p) => p.savesPerGame, ...num(2) }),
+  onlyFor(GOALKEEPER, { key: "penaltiesSaved", label: "Pens Saved", group: "ACTUAL OUTPUT", metricKey: "penaltiesSaved", getValue: (p) => p.penaltiesSaved, ...num(0) }),
   // Lower-is-better totals rank per game (see rankBy), like xGC.
   {
     key: "goalsConceded",
@@ -130,22 +188,22 @@ export const PLAYER_COLUMNS: PlayerColumn[] = [
   { key: "influence", label: "Influence", group: "ADVANCED", metricKey: "influence", getValue: (p) => p.influence, ...num(1) },
   { key: "creativity", label: "Creativity", group: "ADVANCED", metricKey: "creativity", getValue: (p) => p.creativity, ...num(1) },
   { key: "threat", label: "Threat", group: "ADVANCED", metricKey: "threat", getValue: (p) => p.threat, ...num(1) },
-  {
+  onlyFor(OUTFIELD, {
     key: "defensiveContributions",
     label: "DC",
     group: "ADVANCED",
     metricKey: "defensiveContributions",
     getValue: (p) => p.defensiveContributions,
     ...num(0),
-  },
-  {
+  }),
+  onlyFor(OUTFIELD, {
     key: "defensiveContributionsPerGame",
     label: "DC/Game",
     group: "ADVANCED",
     metricKey: "defensiveContributionsPerGame",
     getValue: (p) => p.defensiveContributionsPerGame,
     ...num(2),
-  },
+  }),
   {
     key: "defensiveRewardPerGame",
     label: "Def. Reward/Game",
@@ -190,6 +248,17 @@ export const DEFAULT_VISIBLE_COLUMNS = [
 
 export function columnByKey(key: string): PlayerColumn | undefined {
   return PLAYER_COLUMNS.find((c) => c.key === key);
+}
+
+/**
+ * The format a figure built from a column (a Dashboard tile, a Player
+ * Comparison card) has in a Data View — the column's own, so it and the
+ * tables agree (<averaged_counts>). A figure with a format of its own
+ * (a tile-only metric) keeps it.
+ */
+export function columnFormatForMode(key: string, format: (v: number | null) => string, mode: AnalysisMode): (v: number | null) => string {
+  const c = columnByKey(key);
+  return c && c.format === format ? columnForMode(c, mode).format : format;
 }
 
 /** `varies` defaults to true (unset ≠ static) — this is the one place that distinction is interpreted, so every table applies the "always live" header styling identically rather than each re-deriving its own `c.varies === false` check. */

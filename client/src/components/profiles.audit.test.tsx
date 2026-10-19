@@ -110,7 +110,7 @@ describe("Player profile — Career History's live season", () => {
   // totals (README "Analysis modes", <live_mode_preseason_fix>). The live row
   // must read 0, as Current Season does everywhere else — not repeat last
   // season's 209 points as the new season's.
-  it("H2: pre-season, the '(live)' Career History row shows 0 points, not last season's carried-over total", () => {
+  it("H2: pre-season, the current season's Points History bar shows 0 points, not last season's carried-over total", () => {
     const carried = makePlayer({ id: 1, name: "Gabriel", position: "DEF", teamId: 1, totalPoints: 209, minutes: 2750, goals: 4 });
     setApp([carried], { currentSeasonHasStarted: false });
     setHistory([], [makeSeason({ seasonName: "2025/26", totalPoints: 209, minutes: 2750, goals: 4 })]);
@@ -119,15 +119,8 @@ describe("Player profile — Career History's live season", () => {
         <PlayerDetailOverlay />
       </MemoryRouter>,
     );
-    fireEvent.click(getByLabelText("Show season-by-season detail"));
-    // The Match Log's heading names the live season too; this is the season-by-season table's row.
-    const liveRow = getAllByText(/2026\/27 \(live\)/)
-      .map((el) => el.closest("tr"))
-      .find((tr) => tr !== null)!;
-    const cells = [...liveRow.querySelectorAll("td")].map((td) => Number((td.textContent ?? "").replace(/,/g, "")));
-    // Season, Price, Mins, Starts, Points…
-    expect(cells[2]).toBe(0);
-    expect(cells[4]).toBe(0);
+    expect(getByLabelText(/^2026\/27 \(current season\): 0 pts/)).toBeTruthy();
+    expect(getAllByText(/2026\/27 \(current season\)/).length).toBeGreaterThan(0);
   });
 });
 
@@ -297,9 +290,12 @@ function clubSeason(code: number, season: string, overrides: Partial<ClubSeason>
 // regular (3,035 minutes, 1.0 xG) — the cameo's xG/Game is far higher.
 const CAMEO = makePlayer({ id: 1, name: "Davies", position: "DEF", teamId: 1, teamName: "Arsenal", minutes: 0, totalPoints: 0 });
 const REGULAR = makePlayer({ id: 2, name: "Konsa", position: "DEF", teamId: 1, teamName: "Arsenal", minutes: 0, totalPoints: 0 });
+// A second regular with less xG: a comparison needs two (<comparative_colouring>).
+const REGULAR_2 = makePlayer({ id: 3, name: "Mings", position: "DEF", teamId: 1, teamName: "Arsenal", minutes: 0, totalPoints: 0 });
 const LAST_SEASON = {
   1: [makeSeason({ seasonName: "2025/26", minutes: 136, totalPoints: 8, xG: 0.49, xA: 0.07, xGI: 0.56, xGC: 1.11 })],
   2: [makeSeason({ seasonName: "2025/26", minutes: 3035, totalPoints: 110, xG: 1.0, xA: 1.0, xGI: 2.0, xGC: 40 })],
+  3: [makeSeason({ seasonName: "2025/26", minutes: 3000, totalPoints: 90, xG: 0.5, xA: 0.5, xGI: 1.0, xGC: 45 })],
 };
 
 describe("H1: the profile's percentiles use the fixed minutes floor", () => {
@@ -310,23 +306,35 @@ describe("H1: the profile's percentiles use the fixed minutes floor", () => {
         <PlayerDetailOverlay />
       </MemoryRouter>,
     );
-    // No banner: a badge on each radar (Defense and Offense) explains on hover.
+    // No banner: the amber stopwatch on each card left uncoloured for it — both radars (Defense and Offense), Underlying Numbers and Value — explains on hover (<minutes_marker>).
     const badges = getAllByLabelText(/^Small sample: 136 min in this mode, under the 450-minute floor/);
-    expect(badges.length).toBe(2);
+    expect(badges.length).toBe(4);
+    expect(badges.map((b) => b.closest(".card-title")!.textContent)).toEqual(["Percentile Radar · Defense", "Percentile Radar · Offense", "Underlying Numbers", "Value"]);
     for (const b of badges) expect(b.getAttribute("title")).toBe(b.getAttribute("aria-label"));
     // No tint on any tile.
     expect(asRendered(getByText("xG/Game").closest<HTMLElement>(".stat-tile")!.style.background)).toBe("");
   });
 
-  it("a regular's percentile ignores the cameo: top of a pool of one, not 25th behind a 136-minute sample", () => {
-    setApp([CAMEO, REGULAR], { historicProfiles: profiles(LAST_SEASON) });
+  it("a regular's percentile ignores the cameo: top of the two regulars (75th), not level with the middle behind a 136-minute sample", () => {
+    setApp([CAMEO, REGULAR, REGULAR_2], { historicProfiles: profiles(LAST_SEASON) });
     const { getByText } = render(
       <MemoryRouter initialEntries={["/players?player=2"]}>
         <PlayerDetailOverlay />
       </MemoryRouter>,
     );
     const tile = getByText("xG/Game").closest<HTMLElement>(".stat-tile")!;
-    expect(tile.style.background).toBe(asRendered(percentileTint(100)));
+    // Among the two regulars, the higher is (1 + ½) ÷ 2 = 75th; counting the cameo it would be the 50th (no colour).
+    expect(tile.style.background).toBe(asRendered(percentileTint(75)));
+  });
+
+  it("a player alone in his comparison pool has no colour: there's nobody to compare him with", () => {
+    setApp([CAMEO, REGULAR], { historicProfiles: profiles(LAST_SEASON) });
+    const { getByText } = render(
+      <MemoryRouter initialEntries={["/players?player=2"]}>
+        <PlayerDetailOverlay />
+      </MemoryRouter>,
+    );
+    expect(getByText("xG/Game").closest<HTMLElement>(".stat-tile")!.style.background).toBe("");
   });
 
   it("the floor also applies in Current Season: 60 minutes is under one full match", () => {
@@ -370,21 +378,23 @@ describe("In the profile, only seasons of 450+ minutes count toward Historic Ave
     makeSeason({ seasonName: "2025/26", minutes: 1800, totalPoints: 150 }),
   ];
 
-  it("Points History averages the 2 window seasons that reach 450 and marks the 0- and 300-minute ones †", () => {
+  it("Points History averages the 2 window seasons that reach 450 and marks the 0- and 300-minute ones with the amber small-sample stopwatch (<minutes_marker>)", () => {
     setApp([makePlayer({ id: 1, name: "Ndiaye", position: "MID", teamId: 1 })], { historicProfiles: profiles({ 1: seasons }) });
     setHistory([gw(1)], seasons);
-    const { getByText, getByLabelText } = render(
+    const { getByLabelText, queryByLabelText, container } = render(
       <MemoryRouter initialEntries={["/players?player=1"]}>
         <PlayerDetailOverlay />
       </MemoryRouter>,
     );
     expect(getByLabelText("Season average over 2 seasons: 120 pts")).toBeTruthy();
-    fireEvent.click(getByLabelText("Show season-by-season detail"));
-    for (const [season, pattern] of [["2022/23", /^2022\/23/], ["2024/25", /^2024\/25/]] as const) {
-      const row = getByText(pattern).closest("tr")!;
-      expect(row.textContent).toContain(`${season} †`);
-      expect(row.getAttribute("title")).toBe("Under 450 minutes this season: a small sample, not counted in the average above");
-    }
+    const note = "Under 450 minutes this season: a small sample, not counted in the season average";
+    // The chart: the amber stopwatch beside each under-floor season's label, and the reason on hover — never "†", which is for a season outside the window.
+    expect(container.querySelectorAll(".points-history-axis .small-sample-mark")).toHaveLength(2);
+    expect(getByLabelText(`2024/25 (${note}): 20 pts. Show its matches below`)).toBeTruthy();
+    expect(getByLabelText(`2022/23 (${note}): 0 pts. Show its matches below`)).toBeTruthy();
+    // A counted season has no marker. (The season-by-season table is gone — the Match Log has its figures.)
+    expect(getByLabelText(/^2023\/24: 90 pts\. Show its matches below/)).toBeTruthy();
+    expect(queryByLabelText("Show season-by-season detail")).toBeNull();
   });
 });
 
@@ -497,33 +507,6 @@ describe("Player profile — Live Data details", () => {
     expect(queryByText("Tackles")).toBeNull();
   });
 
-  it("Points History's Price column: cheaper than the season's pool is green, dearer is red", () => {
-    // 2024/25 pool (others, 450+ min): £4.5m, £5.0m, £12.0m (the 200-minute £4.0m doesn't count).
-    const others = new Map<number, PlayerSeasonHistory[]>([
-      [2, [makeSeason({ seasonName: "2024/25", minutes: 2000, startCost: 4.5, endCost: 4.5 })]],
-      [3, [makeSeason({ seasonName: "2024/25", minutes: 2000, startCost: 5.0, endCost: 5.0 })]],
-      [4, [makeSeason({ seasonName: "2024/25", minutes: 2000, startCost: 12.0, endCost: 12.0 })]],
-      [5, [makeSeason({ seasonName: "2024/25", minutes: 200, startCost: 4.0, endCost: 4.0 })]],
-    ]);
-    const renderWith = (startCost: number, endCost: number) => {
-      cleanup();
-      const own = [makeSeason({ seasonName: "2024/25", minutes: 2000, totalPoints: 150, startCost, endCost })];
-      setApp(state.app.players as NormalizedPlayer[], { allTimeSeasonsByPlayerId: new Map([...others, [1, own]]) });
-      setHistory([gw(1)], own);
-      const utils = render(
-        <MemoryRouter initialEntries={["/players?player=1"]}>
-          <PlayerDetailOverlay />
-        </MemoryRouter>,
-      );
-      fireEvent.click(utils.getByLabelText("Show season-by-season detail"));
-      return (utils.getByText(/^2024\/25/).closest("tr")!.querySelectorAll("td")[1] as HTMLElement).style.background;
-    };
-    // £4.0m–£4.4m (mid £4.2m) is the cheapest of 4 → 100 − 12.5 = 87.5.
-    expect(renderWith(4.0, 4.4)).toBe(asRendered(percentileTint(87.5)));
-    // £13.0m is the dearest of 4 → 100 − 87.5 = 12.5.
-    expect(renderWith(13.0, 13.0)).toBe(asRendered(percentileTint(12.5)));
-  });
-
   it("L4: a goalkeeper's Underlying Numbers have no Defensive Contribution tiles", () => {
     setApp([makePlayer({ id: 1, name: "Raya", position: "GKP", teamId: 1, minutes: 450 })]);
     const { queryByText, getByText } = render(
@@ -603,7 +586,8 @@ describe("R1: the Team Profile header's Historic Average results add up to the g
       </MemoryRouter>,
     );
     fireEvent.click(getByRole("button", { name: "Historic Average" }));
-    expect(getByText("4th in table · 54 pts · 38 played · 15W 10D 13L")).toBeTruthy();
+    // League points are a count, so a Historic Average shows 1 decimal (<averaged_counts>); W/D/L stay whole and add up to 38.
+    expect(getByText("4th in table · 54.0 pts · 38 played · 15W 10D 13L")).toBeTruthy();
   });
 });
 
@@ -808,9 +792,30 @@ describe("The Team Profile shows club figures only", () => {
     expect(getByRole("table", { name: "Arsenal match log" }).querySelectorAll("tbody tr")).toHaveLength(2);
   });
 
-  it("shows a stat as — for the season when any match lacks it, never a partial sum", () => {
+  it("adds up the matches that have a figure when one lacks it, and says so on hover (<partial_totals>)", () => {
     setApp(state.app.players as NormalizedPlayer[], {
       clubSeasons: [clubSeason(101, "2025/26"), clubSeason(101, LIVE, { complete: false, matches: [clubMatch(1, 1), clubMatch(2, 2, { dc: null })] })],
+    });
+    const { getByRole } = render(
+      <MemoryRouter initialEntries={["/teams?teamProfile=1"]}>
+        <TeamDetailOverlay />
+      </MemoryRouter>,
+    );
+    const [totals, average] = getByRole("table", { name: "Arsenal match log" }).querySelectorAll("tfoot tr");
+    const totalDc = [...totals.querySelectorAll("td")].at(-1)!;
+    const averageDc = [...average.querySelectorAll("td")].at(-1)!;
+    // The one match with a figure (80), never "—" for the whole column and never the missing match as 0 (which would average 40).
+    expect(totalDc.textContent).toBe("80");
+    expect(averageDc.textContent).toBe("80.00");
+    expect(totalDc.querySelector("span")!.getAttribute("title")).toBe("From the 1 of 2 matches that have a figure");
+    expect(averageDc.querySelector("span")!.getAttribute("title")).toBe("From the 1 of 2 matches that have a figure");
+    // A column every match has: no hover note.
+    expect([...totals.querySelectorAll("td")][1].querySelector("span")).toBeNull();
+  });
+
+  it("shows — for a column none of the matches has a figure for", () => {
+    setApp(state.app.players as NormalizedPlayer[], {
+      clubSeasons: [clubSeason(101, "2025/26"), clubSeason(101, LIVE, { complete: false, matches: [clubMatch(1, 1, { dc: null }), clubMatch(2, 2, { dc: null })] })],
     });
     const { getByRole } = render(
       <MemoryRouter initialEntries={["/teams?teamProfile=1"]}>

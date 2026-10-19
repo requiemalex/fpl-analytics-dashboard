@@ -111,6 +111,9 @@
   font-weight: 600;
   color: var(--text-primary);
   flex: 0 0 auto;
+  /* Room for its comparative tint. */
+  padding: 0 4px;
+  border-radius: 3px;
 }
 
 /* A row's magnitude as a small horizontal bar, between the name and the
@@ -852,6 +855,7 @@ select:focus {
 .pitch-card-model-points {
   width: 100%;
   margin-top: 2px;
+  border-radius: var(--radius-sm);
   text-align: center;
   font-family: var(--font-mono);
   font-weight: 600;
@@ -899,6 +903,11 @@ select:focus {
   padding: 2px 4px;
   white-space: nowrap;
 }
+/* Price and Own% on a pitch card: room for their comparative tint. */
+.pitch-card-stat {
+  padding: 0 3px;
+  border-radius: 3px;
+}
 .pitch-card-reliability {
   display: flex;
   align-items: center;
@@ -912,19 +921,6 @@ select:focus {
   background: var(--text-muted);
   flex-shrink: 0;
 }
-.reliability-dot.excellent {
-  background: var(--band-excellent);
-}
-.reliability-dot.good {
-  background: var(--band-good);
-}
-.reliability-dot.average {
-  background: var(--band-average);
-}
-.reliability-dot.poor {
-  background: var(--band-poor);
-}
-
 .bench-strip {
   margin-top: 14px;
   padding: 12px;
@@ -1892,7 +1888,7 @@ select:focus {
   display: flex;
   margin-top: 7px;
 }
-.points-history-axis span {
+.points-history-axis > span {
   flex: 1 1 0;
   min-width: 0;
   text-align: center;
@@ -1900,8 +1896,15 @@ select:focus {
   color: var(--text-secondary);
   white-space: nowrap;
 }
-.points-history-axis span.is-muted {
+.points-history-axis > span.is-muted {
   color: var(--text-muted);
+}
+/* A season under the fixed minutes floor (<minutes_marker>): the amber stopwatch beside its label. */
+.points-history-axis .small-sample-mark {
+  display: inline-flex;
+  margin-left: 2px;
+  vertical-align: -1px;
+  color: var(--accent-value);
 }
 /* Profiles: a column is a button picking the season the Match Log shows;
    the picked one sits on a faint panel and its season label is bold. */
@@ -1926,7 +1929,7 @@ button.points-history-col.is-selectable:focus-visible {
   outline: 2px solid var(--accent-focus);
   outline-offset: 1px;
 }
-.points-history-axis span.is-selected {
+.points-history-axis > span.is-selected {
   color: var(--text-primary);
   font-weight: 600;
 }
@@ -2158,9 +2161,16 @@ button.points-history-col.is-selectable:focus-visible {
 }
 /* Under the card's minimum minutes: hollow and grey, not ranked. */
 .cmp-outputs-marker.small-sample {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  bottom: 3px;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  border-radius: 50%;
   background: var(--surface);
-  box-sizing: border-box;
-  border: 1.5px solid var(--text-muted);
+  color: var(--accent-value);
   box-shadow: none;
 }
 /* A player's figure above their marker; nudged sideways when two would
@@ -2183,9 +2193,12 @@ button.points-history-col.is-selectable:focus-visible {
 /* Add/Edit dialog's statistic picker. */
 /* A trend season under the card's minimum minutes: an amber ring at the
    bottom of the dip, amber text in the hover box — the small-sample colour. */
+/* A season under a card's minimum: the amber stopwatch on a disc of the card's own colour, so the line doesn't run through it. */
 .cmp-trend-below-dot {
+  color: var(--accent-value);
+}
+.cmp-trend-below-dot circle {
   fill: var(--surface);
-  stroke: var(--accent-value);
 }
 .chart-tooltip-row .cmp-trend-below {
   color: var(--accent-value);

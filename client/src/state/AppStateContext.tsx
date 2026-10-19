@@ -46,6 +46,13 @@ interface AppState {
   validationReport: ValidationReport | null;
   refreshing: boolean;
   refresh: () => Promise<void>;
+  /**
+   * Counts successful loads of the live player data (the 10-minute poll and
+   * Refresh Data alike); `forced` when it was Refresh Data. Lazy, per-item
+   * data already on screen (an open profile's Match Log) reloads when it
+   * changes, so it never lags the figures around it.
+   */
+  liveDataVersion: { count: number; forced: boolean };
 
   historicStatus: HistoricDataStatus;
   /** The most recently COMPLETED season, derived from the data itself — null until historicStatus is "ready". */
@@ -79,6 +86,9 @@ interface AppState {
 
 const AppStateCtx = createContext<AppState | null>(null);
 
+/** The shortest gap between two automatic rebuilds of the historic dataset (see the effect after loadHistoric). */
+export const AUTO_HISTORIC_MIN_GAP_MS = 60 * 60 * 1000;
+
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<DataStatus>("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -97,6 +107,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [skippedRecordCounts, setSkippedRecordCounts] = useState({ fixtures: 0, clubSeasons: 0 });
   const [validationReport, setValidationReport] = useState<ValidationReport | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [liveDataVersion, setLiveDataVersion] = useState({ count: 0, forced: false });
 
   const [historicStatus, setHistoricStatus] = useState<HistoricDataStatus>("idle");
   const [historicReferenceSeason, setHistoricReferenceSeason] = useState<string | null>(null);
@@ -108,6 +119,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [historicErrorMessage, setHistoricErrorMessage] = useState<string | null>(null);
   const [historicRefreshing, setHistoricRefreshing] = useState(false);
   const historicRequestedRef = useRef(false);
+  // The automatic historic rebuild (see the effect after loadHistoric):
+  // finished fixtures now, and when the last build was asked for; whether
+  // a build is running; when the last automatic one started.
+  const finishedFixturesRef = useRef<number | null>(null);
+  const historicBuiltForRef = useRef<number | null>(null);
+  const historicInFlightRef = useRef(false);
+  const historicBuiltOnceRef = useRef(false);
+  const lastAutoHistoricRef = useRef(0);
 
   // `load` is a stable useCallback (empty deps, see below) so it can't read
   // the `players` state directly without closing over its initial `[]` —
@@ -188,6 +207,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setIsStale(result.source === "stale-cache");
       setStatus("ready");
       setErrorMessage(null);
+      setLiveDataVersion((v) => ({ count: v.count + 1, forced: forceRefresh }));
     } catch (err) {
       const message =
         err instanceof SchemaValidationError
@@ -217,7 +237,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     // here.
     try {
       const fixturesResult = await fixturesPromise;
-      setFixtures(normalizeFixtures(fixturesResult.data));
+      const normalizedFixtures = normalizeFixtures(fixturesResult.data);
+      finishedFixturesRef.current = normalizedFixtures.filter((f) => f.finished).length;
+      setFixtures(normalizedFixtures);
       const skippedFixtures = skippedRecordCount(fixturesResult.data);
       if (skippedFixtures > 0) console.warn(`fixtures: ${skippedFixtures} record(s) failed validation and were skipped`);
       setSkippedRecordCounts((prev) => (prev.fixtures === skippedFixtures ? prev : { ...prev, fixtures: skippedFixtures }));
@@ -266,6 +288,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const loadHistoric = useCallback(async (forceRefresh: boolean) => {
     if (forceRefresh) setHistoricRefreshing(true);
     else setHistoricStatus("loading");
+    historicInFlightRef.current = true;
+    const builtFor = finishedFixturesRef.current;
 
     try {
       const result = await fetchHistoricBulk({ forceRefresh });
@@ -288,6 +312,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setStaleDatasets((prev) => (prev.historic === historicStale ? prev : { ...prev, historic: historicStale }));
       setHistoricStatus("ready");
       setHistoricErrorMessage(null);
+      historicBuiltForRef.current = builtFor ?? finishedFixturesRef.current;
+      historicBuiltOnceRef.current = true;
     } catch (err) {
       const message =
         err instanceof SchemaValidationError
@@ -300,10 +326,37 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       }
       setHistoricErrorMessage(message);
     } finally {
+      historicInFlightRef.current = false;
       setHistoricRefreshing(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /**
+   * The historic dataset carries the live season's club figures (Team
+   * Explorer and the Team Profile in every Data View, the live Match Logs)
+   * and is otherwise built once a session, so after a match it fell behind
+   * the player figures the poll keeps current. When the poll's fixtures show
+   * more finished matches (bonus confirmed) than when it was last built, it
+   * rebuilds — at most once an hour (AUTO_HISTORIC_MIN_GAP_MS): a build is
+   * one request per player, so a match day's several kick-off windows
+   * cost a few builds, not one per match. Only once something has asked
+   * for the dataset; the old data stays on screen meanwhile.
+   */
+  useEffect(() => {
+    const finished = finishedFixturesRef.current;
+    const builtFor = historicBuiltForRef.current;
+    if (finished === null || historicInFlightRef.current) return;
+    // Built before any fixtures had loaded: this is its starting point.
+    if (builtFor === null) {
+      if (historicBuiltOnceRef.current) historicBuiltForRef.current = finished;
+      return;
+    }
+    if (!historicRequestedRef.current || finished <= builtFor) return;
+    if (Date.now() - lastAutoHistoricRef.current < AUTO_HISTORIC_MIN_GAP_MS) return;
+    lastAutoHistoricRef.current = Date.now();
+    void loadHistoric(true);
+  }, [fixtures, loadHistoric]);
 
   const refreshHistoricData = useCallback(() => {
     if (historicRefreshing) return;
@@ -374,6 +427,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       validationReport,
       refreshing,
       refresh,
+      liveDataVersion,
       historicStatus,
       historicReferenceSeason,
       historicProfiles,
@@ -406,6 +460,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       validationReport,
       refreshing,
       refresh,
+      liveDataVersion,
       historicStatus,
       historicReferenceSeason,
       historicProfiles,

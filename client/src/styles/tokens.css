@@ -20,11 +20,6 @@
   --accent-value: #d8b34a;
   --accent-focus: #6fb8ff;
 
-  --band-excellent: #3fbf7f;
-  --band-good: #7fbf5a;
-  --band-average: #9fb0a6;
-  --band-poor: #e0654a;
-
   /* A muted, desaturated red distinct from --accent-negative (which means
      "bad value") — used only to flag a column/row-label as an "always
      live" static figure (see .col-static in components.css). Deliberately
@@ -36,6 +31,15 @@
      Rose sits apart from FPL's green, a second source's violet, the
      always-live muted red and every position / good-bad hue. */
   --col-crossover: #e38fc4;
+
+  /* Player Comparison's per-player colours (seriesColors.ts), in the order
+     players are added. Deliberately no green or red (better / worse) and
+     no violet or rose (a data source). */
+  --series-1: #6fb8ff;
+  --series-2: #d8b34a;
+  --series-3: #f0924a;
+  --series-4: #e8ede9;
+  --series-5: #8a9a91;
 
   /* Position colours — reverted to this app's original red/green/blue/
      yellow set (the same hues as the semantic accent tokens above,

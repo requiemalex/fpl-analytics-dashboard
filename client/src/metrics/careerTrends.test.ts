@@ -33,7 +33,7 @@ describe("buildSeasonTrend", () => {
     const rows = buildSeasonTrend([1], trendMetricByKey("xGIPerGame")!, seasons, 450);
     // 2700 minutes = 30 estimated games.
     expect(rows[0][trendDataKey(1)]).toBeCloseTo(15 / 30, 10);
-    // 300 minutes is under 450: his real rate (3 xGI over 4 estimated games), with his minutes kept for the amber ring.
+    // 300 minutes is under 450: his real rate (3 xGI over 4 estimated games), with his minutes kept for the amber small-sample marker.
     expect(rows[1][trendDataKey(1)]).toBeCloseTo(3 / 4, 10);
     expect(rows[1][trendBelowKey(1)]).toBe(300);
     expect(rows[2][trendDataKey(1)]).toBeCloseTo(12 / 28, 10);

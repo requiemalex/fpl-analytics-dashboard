@@ -1,56 +1,46 @@
 import React, { useState } from "react";
 import { useAppState } from "../state/AppStateContext";
 import type { GlobalScoutingFilters } from "../state/scoutingFilters";
-import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import { ResetIcon } from "./IconToolbar";
 import { MinutesSlider } from "./MenuControls";
 
 const MINUTES_STEP = 90;
-const BYPASSED_HINT = "Not applied in Current Season mode: everyone has low or zero minutes until real gameweeks accumulate";
 
 /**
  * Fully controlled — no page-independent state of its own. Every page
- * that renders this owns its own `filters` (and passes its own
- * `analysisMode`, needed only to grey out Min Minutes in Current Season
- * mode) and reacts to `onChange`/`onReset` by updating its own local
- * state. This used to read a single global `filters` straight out of
+ * that renders this owns its own `filters` and reacts to
+ * `onChange`/`onReset` by updating its own local state. Min Minutes
+ * applies in every Data View, Current Season included. This used to read a single global `filters` straight out of
  * `AppStateContext`, which meant changing Min Minutes on one page
  * silently changed what every other page showed too — the exact bug
  * this component's move to local-per-page state fixes. `idPrefix` keeps
  * form element ids unique when this renders more than once on the same
- * page (e.g. Dashboard's Add Tile and Add Graph modals, or composed
- * inside `LocalViewControls`).
+ * page (e.g. Dashboard's Add Tile and Add Graph modals).
  */
 export function FiltersBar({
   idPrefix = "f",
   filters,
   onChange,
   onReset,
-  analysisMode,
   showMinMinutes = true,
   showSearch = true,
   showPrice = false,
-  minMinutesInLive = false,
   inDialog = false,
 }: {
   idPrefix?: string;
   filters: GlobalScoutingFilters;
   onChange: (next: GlobalScoutingFilters) => void;
   onReset: () => void;
-  analysisMode: AnalysisMode;
   /** Off on Player Explorer only — its MINS column has its own per-column filter, making this redundant there. Everywhere else (Dashboard tiles/graphs, Player Comparison/Detail radars) has no equivalent, so Min Minutes stays the only way to set a minutes threshold. */
   showMinMinutes?: boolean;
   /** Off for the Dashboard Add Tile/Add Graph modals' "Filters" mode only — those modals have a separate "Player Search" mode (pick up to 5 specific players) covering the same job the free-text Search field used to, so showing both would be redundant/confusing. */
   showSearch?: boolean;
   /** On for the Dashboard Add Tile/Add Graph modals' "Filters" mode only — a live-price (£m) range, e.g. "only the best £5m players". Off everywhere else, matching showMinMinutes/showSearch's per-page opt-in pattern. */
   showPrice?: boolean;
-  /** On for the Dashboard Add Tile/Add Graph modals only — Min Minutes stays editable (and is applied, see filterPlayers' `applyMinMinutesInLive`) in Current Season mode instead of being greyed out as bypassed. */
-  minMinutesInLive?: boolean;
   /** On inside a dialog (Dashboard's Add Tile/Add Graph): Min Minutes becomes the menus' slider, still typeable. */
   inDialog?: boolean;
 }) {
   const { teams } = useAppState();
-  const minMinutesBypassed = analysisMode === "live" && !minMinutesInLive;
   // What's in the Min minutes box while it's being typed in — null when not
   // editing, so the box shows the real value. Every keystroke still applies
   // straight away; the draft only lets the box hold what was typed (blank,
@@ -159,15 +149,12 @@ export function FiltersBar({
           id={`${idPrefix}-min-minutes`}
           value={filters.minMinutes}
           onChange={(minutes) => update("minMinutes", minutes)}
-          disabled={minMinutesBypassed}
-          note={minMinutesBypassed ? "(bypassed)" : undefined}
-          title={minMinutesBypassed ? BYPASSED_HINT : undefined}
         />
       )}
       {showMinMinutes && !inDialog && (
         <div className="field">
           <label htmlFor={`${idPrefix}-min-minutes`}>
-            Min minutes {minMinutesBypassed && <span style={{ color: "var(--text-muted)" }}>(bypassed)</span>}
+            Min minutes
           </label>
           <input
             id={`${idPrefix}-min-minutes`}
@@ -175,8 +162,6 @@ export function FiltersBar({
             step={MINUTES_STEP}
             min={0}
             value={minMinutesDraft ?? String(filters.minMinutes)}
-            disabled={minMinutesBypassed}
-            title={minMinutesBypassed ? BYPASSED_HINT : undefined}
             onChange={(e) => typeMinMinutes(e.target.value)}
             onBlur={() => setMinMinutesDraft(null)}
           />

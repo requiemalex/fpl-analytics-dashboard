@@ -1,7 +1,7 @@
 import React from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/react";
-import { relativeCellTint } from "../utils/colorScale";
+import { percentileTint } from "../utils/colorScale";
 import { clubKey, createProfiles, playerKey } from "./profiles";
 import type { DetailLoad, UsClubSeasonDetail, UsPlayerSeasonDetail, UsShot } from "./profileData";
 
@@ -30,7 +30,7 @@ describe("Understat's Match Log columns", () => {
     expect(container.querySelector('[data-f="8"]')!.textContent).toBe("—");
   });
 
-  it("a club's result chances: no Totals; an Average coloured against every club that season — more wins better, more defeats worse, a draw neither", () => {
+  it("a club's result chances: a blank Totals (none by design, never — which means missing); an Average coloured against every club that season — more wins better, more defeats worse, a draw neither", () => {
     const detail: UsClubSeasonDetail = {
       matches: [
         { fixture: 1, win: 0.6, draw: 0.25, loss: 0.15, xG: 2.1, xGA: 0.4, xA: 1.5, assists: 2 },
@@ -43,23 +43,27 @@ describe("Understat's Match Log columns", () => {
         { win: 0.45, draw: 0.275, loss: 0.275 },
         { win: 0.2, draw: 0.3, loss: 0.5 },
         { win: 0.7, draw: 0.2, loss: 0.1 },
+        { win: 0.3, draw: 0.3, loss: 0.4 },
       ],
     };
     const p = profilesWith([[clubKey(3, "2025/26"), { state: "ready", detail }]]);
     const [win, draw, loss] = p.clubMatchColumns(3, "2025/26", [1, 2]);
     expect(win.cell(1)).toBe("60%");
-    expect(win.total).toBe("—");
+    expect(win.total).toBe("");
+    expect(draw.total).toBe("");
+    expect(loss.total).toBe("");
     expect(win.average).toBe("45%");
-    // 45% sits between the league's 20% and 70% — as the FPL columns' tints are worked out.
-    expect(win.averageTint).toBe(relativeCellTint(0.45, 0.2, 0.7, true));
-    expect(loss.averageTint).toBe(relativeCellTint(0.275, 0.1, 0.5, false));
+    // Ranked among the other clubs (its own league entry left out), as the FPL columns are:
+    // 45% beats 20% and 30% of 20%, 30%, 70% → (2 + ½) ÷ 4 = 62.5; a 27.5% loss chance beats 40% and 50% → 62.5 too.
+    expect(win.averageTint).toBe(percentileTint(62.5));
+    expect(loss.averageTint).toBe(percentileTint(62.5));
     expect(draw.averageTint).toBeUndefined();
     // A listed match Understat lacks is left out of the Average (not a 0), and the cell says so on hover.
     const [partial] = p.clubMatchColumns(3, "2025/26", [1, 2, 3]);
     const { container } = render(<div>{partial.average}</div>);
     expect(container.textContent).toBe("45%");
     expect(container.querySelector("span")!.getAttribute("title")).toBe("From the 2 of 3 matches Understat has a figure for");
-    expect(partial.averageTint).toBe(relativeCellTint(0.45, 0.2, 0.7, true));
+    expect(partial.averageTint).toBe(percentileTint(62.5));
     const [none] = p.clubMatchColumns(3, "2025/26", [3]);
     expect(none.average).toBe("—");
     expect(none.averageTint).toBeUndefined();
@@ -203,7 +207,10 @@ describe("Understat's profile cards", () => {
     const main = getByText("4-3-3").closest("tr")!;
     expect([...main.querySelectorAll("td")].map((td) => td.textContent)).toEqual(["4-3-3", "90%", "1.50", "0.75", "2", "1"]);
     const brief = getByText("3-5-2").closest("tr")!;
-    expect([...brief.querySelectorAll("td")].map((td) => td.textContent).slice(2, 4)).toEqual(["—", "—"]);
+    // Under a match's worth of minutes: the amber stopwatch, never "—" (which means missing data) — <minutes_marker>.
+    const briefCells = [...brief.querySelectorAll("td")].slice(2, 4);
+    expect(briefCells.map((td) => td.textContent)).toEqual(["", ""]);
+    for (const td of briefCells) expect(td.querySelector(".small-sample-badge")!.getAttribute("title")).toBe("Minimum minutes: 45 min in this formation, under 90: too few for a per-90 rate.");
     expect(queryByText("5-4-1")).toBeNull();
     fireEvent.click(getByRole("button", { name: "Show all 4 formations used" }));
     expect(getByText("5-4-1")).toBeTruthy();

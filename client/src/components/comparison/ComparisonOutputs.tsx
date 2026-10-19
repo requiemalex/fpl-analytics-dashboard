@@ -1,4 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from "react";
+import { MinutesFloorIcon } from "../MinutesFloorBadge";
 import { COMPARISON_GROUP_LABELS, COMPARISON_GROUP_ORDER } from "../../metrics/comparisonMetrics";
 import type { ColumnGroup } from "../playerColumns";
 import { ComparisonLegend, type LegendEntry } from "./ComparisonLegend";
@@ -112,9 +113,9 @@ interface Mark {
  * Every row has its own scale, since its units differ; the faint notches
  * are a quarter, half and three quarters of the leader. The best figure is
  * bold. A player under the card's minimum minutes (the fixed floor on the
- * Starter view) gets a hollow grey marker and a grey figure: he doesn't
- * set the scale, tint the bar or get the bold. The key underneath names
- * the colours, as under a radar.
+ * Starter view) gets the amber small-sample stopwatch for a marker and a
+ * grey figure: he doesn't set the scale, tint the bar or get the bold. The
+ * key underneath names the colours, as under a radar.
  */
 export function ComparisonOutputs({ rows, entries }: { rows: OutputsRow[]; entries: LegendEntry[] }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -218,7 +219,10 @@ function OutputsTrackRow({ row, entries, ranked, trackWidth }: { row: OutputsRow
               className="cmp-outputs-marker small-sample"
               style={{ left: `${m.pct}%` }}
               title={`${name} (below this card's minimum minutes, so not ranked${m.beyond ? "; past the end of this scale" : ""})`}
-            />
+            >
+              {/* The one small-sample marker (<minutes_marker>): the amber stopwatch. */}
+              <MinutesFloorIcon size={12} />
+            </span>
           ) : (
             <span
               key={player.id}

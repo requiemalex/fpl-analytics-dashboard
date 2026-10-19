@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { perMatchPositionPercentile, seasonMidPrice, seasonPricePercentile, seasonPricePools, teamMatchesPlayed } from "./profileComparisons";
-import { makePlayer, makeSeason } from "../test/fixtures";
+import { perMatchPositionPercentile, teamMatchesPlayed } from "./profileComparisons";
+import { makePlayer } from "../test/fixtures";
 import type { NormalizedFixture } from "../types/normalized";
 
 function fixture(id: number, home: number, away: number, finished = true): NormalizedFixture {
@@ -41,32 +41,5 @@ describe("perMatchPositionPercentile", () => {
 
   it("gives no percentile for a null average", () => {
     expect(perMatchPositionPercentile(null, pool[0], pool, (p) => p.totalPoints, matches, 90)).toBeNull();
-  });
-});
-
-describe("season price comparison", () => {
-  it("uses the middle of the start and end price, and nothing when either is missing", () => {
-    expect(seasonMidPrice({ startCost: 5, endCost: 5.6 })).toBeCloseTo(5.3);
-    expect(seasonMidPrice({ startCost: null, endCost: 5.6 })).toBeNull();
-  });
-
-  it("pools each season's prices from players at or above the floor, leaving out the player being compared", () => {
-    const pools = seasonPricePools(
-      new Map([
-        [1, [makeSeason({ seasonName: "2024/25", minutes: 2000, startCost: 10, endCost: 10 })]],
-        [2, [makeSeason({ seasonName: "2024/25", minutes: 2000, startCost: 5, endCost: 6 })]],
-        [3, [makeSeason({ seasonName: "2024/25", minutes: 100, startCost: 4, endCost: 4 })]],
-      ]),
-      450,
-      1,
-    );
-    expect(pools.get("2024/25")).toEqual([5.5]);
-  });
-
-  it("scores cheaper as better: the cheapest is near 100, the dearest near 0", () => {
-    expect(seasonPricePercentile(4, [5, 6, 7])).toBe(87.5);
-    expect(seasonPricePercentile(8, [5, 6, 7])).toBe(12.5);
-    expect(seasonPricePercentile(8, undefined)).toBeNull();
-    expect(seasonPricePercentile(8, [])).toBeNull();
   });
 });

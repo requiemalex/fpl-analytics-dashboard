@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { applyDefaultViewFloor, dashboardItemFloorNote, displayTileTitle, gameweekDisplay, playersForDashboardItem, poolForDashboardItem, LIVE_DEFAULT_VIEW_MIN_MINUTES, DEFAULT_VIEW_MIN_MINUTES } from "./Dashboard";
+import { applyDefaultViewFloor, dashboardItemFloorNote, displayTileTitle, gameweekDisplay, playersForDashboardItem, playerTileRanks, LIVE_DEFAULT_VIEW_MIN_MINUTES, DEFAULT_VIEW_MIN_MINUTES } from "./Dashboard";
+import { playerTileMetricByKey } from "../components/summaryTileMetrics";
 import { DEFAULT_DASHBOARD_GRAPHS } from "../state/useDashboardGraphs";
 import { DEFAULT_SUMMARY_TILES } from "../state/useSummaryTiles";
 import { isDefaultViewSelected } from "../state/useSavedDashboardViews";
@@ -134,24 +135,6 @@ describe("playersForDashboardItem — the fixed minutes floor is for the Default
   });
 });
 
-describe("poolForDashboardItem — Historic Average from fixed-floor seasons in the Default view only (audit 2026-09-25 player-team-profiles V2)", () => {
-  const p = (id: number) => ({ id }) as NormalizedPlayer;
-  const pools = {
-    byMode: { live: [p(1)], lastSeason: [p(2)], historicAverage: [p(3)] },
-    historicFixedFloorSeasons: [p(4)],
-  };
-
-  it("the packaged Default view reads the fixed-floor-seasons pool for Historic Average", () => {
-    expect(poolForDashboardItem("historicAverage", true, pools).map((x) => x.id)).toEqual([4]);
-  });
-
-  it("a view the user builds keeps every season, and other Data Views are unchanged", () => {
-    expect(poolForDashboardItem("historicAverage", false, pools).map((x) => x.id)).toEqual([3]);
-    expect(poolForDashboardItem("lastSeason", true, pools).map((x) => x.id)).toEqual([2]);
-    expect(poolForDashboardItem("live", true, pools).map((x) => x.id)).toEqual([1]);
-  });
-});
-
 describe("dashboardItemFloorNote — the minutes-floor badge shows exactly where the Default view applies a floor", () => {
   const item = { dataView: "lastSeason" as const, playerIds: null };
 
@@ -164,10 +147,17 @@ describe("dashboardItemFloorNote — the minutes-floor badge shows exactly where
     expect(dashboardItemFloorNote({ ...item, dataView: "historicAverage" }, { defaultViewShown: true })).toContain("Historic Average counts only seasons");
   });
 
-  it("no badge where no floor applies: any view the user builds, and picked players outside Historic Average", () => {
+  it("no badge where no threshold applies: a view the user builds with Min Minutes 0, and picked players, outside Historic Average", () => {
     expect(dashboardItemFloorNote(item, { defaultViewShown: false })).toBeNull();
-    expect(dashboardItemFloorNote({ ...item, dataView: "historicAverage" }, { defaultViewShown: false })).toBeNull();
+    expect(dashboardItemFloorNote({ ...item, criteria: { ...DEFAULT_FILTERS, minMinutes: 0 } }, { defaultViewShown: false })).toBeNull();
     expect(dashboardItemFloorNote({ ...item, playerIds: [1] }, { defaultViewShown: true })).toBeNull();
+  });
+
+  it("<minutes_marker>: a tile the user builds shows it for its own Min Minutes, and any Historic Average item for its 450-minute seasons", () => {
+    expect(dashboardItemFloorNote({ ...item, criteria: { ...DEFAULT_FILTERS, minMinutes: 270 } }, { defaultViewShown: false })).toContain("your Min Minutes: only players with 270+ minutes");
+    expect(dashboardItemFloorNote({ ...item, dataView: "historicAverage" }, { defaultViewShown: false })).toContain("Historic Average counts only seasons of 450+ minutes");
+    // Picked players are never floored, but their Historic Average still counts only 450+ seasons.
+    expect(dashboardItemFloorNote({ ...item, dataView: "historicAverage", playerIds: [1] }, { defaultViewShown: true })).toBe("Minimum minutes applied: Historic Average counts only seasons of 450+ minutes.");
   });
 
   it("every packaged Default player tile and graph shows it", () => {
@@ -185,5 +175,29 @@ describe("tile titles (audit 2026-10-18 L1)", () => {
   });
   it("a custom name is shown as given", () => {
     expect(displayTileTitle({ name: "Cheapest", direction: "asc" }, "Price")).toBe("Cheapest");
+  });
+});
+
+describe("playerTileRanks — a player tile's colours (<comparative_colouring>)", () => {
+  const pool = [
+    makePlayer({ id: 1, position: "DEF", minutes: 900, goals: 3 }),
+    makePlayer({ id: 2, position: "DEF", minutes: 900, goals: 1 }),
+    makePlayer({ id: 3, position: "DEF", minutes: 60, goals: 5 }),
+    makePlayer({ id: 4, position: "FWD", minutes: 900, goals: 12 }),
+    makePlayer({ id: 5, position: "FWD", minutes: 900, goals: 9 }),
+  ];
+
+  it("ranks each player within his position over the whole pool, the floor's small samples left out", () => {
+    const ranks = playerTileRanks(playerTileMetricByKey("goals")!, pool, "live");
+    expect(ranks.get(1)).toBe(75); // top of the two qualifying defenders, though the 60-minute cameo scored more
+    expect(ranks.has(3)).toBe(false);
+    expect(ranks.get(5)).toBe(25);
+  });
+
+  it("a lower-is-better total ranks on its rate, and a style figure isn't ranked at all", () => {
+    const yellows = playerTileRanks(playerTileMetricByKey("yellowCards")!, [makePlayer({ id: 1, position: "MID", minutes: 900, yellowCards: 2, estimatedGames: 10 }), makePlayer({ id: 2, position: "MID", minutes: 1800, yellowCards: 3, estimatedGames: 20 })], "live");
+    // 2 in 10 games is the worse rate, despite fewer cards.
+    expect(yellows.get(1)).toBe(25);
+    expect(playerTileRanks({ ...playerTileMetricByKey("goals")!, noColour: true }, pool, "live").size).toBe(0);
   });
 });

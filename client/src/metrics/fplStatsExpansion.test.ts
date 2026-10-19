@@ -103,7 +103,7 @@ describe("per Data View", () => {
     ],
   } as unknown as RawElementSummary);
   const avg = computeCareerAverages(s1);
-  const profile: HistoricPlayerProfile = { lastCompletedSeason: s1[1], qualifyingSeasons: s1, windowAverage: avg, allSeasonsInWindow: s1, floorSeasonsInWindow: s1, floorWindowAverage: avg };
+  const profile: HistoricPlayerProfile = { lastCompletedSeason: s1[1], qualifyingSeasons: s1, allSeasonsInWindow: s1, floorSeasonsInWindow: s1, floorWindowAverage: avg };
 
   it("Current Season: the live figures; GC/Game from the live totals", () => {
     const r = resolvePlayerStats(live, "live", undefined, true);

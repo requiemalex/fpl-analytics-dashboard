@@ -5,14 +5,15 @@ import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import { computeTeamAggregates, clubSeasonsForMode, type TeamAggregate } from "../metrics/teamStats";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { TeamBadge } from "../components/primitives";
-import { TEAM_COLUMNS, teamColumnByKey, type TeamColumn, type TeamColumnGroup } from "../components/teamColumns";
+import { TEAM_COLUMNS, teamColumnByKey, teamColumnForMode, type TeamColumn, type TeamColumnGroup } from "../components/teamColumns";
 import { ColumnFilterControl } from "../components/ColumnFilterControl";
 import { IconChipButton, ResetIcon, ColumnsIcon, FilterIcon, DownloadIcon } from "../components/IconToolbar";
 import { useColumnCustomization } from "../state/useColumnCustomization";
 import { useColumnFilters, isColumnFilterActive } from "../state/useColumnFilters";
 import { useSortSpec, compareSortValues, sortWithinColumns, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
 import { useEscapeLayer } from "../state/useEscapeLayer";
-import { relativeCellTint } from "../utils/colorScale";
+import { percentileTint } from "../utils/colorScale";
+import { clubRanks, colourDirection } from "../metrics/comparativeColour";
 import { downloadCsv } from "../utils/csvExport";
 import { matchesTeamSearch } from "../utils/playerSearch";
 import { MenuGroupHeading, fplHeading } from "../components/MenuControls";
@@ -74,10 +75,11 @@ export function Teams() {
   const [sourceChoice, setSourceChoice] = useState<ColumnSourceChoice>({});
   const lookupColumn = useCallback(
     (key: string): TeamColumn | undefined => {
-      if (ext && extColumns && sourceChoice[key] === ext.id && extColumns.alternates[key]) return extColumns.alternates[key];
-      return teamColumnByKey(key) ?? extOnlyByKey.get(key);
+      const c = ext && extColumns && sourceChoice[key] === ext.id && extColumns.alternates[key] ? extColumns.alternates[key] : (teamColumnByKey(key) ?? extOnlyByKey.get(key));
+      // As this Data View shows it (<averaged_counts>): a Historic Average count has 1 decimal, its filter included.
+      return c && teamColumnForMode(c, analysisMode);
     },
-    [ext, extColumns, sourceChoice, extOnlyByKey],
+    [ext, extColumns, sourceChoice, extOnlyByKey, analysisMode],
   );
   // If the second source goes away mid-session, a column switched to it
   // falls back to FPL; the filter set on the other source's figures goes
@@ -182,22 +184,20 @@ export function Teams() {
     setSourceChoice((prev) => ({ ...prev, [key]: prev[key] === ext.id ? FPL_SOURCE : ext.id }));
   }
 
-  // Per-column min/max across the teams currently shown — "how does this
-  // compare to what you're looking at", same scoping as Player Explorer.
-  const columnRanges = useMemo(() => {
-    const ranges = new Map<string, { min: number; max: number }>();
+  // Each column's colour (<comparative_colouring>): every club ranked
+  // among all clubs for this Data View (aggregates — never only the clubs a
+  // search or filter leaves on screen).
+  const columnRanks = useMemo(() => {
+    const ranks = new Map<string, Map<number, number>>();
     for (const c of columnsInOrder) {
-      const values = filteredRows.map((t) => c.getValue(t)).filter((v): v is number => v !== null);
-      if (values.length > 0) ranges.set(c.key, { min: Math.min(...values), max: Math.max(...values) });
+      const higherIsBetter = colourDirection(c);
+      if (higherIsBetter !== null) ranks.set(c.key, clubRanks(aggregates, { id: (t) => t.teamId, value: c.getValue, higherIsBetter }));
     }
-    return ranges;
-  }, [columnsInOrder, filteredRows]);
+    return ranks;
+  }, [columnsInOrder, aggregates]);
 
   function teamCellTint(team: TeamAggregate, column: TeamColumn): string | undefined {
-    const range = columnRanges.get(column.key);
-    const v = column.getValue(team);
-    if (!range || v === null) return undefined;
-    return relativeCellTint(v, range.min, range.max, column.higherIsBetter ?? true);
+    return percentileTint(columnRanks.get(column.key)?.get(team.teamId));
   }
 
   /** Measures the sticky Team column, then shares what's left among the metric columns — so the Team column sits at its own width, not stretched by the table's leftover space. */

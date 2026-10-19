@@ -115,7 +115,7 @@ describe("Player profile — Match Log", () => {
     const { getByText, container } = renderPlayer();
     const heading = getByText("FPL · Match Log").closest(".profile-section-heading")!;
     expect(heading.classList.contains("col-source-fpl")).toBe(true);
-    expect(within(heading as HTMLElement).getByText("2026/27 (live)")).toBeTruthy();
+    expect(within(heading as HTMLElement).getByText("2026/27 (current season)")).toBeTruthy();
     expect(matchLog(container).querySelectorAll("tbody tr")).toHaveLength(2);
     expect(state.pastRequests).toBe(0);
   });
@@ -133,8 +133,57 @@ describe("Player profile — Match Log", () => {
     const headers = [...matchLog(container).querySelectorAll("thead th")].map((th) => th.textContent);
     expect(totals[headers.indexOf("Points") - 2]).toBe("8");
     expect(totals[headers.indexOf("xG") - 2]).toBe("—");
-    fireEvent.click(getByRole("button", { name: /^2026\/27 \(live\)/ }));
-    expect(getByText("2026/27 (live)", { selector: ".match-log-season" })).toBeTruthy();
+    fireEvent.click(getByRole("button", { name: /^2026\/27 \(current season\)/ }));
+    expect(getByText("2026/27 (current season)", { selector: ".match-log-season" })).toBeTruthy();
+  });
+
+  it("carries what the old Points History table had: the season's price in the heading, and a Starts column with its total", async () => {
+    setHistory([gw(1), gw(2)], [makeSeason({ seasonName: "2024/25", totalPoints: 150, minutes: 3000, startCost: 5.5, endCost: 6.0 }), makeSeason({ seasonName: "2025/26", totalPoints: 170, minutes: 3100 })]);
+    state.pastSeasons = { "2024/25": [past(1, { starts: 1 }), past(2, { minutes: 0, starts: 0 })] };
+    const { getByRole, getByLabelText, container } = renderPlayer();
+    // Current season: today's price.
+    expect(getByLabelText(/^Price today: £/)).toBeTruthy();
+    fireEvent.click(getByRole("button", { name: /^2024\/25: 150 pts/ }));
+    await waitFor(() => expect(matchLog(container)).toBeTruthy());
+    expect(getByLabelText("Price at the start and end of the season: £5.5m → £6.0m")).toBeTruthy();
+    const headers = [...matchLog(container).querySelectorAll("thead th")].map((th) => th.textContent);
+    expect(headers).toContain("Starts");
+    const totals = [...matchLog(container).querySelectorAll("tfoot tr")[0].querySelectorAll("td")].map((td) => td.textContent);
+    expect(totals[headers.indexOf("Starts") - 2]).toBe("1");
+  });
+
+  it("a season with no match-by-match record (before 2016/17) shows FPL's season totals instead", async () => {
+    setHistory([gw(1)], [makeSeason({ seasonName: "2014/15", totalPoints: 99, minutes: 2500, goals: 7 }), makeSeason({ seasonName: "2025/26", totalPoints: 170, minutes: 3100 })]);
+    state.pastSeasons = {};
+    const { getByRole, findByRole } = renderPlayer();
+    fireEvent.click(getByRole("button", { name: /^2014\/15/ }));
+    const table = await findByRole("table", { name: "2014/15 season totals" });
+    const headers = [...table.querySelectorAll("th")].map((th) => th.textContent);
+    const cells = [...table.querySelectorAll("td")].map((td) => td.textContent);
+    expect(cells[headers.indexOf("Points")]).toBe("99");
+    expect(cells[headers.indexOf("Minutes")]).toBe("2,500");
+    expect(cells[headers.indexOf("Goals")]).toBe("7");
+  });
+
+  it("adds up the matches that have a figure when a match he played lacks one, and says so on hover (<partial_totals>)", async () => {
+    // Match 1 has xG 0.5; match 3 he played without a figure (left out); match 2 he didn't play (a provable 0).
+    state.pastSeasons = { "2024/25": [past(1, { xG: 0.5 }), past(2, { minutes: 0, goals: 0, totalPoints: 0, cleanSheets: 0 }), past(3)] };
+    const { getByRole, container } = renderPlayer();
+    fireEvent.click(getByRole("button", { name: /^2024\/25: 150 pts/ }));
+    await waitFor(() => expect(matchLog(container)).toBeTruthy());
+    const headers = [...matchLog(container).querySelectorAll("thead th")].map((th) => th.textContent);
+    const [totalsRow, averageRow] = matchLog(container).querySelectorAll("tfoot tr");
+    const totalXg = totalsRow.querySelectorAll("td")[headers.indexOf("xG") - 2];
+    const averageXg = averageRow.querySelectorAll("td")[headers.indexOf("xG") - 2];
+    expect(totalXg.textContent).toBe("0.50");
+    // Over the 2 matches with a figure, never all 3 (0.17) and never "—".
+    expect(averageXg.textContent).toBe("0.25");
+    expect(totalXg.querySelector("span")!.getAttribute("title")).toBe("From the 2 of 3 matches that have a figure");
+    expect(averageXg.querySelector("span")!.getAttribute("title")).toBe("From the 2 of 3 matches that have a figure");
+    // Points: every match has one, so no hover note.
+    const totalPts = totalsRow.querySelectorAll("td")[headers.indexOf("Points") - 2];
+    expect(totalPts.textContent).toBe("16");
+    expect(totalPts.querySelector("span")).toBeNull();
   });
 
   it("colours a past season's Totals and Average against his position that season, at the fixed floor", async () => {

@@ -1,6 +1,7 @@
 import React from "react";
 import type { SeasonTrend } from "../../metrics/careerMetrics";
 import { fmtDecimal, fmtSigned } from "../../utils/format";
+import { MinutesFloorIcon } from "../MinutesFloorBadge";
 
 /**
  * Deliberately narrower than PlayerSeasonHistory — the chart only ever
@@ -112,8 +113,11 @@ export function PointsHistoryHeader({ trend, titleHint, title = "Points History"
  * pulls the average down rather than being dropped from it), so it draws
  * green. A season outside the window (and in the player profile, a window
  * season under the fixed minutes floor — <fixed_minutes_floor>) draws grey,
- * its figure and season muted; hovering it marks it "†", the same mark
- * Career History's table uses. The live season draws as an outline — real,
+ * its figure and season muted. Hovering a season outside the window marks
+ * it "†", as the season table does; a season under the floor
+ * (`smallSampleSeasonNames`) carries the amber small-sample stopwatch under
+ * its bar instead (<minutes_marker>), its hover text saying why.
+ * The current season draws as an outline — real,
  * but not complete, so not counted until it is. The latest completed
  * season's figure is bold.
  *
@@ -131,6 +135,8 @@ export function PointsHistoryChart({
   averagePoints,
   selectedSeasonName = null,
   onSelectSeason,
+  smallSampleSeasonNames,
+  smallSampleNote,
 }: {
   seasons: SeasonPointsEntry[];
   countedSeasonNames: Set<string> | null;
@@ -138,6 +144,10 @@ export function PointsHistoryChart({
   averagePoints: number | null;
   selectedSeasonName?: string | null;
   onSelectSeason?: (seasonName: string) => void;
+  /** Seasons not counted because they're under the fixed minutes floor: marked with the amber stopwatch. */
+  smallSampleSeasonNames?: Set<string>;
+  /** The hover text for that marker. */
+  smallSampleNote?: string;
 }) {
   const max = Math.max(0, ...seasons.map((s) => s.totalPoints));
   const heightFor = (points: number) => (max > 0 ? (Math.max(0, points) / max) * BAR_AREA_PX : 0);
@@ -162,8 +172,10 @@ export function PointsHistoryChart({
     const isLive = s.seasonName === currentSeasonName;
     const counted = countedSeasonNames === null ? null : countedSeasonNames.has(s.seasonName);
     const state = isLive ? "live" : counted === null ? "neutral" : counted ? "counted" : "uncounted";
-    const hover = `${s.seasonName}${isLive ? " (live)" : counted === false ? " †" : ""}: ${fmtDecimal(s.totalPoints, 0)} pts`;
-    return { s, state, hover, isLatest: s.seasonName === latestCompleted };
+    const smallSample = !isLive && smallSampleSeasonNames?.has(s.seasonName) === true;
+    const mark = isLive ? " (current season)" : smallSample && smallSampleNote ? ` (${smallSampleNote})` : counted === false ? " †" : "";
+    const hover = `${s.seasonName}${mark}: ${fmtDecimal(s.totalPoints, 0)} pts`;
+    return { s, state, hover, smallSample, isLatest: s.seasonName === latestCompleted };
   });
 
   return (
@@ -204,12 +216,17 @@ export function PointsHistoryChart({
         {avgLine && <span className="points-history-avg" style={{ left: avgLine.left, right: avgLine.right, bottom: avgLine.bottom }} />}
       </div>
       <div className="points-history-axis">
-        {columns.map(({ s, state }) => (
+        {columns.map(({ s, state, smallSample }) => (
           <span
             key={s.seasonName}
             className={[state === "uncounted" ? "is-muted" : "", onSelectSeason && s.seasonName === selectedSeasonName ? "is-selected" : ""].filter(Boolean).join(" ") || undefined}
           >
             {shortSeason(s.seasonName)}
+            {smallSample && (
+              <span className="small-sample-mark" aria-hidden="true">
+                <MinutesFloorIcon size={10} />
+              </span>
+            )}
           </span>
         ))}
       </div>

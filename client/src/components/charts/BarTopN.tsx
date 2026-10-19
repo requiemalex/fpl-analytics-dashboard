@@ -1,4 +1,5 @@
 import React from "react";
+import { noRowsMessage } from "../emptyMessages";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from "recharts";
 
 export interface BarDatum {
@@ -45,7 +46,7 @@ export function BarTopN({
   format,
   onBarClick,
   height = 420,
-  emptyMessage = "No eligible players have data for this chart with the current filters.",
+  emptyMessage = noRowsMessage("player"),
   ascending = false,
 }: {
   data: BarDatum[];
@@ -87,7 +88,7 @@ export function BarTopN({
         <Tooltip content={<CustomTooltip valueLabel={valueLabel} format={format} />} cursor={{ fill: "var(--surface-hover)" }} />
         <Bar dataKey="value" onClick={(point: any) => onBarClick?.(point.id)} cursor={onBarClick ? "pointer" : "default"}>
           {top.map((d) => (
-            <Cell key={d.id} fill="var(--accent-positive)" />
+            <Cell key={d.id} fill="var(--accent-focus)" />
           ))}
         </Bar>
       </BarChart>

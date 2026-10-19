@@ -40,10 +40,13 @@ function isTransientNetworkError(err: unknown): boolean {
  * HTTP error rather than a network one, the error state includes a
  * manual `retry()` the caller can offer too.
  */
-export function usePlayerHistory(playerId: number | null): State {
+export function usePlayerHistory(playerId: number | null, liveDataVersion?: { count: number; forced: boolean }): State {
   const [state, setState] = useState<Omit<State, "retry">>(IDLE_STATE);
   const requestedIdRef = useRef<number | null>(null);
   const attemptRef = useRef(0);
+  const statusRef = useRef(state.status);
+  statusRef.current = state.status;
+  const versionRef = useRef(liveDataVersion?.count);
 
   function load(id: number) {
     requestedIdRef.current = id;
@@ -83,6 +86,24 @@ export function usePlayerHistory(playerId: number | null): State {
     attemptRef.current = 0;
     load(playerId);
   }, [playerId]);
+
+  // The live data reloaded (the 10-minute poll, or Refresh Data): a log on
+  // screen reloads with it, quietly — its rows stay until the new ones
+  // arrive, and stay if the reload fails. Refresh Data asks FPL afresh; the
+  // poll takes the proxy's copy (at most 30 minutes old).
+  useEffect(() => {
+    if (liveDataVersion === undefined || versionRef.current === liveDataVersion.count) return;
+    versionRef.current = liveDataVersion.count;
+    const id = playerId;
+    if (id === null || statusRef.current !== "ready") return;
+    fetchElementSummary(id, { forceRefresh: liveDataVersion.forced })
+      .then((result) => {
+        if (requestedIdRef.current !== id) return;
+        setState({ status: "ready", history: normalizeElementSummary(result.data), seasonHistory: normalizeSeasonHistory(result.data), errorMessage: null });
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveDataVersion?.count]);
 
   function retry() {
     if (playerId === null) return;

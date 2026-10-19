@@ -1,20 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { filterPlayers, effectiveMinMinutes } from "./useFilteredPlayers";
+import { filterPlayers } from "./useFilteredPlayers";
 import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "./scoutingFilters";
 import { makePlayer } from "../test/fixtures";
-
-describe("effectiveMinMinutes", () => {
-  it("returns 0 (no filtering) in live mode regardless of the user's setting — a fixed bar would empty the pool pre-season", () => {
-    const filters: GlobalScoutingFilters = { ...DEFAULT_FILTERS, minMinutes: 450 };
-    expect(effectiveMinMinutes(filters, "live")).toBe(0);
-  });
-
-  it("returns the user's actual setting in lastSeason/historicAverage mode", () => {
-    const filters: GlobalScoutingFilters = { ...DEFAULT_FILTERS, minMinutes: 450 };
-    expect(effectiveMinMinutes(filters, "lastSeason")).toBe(450);
-    expect(effectiveMinMinutes(filters, "historicAverage")).toBe(450);
-  });
-});
 
 describe("filterPlayers — combination filtering", () => {
   const players = [
@@ -26,50 +13,44 @@ describe("filterPlayers — combination filtering", () => {
 
   it("applies search, position, team, and minMinutes together (AND, not OR)", () => {
     const filters: GlobalScoutingFilters = { ...DEFAULT_FILTERS, search: "", position: "MID", teamId: 1, minMinutes: 500 };
-    const result = filterPlayers(players, filters, "lastSeason");
-    // Saka is MID+team1 but under 500 minutes -> excluded. NoMinutes has null minutes -> retained.
-    expect(result.map((p) => p.id).sort()).toEqual([1, 4]);
+    const result = filterPlayers(players, filters);
+    // Saka is MID+team1 but under 500 minutes -> excluded. NoMinutes has no minutes, which counts as 0 -> excluded too.
+    expect(result.map((p) => p.id).sort()).toEqual([1]);
   });
 
   it("position ALL includes every position", () => {
     const filters: GlobalScoutingFilters = { ...DEFAULT_FILTERS, position: "ALL" };
-    const result = filterPlayers(players, filters, "lastSeason");
+    const result = filterPlayers(players, filters);
     expect(result.map((p) => p.id).sort()).toEqual([1, 2, 3, 4]);
   });
 
   it("team ALL includes every team", () => {
     const filters: GlobalScoutingFilters = { ...DEFAULT_FILTERS, teamId: "ALL" };
-    const result = filterPlayers(players, filters, "lastSeason");
+    const result = filterPlayers(players, filters);
     expect(result).toHaveLength(4);
   });
 
   it("search filters by name (fuzzy/accent-aware via matchesPlayerSearch)", () => {
     const filters: GlobalScoutingFilters = { ...DEFAULT_FILTERS, search: "haaland" };
-    const result = filterPlayers(players, filters, "lastSeason");
+    const result = filterPlayers(players, filters);
     expect(result.map((p) => p.id)).toEqual([2]);
   });
 
-  it("null-safe sorting/filtering: a player with null minutes is retained, not treated as a noisy small sample or dropped", () => {
-    const filters: GlobalScoutingFilters = { ...DEFAULT_FILTERS, minMinutes: 1000 };
-    const result = filterPlayers(players, filters, "lastSeason");
-    expect(result.map((p) => p.id)).toContain(4);
-  });
-
-  it("live mode ignores minMinutes entirely (effectiveMinMinutes returns 0), keeping every player regardless of minutes", () => {
-    const filters: GlobalScoutingFilters = { ...DEFAULT_FILTERS, minMinutes: 1000 };
-    const result = filterPlayers(players, filters, "live");
-    expect(result).toHaveLength(4);
+  it("<no_data_is_zero>: a player with no minutes for the mode counts as 0 — out once a minimum is set, kept at the default 0", () => {
+    expect(filterPlayers(players, { ...DEFAULT_FILTERS, minMinutes: 1000 }).map((p) => p.id)).not.toContain(4);
+    expect(filterPlayers(players, { ...DEFAULT_FILTERS, minMinutes: 1 }).map((p) => p.id)).not.toContain(4);
+    expect(filterPlayers(players, DEFAULT_FILTERS).map((p) => p.id)).toContain(4);
   });
 
   it("a real (non-null) minutes value strictly below the bar is excluded", () => {
     const filters: GlobalScoutingFilters = { ...DEFAULT_FILTERS, minMinutes: 500 };
-    const result = filterPlayers(players, filters, "lastSeason");
+    const result = filterPlayers(players, filters);
     expect(result.map((p) => p.id)).not.toContain(3); // Saka, 100 minutes
   });
 
   it("minutes exactly equal to the bar is included (>= not >)", () => {
     const filters: GlobalScoutingFilters = { ...DEFAULT_FILTERS, minMinutes: 1800 };
-    const result = filterPlayers(players, filters, "lastSeason");
+    const result = filterPlayers(players, filters);
     expect(result.map((p) => p.id)).toContain(2); // Haaland at exactly 1800
   });
 });
@@ -82,25 +63,25 @@ describe("filterPlayers — live price range (minPrice/maxPrice)", () => {
   ];
 
   it("null minPrice/maxPrice (the default) applies no price filtering at all", () => {
-    const result = filterPlayers(players, DEFAULT_FILTERS, "lastSeason");
+    const result = filterPlayers(players, DEFAULT_FILTERS);
     expect(result.map((p) => p.id).sort()).toEqual([1, 2, 3]);
   });
 
   it("minPrice excludes anyone strictly below it", () => {
     const filters: GlobalScoutingFilters = { ...DEFAULT_FILTERS, minPrice: 5 };
-    const result = filterPlayers(players, filters, "lastSeason");
+    const result = filterPlayers(players, filters);
     expect(result.map((p) => p.id).sort()).toEqual([2, 3]);
   });
 
   it("maxPrice excludes anyone strictly above it", () => {
     const filters: GlobalScoutingFilters = { ...DEFAULT_FILTERS, maxPrice: 10 };
-    const result = filterPlayers(players, filters, "lastSeason");
+    const result = filterPlayers(players, filters);
     expect(result.map((p) => p.id).sort()).toEqual([1, 2]);
   });
 
   it("minPrice and maxPrice together narrow to a band (e.g. “only the best £5m players”)", () => {
     const filters: GlobalScoutingFilters = { ...DEFAULT_FILTERS, minPrice: 4, maxPrice: 5 };
-    const result = filterPlayers(players, filters, "lastSeason");
+    const result = filterPlayers(players, filters);
     expect(result.map((p) => p.id)).toEqual([1]);
   });
 
@@ -110,12 +91,12 @@ describe("filterPlayers — live price range (minPrice/maxPrice)", () => {
     delete staleFilters.minPrice;
     // @ts-expect-error same as above
     delete staleFilters.maxPrice;
-    const result = filterPlayers(players, staleFilters, "lastSeason");
+    const result = filterPlayers(players, staleFilters);
     expect(result.map((p) => p.id).sort()).toEqual([1, 2, 3]);
   });
 });
 
-describe("Dashboard tiles/graphs — Min Minutes applies in Current Season mode when opted in (applyMinMinutesInLive)", () => {
+describe("Min Minutes applies in Current Season like every other Data View (the owner's rule, 2026-10-19)", () => {
   const players = [
     makePlayer({ id: 1, name: "Regular", position: "MID", minutes: 360 }),
     makePlayer({ id: 2, name: "Bench", position: "MID", minutes: 45 }),
@@ -123,17 +104,8 @@ describe("Dashboard tiles/graphs — Min Minutes applies in Current Season mode 
   ];
   const filters: GlobalScoutingFilters = { ...DEFAULT_FILTERS, minMinutes: 270 };
 
-  it("effectiveMinMinutes returns the user's setting in live mode when applyInLive is true", () => {
-    expect(effectiveMinMinutes(filters, "live", true)).toBe(270);
-  });
-
-  it("filterPlayers drops live-mode players under the threshold when opted in (null-minutes players still retained)", () => {
-    const result = filterPlayers(players, filters, "live", true);
-    expect(result.map((p) => p.id).sort()).toEqual([1, 3]);
-  });
-
-  it("without the opt-in, live mode still bypasses the threshold (every other page unchanged)", () => {
-    const result = filterPlayers(players, filters, "live");
-    expect(result.map((p) => p.id).sort()).toEqual([1, 2, 3]);
+  it("drops players under the threshold, and a player with no data (counted as 0)", () => {
+    const result = filterPlayers(players, filters);
+    expect(result.map((p) => p.id)).toEqual([1]);
   });
 });

@@ -1,10 +1,10 @@
 import React from "react";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
-import { FIXED_FLOOR_MINUTES, fixedFloorMinutes } from "../metrics/fixedMinutesFloor";
+import { FIXED_FLOOR_MINUTES, fixedFloorMinutes, isUnderMinimum } from "../metrics/fixedMinutesFloor";
 import { HISTORIC_WINDOW_SEASONS } from "../metrics/historicAnalysis";
 import { fmtDecimal } from "../utils/format";
 
-/** A stopwatch standing on a floor line: "a minutes floor is in force here". */
+/** A stopwatch standing on a floor line: "a minutes threshold is in force here". */
 export function MinutesFloorIcon({ size = 13 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -17,24 +17,13 @@ export function MinutesFloorIcon({ size = 13 }: { size?: number }) {
 }
 
 /**
- * Marks a section where the fixed minimum-minutes floor is applied
- * automatically because the user has no Min Minutes control of their own
- * (<fixed_minutes_floor>), so a player missing from a ranking, or shown
- * without a percentile or colour, isn't mistaken for missing data. The
- * hover text says what the floor does there.
- */
-export function MinutesFloorBadge({ note }: { note: string }) {
-  return (
-    <span className="data-view-badge" title={note} aria-label={note}>
-      <MinutesFloorIcon />
-    </span>
-  );
-}
-
-/**
- * Marks a player who is under the fixed floor (<fixed_minutes_floor>) — the
- * same stopwatch, in the warning colour. The hover text (smallSampleNote)
- * says why he has no percentiles or colours.
+ * <minutes_marker>: the one sign of a minimum-minutes threshold, anywhere
+ * in the app (the owner's rule, 2026-10-19) — the amber stopwatch, and no
+ * other symbol. Two uses, the same look:
+ * - on a VIEW (a Data View toggle, tile, graph, card, column header or
+ *   control) where a threshold is in force, its hover text naming it;
+ * - on an ENTRY (a row, season or point) that falls under one, its hover
+ *   text saying by how much and what that does.
  */
 export function SmallSampleBadge({ note }: { note: string }) {
   return (
@@ -44,15 +33,41 @@ export function SmallSampleBadge({ note }: { note: string }) {
   );
 }
 
-/** Hover text for SmallSampleBadge. `minutes` null: Historic Average, where no window season reached the floor. */
+/** The marker on a view where a threshold is in force (<minutes_marker>) — the same amber stopwatch as an entry's. */
+export function MinutesFloorBadge({ note }: { note: string }) {
+  return <SmallSampleBadge note={note} />;
+}
+
+/**
+ * Hover text for an entry under the fixed floor. A player with no minutes
+ * for the mode counts as 0 (<no_data_is_zero>); in Historic Average that
+ * means no window season reached 450, so nothing counts.
+ */
 export function smallSampleNote(minutes: number | null, mode: AnalysisMode): string {
-  if (minutes === null) {
+  if (mode === "historicAverage" && minutes === null) {
     return `Small sample. No season in the last ${HISTORIC_WINDOW_SEASONS} with ${FIXED_FLOOR_MINUTES}+ minutes, so nothing counts toward Historic Average: no figures, percentiles or colours.`;
   }
-  return `Small sample: ${fmtDecimal(minutes, 0)} min in this mode, under the ${fixedFloorMinutes(mode)}-minute floor: no percentiles or colours.`;
+  const played = minutes === null ? "No minutes in this mode (counts as 0)" : `Small sample: ${fmtDecimal(minutes, 0)} min in this mode`;
+  return `${played}, under the ${fixedFloorMinutes(mode)}-minute floor: its figures for this Data View have no percentiles or colours.`;
+}
+
+/**
+ * The marker for a row in a table or list (<minutes_marker>): a player
+ * under the fixed floor for the mode has no colour anywhere
+ * (<comparative_colouring>), so his row says why. No minutes for the mode
+ * counts as 0, so it's under too (<no_data_is_zero>).
+ */
+export function RowSmallSampleBadge({ minutes, mode }: { minutes: number | null; mode: AnalysisMode }) {
+  if (!isUnderMinimum(minutes, fixedFloorMinutes(mode))) return null;
+  return <SmallSampleBadge note={smallSampleNote(minutes, mode)} />;
 }
 
 const PREFIX = "Minimum minutes applied automatically";
+
+/** Hover text for a view in Historic Average: the one Historic Average rule, everywhere. */
+export function historicSeasonsNote(): string {
+  return `${PREFIX}: Historic Average counts only seasons of ${FIXED_FLOOR_MINUTES}+ minutes. A player with none has no figures.`;
+}
 
 /** Hover text for the player profile and Player Comparison: the floor turns percentiles and colours off below it. */
 export function profileFloorNote(mode: AnalysisMode): string {
@@ -65,25 +80,36 @@ export function profileFloorNote(mode: AnalysisMode): string {
 
 /** Hover text for a Starter-view Player Comparison trend graph: a season under the floor is marked (careerTrends.ts `buildSeasonTrend`). */
 export function trendFloorNote(): string {
-  return `${PREFIX}: a season under ${FIXED_FLOOR_MINUTES} minutes is a small sample, marked with an amber ring.`;
+  return `${PREFIX}: a season under ${FIXED_FLOOR_MINUTES} minutes is a small sample, marked with the amber stopwatch.`;
 }
 
-/** Hover text for the amber badge on a player below a Player Comparison card's own Min Minutes (a custom view). `minutes` null: no figures for the mode. */
+/** Hover text for a view with a minimum the user set (a Dashboard tile or graph, a Player Comparison card, Explorer's Mins filter, Team Building's Min minutes). */
+export function userMinimumNote(minMinutes: number, mode: AnalysisMode | null): string {
+  const historic = mode === "historicAverage" ? ` Historic Average also counts only seasons of ${FIXED_FLOOR_MINUTES}+ minutes.` : "";
+  return `Your minimum minutes: ${fmtDecimal(minMinutes, 0)}. A player under it, or with no minutes (counted as 0), is left out or marked.${historic}`;
+}
+
+/** Hover text for the amber badge on a player below a Player Comparison card's own Min Minutes (a custom view). `minutes` null: no figures for the mode, counted as 0. */
 export function belowMinimumNote(minutes: number | null, minMinutes: number): string {
-  const played = minutes === null ? "no minutes in this mode" : `${fmtDecimal(minutes, 0)} min in this mode`;
+  const played = minutes === null ? "no minutes in this mode (counts as 0)" : `${fmtDecimal(minutes, 0)} min in this mode`;
   return `Below this card's Min Minutes: ${played}, under ${fmtDecimal(minMinutes, 0)}: not drawn, not ranked or marked best.`;
 }
 
 /**
- * Hover text for a Default Dashboard tile or graph, or null when no floor
- * applies to it. `playerFloor`: players under the floor are left out;
- * `historicSeasons`: Historic Average counts only seasons that reach the
- * floor.
+ * Hover text for a Dashboard tile or graph, or null when no threshold
+ * applies to it. `playerFloor`: the Starter view leaves players under the
+ * fixed floor out; `userMinimum`: the item's own Min Minutes (when above
+ * 0); `historicSeasons`: Historic Average counts only seasons that reach
+ * the floor.
  */
-export function dashboardFloorNote(mode: AnalysisMode, { playerFloor, historicSeasons }: { playerFloor: boolean; historicSeasons: boolean }): string | null {
+export function dashboardFloorNote(
+  mode: AnalysisMode,
+  { playerFloor, userMinimum = 0, historicSeasons }: { playerFloor: boolean; userMinimum?: number; historicSeasons: boolean },
+): string | null {
   const parts: string[] = [];
   if (playerFloor) parts.push(`only players with ${fixedFloorMinutes(mode)}+ minutes are included`);
+  if (userMinimum > 0) parts.push(`your Min Minutes: only players with ${fmtDecimal(userMinimum, 0)}+ minutes are included (no minutes counts as 0)`);
   if (historicSeasons) parts.push(`Historic Average counts only seasons of ${FIXED_FLOOR_MINUTES}+ minutes`);
   if (parts.length === 0) return null;
-  return `${PREFIX}: ${parts.join("; ")}.`;
+  return `Minimum minutes applied: ${parts.join("; ")}.`;
 }

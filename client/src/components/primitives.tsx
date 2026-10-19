@@ -1,10 +1,21 @@
 import React, { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { fmtDecimal, fmtSigned, roundAsDisplayed, DASH } from "../utils/format";
+import { fmtDecimal, DASH } from "../utils/format";
 import { getMetricDefinition } from "../metrics/dictionary";
 import { fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { teamDisplayColors, teamIdentityColor } from "../utils/teamColors";
 import type { Position } from "../types/normalized";
+import { coverageNote, type PartialSum } from "../metrics/partialTotals";
+
+/**
+ * A Match Log Totals or Average cell (<partial_totals>): its text, with a
+ * hover note when it's from only some of the listed matches. `source` names
+ * a second data source whose figures they are.
+ */
+export function withCoverage(text: string, sum: PartialSum | null, source?: string): React.ReactNode {
+  const note = coverageNote(sum, source);
+  return note ? <span title={note}>{text}</span> : text;
+}
 
 export function PositionBadge({ position }: { position: Position }) {
   return <span className={`badge pos-${position}`}>{position}</span>;
@@ -120,17 +131,6 @@ export function AvailabilityFlag({
 /** Renders a number, or "—" when null — never NaN/Infinity/undefined. */
 export function Num({ value, decimals = 0 }: { value: number | null | undefined; decimals?: number }) {
   return <span className="num">{fmtDecimal(value, decimals)}</span>;
-}
-
-/** Renders a +/- signed number colour-coded green (above) / red (below). */
-export function SignedNum({ value, decimals = 2 }: { value: number | null | undefined; decimals?: number }) {
-  if (value === null || value === undefined || !Number.isFinite(value)) {
-    return <span className="num value-muted">{DASH}</span>;
-  }
-  // Coloured by the figure as shown: a value that rounds to 0 is neither (audit 2026-10-18 L7).
-  const shown = roundAsDisplayed(value, decimals);
-  const cls = shown > 0 ? "value-positive" : shown < 0 ? "value-negative" : "value-muted";
-  return <span className={`num ${cls}`}>{fmtSigned(value, decimals)}</span>;
 }
 
 /** A team's upcoming fixtures as coloured FDR chips plus the average difficulty — shared by every table that offers a fixtures column (Team Building's picker, Player Explorer), so the visual reads identically wherever it appears. `avgTint` is an optional pre-computed background colour (relativeCellTint, lower-is-better) for the average-difficulty figure — comparative colouring against every other team, used by the team profile's Upcoming Fixtures card; every other caller omits it and gets the plain untinted figure unchanged. */

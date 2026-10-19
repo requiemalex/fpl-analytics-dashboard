@@ -81,7 +81,7 @@ export interface SeasonTrendRow {
  * first, with each player's figure for `metric` (null — a gap — where he
  * has no season or no value). A season with fewer than `minMinutes` still
  * plots his real figure, and its minutes are kept under trendBelowKey so the
- * card can mark it (an amber ring) and say why; seasons either side plot as
+ * card can mark it (the amber small-sample stopwatch) and say why; seasons either side plot as
  * normal. No windowing — this is about a whole career's shape.
  */
 export function buildSeasonTrend(

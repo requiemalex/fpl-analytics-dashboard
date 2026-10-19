@@ -6,6 +6,7 @@ import { Teams } from "./Teams";
 import { makeTeam } from "../test/fixtures";
 import { downloadCsv } from "../utils/csvExport";
 import type { TeamAggregate } from "../metrics/teamStats";
+import { percentileTint } from "../utils/colorScale";
 
 const TEAMS = [
   makeTeam({ id: 1, shortName: "ARS", name: "Arsenal" }),
@@ -169,5 +170,55 @@ describe("Team Explorer", () => {
     const [, headers, rows] = vi.mocked(downloadCsv).mock.calls[0];
     expect(headers).toEqual(["Team", "League Position", "League Points", "Goals For", "Goals Against", "xG", "xGC", "xA", "FPL Points"]);
     expect(rows).toEqual([["Nott'm Forest", "3", "50", "45", "50", "44.12", "50.00", "40.00", "1,500"]]);
+  });
+});
+
+describe("Team Explorer — comparative colouring (<comparative_colouring>)", () => {
+  /** A cell's background as jsdom stores it, so it compares with percentileTint's output. */
+  function asRendered(css: string | undefined): string {
+    const el = document.createElement("div");
+    if (css) el.style.background = css;
+    return el.style.backgroundColor;
+  }
+  function cell(container: HTMLElement, team: string, label: string): HTMLElement {
+    const index = headerLabels(container).indexOf(label);
+    const row = Array.from(container.querySelectorAll("table.data-table tbody tr")).find((tr) => tr.querySelector(".name")?.textContent?.trim() === team)!;
+    return row.querySelectorAll<HTMLElement>("td")[index];
+  }
+
+  it("ranks each club among every club, and a search doesn't change it", () => {
+    const { container, getByLabelText } = renderTeams();
+    // Goals Against, fewer better: Arsenal's 27 tops the three; Forest's 50 ties Man Utd's at the bottom.
+    expect(cell(container, "Arsenal", "Goals Against").style.backgroundColor).toBe(asRendered(percentileTint(100 - (0.5 / 3) * 100)));
+    const forest = cell(container, "Nott'm Forest", "Goals Against").style.backgroundColor;
+    expect(forest).toBe(asRendered(percentileTint(100 - (2 / 3) * 100)));
+    fireEvent.change(getByLabelText("Search teams"), { target: { value: "forest" } });
+    expect(rowNames(container)).toEqual(["Nott'm Forest"]);
+    expect(cell(container, "Nott'm Forest", "Goals Against").style.backgroundColor).toBe(forest);
+  });
+
+  it("Played and Draws are never coloured: neither is better or worse", () => {
+    const draws = AGGREGATES.map((a) => a.draws);
+    const played = AGGREGATES.map((a) => a.played);
+    AGGREGATES.forEach((a, i) => {
+      a.draws = [2, 8, 14][i];
+      a.played = [36, 37, 38][i];
+    });
+    try {
+      const { container, getByRole } = renderTeams();
+      toggleColumn(container, getByRole, "Played");
+      toggleColumn(container, getByRole, "Draws");
+      toggleColumn(container, getByRole, "Wins");
+      for (const team of ["Arsenal", "Man Utd", "Nott'm Forest"]) {
+        expect(cell(container, team, "Played").style.backgroundColor).toBe("");
+        expect(cell(container, team, "Draws").style.backgroundColor).toBe("");
+      }
+      expect(cell(container, "Arsenal", "Wins").style.backgroundColor).not.toBe("");
+    } finally {
+      AGGREGATES.forEach((a, i) => {
+        a.draws = draws[i];
+        a.played = played[i];
+      });
+    }
   });
 });

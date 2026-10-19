@@ -106,3 +106,91 @@ describe("AppStateProvider — R2: Refresh Data also refreshes the historic data
     expect(fetchHistoricBulkMock).not.toHaveBeenCalled();
   });
 });
+
+describe("AppStateProvider — the historic dataset rebuilds itself after newly finished matches", () => {
+  const fixture = (id: number, finished: boolean) => ({
+    id,
+    event: 1,
+    team_h: 1,
+    team_a: 1,
+    team_h_score: finished ? 1 : null,
+    team_a_score: finished ? 0 : null,
+    kickoff_time: "2026-10-18T14:00:00Z",
+    finished,
+    started: finished,
+    team_h_difficulty: 3,
+    team_a_difficulty: 3,
+  });
+  let finishedCount = 1;
+  const POLL = 10 * 60 * 1000;
+
+  beforeEach(() => {
+    finishedCount = 1;
+    fetchBootstrapMock.mockImplementation(async () => bootstrapPayload());
+    fetchFixturesMock.mockImplementation(async () => ({ data: [1, 2, 3, 4, 5].map((id) => fixture(id, id <= finishedCount)), source: "live", fetchedAt: Date.now() }));
+  });
+
+  async function poll(result: { current: ReturnType<typeof useAppState> }, version: number) {
+    await act(async () => {
+      vi.advanceTimersByTime(POLL);
+    });
+    await waitFor(() => expect(result.current.liveDataVersion.count).toBe(version));
+    await act(async () => {
+      await Promise.resolve();
+    });
+  }
+
+  it("rebuilds (forced) when the poll finds more finished matches, at most hourly, and not for the same count", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"], shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-10-18T17:00:00Z"));
+    try {
+      const { result } = renderHook(() => useAppState(), { wrapper: ({ children }) => <AppStateProvider>{children}</AppStateProvider> });
+      await waitFor(() => expect(result.current.fixtures).toHaveLength(5));
+      act(() => result.current.requestHistoricData());
+      await waitFor(() => expect(result.current.historicStatus).toBe("ready"));
+      expect(fetchHistoricBulkMock).toHaveBeenCalledTimes(1);
+
+      // Same finished count: nothing.
+      await poll(result, 2);
+      expect(fetchHistoricBulkMock).toHaveBeenCalledTimes(1);
+
+      // A match confirmed finished: rebuilt, forced.
+      finishedCount = 2;
+      await poll(result, 3);
+      await waitFor(() => expect(fetchHistoricBulkMock).toHaveBeenCalledTimes(2));
+      expect(fetchHistoricBulkMock).toHaveBeenLastCalledWith({ forceRefresh: true });
+
+      // Another, 10 minutes later: within the hour, so it waits…
+      finishedCount = 3;
+      await poll(result, 4);
+      expect(fetchHistoricBulkMock).toHaveBeenCalledTimes(2);
+      // …and goes on the first poll an hour after the last rebuild.
+      for (let v = 5; v <= 8; v++) await poll(result, v);
+      expect(fetchHistoricBulkMock).toHaveBeenCalledTimes(2);
+      await poll(result, 9);
+      await waitFor(() => expect(fetchHistoricBulkMock).toHaveBeenCalledTimes(3));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("never starts the historic dataset by itself when nothing has asked for it", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "Date"], shouldAdvanceTime: true });
+    try {
+      const { result } = renderHook(() => useAppState(), { wrapper: ({ children }) => <AppStateProvider>{children}</AppStateProvider> });
+      await waitFor(() => expect(result.current.fixtures).toHaveLength(5));
+      finishedCount = 4;
+      await poll(result, 2);
+      expect(fetchHistoricBulkMock).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("counts each successful load in liveDataVersion, marking Refresh Data as forced", async () => {
+    const { result } = renderHook(() => useAppState(), { wrapper: ({ children }) => <AppStateProvider>{children}</AppStateProvider> });
+    await waitFor(() => expect(result.current.liveDataVersion).toEqual({ count: 1, forced: false }));
+    await act(() => result.current.refresh());
+    expect(result.current.liveDataVersion).toEqual({ count: 2, forced: true });
+  });
+});

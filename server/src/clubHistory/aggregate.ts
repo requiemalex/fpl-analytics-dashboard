@@ -1,14 +1,23 @@
 import type { ClubMatch, ClubSeason, LedgerFixture, LedgerRow, LedgerTeam } from "./types.js";
 
 /**
- * Null unless every value is present: a sum over only the matches that
- * tracked a stat isn't the season's total (2022/23's starts and expected
- * stats only exist from GW16 — see <untracked_expected_rounds> in
- * scripts/club-history/backfill-vaastav.ts).
+ * <season_figures_mostly_complete>: a club figure summed over entries
+ * (players' rows in a match, or a season's matches) — the owner's rule,
+ * 2026-10-19. A missing entry or two doesn't blank the figure: the ones
+ * that have it are added up. Only when a large share is missing — more
+ * than MAX_MISSING_SHARE, like 2022/23's expected stats, which exist only
+ * from GW16 (<untracked_expected_rounds> in
+ * scripts/club-history/backfill-vaastav.ts) — is it null, since a sum of
+ * part of a season would read as the whole season. Null too when nothing
+ * has it.
  */
-function sumOrNull(values: (number | null)[]): number | null {
-  if (values.length === 0 || values.some((v) => v === null)) return null;
-  return (values as number[]).reduce((a, b) => a + b, 0);
+export const MAX_MISSING_SHARE = 0.25;
+
+export function sumMostlyComplete(values: (number | null)[]): number | null {
+  const known = values.filter((v): v is number => v !== null);
+  if (known.length === 0) return null;
+  if ((values.length - known.length) / values.length > MAX_MISSING_SHARE) return null;
+  return known.reduce((a, b) => a + b, 0);
 }
 
 /** Rounds away float noise from summing many 2-dp figures (e.g. 52.699999999 → 52.7). */
@@ -46,11 +55,11 @@ function buildMatch(fixture: LedgerFixture, home: boolean, opponentCode: number,
     goals: sum(rows.map((r) => r.goals)),
     assists: sum(rows.map((r) => r.assists)),
     bonus: sum(rows.map((r) => r.bonus)),
-    xG: tidy(sumOrNull(rows.map((r) => r.xG))),
-    xA: tidy(sumOrNull(rows.map((r) => r.xA))),
-    xGI: tidy(sumOrNull(rows.map((r) => r.xGI))),
-    xGC: tidy(sumOrNull(opponentRows.map((r) => r.xG))),
-    dc: sumOrNull(rows.map((r) => r.dc)),
+    xG: tidy(sumMostlyComplete(rows.map((r) => r.xG))),
+    xA: tidy(sumMostlyComplete(rows.map((r) => r.xA))),
+    xGI: tidy(sumMostlyComplete(rows.map((r) => r.xGI))),
+    xGC: tidy(sumMostlyComplete(opponentRows.map((r) => r.xG))),
+    dc: sumMostlyComplete(rows.map((r) => r.dc)),
   };
 }
 
@@ -59,7 +68,7 @@ function buildMatch(fixture: LedgerFixture, home: boolean, opponentCode: number,
  * from finished fixtures only (an unplayed or in-progress match never
  * counts, even if a source already carries rows for it). Each club gets a
  * ClubMatch per finished fixture, and its season figures are those matches
- * summed — a stat is null for the season if any match lacks it.
+ * summed — a stat some matches lack follows <season_figures_mostly_complete>.
  */
 export function aggregateClubSeason(season: string, teams: LedgerTeam[], fixtures: LedgerFixture[], rows: LedgerRow[]): ClubSeason[] {
   const finished = fixtures
@@ -115,11 +124,11 @@ export function aggregateClubSeason(season: string, teams: LedgerTeam[], fixture
       goals: sum(matches.map((m) => m.goals)),
       assists: sum(matches.map((m) => m.assists)),
       bonus: sum(matches.map((m) => m.bonus)),
-      xG: tidy(sumOrNull(matches.map((m) => m.xG))),
-      xA: tidy(sumOrNull(matches.map((m) => m.xA))),
-      xGI: tidy(sumOrNull(matches.map((m) => m.xGI))),
-      xGC: tidy(sumOrNull(matches.map((m) => m.xGC))),
-      dc: sumOrNull(matches.map((m) => m.dc)),
+      xG: tidy(sumMostlyComplete(matches.map((m) => m.xG))),
+      xA: tidy(sumMostlyComplete(matches.map((m) => m.xA))),
+      xGI: tidy(sumMostlyComplete(matches.map((m) => m.xGI))),
+      xGC: tidy(sumMostlyComplete(matches.map((m) => m.xGC))),
+      dc: sumMostlyComplete(matches.map((m) => m.dc)),
       matches,
     });
   }

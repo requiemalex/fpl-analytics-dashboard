@@ -179,29 +179,28 @@ export const PLAYER_MATCH_FIELDS: readonly string[] = FIELDS;
 
 /**
  * One player's season, as the profile's Match Log compares it: his totals
- * over his match rows (a stat any match he played lacks is null, never a
- * part-sum — the same rule as the log's own Totals) and how many matches
- * his log lists, the divisor of its per-match Average.
+ * over his match rows and how many matches his log lists, the divisor of
+ * its per-match Average. The same rule as the log's own Totals
+ * (<partial_totals>): the matches with a figure are added up and one he
+ * played without a figure is left out. A match he didn't play in is a
+ * provable 0 — unless no match he played has the figure (a stat FPL
+ * didn't record that season), which is null, never 0.
  */
-export const PEER_FIELDS = ["minutes", "matches", "totalPoints", "goals", "assists", "xG", "xA", "xGI", "cleanSheets", "xGC", "dc", "saves", "bps"] as const;
+export const PEER_FIELDS = ["minutes", "matches", "starts", "totalPoints", "goals", "assists", "xG", "xA", "xGI", "cleanSheets", "xGC", "dc", "saves", "bps"] as const;
 type PeerField = (typeof PEER_FIELDS)[number];
 
 function seasonTotals(rows: PlayerMatch[]): Record<PeerField, number | null> {
+  const played = rows.some((r) => r.minutes > 0);
   const total = (get: (r: PlayerMatch) => number | null): number | null => {
+    if (played && !rows.some((r) => r.minutes > 0 && get(r) !== null)) return null;
     let sum = 0;
-    for (const r of rows) {
-      const v = get(r);
-      if (v === null) {
-        if (r.minutes > 0) return null;
-        continue;
-      }
-      sum += v;
-    }
+    for (const r of rows) sum += get(r) ?? 0;
     return Math.round(sum * 10_000) / 10_000;
   };
   return {
     minutes: total((r) => r.minutes),
     matches: rows.length,
+    starts: total((r) => r.starts),
     totalPoints: total((r) => r.totalPoints),
     goals: total((r) => r.goals),
     assists: total((r) => r.assists),
