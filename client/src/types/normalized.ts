@@ -236,6 +236,37 @@ export interface PlayerGameweekHistory {
 }
 
 /**
+ * One player in one match of a COMPLETED season, for the club he played
+ * for in it (/api/player-seasons — the same ledger the club figures come
+ * from). Null where FPL didn't record the stat that season: expected stats
+ * before 2022/23, defensive contributions before 2025/26.
+ */
+export interface PlayerPastMatch {
+  fixture: number;
+  round: number | null;
+  opponentCode: number;
+  opponentShortName: string;
+  home: boolean;
+  teamScore: number;
+  opponentScore: number;
+  minutes: number;
+  starts: number | null;
+  totalPoints: number;
+  goals: number;
+  assists: number;
+  cleanSheets: number;
+  goalsConceded: number | null;
+  saves: number | null;
+  bonus: number;
+  bps: number | null;
+  xG: number | null;
+  xA: number | null;
+  xGI: number | null;
+  xGC: number | null;
+  dc: number | null;
+}
+
+/**
  * One prior FPL season's totals for a player — never the live/current
  * season (that's PlayerGameweekHistory). A player's full career history is
  * PlayerSeasonHistory[], oldest first; a player new to the FPL API has an

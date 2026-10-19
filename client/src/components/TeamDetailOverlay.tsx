@@ -10,7 +10,9 @@ import {
   computeTeamAggregates,
   computeTeamRadarData,
   clubLiveMatches,
+  clubRecordsForMode,
   clubSeasonHistory,
+  clubSeasonsForMode,
   TEAM_DEFENSE_AXES,
   TEAM_OFFENSE_AXES,
   type TeamAggregate,
@@ -23,6 +25,7 @@ import { FixtureChips } from "./primitives";
 import { PercentileRadarChart } from "./PlayerRadarChart";
 import { AverageLineIcon, PointsHistoryChart, PointsHistoryHeader, PointsHistoryStats } from "./playerProfile/PointsHistory";
 import { fmtDecimal, fmtOrdinal, DASH } from "../utils/format";
+import { useExternalStats, type ProfileView } from "../extensions/externalStats";
 import type { ClubMatch, NormalizedTeam } from "../types/normalized";
 
 /**
@@ -151,21 +154,46 @@ export function TeamDetailOverlay() {
     [allTeamAggregates, team],
   );
 
-  // The club's own live-season match log (<club_match_log>), and every
-  // club's, so its Totals and Average rows are tinted against the league's.
-  const liveMatchesByTeamId = useMemo(() => new Map(teams.map((t) => [t.id, clubLiveMatches(t.code, clubCtx)])), [teams, clubCtx]);
-  const liveMatches = team ? (liveMatchesByTeamId.get(team.id) ?? []) : [];
+  // The Match Log's season (<club_match_log>): the live one, unless a
+  // season has been picked on Points History — tied to the club, so the
+  // next one opens on live.
+  const liveSeasonName = clubSeasonsForMode("live", historicReferenceSeason)[0] ?? null;
+  const [pickedSeason, setPickedSeason] = useState<{ teamId: number; season: string } | null>(null);
+  const pastLogSeason = pickedSeason && pickedSeason.teamId === team?.id && pickedSeason.season !== liveSeasonName ? pickedSeason.season : null;
+  const logSeason = pastLogSeason ?? liveSeasonName;
+
+  // Every club's matches in that season, so the shown club's Totals and
+  // Average rows are tinted against the league's that season.
+  const matchesByCode = useMemo(() => {
+    const out = new Map<number, ClubMatch[]>();
+    if (pastLogSeason === null) {
+      for (const t of teams) if (t.code !== null) out.set(t.code, clubLiveMatches(t.code, clubCtx));
+    } else {
+      for (const c of clubSeasons) {
+        if (c.season === pastLogSeason) out.set(c.code, [...c.matches].sort((a, b) => (b.event ?? 0) - (a.event ?? 0) || b.fixture - a.fixture));
+      }
+    }
+    return out;
+  }, [pastLogSeason, teams, clubSeasons, clubCtx]);
+  const logMatches = team?.code != null ? (matchesByCode.get(team.code) ?? []) : [];
+  // Opponents by club code, as they were named that season (a club since relegated isn't in today's list).
+  const shortNameByCode = useMemo(() => {
+    const names = new Map<number, string>();
+    for (const t of teams) if (t.code !== null) names.set(t.code, t.shortName);
+    if (pastLogSeason !== null) for (const c of clubSeasons) if (c.season === pastLogSeason) names.set(c.code, c.shortName);
+    return names;
+  }, [teams, clubSeasons, pastLogSeason]);
   const matchLogRanges = useMemo(() => {
     const ranges = new Map<string, { total: TintRange; average: TintRange }>();
     for (const c of MATCH_LOG_COLUMNS) {
-      const clubs = [...liveMatchesByTeamId.values()].map((ms) => ({ total: matchLogTotal(ms, c.value), n: ms.length }));
+      const clubs = [...matchesByCode.values()].map((ms) => ({ total: matchLogTotal(ms, c.value), n: ms.length }));
       ranges.set(c.key, {
         total: valueRange(clubs.map((x) => x.total)),
         average: valueRange(clubs.map((x) => (x.total === null ? null : x.total / x.n))),
       });
     }
     return ranges;
-  }, [liveMatchesByTeamId]);
+  }, [matchesByCode]);
 
   function matchLogTint(key: string, kind: "total" | "average", v: number | null, higherIsBetter: boolean): string | undefined {
     const range = matchLogRanges.get(key)?.[kind];
@@ -179,7 +207,6 @@ export function TeamDetailOverlay() {
   // isn't there.
   const seasonHistory = useMemo(() => clubSeasonHistory(team?.code ?? null, clubSeasons, clubCtx.livePlayerSumsPartial), [team, clubSeasons, clubCtx]);
   const completedSeasonHistory = useMemo(() => seasonHistory.filter((s) => s.complete), [seasonHistory]);
-  const liveSeasonName = seasonHistory.find((s) => !s.complete)?.seasonName ?? null;
   // Same 4-season rolling window (HISTORIC_WINDOW_SEASONS) the player
   // profile's own Points History average uses — a season outside it
   // draws muted-grey on the chart, same treatment as there.
@@ -225,6 +252,21 @@ export function TeamDetailOverlay() {
     return relativeCellTint(avg, avgFdrRange.min, avgFdrRange.max, false);
   }, [upcomingFixtures, avgFdrRange]);
 
+  // A second source's cards follow the Data View over the seasons the
+  // club's own figures use: those it was in the league (clubRecordsForMode).
+  // Null while the historic dataset is still loading.
+  const external = useExternalStats();
+  const teamCode = team?.code ?? null;
+  const externalView: ProfileView = useMemo(() => {
+    if (historicReferenceSeason === null) return { mode: analysisMode, seasons: historicStatus === "error" ? [] : null };
+    return { mode: analysisMode, seasons: clubRecordsForMode(teamCode, analysisMode, clubCtx).map((c) => c.season) };
+  }, [analysisMode, historicReferenceSeason, historicStatus, teamCode, clubCtx]);
+  useEffect(() => {
+    if (!external || teamCode === null) return;
+    const wanted = new Set([...(externalView.seasons ?? []), ...(logSeason ? [logSeason] : [])]);
+    if (wanted.size > 0) external.profiles.requestClub(teamCode, [...wanted]);
+  }, [external, teamCode, externalView, logSeason]);
+
   const teamRadarGroups = useMemo(() => {
     if (!clubTotals) return [];
     return [
@@ -259,6 +301,12 @@ export function TeamDetailOverlay() {
 
   if (!team || !clubTotals) return null;
 
+  // A second source's columns for the shown season (Understat: each match's result chances).
+  const externalColumns =
+    external && team.code !== null && logSeason !== null
+      ? external.profiles.clubMatchColumns(team.code, logSeason, logMatches.map((m) => m.fixture))
+      : [];
+
   return (
     <div className="profile-backdrop">
       <div className="profile-sheet" ref={sheetRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby={headingId}>
@@ -278,8 +326,8 @@ export function TeamDetailOverlay() {
         <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} clubFigures />
 
         <div className="profile-section">
-          <div className="profile-section-heading">
-            <h3>Views</h3>
+          <div className="profile-section-heading col-source-fpl">
+            <h3>FPL · Views</h3>
           </div>
           <div className="profile-columns">
             {teamRadarGroups.map((group) => (
@@ -320,17 +368,63 @@ export function TeamDetailOverlay() {
           </div>
         </div>
 
+        {external && team.code !== null && (
+          <div className="profile-section">
+            <div className={`profile-section-heading ${external.className}`}>
+              <h3>{external.label} · Views</h3>
+            </div>
+            <div className="profile-columns profile-columns-balanced">{external.profiles.clubCards(team.code, externalView)}</div>
+          </div>
+        )}
+
         <hr className="profile-divider" />
 
         <div className="profile-section">
-          <div className="profile-section-heading">
-            <h3>Live Data</h3>
+          <PointsHistoryHeader
+            title="FPL · Points History"
+            className="col-source-fpl"
+            trend={seasonHistory.length > 0 ? seasonTrend : null}
+            titleHint={`Each bar is the FPL points scored for ${team.name} that season by whoever was playing for the club then, not the current squad. Seasons ${team.name} weren't in the Premier League don't appear.`}
+          />
+          <div className="card">
+            {historicStatus === "loading" && seasonHistory.length === 0 ? (
+              <p className="page-subtitle">Loading club history…</p>
+            ) : seasonHistory.length === 0 ? (
+              <p className="page-subtitle">No season data for {team.name}.</p>
+            ) : (
+              <>
+                <PointsHistoryChart
+                  seasons={seasonHistory}
+                  countedSeasonNames={windowSeasonNames}
+                  currentSeasonName={liveSeasonName}
+                  averagePoints={seasonAverage}
+                  selectedSeasonName={logSeason}
+                  onSelectSeason={(season) => setPickedSeason({ teamId: team.id, season })}
+                />
+                <PointsHistoryStats
+                  items={[
+                    {
+                      icon: <AverageLineIcon />,
+                      value: fmtDecimal(seasonAverage, 0),
+                      label: `Season average over ${windowSeasonNames.size} season${windowSeasonNames.size === 1 ? "" : "s"}: ${fmtDecimal(seasonAverage, 0)} pts`,
+                    },
+                  ]}
+                />
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="profile-section">
+          <div className={`profile-section-heading match-log-head ${externalColumns.length > 0 ? "col-source-crossover" : "col-source-fpl"}`}>
+            <h3>{externalColumns.length > 0 && external ? `FPL & ${external.label}` : "FPL"} · Match Log</h3>
+            <span className="match-log-season">{pastLogSeason ?? (liveSeasonName ? `${liveSeasonName} (live)` : "This season")}</span>
           </div>
           <div className="card">
-            {historicStatus === "loading" && liveMatches.length === 0 ? (
+            {historicStatus === "loading" && logMatches.length === 0 ? (
               <p className="page-subtitle">Loading match log…</p>
-            ) : liveMatches.length === 0 ? (
-              <p className="page-subtitle">No matches played yet this season.</p>
+            ) : logMatches.length === 0 ? (
+              <p className="page-subtitle">{pastLogSeason === null ? "No matches played yet this season." : `No matches for ${team.name} in ${pastLogSeason}.`}</p>
             ) : (
               <div className="table-wrap">
                 <table className="data-table compact" aria-label={`${team.name} match log`}>
@@ -344,17 +438,21 @@ export function TeamDetailOverlay() {
                           {c.header}
                         </th>
                       ))}
+                      {externalColumns.map((c, i) => (
+                        <th key={c.key} className={[i === 0 ? "column-group-divider" : "", external?.className ?? ""].join(" ").trim()} title={c.title}>
+                          {c.header}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {liveMatches.map((m) => {
-                      const opponent = teams.find((t) => t.code === m.opponentCode);
+                    {logMatches.map((m) => {
                       const result = matchResult(m);
                       return (
                         <tr key={m.fixture}>
                           <td style={{ textAlign: "left", fontFamily: "var(--font-body)" }}>{m.event ?? DASH}</td>
                           <td style={{ textAlign: "left", fontFamily: "var(--font-body)" }}>
-                            {opponent?.shortName ?? DASH} <span className="team">({m.home ? "H" : "A"})</span>
+                            {shortNameByCode.get(m.opponentCode) ?? DASH} <span className="team">({m.home ? "H" : "A"})</span>
                           </td>
                           <td style={{ textAlign: "left", fontFamily: "var(--font-body)" }}>
                             <span className={result.outcomeClass}>{result.label}</span>
@@ -362,6 +460,11 @@ export function TeamDetailOverlay() {
                           {MATCH_LOG_COLUMNS.map((c, i) => (
                             <td key={c.key} className={i === 0 ? "column-group-divider" : undefined}>
                               {fmtDecimal(c.value(m), c.decimals)}
+                            </td>
+                          ))}
+                          {externalColumns.map((c, i) => (
+                            <td key={c.key} className={i === 0 ? "column-group-divider" : undefined}>
+                              {c.cell(m.fixture)}
                             </td>
                           ))}
                         </tr>
@@ -374,60 +477,41 @@ export function TeamDetailOverlay() {
                         Totals
                       </td>
                       {MATCH_LOG_COLUMNS.map((c, i) => {
-                        const total = matchLogTotal(liveMatches, c.value);
+                        const total = matchLogTotal(logMatches, c.value);
                         return (
                           <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} style={{ background: matchLogTint(c.key, "total", total, c.higherIsBetter) }}>
                             {fmtDecimal(total, c.decimals)}
                           </td>
                         );
                       })}
+                      {externalColumns.map((c, i) => (
+                        <td key={c.key} className={i === 0 ? "column-group-divider" : undefined}>
+                          {c.total ?? ""}
+                        </td>
+                      ))}
                     </tr>
                     <tr>
                       <td className="table-footer-label" colSpan={3}>
                         Average
                       </td>
                       {MATCH_LOG_COLUMNS.map((c, i) => {
-                        const total = matchLogTotal(liveMatches, c.value);
-                        const average = total === null ? null : total / liveMatches.length;
+                        const total = matchLogTotal(logMatches, c.value);
+                        const average = total === null ? null : total / logMatches.length;
                         return (
                           <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} style={{ background: matchLogTint(c.key, "average", average, c.higherIsBetter) }}>
                             {fmtDecimal(average, 2)}
                           </td>
                         );
                       })}
+                      {externalColumns.map((c, i) => (
+                        <td key={c.key} className={i === 0 ? "column-group-divider" : undefined}>
+                          {c.average ?? ""}
+                        </td>
+                      ))}
                     </tr>
                   </tfoot>
                 </table>
               </div>
-            )}
-          </div>
-        </div>
-
-        <hr className="profile-divider" />
-
-        <div className="profile-section">
-          <PointsHistoryHeader
-            trend={seasonHistory.length > 0 ? seasonTrend : null}
-            titleHint={`Each bar is the FPL points scored for ${team.name} that season by whoever was playing for the club then, not the current squad. Seasons ${team.name} weren't in the Premier League don't appear.`}
-          />
-          <div className="card">
-            {historicStatus === "loading" && seasonHistory.length === 0 ? (
-              <p className="page-subtitle">Loading club history…</p>
-            ) : seasonHistory.length === 0 ? (
-              <p className="page-subtitle">No season data for {team.name}.</p>
-            ) : (
-              <>
-                <PointsHistoryChart seasons={seasonHistory} countedSeasonNames={windowSeasonNames} currentSeasonName={liveSeasonName} averagePoints={seasonAverage} />
-                <PointsHistoryStats
-                  items={[
-                    {
-                      icon: <AverageLineIcon />,
-                      value: fmtDecimal(seasonAverage, 0),
-                      label: `Season average over ${windowSeasonNames.size} season${windowSeasonNames.size === 1 ? "" : "s"}: ${fmtDecimal(seasonAverage, 0)} pts`,
-                    },
-                  ]}
-                />
-              </>
             )}
           </div>
         </div>

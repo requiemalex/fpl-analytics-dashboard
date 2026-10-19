@@ -78,14 +78,14 @@ export function UnderstatGuide() {
     <>
       <p className="page-subtitle" style={{ marginTop: 0 }}>
         <strong>Understat</strong> (understat.com) is an independent football-data site with its own xG model and shot-by-shot
-        data. Player Explorer and Team Explorer add its figures as a clearly separate second source; everything else in the app is
-        FPL. It's updated once a day.
+        data. Player Explorer, Team Explorer and the player and team profiles add its figures as a clearly separate second source;
+        everything else in the app is FPL. It's updated once a day.
       </p>
       <ul style={list}>
         <li>
           <strong>Its colour is <span style={{ color: "var(--col-understat)" }}>violet</span>.</strong> Every Understat column header
           is violet. FPL headers are green (they follow the Data View) or muted red (always today's live figure). Columns uses the
-          same colours: green FPL groups, violet "Understat ·" groups, and one{" "}
+          same colours: green "FPL ·" groups, violet "Understat ·" groups, and one{" "}
           <span style={{ color: "var(--col-crossover)" }}>rose "FPL &amp; Understat"</span> group for the figures both sources have.
         </li>
         <li>
@@ -109,12 +109,24 @@ export function UnderstatGuide() {
           <strong>Club figures are what the club did</strong>, whoever played, as everywhere else.
         </li>
         <li>
+          <strong>In the profiles</strong>, an <span style={{ color: "var(--col-understat)" }}>Understat · Views</span> section follows
+          the profile's Data View. A <strong>Shot Map</strong> shows where shots were taken from (a club gets two: shots taken and
+          shots faced): one season has a dot per shot, filled for a goal and bigger for higher xG, hover for the detail; Historic
+          Average shades areas of the pitch by shots a season instead. A club's <strong>Formations</strong> card shows how much of
+          its time it spent in each formation, with xG for and against per 90 minutes and goals (no rate under 90 minutes in a
+          formation). The Match Log gains violet columns: a player's <strong>Position</strong> in each match (hover it for the
+          full name; Sub means off the bench) and a club's <strong>Win, Draw and Loss Chance</strong>: the result its chances
+          deserved, worked out by Understat after the match from the shots both sides took. Their Totals are the wins, draws and
+          defeats those chances add up to.
+        </li>
+        <li>
           <strong>A small amber dot</strong> on an Understat header means its figures are out of date (hover it for why). FPL figures
           are never affected.
         </li>
         <li>
-          Not available yet: shot zones, shot maps and match xG timelines. Not available from Understat at all: pass maps, average
-          positions and sprint data. Seasons outside the Premier League aren't covered, so a promoted player's previous season shows "—".
+          Not available yet: shot zones and match xG timelines. Not available from Understat at all: pass maps, average positions,
+          sprint data, a formation for each match (only season totals), and forecasts for matches not yet played (its result
+          chances are worked out afterwards). Seasons outside the Premier League aren't covered, so a promoted player's previous season shows "—".
         </li>
       </ul>
       <h3 className="guide-subheading">Player metrics</h3>

@@ -75,6 +75,11 @@ export function MenuGroupHeading({ group, label, icon, className }: { group: str
   );
 }
 
+/** An Explorer's FPL-only Columns-picker heading, "FPL · Actual Output" — named by source like Understat's "Understat · Shooting". */
+export function fplHeading(group: string): string {
+  return `FPL · ${titleCase(group)}`;
+}
+
 /** "ACTUAL OUTPUT" → "Actual Output" — the column catalogue's group keys are upper case. */
 export function titleCase(s: string): string {
   return s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());

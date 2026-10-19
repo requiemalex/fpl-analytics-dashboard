@@ -113,6 +113,27 @@ export interface UsMatch {
   shots: UsShot[];
 }
 
+/** One club's season in one formation, from Understat's team page ("statistics.formation"): time spent in it, and the shots for and against while in it. */
+export interface UsFormation {
+  teamId: string;
+  /** "4-2-3-1", as Understat names it. */
+  formation: string;
+  minutes: number;
+  shots: number;
+  goals: number;
+  xG: number;
+  shotsAgainst: number;
+  goalsAgainst: number;
+  xGA: number;
+}
+
+/** Understat's team page for one season: its formation figures, and the played matches they cover. */
+export interface UsTeamSeason {
+  teamId: string;
+  formations: UsFormation[];
+  playedMatchIds: string[];
+}
+
 // --- linking ------------------------------------------------------------------
 
 export type LinkStatus = "confirmed" | "held" | "disputed";
@@ -256,6 +277,43 @@ export interface AppSeasonFile {
   players: Record<string, PlayerSeasonTotals>;
   /** Keyed by FPL club code. */
   clubs: Record<string, ClubSeasonTotals>;
+}
+
+// --- app-ready profile files (data/understat/app/profile/<season>.json) --------
+
+/**
+ * Per-match detail for the player and team profiles, one season per file,
+ * read by the server (route.ts) and sliced to one player or club per
+ * request — never sent whole. Rows are plain lists, in the order named
+ * below, to keep a season's file small. Only matches paired with a
+ * finished FPL fixture (so checked) are in it, and every row carries that
+ * FPL fixture id, which is how the profiles' match logs line them up.
+ */
+/** [fplFixtureId, position (Understat's code: GK, DC, AMR, FW, …, or Sub), minutes] — matches he played in. */
+export type ProfileMatchRow = [number, string, number];
+/** [fplFixtureId, minute, x, y, xG, result, situation, shotType] — x, y as UsShot (from the shooter's side, x towards goal). */
+export type ProfileShotRow = [number, number, number, number, number, string, string, string];
+/** [fplFixtureId, win, draw, loss] — Understat's chances of each result from the match's shots, worked out after it, from this club's side. */
+export type ProfileClubMatchRow = [number, number | null, number | null, number | null];
+
+export interface ProfileFormation {
+  formation: string;
+  minutes: number;
+  shots: number;
+  goals: number;
+  xG: number;
+  shotsAgainst: number;
+  goalsAgainst: number;
+  xGA: number;
+}
+
+export interface AppProfileFile {
+  schema: 1;
+  season: string;
+  /** Keyed by FPL player code — confirmed links only. */
+  players: Record<string, { matches: ProfileMatchRow[]; shots: ProfileShotRow[] }>;
+  /** Keyed by FPL club code. Its shots against are the opponents' shots in its matches (route.ts). */
+  clubs: Record<string, { matches: ProfileClubMatchRow[]; shots: ProfileShotRow[]; formations: ProfileFormation[] | null }>;
 }
 
 export interface UnderstatStatus {

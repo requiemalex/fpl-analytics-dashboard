@@ -1194,6 +1194,24 @@ select:focus {
   margin: 0 0 2px;
   font-size: 15px;
 }
+/* The colour index on the profiles' section headings: green for FPL, the
+   crossover colour where FPL and a second source sit together (the Match
+   Log), and the second source's own colour (its stylesheet). */
+.profile-section-heading.col-source-fpl h3 {
+  color: var(--accent-positive);
+}
+.profile-section-heading.col-source-crossover h3 {
+  color: var(--col-crossover);
+}
+.profile-section-heading.match-log-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.match-log-season {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
 .profile-divider {
   border: none;
   border-top: 1px solid var(--border-strong);
@@ -1873,6 +1891,33 @@ select:focus {
 }
 .points-history-axis span.is-muted {
   color: var(--text-muted);
+}
+/* Profiles: a column is a button picking the season the Match Log shows;
+   the picked one sits on a faint panel and its season label is bold. */
+button.points-history-col.is-selectable {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+button.points-history-col.is-selectable:hover {
+  background: var(--surface-hover);
+}
+button.points-history-col.is-selected {
+  background: var(--surface-hover);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+button.points-history-col.is-selectable:focus-visible {
+  outline: 2px solid var(--accent-focus);
+  outline-offset: 1px;
+}
+.points-history-axis span.is-selected {
+  color: var(--text-primary);
+  font-weight: 600;
 }
 .points-history-stats {
   display: flex;

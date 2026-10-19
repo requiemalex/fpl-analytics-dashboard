@@ -15,7 +15,7 @@ import { useEscapeLayer } from "../state/useEscapeLayer";
 import { relativeCellTint } from "../utils/colorScale";
 import { downloadCsv } from "../utils/csvExport";
 import { matchesTeamSearch } from "../utils/playerSearch";
-import { MenuGroupHeading } from "../components/MenuControls";
+import { MenuGroupHeading, fplHeading } from "../components/MenuControls";
 import { CrossoverGroupHeading, SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
 import { FPL_SOURCE, useExternalStats, type ColumnSourceChoice } from "../extensions/externalStats";
 
@@ -290,7 +290,7 @@ export function Teams() {
                 {/* Three kinds of heading, by source: green FPL only, the crossover colour for figures both sources have (⇄ on the header), then the second source's own. */}
                 {GROUPS.map((group) => (
                   <div key={group}>
-                    <MenuGroupHeading group={group} className="col-source-fpl" />
+                    <MenuGroupHeading group={group} label={fplHeading(group)} className="col-source-fpl" />
                     {TEAM_COLUMNS.filter((c) => c.group === group && !crossoverKeys.has(c.key)).map((c) => (
                       <label key={c.key}>
                         <input type="checkbox" checked={visibleColumns.includes(c.key)} onChange={() => handleToggleColumn(c.key)} />

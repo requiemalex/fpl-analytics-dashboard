@@ -19,7 +19,7 @@ import { matchesPlayerSearch } from "../utils/playerSearch";
 import { useEscapeLayer } from "../state/useEscapeLayer";
 import { useProgressiveRowCount, INITIAL_ROW_COUNT } from "../state/useProgressiveRowCount";
 import type { NormalizedPlayer, Position } from "../types/normalized";
-import { MenuGroupHeading } from "../components/MenuControls";
+import { MenuGroupHeading, fplHeading } from "../components/MenuControls";
 import { CrossoverGroupHeading, SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
 import { FPL_SOURCE, useExternalStats, type ColumnSourceChoice } from "../extensions/externalStats";
 
@@ -594,7 +594,7 @@ export function PlayerExplorer() {
               <div className="popover" style={{ left: 0, right: "auto" }}>
                 {/* Ownership/Price/Team/Position aren't listed here at all — they're the fixed identity block (IDENTITY_COLUMNS), always shown, never toggleable. */}
                 <div>
-                  <MenuGroupHeading group="Other" className="col-source-fpl" />
+                  <MenuGroupHeading group="Other" label={fplHeading("Other")} className="col-source-fpl" />
                   <label>
                     <input
                       type="checkbox"
@@ -607,7 +607,7 @@ export function PlayerExplorer() {
                 {/* Three kinds of heading, by source: green FPL only, the crossover colour for figures both sources have (⇄ on the header), then the second source's own. */}
                 {GROUPS.map((group) => (
                   <div key={group}>
-                    <MenuGroupHeading group={group} className="col-source-fpl" />
+                    <MenuGroupHeading group={group} label={fplHeading(group)} className="col-source-fpl" />
                     {PLAYER_COLUMNS.filter((c) => c.group === group && !FIXED_COLUMN_KEYS.has(c.key) && !crossoverKeys.has(c.key)).map((c) => (
                       <label key={c.key}>
                         <input type="checkbox" checked={visibleColumns.includes(c.key)} onChange={() => handleToggleColumn(c.key)} />

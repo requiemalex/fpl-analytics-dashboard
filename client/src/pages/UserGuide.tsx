@@ -388,19 +388,20 @@ export function UserGuide() {
           {ext ? ` ${ext.label}'s club figures are in Columns too, in their own colour; see "${ext.guideSection.navLabel}" below.` : ""}
         </p>
         <p className="page-subtitle">
-          <strong>Team Profile</strong> shows season totals, the team radars, upcoming fixtures and the match log: club figures
-          only, no players (for a club's players, use Player Explorer's Team column). The header's position, points and results
+          <strong>Team Profile</strong> shows season totals, the team radars, upcoming fixtures, Points History and the Match Log:
+          club figures only, no players (for a club's players, use Player Explorer's Team column). The header's position, points and results
           follow the Data View; in Historic Average, position and points are rounded (two clubs can both be "2nd") and wins, draws
           and losses always add up to the games played. On the Defense radar, more Defensive Contributions counts as better, so a
           dominant side that rarely defends can sit low on that axis.
         </p>
         <p className="page-subtitle">
-          <strong>Live Data</strong> is this season's match log, newest first: opponent, home or away, score, then the club's FPL
-          points, goals, assists, xG, xA, xGI, clean sheet, xGC and defensive contributions, with Totals and a per-match Average,
-          coloured against every other club. FPL records xG and the rest per player, so each match adds up whoever played.{" "}
           <strong>Points History</strong> charts the club's FPL points per season back to 2016/17 (this season as an outlined bar),
           with the same rolling 4-season average as the player profile; older seasons are grey, marked † on hover, and a season
-          outside the Premier League has no bar.
+          outside the Premier League has no bar. Click a season's bar to show its matches in the <strong>Match Log</strong> below
+          (click this season's bar to come back). The Match Log lists that season's matches, newest first: opponent, home or away,
+          score, then the club's FPL points, goals, assists, xG, xA, xGI, clean sheet, xGC and defensive contributions, with Totals
+          and a per-match Average, coloured against every other club that season. FPL records xG and the rest per player, so each
+          match adds up whoever played.
         </p>
         <p className="page-subtitle">
           Where the club record comes from: the API only serves this season's match data and wipes it each summer, so 2016/17 to
@@ -413,9 +414,10 @@ export function UserGuide() {
 
       <Section id="player-profile" title="Player Profile">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Click a player's name almost anywhere to open it; × or Escape closes it. The "Views" zone (Actual vs Expected, Underlying
-          Numbers, Percentile Radar, Value) follows the analysis mode; "Live Data", Playing Time and Points History always show real
-          figures. The Percentile Radar is position-specific: defenders and midfielders get Defense and Offense radars, goalkeepers
+          Click a player's name almost anywhere to open it; × or Escape closes it. The "FPL · Views" zone (Actual vs Expected,
+          Underlying Numbers, Percentile Radar, Value) follows the analysis mode; Points History, the Match Log and Playing Time
+          don't. Section headings are coloured by where their figures come from: green for FPL, violet for Understat, and rose for
+          the Match Log when it holds both. The Percentile Radar is position-specific: defenders and midfielders get Defense and Offense radars, goalkeepers
           and forwards one combined radar. Underlying Numbers and Value are tinted green/red by his percentile within his position.
           Goalkeepers get no Defensive Contribution tiles, since FPL's defensive contributions exclude them. Defensive
           Contributions are a count of actions (for defenders clearances, blocks, interceptions and tackles; for midfielders and
@@ -428,12 +430,15 @@ export function UserGuide() {
           Data Views that do.
         </p>
         <p className="page-subtitle">
-          <strong>Live Data</strong> is a match-by-match table of this season (a double gameweek is two rows): result, then Points,
-          Minutes, Goals, Assists, xG, xA, xGI, Clean Sheets, xGC, Defensive Contributions and BPS (Saves instead of Defensive
-          Contributions for a goalkeeper). Totals adds up the matches listed; Average divides by them, including ones he didn't play.
-          Both are tinted against his position using this season's figures and the Current Season floor, Average per match, so a
-          late signing's strong per-match numbers show green even while his total is low. <strong>Playing Time</strong>, a
-          minutes-per-match gauge with matches and average minutes, sits below.
+          The <strong>Match Log</strong>, under Points History, is a match-by-match table of one season (a double gameweek is two
+          rows): this season, unless you click another season's bar in Points History (click this season's bar to come back).
+          Result, then Points, Minutes, Goals, Assists, xG, xA, xGI, Clean Sheets, xGC, Defensive Contributions and BPS (Saves
+          instead of Defensive Contributions for a goalkeeper). Totals adds up the matches listed; Average divides by them, including
+          ones he didn't play. This season's are tinted against his position using this season's figures and the Current Season
+          floor, Average per match, so a late signing's strong per-match numbers show green even while his total is low; a past
+          season's aren't tinted. Match-by-match records go back to 2016/17; FPL didn't record xG and the rest before 2022/23, or
+          defensive contributions before 2025/26, so those show "—". <strong>Playing Time</strong>, a minutes-per-match gauge for
+          the season shown, sits below.
         </p>
         <p className="page-subtitle">
           <strong>Points History</strong> has a bar per season: green if counted in the average, grey if not, this season as an

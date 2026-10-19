@@ -89,5 +89,89 @@ export function createUnderstatRouter(options: { localDir?: string } = {}): Rout
 
   router.get("/understat", (_req, res) => handle(false, res));
   router.post("/refresh/understat", (_req, res) => handle(true, res));
+
+  /**
+   * GET /api/understat/profile/(player|club)/:code/:season ("2025-26") —
+   * one player's or club's slice of a season's profile file
+   * (pipeline/profile.ts), never the whole file. `found: false` when the
+   * season's file has nothing for that code (a player not linked, or who
+   * didn't play), `available: false` when the season has no file at all.
+   */
+  router.get("/understat/profile/:kind/:code/:season", async (req, res) => {
+    const { kind, code, season } = req.params;
+    if ((kind !== "player" && kind !== "club") || !/^\d+$/.test(code) || !/^\d{4}-\d{2}$/.test(season)) {
+      res.status(400).json({ error: "Invalid Understat profile request" });
+      return;
+    }
+    try {
+      const sources: Source[] = [];
+      const control = await load("control.json", LIVE_TTL_MS, false);
+      if (control.ok) {
+        sources.push(control.source);
+        if ((control.data as { enabled?: boolean }).enabled === false) {
+          res.json({ data: { enabled: false }, meta: { source: control.source, fetchedAt: Date.now() } });
+          return;
+        }
+      }
+      const status = await load("status.json", LIVE_TTL_MS, false);
+      const live = status.ok ? (status.data as StatusLike).liveSeason.replace("/", "-") === season : true;
+      const file = await load(`app/profile/${season}.json`, live ? LIVE_TTL_MS : COMPLETED_TTL_MS, false);
+      if (!file.ok) {
+        if (file.status === 404) {
+          res.json({ data: { enabled: true, available: false }, meta: { source: "live", fetchedAt: Date.now() } });
+        } else {
+          res.status(file.status).json({ error: `Understat profile data unavailable: ${file.error}` });
+        }
+        return;
+      }
+      sources.push(file.source);
+      const source: Source = sources.includes("stale-cache") ? "stale-cache" : sources.every((x) => x === "cache") ? "cache" : "live";
+      const body = kind === "player" ? playerSlice(file.data as ProfileFileLike, code) : clubSlice(file.data as ProfileFileLike, code);
+      res.json({ data: { enabled: true, available: true, ...body }, meta: { source, fetchedAt: Date.now() } });
+    } catch (err) {
+      res.status(502).json({ error: `Understat profile data unreadable: ${err instanceof Error ? err.message : String(err)}` });
+    }
+  });
   return router;
+}
+
+// --- profile slices -------------------------------------------------------------
+
+/** pipeline/types.ts AppProfileFile, as far as this route reads it (it doesn't import the pipeline). */
+type ShotRow = [number, number, number, number, number, string, string, string];
+interface ProfileFileLike {
+  players: Record<string, { matches: [number, string, number][]; shots: ShotRow[] }>;
+  clubs: Record<string, { matches: [number, number | null, number | null, number | null][]; shots: ShotRow[]; formations: unknown[] | null }>;
+}
+
+const shotObject = ([fixture, minute, x, y, xG, result, situation, shotType]: ShotRow) => ({ fixture, minute, x, y, xG, result, situation, shotType });
+
+function playerSlice(file: ProfileFileLike, code: string) {
+  const p = file.players[code];
+  if (!p) return { found: false };
+  return {
+    found: true,
+    matches: p.matches.map(([fixture, position, minutes]) => ({ fixture, position, minutes })),
+    shots: p.shots.map(shotObject),
+  };
+}
+
+/** The club's own shots, and its opponents' in its matches (the shots it faced). */
+function clubSlice(file: ProfileFileLike, code: string) {
+  const c = file.clubs[code];
+  if (!c) return { found: false };
+  const fixtures = new Set(c.matches.map((m) => m[0]));
+  const against: ShotRow[] = [];
+  for (const [otherCode, other] of Object.entries(file.clubs)) {
+    if (otherCode === code) continue;
+    for (const s of other.shots) if (fixtures.has(s[0])) against.push(s);
+  }
+  against.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  return {
+    found: true,
+    matches: c.matches.map(([fixture, win, draw, loss]) => ({ fixture, win, draw, loss })),
+    shots: c.shots.map(shotObject),
+    shotsAgainst: against.map(shotObject),
+    formations: c.formations,
+  };
 }

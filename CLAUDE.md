@@ -37,12 +37,14 @@ No lint script. Playwright isn't installed but works via
 ## Data
 - The official FPL API is the only authoritative source. One approved,
   one-off exception: club history 2016/17–2025/26 was backfilled from the
-  vaastav community archive, frozen in `data/vaastav-snapshot/`. Don't extend
-  that exception to anything else.
+  vaastav community archive, frozen in `data/vaastav-snapshot/`. That same
+  ledger also feeds the player profile's past-season Match Log (each player's
+  own rows; owner's decision, 2026-10-19). Don't extend that exception to
+  anything else.
 - **Understat is the one approved second source** (owner's decision,
   2026-10-18), on two rules (README "Understat (second data source)"):
   1. **Full separation.** Its figures appear only in their own violet
-     columns, or in a column the user has switched to Understat with the
+     columns and profile sections, or in a column the user has switched to Understat with the
      header's FPL/Understat toggle; never mixed into an FPL figure. FPL code
      never imports Understat code: the only connections are the marked lines
      in `client/src/App.tsx` and `server/src/app.ts`

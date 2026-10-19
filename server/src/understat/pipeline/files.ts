@@ -11,12 +11,15 @@
  *     team_matches.csv             one row per club per match (PPDA, deep, xPts…)
  *     appearances.csv              one row per player per match
  *     shots.csv                    one row per shot
+ *     formations.csv               one row per club per formation (season figures)
  *   app/<2025-26>.json           the season summary the app reads
+ *   app/profile/<2025-26>.json   per-match detail for the profiles (positions, shots, formations)
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseCsv, toCsv } from "../../clubHistory/csv.js";
 import type {
+  AppProfileFile,
   AppSeasonFile,
   ClubPairing,
   LinkOverride,
@@ -26,6 +29,7 @@ import type {
   UnderstatControl,
   UnderstatStatus,
   UsAppearance,
+  UsFormation,
   UsMatchSummary,
   UsShot,
   UsTeamMatch,
@@ -273,4 +277,43 @@ export function writeAppSeason(root: string, file: AppSeasonFile): void {
 export function readAppSeason(root: string, season: string): AppSeasonFile | null {
   const path = join(root, "app", `${seasonFolder(season)}.json`);
   return existsSync(path) ? (JSON.parse(readFileSync(path, "utf8")) as AppSeasonFile) : null;
+}
+
+export function writeAppProfile(root: string, file: AppProfileFile): void {
+  mkdirSync(join(root, "app", "profile"), { recursive: true });
+  writeAtomic(join(root, "app", "profile", `${seasonFolder(file.season)}.json`), JSON.stringify(file) + "\n");
+}
+
+// --- formations (seasons/<season>/formations.csv) ------------------------------
+
+const FORMATION_HEADER = ["team_id", "formation", "minutes", "shots", "goals", "xg", "shots_against", "goals_against", "xg_against"];
+
+/** Null when the season's formations haven't been fetched yet; a club missing from the file has none to show. */
+export function readFormations(root: string, season: string): UsFormation[] | null {
+  const path = join(seasonDir(root, season), "formations.csv");
+  if (!existsSync(path)) return null;
+  return readCsvFile(path).map((r) => ({
+    teamId: r.team_id,
+    formation: r.formation,
+    minutes: n(r.minutes),
+    shots: n(r.shots),
+    goals: n(r.goals),
+    xG: n(r.xg),
+    shotsAgainst: n(r.shots_against),
+    goalsAgainst: n(r.goals_against),
+    xGA: n(r.xg_against),
+  }));
+}
+
+export function writeFormations(root: string, season: string, rows: UsFormation[]): void {
+  const dir = seasonDir(root, season);
+  mkdirSync(dir, { recursive: true });
+  const sorted = [...rows].sort((a, b) => Number(a.teamId) - Number(b.teamId) || b.minutes - a.minutes || a.formation.localeCompare(b.formation));
+  writeAtomic(
+    join(dir, "formations.csv"),
+    toCsv(
+      FORMATION_HEADER,
+      sorted.map((f) => [f.teamId, f.formation, f.minutes, f.shots, f.goals, f.xG, f.shotsAgainst, f.goalsAgainst, f.xGA]),
+    ),
+  );
 }

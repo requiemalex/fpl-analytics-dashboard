@@ -12,7 +12,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { UsAppearance, UsLeague, UsMatch, UsMatchSummary, UsShot, UsTeamMatch } from "./types.js";
+import type { UsAppearance, UsFormation, UsLeague, UsMatch, UsMatchSummary, UsShot, UsTeamMatch, UsTeamSeason } from "./types.js";
 
 const BASE = "https://understat.com";
 const USER_AGENT = "fpl-analytics-dashboard data sync (+https://github.com/requiemalex/fpl-analytics-dashboard)";
@@ -50,6 +50,8 @@ export interface FetchOptions {
 export interface UnderstatClient {
   league(seasonStartYear: number, opts?: FetchOptions): Promise<UsLeague>;
   match(matchId: string, opts?: FetchOptions): Promise<UsMatch>;
+  /** One club's season page (its formation figures), by Understat's team title and id — the id is checked against the reply. */
+  team(title: string, teamId: string, seasonStartYear: number, opts?: FetchOptions): Promise<UsTeamSeason>;
   /** Requests made so far — reported in the run summary. */
   requestCount(): number;
 }
@@ -121,6 +123,10 @@ export function createUnderstatClient(options: UnderstatClientOptions = {}): Und
     },
     async match(matchId, opts) {
       return parseMatch(await getJson(`/getMatchData/${matchId}`, opts), matchId);
+    },
+    async team(title, teamId, year, opts) {
+      // Understat's team pages are named by title, spaces as underscores ("Manchester_United").
+      return parseTeam(await getJson(`/getTeamData/${encodeURIComponent(title.replace(/ /g, "_"))}/${year}`, opts), teamId, year);
     },
     requestCount: () => count,
   };
@@ -282,4 +288,43 @@ export function parseMatch(raw: unknown, matchId: string): UsMatch {
   }
   if (appearances.length === 0) fail(where, "no line-ups");
   return { matchId, appearances, shots: shotRows };
+}
+
+/**
+ * A club's season page. Its match list must be the club's own — every
+ * match has it home or away — so a title that led to a different club's
+ * page is a format failure, never another club's formations.
+ */
+export function parseTeam(raw: unknown, teamId: string, year: number): UsTeamSeason {
+  const where = `team ${teamId} ${year}`;
+  const root = obj(raw, where);
+  const dates = arr(root.dates, `${where}.dates`);
+  const playedMatchIds: string[] = [];
+  dates.forEach((d, i) => {
+    const w = `${where}.dates[${i}]`;
+    const o = obj(d, w);
+    const h = str(obj(o.h, `${w}.h`), "id", `${w}.h`);
+    const a = str(obj(o.a, `${w}.a`), "id", `${w}.a`);
+    if (h !== teamId && a !== teamId) fail(w, `match ${str(o, "id", w)} isn't this club's (${h} v ${a})`);
+    if (o.isResult === true) playedMatchIds.push(str(o, "id", w));
+  });
+  const stats = obj(root.statistics, `${where}.statistics`);
+  const formations: UsFormation[] = Object.entries(obj(stats.formation, `${where}.statistics.formation`)).map(([name, f]) => {
+    const w = `${where}.statistics.formation[${name}]`;
+    const o = obj(f, w);
+    const against = obj(o.against, `${w}.against`);
+    return {
+      teamId,
+      formation: name,
+      minutes: num(o, "time", w),
+      shots: num(o, "shots", w),
+      goals: num(o, "goals", w),
+      xG: num(o, "xG", w),
+      shotsAgainst: num(against, "shots", w),
+      goalsAgainst: num(against, "goals", w),
+      xGA: num(against, "xG", w),
+    };
+  });
+  if (playedMatchIds.length > 0 && formations.length === 0) fail(where, "played matches but no formation figures");
+  return { teamId, formations, playedMatchIds };
 }

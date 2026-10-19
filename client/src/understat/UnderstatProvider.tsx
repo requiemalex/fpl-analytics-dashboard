@@ -10,6 +10,8 @@ import { resolveUnderstatClub, resolveUnderstatPlayer, type UsClubResolved, type
 import { UNDERSTAT_SOURCE_ID, understatPlayerColumns, understatTeamColumns } from "./columns";
 import { UnderstatGuide } from "./guide";
 import { understatMatchesBehind } from "./staleness";
+import { fetchClubDetail, fetchPlayerDetail, type DetailLoad, type UsClubSeasonDetail, type UsPlayerSeasonDetail } from "./profileData";
+import { clubKey, createProfiles, playerKey } from "./profiles";
 import "./understat.css";
 
 /**
@@ -44,6 +46,37 @@ export function UnderstatProvider({ children }: { children: React.ReactNode }) {
   const { players, teams, teamsById, historicProfiles, historicReferenceSeason, currentSeasonHasStarted, fixtures } = useAppState();
   const [load, setLoad] = useState<Load>({ state: "idle" });
   const requestedRef = useRef(false);
+  // The profiles' per-season detail, fetched one player or club and season at a time as a profile asks.
+  const [profileLoads, setProfileLoads] = useState<ReadonlyMap<string, DetailLoad<UsPlayerSeasonDetail> | DetailLoad<UsClubSeasonDetail>>>(new Map());
+  const askedRef = useRef(new Set<string>());
+
+  const requestDetail = useCallback(
+    (key: string, fetcher: () => Promise<DetailLoad<UsPlayerSeasonDetail> | DetailLoad<UsClubSeasonDetail>>) => {
+      if (askedRef.current.has(key)) return;
+      askedRef.current.add(key);
+      setProfileLoads((prev) => new Map(prev).set(key, { state: "loading" }));
+      fetcher()
+        .catch((err): DetailLoad<never> => {
+          // A failed season can be asked for again (the profile re-opened).
+          askedRef.current.delete(key);
+          return { state: "error", message: err instanceof Error ? err.message : String(err) };
+        })
+        .then((result) => setProfileLoads((prev) => new Map(prev).set(key, result)));
+    },
+    [],
+  );
+  const requestPlayerDetail = useCallback(
+    (code: number, seasons: string[]) => {
+      for (const s of seasons) requestDetail(playerKey(code, s), () => fetchPlayerDetail(code, s));
+    },
+    [requestDetail],
+  );
+  const requestClubDetail = useCallback(
+    (code: number, seasons: string[]) => {
+      for (const s of seasons) requestDetail(clubKey(code, s), () => fetchClubDetail(code, s));
+    },
+    [requestDetail],
+  );
 
   const fetchData = useCallback(async () => {
     try {
@@ -96,6 +129,7 @@ export function UnderstatProvider({ children }: { children: React.ReactNode }) {
       status: load.state === "ready" ? "ready" : load.state === "unavailable" ? "unavailable" : "loading",
       staleNote,
       request,
+      profiles: createProfiles(profileLoads, { player: requestPlayerDetail, club: requestClubDetail }),
       guideSection: { id: "understat", navLabel: "Understat stats", title: "Understat stats", accentVar: "--col-understat", body: <UnderstatGuide /> },
       playerColumns(mode) {
         const cached = playerCache.get(mode);
@@ -120,7 +154,7 @@ export function UnderstatProvider({ children }: { children: React.ReactNode }) {
         return set;
       },
     };
-  }, [load, request, players, teams, teamsById, historicProfiles, historicReferenceSeason, currentSeasonHasStarted, fixtures]);
+  }, [load, request, profileLoads, requestPlayerDetail, requestClubDetail, players, teams, teamsById, historicProfiles, historicReferenceSeason, currentSeasonHasStarted, fixtures]);
 
   return <ExternalStatsContext.Provider value={source}>{children}</ExternalStatsContext.Provider>;
 }

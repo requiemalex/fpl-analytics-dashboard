@@ -3596,3 +3596,15 @@ tiles/graphs only:
   an FPL column whose toggle shows Understat's own version, listed under the
   crossover "FPL & Understat" heading.
 - **Last commit with it:** `220790e`.
+
+### Profiles' "Live Data" section (replaced 2026-10-19)
+- **What it did:** the player and team profiles had a "Live Data" section,
+  between Views and Points History, holding a match log of the live season
+  only (`<gw_log_is_always_live>` in `components/PlayerDetailOverlay.tsx`;
+  `liveMatchesByTeamId` in `components/TeamDetailOverlay.tsx`), with the
+  player's Playing Time card under it.
+- **Why it went:** the owner asked for the table to follow the season
+  picked on Points History (past seasons from the club-history ledger) and
+  to sit under Points History. It is now the "Match Log" section, after
+  Points History, live by default (`<match_log_follows_season>`).
+- **Last commit with it:** `285e6fc`.

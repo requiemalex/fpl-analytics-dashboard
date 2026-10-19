@@ -284,6 +284,38 @@ export const elementSummarySchema = z
   })
   .passthrough();
 
+/**
+ * /api/player-seasons/:code — one player's match rows for each completed
+ * season (server/src/clubHistory/playerMatches.ts). Checked whole: a
+ * dropped row would make the season's totals a part-sum.
+ */
+const playerPastMatchSchema = z.object({
+  fixture: z.number(),
+  round: z.number().nullable(),
+  opponentCode: z.number(),
+  opponentShortName: z.string(),
+  home: z.boolean(),
+  teamScore: z.number(),
+  opponentScore: z.number(),
+  minutes: z.number(),
+  starts: z.number().nullable(),
+  totalPoints: z.number(),
+  goals: z.number(),
+  assists: z.number(),
+  cleanSheets: z.number(),
+  goalsConceded: z.number().nullable(),
+  saves: z.number().nullable(),
+  bonus: z.number(),
+  bps: z.number().nullable(),
+  xG: z.number().nullable(),
+  xA: z.number().nullable(),
+  xGI: z.number().nullable(),
+  xGC: z.number().nullable(),
+  dc: z.number().nullable(),
+});
+
+export const playerSeasonsSchema = z.object({ seasons: z.record(z.string(), z.array(playerPastMatchSchema)) });
+
 export const historicBulkPlayerSchema = z
   .object({
     playerId: z.number(),

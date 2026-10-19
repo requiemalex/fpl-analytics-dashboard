@@ -6,7 +6,7 @@ import { writeSeasonLedger } from "../../clubHistory/ledgerFiles.js";
 import type { LedgerRow } from "../../clubHistory/types.js";
 import { runSync } from "./sync.js";
 import { UnderstatBlockedError, type UnderstatClient } from "./understatApi.js";
-import type { UsLeague, UsMatch } from "./types.js";
+import type { AppProfileFile, UsLeague, UsMatch, UsTeamSeason } from "./types.js";
 
 // One live-season match, Home 2-1 Away, two players a side.
 const bootstrap = {
@@ -54,6 +54,18 @@ const match: UsMatch = {
   shots: [shot("s1", "u1", "h", "Goal", 0.5), shot("s2", "u1", "h", "Goal", 0.4), shot("s3", "u1", "h", "SavedShot", 0.3), shot("s4", "u3", "a", "Goal", 0.8)],
 };
 
+/** A club's team page: one formation for the whole of the given played matches. */
+function teamPage(teamId: string, playedMatchIds: string[]): UsTeamSeason {
+  const home = teamId === "71";
+  return {
+    teamId,
+    playedMatchIds,
+    formations: [
+      { teamId, formation: home ? "4-3-3" : "5-4-1", minutes: 90 * playedMatchIds.length, shots: home ? 3 : 1, goals: home ? 2 : 1, xG: home ? 1.2 : 0.8, shotsAgainst: home ? 1 : 3, goalsAgainst: home ? 1 : 2, xGA: home ? 0.8 : 1.2 },
+    ],
+  };
+}
+
 function fakeClient(overrides: Partial<UnderstatClient> = {}): UnderstatClient & { calls: number } {
   const state = { calls: 0 };
   const client: UnderstatClient = {
@@ -64,6 +76,10 @@ function fakeClient(overrides: Partial<UnderstatClient> = {}): UnderstatClient &
     async match() {
       state.calls += 1;
       return match;
+    },
+    async team(_title: string, teamId: string) {
+      state.calls += 1;
+      return teamPage(teamId, ["m1"]);
     },
     requestCount: (): number => state.calls,
     ...overrides,
@@ -106,6 +122,31 @@ describe("runSync", () => {
     expect(season.players["1001"]).toMatchObject({ goals: 2, shots: 3, shotsOnTarget: 3, minutes: 90 });
     expect(season.clubs["11"]).toMatchObject({ understatTeamId: "71", played: 1, shots: 3, shotsAgainst: 1, pts: 3 });
     expect(JSON.parse(readFileSync(join(understatRoot, "status.json"), "utf8"))).toMatchObject({ liveSeason: "2026/27", seasons: ["2026/27"] });
+  });
+
+  it("writes the profiles' per-match file: positions, shots, result chances and formations, by FPL fixture", async () => {
+    const report = await sync(fakeClient());
+    expect(report.ok).toBe(true);
+    const profile = JSON.parse(readFileSync(join(understatRoot, "app", "profile", "2026-27.json"), "utf8")) as AppProfileFile;
+    expect(profile.players["1001"].matches).toEqual([[1, "FW", 90]]);
+    expect(profile.players["1001"].shots).toHaveLength(3);
+    expect(profile.players["1001"].shots[0]).toEqual([1, 10, 0.9, 0.5, 0.5, "Goal", "OpenPlay", "RightFoot"]);
+    // Understat's forecast is home win / draw / away win; the away club's is turned round to its own side.
+    expect(profile.clubs["11"].matches).toEqual([[1, 0.5, 0.3, 0.2]]);
+    expect(profile.clubs["22"].matches).toEqual([[1, 0.2, 0.3, 0.5]]);
+    expect(profile.clubs["11"].shots).toHaveLength(3);
+    expect(profile.clubs["22"].shots).toHaveLength(1);
+    expect(profile.clubs["11"].formations).toEqual([{ formation: "4-3-3", minutes: 90, shots: 3, goals: 2, xG: 1.2, shotsAgainst: 1, goalsAgainst: 1, xGA: 0.8 }]);
+    expect(readFileSync(join(understatRoot, "seasons", "2026-27", "formations.csv"), "utf8")).toContain("71,4-3-3,90");
+  });
+
+  it("shows no formations for a club whose team page covers a match not checked against FPL", async () => {
+    const report = await sync(fakeClient({ team: async (_t: string, teamId: string) => teamPage(teamId, teamId === "71" ? ["m1", "m9"] : ["m1"]) }));
+    expect(report.ok).toBe(true);
+    expect(report.warnings.some((w) => w.includes("Home FC's formations cover 2 matches, 1 checked"))).toBe(true);
+    const profile = JSON.parse(readFileSync(join(understatRoot, "app", "profile", "2026-27.json"), "utf8")) as AppProfileFile;
+    expect(profile.clubs["11"].formations).toBeNull();
+    expect(profile.clubs["22"].formations).toHaveLength(1);
   });
 
   it("flags a player's shot-based figures when Understat's shot list is missing one of his shots, without failing the run", async () => {

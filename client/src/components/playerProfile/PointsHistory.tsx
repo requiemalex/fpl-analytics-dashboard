@@ -82,14 +82,15 @@ export function AssistsIcon() {
  * The section heading above the card — the same heading every profile
  * section uses — with the latest season-on-season change at the right as an
  * icon and a signed figure; hovering it says which two seasons it compares.
- * `titleHint` is optional hover text on the title itself.
+ * `titleHint` is optional hover text on the title itself; `className`
+ * colours the heading by its data source (col-source-fpl).
  */
-export function PointsHistoryHeader({ trend, titleHint }: { trend: SeasonTrend | null; titleHint?: string }) {
+export function PointsHistoryHeader({ trend, titleHint, title = "Points History", className }: { trend: SeasonTrend | null; titleHint?: string; title?: string; className?: string }) {
   const showTrend = trend !== null && trend.direction !== "unknown";
   const trendText = showTrend ? `${fmtSigned(trend.pointsDelta, 0)} pts, ${trend.previousSeason} → ${trend.latestSeason}` : "";
   return (
-    <div className="profile-section-heading points-history-head">
-      <h3 title={titleHint}>Points History</h3>
+    <div className={`profile-section-heading points-history-head${className ? ` ${className}` : ""}`}>
+      <h3 title={titleHint}>{title}</h3>
       {showTrend && (
         <span className={`points-trend is-${trend.direction}`} title={trendText} aria-label={trendText}>
           {trend.direction === "up" ? <TrendUpIcon /> : trend.direction === "down" ? <TrendDownIcon /> : <TrendFlatIcon />}
@@ -116,6 +117,9 @@ export function PointsHistoryHeader({ trend, titleHint }: { trend: SeasonTrend |
  * but not complete, so not counted until it is. The latest completed
  * season's figure is bold.
  *
+ * With `onSelectSeason`, each column is a button that picks its season
+ * (the profile's Match Log follows it); the picked one is outlined.
+ *
  * `countedSeasonNames` null means the averaging window isn't known (the
  * historic dataset failed to load): every completed season draws the same
  * neutral colour, with nothing marked counted or uncounted.
@@ -125,11 +129,15 @@ export function PointsHistoryChart({
   countedSeasonNames,
   currentSeasonName,
   averagePoints,
+  selectedSeasonName = null,
+  onSelectSeason,
 }: {
   seasons: SeasonPointsEntry[];
   countedSeasonNames: Set<string> | null;
   currentSeasonName: string | null;
   averagePoints: number | null;
+  selectedSeasonName?: string | null;
+  onSelectSeason?: (seasonName: string) => void;
 }) {
   const max = Math.max(0, ...seasons.map((s) => s.totalPoints));
   const heightFor = (points: number) => (max > 0 ? (Math.max(0, points) / max) * BAR_AREA_PX : 0);
@@ -161,19 +169,46 @@ export function PointsHistoryChart({
   return (
     <div className="points-history">
       <div className="points-history-plot" style={{ height: BAR_AREA_PX + 24 }}>
-        {columns.map(({ s, state, hover, isLatest }) => (
-          <div key={s.seasonName} className="points-history-col" title={hover} aria-label={hover}>
-            <span className={`points-history-value${state === "uncounted" ? " is-muted" : ""}${isLatest ? " is-latest" : ""}`}>
-              {fmtDecimal(s.totalPoints, 0)}
-            </span>
-            <span className={`points-history-bar is-${state}`} style={{ height: heightFor(s.totalPoints) }} />
-          </div>
-        ))}
+        {columns.map(({ s, state, hover, isLatest }) => {
+          const selected = onSelectSeason !== undefined && s.seasonName === selectedSeasonName;
+          const content = (
+            <>
+              <span className={`points-history-value${state === "uncounted" ? " is-muted" : ""}${isLatest ? " is-latest" : ""}`}>
+                {fmtDecimal(s.totalPoints, 0)}
+              </span>
+              <span className={`points-history-bar is-${state}`} style={{ height: heightFor(s.totalPoints) }} />
+            </>
+          );
+          if (!onSelectSeason) {
+            return (
+              <div key={s.seasonName} className="points-history-col" title={hover} aria-label={hover}>
+                {content}
+              </div>
+            );
+          }
+          const label = `${hover}. ${selected ? "Its matches are shown below" : "Show its matches below"}`;
+          return (
+            <button
+              key={s.seasonName}
+              type="button"
+              className={`points-history-col is-selectable${selected ? " is-selected" : ""}`}
+              title={label}
+              aria-label={label}
+              aria-pressed={selected}
+              onClick={() => onSelectSeason(s.seasonName)}
+            >
+              {content}
+            </button>
+          );
+        })}
         {avgLine && <span className="points-history-avg" style={{ left: avgLine.left, right: avgLine.right, bottom: avgLine.bottom }} />}
       </div>
       <div className="points-history-axis">
         {columns.map(({ s, state }) => (
-          <span key={s.seasonName} className={state === "uncounted" ? "is-muted" : undefined}>
+          <span
+            key={s.seasonName}
+            className={[state === "uncounted" ? "is-muted" : "", onSelectSeason && s.seasonName === selectedSeasonName ? "is-selected" : ""].filter(Boolean).join(" ") || undefined}
+          >
             {shortSeason(s.seasonName)}
           </span>
         ))}

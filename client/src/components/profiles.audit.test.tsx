@@ -114,13 +114,16 @@ describe("Player profile — Career History's live season", () => {
     const carried = makePlayer({ id: 1, name: "Gabriel", position: "DEF", teamId: 1, totalPoints: 209, minutes: 2750, goals: 4 });
     setApp([carried], { currentSeasonHasStarted: false });
     setHistory([], [makeSeason({ seasonName: "2025/26", totalPoints: 209, minutes: 2750, goals: 4 })]);
-    const { getByLabelText, getByText } = render(
+    const { getByLabelText, getAllByText } = render(
       <MemoryRouter initialEntries={["/players?player=1"]}>
         <PlayerDetailOverlay />
       </MemoryRouter>,
     );
     fireEvent.click(getByLabelText("Show season-by-season detail"));
-    const liveRow = getByText(/2026\/27 \(live\)/).closest("tr")!;
+    // The Match Log's heading names the live season too; this is the season-by-season table's row.
+    const liveRow = getAllByText(/2026\/27 \(live\)/)
+      .map((el) => el.closest("tr"))
+      .find((tr) => tr !== null)!;
     const cells = [...liveRow.querySelectorAll("td")].map((td) => Number((td.textContent ?? "").replace(/,/g, "")));
     // Season, Price, Mins, Starts, Points…
     expect(cells[2]).toBe(0);

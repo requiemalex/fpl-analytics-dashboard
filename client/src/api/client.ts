@@ -1,5 +1,6 @@
+import type { PlayerPastMatch } from "../types/normalized";
 import type { ApiEnvelope, RawBootstrapStatic, RawElementSummary, RawFixture, RawHistoricBulk, RawEntryTeam, RawEntryHistory, RawEntryPicks } from "../types/raw";
-import { elementSummarySchema, fixturesSchema, historicBulkSchema, entryTeamSchema, entryHistorySchema, entryPicksSchema, validate, parseBootstrapStatic } from "../validation/schema";
+import { elementSummarySchema, fixturesSchema, historicBulkSchema, playerSeasonsSchema, entryTeamSchema, entryHistorySchema, entryPicksSchema, validate, parseBootstrapStatic } from "../validation/schema";
 
 export class ApiRequestError extends Error {
   status: number;
@@ -58,6 +59,13 @@ export async function fetchElementSummary(playerId: number, opts?: { forceRefres
   const envelope = opts?.forceRefresh ? await postEnvelope<unknown>(path) : await getEnvelope<unknown>(path);
   const data = validate(elementSummarySchema, envelope.data, `element-summary/${playerId}`) as unknown as RawElementSummary;
   return { data, source: envelope.meta.source, fetchedAt: envelope.meta.fetchedAt };
+}
+
+/** One player's match-by-match record for every completed season he played (by his permanent FPL code) — bundled with the server, never fetched upstream. */
+export async function fetchPlayerSeasons(code: number): Promise<FetchResult<Record<string, PlayerPastMatch[]>>> {
+  const envelope = await getEnvelope<unknown>(`/api/player-seasons/${code}`);
+  const data = validate(playerSeasonsSchema, envelope.data, `player-seasons/${code}`);
+  return { data: data.seasons, source: envelope.meta.source, fetchedAt: envelope.meta.fetchedAt };
 }
 
 /**

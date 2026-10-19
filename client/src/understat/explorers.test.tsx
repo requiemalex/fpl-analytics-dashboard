@@ -6,6 +6,7 @@ import { PlayerExplorer } from "../pages/PlayerExplorer";
 import { ExternalStatsContext, type ExternalStatsSource } from "../extensions/externalStats";
 import { makePlayer, makeTeam } from "../test/fixtures";
 import { understatPlayerColumns, understatTeamColumns } from "./columns";
+import { createProfiles } from "./profiles";
 import type { UsPlayerResolved } from "./resolve";
 import type { UsPlayerTotals } from "./schema";
 
@@ -58,6 +59,7 @@ function fakeSource(staleNote: string | null = null): ExternalStatsSource {
     // Only Saka is linked; Rice shows "—" for every Understat figure.
     playerColumns: () => understatPlayerColumns((p) => (p.id === 1 ? resolved : null)),
     teamColumns: () => understatTeamColumns(new Map(), () => null),
+    profiles: createProfiles(new Map(), { player: () => {}, club: () => {} }),
     guideSection: { id: "understat", navLabel: "Understat stats", title: "Understat stats", accentVar: "--col-understat", body: null },
   };
 }
@@ -168,8 +170,8 @@ describe("Player Explorer with Understat mounted", () => {
     const popover = container.querySelector<HTMLElement>(".popover")!;
     expect(popover.textContent).not.toContain("Understat");
     // The shared figures are back in their FPL groups.
-    expect(groupOf(popover, "xG")).toBe("Underlying Performance");
-    expect(groupOf(popover, "Mins")).toBe("Advanced");
+    expect(groupOf(popover, "xG")).toBe("FPL · Underlying Performance");
+    expect(groupOf(popover, "Mins")).toBe("FPL · Advanced");
   });
 
   it("Columns picker: green FPL-only groups, a crossover group for every figure with a ⇄ toggle, then Understat's own", () => {
@@ -184,7 +186,7 @@ describe("Player Explorer with Understat mounted", () => {
     expect(kinds.join(",")).toMatch(/^(fpl,)+both(,understat)+$/);
     const alternates = Object.values(understatPlayerColumns(() => resolved).alternates).map((c) => c.label);
     for (const label of alternates) expect(groupOf(popover, label), label).toBe("FPL & Understat");
-    expect(groupOf(popover, "Goals")).toBe("Actual Output");
+    expect(groupOf(popover, "Goals")).toBe("FPL · Actual Output");
     expect(groupOf(popover, "Shots")).toBe("Understat · Shooting");
   });
 

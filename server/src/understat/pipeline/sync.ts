@@ -29,11 +29,14 @@ import { checkAgainstFpl, checkSeasonInternally } from "./checks.js";
 import {
   ensureOverridesFile,
   readControl,
+  readFormations,
   readLinks,
   readOverrides,
   readSeasonData,
   readStatus,
+  writeAppProfile,
   writeAppSeason,
+  writeFormations,
   writeLinks,
   writeSeasonData,
   writeStatus,
@@ -41,9 +44,10 @@ import {
 } from "./files.js";
 import { linkSeason, type FplPlayerSeason, type UsPlayerSeason } from "./matcher.js";
 import { pairClubsAndFixtures } from "./pairing.js";
+import { buildProfileSeason } from "./profile.js";
 import { UnderstatBlockedError, UnderstatFormatError, type UnderstatClient } from "./understatApi.js";
 import type { FplName } from "./names.js";
-import type { AppSeasonFile, UnderstatStatus, UsTeamMatch } from "./types.js";
+import type { AppSeasonFile, UnderstatStatus, UsFormation, UsTeamMatch } from "./types.js";
 
 export const FIRST_SEASON = "2016/17";
 /** Matches this recent are fetched again on every run, to pick up Understat's own corrections. */
@@ -105,6 +109,49 @@ function isStoredComplete(data: SeasonData | null): boolean {
   return results.length >= MATCHES_PER_SEASON && results.every((m) => withLineups.has(m.id));
 }
 
+/**
+ * Every paired club's formation figures for one season, from its team page.
+ * Formations are season totals Understat works out itself, so they can't
+ * be filtered match by match like everything else: a club's are kept only
+ * when its page covers exactly the matches paired with finished FPL
+ * fixtures (so checked). Otherwise — in the live season, usually a match
+ * FPL hasn't confirmed yet — its last stored figures stay, and a
+ * completed season's club gets none ("—"), with a warning either way.
+ */
+async function fetchSeasonFormations(
+  client: UnderstatClient,
+  season: string,
+  data: SeasonData,
+  matchByFixture: Map<number, string>,
+  stored: UsFormation[] | null,
+  warnings: string[],
+  isLive: boolean,
+): Promise<UsFormation[]> {
+  const paired = new Set(matchByFixture.values());
+  const out: UsFormation[] = [];
+  for (const club of data.clubs) {
+    const teamId = club.understatTeamId;
+    if (!club.understatTitle) {
+      warnings.push(`${season}: no Understat name stored for club ${teamId}, so its formations weren't fetched.`);
+      out.push(...(stored ?? []).filter((f) => f.teamId === teamId));
+      continue;
+    }
+    const page = await client.team(club.understatTitle, teamId, startYear(season), { fresh: isLive });
+    const checked = new Set(data.matches.filter((m) => paired.has(m.id) && (m.homeTeamId === teamId || m.awayTeamId === teamId)).map((m) => m.id));
+    const covers = page.playedMatchIds.length === checked.size && page.playedMatchIds.every((id) => checked.has(id));
+    if (covers) {
+      out.push(...page.formations);
+    } else {
+      const kept = (stored ?? []).filter((f) => f.teamId === teamId);
+      out.push(...kept);
+      warnings.push(
+        `${season}: ${club.understatTitle}'s formations cover ${page.playedMatchIds.length} matches, ${checked.size} checked against FPL — ${kept.length > 0 ? "kept the last stored figures" : "none shown"}.`,
+      );
+    }
+  }
+  return out;
+}
+
 export async function runSync(opts: SyncOptions): Promise<SyncReport> {
   const log = opts.log ?? (() => undefined);
   const report: SyncReport = { ok: true, attention: [], summary: [], warnings: [] };
@@ -127,9 +174,12 @@ export async function runSync(opts: SyncOptions): Promise<SyncReport> {
     for (let y = startYear(FIRST_SEASON); y <= startYear(liveSeason); y++) seasons.push(seasonName(y));
 
     let newSeasonBudget = opts.maxNewSeasons;
+    // Completed seasons whose formations (one request per club) are fetched this run — the same few-per-run pace.
+    let formationSeasonBudget = opts.maxNewSeasons;
     const seeds = new Map<number, string>();
     const toWrite: SeasonData[] = [];
-    const processed: { data: SeasonData; complete: boolean; ledgerRows: LedgerRow[]; matchByFixture: Map<number, string> }[] = [];
+    const formationsToWrite: { season: string; rows: UsFormation[] }[] = [];
+    const processed: { data: SeasonData; complete: boolean; ledgerRows: LedgerRow[]; matchByFixture: Map<number, string>; formations: UsFormation[] | null }[] = [];
     const missingFixtures: Record<string, string> = {};
 
     for (const season of seasons) {
@@ -221,6 +271,16 @@ export async function runSync(opts: SyncOptions): Promise<SyncReport> {
       }));
       for (const c of data.clubs) seeds.set(c.fplTeamCode, c.understatTeamId);
 
+      // --- formations (each club's team page) ---
+      let formations = readFormations(opts.understatRoot, season);
+      const fetchFormations = isLive || (formations === null && pairing.problems.length === 0 && formationSeasonBudget > 0);
+      if (fetchFormations) {
+        if (!isLive) formationSeasonBudget -= 1;
+        const fresh = await fetchSeasonFormations(opts.client, season, data, pairing.matchByFixture, formations, report.warnings, isLive);
+        formationsToWrite.push({ season, rows: fresh });
+        formations = fresh;
+      }
+
       // --- players ---
       const fplSeason = new Map<number, FplPlayerSeason>();
       for (const row of ledger.rows) {
@@ -257,7 +317,7 @@ export async function runSync(opts: SyncOptions): Promise<SyncReport> {
       errors.push(...internal.errors);
       report.warnings.push(...internal.warnings);
       if (fetched) toWrite.push(data);
-      processed.push({ data, complete: !isLive && isStoredComplete(data), ledgerRows: ledger.rows, matchByFixture: pairing.matchByFixture });
+      processed.push({ data, complete: !isLive && isStoredComplete(data), ledgerRows: ledger.rows, matchByFixture: pairing.matchByFixture, formations });
       log(`${season}: ${results.length} results, ${pairing.matchByFixture.size}/${finished.length} FPL fixtures paired.`);
     }
 
@@ -297,8 +357,10 @@ export async function runSync(opts: SyncOptions): Promise<SyncReport> {
     }
     writeLinks(opts.understatRoot, links);
     ensureOverridesFile(opts.understatRoot);
+    for (const f of formationsToWrite) writeFormations(opts.understatRoot, f.season, f.rows);
     const appFiles: AppSeasonFile[] = processed.map((p) => buildAppSeason(p.data, links, p.complete, new Set(p.matchByFixture.values())));
     for (const f of appFiles) writeAppSeason(opts.understatRoot, f);
+    for (const p of processed) writeAppProfile(opts.understatRoot, buildProfileSeason(p.data, links, p.matchByFixture, p.formations));
 
     const counts = { confirmed: 0, held: 0, disputed: 0 };
     for (const l of links.values()) counts[l.status] += 1;

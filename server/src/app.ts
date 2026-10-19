@@ -10,6 +10,7 @@ import { elementSummaryRouter } from "./routes/elementSummary.js";
 import { eventLiveRouter } from "./routes/eventLive.js";
 import { historicBulkRouter } from "./routes/historicBulk.js";
 import { entryImportRouter } from "./routes/entryImport.js";
+import { playerSeasonsRouter } from "./routes/playerSeasons.js";
 // Understat (optional second source): this import and the app.use below are its only connection to the server.
 import { createUnderstatRouter } from "./understat/route.js";
 
@@ -48,6 +49,7 @@ export function createApp(options?: { clientDistPath?: string; understatLocalDir
   app.use("/api", eventLiveRouter);
   app.use("/api", historicBulkRouter);
   app.use("/api", entryImportRouter);
+  app.use("/api", playerSeasonsRouter);
   app.use("/api", createUnderstatRouter({ localDir: options?.understatLocalDir }));
 
   // Serves the built client (client/dist) whenever it's present —
