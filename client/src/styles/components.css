@@ -7,6 +7,35 @@
   box-shadow: var(--shadow-card);
 }
 
+/* The Data View picker (AnalysisModeToggle.tsx): mode icons, the season(s)
+   the view covers and any minutes badge, one box wherever it appears. */
+.data-view-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2);
+  max-width: 100%;
+}
+.data-view-picker-modes {
+  display: flex;
+  gap: 6px;
+}
+.data-view-picker-season {
+  padding: 0 var(--space-2) 0 var(--space-3);
+  border-left: 1px solid var(--border);
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.data-view-picker .small-sample-badge {
+  margin-left: 0;
+  margin-right: var(--space-1);
+}
+
 .card-title {
   /* A long custom name wraps inside its card instead of spilling out and
      pushing the header's buttons off-screen. */

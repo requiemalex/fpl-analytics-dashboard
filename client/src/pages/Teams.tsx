@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
-import { computeTeamAggregates, clubSeasonsForMode, type TeamAggregate } from "../metrics/teamStats";
+import { computeTeamAggregates, type TeamAggregate } from "../metrics/teamStats";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { TeamBadge } from "../components/primitives";
 import { TEAM_COLUMNS, teamColumnByKey, teamColumnForMode, type TeamColumn, type TeamColumnGroup } from "../components/teamColumns";
@@ -41,11 +41,6 @@ const TEAM_MIN_COLUMN_WIDTHS: Record<string, number> = Object.fromEntries(TEAM_C
 const SOURCE_TOGGLE_WIDTH = 16;
 
 /** "2025/26", "2026/27", or "2022/23–2025/26" for a Historic Average window. */
-function seasonLabel(seasons: string[]): string {
-  if (seasons.length === 0) return "";
-  if (seasons.length === 1) return seasons[0];
-  return `${seasons[seasons.length - 1]}–${seasons[0]}`;
-}
 
 export function Teams() {
   const { teams, clubSeasons, historicReferenceSeason, historicStatus, currentSeasonHasStarted, historicFetchSkippedPlayerIds, requestHistoricData } = useAppState();
@@ -231,8 +226,6 @@ export function Teams() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const seasons = clubSeasonsForMode(analysisMode, historicReferenceSeason);
-
   /** Opens the team profile overlay (see TeamDetailOverlay.tsx) — same `?teamProfile=` param TeamBadge itself sets on click, kept here too so clicking anywhere else on the row does the same thing. */
   function openTeamProfile(teamId: number) {
     setSearchParams((prev) => {
@@ -260,10 +253,7 @@ export function Teams() {
         </div>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} clubFigures />
-        {seasons.length > 0 && <span className="value-muted" style={{ fontSize: 12.5 }}>{seasonLabel(seasons)}</span>}
-      </div>
+      <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} clubFigures />
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
         <div className="icon-toolbar">

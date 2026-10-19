@@ -135,7 +135,8 @@ export function UserGuide() {
       <Section id="modes" title="Analysis modes: Last Completed Season / Historic Average / Current Season">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
           Most pages (Dashboard, Player Explorer, Player Comparison, Team Explorer, Team Profile, the player profile) have the same
-          toggle near the top. Each page's toggle, and its Search/Position/Team/Min Minutes criteria where it has them, is its
+          toggle near the top, with the season(s) the selected view covers shown inside it (e.g. 2026/27, or 2022/23–2025/26 for
+          Historic Average). Each page's toggle, and its Search/Position/Team/Min Minutes criteria where it has them, is its
           own: changing one page never changes what another shows.
         </p>
         <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>

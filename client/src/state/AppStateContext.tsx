@@ -55,6 +55,8 @@ interface AppState {
   liveDataVersion: { count: number; forced: boolean };
 
   historicStatus: HistoricDataStatus;
+  /** The season in play, e.g. "2026/27", from gameweek 1's deadline — known from the first load, unlike historicReferenceSeason. Null if FPL sent no events. */
+  liveSeason: string | null;
   /** The most recently COMPLETED season, derived from the data itself — null until historicStatus is "ready". */
   historicReferenceSeason: string | null;
   historicProfiles: Map<number, HistoricPlayerProfile>;
@@ -110,6 +112,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [liveDataVersion, setLiveDataVersion] = useState({ count: 0, forced: false });
 
   const [historicStatus, setHistoricStatus] = useState<HistoricDataStatus>("idle");
+  const [liveSeason, setLiveSeason] = useState<string | null>(null);
   const [historicReferenceSeason, setHistoricReferenceSeason] = useState<string | null>(null);
   const [historicProfiles, setHistoricProfiles] = useState<Map<number, HistoricPlayerProfile>>(new Map());
   const [allTimeSeasonsByPlayerId, setAllTimeSeasonsByPlayerId] = useState<Map<number, PlayerSeasonHistory[]>>(new Map());
@@ -188,6 +191,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           }
         }
       }
+      setLiveSeason(season);
       setPlayers(normalizedPlayers);
       playersRef.current = normalizedPlayers;
       setTeams(normalizedTeams);
@@ -429,6 +433,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       refresh,
       liveDataVersion,
       historicStatus,
+      liveSeason,
       historicReferenceSeason,
       historicProfiles,
       allTimeSeasonsByPlayerId,
@@ -462,6 +467,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       refresh,
       liveDataVersion,
       historicStatus,
+      liveSeason,
       historicReferenceSeason,
       historicProfiles,
       allTimeSeasonsByPlayerId,

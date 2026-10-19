@@ -110,7 +110,13 @@ expensive-to-fetch data: players, teams, fixtures, events, historic profiles
 `bootstrap-static` silently every 10 minutes. Analysis mode and filters are
 **per page** — each page keeps its own in `useState` and renders the
 controlled `AnalysisModeToggle`/`FiltersBar`; nothing a page does can change
-another page. Overlays use URL params
+another page. Every Data View picker (Player and Team Explorer, both
+profiles, Team Building's Historic/Raw columns) is the one `DataViewPicker`
+box: the mode icons, the season(s) the view covers (`dataViewSeasonLabel`:
+`2026/27`, or `2022/23–2025/26` for Historic Average) and any minutes
+stopwatch, all inside it. The live season (`liveSeason`, from gameweek 1's
+deadline) is known from the first load; the other two labels appear once
+`historicReferenceSeason` is. Overlays use URL params
 too: `?player=<id>` (player profile), `?teamProfile=<id>` (team profile),
 `?players=id,id` (Player Comparison selection).
 

@@ -19,10 +19,9 @@ import { matchesPlayerSearch } from "../utils/playerSearch";
 import { computeBlendedMinutesReliability } from "../metrics/minutesReliabilityBlend";
 import { getUpcomingFixtures, firstPickableEventId, fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, cellText, columnByKey, columnForMode, isStaticColumn, rankValue, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
-import { ANALYSIS_MODE_OPTIONS } from "../components/AnalysisModeToggle";
+import { DataViewPicker } from "../components/AnalysisModeToggle";
 import { historicSeasonsNote, RowSmallSampleBadge, SmallSampleBadge, userMinimumNote } from "../components/MinutesFloorBadge";
 import { SquadPitch, type PitchColourRanks } from "../components/SquadPitch";
-import { AnalysisModeIcon } from "../components/AnalysisModeIcon";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass } from "../components/primitives";
 import { IconChipButton, ResetIcon, ForecastIcon, ClockIcon, FilterIcon, DownloadIcon, TrashIcon } from "../components/IconToolbar";
 import { fmtPrice, fmtDecimal, fmtPercent, fmtSigned, DASH } from "../utils/format";
@@ -1271,23 +1270,11 @@ export function TeamBuilder() {
           </div>
           <div>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Historic/raw columns show:</div>
-            <div style={{ display: "flex", gap: 6 }}>
-              {ANALYSIS_MODE_OPTIONS.map((o) => (
-                <button
-                  key={o.mode}
-                  type="button"
-                  className="btn btn-icon"
-                  aria-pressed={pickerHistoricMode === o.mode}
-                  title={o.label}
-                  aria-label={o.label}
-                  style={pickerHistoricMode === o.mode ? { borderColor: "var(--accent-positive)", color: "var(--accent-positive)" } : undefined}
-                  onClick={() => setPickerHistoricMode(o.mode)}
-                >
-                  <AnalysisModeIcon mode={o.mode} />
-                </button>
-              ))}
-              {pickerHistoricMode === "historicAverage" && <SmallSampleBadge note={historicSeasonsNote()} />}
-            </div>
+            <DataViewPicker
+              mode={pickerHistoricMode}
+              onChange={setPickerHistoricMode}
+              floorNote={pickerHistoricMode === "historicAverage" ? historicSeasonsNote() : undefined}
+            />
           </div>
         </div>
         {historicStatus === "loading" && (
