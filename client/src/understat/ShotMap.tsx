@@ -10,7 +10,9 @@ import type { UsShot } from "./profileData";
  * outline otherwise (so a goal is never told by colour alone), sized by its
  * xG. Several seasons (a Historic Average): too many dots to read, so the
  * area is cut into zones shaded by shots a season — one hue, light to dark.
- * Every dot and zone says what it is on hover.
+ * Every dot and zone says what it is on hover. Shots Understat places at
+ * exactly the same point (every penalty is on the spot) draw on top of one
+ * another, so a point with more than one goal carries a count of them.
  *
  * Drawn in metres on a 105 × 68 pitch, so the box and the arc sit where
  * they really are. Only the last 35 m are drawn (over 99% of shots), which
@@ -76,6 +78,25 @@ function PitchLines() {
       <circle cx={34} cy={11} r={0.3} className="shot-map-spot" />
     </g>
   );
+}
+
+/**
+ * Points with more than one goal scored from exactly there — every
+ * penalty is placed on the spot, so a penalty taker's goals stack into one
+ * dot. Each gets a count, its hover saying how many shots that was.
+ */
+function stackedGoals(shots: UsShot[]): { cx: number; out: number; goals: number; shots: number; r: number }[] {
+  const at = new Map<string, UsShot[]>();
+  for (const s of shots) {
+    const key = `${s.x}|${s.y}`;
+    at.set(key, [...(at.get(key) ?? []), s]);
+  }
+  return [...at.values()].flatMap((group) => {
+    const goals = group.filter((s) => s.result === "Goal").length;
+    if (goals < 2) return [];
+    const { cx, out } = place(group[0]);
+    return [{ cx, out, goals, shots: group.length, r: Math.max(...group.map((s) => radius(s.xG))) }];
+  });
 }
 
 const COLS = 12;
@@ -145,6 +166,21 @@ export function ShotMap({ shots, seasons, label }: { shots: UsShot[]; seasons: n
               <circle key={i} cx={cx} cy={out} r={radius(s.xG)} className={goal ? "shot-map-goal" : "shot-map-miss"}>
                 <title>{shotHover(s)}</title>
               </circle>
+            );
+          })}
+        {!density &&
+          stackedGoals(inside).map((g) => {
+            // A badge at the dot's upper right.
+            const bx = g.cx + g.r * 0.75;
+            const by = g.out - g.r * 0.75;
+            return (
+              <g key={`n${g.cx}-${g.out}`} className="shot-map-count">
+                <title>{`${g.goals} goals from ${g.shots} shots taken from exactly here`}</title>
+                <circle cx={bx} cy={by} r={0.95} />
+                <text x={bx} y={by} dy="0.35em" textAnchor="middle">
+                  {g.goals}
+                </text>
+              </g>
             );
           })}
         {beyond.map((s, i) => {

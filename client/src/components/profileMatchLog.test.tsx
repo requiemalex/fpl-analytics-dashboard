@@ -6,7 +6,8 @@ import { PlayerDetailOverlay } from "./PlayerDetailOverlay";
 import { TeamDetailOverlay } from "./TeamDetailOverlay";
 import { ExternalStatsContext, type ExternalStatsSource } from "../extensions/externalStats";
 import { makePlayer, makeTeam, makeSeason } from "../test/fixtures";
-import type { ClubMatch, ClubSeason, NormalizedPlayer, PlayerGameweekHistory, PlayerPastMatch, PlayerSeasonHistory } from "../types/normalized";
+import type { ClubMatch, ClubSeason, NormalizedPlayer, PlayerGameweekHistory, PlayerPastMatch, PlayerSeasonHistory, PlayerSeasonPeer } from "../types/normalized";
+import { percentileTint } from "../utils/colorScale";
 
 // The profiles' Match Log follows the season picked on Points History
 // (<match_log_follows_season>, <club_match_log>), and a second source adds
@@ -18,6 +19,7 @@ const state = vi.hoisted(() => ({
   app: {} as Record<string, unknown>,
   history: {} as Record<string, unknown>,
   pastSeasons: {} as Record<string, PlayerPastMatch[]>,
+  pastPeers: {} as Record<string, PlayerSeasonPeer[]>,
   pastRequests: 0,
 }));
 
@@ -26,7 +28,7 @@ vi.mock("../state/usePlayerHistory", () => ({ usePlayerHistory: () => state.hist
 vi.mock("../api/client", () => ({
   fetchPlayerSeasons: async () => {
     state.pastRequests += 1;
-    return { data: state.pastSeasons, source: "cache", fetchedAt: 0 };
+    return { data: { seasons: state.pastSeasons, peers: state.pastPeers }, source: "cache", fetchedAt: 0 };
   },
 }));
 
@@ -88,6 +90,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   state.pastRequests = 0;
+  state.pastPeers = {};
   state.pastSeasons = { "2024/25": [past(1), past(2, { minutes: 0, goals: 0, totalPoints: 0, cleanSheets: 0, opponentShortName: "LEI", home: false, teamScore: 0, opponentScore: 1 })] };
   setApp([makePlayer({ id: 1, code: 500, name: "Saliba", position: "DEF", teamId: 1, teamName: "Arsenal", totalPoints: 30, minutes: 450 })]);
   setHistory([gw(1), gw(2)], [makeSeason({ seasonName: "2024/25", totalPoints: 150, minutes: 3000 }), makeSeason({ seasonName: "2025/26", totalPoints: 170, minutes: 3100 })]);
@@ -132,6 +135,39 @@ describe("Player profile — Match Log", () => {
     expect(totals[headers.indexOf("xG") - 2]).toBe("—");
     fireEvent.click(getByRole("button", { name: /^2026\/27 \(live\)/ }));
     expect(getByText("2026/27 (live)", { selector: ".match-log-season" })).toBeTruthy();
+  });
+
+  it("colours a past season's Totals and Average against his position that season, at the fixed floor", async () => {
+    // Six full matches: 540 minutes, 8 points each (48), 6 goals.
+    state.pastSeasons = { "2024/25": Array.from({ length: 6 }, (_, i) => past(i + 1, { totalPoints: 8, goals: 1 })) };
+    const peer = (minutes: number, matches: number, totalPoints: number, xGC: number): PlayerSeasonPeer => ({ minutes, matches, totals: { minutes, matches, totalPoints, goals: 0, xGC } });
+    // Two peers above the floor, both scoring less, and one under it (ignored, or he wouldn't top the pool).
+    state.pastPeers = { "2024/25": [peer(900, 10, 20, 5), peer(900, 10, 30, 15), peer(100, 2, 999, 0)] };
+    const { getByRole, container } = renderPlayer();
+    fireEvent.click(getByRole("button", { name: /^2024\/25: 150 pts/ }));
+    await waitFor(() => expect(matchLog(container)).toBeTruthy());
+    const log = matchLog(container);
+    const headers = [...log.querySelectorAll("thead th")].map((th) => th.textContent);
+    const cell = (row: number, name: string) => log.querySelectorAll("tfoot tr")[row].querySelectorAll("td")[headers.indexOf(name) - 2] as HTMLElement;
+    // Totals: 48 points tops 20 and 30 — (2 below + half of his own tie) of 3.
+    // (The browser rewrites colours with its own spacing.)
+    const bare = (c: string | undefined) => (c ?? "").replace(/\s/g, "");
+    const top = bare(percentileTint(((2 + 0.5) / 3) * 100));
+    expect(top).not.toBe("");
+    expect(bare(cell(0, "Points").style.background)).toBe(top);
+    // Average: 8 a match against 2 and 3 a match (each their total ÷ their matches).
+    expect(bare(cell(1, "Points").style.background)).toBe(top);
+    // xG wasn't recorded that season: no figure, so no colour.
+    expect(cell(0, "xG").style.background).toBe("");
+  });
+
+  it("leaves a past season under the fixed floor uncoloured, a small sample", async () => {
+    state.pastPeers = { "2024/25": [{ minutes: 900, matches: 10, totals: { minutes: 900, matches: 10, totalPoints: 1, goals: 0 } }] };
+    const { getByRole, container } = renderPlayer();
+    fireEvent.click(getByRole("button", { name: /^2024\/25: 150 pts/ }));
+    await waitFor(() => expect(matchLog(container)).toBeTruthy());
+    const tds = [...matchLog(container).querySelectorAll("tfoot td")] as HTMLElement[];
+    expect(tds.every((td) => td.style.background === "")).toBe(true);
   });
 
   it("says when a picked season is before the match-by-match records", async () => {

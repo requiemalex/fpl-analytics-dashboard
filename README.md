@@ -573,31 +573,38 @@ app shows "—" for those figures (never 0) until the next run.
   counts only window seasons of 450+ FPL minutes, the profile's fixed
   floor; a club's only seasons it was in the league). A season Understat
   has nothing for (no link, didn't play) is left out, never counted as 0.
-  - **Shot Map** (`ShotMap.tsx`): the player's across the full width with
-    its figures beside it; a club's two (shots taken, and shots faced —
-    its opponents' in its matches) side by side, figures below. It draws
+  - **Shot Map** (`ShotMap.tsx`): full width with its figures in a panel
+    beside it (under it on narrow screens), headed by the season or "Per
+    season · n seasons"; a club gets two, one above the other (shots taken,
+    and shots faced — its opponents' in its matches). It draws
     the last 35 m (`SHOT_MAP_DEPTH`, over 99% of shots, so they have room);
     a shot from further out is a small arrow on the bottom edge where it
     was taken across the pitch, and counted — never moved inside. One
     season draws a dot per shot, solid for a goal, an outline otherwise,
-    sized by xG, part-transparent with 1px outlines, hover for detail; a
+    sized by xG, part-transparent with 1px outlines, hover for detail.
+    Understat places every penalty exactly on the spot, so stacked shots
+    hide each other: a point more than one goal was scored from gets a
+    count badge (its hover gives goals and shots from there). A
     Historic Average shades zones (12 × 10) by shots a season. Figures:
     shots, on target (scored or saved), goals, xG, NPxG, xG/shot — per
     season when averaged. Own goals are nobody's shots.
   - **Formations** (clubs, full width under the shot maps): each
     formation's share of the club's minutes, xG and xGA per 90, and goals
-    scored and conceded, summed over the view's seasons. A formation used
-    for under 90 minutes gets no rate ("—": the profile has no
-    minimum-minutes control, so a fixed floor applies); two or more such
-    are one "Other (n)" row, named on hover, with no rates. Season figures
+    scored and conceded, summed over the view's seasons, most-used first:
+    the top 3 (`FORMATIONS_SHOWN`), and a chevron under them listing every
+    one used. A formation used for under 90 minutes gets no rate ("—": the
+    profile has no minimum-minutes control, so a fixed floor applies). Season figures
     only: Understat doesn't record a formation per match.
   - **Match Log columns** (violet headers; the log's heading turns rose,
     "FPL & Understat · Match Log"): a player's **Position** in each match
     (Understat's code, spelled out on hover; "Sub" off the bench), and a
     club's **Win/Draw/Loss Chance**: Understat's chances of each result
-    from the shots both sides took, worked out *after* the match. Their
-    Totals are the wins, draws and defeats the chances add up to, "—" if
-    any listed match lacks one.
+    from the shots both sides took, worked out *after* the match. No Totals
+    ("—"). The Average (the mean chance over the listed matches, "—" if any
+    lacks one) is coloured against every club's mean that season
+    (`league` in the club slice, from the season's profile file),
+    `relativeCellTint` like the log's FPL columns: more win chance better,
+    more loss chance worse, draw chance uncoloured.
   - **Match Log ⇄ toggles** (`playerMatchAlternates`,
     `clubMatchAlternates`): on the figures both sources have — a player's
     Minutes, Assists, xG, xA, xGI; a club's Assists, xG, xA, xGI, xGC (its
@@ -874,9 +881,18 @@ The Match Log shows the live season unless a season is picked on Points
 History (each bar is a button; the picked one is outlined, and the live
 bar goes back); it never follows the Data View. A past season's rows come
 from `/api/player-seasons` (`usePlayerPastSeasons`, fetched the first time
-one is picked), untinted, its Totals "—" for a stat any match he played
-lacks (never a part-sum); a season before 2016/17 has no match record and
-says so. Playing Time follows the shown season. Rows are keyed by fixture,
+one is picked), its Totals "—" for a stat any match he played lacks
+(never a part-sum); a season before 2016/17 has no match record and says
+so. A past season's Totals and Average are tinted like the live season's
+(`<past_season_tints>`): ranked within his position that season (his
+position then, from the ledger) among everyone at or above the fixed
+floor (450, a completed season's), xGC per game; Average as his total ÷
+his log's matches against each other player's total ÷ theirs (every
+player's full log exists for a past season, so no club-matches stand-in).
+The pool comes with his rows (`peers` in `/api/player-seasons`,
+`peersFor` in `clubHistory/playerMatches.ts`), each player's totals
+under the same null rule. Under the floor, or a stat FPL didn't record,
+no colour. Playing Time follows the shown season. Rows are keyed by fixture,
 so a double gameweek is two rows. With a second source mounted its columns
 join the log (its colour) and the heading reads "FPL & Understat · Match
 Log" (rose). The live log's Totals row is

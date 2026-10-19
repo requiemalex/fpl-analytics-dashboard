@@ -314,7 +314,13 @@ const playerPastMatchSchema = z.object({
   dc: z.number().nullable(),
 });
 
-export const playerSeasonsSchema = z.object({ seasons: z.record(z.string(), z.array(playerPastMatchSchema)) });
+/** Each season's comparison pool: everyone else in his position that season, as `fields` lists (playerMatches.ts PEER_FIELDS). */
+const seasonPeersSchema = z.object({ position: z.number(), fields: z.array(z.string()), players: z.array(z.array(z.number().nullable())) });
+
+export const playerSeasonsSchema = z.object({
+  seasons: z.record(z.string(), z.array(playerPastMatchSchema)),
+  peers: z.record(z.string(), seasonPeersSchema).default({}),
+});
 
 export const historicBulkPlayerSchema = z
   .object({

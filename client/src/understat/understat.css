@@ -61,6 +61,21 @@ table.data-table th.col-source-understat,
   stroke: var(--text-primary);
   stroke-opacity: 1;
 }
+/* The count on a point more than one goal was scored from (a penalty
+   taker's spot): a small badge in user units (metres), so it scales with
+   the map like the dots. */
+.shot-map-count circle {
+  fill: var(--surface);
+  stroke: var(--col-understat);
+  stroke-width: 1;
+}
+.shot-map-count text {
+  fill: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 1.2px;
+  font-weight: 600;
+  pointer-events: none;
+}
 .shot-map-beyond {
   fill: var(--text-secondary);
   fill-opacity: 0.7;
@@ -95,8 +110,9 @@ table.data-table th.col-source-understat,
   background: linear-gradient(to right, color-mix(in srgb, var(--col-understat) 10%, var(--surface-raised)), var(--col-understat));
 }
 
-/* A shot map card (profiles.tsx): map, then its figures. Wide, the figures
-   sit beside the map instead. */
+/* A shot map card (profiles.tsx): the map, and its figures in a panel —
+   beside the map in a full-width card (one row per figure), under it
+   otherwise (three to a row). */
 .shot-card-body {
   display: flex;
   flex-direction: column;
@@ -104,18 +120,62 @@ table.data-table th.col-source-understat,
 }
 .shot-card-body.is-wide {
   display: grid;
-  grid-template-columns: minmax(0, 2.2fr) minmax(220px, 1fr);
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  align-items: start;
   gap: var(--space-6);
 }
-.shot-card-body.is-wide .stat-tile-grid {
-  grid-template-columns: repeat(2, 1fr);
-  row-gap: var(--space-3);
+.shot-stats {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+.shot-stats-heading {
+  padding-bottom: var(--space-2);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.shot-stats-rows {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: var(--space-6);
+}
+.shot-card-body.is-wide .shot-stats-rows {
+  grid-template-columns: minmax(0, 1fr);
+}
+.shot-stats-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border);
+}
+.shot-stats-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.shot-stats-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 @media (max-width: 900px) {
   .shot-card-body.is-wide {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
+  .shot-card-body.is-wide .shot-stats-rows {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Formations (profiles.tsx): the chevron under the table that lists every formation used. */
+.formations-more {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-2);
 }
 
 /* Formations (profiles.tsx): the share-of-minutes bar in each row. */

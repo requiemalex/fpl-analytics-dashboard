@@ -72,6 +72,7 @@ const clubSlice = z.union([
     shots: z.array(shot),
     shotsAgainst: z.array(shot),
     formations: z.array(formation).nullable(),
+    league: z.array(z.object({ win: z.number(), draw: z.number(), loss: z.number() })).default([]),
   }),
 ]);
 
@@ -99,6 +100,8 @@ export interface UsClubSeasonDetail {
   shotsAgainst: UsShot[];
   /** Null when the season's formations aren't available (not fetched yet, or the club's didn't check out). */
   formations: UsFormation[] | null;
+  /** Every club's mean result chances that season (this one included) — what its Match Log Average is coloured against. */
+  league: { win: number; draw: number; loss: number }[];
 }
 
 /**
@@ -121,5 +124,5 @@ export async function fetchClubDetail(code: number, season: string): Promise<Det
   const envelope = await getEnvelope<unknown>(`/api/understat/profile/club/${code}/${folder(season)}`);
   const d = clubSlice.parse(envelope.data);
   if (!d.enabled || !d.available || !d.found) return { state: "none" };
-  return { state: "ready", detail: { matches: d.matches, shots: d.shots, shotsAgainst: d.shotsAgainst, formations: d.formations } };
+  return { state: "ready", detail: { matches: d.matches, shots: d.shots, shotsAgainst: d.shotsAgainst, formations: d.formations, league: d.league } };
 }

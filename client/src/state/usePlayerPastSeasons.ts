@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchPlayerSeasons } from "../api/client";
-import type { PlayerPastMatch } from "../types/normalized";
+import type { PlayerPastMatch, PlayerSeasonPeer } from "../types/normalized";
 
 type State =
   | { status: "idle" | "loading" }
   | { status: "error"; errorMessage: string }
-  | { status: "ready"; seasons: Record<string, PlayerPastMatch[]> };
+  | { status: "ready"; seasons: Record<string, PlayerPastMatch[]>; peers: Record<string, PlayerSeasonPeer[]> };
 
 /**
  * A player's match rows for his completed seasons (the profile's Match Log
@@ -21,7 +21,7 @@ export function usePlayerPastSeasons(code: number | null, enabled: boolean): Sta
   const load = useCallback((c: number) => {
     setHeld({ code: c, state: { status: "loading" } });
     fetchPlayerSeasons(c)
-      .then((result) => setHeld((prev) => (prev?.code === c ? { code: c, state: { status: "ready", seasons: result.data } } : prev)))
+      .then((result) => setHeld((prev) => (prev?.code === c ? { code: c, state: { status: "ready", seasons: result.data.seasons, peers: result.data.peers } } : prev)))
       .catch((err) =>
         setHeld((prev) => (prev?.code === c ? { code: c, state: { status: "error", errorMessage: err instanceof Error ? err.message : String(err) } } : prev)),
       );

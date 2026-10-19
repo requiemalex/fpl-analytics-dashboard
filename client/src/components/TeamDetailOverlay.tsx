@@ -530,7 +530,7 @@ export function TeamDetailOverlay() {
                         );
                       })}
                       {externalColumns.map((c, i) => (
-                        <td key={c.key} className={i === 0 ? "column-group-divider" : undefined}>
+                        <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} style={c.averageTint ? { background: c.averageTint } : undefined}>
                           {c.average ?? ""}
                         </td>
                       ))}

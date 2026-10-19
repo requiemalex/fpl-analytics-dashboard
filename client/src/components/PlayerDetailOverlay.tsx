@@ -10,6 +10,8 @@ import { computePositionPercentiles } from "../metrics/percentiles";
 import { perMatchPositionPercentile, seasonMidPrice, seasonPricePercentile, seasonPricePools, teamMatchesPlayed } from "../metrics/profileComparisons";
 import { FIXED_FLOOR_MINUTES, fixedFloorMinutes, isFixedFloorSmallSample } from "../metrics/fixedMinutesFloor";
 import { percentileTint, relativeCellTint } from "../utils/colorScale";
+import { percentileInPool } from "../metrics/percentiles";
+import { estimatedGamesFromMinutes } from "../metrics/calculations";
 import { PercentileRadarChart } from "./PlayerRadarChart";
 import { ActualVsExpectedBars } from "./playerProfile/ActualVsExpectedBars";
 import { AssistsIcon, AverageLineIcon, GoalsIcon, PointsHistoryChart, PointsHistoryHeader, PointsHistoryStats } from "./playerProfile/PointsHistory";
@@ -573,23 +575,31 @@ export function PlayerDetailOverlay() {
     { key: "bps", header: "BPS", cell: (g) => fmtDecimal(g.bps, 0) },
   ];
 
-  // Each column's value, and how its Totals and Average rows are written.
-  const LOG_VALUES: Record<string, { value: (r: MatchLogRow) => number | null; totalDp: number; averageDp: number }> = {
-    pts: { value: (r) => r.totalPoints, totalDp: 0, averageDp: 1 },
-    min: { value: (r) => r.minutes, totalDp: 0, averageDp: 0 },
-    g: { value: (r) => r.goals, totalDp: 0, averageDp: 2 },
-    a: { value: (r) => r.assists, totalDp: 0, averageDp: 2 },
-    xg: { value: (r) => r.xG, totalDp: 2, averageDp: 2 },
-    xa: { value: (r) => r.xA, totalDp: 2, averageDp: 2 },
-    xgi: { value: (r) => r.xGI, totalDp: 2, averageDp: 2 },
-    cs: { value: (r) => r.cleanSheets, totalDp: 0, averageDp: 2 },
-    xgc: { value: (r) => r.xGC, totalDp: 2, averageDp: 2 },
-    dc: { value: (r) => r.dc, totalDp: 0, averageDp: 2 },
-    saves: { value: (r) => r.saves, totalDp: 0, averageDp: 2 },
-    bps: { value: (r) => r.bps, totalDp: 0, averageDp: 1 },
+  // Each column's value, how its Totals and Average rows are written, and
+  // its total in a past season's comparison pool (PlayerSeasonPeer.totals).
+  const LOG_VALUES: Record<string, { value: (r: MatchLogRow) => number | null; totalDp: number; averageDp: number; peerTotal: string }> = {
+    pts: { value: (r) => r.totalPoints, totalDp: 0, averageDp: 1, peerTotal: "totalPoints" },
+    min: { value: (r) => r.minutes, totalDp: 0, averageDp: 0, peerTotal: "minutes" },
+    g: { value: (r) => r.goals, totalDp: 0, averageDp: 2, peerTotal: "goals" },
+    a: { value: (r) => r.assists, totalDp: 0, averageDp: 2, peerTotal: "assists" },
+    xg: { value: (r) => r.xG, totalDp: 2, averageDp: 2, peerTotal: "xG" },
+    xa: { value: (r) => r.xA, totalDp: 2, averageDp: 2, peerTotal: "xA" },
+    xgi: { value: (r) => r.xGI, totalDp: 2, averageDp: 2, peerTotal: "xGI" },
+    cs: { value: (r) => r.cleanSheets, totalDp: 0, averageDp: 2, peerTotal: "cleanSheets" },
+    xgc: { value: (r) => r.xGC, totalDp: 2, averageDp: 2, peerTotal: "xGC" },
+    dc: { value: (r) => r.dc, totalDp: 0, averageDp: 2, peerTotal: "dc" },
+    saves: { value: (r) => r.saves, totalDp: 0, averageDp: 2, peerTotal: "saves" },
+    bps: { value: (r) => r.bps, totalDp: 0, averageDp: 1, peerTotal: "bps" },
   };
 
-  type MatchLog = { rows: MatchLogRow[]; totalsByKey: Record<string, React.ReactNode>; averagesByKey: Record<string, React.ReactNode>; tinted: boolean };
+  /** A log, with its Totals and Average rows' percentiles (higher already better) for their tints — none when it can't be compared. */
+  type MatchLog = {
+    rows: MatchLogRow[];
+    totalsByKey: Record<string, React.ReactNode>;
+    averagesByKey: Record<string, React.ReactNode>;
+    totalPercentiles: Record<string, number | null>;
+    averagePercentiles: Record<string, number | null>;
+  };
 
   // The live season: its gameweek history, with Totals and Average tinted
   // against the live population (seasonLogPercentiles above).
@@ -650,12 +660,18 @@ export function PlayerDetailOverlay() {
             saves: fmtDecimal(averages.saves, 2),
             bps: fmtDecimal(averages.bps, 1),
           };
-          return { rows, totalsByKey, averagesByKey, tinted: true };
+          return { rows, totalsByKey, averagesByKey, totalPercentiles: seasonLogPercentiles, averagePercentiles: seasonLogAveragePercentiles };
         })()
       : null;
 
-  // A completed season: its match rows, untinted — there's no per-match
-  // population for a past season to rank them against.
+  // A completed season: its match rows, its Totals and Average tinted as
+  // the live season's are (<past_season_tints>) — ranked within his
+  // position that season (his position then, from the ledger) among
+  // everyone at or above the fixed floor (450 minutes, a completed
+  // season's), xGC on xGC per game. Average is per match: his total ÷ his
+  // log's matches against each other player's total ÷ theirs (every
+  // player's full log is on record for a past season, so no club-matches
+  // stand-in is needed). Under the floor, no colour.
   const pastRows = pastLogSeason !== null && pastSeasons.status === "ready" ? (pastSeasons.seasons[pastLogSeason] ?? []).map(pastMatchRow) : null;
   const pastLog: MatchLog | null =
     pastRows && pastRows.length > 0
@@ -663,12 +679,27 @@ export function PlayerDetailOverlay() {
           const rows = [...pastRows].sort((a, b) => (b.round ?? 0) - (a.round ?? 0) || b.fixtureId - a.fixtureId);
           const totalsByKey: Record<string, React.ReactNode> = {};
           const averagesByKey: Record<string, React.ReactNode> = {};
-          for (const [key, { value, totalDp, averageDp }] of Object.entries(LOG_VALUES)) {
+          const totalPercentiles: Record<string, number | null> = {};
+          const averagePercentiles: Record<string, number | null> = {};
+          const minutes = rows.reduce((sum, r) => sum + r.minutes, 0);
+          const pool = (pastSeasons.status === "ready" ? (pastSeasons.peers[pastLogSeason!] ?? []) : []).filter((p) => p.minutes >= FIXED_FLOOR_MINUTES);
+          for (const [key, { value, totalDp, averageDp, peerTotal }] of Object.entries(LOG_VALUES)) {
             const total = pastSeasonTotal(rows, value);
             totalsByKey[key] = fmtDecimal(total, totalDp);
             averagesByKey[key] = fmtDecimal(total === null ? null : total / rows.length, averageDp);
+            totalPercentiles[key] = null;
+            averagePercentiles[key] = null;
+            if (total === null || minutes < FIXED_FLOOR_MINUTES) continue;
+            const higherIsBetter = LIVE_LOG_METRICS[key]?.higherIsBetter ?? true;
+            const flip = (p: number | null) => (p === null ? null : higherIsBetter ? p : 100 - p);
+            // A lower-is-better total grows with minutes, so it ranks per game (as live: xGC on xGC/Game).
+            const rank = (t: number, mins: number) => (higherIsBetter ? t : t / Math.max(1, estimatedGamesFromMinutes(mins)));
+            const peers = pool.filter((p) => p.totals[peerTotal] !== null && p.matches > 0);
+            totalPercentiles[key] = flip(percentileInPool(rank(total, minutes), [rank(total, minutes), ...peers.map((p) => rank(p.totals[peerTotal]!, p.minutes))]));
+            const average = total / rows.length;
+            averagePercentiles[key] = flip(percentileInPool(average, [average, ...peers.map((p) => p.totals[peerTotal]! / p.matches)]));
           }
-          return { rows, totalsByKey, averagesByKey, tinted: false };
+          return { rows, totalsByKey, averagesByKey, totalPercentiles, averagePercentiles };
         })()
       : null;
 
@@ -751,11 +782,7 @@ export function PlayerDetailOverlay() {
                     <td
                       key={c.key}
                       className={cls(divider(i))}
-                      style={
-                        log.tinted && !c.external
-                          ? { background: percentileTint((row === "total" ? seasonLogPercentiles : seasonLogAveragePercentiles)[c.key] ?? null) }
-                          : undefined
-                      }
+                      style={c.external ? undefined : { background: percentileTint((row === "total" ? log.totalPercentiles : log.averagePercentiles)[c.key] ?? null) }}
                     >
                       {c.external ? ((row === "total" ? c.total : c.average) ?? "") : ((row === "total" ? log.totalsByKey : log.averagesByKey)[c.key] ?? "")}
                     </td>

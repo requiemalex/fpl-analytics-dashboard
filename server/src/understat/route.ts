@@ -157,7 +157,19 @@ function playerSlice(file: ProfileFileLike, code: string) {
   };
 }
 
-/** The club's own shots, and its opponents' in its matches (the shots it faced). */
+/** A club's mean chance of each result over its matches that have one — null when none do. */
+function meanChances(matches: ProfileFileLike["clubs"][string]["matches"]) {
+  const known = matches.filter((m) => m[1] !== null && m[2] !== null && m[3] !== null);
+  if (known.length === 0) return null;
+  const mean = (i: 1 | 2 | 3) => known.reduce((sum, m) => sum + (m[i] as number), 0) / known.length;
+  return { win: mean(1), draw: mean(2), loss: mean(3) };
+}
+
+/**
+ * The club's own shots, and its opponents' in its matches (the shots it
+ * faced); and every club's mean result chances that season (`league`), what
+ * its Match Log Average is coloured against.
+ */
 function clubSlice(file: ProfileFileLike, code: string) {
   const c = file.clubs[code];
   if (!c) return { found: false };
@@ -183,5 +195,9 @@ function clubSlice(file: ProfileFileLike, code: string) {
     shots: c.shots.map(shotObject),
     shotsAgainst: against.map(shotObject),
     formations: c.formations,
+    league: Object.values(file.clubs).flatMap((club) => {
+      const m = meanChances(club.matches);
+      return m ? [m] : [];
+    }),
   };
 }

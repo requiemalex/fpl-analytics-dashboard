@@ -40,6 +40,8 @@ export interface PlayerMatch {
   xGI: number | null;
   xGC: number | null;
   dc: number | null;
+  /** FPL position that season (1 GKP, 2 DEF, 3 MID, 4 FWD); null in a file built before it was stored. */
+  position: number | null;
 }
 
 /** The stored row: PlayerMatch minus the opponent's name (kept once per season), as a plain list in this order. */
@@ -65,6 +67,7 @@ const FIELDS = [
   "xGI",
   "xGC",
   "dc",
+  "position",
 ] as const;
 
 type StoredRow = (number | boolean | null)[];
@@ -113,6 +116,7 @@ export function buildSeasonPlayerMatches(ledger: SeasonLedger): StoredPlayerMatc
       xGI: r.xGI,
       xGC: r.xGC,
       dc: r.dc,
+      position: r.position,
     };
     (players[String(r.code)] ??= []).push(FIELDS.map((k) => row[k]));
   }
@@ -136,7 +140,8 @@ export function playerMatchesFor(stored: StoredPlayerMatches, code: number): Rec
     const rows = s.players[String(code)];
     if (!rows) continue;
     out[season] = rows.map((r) => {
-      const get = (k: (typeof FIELDS)[number]) => r[idx[k]];
+      // A field missing from an older file (index -1) reads as null.
+      const get = (k: (typeof FIELDS)[number]) => (idx[k] < 0 ? null : (r[idx[k]] ?? null));
       const opponentCode = get("opponentCode") as number;
       return {
         fixture: get("fixture") as number,
@@ -161,6 +166,7 @@ export function playerMatchesFor(stored: StoredPlayerMatches, code: number): Rec
         xGI: get("xGI") as number | null,
         xGC: get("xGC") as number | null,
         dc: get("dc") as number | null,
+        position: get("position") as number | null,
       };
     });
   }
@@ -168,3 +174,96 @@ export function playerMatchesFor(stored: StoredPlayerMatches, code: number): Rec
 }
 
 export const PLAYER_MATCH_FIELDS: readonly string[] = FIELDS;
+
+// --- the comparison pool for a past season's Totals and Average ------------------
+
+/**
+ * One player's season, as the profile's Match Log compares it: his totals
+ * over his match rows (a stat any match he played lacks is null, never a
+ * part-sum — the same rule as the log's own Totals) and how many matches
+ * his log lists, the divisor of its per-match Average.
+ */
+export const PEER_FIELDS = ["minutes", "matches", "totalPoints", "goals", "assists", "xG", "xA", "xGI", "cleanSheets", "xGC", "dc", "saves", "bps"] as const;
+type PeerField = (typeof PEER_FIELDS)[number];
+
+function seasonTotals(rows: PlayerMatch[]): Record<PeerField, number | null> {
+  const total = (get: (r: PlayerMatch) => number | null): number | null => {
+    let sum = 0;
+    for (const r of rows) {
+      const v = get(r);
+      if (v === null) {
+        if (r.minutes > 0) return null;
+        continue;
+      }
+      sum += v;
+    }
+    return Math.round(sum * 10_000) / 10_000;
+  };
+  return {
+    minutes: total((r) => r.minutes),
+    matches: rows.length,
+    totalPoints: total((r) => r.totalPoints),
+    goals: total((r) => r.goals),
+    assists: total((r) => r.assists),
+    xG: total((r) => r.xG),
+    xA: total((r) => r.xA),
+    xGI: total((r) => r.xGI),
+    cleanSheets: total((r) => r.cleanSheets),
+    xGC: total((r) => r.xGC),
+    dc: total((r) => r.dc),
+    saves: total((r) => r.saves),
+    bps: total((r) => r.bps),
+  };
+}
+
+/** His position that season: the one most of his match rows give (a mid-season reclassification is rare). */
+function seasonPosition(rows: PlayerMatch[]): number | null {
+  const counts = new Map<number, number>();
+  for (const r of rows) if (r.position !== null) counts.set(r.position, (counts.get(r.position) ?? 0) + 1);
+  let best: number | null = null;
+  for (const [pos, n] of counts) if (best === null || n > counts.get(best)!) best = pos;
+  return best;
+}
+
+export interface SeasonPeers {
+  position: number;
+  fields: readonly string[];
+  /** Everyone else in that position who played that season (minutes > 0), as PEER_FIELDS lists. */
+  players: (number | null)[][];
+}
+
+const peerCache = new WeakMap<StoredPlayerMatches, Map<string, { code: number; position: number | null; totals: Record<PeerField, number | null> }[]>>();
+
+/**
+ * For each completed season a player has rows in: everyone else in his
+ * position that season (each by his own position that season), with
+ * their season totals — the population his past-season Totals and
+ * Average are ranked against, as the live season's are against every
+ * current player in his position.
+ */
+export function peersFor(stored: StoredPlayerMatches, code: number): Record<string, SeasonPeers> {
+  let bySeason = peerCache.get(stored);
+  if (!bySeason) {
+    bySeason = new Map();
+    for (const season of Object.keys(stored.seasons)) {
+      const list: { code: number; position: number | null; totals: Record<PeerField, number | null> }[] = [];
+      for (const playerCode of Object.keys(stored.seasons[season].players)) {
+        const rows = playerMatchesFor({ ...stored, seasons: { [season]: stored.seasons[season] } }, Number(playerCode))[season] ?? [];
+        list.push({ code: Number(playerCode), position: seasonPosition(rows), totals: seasonTotals(rows) });
+      }
+      bySeason.set(season, list);
+    }
+    peerCache.set(stored, bySeason);
+  }
+  const out: Record<string, SeasonPeers> = {};
+  for (const [season, list] of bySeason) {
+    const own = list.find((p) => p.code === code);
+    if (!own || own.position === null) continue;
+    out[season] = {
+      position: own.position,
+      fields: PEER_FIELDS,
+      players: list.filter((p) => p.code !== code && p.position === own.position && (p.totals.minutes ?? 0) > 0).map((p) => PEER_FIELDS.map((f) => p.totals[f])),
+    };
+  }
+  return out;
+}

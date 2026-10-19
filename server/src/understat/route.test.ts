@@ -91,6 +91,12 @@ describe("GET /api/understat/profile", () => {
     expect(body.data.matches).toEqual([{ fixture: 1, win: 0.5, draw: 0.3, loss: 0.2, xG: 1.5, xGA: 0.7, xA: 0.9, assists: 2 }]);
     expect(body.data.shotsAgainst.map((s: { minute: number }) => s.minute)).toEqual([50]);
     expect(body.data.formations).toEqual([{ formation: "4-3-3", minutes: 90 }]);
+    // Every club's mean result chances that season, for colouring its Average.
+    expect(body.data.league).toEqual([
+      { win: 0.5, draw: 0.3, loss: 0.2 },
+      { win: 0.2, draw: 0.3, loss: 0.5 },
+      { win: 0.1, draw: 0.1, loss: 0.8 },
+    ]);
   });
 
   it("sends a field a file written before it was added as null, never 0", async () => {

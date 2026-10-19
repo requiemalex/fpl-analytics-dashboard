@@ -435,8 +435,9 @@ export function UserGuide() {
           Result, then Points, Minutes, Goals, Assists, xG, xA, xGI, Clean Sheets, xGC, Defensive Contributions and BPS (Saves
           instead of Defensive Contributions for a goalkeeper). Totals adds up the matches listed; Average divides by them, including
           ones he didn't play. This season's are tinted against his position using this season's figures and the Current Season
-          floor, Average per match, so a late signing's strong per-match numbers show green even while his total is low; a past
-          season's aren't tinted. Match-by-match records go back to 2016/17; FPL didn't record xG and the rest before 2022/23, or
+          floor, Average per match, so a late signing's strong per-match numbers show green even while his total is low. A past
+          season's are tinted the same way against everyone who played in his position that season, with that season's 450-minute
+          floor. Match-by-match records go back to 2016/17; FPL didn't record xG and the rest before 2022/23, or
           defensive contributions before 2025/26, so those show "—". <strong>Playing Time</strong>, a minutes-per-match gauge for
           the season shown, sits at the top of the Match Log.
         </p>

@@ -1,4 +1,4 @@
-import type { PlayerPastMatch } from "../types/normalized";
+import type { PlayerPastMatch, PlayerSeasonPeer } from "../types/normalized";
 import type { ApiEnvelope, RawBootstrapStatic, RawElementSummary, RawFixture, RawHistoricBulk, RawEntryTeam, RawEntryHistory, RawEntryPicks } from "../types/raw";
 import { elementSummarySchema, fixturesSchema, historicBulkSchema, playerSeasonsSchema, entryTeamSchema, entryHistorySchema, entryPicksSchema, validate, parseBootstrapStatic } from "../validation/schema";
 
@@ -62,10 +62,21 @@ export async function fetchElementSummary(playerId: number, opts?: { forceRefres
 }
 
 /** One player's match-by-match record for every completed season he played (by his permanent FPL code) — bundled with the server, never fetched upstream. */
-export async function fetchPlayerSeasons(code: number): Promise<FetchResult<Record<string, PlayerPastMatch[]>>> {
+export async function fetchPlayerSeasons(
+  code: number,
+): Promise<FetchResult<{ seasons: Record<string, PlayerPastMatch[]>; peers: Record<string, PlayerSeasonPeer[]> }>> {
   const envelope = await getEnvelope<unknown>(`/api/player-seasons/${code}`);
   const data = validate(playerSeasonsSchema, envelope.data, `player-seasons/${code}`);
-  return { data: data.seasons, source: envelope.meta.source, fetchedAt: envelope.meta.fetchedAt };
+  // Each pool row as named totals; minutes and matches pulled out, as every comparison needs them.
+  const peers: Record<string, PlayerSeasonPeer[]> = {};
+  for (const [season, pool] of Object.entries(data.peers)) {
+    peers[season] = pool.players.map((row) => {
+      const totals: Record<string, number | null> = {};
+      pool.fields.forEach((f, i) => (totals[f] = row[i] ?? null));
+      return { minutes: totals.minutes ?? 0, matches: totals.matches ?? 0, totals };
+    });
+  }
+  return { data: { seasons: data.seasons, peers }, source: envelope.meta.source, fetchedAt: envelope.meta.fetchedAt };
 }
 
 /**

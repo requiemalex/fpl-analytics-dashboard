@@ -1,6 +1,7 @@
 import React from "react";
 import type { ExternalMatchColumn, ExternalProfiles, ProfileView } from "../extensions/externalStats";
 import { DASH, fmtDecimal, fmtPercent } from "../utils/format";
+import { relativeCellTint } from "../utils/colorScale";
 import type { DetailLoad, UsClubSeasonDetail, UsFormation, UsPlayerSeasonDetail, UsShot } from "./profileData";
 import { isBeyondMap, ShotMap, SHOT_MAP_DEPTH } from "./ShotMap";
 
@@ -54,15 +55,6 @@ function gather<T>(loads: Loads, keys: string[]): { state: "loading" } | { state
   return { state: "ready", details: got.flatMap((l) => (l!.state === "ready" ? [l!.detail] : [])) };
 }
 
-function StatTile({ label, value, title }: { label: string; value: string; title?: string }) {
-  return (
-    <div className="stat-tile" title={title}>
-      <span className="stat-tile-label">{label}</span>
-      <span className="stat-tile-value num">{value}</span>
-    </div>
-  );
-}
-
 function StatusCard({ title, wide, children }: { title: string; wide?: boolean; children: React.ReactNode }) {
   return (
     <div className={wide ? "card profile-span-2" : "card"}>
@@ -75,12 +67,14 @@ function StatusCard({ title, wide, children }: { title: string; wide?: boolean; 
 }
 
 /**
- * A shot map and its figures: shots, on target (scored or saved), goals,
+ * A shot map and its figures — shots, on target (scored or saved), goals,
  * xG, non-penalty xG and xG per shot — a season's, or per season over a
- * Historic Average (xG per shot from the totals). `wide` puts the figures
- * beside the map, for a card the full width of the profile.
+ * Historic Average (xG per shot from the totals), under one heading naming
+ * which. `wide` puts them in a panel beside the map, one row each, for a
+ * card the full width of the profile; otherwise they sit under it, three
+ * to a row.
  */
-function ShotCard({ title, shots, seasons, label, wide }: { title: string; shots: UsShot[]; seasons: number; label: string; wide?: boolean }) {
+function ShotCard({ title, shots, seasons, label, heading, wide }: { title: string; shots: UsShot[]; seasons: number; label: string; heading: string; wide?: boolean }) {
   const per = (n: number) => n / seasons;
   const dp = seasons > 1 ? 1 : 0;
   const goals = shots.filter((s) => s.result === "Goal").length;
@@ -88,27 +82,39 @@ function ShotCard({ title, shots, seasons, label, wide }: { title: string; shots
   const xG = shots.reduce((sum, s) => sum + s.xG, 0);
   const npxG = shots.filter((s) => s.situation !== "Penalty").reduce((sum, s) => sum + s.xG, 0);
   const beyond = shots.filter(isBeyondMap).length;
-  const suffix = seasons > 1 ? " / Season" : "";
+  const rows: { label: string; value: string; title?: string }[] = [
+    { label: "Shots", value: fmtDecimal(per(shots.length), dp), title: beyond > 0 ? `${fmtDecimal(per(beyond), dp)} of them from further than ${SHOT_MAP_DEPTH} m` : undefined },
+    { label: "On Target", value: fmtDecimal(per(onTarget), dp), title: "Scored or saved" },
+    { label: "Goals", value: fmtDecimal(per(goals), dp) },
+    { label: "xG", value: fmtDecimal(per(xG), 2) },
+    { label: "NPxG", value: fmtDecimal(per(npxG), 2), title: "Non-penalty xG" },
+    { label: "xG/Shot", value: fmtDecimal(shots.length > 0 ? xG / shots.length : null, 2) },
+  ];
   return (
     <div className={wide ? "card profile-span-2" : "card"}>
       <div className="card-title">{title}</div>
       <div className={wide ? "shot-card-body is-wide" : "shot-card-body"}>
         <ShotMap shots={shots} seasons={seasons} label={label} />
-        <div className="stat-tile-grid">
-          <StatTile
-            label={`Shots${suffix}`}
-            value={fmtDecimal(per(shots.length), dp)}
-            title={beyond > 0 ? `${fmtDecimal(per(beyond), dp)} of them from further than ${SHOT_MAP_DEPTH} m` : undefined}
-          />
-          <StatTile label={`On Target${suffix}`} value={fmtDecimal(per(onTarget), dp)} />
-          <StatTile label={`Goals${suffix}`} value={fmtDecimal(per(goals), dp)} />
-          <StatTile label={`xG${suffix}`} value={fmtDecimal(per(xG), 2)} />
-          <StatTile label={`NPxG${suffix}`} value={fmtDecimal(per(npxG), 2)} title="Non-penalty xG" />
-          <StatTile label="xG/Shot" value={fmtDecimal(shots.length > 0 ? xG / shots.length : null, 2)} />
+        <div className="shot-stats">
+          <div className="shot-stats-heading">{heading}</div>
+          <div className="shot-stats-rows">
+            {rows.map((r) => (
+              <div className="shot-stats-row" key={r.label} title={r.title}>
+                <span className="shot-stats-label">{r.label}</span>
+                <span className="shot-stats-value num">{r.value}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
   );
+}
+
+/** The shot figures' heading: the season they're from, or per season over how many. */
+function statsHeading(view: ProfileView, counted: number): string {
+  if (view.mode !== "historicAverage") return view.seasons?.[0] ?? "";
+  return `Per season · ${counted} season${counted === 1 ? "" : "s"}`;
 }
 
 function seasonsLabel(view: ProfileView, counted: number): string {
@@ -142,38 +148,30 @@ function combineFormations(lists: UsFormation[][]): UsFormation[] {
   return [...by.values()].sort((a, b) => b.minutes - a.minutes);
 }
 
-type FormationRow = UsFormation & { others?: string[] };
+/** Formations shown before the card is expanded: the club's most-used. */
+export const FORMATIONS_SHOWN = 3;
 
-/**
- * The rows shown: every formation used for at least a match's worth of
- * minutes, then — when there are two or more briefer ones — a single
- * "Other" row adding them up (named on hover). It gets no rates: a rate
- * across different formations would describe none of them.
- */
-function formationRows(formations: UsFormation[]): FormationRow[] {
-  const main = formations.filter((f) => f.minutes >= FORMATION_MIN_MINUTES);
-  const brief = formations.filter((f) => f.minutes < FORMATION_MIN_MINUTES);
-  if (brief.length < 2) return [...main, ...brief];
-  const sum = (get: (f: UsFormation) => number) => brief.reduce((s, f) => s + get(f), 0);
-  const other: FormationRow = {
-    formation: "Other",
-    minutes: sum((f) => f.minutes),
-    shots: sum((f) => f.shots),
-    goals: sum((f) => f.goals),
-    xG: sum((f) => f.xG),
-    shotsAgainst: sum((f) => f.shotsAgainst),
-    goalsAgainst: sum((f) => f.goalsAgainst),
-    xGA: sum((f) => f.xGA),
-    others: brief.map((f) => f.formation),
-  };
-  return [...main, other];
+function ChevronIcon({ up }: { up: boolean }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={{ transform: up ? "rotate(180deg)" : undefined }}>
+      <path d="M3.5 6 8 10.5 12.5 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }
 
+/**
+ * The club's formations, most-used first: the top three, and a chevron
+ * under them that lists every one used. A formation used for under a
+ * match's worth of minutes gets no rates ("—").
+ */
 function FormationsCard({ formations, seasons }: { formations: UsFormation[]; seasons: number }) {
+  const [expanded, setExpanded] = React.useState(false);
   const total = formations.reduce((s, f) => s + f.minutes, 0);
-  const per90 = (v: number, f: FormationRow) => (!f.others && f.minutes >= FORMATION_MIN_MINUTES ? (v / f.minutes) * 90 : null);
+  const per90 = (v: number, f: UsFormation) => (f.minutes >= FORMATION_MIN_MINUTES ? (v / f.minutes) * 90 : null);
   const goalsDp = seasons > 1 ? 1 : 0;
-  const rows = formationRows(formations);
+  const rows = expanded ? formations : formations.slice(0, FORMATIONS_SHOWN);
+  const more = formations.length > FORMATIONS_SHOWN;
+  const toggleLabel = expanded ? `Show the top ${FORMATIONS_SHOWN} only` : `Show all ${formations.length} formations used`;
   return (
     <div className="card profile-span-2">
       <div className="card-title">Formations</div>
@@ -182,47 +180,51 @@ function FormationsCard({ formations, seasons }: { formations: UsFormation[]; se
           No matches played yet.
         </p>
       ) : (
-        <div className="table-wrap">
-          <table className="data-table compact formations-table" aria-label="Formations">
-            <thead>
-              <tr>
-                <th style={{ textAlign: "left" }}>Formation</th>
-                <th style={{ textAlign: "left" }} title={seasons > 1 ? "Share of the club's minutes, over the seasons averaged" : "Share of the club's minutes"}>
-                  Time
-                </th>
-                <th title="xG per 90 minutes in this formation">xG/90</th>
-                <th title="xG conceded per 90 minutes in this formation">xGA/90</th>
-                <th title={seasons > 1 ? "Goals scored in this formation, a season" : "Goals scored in this formation"}>Scored</th>
-                <th title={seasons > 1 ? "Goals conceded in this formation, a season" : "Goals conceded in this formation"}>Conceded</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((f) => {
-                const share = total > 0 ? (f.minutes / total) * 100 : 0;
-                const hover = f.others
-                  ? `Each used for under ${FORMATION_MIN_MINUTES} minutes: ${f.others.join(", ")}`
-                  : f.minutes < FORMATION_MIN_MINUTES
-                    ? `Under ${FORMATION_MIN_MINUTES} minutes in this formation: too few for a rate`
-                    : undefined;
-                return (
-                  <tr key={f.formation} title={hover} className={f.others ? "formation-other" : undefined}>
-                    <td style={{ textAlign: "left", fontFamily: "var(--font-body)" }}>{f.others ? `Other (${f.others.length})` : f.formation}</td>
-                    <td style={{ textAlign: "left" }} title={`${fmtDecimal(f.minutes / seasons, 0)} minutes${seasons > 1 ? " a season" : ""}`}>
-                      <span className="formation-share" aria-hidden="true">
-                        <span style={{ width: `${share}%` }} />
-                      </span>
-                      {share > 0 && share < 1 ? "<1%" : fmtPercent(share, 0)}
-                    </td>
-                    <td>{fmtDecimal(per90(f.xG, f), 2)}</td>
-                    <td>{fmtDecimal(per90(f.xGA, f), 2)}</td>
-                    <td>{fmtDecimal(f.goals / seasons, goalsDp)}</td>
-                    <td>{fmtDecimal(f.goalsAgainst / seasons, goalsDp)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div className="table-wrap">
+            <table className="data-table compact formations-table" aria-label="Formations">
+              <thead>
+                <tr>
+                  <th style={{ textAlign: "left" }}>Formation</th>
+                  <th style={{ textAlign: "left" }} title={seasons > 1 ? "Share of the club's minutes, over the seasons averaged" : "Share of the club's minutes"}>
+                    Time
+                  </th>
+                  <th title="xG per 90 minutes in this formation">xG/90</th>
+                  <th title="xG conceded per 90 minutes in this formation">xGA/90</th>
+                  <th title={seasons > 1 ? "Goals scored in this formation, a season" : "Goals scored in this formation"}>Scored</th>
+                  <th title={seasons > 1 ? "Goals conceded in this formation, a season" : "Goals conceded in this formation"}>Conceded</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((f) => {
+                  const share = total > 0 ? (f.minutes / total) * 100 : 0;
+                  return (
+                    <tr key={f.formation} title={f.minutes < FORMATION_MIN_MINUTES ? `Under ${FORMATION_MIN_MINUTES} minutes in this formation: too few for a rate` : undefined}>
+                      <td style={{ textAlign: "left", fontFamily: "var(--font-body)" }}>{f.formation}</td>
+                      <td style={{ textAlign: "left" }} title={`${fmtDecimal(f.minutes / seasons, 0)} minutes${seasons > 1 ? " a season" : ""}`}>
+                        <span className="formation-share" aria-hidden="true">
+                          <span style={{ width: `${share}%` }} />
+                        </span>
+                        {share > 0 && share < 1 ? "<1%" : fmtPercent(share, 0)}
+                      </td>
+                      <td>{fmtDecimal(per90(f.xG, f), 2)}</td>
+                      <td>{fmtDecimal(per90(f.xGA, f), 2)}</td>
+                      <td>{fmtDecimal(f.goals / seasons, goalsDp)}</td>
+                      <td>{fmtDecimal(f.goalsAgainst / seasons, goalsDp)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {more && (
+            <div className="formations-more">
+              <button type="button" className="chip chip-icon" onClick={() => setExpanded((v) => !v)} title={toggleLabel} aria-label={toggleLabel} aria-expanded={expanded}>
+                <ChevronIcon up={expanded} />
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -298,21 +300,30 @@ export function createProfiles(loads: Loads, request: { player: (code: number, s
     },
 
     clubMatchColumns(code, season, fixtureIds) {
-      const byFixture = new Map((clubDetail(code, season)?.matches ?? []).map((m) => [m.fixture, m]));
-      const column = (key: "win" | "draw" | "loss", header: string, what: string, results: string): ExternalMatchColumn => {
+      const detail = clubDetail(code, season);
+      const byFixture = new Map((detail?.matches ?? []).map((m) => [m.fixture, m]));
+      // No Totals (a sum of chances isn't a figure anyone reads); the Average
+      // — the mean chance over the listed matches, "—" if any lacks one — is
+      // coloured against every club's that season, as the log's FPL columns
+      // are: more wins better, more defeats worse. A draw is neither.
+      const column = (key: "win" | "draw" | "loss", header: string, what: string, higherIsBetter: boolean | null): ExternalMatchColumn => {
         const values = fixtureIds.map((f) => byFixture.get(f)?.[key] ?? null);
         const complete = values.length > 0 && values.every((v) => v !== null);
-        const total = complete ? values.reduce((s: number, v) => s + v!, 0) : null;
+        const average = complete ? values.reduce((s: number, v) => s + v!, 0) / values.length : null;
+        const league = (detail?.league ?? []).map((c) => c[key]);
+        const averageTint =
+          average === null || higherIsBetter === null || league.length < 2 ? undefined : relativeCellTint(average, Math.min(...league), Math.max(...league), higherIsBetter);
         return {
           key: `us-${key}`,
           header,
-          title: `Understat: the chance of ${what} given the shots both sides took, worked out after the match. Totals: the ${results} those chances add up to.`,
+          title: `Understat: the chance of ${what} given the shots both sides took, worked out after the match`,
           cell: (fixture) => pct(byFixture.get(fixture)?.[key] ?? null),
-          total: fmtDecimal(total, 1),
-          average: total === null ? DASH : pct(total / values.length),
+          total: DASH,
+          average: pct(average),
+          averageTint,
         };
       };
-      return [column("win", "Win Chance", "a win", "wins"), column("draw", "Draw Chance", "a draw", "draws"), column("loss", "Loss Chance", "a defeat", "defeats")];
+      return [column("win", "Win Chance", "a win", true), column("draw", "Draw Chance", "a draw", null), column("loss", "Loss Chance", "a defeat", false)];
     },
 
     clubMatchAlternates(code, season, fixtureIds) {
@@ -337,7 +348,7 @@ export function createProfiles(loads: Loads, request: { player: (code: number, s
       if (got.state === "error") return <StatusCard title={title} wide>Couldn't load Understat's shots.</StatusCard>;
       if (got.details.length === 0) return <StatusCard title={title} wide>No Understat record for this view ({DASH}).</StatusCard>;
       const shots = got.details.flatMap((d) => d.shots);
-      return <ShotCard title={title} shots={shots} seasons={got.details.length} label={`Shots, ${seasonsLabel(view, got.details.length)}`} wide />;
+      return <ShotCard title={title} shots={shots} seasons={got.details.length} label={`Shots, ${seasonsLabel(view, got.details.length)}`} heading={statsHeading(view, got.details.length)} wide />;
     },
 
     clubCards(code, view) {
@@ -354,14 +365,14 @@ export function createProfiles(loads: Loads, request: { player: (code: number, s
       const label = seasonsLabel(view, n);
       return (
         <>
-          <ShotCard title="Shot Map · Taken" shots={got.details.flatMap((d) => d.shots)} seasons={n} label={`Shots taken, ${label}`} />
-          <ShotCard title="Shot Map · Faced" shots={got.details.flatMap((d) => d.shotsAgainst)} seasons={n} label={`Shots faced, ${label}`} />
+          <ShotCard title="Shot Map · Taken" shots={got.details.flatMap((d) => d.shots)} seasons={n} label={`Shots taken, ${label}`} heading={statsHeading(view, n)} wide />
+          <ShotCard title="Shot Map · Faced" shots={got.details.flatMap((d) => d.shotsAgainst)} seasons={n} label={`Shots faced, ${label}`} heading={statsHeading(view, n)} wide />
           {withFormations.length === 0 ? (
             <StatusCard title="Formations" wide>
               Not available for this view yet ({DASH}).
             </StatusCard>
           ) : (
-            <FormationsCard formations={combineFormations(withFormations.map((d) => d.formations!))} seasons={withFormations.length} />
+            <FormationsCard key={code} formations={combineFormations(withFormations.map((d) => d.formations!))} seasons={withFormations.length} />
           )}
         </>
       );

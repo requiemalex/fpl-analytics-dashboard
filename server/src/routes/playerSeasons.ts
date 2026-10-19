@@ -1,12 +1,14 @@
 import { Router } from "express";
 import { COMPLETED_PLAYER_MATCHES_GZ } from "../clubHistory/completedPlayerMatches.generated.js";
-import { decodePlayerMatches, playerMatchesFor, type StoredPlayerMatches } from "../clubHistory/playerMatches.js";
+import { decodePlayerMatches, peersFor, playerMatchesFor, type StoredPlayerMatches } from "../clubHistory/playerMatches.js";
 
 /**
  * GET /api/player-seasons/:code — one player's match-by-match FPL record
  * for every completed season he played in (clubHistory/playerMatches.ts),
- * by his permanent FPL `code`. Bundled with the server, so it never fails
- * for network reasons; decoded on the first request, then kept.
+ * by his permanent FPL `code`, and for each such season everyone else in
+ * his position that season with their totals (`peers`, what his Totals
+ * and Average are coloured against). Bundled with the server, so it never
+ * fails for network reasons; decoded on the first request, then kept.
  */
 export const playerSeasonsRouter = Router();
 
@@ -25,7 +27,8 @@ playerSeasonsRouter.get("/player-seasons/:code", (req, res) => {
     return;
   }
   try {
-    res.json({ data: { seasons: playerMatchesFor(store(), Number(code)) }, meta: { source: "cache", fetchedAt: loadedAt } });
+    const stored = store();
+    res.json({ data: { seasons: playerMatchesFor(stored, Number(code)), peers: peersFor(stored, Number(code)) }, meta: { source: "cache", fetchedAt: loadedAt } });
   } catch (err) {
     res.status(500).json({ error: `Past-season match records unreadable: ${err instanceof Error ? err.message : String(err)}` });
   }

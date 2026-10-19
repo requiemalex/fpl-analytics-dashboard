@@ -267,6 +267,19 @@ export interface PlayerPastMatch {
 }
 
 /**
+ * Everyone else in a player's position in one completed season (by their
+ * position that season), each with that season's totals over their own
+ * match rows and how many matches their log lists — what his past-season
+ * Match Log Totals and Average are coloured against. A stat a player's
+ * matches lack is null.
+ */
+export interface PlayerSeasonPeer {
+  minutes: number;
+  matches: number;
+  totals: Record<string, number | null>;
+}
+
+/**
  * One prior FPL season's totals for a player — never the live/current
  * season (that's PlayerGameweekHistory). A player's full career history is
  * PlayerSeasonHistory[], oldest first; a player new to the FPL API has an

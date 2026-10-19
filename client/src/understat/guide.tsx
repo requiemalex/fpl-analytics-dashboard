@@ -112,14 +112,15 @@ export function UnderstatGuide() {
           <strong>In the profiles</strong>, an <span style={{ color: "var(--col-understat)" }}>Understat · Views</span> section follows
           the profile's Data View. A <strong>Shot Map</strong> shows where shots were taken from in the last 35 metres (a club gets
           two: shots taken and shots faced): one season has a dot per shot, solid for a goal, an outline if not, bigger for higher
-          xG, hover for the detail; Historic Average shades areas of the pitch by shots a season instead. The rare shot from
+          xG, hover for the detail. Every penalty is placed on the spot, so a number on a dot counts the goals scored from exactly
+          there. Historic Average shades areas of the pitch by shots a season instead. The rare shot from
           further out is a small arrow on the bottom edge. Beside or under the map: shots, on target, goals, xG, non-penalty xG and
           xG per shot. A club's <strong>Formations</strong> table shows how much of its time it spent in each formation, with xG
-          for and against per 90 minutes and goals scored and conceded; formations used for under 90 minutes are grouped as
-          "Other" (hover for which), with no rates. The Match Log gains violet columns: a player's <strong>Position</strong> in
+          for and against per 90 minutes and goals scored and conceded: its three most-used, with an arrow underneath to list every
+          formation it used (no rates for one used under 90 minutes). The Match Log gains violet columns: a player's <strong>Position</strong> in
           each match (hover it for the full name; Sub means off the bench) and a club's <strong>Win, Draw and Loss
           Chance</strong>: the result its chances deserved, worked out by Understat after the match from the shots both sides
-          took. Their Totals are the wins, draws and defeats those chances add up to. Its figures both sources have (a player's
+          took. Their Average is coloured against every club that season: a higher win chance greener, a higher loss chance redder. Its figures both sources have (a player's
           Minutes, Assists, xG, xA and xGI; a club's Assists, xG, xA, xGI and xGC) have the{" "}
           <span style={{ color: "var(--col-crossover)" }}>⇄</span> icon, switching that column, Totals included, to
           Understat's.
