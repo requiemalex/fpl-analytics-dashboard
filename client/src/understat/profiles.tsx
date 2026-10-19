@@ -232,17 +232,31 @@ function FormationsCard({ formations, seasons }: { formations: UsFormation[]; se
 
 const pct = (v: number | null) => (v === null ? DASH : fmtPercent(v * 100, 0));
 
-/** A switched Match Log column: each match's figure, and its Totals and Average — "—" when any listed match lacks one, never a part-sum. */
+/**
+ * The listed matches' figures that Understat has: a match it lacks (the
+ * latest, before the next daily sync) is left out, not counted as 0. "—"
+ * only when it has none of them.
+ */
+function counted(all: (number | null)[]): { sum: number; n: number; of: number } | null {
+  const known = all.filter((v): v is number => v !== null);
+  return known.length === 0 ? null : { sum: known.reduce((s, v) => s + v, 0), n: known.length, of: all.length };
+}
+
+/** A Totals or Average cell from only some of the listed matches says so on hover. */
+function coverage(text: string, c: { n: number; of: number } | null): React.ReactNode {
+  if (c === null || c.n === c.of) return text;
+  return <span title={`From the ${c.n} of ${c.of} matches Understat has a figure for`}>{text}</span>;
+}
+
+/** A switched Match Log column: each match's figure, and its Totals and Average over the matches Understat has a figure for. */
 function alternate(key: string, values: Map<number, number | null>, fixtureIds: number[], totalDp: number, averageDp: number): ExternalMatchColumn {
-  const all = fixtureIds.map((f) => values.get(f) ?? null);
-  const complete = all.length > 0 && all.every((v) => v !== null);
-  const total = complete ? all.reduce((s: number, v) => s + v!, 0) : null;
+  const c = counted(fixtureIds.map((f) => values.get(f) ?? null));
   return {
     key,
     header: key,
     cell: (fixture) => fmtDecimal(values.get(fixture) ?? null, totalDp),
-    total: fmtDecimal(total, totalDp),
-    average: fmtDecimal(total === null ? null : total / all.length, averageDp),
+    total: coverage(fmtDecimal(c?.sum ?? null, totalDp), c),
+    average: coverage(fmtDecimal(c === null ? null : c.sum / c.n, averageDp), c),
   };
 }
 
@@ -303,13 +317,12 @@ export function createProfiles(loads: Loads, request: { player: (code: number, s
       const detail = clubDetail(code, season);
       const byFixture = new Map((detail?.matches ?? []).map((m) => [m.fixture, m]));
       // No Totals (a sum of chances isn't a figure anyone reads); the Average
-      // — the mean chance over the listed matches, "—" if any lacks one — is
+      // — the mean chance over the listed matches Understat has — is
       // coloured against every club's that season, as the log's FPL columns
       // are: more wins better, more defeats worse. A draw is neither.
       const column = (key: "win" | "draw" | "loss", header: string, what: string, higherIsBetter: boolean | null): ExternalMatchColumn => {
-        const values = fixtureIds.map((f) => byFixture.get(f)?.[key] ?? null);
-        const complete = values.length > 0 && values.every((v) => v !== null);
-        const average = complete ? values.reduce((s: number, v) => s + v!, 0) / values.length : null;
+        const c = counted(fixtureIds.map((f) => byFixture.get(f)?.[key] ?? null));
+        const average = c === null ? null : c.sum / c.n;
         const league = (detail?.league ?? []).map((c) => c[key]);
         const averageTint =
           average === null || higherIsBetter === null || league.length < 2 ? undefined : relativeCellTint(average, Math.min(...league), Math.max(...league), higherIsBetter);
@@ -319,7 +332,7 @@ export function createProfiles(loads: Loads, request: { player: (code: number, s
           title: `Understat: the chance of ${what} given the shots both sides took, worked out after the match`,
           cell: (fixture) => pct(byFixture.get(fixture)?.[key] ?? null),
           total: DASH,
-          average: pct(average),
+          average: coverage(pct(average), c),
           averageTint,
         };
       };

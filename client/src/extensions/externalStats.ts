@@ -61,7 +61,7 @@ export interface ExternalProfiles {
   requestPlayer: (code: number, seasons: string[]) => void;
   requestClub: (code: number, seasons: string[]) => void;
   playerMatchColumns: (code: number, season: string) => ExternalMatchColumn[];
-  /** `fixtureIds`: the matches the log lists, so a total is never a sum over only some of them. */
+  /** `fixtureIds`: the matches the log lists. Totals and Average cover those the source has a figure for, and say so on hover when that's only some. */
   clubMatchColumns: (code: number, season: string, fixtureIds: number[]) => ExternalMatchColumn[];
   /**
    * This source's version of Match Log figures both sources have, by the
@@ -69,7 +69,8 @@ export interface ExternalProfiles {
    * xgc) — what a column's ⇄ toggle switches to, whole column, Totals and
    * Average included (<one_source_per_figure>). A player's `matches` carry
    * FPL's minutes, so a match he didn't play is a provable 0 and one he did
-   * with no figure from this source is "—".
+   * with no figure from this source is "—", left out of Totals and Average
+   * (not counted as 0).
    */
   playerMatchAlternates: (code: number, season: string, matches: { fixtureId: number; minutes: number }[]) => Record<string, ExternalMatchColumn>;
   clubMatchAlternates: (code: number, season: string, fixtureIds: number[]) => Record<string, ExternalMatchColumn>;

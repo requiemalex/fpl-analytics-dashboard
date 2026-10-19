@@ -600,8 +600,8 @@ app shows "—" for those figures (never 0) until the next run.
     (Understat's code, spelled out on hover; "Sub" off the bench), and a
     club's **Win/Draw/Loss Chance**: Understat's chances of each result
     from the shots both sides took, worked out *after* the match. No Totals
-    ("—"). The Average (the mean chance over the listed matches, "—" if any
-    lacks one) is coloured against every club's mean that season
+    ("—"). The Average (the mean chance over the listed matches Understat
+    has; see below) is coloured against every club's mean that season
     (`league` in the club slice, from the season's profile file),
     `relativeCellTint` like the log's FPL columns: more win chance better,
     more loss chance worse, draw chance uncoloured.
@@ -613,6 +613,15 @@ app shows "—" for those figures (never 0) until the next run.
     says the player didn't play is a provable 0; one he played that
     Understat lacks, or any before its figures load, is "—". Starts on FPL
     for each profile opened.
+  - **Matches Understat lacks in Totals and Average:** a live match
+    reaches Understat's files only on the first daily sync after FPL marks
+    the fixture `finished` (bonus confirmed), so the latest match often
+    has FPL figures but no Understat ones yet. Understat's Totals and
+    Average (both the toggled columns and the Win/Draw/Loss Average) are
+    worked out over the listed matches it has a figure for, leaving the
+    rest out rather than counting them as 0 (a provable 0 above still
+    counts); the cell's hover says "From the N of M matches Understat has
+    a figure for". "—" only when it has none of them.
 - Its User Guide section and metric definitions live in
   `client/src/understat/guide.tsx`, shown through the slot.
 

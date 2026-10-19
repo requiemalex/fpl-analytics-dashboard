@@ -54,9 +54,15 @@ describe("Understat's Match Log columns", () => {
     expect(win.averageTint).toBe(relativeCellTint(0.45, 0.2, 0.7, true));
     expect(loss.averageTint).toBe(relativeCellTint(0.275, 0.1, 0.5, false));
     expect(draw.averageTint).toBeUndefined();
+    // A listed match Understat lacks is left out of the Average (not a 0), and the cell says so on hover.
     const [partial] = p.clubMatchColumns(3, "2025/26", [1, 2, 3]);
-    expect(partial.average).toBe("—");
-    expect(partial.averageTint).toBeUndefined();
+    const { container } = render(<div>{partial.average}</div>);
+    expect(container.textContent).toBe("45%");
+    expect(container.querySelector("span")!.getAttribute("title")).toBe("From the 2 of 3 matches Understat has a figure for");
+    expect(partial.averageTint).toBe(relativeCellTint(0.45, 0.2, 0.7, true));
+    const [none] = p.clubMatchColumns(3, "2025/26", [3]);
+    expect(none.average).toBe("—");
+    expect(none.averageTint).toBeUndefined();
   });
 });
 
@@ -75,6 +81,30 @@ describe("Understat's version of figures both sources have (the ⇄ toggles)", (
     const missing = p.playerMatchAlternates(500, "2025/26", [{ fixtureId: 9, minutes: 60 }]);
     expect(missing.xg.cell(9)).toBe("—");
     expect(missing.xg.total).toBe("—");
+    expect(missing.xg.average).toBe("—");
+  });
+
+  it("a player: Totals and Average cover the matches Understat has, leaving out (not zeroing) one it hasn't synced yet, and say so on hover", () => {
+    const p = profilesWith([[playerKey(500, "2025/26"), { state: "ready", detail: { matches: [{ fixture: 7, position: "AMR", minutes: 88, xG: 0.3, xA: 0.1, assists: 1 }], shots: [] } }]]);
+    const alt = p.playerMatchAlternates(500, "2025/26", [
+      { fixtureId: 7, minutes: 90 },
+      { fixtureId: 8, minutes: 0 },
+      { fixtureId: 9, minutes: 13 },
+    ]);
+    expect(alt.xg.cell(9)).toBe("—");
+    const { container } = render(
+      <div>
+        <span data-r="total">{alt.xg.total}</span>
+        <span data-r="average">{alt.xg.average}</span>
+      </div>,
+    );
+    const total = container.querySelector('[data-r="total"]')!;
+    const average = container.querySelector('[data-r="average"]')!;
+    expect(total.textContent).toBe("0.30");
+    // 0.30 over the 2 matches with a figure (one a provable 0), not over 3.
+    expect(average.textContent).toBe("0.15");
+    expect(total.querySelector("span")!.getAttribute("title")).toBe("From the 2 of 3 matches Understat has a figure for");
+    expect(average.querySelector("span")!.getAttribute("title")).toBe("From the 2 of 3 matches Understat has a figure for");
   });
 
   it("before Understat's figures have loaded, every match is —, never 0", () => {
@@ -82,7 +112,7 @@ describe("Understat's version of figures both sources have (the ⇄ toggles)", (
     expect(alt.xg.cell(8)).toBe("—");
   });
 
-  it("a club: each match's line, Totals — when any match lacks the figure", () => {
+  it("a club: each match's line; Totals over the matches that have the figure", () => {
     const detail: UsClubSeasonDetail = {
       matches: [
         { fixture: 1, win: 0.6, draw: 0.25, loss: 0.15, xG: 2.1, xGA: 0.4, xA: 1.5, assists: 2 },
@@ -96,7 +126,9 @@ describe("Understat's version of figures both sources have (the ⇄ toggles)", (
     const alt = profilesWith([[clubKey(3, "2025/26"), { state: "ready", detail }]]).clubMatchAlternates(3, "2025/26", [1, 2]);
     expect(alt.xgc.cell(2)).toBe("1.30");
     expect(alt.xgc.total).toBe("1.70");
-    expect(alt.a.total).toBe("—");
+    const { container } = render(<div>{alt.a.total}</div>);
+    expect(container.textContent).toBe("2");
+    expect(container.querySelector("span")!.getAttribute("title")).toBe("From the 1 of 2 matches Understat has a figure for");
   });
 });
 
