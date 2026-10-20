@@ -597,12 +597,21 @@ app shows "—" for those figures (never 0) until the next run.
   | **Both (crossover)** | rose (`--col-crossover`, `.col-source-crossover`): the ⇄ icon, and its Columns heading | — |
 
   A crossover column's header text is green while it shows FPL's figure
-  and violet while it shows Understat's. The Explorers' Columns picker
-  uses the same index on its headings: green "FPL ·" groups (FPL-only
-  figures), one rose "FPL & Understat" group for every figure with a ⇄
-  toggle, then violet "Understat ·" groups (Understat-only figures). With
-  Understat switched off, the crossover figures go back to their FPL
-  groups and the rose heading disappears. A
+  and violet while it shows Understat's. Every list of stats grouped by
+  heading uses the same index, with the same heading element
+  (`MenuGroupHeading`: the group's icon, then its name, in its source's
+  colour): the Explorers' and Team Building's Columns pickers, the
+  Dashboard's Statistic and axis pickers (`components/GroupedPicker.tsx`,
+  a select-like list, since the browser's own `<select>` can't show icons
+  or colour), Player Comparison's card dialog and its Outputs panels.
+  Green "FPL ·" groups (FPL-only figures), one rose "FPL & Understat"
+  group for every figure with a ⇄ toggle, then violet "Understat ·"
+  groups (Understat-only figures). With Understat switched off, the
+  crossover figures go back to their FPL groups and the rose heading
+  disappears. Team Building's Add Players headers follow the Explorers'
+  too: green when the figure follows the Data View, muted red when always
+  live (its Predictive Columns are the app's own model, not FPL's figures,
+  so they stay plain). A
   small amber dot on an Understat header means its data is out of date or
   unavailable; its hover text says which. "Behind" is judged from FPL's own
   fixtures (`understat/staleness.ts`): a finished match 2+ days old that
@@ -726,8 +735,9 @@ app shows "—" for those figures (never 0) until the next run.
     Assists, Minutes, Goals − xG, Assists − xA; clubs: xG, xA, xGI, xGC,
     Assists), then violet "Understat ·" groups of Understat's own. With
     Understat switched off only the FPL groups show. The Dashboard's
-    Statistic and axis lists use `<optgroup>`s; Player Comparison's dialog
-    uses its chip headings (`CrossoverGroupHeading`), holding only
+    Statistic and axis lists are `GroupedPicker`s (`metricPickerGroups`);
+    Player Comparison's dialog uses its chip headings
+    (`CrossoverGroupHeading`), holding only
     comparable figures (no +/− figures, so not NP Goals − NPxG, now flagged
     `signed`). A new pick starts in its natural order (Blocked Shots lowest
     first).

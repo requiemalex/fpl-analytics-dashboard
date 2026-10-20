@@ -67,6 +67,18 @@ function goalsCell(container: HTMLElement, name: string): HTMLElement | undefine
 }
 
 describe("Team Building — Add Players comparative colouring", () => {
+  it("uses the Explorers' colour index on its FPL headers and Columns headings: green when following the Data View, muted red when always live", () => {
+    const { container, getByRole } = renderBuilder();
+    const header = (label: string) => Array.from(container.querySelectorAll<HTMLElement>("table.data-table.compact thead th")).find((th) => th.childNodes[0]?.textContent?.trim() === label)!;
+    expect(header("Goals").classList.contains("col-source-fpl")).toBe(true);
+    expect(header("Own%").classList.contains("col-static")).toBe(true);
+    expect(header("Own%").classList.contains("col-source-fpl")).toBe(false);
+    fireEvent.click(getByRole("button", { name: /^Historic\/Raw Columns/ }));
+    const heading = container.querySelector(".popover .menu-group-heading")!;
+    expect(heading.textContent).toBe("FPL · Actual Output");
+    expect(heading.classList.contains("col-source-fpl")).toBe(true);
+  });
+
   it("ranks within position over every player; the cameo is uncoloured and left out", () => {
     const { container } = renderBuilder();
     expect(goalsCell(container, "Saka")!.style.backgroundColor).toBe(asRendered(percentileTint((2.5 / 3) * 100)));

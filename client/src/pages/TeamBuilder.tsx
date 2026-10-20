@@ -32,7 +32,7 @@ import { isUnderMinimum } from "../metrics/fixedMinutesFloor";
 import { MIN_QUALIFYING_SEASON_MINUTES } from "../metrics/historicAnalysis";
 import { downloadCsv } from "../utils/csvExport";
 import type { NormalizedPlayer, Position } from "../types/normalized";
-import { MenuGroupHeading } from "../components/MenuControls";
+import { MenuGroupHeading, fplHeading } from "../components/MenuControls";
 
 /** How long a rejected drag's warning message stays visible before clearing itself. */
 const WARNING_DISPLAY_MS = 4000;
@@ -1269,7 +1269,7 @@ export function TeamBuilder() {
               <div className="popover" style={{ left: 0, right: "auto" }}>
                 {HISTORIC_RAW_GROUPS.map((group) => (
                   <div key={group}>
-                    <MenuGroupHeading group={group} />
+                    <MenuGroupHeading group={group} label={fplHeading(group)} className="col-source-fpl" />
                     {HISTORIC_RAW_COLUMNS.filter((c) => c.group === group).map((c) => (
                       <label key={c.key}>
                         <input
@@ -1363,7 +1363,8 @@ export function TeamBuilder() {
                       key={c.key}
                       columnKey={c.key}
                       label={c.label}
-                      className={[i === 0 ? "column-group-divider" : null, isStaticColumn(c) ? "col-static" : null].filter(Boolean).join(" ") || undefined}
+                      // The Explorers' colour index: green while the figure follows the Data View, muted red when always live.
+                      className={[i === 0 ? "column-group-divider" : null, isStaticColumn(c) ? "col-static" : "col-source-fpl"].filter(Boolean).join(" ") || undefined}
                       title={columnHint(c.label, { hint: PLAYER_STAT_HINTS[c.key], lowerIsBetter: c.higherIsBetter === false, liveFigure: isStaticColumn(c) })}
                       layout={historicRawCols}
                       width={width}

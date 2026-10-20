@@ -78,8 +78,9 @@ export function ComparisonElementDialog({
   const catalogue = [...COMPARISON_METRICS.map((m) => m.key), ...(external?.groups ?? []).flatMap((g) => g.metrics.map((m) => m.key))];
   // Only keys this version knows count (and are shown as picked).
   const picked = settings.metricKeys.filter((k) => catalogue.includes(k));
-  const fplHeading = (label: string) => (external ? `FPL · ${label}` : label);
-  const fplHeadingClass = external ? "col-source-fpl" : undefined;
+  // FPL's headings are the Explorers' ("FPL · …", green), with or without a second source (<same_toggle_everywhere>).
+  const fplHeading = (label: string) => `FPL · ${label}`;
+  const fplHeadingClass = "col-source-fpl";
   const crossover = new Set(external?.crossoverKeys ?? []);
   const trendCrossover = new Set(external?.trendCrossoverKeys ?? []);
   const name = settings.name.trim();

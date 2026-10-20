@@ -295,7 +295,10 @@ export function UserGuide() {
           <li>
             <strong>Header colours</strong> say where a figure comes from and whether it follows the Data View: green is an FPL
             figure for the selected season(s); muted red is always today's live figure (Own%, Price, Team, Position, Form, and the
-            set-piece orders: Pen, FK and Corner Order, where 1 is the club's first choice).
+            set-piece orders: Pen, FK and Corner Order, where 1 is the club's first choice). Team Building's Add Players headers
+            use the same colours, and every list of statistics grouped under headings (Columns here and in Team Building, the
+            Dashboard's Statistic and axis pickers, Player Comparison's cards and Outputs panels) has the same coloured, iconed
+            headings.
             {ext ? ` ${ext.label}'s figures have their own colour; see "${ext.guideSection.navLabel}" below.` : ""}
           </li>
           <li>

@@ -1,5 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from "react";
 import { MinutesFloorIcon } from "../MinutesFloorBadge";
+import { MenuGroupHeading } from "../MenuControls";
 import { COMPARISON_GROUP_LABELS, COMPARISON_GROUP_ORDER } from "../../metrics/comparisonMetrics";
 import type { ColumnGroup } from "../playerColumns";
 import { ComparisonLegend, type LegendEntry } from "./ComparisonLegend";
@@ -14,8 +15,8 @@ export interface OutputsRow {
   cells: Map<number, number | null>;
   /** Per player id: what "best" ranks on, when that isn't his figure (a lower-is-better total ranks on its per-game rate; PlayerColumn.rankBy). */
   rankCells?: Map<number, number | null>;
-  /** One of a second source's own figures: the heading it's listed under ("Understat · Shooting") and that source's colour class. FPL rows, switched or not, go under their group. */
-  sourceHeading?: { label: string; className: string };
+  /** One of a second source's own figures: the heading it's listed under ("Understat · Shooting"), that source's colour class and icon. FPL rows, switched or not, go under their group. */
+  sourceHeading?: { label: string; className: string; icon?: React.ReactNode };
   /** The source's colour class while the row shows a second source's figure: its name is in that colour, as an Explorer header is. */
   labelClassName?: string;
   /** The row's ⇄ toggle, for a figure both sources have (SourceToggle). */
@@ -127,17 +128,26 @@ export function ComparisonOutputs({ rows, entries }: { rows: OutputsRow[]; entri
   const ref = useRef<HTMLDivElement>(null);
   const trackWidth = useTrackWidth(ref);
   const ranked = entries.filter((e) => !e.smallSampleNote);
-  // FPL rows under their groups, then each second-source heading in the order its rows come.
-  const fplGroups = COMPARISON_GROUP_ORDER.map((g) => ({ key: g, label: COMPARISON_GROUP_LABELS[g], className: null as string | null, rows: rows.filter((r) => !r.sourceHeading && r.group === g) }));
+  // FPL rows under their groups, then each second-source heading in the order its rows come — headed as the
+  // dialog and the Explorers' Columns picker are (MenuGroupHeading: icon, "FPL ·" green or the source's colour).
+  const fplGroups = COMPARISON_GROUP_ORDER.map((g) => ({
+    key: g,
+    heading: <MenuGroupHeading group={COMPARISON_GROUP_LABELS[g]} label={`FPL · ${COMPARISON_GROUP_LABELS[g]}`} className="col-source-fpl" />,
+    rows: rows.filter((r) => !r.sourceHeading && r.group === g),
+  }));
   const sourceHeadings = [...new Map(rows.flatMap((r) => (r.sourceHeading ? [[r.sourceHeading.label, r.sourceHeading] as const] : []))).values()];
-  const sourceGroups = sourceHeadings.map((h) => ({ key: h.label, label: h.label, className: h.className as string | null, rows: rows.filter((r) => r.sourceHeading?.label === h.label) }));
+  const sourceGroups = sourceHeadings.map((h) => ({
+    key: h.label,
+    heading: <MenuGroupHeading group={h.label} label={h.label} icon={h.icon} className={h.className} />,
+    rows: rows.filter((r) => r.sourceHeading?.label === h.label),
+  }));
   const groups = [...fplGroups, ...sourceGroups].filter((g) => g.rows.length > 0);
   return (
     <>
       <div ref={ref} className="cmp-outputs">
-        {groups.map(({ key, label, className, rows: groupRows }) => (
+        {groups.map(({ key, heading, rows: groupRows }) => (
           <React.Fragment key={key}>
-            <div className={className ? `cmp-outputs-group source-coloured ${className}` : "cmp-outputs-group"}>{label}</div>
+            <div className="cmp-outputs-group">{heading}</div>
             {groupRows.map((row) => (
               <OutputsTrackRow key={row.key} row={row} entries={entries} ranked={ranked} trackWidth={trackWidth} />
             ))}

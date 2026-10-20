@@ -11,7 +11,7 @@ import { filterPlayers } from "../state/useFilteredPlayers";
 import { computeTeamAggregates, type TeamAggregate } from "../metrics/teamStats";
 import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFilters";
 import { DATA_VIEW_SEGMENTS } from "../components/AnalysisModeToggle";
-import { MAX_NAME_LENGTH, SegmentedControl, fplHeading, type SegmentOption } from "../components/MenuControls";
+import { MAX_NAME_LENGTH, MenuGroupHeading, SegmentedControl, fplHeading, type SegmentOption } from "../components/MenuControls";
 import { FiltersBar } from "../components/FiltersBar";
 import { CardEditRemoveButtons, CreateViewIcon, FilterIcon, PlusIcon, TrashIcon, TrendLineIcon } from "../components/IconToolbar";
 import { SectionHeading } from "../components/SectionHeading";
@@ -35,7 +35,8 @@ import {
   type SummaryTileScope,
   type TeamTileMetric,
 } from "../components/summaryTileMetrics";
-import { SourceBadge, SourceToggle } from "../components/SourceToggle";
+import { CrossoverGroupHeading, SourceBadge, SourceToggle } from "../components/SourceToggle";
+import { GroupedPicker, type PickerGroup } from "../components/GroupedPicker";
 import {
   externalColumnByKey,
   externalLabel,
@@ -189,45 +190,49 @@ function itemSourceControls(ext: ExternalStatsSource | null, metrics: (ItemMetri
   );
 }
 
+/** A second source's part of the pickers (pickerGroups, in the page). */
+interface ExternalPickerGroups {
+  sourceId: string;
+  label: string;
+  icon: React.ReactNode;
+  className: string;
+  crossover: Set<string>;
+  groups: ExternalColumnGroup<{ key: string; label: string }>[];
+}
+
 /**
- * The Statistic / axis picker's options, grouped the way the Explorers'
- * Columns picker is (<same_toggle_everywhere>): "FPL ·" groups of FPL-only
- * figures; with a second source mounted, one "FPL & <source>" group of the
- * figures both have (⇄ on the card), then the source's own groups.
+ * The Statistic / axis picker's groups, headed exactly as the Explorers'
+ * Columns picker is (<same_toggle_everywhere>, MenuGroupHeading): green
+ * "FPL ·" groups of FPL-only figures, with their icons; with a second
+ * source mounted, one rose "FPL & <source>" group of the figures both have
+ * (⇄ on the card), then the source's own groups in its colour.
  */
-function MetricOptions({
-  fpl,
-  external,
-}: {
-  fpl: { key: string; label: string; group?: string }[];
-  external: { sourceId: string; label: string; crossover: Set<string>; groups: ExternalColumnGroup<{ key: string; label: string }>[] } | null;
-}) {
-  const option = (key: string, label: string) => (
-    <option key={key} value={key}>
-      {label}
-    </option>
-  );
+export function metricPickerGroups(fpl: { key: string; label: string; group?: string }[], external: ExternalPickerGroups | null): PickerGroup[] {
   const crossover = external?.crossover ?? new Set<string>();
   const groupOf = (m: { group?: string }) => m.group ?? "Other";
-  const fplGroups = [...new Set(fpl.map(groupOf))];
-  return (
-    <>
-      {fplGroups.map((g) => {
-        const metrics = fpl.filter((m) => groupOf(m) === g && !crossover.has(m.key));
-        return metrics.length > 0 ? (
-          <optgroup key={g} label={fplHeading(g)}>
-            {metrics.map((m) => option(m.key, m.label))}
-          </optgroup>
-        ) : null;
-      })}
-      {external && crossover.size > 0 && <optgroup label={`FPL & ${external.label}`}>{fpl.filter((m) => crossover.has(m.key)).map((m) => option(m.key, m.label))}</optgroup>}
-      {external?.groups.map((g) => (
-        <optgroup key={g.heading} label={g.heading}>
-          {g.columns.map((c) => option(externalMetricKey(external.sourceId, c.key), c.label))}
-        </optgroup>
-      ))}
-    </>
-  );
+  const toOption = (m: { key: string; label: string }) => ({ value: m.key, label: m.label });
+  const fplGroups: PickerGroup[] = [...new Set(fpl.map(groupOf))].map((g) => ({
+    key: `fpl:${g}`,
+    label: fplHeading(g),
+    heading: <MenuGroupHeading group={g} label={fplHeading(g)} className="col-source-fpl" />,
+    options: fpl.filter((m) => groupOf(m) === g && !crossover.has(m.key)).map(toOption),
+  }));
+  if (!external) return fplGroups;
+  return [
+    ...fplGroups,
+    {
+      key: "crossover",
+      label: `FPL & ${external.label}`,
+      heading: <CrossoverGroupHeading externalLabel={external.label} />,
+      options: fpl.filter((m) => crossover.has(m.key)).map(toOption),
+    },
+    ...external.groups.map((g) => ({
+      key: `${external.sourceId}:${g.heading}`,
+      label: g.heading,
+      heading: <MenuGroupHeading group={g.heading} label={g.heading} icon={external.icon} className={external.className} />,
+      options: g.columns.map((c) => ({ value: externalMetricKey(external.sourceId, c.key), label: c.label })),
+    })),
+  ];
 }
 
 /** Same cap for both, and reused for graphs too (see MAX_TILE_PLAYERS/MAX_TILE_TEAMS usage below) — a tile or graph tracking a handful of specific players/teams is meant for close comparison, not a second way to build a big list. */
@@ -1015,11 +1020,11 @@ export function Dashboard() {
     if (resolved) setNewTileDirection(resolved.metric.higherIsBetter ? "desc" : "asc");
   }
 
-  /** The dialogs' pickers' second-source groups (MetricOptions), or null with none mounted. Names don't change with the Data View. */
-  function pickerGroups(scope: SummaryTileScope, mode: AnalysisMode) {
+  /** The dialogs' pickers' second-source groups (metricPickerGroups), or null with none mounted. Names don't change with the Data View. */
+  function pickerGroups(scope: SummaryTileScope, mode: AnalysisMode): ExternalPickerGroups | null {
     if (!ext) return null;
     const set: ExternalColumnSet<{ key: string; label: string }> = scope === "player" ? ext.playerColumns(mode) : ext.teamColumns(mode);
-    return { sourceId: ext.id, label: ext.label, crossover: new Set(Object.keys(set.alternates)), groups: set.groups };
+    return { sourceId: ext.id, label: ext.label, icon: ext.icon, className: ext.className, crossover: new Set(Object.keys(set.alternates)), groups: set.groups };
   }
 
   /** A graph metric's natural Order (defaultGraphDirection), a second source's figure included. */
@@ -1502,9 +1507,12 @@ export function Dashboard() {
             </div>
             <div className="field">
               <label htmlFor="new-tile-metric">Statistic</label>
-              <select id="new-tile-metric" value={newTileMetricKey} onChange={(e) => handleMetricChange(e.target.value)}>
-                <MetricOptions fpl={tileView === "player" ? PLAYER_TILE_METRICS : TEAM_TILE_METRICS} external={pickerGroups(tileView, newTileDataView)} />
-              </select>
+              <GroupedPicker
+                id="new-tile-metric"
+                value={newTileMetricKey}
+                onChange={handleMetricChange}
+                groups={metricPickerGroups(tileView === "player" ? PLAYER_TILE_METRICS : TEAM_TILE_METRICS, pickerGroups(tileView, newTileDataView))}
+              />
             </div>
             <SegmentedControl label="Data View" options={DATA_VIEW_SEGMENTS} value={newTileDataView} onChange={setNewTileDataView} />
             <SegmentedControl label="Order" options={ORDER_SEGMENTS} value={newTileDirection} onChange={setNewTileDirection} />
@@ -1642,16 +1650,22 @@ export function Dashboard() {
             {newGraphChartType === "scatter" && (
               <div className="field">
                 <label htmlFor="new-graph-x">X axis metric</label>
-                <select id="new-graph-x" value={newGraphXKey} onChange={(e) => setNewGraphXKey(e.target.value)}>
-                  <MetricOptions fpl={tileView === "player" ? PLAYER_COLUMNS : TEAM_COLUMNS} external={pickerGroups(tileView, newGraphDataView)} />
-                </select>
+                <GroupedPicker
+                  id="new-graph-x"
+                  value={newGraphXKey}
+                  onChange={setNewGraphXKey}
+                  groups={metricPickerGroups(tileView === "player" ? PLAYER_COLUMNS : TEAM_COLUMNS, pickerGroups(tileView, newGraphDataView))}
+                />
               </div>
             )}
             <div className="field">
               <label htmlFor="new-graph-y">{newGraphChartType === "scatter" ? "Y axis metric" : "Metric"}</label>
-              <select id="new-graph-y" value={newGraphYKey} onChange={(e) => handleGraphYMetricChange(e.target.value)}>
-                <MetricOptions fpl={tileView === "player" ? PLAYER_COLUMNS : TEAM_COLUMNS} external={pickerGroups(tileView, newGraphDataView)} />
-              </select>
+              <GroupedPicker
+                id="new-graph-y"
+                value={newGraphYKey}
+                onChange={handleGraphYMetricChange}
+                groups={metricPickerGroups(tileView === "player" ? PLAYER_COLUMNS : TEAM_COLUMNS, pickerGroups(tileView, newGraphDataView))}
+              />
             </div>
             <SegmentedControl label="Data View" options={DATA_VIEW_SEGMENTS} value={newGraphDataView} onChange={setNewGraphDataView} />
             {newGraphChartType === "bar" && (

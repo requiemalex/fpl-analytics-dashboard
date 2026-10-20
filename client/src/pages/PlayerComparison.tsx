@@ -430,7 +430,7 @@ export function PlayerComparison() {
           format,
           cells: new Map(compared.map((c) => [c.player.id, valueFor(metric, pool, c.player.id)])),
           rankCells: metric.rankValue === metric.getValue ? undefined : new Map(compared.map((c) => [c.player.id, rankFor(metric, pool, c.player.id)])),
-          ...(source && heading ? { sourceHeading: { label: heading, className: source.className } } : {}),
+          ...(source && heading ? { sourceHeading: { label: heading, className: source.className, icon: source.icon } } : {}),
           ...(source ? { labelClassName: source.className } : {}),
           ...(ext && crossover
             ? {

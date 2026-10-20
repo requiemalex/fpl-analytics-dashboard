@@ -200,18 +200,27 @@ describe("Dashboard with Understat mounted", () => {
     storeDashboard([]);
     const { getByRole, container } = renderDashboard(fakeSource());
     fireEvent.click(getByRole("button", { name: "Add Tile" }));
-    const select = container.querySelector("#new-tile-metric") as HTMLSelectElement;
-    const groups = [...select.querySelectorAll("optgroup")].map((g) => g.label);
+    fireEvent.click(container.querySelector("#new-tile-metric")!);
+    const list = getByRole("listbox");
+    const groupEls = [...list.querySelectorAll<HTMLElement>('[role="group"]')];
+    const groups = groupEls.map((g) => g.getAttribute("aria-label"));
     expect(groups.slice(0, 2)).toEqual(["FPL · Actual Output", "FPL · Underlying Performance"]);
     expect(groups).toContain("FPL & Understat");
     expect(groups.indexOf("Understat · Shooting")).toBeGreaterThan(groups.indexOf("FPL & Understat"));
+    // Headed as the Explorers' Columns picker is: the shared heading, in each source's colour.
+    const headingOf = (label: string) => groupEls.find((g) => g.getAttribute("aria-label") === label)!.querySelector(".menu-group-heading")!;
+    expect(headingOf("FPL · Actual Output").classList.contains("col-source-fpl")).toBe(true);
+    expect(headingOf("FPL & Understat").classList.contains("col-source-crossover")).toBe(true);
+    expect(headingOf("Understat · Shooting").classList.contains("col-source-understat")).toBe(true);
+    expect(headingOf("FPL · Actual Output").querySelector(".menu-group-icon svg")).toBeTruthy();
     // xG is listed once, under the crossover group (switched on the tile), never as a separate Understat statistic.
-    const crossover = [...select.querySelectorAll("optgroup")].find((g) => g.label === "FPL & Understat")!;
-    expect(crossover.querySelector('option[value="xG"]')).toBeTruthy();
-    expect(select.querySelectorAll('option[value="xG"]')).toHaveLength(1);
-    expect(select.querySelector('option[value="understat:xG"]')).toBeNull();
+    const crossover = groupEls.find((g) => g.getAttribute("aria-label") === "FPL & Understat")!;
+    expect(crossover.querySelector('[data-value="xG"]')).toBeTruthy();
+    expect(list.querySelectorAll('[data-value="xG"]')).toHaveLength(1);
+    expect(list.querySelector('[data-value="understat:xG"]')).toBeNull();
 
-    fireEvent.change(select, { target: { value: "understat:us.blockedShots" } });
+    fireEvent.click(list.querySelector('[data-value="understat:us.blockedShots"]')!);
+    expect(container.querySelector("#new-tile-metric")!.textContent).toBe("Blocked Shots");
     const dialog = container.querySelector(".dialog") as HTMLElement;
     expect(within(dialog).getByRole("radio", { name: "Lowest First" }).getAttribute("aria-checked")).toBe("true");
   });
@@ -220,7 +229,8 @@ describe("Dashboard with Understat mounted", () => {
     storeDashboard([]);
     const { getByRole, container } = renderDashboard(null);
     fireEvent.click(getByRole("button", { name: "Add Tile" }));
-    const groups = [...container.querySelectorAll<HTMLOptGroupElement>("#new-tile-metric optgroup")].map((g) => g.label);
+    fireEvent.click(container.querySelector("#new-tile-metric")!);
+    const groups = [...getByRole("listbox").querySelectorAll('[role="group"]')].map((g) => g.getAttribute("aria-label")!);
     expect(groups.length).toBeGreaterThan(0);
     expect(groups.every((g) => g.startsWith("FPL · "))).toBe(true);
   });
@@ -272,8 +282,10 @@ describe("Player Comparison with Understat mounted", () => {
     const { container } = renderComparison(fakeSource());
     const panel = () => container.querySelector(".cmp-outputs") as HTMLElement;
     const headings = [...panel().querySelectorAll<HTMLElement>(".cmp-outputs-group")];
-    expect(headings.map((h) => h.textContent)).toEqual(["Output", "Underlying", "Understat · Shooting"]);
-    expect(headings[2].classList.contains("col-source-understat")).toBe(true);
+    // The Explorers' headings: "FPL ·" in green, Understat's in its colour, each with its icon.
+    expect(headings.map((h) => h.textContent)).toEqual(["FPL · Output", "FPL · Underlying", "Understat · Shooting"]);
+    expect(headings[0].querySelector(".menu-group-heading.col-source-fpl .menu-group-icon svg")).toBeTruthy();
+    expect(headings[2].querySelector(".menu-group-heading.col-source-understat")).toBeTruthy();
 
     const rows = () => [...panel().querySelectorAll<HTMLElement>(".cmp-outputs-row")];
     const valuesOf = (row: HTMLElement) => [...row.querySelectorAll(".cmp-outputs-value")].map((v) => v.textContent);
