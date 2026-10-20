@@ -117,3 +117,24 @@ describe("useColumnCustomization — 2026-09-25 audit, phase 3 fixes", () => {
     expect(result.current.columnWidths).toEqual({ totalPoints: 80, goals: 160, assists: 80, minutes: 80 });
   });
 });
+
+describe("useColumnCustomization — saved Explorer views (<explorer_views>)", () => {
+  it("manualWidths holds only the widths set by dragging, not auto-fitted ones", () => {
+    const { result } = renderHook(() => useColumnCustomization(DEFAULTS));
+    act(() => result.current.fitToBox(400));
+    expect(result.current.manualWidths()).toEqual({});
+    dragResize(result, "goals", 60);
+    act(() => result.current.fitToBox(400));
+    expect(result.current.manualWidths()).toEqual({ goals: 160 });
+  });
+
+  it("applyLayout puts back the columns, their order and hand-set widths (floored), which auto-fit then keeps", () => {
+    const { result } = renderHook(() => useColumnCustomization(DEFAULTS));
+    dragResize(result, "assists", 80);
+    act(() => result.current.applyLayout(["xG", "goals"], { goals: 150, xG: 10 }));
+    expect(result.current.visibleColumns).toEqual(["xG", "goals"]);
+    expect(result.current.manualWidths()).toEqual({ goals: 150, xG: MIN_COLUMN_WIDTH });
+    act(() => result.current.fitToBox(1000));
+    expect(result.current.columnWidths).toEqual({ goals: 150, xG: MIN_COLUMN_WIDTH });
+  });
+});

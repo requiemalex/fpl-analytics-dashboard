@@ -222,3 +222,98 @@ describe("Team Explorer — comparative colouring (<comparative_colouring>)", ()
     }
   });
 });
+
+describe("Team Explorer — saved views (<explorer_views>)", () => {
+  afterEach(() => localStorage.clear());
+
+  function toolbarLabels(container: HTMLElement): string[] {
+    return Array.from(container.querySelectorAll(".icon-toolbar > * ")).map((el) => (el.matches("button") ? el : el.querySelector("button"))?.getAttribute("aria-label") ?? "");
+  }
+
+  function saveView(getByRole: ReturnType<typeof render>["getByRole"], getByLabelText: ReturnType<typeof render>["getByLabelText"], name: string) {
+    fireEvent.click(getByRole("button", { name: /^Saved views/ }));
+    fireEvent.click(getByRole("button", { name: "Save current view" }));
+    fireEvent.change(getByLabelText("Name"), { target: { value: name } });
+    fireEvent.click(getByRole("button", { name: "Save" }));
+  }
+
+  it("sits directly right of Clear filters", () => {
+    const { container } = renderTeams();
+    const labels = toolbarLabels(container);
+    expect(labels[labels.findIndex((l) => l.startsWith("Clear every filter")) + 1]).toMatch(/^Saved views/);
+  });
+
+  it("puts back the Data View, columns, order, sort, search and filters it saved", () => {
+    const { container, getByRole, getByLabelText } = renderTeams();
+    fireEvent.click(getByRole("button", { name: /Current Season/ }));
+    toggleColumn(container, getByRole, "Wins");
+    toggleColumn(container, getByRole, "xA");
+    fireEvent.click(header(container, "League Points"));
+    fireEvent.click(header(container, "League Points"));
+    applyNumericFilter(container, "League Points", 0, "80");
+    fireEvent.change(getByLabelText("Search teams"), { target: { value: "u" } });
+    const savedHeaders = headerLabels(container);
+    const savedRows = rowNames(container);
+    saveView(getByRole, getByLabelText, "Bottom half");
+
+    fireEvent.click(getByRole("button", { name: /^Restore the default columns/ }));
+    fireEvent.click(getByRole("button", { name: /Last Completed Season/ }));
+    expect(headerLabels(container)).not.toEqual(savedHeaders);
+
+    fireEvent.click(getByRole("button", { name: /^Saved views/ }));
+    fireEvent.click(getByRole("button", { name: 'Bottom half' }));
+    expect(headerLabels(container)).toEqual(savedHeaders);
+    expect(rowNames(container)).toEqual(savedRows);
+    expect((getByLabelText("Search teams") as HTMLInputElement).value).toBe("u");
+    expect(getByRole("button", { name: /Current Season/ }).getAttribute("aria-pressed")).toBe("true");
+    expect(header(container, "League Points").querySelector("button.column-filter-icon")?.className).toContain("active");
+  });
+
+  it("refuses a blank or repeated name, and saves over or deletes a view only after confirming", () => {
+    const { container, getByRole, getByLabelText, getByText, queryByRole } = renderTeams();
+    saveView(getByRole, getByLabelText, " ");
+    expect(getByText("Enter a name for this view.")).toBeTruthy();
+    fireEvent.click(getByRole("button", { name: "Cancel" }));
+    saveView(getByRole, getByLabelText, "League");
+    saveView(getByRole, getByLabelText, "league");
+    expect(getByText(/There's already a view called "league"/)).toBeTruthy();
+    fireEvent.click(getByRole("button", { name: "Cancel" }));
+
+    // Save over: the view now holds the search typed since.
+    fireEvent.change(getByLabelText("Search teams"), { target: { value: "arsenal" } });
+    fireEvent.click(getByRole("button", { name: /^Saved views/ }));
+    fireEvent.click(getByRole("button", { name: 'Save over "League"' }));
+    fireEvent.click(getByRole("button", { name: "Save over" }));
+    fireEvent.change(getByLabelText("Search teams"), { target: { value: "" } });
+    fireEvent.click(getByRole("button", { name: /^Saved views/ }));
+    fireEvent.click(getByRole("button", { name: "League" }));
+    expect(rowNames(container)).toEqual(["Arsenal"]);
+
+    fireEvent.click(getByRole("button", { name: /^Saved views/ }));
+    fireEvent.click(getByRole("button", { name: 'Delete "League"' }));
+    fireEvent.click(getByRole("button", { name: "Cancel" }));
+    fireEvent.click(getByRole("button", { name: /^Saved views/ }));
+    expect(queryByRole("button", { name: "League" })).not.toBeNull();
+    fireEvent.click(getByRole("button", { name: 'Delete "League"' }));
+    fireEvent.click(getByRole("button", { name: "Delete" }));
+    fireEvent.click(getByRole("button", { name: /^Saved views/ }));
+    expect(queryByRole("button", { name: "League" })).toBeNull();
+    expect(getByText("No saved views yet")).toBeTruthy();
+  });
+
+  it("loads a view with a column this version can't show, leaving it out and saying so", () => {
+    localStorage.setItem(
+      "scoutline:team-explorer:saved-views:v1",
+      JSON.stringify({ version: 1, data: [{ id: "v1", name: "Old", settings: { analysisMode: "lastSeason", visibleColumns: ["leaguePoints", "notAColumn"], columnFilters: { notAColumn: { gte: 1 } } } }] }),
+    );
+    const { container, getByRole, getByText } = renderTeams();
+    fireEvent.click(getByRole("button", { name: /^Saved views/ }));
+    fireEvent.click(getByRole("button", { name: "Old" }));
+    expect(headerLabels(container)).toEqual(["Team", "League Points"]);
+    // The filter on the missing column went with it, so it doesn't empty the table.
+    expect(rowNames(container)).toHaveLength(3);
+    expect(getByText(/Loaded "Old" without what can't be shown now: 1 column not available now/)).toBeTruthy();
+    fireEvent.click(getByRole("button", { name: "Dismiss" }));
+    expect(container.querySelector(".banner.stale")).toBeNull();
+  });
+});

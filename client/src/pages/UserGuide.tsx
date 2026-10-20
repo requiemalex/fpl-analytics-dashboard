@@ -284,8 +284,15 @@ export function UserGuide() {
           </li>
           <li>
             <strong>Toolbar icons</strong> (hover each for its name): Reset restores the default columns, order and widths and clears
-            every filter; Columns picks which columns show; Clear filters empties the search and every column filter; Export CSV
-            downloads exactly what's on screen.
+            every filter; Columns picks which columns show; Clear filters empties the search and every column filter; Saved views
+            (right of Clear filters) saves or loads a view; Export CSV downloads exactly what's on screen.
+          </li>
+          <li>
+            <strong>Saved views:</strong> "Save current view" keeps the Data View, the columns and their order, any widths you've
+            dragged, the sort, the search, every filter, each ⇄ switch and Hide, under a name. Click a name in the menu to load
+            it; its save icon replaces it with what's on screen now, and its bin deletes it (both ask first). A saved view
+            changes only when you save over it, so try anything after loading one. Up to 5 views. If something in a view can't
+            be shown now (say, a club that's left the league), it loads without it and a note above the table says what.
           </li>
           <li>
             Each cell is coloured green/red against every player in his position (see Overview), not just the rows on screen.
@@ -305,7 +312,7 @@ export function UserGuide() {
             <strong>Next 5 Fixtures</strong> (off by default; turn it on in Columns) is always the player's actual upcoming
             fixtures, whatever the mode: matches not yet kicked off.
           </li>
-          <li>The page starts fresh each visit: columns, widths, sort and filters return to the defaults when you leave.</li>
+          <li>The page starts fresh each visit: columns, widths, sort and filters return to the defaults when you leave. Load a saved view to get yours back.</li>
         </ul>
         <Try>
           Looking for undervalued midfielders? Filter Position to MID, sort Pts/£m descending, and cap Price at your budget with its ▾.
@@ -417,7 +424,8 @@ export function UserGuide() {
         </p>
         <p className="page-subtitle">
           <strong>Team Explorer</strong> is a league-table view of that season (position, points, goals for and against, clean
-          sheets, xG, xGC, xA and FPL points) with Player Explorer's toolbar and column toolkit. Columns adds more team metrics
+          sheets, xG, xGC, xA and FPL points) with Player Explorer's toolbar and column toolkit, saved views included (up to 5 of
+          its own). Columns adds more team metrics
           (played, wins, draws, losses, goal difference, goals, assists, bonus, xGI, defensive contributions), and the "Team name…"
           box searches by name or short name. A team's pill, a swatch of its real kit colours where known, opens its Team
           Profile wherever it appears in the app.

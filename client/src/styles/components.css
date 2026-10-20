@@ -1772,6 +1772,66 @@ select:focus {
   cursor: pointer;
 }
 
+/* An Explorer's saved-views menu: one row per view (its name loads it; save
+   over and delete beside it), then "Save current view". */
+.explorer-views-menu {
+  width: 280px;
+}
+.explorer-views-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.explorer-views-load,
+.explorer-views-save {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 6px 4px;
+  cursor: pointer;
+  text-align: left;
+}
+.explorer-views-load {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.explorer-views-load:hover,
+.explorer-views-save:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+.explorer-views-row .chip-icon {
+  border: none;
+  background: transparent;
+}
+.explorer-views-row .chip-icon:hover {
+  color: var(--text-primary);
+  background: var(--surface-hover);
+}
+.explorer-views-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 4px 2px;
+}
+.explorer-views-save {
+  width: 100%;
+  margin-top: var(--space-2);
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  color: var(--accent-positive);
+}
+
 .count-pill {
   display: inline-flex;
   align-items: center;

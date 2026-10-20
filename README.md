@@ -1112,10 +1112,31 @@ word as an initial that must start a name word (`utils/playerSearch.ts`).
   on the live pool they take under 5ms (Team Building's predictions
   included), against the ~0.6s the full table took to draw. The data behind
   them is already fetched and normalised once in `AppStateContext`.
-- Player Explorer keeps no saved data: columns, order, widths, sort, filters
-  and Data View reset when you leave the page (by design).
+- Both Explorers open on their defaults each visit: columns, order, widths,
+  sort, filters and Data View reset when you leave the page (by design).
+- **Saved views** (`<explorer_views>`, `state/useExplorerViews.ts`,
+  `components/ExplorerViewsMenu.tsx`): the icon right of Clear filters, in
+  both Explorers, opens a menu of that page's saved views. "Save current
+  view" names a snapshot of the Data View, the columns and their order,
+  hand-set widths only (the rest fit the window on load, as after a drag),
+  the sort, every column filter, the search, the ⇄ choices and Player
+  Explorer's Hide. Clicking a view loads it; its save icon saves what's on
+  screen over it, its bin deletes it, each after a confirm. Up to 5 per
+  Explorer (`MAX_EXPLORER_VIEWS`), names unique and at most 60 characters,
+  the same checks and wording as Create View. Unlike the Dashboard's and
+  Player Comparison's views, which save every edit while picked, these
+  change only when saved or saved over (owner's choice, 2026-10-20): an
+  Explorer is for trying filters out, and every quick search would
+  otherwise rewrite the view. No packaged view: Reset is the default.
+  Loading (`explorerViewToApply`, `<explorer_view_load>`) leaves out what
+  can't be shown now (a column this version doesn't have or a second
+  source switched off, a Team filter on a club no longer in the league, a
+  ⇄ choice with the source off, which drops that column's filter too) and
+  names it in a dismissable notice above the table; the saved view itself
+  keeps everything. A filter or sort survives only on a column on screen,
+  as when hiding one by hand.
 - Escape closes only the most recently opened layer — column filter, Columns
-  picker, Dashboard dialog, player profile or team profile
+  picker, saved-views menu, Dashboard dialog, player profile or team profile
   (`state/useEscapeLayer.ts`).
 - Text sorts with an accent- and case-insensitive collator; Player
   Explorer's Position sorts in pitch order (GKP, DEF, MID, FWD first).
@@ -1238,7 +1259,7 @@ green or red, which mean better and worse, nor a source's violet or rose).
 figures per "Club history" above. Club pills use real two-colour kits
 (`utils/teamColors.ts`, with a generated fallback). Team Explorer's table
 works like Player Explorer's: the same toolbar (Reset, Columns, clear
-filters, Export CSV, a "Team name…" search via `matchesTeamSearch`), sort,
+filters, saved views, Export CSV, a "Team name…" search via `matchesTeamSearch`), sort,
 drag-reorder, resize, a ▾ filter per column, and Fit to Box sharing the width
 left after the pinned, content-width Team column. The Columns picker lists
 every `TEAM_COLUMNS` metric; beyond the nine league-table defaults they're
@@ -1386,6 +1407,8 @@ server storage. Each store wraps its data as `{ version, data }` via
 | `fpl-dashboard:id-ledger:v1` | `state/seasonIdRollover.ts` (the season the saved ids belong to, and each id's permanent code) |
 | `scoutline:terms-accepted:v1` | `components/TermsGate.tsx` (the terms version last accepted) |
 | `scoutline:dashboard:hide-small-samples:v1` | `state/useHiddenSmallSamples.ts` (the ids of the Dashboard tiles and graphs whose Hide is on) |
+| `scoutline:player-explorer:saved-views:v1` | `useExplorerViews("player")` (Player Explorer's saved views) |
+| `scoutline:team-explorer:saved-views:v1` | `useExplorerViews("team")` (Team Explorer's saved views) |
 
 The `fpl-dashboard:` keys keep their names from before the rename to
 Scoutline: renaming a key would lose everyone's saved data.
@@ -1403,7 +1426,8 @@ changes still work for the session; they just don't persist.
   (`understat:us.shots`, `<external_metric_key>`): tiles, graphs, saved
   views (v7) and comparison views (v3). FPL keys keep their plain form, so
   nothing stored before changes; with the source switched off such an
-  item says so. A ⇄ choice is never saved (as in the Explorers).
+  item says so. A ⇄ choice is never saved there; an Explorer's saved view
+  is the one place it is (see "Saved views" under Player Explorer).
 - **One damaged entry costs only itself** (`mapReadableEntries`): tiles,
   graphs, saved views and saved squads skip an entry that isn't an object or
   can't be read, as comparison views and the notepad already did, instead of

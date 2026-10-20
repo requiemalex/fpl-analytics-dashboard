@@ -26,6 +26,8 @@ import type { NormalizedPlayer, Position } from "../types/normalized";
 import { MenuGroupHeading, fplHeading } from "../components/MenuControls";
 import { CrossoverGroupHeading, SOURCE_TOGGLE_WIDTH, SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
 import { FPL_SOURCE, useExternalStats, type ColumnSourceChoice } from "../extensions/externalStats";
+import { explorerViewToApply, useExplorerViews, type ExplorerView, type ExplorerViewSettings } from "../state/useExplorerViews";
+import { ExplorerViewNotice, ExplorerViewsMenu, explorerViewNote } from "../components/ExplorerViewsMenu";
 
 const GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE", "ADVANCED"];
 /** Not a PLAYER_COLUMNS entry (renders fixture chips, not a number), so it shares the reorder/resize/Fit-to-Box engine as a special key, scoped to this page's own default list rather than the shared DEFAULT_VISIBLE_COLUMNS Team Building also uses. Deselected by default. Always the player's live team's upcoming fixtures, regardless of analysis mode — moving between seasons' fixtures wouldn't mean anything, same reasoning as price/ownership staying live. */
@@ -80,6 +82,9 @@ const EXPLORER_DEFAULT_SORT: SortSpec[] = [{ key: "totalPoints", direction: "des
 const EXPLORER_DEFAULT_VISIBLE_COLUMNS = ["totalPoints", "pointsPerGame", "goals", "assists", "pointsPerMillion", "xG", "xA", "xGI", "minutes"];
 /** Every sortable key on screen straight after Reset: the player name, the fixed columns and the default columns. */
 const EXPLORER_KEYS_AFTER_RESET = new Set<string>(["name", ...FIXED_COLUMN_KEYS, ...EXPLORER_DEFAULT_VISIBLE_COLUMNS]);
+/** Always on screen, so never in a saved view's visibleColumns: the player name and the fixed block. */
+const EXPLORER_ALWAYS_SHOWN_KEYS = new Set<string>(["name", ...FIXED_COLUMN_KEYS]);
+const EXPLORER_UNSORTABLE_KEYS = new Set<string>([FIXTURES_COLUMN_KEY]);
 
 /** The minimum a Mins column filter sets ("≥" or "="), or null when it sets none — what its header's amber stopwatch names (<minutes_marker>). */
 function minutesFilterMinimum(spec: ColumnFilterSpec | undefined): number | null {
@@ -362,6 +367,8 @@ export function PlayerExplorer() {
     reorderColumn,
     startResize,
     fitToBox,
+    manualWidths,
+    applyLayout,
   } = useColumnCustomization(EXPLORER_DEFAULT_VISIBLE_COLUMNS, explorerMinWidths, () => handleFitToBox());
   const headerLayout = { dragOverKey, setDragOverKey, reorderColumn, resizingKey, startResize };
   const columnPickerRef = useRef<HTMLDivElement>(null);
@@ -476,18 +483,60 @@ export function PlayerExplorer() {
     fitToBox(container.clientWidth - fixedWidth - 4);
   }
 
+  // Saved views (<explorer_views>): snapshots of everything above, loaded
+  // only when picked. `viewLoads` re-fits the columns after a load, which
+  // can bring new hand-set widths without changing the column count.
+  const explorerViews = useExplorerViews("player");
+  const [viewNote, setViewNote] = useState<string | null>(null);
+  const [viewLoads, setViewLoads] = useState(0);
+
+  function currentViewSettings(): ExplorerViewSettings {
+    return {
+      analysisMode,
+      visibleColumns,
+      columnWidths: manualWidths(),
+      sort,
+      columnFilters: columnFiltersState.columnFilters,
+      // Only the columns switched away from FPL, the default.
+      sourceChoice: Object.fromEntries(Object.entries(sourceChoice).filter(([, source]) => source !== FPL_SOURCE)),
+      search,
+      hideSmallSamples,
+    };
+  }
+
+  function loadView(view: ExplorerView) {
+    const { settings, leftOut } = explorerViewToApply(view.settings, {
+      isKnownColumn: (key) => key === FIXTURES_COLUMN_KEY || !!(columnByKey(key) ?? extOnlyByKey.get(key)),
+      fixedKeys: EXPLORER_ALWAYS_SHOWN_KEYS,
+      unsortableKeys: EXPLORER_UNSORTABLE_KEYS,
+      categoryOptions: { [TEAM_COLUMN_KEY]: teamCategoryOptions, [POSITION_COLUMN_KEY]: POSITION_OPTIONS },
+      externalSourceId: ext?.id ?? null,
+      canSwitchSource: (key) => !!extColumns?.alternates[key],
+      defaultSort: EXPLORER_DEFAULT_SORT,
+    });
+    setAnalysisMode(settings.analysisMode);
+    applyLayout(settings.visibleColumns, settings.columnWidths);
+    setSort(settings.sort);
+    columnFiltersState.replaceAllFilters(settings.columnFilters);
+    setSourceChoice(settings.sourceChoice);
+    setSearch(settings.search);
+    setHideSmallSamples(settings.hideSmallSamples);
+    setViewLoads((n) => n + 1);
+    setViewNote(explorerViewNote(view.name, leftOut));
+  }
+
   // Column widths auto-fit the table's available width — on first load,
   // when the table empties or fills again (the Player column's width
   // follows the names in it), after a drag-resize, whenever the set of visible
   // columns changes (so toggling a column on/off never leaves the table
-  // overflowing or oddly narrow), and on window resize. Deliberately keyed
+  // overflowing or oddly narrow), after a saved view loads, and on window resize. Deliberately keyed
   // on visibleColumns.length rather than the array itself: a plain reorder
   // (drag-and-drop) doesn't change the column count, so it shouldn't
   // re-trigger this and wipe out a manual per-column resize.
   useEffect(() => {
     handleFitToBox();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortedRows.length > 0, visibleColumns.length]);
+  }, [sortedRows.length > 0, visibleColumns.length, viewLoads]);
 
   useEffect(() => {
     function onResize() {
@@ -617,6 +666,7 @@ export function PlayerExplorer() {
               setSearch("");
               setHideSmallSamples(false);
               columnFiltersState.resetAllFilters();
+              setViewNote(null);
             }}
           />
           <div style={{ position: "relative" }} ref={columnPickerRef}>
@@ -687,6 +737,15 @@ export function PlayerExplorer() {
               columnFiltersState.resetAllFilters();
             }}
           />
+          <ExplorerViewsMenu
+            pageName="Player Explorer"
+            views={explorerViews.views}
+            placeholder="e.g. Budget Midfielders"
+            onSave={(name) => explorerViews.save(name, currentViewSettings())}
+            onLoad={loadView}
+            onOverwrite={(view) => explorerViews.overwrite(view.id, currentViewSettings())}
+            onDelete={(view) => explorerViews.remove(view.id)}
+          />
           <HideSmallSamplesButton hidden={hideSmallSamples} count={smallSampleCount} mode={analysisMode} onToggle={() => setHideSmallSamples((h) => !h)} />
           <IconChipButton icon={<DownloadIcon />} label="Export the visible columns and current rows to a CSV file" onClick={handleExportCsv} />
         </div>
@@ -701,6 +760,8 @@ export function PlayerExplorer() {
           />
         </div>
       </div>
+
+      <ExplorerViewNotice note={viewNote} onDismiss={() => setViewNote(null)} />
 
       {advancedFieldAvailability && !advancedFieldAvailability.defensive_contribution && (
         <div className="banner info">

@@ -167,6 +167,28 @@ export function CreateViewIcon() {
   );
 }
 
+/** A view stacked over another: saved views. The same drawing as SectionHeading's "views" (the Dashboard's and Player Comparison's Saved Views heading); here the Explorers' save/load menu. */
+export function SavedViewsIcon({ size = 17 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M4.5 2.5h8a1.2 1.2 0 0 1 1.2 1.2v6.6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="2.3" y="5" width="9.4" height="8.5" rx="1.2" stroke="currentColor" strokeWidth="1.3" />
+      <line x1="2.3" y1="7.6" x2="11.7" y2="7.6" stroke="currentColor" strokeWidth="1.1" />
+    </svg>
+  );
+}
+
+/** A floppy disk — save what's on screen over a saved Explorer view. */
+export function SaveIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M2.5 3.5a1 1 0 0 1 1-1h7.3l2.7 2.7v7.3a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M5 2.5v3h5v-3" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+      <rect x="5" y="9" width="6" height="4.5" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  );
+}
+
 /** Edit + Remove icon buttons for a Dashboard or Player Comparison card header. Either is omitted when its handler isn't set (e.g. the immutable Starter view). Their hover names the card (`name`): "Edit "Top xGI"". */
 export function CardEditRemoveButtons({
   noun,

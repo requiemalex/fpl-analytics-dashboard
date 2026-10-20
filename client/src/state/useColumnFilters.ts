@@ -83,6 +83,11 @@ export function useColumnFilters(initialFilters: Record<string, ColumnFilterSpec
     setColumnFilters({});
     setOpenFilterKey(null);
   }
+  /** Replaces every filter at once — loading an Explorer's saved view. */
+  function replaceAllFilters(filters: Record<string, ColumnFilterSpec>) {
+    setColumnFilters(filters);
+    setOpenFilterKey(null);
+  }
 
   /** Resolves every active filter against one row via `getValue(key)`, so callers just supply their own column-key-to-value resolver (each table already has one, for sorting). `getDecimals(key)` gives each column's displayed precision (see columnFilterPasses). */
   function passesAllFilters(getValue: (key: string) => number | string | null, getDecimals?: (key: string) => number | undefined): boolean {
@@ -103,6 +108,7 @@ export function useColumnFilters(initialFilters: Record<string, ColumnFilterSpec
     setColumnFilter,
     clearFilter,
     resetAllFilters,
+    replaceAllFilters,
     passesAllFilters,
   };
 }

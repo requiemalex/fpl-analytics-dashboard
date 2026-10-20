@@ -265,3 +265,62 @@ describe("Player Explorer — phase 3 findings (2026-09-25 audit, 3-regression.m
     expect(container.querySelector(".popover")).toBeNull();
   });
 });
+
+describe("Player Explorer — saved views (<explorer_views>)", () => {
+  afterEach(() => localStorage.clear());
+
+  function headerLabels(container: HTMLElement): string[] {
+    return Array.from(container.querySelectorAll<HTMLElement>("table.data-table thead th")).map((th) => th.childNodes[0]?.textContent?.trim() ?? "");
+  }
+
+  function openMenu(getByRole: ReturnType<typeof render>["getByRole"]) {
+    fireEvent.click(getByRole("button", { name: /^Saved views/ }));
+  }
+
+  it("sits directly right of Clear filters", () => {
+    const { container } = renderExplorer();
+    const labels = Array.from(container.querySelectorAll(".icon-toolbar > *")).map((el) => (el.matches("button") ? el : el.querySelector("button"))?.getAttribute("aria-label") ?? "");
+    expect(labels[labels.findIndex((l) => l.startsWith("Clear every filter")) + 1]).toMatch(/^Saved views/);
+  });
+
+  it("puts back the Data View, columns, sort and Team filter it saved", () => {
+    const { container, getByRole, getByLabelText } = renderExplorer();
+    fireEvent.click(getByRole("button", { name: /^Columns/ }));
+    fireEvent.click(within(container.querySelector<HTMLElement>(".popover")!).getByLabelText("Next 5 Fixtures"));
+    fireEvent.click(getByRole("button", { name: /^Columns/ }));
+    applyCategoryFilter(container, "Team", "CHE");
+    fireEvent.click(header(container, "Points"));
+    const savedHeaders = headerLabels(container);
+    expect(rowNames(container)).toEqual(["Bob", "Ángel"]);
+    openMenu(getByRole);
+    fireEvent.click(getByRole("button", { name: "Save current view" }));
+    fireEvent.change(getByLabelText("Name"), { target: { value: "Chelsea" } });
+    fireEvent.keyDown(getByLabelText("Name"), { key: "Enter" });
+
+    fireEvent.click(getByRole("button", { name: /^Restore the default columns/ }));
+    fireEvent.click(getByRole("button", { name: /Last Completed Season/ }));
+    expect(headerLabels(container)).not.toEqual(savedHeaders);
+
+    openMenu(getByRole);
+    fireEvent.click(getByRole("button", { name: "Chelsea" }));
+    expect(headerLabels(container)).toEqual(savedHeaders);
+    expect(rowNames(container)).toEqual(["Bob", "Ángel"]);
+    expect(getByRole("button", { name: /Current Season/ }).getAttribute("aria-pressed")).toBe("true");
+    expect(header(container, "Team").querySelector("button.column-filter-icon")?.className).toContain("active");
+  });
+
+  it("leaves out a Team filter on a club no longer in the league, and says so", () => {
+    localStorage.setItem(
+      "scoutline:player-explorer:saved-views:v1",
+      JSON.stringify({ version: 1, data: [{ id: "v1", name: "Foxes", settings: { analysisMode: "live", visibleColumns: ["totalPoints"], columnFilters: { team: { category: "LEI" } } } }] }),
+    );
+    const { container, getByRole, getByText } = renderExplorer();
+    openMenu(getByRole);
+    fireEvent.click(getByRole("button", { name: "Foxes" }));
+    expect(rowNames(container)).toEqual(["Zubimendi", "Ødegaard", "Ángel", "Bob"]);
+    expect(getByText(/Loaded "Foxes" without what can't be shown now: the filter on LEI, no longer in the league/)).toBeTruthy();
+    // Reset clears the notice along with everything else.
+    fireEvent.click(getByRole("button", { name: /^Restore the default columns/ }));
+    expect(container.querySelector(".banner.stale")).toBeNull();
+  });
+});

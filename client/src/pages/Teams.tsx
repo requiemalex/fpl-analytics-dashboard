@@ -20,6 +20,8 @@ import { matchesTeamSearch } from "../utils/playerSearch";
 import { MenuGroupHeading, fplHeading } from "../components/MenuControls";
 import { CrossoverGroupHeading, SOURCE_TOGGLE_WIDTH, SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
 import { FPL_SOURCE, useExternalStats, type ColumnSourceChoice } from "../extensions/externalStats";
+import { explorerViewToApply, useExplorerViews, type ExplorerView, type ExplorerViewSettings } from "../state/useExplorerViews";
+import { ExplorerViewNotice, ExplorerViewsMenu, explorerViewNote } from "../components/ExplorerViewsMenu";
 
 /** A league-table-style view of each club in the selected season(s) — every column a club figure (see <club_not_squad>, metrics/teamStats.ts). */
 const GROUPS: TeamColumnGroup[] = ["RESULTS", "OUTPUT", "UNDERLYING PERFORMANCE"];
@@ -28,6 +30,8 @@ const TEAM_EXPLORER_DEFAULT_VISIBLE_COLUMNS = ["leaguePosition", "leaguePoints",
 const TEAM_EXPLORER_DEFAULT_SORT: SortSpec[] = [{ key: "leaguePosition", direction: "asc" }];
 /** Every sortable key on screen straight after Reset: the club name and the default columns. */
 const TEAM_EXPLORER_KEYS_AFTER_RESET = new Set<string>(["name", ...TEAM_EXPLORER_DEFAULT_VISIBLE_COLUMNS]);
+/** Always on screen, so never in a saved view's visibleColumns: the club name. */
+const TEAM_EXPLORER_ALWAYS_SHOWN_KEYS = new Set<string>(["name"]);
 
 /**
  * Team headers are longer than Player Explorer's ("Goals Against", "Def.
@@ -110,6 +114,8 @@ export function Teams() {
     reorderColumn,
     startResize,
     fitToBox,
+    manualWidths,
+    applyLayout,
   } = useColumnCustomization(TEAM_EXPLORER_DEFAULT_VISIBLE_COLUMNS, minColumnWidths, () => handleFitToBox());
   const headerLayout = { dragOverKey, setDragOverKey, reorderColumn, resizingKey, startResize };
   const columnPickerRef = useRef<HTMLDivElement>(null);
@@ -216,14 +222,53 @@ export function Teams() {
     fitToBox(container.clientWidth - stickyCol.getBoundingClientRect().width - 4);
   }
 
+  // Saved views (<explorer_views>), as in Player Explorer: snapshots loaded
+  // only when picked; `viewLoads` re-fits the columns after a load.
+  const explorerViews = useExplorerViews("team");
+  const [viewNote, setViewNote] = useState<string | null>(null);
+  const [viewLoads, setViewLoads] = useState(0);
+
+  function currentViewSettings(): ExplorerViewSettings {
+    return {
+      analysisMode,
+      visibleColumns,
+      columnWidths: manualWidths(),
+      sort,
+      columnFilters: columnFiltersState.columnFilters,
+      // Only the columns switched away from FPL, the default.
+      sourceChoice: Object.fromEntries(Object.entries(sourceChoice).filter(([, source]) => source !== FPL_SOURCE)),
+      search,
+      // Team Explorer has no Hide: club figures have no minutes threshold.
+      hideSmallSamples: false,
+    };
+  }
+
+  function loadView(view: ExplorerView) {
+    const { settings, leftOut } = explorerViewToApply(view.settings, {
+      isKnownColumn: (key) => !!(teamColumnByKey(key) ?? extOnlyByKey.get(key)),
+      fixedKeys: TEAM_EXPLORER_ALWAYS_SHOWN_KEYS,
+      externalSourceId: ext?.id ?? null,
+      canSwitchSource: (key) => !!extColumns?.alternates[key],
+      defaultSort: TEAM_EXPLORER_DEFAULT_SORT,
+    });
+    setAnalysisMode(settings.analysisMode);
+    applyLayout(settings.visibleColumns, settings.columnWidths);
+    setSort(settings.sort);
+    columnFiltersState.replaceAllFilters(settings.columnFilters);
+    setSourceChoice(settings.sourceChoice);
+    setSearch(settings.search);
+    setViewLoads((n) => n + 1);
+    setViewNote(explorerViewNote(view.name, leftOut));
+  }
+
   // Re-fit on first load, when the table empties or fills again (the Team
-  // column follows the names in it), when a column is shown or hidden, and
-  // on window resize — keyed on the column count so a drag-reorder keeps
+  // column follows the names in it), when a column is shown or hidden, after
+  // a saved view loads, and on window resize — keyed on the column count so a drag-reorder keeps
   // any hand-set widths (same reasoning as Player Explorer).
   useEffect(() => {
     handleFitToBox();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortedRows.length > 0, visibleColumns.length]);
+  }, [sortedRows.length > 0, visibleColumns.length, viewLoads]);
 
   useEffect(() => {
     function onResize() {
@@ -274,6 +319,7 @@ export function Teams() {
               setSourceChoice({});
               setSearch("");
               columnFiltersState.resetAllFilters();
+              setViewNote(null);
             }}
           />
           <div style={{ position: "relative" }} ref={columnPickerRef}>
@@ -331,12 +377,23 @@ export function Teams() {
               columnFiltersState.resetAllFilters();
             }}
           />
+          <ExplorerViewsMenu
+            pageName="Team Explorer"
+            views={explorerViews.views}
+            placeholder="e.g. Top Attacks"
+            onSave={(name) => explorerViews.save(name, currentViewSettings())}
+            onLoad={loadView}
+            onOverwrite={(view) => explorerViews.overwrite(view.id, currentViewSettings())}
+            onDelete={(view) => explorerViews.remove(view.id)}
+          />
           <IconChipButton icon={<DownloadIcon />} label="Export the visible columns and current rows to a CSV file" onClick={handleExportCsv} />
         </div>
         <div className="field" style={{ marginBottom: 0 }}>
           <input type="text" placeholder="Team name…" aria-label="Search teams" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
       </div>
+
+      <ExplorerViewNotice note={viewNote} onDismiss={() => setViewNote(null)} />
 
       {historicStatus === "loading" && clubSeasons.length === 0 && <p className="page-subtitle">Loading club history…</p>}
 

@@ -32,6 +32,10 @@ export interface UseColumnCustomization {
    * ones from when the listener was made.
    */
   fitToBox: (availableWidth: number) => void;
+  /** The widths the user set by dragging (what a saved view keeps); auto-fitted widths aren't included. */
+  manualWidths: () => Record<string, number>;
+  /** Puts a saved layout on screen: these columns in this order, these hand-set widths. The caller re-fits afterwards, so every other column shares what's left. */
+  applyLayout: (keys: string[], widths: Record<string, number>) => void;
 }
 
 /**
@@ -80,6 +84,19 @@ export function useColumnCustomization(
     manualWidthKeysRef.current.clear();
     setVisibleColumnsState(defaultVisibleColumns);
     setColumnWidths({});
+  }
+
+  function manualWidths() {
+    const widths: Record<string, number> = {};
+    for (const key of manualWidthKeysRef.current) if (columnWidths[key] !== undefined) widths[key] = columnWidths[key];
+    return widths;
+  }
+
+  function applyLayout(keys: string[], widths: Record<string, number>) {
+    const floored = Object.fromEntries(Object.entries(widths).map(([key, width]) => [key, Math.max(minFor(key), width)]));
+    manualWidthKeysRef.current = new Set(Object.keys(floored));
+    setVisibleColumnsState(keys);
+    setColumnWidths(floored);
   }
 
   function reorderColumn(draggedKey: string, targetKey: string) {
@@ -162,5 +179,7 @@ export function useColumnCustomization(
     reorderColumn,
     startResize,
     fitToBox,
+    manualWidths,
+    applyLayout,
   };
 }
