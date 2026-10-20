@@ -6,6 +6,7 @@ import { LoadStateGate } from "./components/LoadStateGate";
 import { PlayerDetailOverlay } from "./components/PlayerDetailOverlay";
 import { TeamDetailOverlay } from "./components/TeamDetailOverlay";
 import { TermsGate } from "./components/TermsGate";
+import { useComparativeColour } from "./state/comparativeColour";
 // Understat (optional second source): this import and the provider below are its only connection to the app.
 import { UnderstatProvider } from "./understat/UnderstatProvider";
 
@@ -22,6 +23,10 @@ const UserGuide = lazy(() => import("./pages/UserGuide").then((m) => ({ default:
 const Legal = lazy(() => import("./pages/Legal").then((m) => ({ default: m.Legal })));
 
 export default function App() {
+  // Subscribed here so switching comparative colouring re-renders every page
+  // and overlay, which then paint (or don't) through percentileTint
+  // (<comparative_colour_switch>).
+  useComparativeColour();
   return (
     <AppStateProvider>
       <UnderstatProvider>

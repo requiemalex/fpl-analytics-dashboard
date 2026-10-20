@@ -1,3 +1,5 @@
+import { isComparativeColourOn } from "../state/comparativeColour";
+
 export type RGB = [number, number, number];
 
 export const NEUTRAL_RGB: RGB = [159, 176, 166];
@@ -18,10 +20,12 @@ function interpolateRGB(t: number, low: RGB, high: RGB): RGB {
  * from its rank — a percentile, already flipped so higher is better. The
  * 50th percentile has no colour; the further from it, the stronger. No
  * rank (a small sample, an uncoloured figure, nobody to compare with) is
- * no colour. The one scale every table, tile and card uses.
+ * no colour, and so is every rank while the top bar's switch has
+ * comparative colouring off (<comparative_colour_switch>). The one scale
+ * every table, tile and card uses.
  */
 export function percentileTint(percentile: number | null | undefined, maxAlpha = 0.16): string | undefined {
-  if (percentile === null || percentile === undefined) return undefined;
+  if (percentile === null || percentile === undefined || !isComparativeColourOn()) return undefined;
   const t = percentile / 100;
   const intensity = Math.abs(t - 0.5) * 2;
   if (intensity < DEAD_ZONE) return undefined;
@@ -32,10 +36,11 @@ export function percentileTint(percentile: number | null | undefined, maxAlpha =
 /**
  * The same scale as a solid colour, for a mark too small to carry a tint
  * (the pitch cards' reliability dot): neutral grey at the 50th percentile,
- * full green at the 100th, full red at the 0th. Undefined without a rank.
+ * full green at the 100th, full red at the 0th. Undefined without a rank
+ * or with comparative colouring switched off.
  */
 export function percentileColour(percentile: number | null | undefined): string | undefined {
-  if (percentile === null || percentile === undefined) return undefined;
+  if (percentile === null || percentile === undefined || !isComparativeColourOn()) return undefined;
   const t = percentile / 100;
   const rgb = t > 0.5 ? interpolateRGB((t - 0.5) * 2, NEUTRAL_RGB, GREEN_RGB) : interpolateRGB((0.5 - t) * 2, NEUTRAL_RGB, RED_RGB);
   return `rgb(${rgb.join(",")})`;

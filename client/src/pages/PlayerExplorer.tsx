@@ -4,6 +4,7 @@ import { useAppState } from "../state/AppStateContext";
 import { useColumnCustomization, MIN_COLUMN_WIDTH } from "../state/useColumnCustomization";
 import { useSortSpec, compareSortValues, sortWithinColumns, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
 import { useColumnFilters } from "../state/useColumnFilters";
+import { useComparativeColour } from "../state/comparativeColour";
 import { ColumnHeader } from "../components/ColumnHeader";
 import { columnHint, playerRankHint, PLAYER_STAT_HINTS, UNDERSTAT_STAT_HINTS } from "../components/hoverText";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
@@ -142,6 +143,8 @@ interface ExplorerRowProps {
 
 /** One table row. Memoized: opening a filter, dragging a header or adding more staged rows leaves the rows already drawn alone. */
 const ExplorerRow = React.memo(function ExplorerRow({ player, derived, mode, columnsInOrder, columnWidths, columnRanks, fixtures, fixturesTint, onOpenPlayer }: ExplorerRowProps) {
+  // Memoized, so it subscribes itself to repaint when comparative colouring is switched (<comparative_colour_switch>).
+  useComparativeColour();
   return (
     <tr onClick={() => onOpenPlayer(player.id)}>
       <PlayerCell player={player} mode={mode} />

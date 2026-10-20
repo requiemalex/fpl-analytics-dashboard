@@ -192,7 +192,9 @@ export function UserGuide() {
           ownership are better. Games played, draws and style figures (set-piece share, assisted-shot share, PPDA) have no
           colour. Charts that tell players apart by colour never use green or red, so no one reads as better or worse by his
           colour alone. Hover a coloured figure to see where it ranks: "Top 8% of midfielders" for a player, "3rd of 20 clubs"
-          for a club. Hover a column header for what its statistic means.
+          for a club. Hover a column header for what its statistic means. The palette button in the top bar, right of the
+          notepad's, turns green and red off on every page at once (struck through while off); press it again to bring them
+          back. Hovering a figure still tells you where it ranks, and the app remembers your choice next time.
         </p>
         <p className="page-subtitle" style={{ margin: 0 }}>
           Price, ownership and availability are always today's, in every mode, including anything worked out from price like

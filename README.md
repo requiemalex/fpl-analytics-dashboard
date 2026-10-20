@@ -923,6 +923,17 @@ by a fraction of one upcoming match.
   - Player Comparison's per-player colours and the Dashboard's charts use
     neither green nor red, so nothing reads as better or worse by its
     series colour.
+  - **One switch turns it all off** (`<comparative_colour_switch>`,
+    `state/comparativeColour.ts`): the palette button in the top bar,
+    right of the notepad's. Off (struck through), `percentileTint` and
+    `percentileColour` give no colour, so every comparative colour in the
+    app goes at once; ranks, their hover text and every other colour
+    (sources, positions, results, form arrows) stay. On by default, one
+    app-wide setting kept across restarts. `App` re-renders the whole
+    tree when it changes; a `React.memo` component that paints (Player
+    Explorer's and Team Building's rows) calls `useComparativeColour()`
+    itself, or it would keep its old colours. Any new colour by rank goes
+    through those two functions, never its own.
 - **Hover text** (the owner's pass, 2026-10-20; `components/hoverText.ts`,
   `<hover_text>`): a hover says what something is for *this* player, club
   or match, in one line. A column header gives its statistic in plain words
@@ -1409,6 +1420,7 @@ server storage. Each store wraps its data as `{ version, data }` via
 | `scoutline:dashboard:hide-small-samples:v1` | `state/useHiddenSmallSamples.ts` (the ids of the Dashboard tiles and graphs whose Hide is on) |
 | `scoutline:player-explorer:saved-views:v1` | `useExplorerViews("player")` (Player Explorer's saved views) |
 | `scoutline:team-explorer:saved-views:v1` | `useExplorerViews("team")` (Team Explorer's saved views) |
+| `scoutline:comparative-colour:v1` | `state/comparativeColour.ts` (whether comparative colouring is on) |
 
 The `fpl-dashboard:` keys keep their names from before the rename to
 Scoutline: renaming a key would lose everyone's saved data.

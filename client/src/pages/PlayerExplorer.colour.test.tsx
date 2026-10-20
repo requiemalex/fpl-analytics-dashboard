@@ -1,10 +1,11 @@
 import React from "react";
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, fireEvent, cleanup } from "@testing-library/react";
+import { render, fireEvent, cleanup, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { PlayerExplorer } from "./PlayerExplorer";
 import { makePlayer, makeTeam } from "../test/fixtures";
 import { percentileTint } from "../utils/colorScale";
+import { setComparativeColourOn } from "../state/comparativeColour";
 
 // <comparative_colouring> on Player Explorer (owner's decision, 2026-10-19):
 // a cell's colour is the player's rank within his position among the whole
@@ -43,7 +44,10 @@ vi.mock("../state/AppStateContext", () => ({
   }),
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  setComparativeColourOn(true);
+});
 
 function renderCurrentSeason() {
   const utils = render(
@@ -101,6 +105,18 @@ describe("Player Explorer — comparative colouring", () => {
     fireEvent.change(getByLabelText("Search players"), { target: { value: "odegaard" } });
     expect(goalsCell(container, "Odegaard").style.backgroundColor).toBe(before);
     expect(before).not.toBe("");
+  });
+
+  it("the top bar's switch takes every colour off the table and puts it back (<comparative_colour_switch>)", () => {
+    const { container } = renderCurrentSeason();
+    const colour = () => goalsCell(container, "Gabriel").style.backgroundColor;
+    const on = colour();
+    expect(on).not.toBe("");
+    act(() => setComparativeColourOn(false));
+    expect(colour()).toBe("");
+    expect(goalsCell(container, "Odegaard").style.backgroundColor).toBe("");
+    act(() => setComparativeColourOn(true));
+    expect(colour()).toBe(on);
   });
 });
 

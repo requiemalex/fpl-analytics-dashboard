@@ -144,6 +144,25 @@ export function NotepadIcon({ size = 15 }: { size?: number }) {
   );
 }
 
+/** A painter's palette — the top bar's comparative-colouring switch; struck through while it's off. */
+export function ComparativeColourIcon({ off = false, size = 15 }: { off?: boolean; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M8 1.8a6.2 6.2 0 1 0 0 12.4c.9 0 1.4-.6 1.4-1.3 0-.4-.2-.7-.4-1-.2-.3-.4-.6-.4-1 0-.8.6-1.3 1.4-1.3h1.6a2.9 2.9 0 0 0 2.9-2.9c0-2.5-2.9-4.9-6.5-4.9z"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
+      <circle cx="4.7" cy="8" r="1" fill="currentColor" />
+      <circle cx="5.7" cy="4.9" r="1" fill="currentColor" />
+      <circle cx="8.9" cy="4.1" r="1" fill="currentColor" />
+      <circle cx="11.4" cy="6" r="1" fill="currentColor" />
+      {off && <path d="M2.2 1.8l11.6 11.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />}
+    </svg>
+  );
+}
+
 /** A plus — the Add card at the end of a Dashboard or Player Comparison grid. */
 export function PlusIcon({ size = 14 }: { size?: number }) {
   return (

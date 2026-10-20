@@ -4,6 +4,7 @@ import { useAppState } from "../state/AppStateContext";
 import { useSavedSquads, MAX_SAVED_SQUADS } from "../state/useSavedSquads";
 import { useColumnCustomization, MIN_COLUMN_WIDTH, type UseColumnCustomization } from "../state/useColumnCustomization";
 import { useColumnFilters } from "../state/useColumnFilters";
+import { useComparativeColour } from "../state/comparativeColour";
 import { ColumnHeader } from "../components/ColumnHeader";
 import { averageFixtureHint, columnHint, fixtureHint, modelBreakdownHint, playerRankHint, PLAYER_STAT_HINTS, versusText } from "../components/hoverText";
 import { useSortSpec, compareSortValues, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
@@ -206,6 +207,8 @@ const PickerRow = React.memo(function PickerRow({
   onAdd,
   onViewProfile,
 }: PickerRowProps) {
+  // Memoized, so it subscribes itself to repaint when comparative colouring is switched (<comparative_colour_switch>).
+  useComparativeColour();
   return (
     <tr
       draggable

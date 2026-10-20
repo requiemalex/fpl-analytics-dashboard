@@ -3,8 +3,9 @@ import { COPYRIGHT_NOTICE } from "../brand";
 import { NavLink } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { fmtTimeAgo, fmtDate, fmtDateShort } from "../utils/format";
-import { CalendarIcon, NotepadIcon } from "./IconToolbar";
+import { CalendarIcon, ComparativeColourIcon, NotepadIcon } from "./IconToolbar";
 import { Notepad, NOTEPAD_KEY, useNotepadHotkey } from "./Notepad";
+import { setComparativeColourOn, useComparativeColour } from "../state/comparativeColour";
 
 type NavEntry =
   | { type: "link"; to: string; label: string }
@@ -108,6 +109,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const toggleNotepad = useCallback(() => setNotepadOpen((o) => !o), []);
   const closeNotepad = useCallback(() => setNotepadOpen(false), []);
   useNotepadHotkey(toggleNotepad);
+  const colourOn = useComparativeColour();
+  const colourLabel = colourOn ? "Turn off green/red comparative colouring everywhere" : "Turn green/red comparative colouring back on everywhere";
   const statusTitle = status === "error" ? `Data error: ${errorMessage ?? "unknown"}` : isStale ? "Stale data: showing the last successful fetch" : `Live, updated ${fmtTimeAgo(lastUpdated)}`;
 
   return (
@@ -179,6 +182,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             aria-pressed={notepadOpen}
           >
             <NotepadIcon />
+          </button>
+          <button
+            type="button"
+            className={`topbar-icon-btn${colourOn ? " active" : ""}`}
+            onClick={() => setComparativeColourOn(!colourOn)}
+            title={colourLabel}
+            aria-label={colourLabel}
+            aria-pressed={colourOn}
+          >
+            <ComparativeColourIcon off={!colourOn} />
           </button>
         </div>
         <WindowControls />

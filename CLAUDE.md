@@ -121,6 +121,9 @@ No lint script. Playwright isn't installed but works via
   applies to colour, on every page: under it, no colour and out of the
   pool. More is better (over-performance included); lower price and
   ownership are better; played, draws and style stats are never coloured.
+  The top bar's palette switch turns every such colour off at once
+  (`<comparative_colour_switch>`): paint by rank only through
+  `percentileTint` / `percentileColour`, never a colour of your own.
   Never use green or red as a series or decoration colour (one exception,
   the owner's choice: the green "line" in the Scoutline logo).
 
