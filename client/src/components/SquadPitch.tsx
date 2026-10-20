@@ -6,6 +6,8 @@ import { percentileColour, percentileTint } from "../utils/colorScale";
 import { SQUAD_RULES } from "../types/team";
 import type { SquadValidation } from "../metrics/squadRules";
 import type { NormalizedPlayer, Position } from "../types/normalized";
+import type { ExpectedPointsV2Breakdown } from "../metrics/expectedPointsV2";
+import { fixtureHint, modelBreakdownHint, playerRankHint, versusText } from "./hoverText";
 
 const PITCH_ROW_ORDER: Position[] = ["FWD", "MID", "DEF", "GKP"];
 const COMPOSITION_ORDER: Position[] = ["GKP", "DEF", "MID", "FWD"];
@@ -19,7 +21,7 @@ function FixtureTicker({ fixtures }: { fixtures: UpcomingFixture[] }) {
           key={f.fixtureId}
           className="pitch-card-fixture"
           style={{ background: fdrColor(f.difficulty) }}
-          title={`${f.opponentShortName} (${f.isHome ? "H" : "A"}), FDR ${f.difficulty}`}
+          title={fixtureHint(f)}
         >
           {f.opponentShortName.slice(0, 3)}
         </span>
@@ -75,10 +77,11 @@ function PlayerCard({
   isViceCaptain,
   isPickable,
   expectedPoints,
-  modelPredicted,
+  modelBreakdown,
   reliability,
   ranks,
   fixtures,
+  gwOffset,
   onDropOnCard,
   onRemove,
   onClick,
@@ -91,21 +94,30 @@ function PlayerCard({
   isPickable: boolean;
   /** FPL's own official figure for the navigator-selected gameweek — not yet captain-doubled, this component doubles it for display when isCaptain. */
   expectedPoints: number | null;
-  /** Expected Points Tier 2 — this app's own independent estimate for the same gameweek, same captain-doubling treatment. */
-  modelPredicted: number | null;
+  /** Expected Points Tier 2 — this app's own independent estimate for the same gameweek, in parts; same captain-doubling treatment. */
+  modelBreakdown: ExpectedPointsV2Breakdown | null;
   /** 0-1 blended reliability share, or null with neither historic nor live data. */
   reliability: number | null;
   /** His ranks within his position for the card's figures (<comparative_colouring>) — none under the floor. */
   ranks: PitchCardRanks;
   fixtures: UpcomingFixture[];
+  /** The navigator's selection: both Exp. Pts figures are for fixtures[gwOffset - 1]. */
+  gwOffset: number;
   onDropOnCard: (draggedId: number, targetId: number, targetZone: "pitch" | "bench") => void;
   onRemove: (id: number) => void;
   onClick: (id: number) => void;
   onViewProfile: (id: number) => void;
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
+  const modelPredicted = modelBreakdown?.total ?? null;
+  const target = fixtures[gwOffset - 1];
   const displayPoints = expectedPoints !== null && isCaptain ? expectedPoints * 2 : expectedPoints;
   const displayModelPredicted = modelPredicted !== null && isCaptain ? modelPredicted * 2 : modelPredicted;
+  /** A figure's hover, then his rank within his position for it (<hover_text>). */
+  const withRank = (text: string, rank: number | undefined) => {
+    const phrase = playerRankHint(rank, player.position);
+    return phrase ? `${text}\n${phrase}` : text;
+  };
   const tintStyle = (rank: number | undefined) => {
     const tint = percentileTint(rank);
     return tint ? { backgroundImage: `linear-gradient(${tint}, ${tint})` } : undefined;
@@ -141,7 +153,7 @@ function PlayerCard({
           e.stopPropagation();
           onRemove(player.id);
         }}
-        title="Remove from squad"
+        title={`Remove ${player.name} from the squad`}
       >
         ×
       </button>
@@ -169,31 +181,31 @@ function PlayerCard({
             e.stopPropagation();
             onViewProfile(player.id);
           }}
-          title="View profile"
+          title={`View ${player.name}'s profile`}
         >
           <span className={availabilityTextClass(player.status)}>{player.name}</span>
           <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />
         </div>
         <div className="pitch-card-team">{player.teamShortName}</div>
       </div>
-      <div className="pitch-card-points" style={tintStyle(ranks.points)} title="FPL's own official expected points for the navigator-selected gameweek (captain doubled)">
+      <div className="pitch-card-points" style={tintStyle(ranks.points)} title={withRank(target ? `FPL's expected points${versusText(target)}${isCaptain ? " (captain ×2)" : ""}` : `No match at GW+${gwOffset}`, ranks.points)}>
         {displayPoints !== null ? fmtDecimal(displayPoints, 1) : DASH} <span className="pitch-card-points-label">pts</span>
       </div>
       <div
         className="pitch-card-model-points"
         style={tintStyle(ranks.model)}
-        title="Expected Points Tier 2: this app's own independent estimate for the same gameweek, built from live per-event stats and FPL's real scoring rules (captain doubled)"
+        title={withRank(modelBreakdown ? modelBreakdownHint(modelBreakdown, target, isCaptain) : target ? "Scoutline's model has no figure: there's no playing-time estimate for him" : `No match at GW+${gwOffset}`, ranks.model)}
       >
         Model {displayModelPredicted !== null ? fmtDecimal(displayModelPredicted, 1) : DASH}
       </div>
       <div className="pitch-card-meta">
-        <span className="pitch-card-stat" style={tintStyle(ranks.price)} title="Price">
+        <span className="pitch-card-stat" style={tintStyle(ranks.price)} title={withRank(`${fmtPrice(player.price)} today`, ranks.price)}>
           {fmtPrice(player.price)}
         </span>
-        <span className="pitch-card-stat" style={tintStyle(ranks.ownership)} title="Ownership">
+        <span className="pitch-card-stat" style={tintStyle(ranks.ownership)} title={withRank(`Owned by ${fmtPercent(player.ownership, 1)} of FPL managers`, ranks.ownership)}>
           {fmtPercent(player.ownership, 1)}
         </span>
-        <span className="pitch-card-reliability" title="Minutes reliability: blended historic and live playing time, adjusted for current availability">
+        <span className="pitch-card-reliability" title={withRank(reliability !== null ? `Expected to play about ${fmtPercent(reliability * 100, 0)} of each match` : "No playing-time estimate for him", ranks.reliability)}>
           <span className="reliability-dot" style={{ background: percentileColour(ranks.reliability) }} />
           {reliability !== null ? fmtPercent(reliability * 100, 0) : DASH}
         </span>
@@ -211,7 +223,7 @@ export function SquadPitch({
   captainId,
   viceCaptainId,
   expectedPointsByPlayerId,
-  modelPredictedByPlayerId,
+  modelBreakdownByPlayerId,
   reliabilityByPlayerId,
   colourRanks,
   fixturesByTeamId,
@@ -235,7 +247,7 @@ export function SquadPitch({
   captainId: number | null;
   viceCaptainId: number | null;
   expectedPointsByPlayerId: Map<number, number | null>;
-  modelPredictedByPlayerId: Map<number, number | null>;
+  modelBreakdownByPlayerId: Map<number, ExpectedPointsV2Breakdown | null>;
   reliabilityByPlayerId: Map<number, number | null>;
   /** Every player's ranks for the cards' figures, from the Add Players table's pool (<comparative_colouring>). */
   colourRanks: PitchColourRanks;
@@ -282,7 +294,7 @@ export function SquadPitch({
           >
             Vice-Captain
           </button>
-          <button type="button" className="chip" onClick={onClearSquad} title="Remove every player from the squad and bench">
+          <button type="button" className="chip" onClick={onClearSquad} title={`Remove every player from ${squadName}`}>
             Clear Draft
           </button>
         </div>
@@ -297,7 +309,7 @@ export function SquadPitch({
             aria-pressed={gwOffset === offset}
             style={gwOffset === offset ? { borderColor: "var(--accent-positive)", color: "var(--accent-positive)" } : undefined}
             onClick={() => onGwOffsetChange(offset)}
-            title={`Each player's ${offset === 1 ? "very next" : `${offset}${offset === 2 ? "nd" : offset === 3 ? "rd" : "th"}`} upcoming fixture, not a calendar gameweek number, so a blank gameweek has no fixture to select here.`}
+            title={offset === 1 ? "Points for each player's next match" : `Points for each player's ${offset}${offset === 2 ? "nd" : offset === 3 ? "rd" : "th"} match from now (his own, so a blank gameweek is skipped)`}
           >
             GW+{offset}
           </button>
@@ -347,10 +359,11 @@ export function SquadPitch({
                   isViceCaptain={p.id === viceCaptainId}
                   isPickable={captainPickMode !== null}
                   expectedPoints={expectedPointsByPlayerId.get(p.id) ?? null}
-                  modelPredicted={modelPredictedByPlayerId.get(p.id) ?? null}
+                  modelBreakdown={modelBreakdownByPlayerId.get(p.id) ?? null}
                   reliability={reliabilityByPlayerId.get(p.id) ?? null}
                   ranks={pitchCardRanks(colourRanks, p.id)}
                   fixtures={fixturesByTeamId.get(p.teamId) ?? []}
+                  gwOffset={gwOffset}
                   onDropOnCard={onSwap}
                   onRemove={onRemove}
                   onClick={onPlayerCardClick}
@@ -387,10 +400,11 @@ export function SquadPitch({
               isViceCaptain={false}
               isPickable={false}
               expectedPoints={expectedPointsByPlayerId.get(p.id) ?? null}
-              modelPredicted={modelPredictedByPlayerId.get(p.id) ?? null}
+              modelBreakdown={modelBreakdownByPlayerId.get(p.id) ?? null}
               reliability={reliabilityByPlayerId.get(p.id) ?? null}
               ranks={pitchCardRanks(colourRanks, p.id)}
               fixtures={fixturesByTeamId.get(p.teamId) ?? []}
+                  gwOffset={gwOffset}
               onDropOnCard={onSwap}
               onRemove={onRemove}
               onClick={onPlayerCardClick}

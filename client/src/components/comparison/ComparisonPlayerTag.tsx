@@ -24,7 +24,7 @@ export function ComparisonPlayerTag({ entry, onOpen, onRemove }: { entry: Compar
         </button>
       </div>
       <div className="cmp-player-tag-meta">
-        <span className="mono" title="Selected by · price (today's figures)">
+        <span className="mono" title={`${p.name} today: owned by ${fmtPercent(p.ownership, 1)} of FPL managers, ${fmtPrice(p.price)}`}>
           {fmtPercent(p.ownership, 1)} · {fmtPrice(p.price)}
         </span>
         <TeamBadge teamId={p.teamId} shortName={p.teamShortName} />

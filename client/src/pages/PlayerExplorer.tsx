@@ -4,7 +4,8 @@ import { useAppState } from "../state/AppStateContext";
 import { useColumnCustomization, MIN_COLUMN_WIDTH } from "../state/useColumnCustomization";
 import { useSortSpec, compareSortValues, sortWithinColumns, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
 import { useColumnFilters } from "../state/useColumnFilters";
-import { ColumnHeader, columnHeaderTitle } from "../components/ColumnHeader";
+import { ColumnHeader } from "../components/ColumnHeader";
+import { columnHint, playerRankHint, PLAYER_STAT_HINTS, UNDERSTAT_STAT_HINTS } from "../components/hoverText";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { getUpcomingFixtures, formatFixturesForCsv, type UpcomingFixture } from "../metrics/fixtureTicker";
@@ -95,6 +96,11 @@ function columnTint(ranks: ColumnRanks, player: NormalizedPlayer, c: PlayerColum
   return percentileTint(ranks.get(c.key)?.get(player.id));
 }
 
+/** What a cell's colour means for him: "xG: top 8% of midfielders" (<hover_text>). */
+function columnRankHint(ranks: ColumnRanks, player: NormalizedPlayer, c: PlayerColumn): string | undefined {
+  return playerRankHint(ranks.get(c.key)?.get(player.id), player.position, c.label);
+}
+
 /** The sticky Player cell — shared by real rows and the width-sizer rows, so both measure exactly the same. */
 function PlayerCell({ player, mode }: { player: NormalizedPlayer; mode: AnalysisMode }) {
   return (
@@ -150,7 +156,7 @@ const ExplorerRow = React.memo(function ExplorerRow({ player, derived, mode, col
           );
         }
         return (
-          <td key={c.key} className={className} style={{ ...widthStyle, backgroundColor: columnTint(columnRanks, player, c) }}>
+          <td key={c.key} className={className} style={{ ...widthStyle, backgroundColor: columnTint(columnRanks, player, c) }} title={columnRankHint(columnRanks, player, c)}>
             {cellText(c, player, derived)}
           </td>
         );
@@ -181,6 +187,7 @@ const ExplorerRow = React.memo(function ExplorerRow({ player, derived, mode, col
               ...(width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } : {}),
               backgroundColor: columnTint(columnRanks, player, c),
             }}
+            title={columnRankHint(columnRanks, player, c)}
           >
             {cellText(c, player, derived)}
           </td>
@@ -734,7 +741,7 @@ export function PlayerExplorer() {
                       columnKey={key}
                       label={label}
                       className={isFirst ? "col-static column-group-divider" : "col-static"}
-                      title={columnHeaderTitle({ liveFigure: true, draggable: false })}
+                      title={typeof c === "string" ? (c === TEAM_COLUMN_KEY ? "Team: his club. Click a badge for the club's profile." : "Position: his FPL position.") : columnHint(c.label, { hint: PLAYER_STAT_HINTS[c.key], lowerIsBetter: c.higherIsBetter === false, liveFigure: true })}
                       layout={headerLayout}
                       width={width}
                       // Unless hand-set, 1px means "as narrow as its content": without it
@@ -777,8 +784,13 @@ export function PlayerExplorer() {
                       className={className}
                       title={
                         isFixtures
-                          ? "Always the player's live team's upcoming fixtures, regardless of analysis mode · Drag to reorder · Drag the right edge to resize"
-                          : columnHeaderTitle({ liveFigure: isStatic })
+                          ? "Next 5 Fixtures: his club's next 5 matches, coloured by FPL difficulty, with their average."
+                          : columnHint((c as PlayerColumn).label, {
+                              hint: fromExt ? UNDERSTAT_STAT_HINTS[key] : PLAYER_STAT_HINTS[key],
+                              source: fromExt ? ext.label : undefined,
+                              lowerIsBetter: (c as PlayerColumn).higherIsBetter === false,
+                              liveFigure: isStatic,
+                            })
                       }
                       layout={headerLayout}
                       width={width}

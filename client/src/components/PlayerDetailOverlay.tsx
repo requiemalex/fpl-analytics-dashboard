@@ -30,7 +30,8 @@ import { fmtDecimal, fmtPrice, fmtPercent, DASH } from "../utils/format";
 import { usePlayerPastSeasons } from "../state/usePlayerPastSeasons";
 import { useExternalStats, type ProfileView } from "../extensions/externalStats";
 import { SourceToggle } from "./SourceToggle";
-import type { NormalizedPlayer, PlayerSeasonHistory, PlayerGameweekHistory, PlayerPastMatch } from "../types/normalized";
+import type { NormalizedPlayer, PlayerSeasonHistory, PlayerGameweekHistory, PlayerPastMatch, Position } from "../types/normalized";
+import { playerRankHint } from "./hoverText";
 
 
 /**
@@ -85,10 +86,11 @@ function useSelectedPlayer(): [NormalizedPlayer | null, (id: number | null) => v
  * multi-column grids (Underlying Numbers, Value) where that would
  * otherwise visually collide (e.g. "xG/Game" and "0.78" running together). */
 /** `percentile` is this player's within-position percentile for whatever stat `value` shows (already flipped so higher = better) — omitted (or null) shows no tint, e.g. for a small-sample player computePositionPercentiles has nothing to place them against. */
-function StatTile({ label, value, percentile }: { label: string; value: React.ReactNode; percentile?: number | null }) {
+/** `position` words the percentile on hover: "Top 8% of midfielders" (<hover_text>). */
+function StatTile({ label, value, percentile, position }: { label: string; value: React.ReactNode; percentile?: number | null; position: Position }) {
   const tint = percentileTint(percentile ?? null);
   return (
-    <div className="stat-tile" style={tint ? { background: tint } : undefined}>
+    <div className="stat-tile" style={tint ? { background: tint } : undefined} title={playerRankHint(percentile, position)}>
       <span className="stat-tile-label">{label}</span>
       <span className="stat-tile-value num">{value}</span>
     </div>
@@ -582,9 +584,9 @@ export function PlayerDetailOverlay() {
     <div className="card">
       <div className="card-title">Value{smallSampleBadge}</div>
       <div className="stat-tile-grid">
-        <StatTile label="Pts/£m" value={fmtDecimal(derived.pointsPerMillion, 1)} percentile={statPercentiles.pointsPerMillion} />
-        <StatTile label="PPG" value={fmtDecimal(resolvedPlayer.pointsPerGame, 1)} percentile={statPercentiles.pointsPerGame} />
-        <StatTile label="Min/Goal" value={fmtDecimal(derived.minutesPerGoal, 0)} percentile={statPercentiles.minutesPerGoal} />
+        <StatTile position={player.position} label="Pts/£m" value={fmtDecimal(derived.pointsPerMillion, 1)} percentile={statPercentiles.pointsPerMillion} />
+        <StatTile position={player.position} label="PPG" value={fmtDecimal(resolvedPlayer.pointsPerGame, 1)} percentile={statPercentiles.pointsPerGame} />
+        <StatTile position={player.position} label="Min/Goal" value={fmtDecimal(derived.minutesPerGoal, 0)} percentile={statPercentiles.minutesPerGoal} />
       </div>
     </div>
   );
@@ -900,27 +902,27 @@ export function PlayerDetailOverlay() {
                     <div>
                       <div className="stat-group-title">Defensive</div>
                       <div className="stat-tile-grid">
-                        <StatTile label="Clean Sheets" value={fmtDecimal(resolvedPlayer.cleanSheets, countDecimals(analysisMode))} percentile={statPercentiles.cleanSheets} />
-                        <StatTile label="xGC" value={fmtDecimal(resolvedPlayer.xGC, 2)} percentile={statPercentiles.xGC} />
-                        <StatTile label="Def. Contrib." value={fmtDecimal(resolvedPlayer.defensiveContributions, countDecimals(analysisMode))} percentile={statPercentiles.defensiveContributions} />
+                        <StatTile position={player.position} label="Clean Sheets" value={fmtDecimal(resolvedPlayer.cleanSheets, countDecimals(analysisMode))} percentile={statPercentiles.cleanSheets} />
+                        <StatTile position={player.position} label="xGC" value={fmtDecimal(resolvedPlayer.xGC, 2)} percentile={statPercentiles.xGC} />
+                        <StatTile position={player.position} label="Def. Contrib." value={fmtDecimal(resolvedPlayer.defensiveContributions, countDecimals(analysisMode))} percentile={statPercentiles.defensiveContributions} />
                       </div>
                       <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                        <StatTile label="xGC/Game" value={fmtDecimal(resolvedPlayer.xGCPerGame, 2)} percentile={statPercentiles.xGCPerGame} />
-                        <StatTile label="DC/Game" value={fmtDecimal(resolvedPlayer.defensiveContributionsPerGame, 2)} percentile={statPercentiles.defensiveContributionsPerGame} />
-                        <StatTile label="BPS" value={fmtDecimal(resolvedPlayer.bps, countDecimals(analysisMode))} percentile={statPercentiles.bps} />
+                        <StatTile position={player.position} label="xGC/Game" value={fmtDecimal(resolvedPlayer.xGCPerGame, 2)} percentile={statPercentiles.xGCPerGame} />
+                        <StatTile position={player.position} label="DC/Game" value={fmtDecimal(resolvedPlayer.defensiveContributionsPerGame, 2)} percentile={statPercentiles.defensiveContributionsPerGame} />
+                        <StatTile position={player.position} label="BPS" value={fmtDecimal(resolvedPlayer.bps, countDecimals(analysisMode))} percentile={statPercentiles.bps} />
                       </div>
                     </div>
                     <div>
                       <div className="stat-group-title">Offensive</div>
                       <div className="stat-tile-grid">
-                        <StatTile label="xG" value={fmtDecimal(resolvedPlayer.xG, 2)} percentile={statPercentiles.xG} />
-                        <StatTile label="xA" value={fmtDecimal(resolvedPlayer.xA, 2)} percentile={statPercentiles.xA} />
-                        <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} percentile={statPercentiles.xGI} />
+                        <StatTile position={player.position} label="xG" value={fmtDecimal(resolvedPlayer.xG, 2)} percentile={statPercentiles.xG} />
+                        <StatTile position={player.position} label="xA" value={fmtDecimal(resolvedPlayer.xA, 2)} percentile={statPercentiles.xA} />
+                        <StatTile position={player.position} label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} percentile={statPercentiles.xGI} />
                       </div>
                       <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                        <StatTile label="xG/Game" value={fmtDecimal(resolvedPlayer.xGPerGame, 2)} percentile={statPercentiles.xGPerGame} />
-                        <StatTile label="xA/Game" value={fmtDecimal(resolvedPlayer.xAPerGame, 2)} percentile={statPercentiles.xAPerGame} />
-                        <StatTile label="xGI/Game" value={fmtDecimal(resolvedPlayer.xGIPerGame, 2)} percentile={statPercentiles.xGIPerGame} />
+                        <StatTile position={player.position} label="xG/Game" value={fmtDecimal(resolvedPlayer.xGPerGame, 2)} percentile={statPercentiles.xGPerGame} />
+                        <StatTile position={player.position} label="xA/Game" value={fmtDecimal(resolvedPlayer.xAPerGame, 2)} percentile={statPercentiles.xAPerGame} />
+                        <StatTile position={player.position} label="xGI/Game" value={fmtDecimal(resolvedPlayer.xGIPerGame, 2)} percentile={statPercentiles.xGIPerGame} />
                       </div>
                     </div>
                   </div>
@@ -940,25 +942,25 @@ export function PlayerDetailOverlay() {
                           same reason the gameweek log hides DC for them (audit
                           2026-09-25 player-team-profiles L4). */}
                       <div className="stat-tile-grid">
-                        <StatTile label="Clean Sheets" value={fmtDecimal(resolvedPlayer.cleanSheets, countDecimals(analysisMode))} percentile={statPercentiles.cleanSheets} />
-                        <StatTile label="xGC" value={fmtDecimal(resolvedPlayer.xGC, 2)} percentile={statPercentiles.xGC} />
-                        <StatTile label="xGC/Game" value={fmtDecimal(resolvedPlayer.xGCPerGame, 2)} percentile={statPercentiles.xGCPerGame} />
+                        <StatTile position={player.position} label="Clean Sheets" value={fmtDecimal(resolvedPlayer.cleanSheets, countDecimals(analysisMode))} percentile={statPercentiles.cleanSheets} />
+                        <StatTile position={player.position} label="xGC" value={fmtDecimal(resolvedPlayer.xGC, 2)} percentile={statPercentiles.xGC} />
+                        <StatTile position={player.position} label="xGC/Game" value={fmtDecimal(resolvedPlayer.xGCPerGame, 2)} percentile={statPercentiles.xGCPerGame} />
                       </div>
                       <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                        <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} percentile={statPercentiles.xGI} />
+                        <StatTile position={player.position} label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} percentile={statPercentiles.xGI} />
                       </div>
                     </>
                   ) : (
                     <>
                       <div className="stat-tile-grid">
-                        <StatTile label="xG" value={fmtDecimal(resolvedPlayer.xG, 2)} percentile={statPercentiles.xG} />
-                        <StatTile label="xA" value={fmtDecimal(resolvedPlayer.xA, 2)} percentile={statPercentiles.xA} />
-                        <StatTile label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} percentile={statPercentiles.xGI} />
+                        <StatTile position={player.position} label="xG" value={fmtDecimal(resolvedPlayer.xG, 2)} percentile={statPercentiles.xG} />
+                        <StatTile position={player.position} label="xA" value={fmtDecimal(resolvedPlayer.xA, 2)} percentile={statPercentiles.xA} />
+                        <StatTile position={player.position} label="xGI" value={fmtDecimal(resolvedPlayer.xGI, 2)} percentile={statPercentiles.xGI} />
                       </div>
                       <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                        <StatTile label="xG/Game" value={fmtDecimal(resolvedPlayer.xGPerGame, 2)} percentile={statPercentiles.xGPerGame} />
-                        <StatTile label="xA/Game" value={fmtDecimal(resolvedPlayer.xAPerGame, 2)} percentile={statPercentiles.xAPerGame} />
-                        <StatTile label="xGI/Game" value={fmtDecimal(resolvedPlayer.xGIPerGame, 2)} percentile={statPercentiles.xGIPerGame} />
+                        <StatTile position={player.position} label="xG/Game" value={fmtDecimal(resolvedPlayer.xGPerGame, 2)} percentile={statPercentiles.xGPerGame} />
+                        <StatTile position={player.position} label="xA/Game" value={fmtDecimal(resolvedPlayer.xAPerGame, 2)} percentile={statPercentiles.xAPerGame} />
+                        <StatTile position={player.position} label="xGI/Game" value={fmtDecimal(resolvedPlayer.xGIPerGame, 2)} percentile={statPercentiles.xGIPerGame} />
                       </div>
                     </>
                   )}

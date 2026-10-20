@@ -4,7 +4,8 @@ import { useAppState } from "../state/AppStateContext";
 import { useSavedSquads, MAX_SAVED_SQUADS } from "../state/useSavedSquads";
 import { useColumnCustomization, MIN_COLUMN_WIDTH, type UseColumnCustomization } from "../state/useColumnCustomization";
 import { useColumnFilters } from "../state/useColumnFilters";
-import { ColumnHeader, columnHeaderTitle } from "../components/ColumnHeader";
+import { ColumnHeader } from "../components/ColumnHeader";
+import { averageFixtureHint, columnHint, fixtureHint, modelBreakdownHint, playerRankHint, PLAYER_STAT_HINTS, versusText } from "../components/hoverText";
 import { useSortSpec, compareSortValues, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
 import { useProgressiveRowCount } from "../state/useProgressiveRowCount";
 import { SQUAD_RULES, createBlankSquad, type SavedSquad } from "../types/team";
@@ -12,7 +13,7 @@ import { validateSquad, validateStartingXI, canAddPlayer } from "../metrics/squa
 import { resolvePlayerStats, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { computeExpectedPointsForSingleFixture } from "../metrics/expectedPoints";
-import { computeExpectedPointsV2ForFixture } from "../metrics/expectedPointsV2";
+import { computeExpectedPointsV2ForFixture, type ExpectedPointsV2Breakdown } from "../metrics/expectedPointsV2";
 import { fetchEntryTeam, fetchEntryHistory, fetchEntryPicks, ApiRequestError } from "../api/client";
 import { normalizeEntryImport } from "../normalize/normalizeEntryImport";
 import { matchesPlayerSearch } from "../utils/playerSearch";
@@ -59,8 +60,10 @@ interface PickerRowData {
   fplOfficial: number | null;
   /** Expected Points Tier 2 — this app's own independent per-event estimate for the same navigator-selected gameweek. See metrics/expectedPointsV2.ts. */
   modelPredicted: number | null;
-  /** Which approximations/data gaps applied to this player's modelPredicted figure, if any — shown as a hover tooltip on the cell. */
-  modelCaveats: string[];
+  /** The model's figure in parts, for the cell's hover (null without one). */
+  modelBreakdown: ExpectedPointsV2Breakdown | null;
+  /** The match both Exp. Pts figures are for: his navigator-selected upcoming fixture. */
+  targetFixture: UpcomingFixture | undefined;
   reliability: number | null;
 }
 
@@ -77,6 +80,16 @@ interface PredictiveColumnDef {
   varies?: boolean;
   /** A minimum-minutes threshold built into the figure: its header carries the amber stopwatch with this as its hover text (<minutes_marker>). */
   minutesNote?: string;
+  /** What the figure is, for its header's hover (<hover_text>). */
+  hint: string;
+  /** This row's figure explained, for its cell's hover. */
+  cellHint?: (row: PickerRowData) => string | undefined;
+}
+
+/** A player's Minutes Reliability in words: "Expected to play about 85% of each match". */
+function reliabilityHint(name: string, reliability: number | null): string | undefined {
+  if (reliability === null) return undefined;
+  return `${name}: expected to play about ${fmtPercent(reliability * 100, 0)} of each match`;
 }
 
 const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
@@ -86,6 +99,8 @@ const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
     getValue: (row) => row.fplOfficial,
     renderCell: (row) => fmtDecimal(row.fplOfficial, 1),
     decimals: 1,
+    hint: "FPL's own expected points for each player's match picked on the pitch (GW+1 to GW+5).",
+    cellHint: (row) => (row.fplOfficial !== null ? `FPL's expected points${versusText(row.targetFixture)}` : undefined),
   },
   {
     key: "expModelPredicted",
@@ -93,17 +108,9 @@ const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
     getValue: (row) => row.modelPredicted,
     decimals: 1,
     minutesNote: `Minimum minutes applied inside the model: its bonus rate comes only from those of the last 4 completed seasons with ${MIN_QUALIFYING_SEASON_MINUTES}+ minutes.`,
-    renderCell: (row) => (
-      <span
-        title={
-          row.modelCaveats.length > 0
-            ? `This app's own independent estimate, built from live per-event stats and FPL's real scoring rules, not FPL's own figure. ${row.modelCaveats.join(" ")}`
-            : "This app's own independent estimate, built from live per-event stats and FPL's real scoring rules, not FPL's own figure."
-        }
-      >
-        {fmtDecimal(row.modelPredicted, 1)}
-      </span>
-    ),
+    renderCell: (row) => fmtDecimal(row.modelPredicted, 1),
+    hint: "Scoutline's own expected points for the same match, from his per-90 stats and FPL's scoring rules. Hover a figure for its parts.",
+    cellHint: (row) => (row.modelBreakdown ? modelBreakdownHint(row.modelBreakdown, row.targetFixture) : undefined),
   },
   {
     key: "reliability",
@@ -112,6 +119,8 @@ const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
     renderCell: (row) => (row.reliability !== null ? fmtPercent(row.reliability * 100, 0) : DASH),
     decimals: 0,
     varies: false,
+    hint: "The share of a match he's expected to play, from his minutes in past seasons and this one, adjusted for injury and suspension news.",
+    cellHint: (row) => reliabilityHint(row.live.name, row.reliability),
   },
   {
     key: "fixtures",
@@ -120,6 +129,7 @@ const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
     decimals: 1,
     higherIsBetter: false,
     varies: false,
+    hint: "His club's next 5 matches, coloured by FPL difficulty. Sorts by their average.",
     renderCell: (row) => {
       const avgFdr = averageFixtureDifficulty(row.fixtures);
       if (row.fixtures.length === 0 || avgFdr === null) return <span className="value-muted">{DASH}</span>;
@@ -131,16 +141,13 @@ const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
                 key={f.fixtureId}
                 className="table-fixture-chip"
                 style={{ background: fdrColor(f.difficulty) }}
-                title={`${f.opponentShortName} (${f.isHome ? "H" : "A"}), FDR ${f.difficulty}`}
+                title={fixtureHint(f)}
               >
                 {f.opponentShortName.slice(0, 3)}
               </span>
             ))}
           </div>
-          <span
-            style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}
-            title="Average fixture difficulty across the fixtures shown (1 = easiest, 5 = hardest). The column sorts by this."
-          >
+          <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }} title={averageFixtureHint(avgFdr, row.fixtures.length)}>
             {avgFdr.toFixed(1)}
           </span>
         </div>
@@ -160,6 +167,13 @@ function rankKey(row: PickerRowData, columnKey: string): number {
 
 function cellTint(ranks: ColumnRanks, row: PickerRowData, columnKey: string): string | undefined {
   return percentileTint(ranks.get(columnKey)?.get(rankKey(row, columnKey)));
+}
+
+/** A predictive cell's hover: its figure explained, then (a player figure) his rank within his position. Next 5 Fixtures explains itself on its chips. */
+function predictiveCellHint(ranks: ColumnRanks, row: PickerRowData, c: PredictiveColumnDef): string | undefined {
+  const rank = c.key === "fixtures" ? undefined : playerRankHint(ranks.get(c.key)?.get(row.live.id), row.live.position);
+  const lines = [c.cellHint?.(row), rank].filter(Boolean);
+  return lines.length > 0 ? lines.join("\n") : undefined;
 }
 
 interface PickerRowProps {
@@ -210,7 +224,7 @@ const PickerRow = React.memo(function PickerRow({
               onViewProfile(row.live.id);
             }}
             style={{ cursor: "pointer" }}
-            title="View profile"
+            title={`View ${row.live.name}'s profile`}
           >
             {row.live.name}
             <AvailabilityFlag status={row.live.status} news={row.live.news} chanceOfPlayingNextRound={row.live.chanceOfPlayingNextRound} />
@@ -222,7 +236,7 @@ const PickerRow = React.memo(function PickerRow({
               type="button"
               className="inline-add-btn"
               disabled={!canAdd}
-              title={canAdd ? "Add to squad" : addBlockedReason}
+              title={canAdd ? `Add ${row.live.name} to the squad` : addBlockedReason}
               onClick={(e) => {
                 e.stopPropagation();
                 onAdd(row.live);
@@ -242,6 +256,7 @@ const PickerRow = React.memo(function PickerRow({
               ...(width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } : {}),
               backgroundColor: cellTint(columnRanks, row, c.key),
             }}
+            title={predictiveCellHint(columnRanks, row, c)}
           >
             {c.renderCell(row)}
           </td>
@@ -257,6 +272,7 @@ const PickerRow = React.memo(function PickerRow({
               ...(width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } : {}),
               backgroundColor: cellTint(columnRanks, row, c.key),
             }}
+            title={playerRankHint(columnRanks.get(c.key)?.get(row.live.id), row.live.position, c.label)}
           >
             {cellText(c, row.historicRaw, row.historicDerived)}
           </td>
@@ -765,8 +781,8 @@ export function TeamBuilder() {
 
   // Expected Points Tier 2 — this app's own independent per-event estimate
   // for the same navigator-selected fixture (see metrics/expectedPointsV2.ts).
-  const modelPredictedByPlayerId = useMemo(() => {
-    const map = new Map<number, number | null>();
+  const modelBreakdownByPlayerId = useMemo(() => {
+    const map = new Map<number, ExpectedPointsV2Breakdown | null>();
     for (const p of squadPlayers) {
       const fixture = (fixturesByTeamId.get(p.teamId) ?? [])[gwOffset - 1];
       const reliability = reliabilityByPlayerId.get(p.id) ?? null;
@@ -776,8 +792,7 @@ export function TeamBuilder() {
       }
       const ownTeam = teamsById.get(p.teamId);
       const opponentTeam = teamsById.get(fixture.opponentTeamId);
-      const breakdown = computeExpectedPointsV2ForFixture(p, fixture, ownTeam, opponentTeam, reliability, historicProfiles.get(p.id));
-      map.set(p.id, breakdown.total);
+      map.set(p.id, computeExpectedPointsV2ForFixture(p, fixture, ownTeam, opponentTeam, reliability, historicProfiles.get(p.id)));
     }
     return map;
   }, [squadPlayers, fixturesByTeamId, gwOffset, reliabilityByPlayerId, teamsById, historicProfiles]);
@@ -847,13 +862,10 @@ export function TeamBuilder() {
       const reliability = computeBlendedMinutesReliability(p, teamsById.get(p.teamId), historicProfile).value;
       const fixture = playerFixtures[gwOffset - 1];
       const fplOfficial = fixture ? computeExpectedPointsForSingleFixture(p, fixture, gwOffset - 1) : null;
-      let modelPredicted: number | null = null;
-      let modelCaveats: string[] = [];
-      if (fixture && reliability !== null) {
-        const breakdown = computeExpectedPointsV2ForFixture(p, fixture, teamsById.get(p.teamId), teamsById.get(fixture.opponentTeamId), reliability, historicProfile);
-        modelPredicted = breakdown.total;
-        modelCaveats = breakdown.caveats;
-      }
+      const modelBreakdown =
+        fixture && reliability !== null
+          ? computeExpectedPointsV2ForFixture(p, fixture, teamsById.get(p.teamId), teamsById.get(fixture.opponentTeamId), reliability, historicProfile)
+          : null;
       const historicRaw = resolvePlayerStats(p, pickerHistoricMode, historicProfile, currentSeasonHasStarted);
       return {
         live: p,
@@ -861,8 +873,9 @@ export function TeamBuilder() {
         historicDerived: getPlayerDerivedMetrics(historicRaw),
         fixtures: playerFixtures.slice(0, 5),
         fplOfficial,
-        modelPredicted,
-        modelCaveats,
+        modelPredicted: modelBreakdown?.total ?? null,
+        modelBreakdown,
+        targetFixture: fixture,
         reliability,
       };
     });
@@ -1147,7 +1160,7 @@ export function TeamBuilder() {
           captainId={active?.captainId ?? null}
           viceCaptainId={active?.viceCaptainId ?? null}
           expectedPointsByPlayerId={expectedPointsByPlayerId}
-          modelPredictedByPlayerId={modelPredictedByPlayerId}
+          modelBreakdownByPlayerId={modelBreakdownByPlayerId}
           reliabilityByPlayerId={reliabilityByPlayerId}
           colourRanks={pitchColourRanks}
           fixturesByTeamId={fixturesByTeamId}
@@ -1219,7 +1232,7 @@ export function TeamBuilder() {
               min={0}
               value={pickerMinMinutes ?? ""}
               placeholder="Any"
-              title="Minutes in whichever Historic/Raw mode is selected below. A player with no minutes there counts as 0"
+              title="Leave out players with fewer minutes than this in the Data View picked below (no minutes counts as 0)"
               onChange={(e) => setPickerMinMinutes(e.target.value === "" ? null : Number(e.target.value))}
             />
           </div>
@@ -1316,7 +1329,6 @@ export function TeamBuilder() {
                 <th
                   className="picker-sticky-player"
                   onClick={(e) => handlePickerHeaderClick("name", e.shiftKey)}
-                  title="Click to sort · Shift-click to add secondary sort"
                 >
                   Player
                   {pickerSort.find((s) => s.key === "name") && (
@@ -1332,7 +1344,7 @@ export function TeamBuilder() {
                       columnKey={c.key}
                       label={c.label}
                       className={isStaticPredictiveColumn(c) ? "col-static" : undefined}
-                      title={columnHeaderTitle({ liveFigure: isStaticPredictiveColumn(c) })}
+                      title={columnHint(c.label, { hint: c.hint, lowerIsBetter: c.higherIsBetter === false && c.key !== "fixtures", liveFigure: isStaticPredictiveColumn(c) })}
                       layout={predictiveCols}
                       width={width}
                       sortDirection={sortEntry?.direction}
@@ -1352,7 +1364,7 @@ export function TeamBuilder() {
                       columnKey={c.key}
                       label={c.label}
                       className={[i === 0 ? "column-group-divider" : null, isStaticColumn(c) ? "col-static" : null].filter(Boolean).join(" ") || undefined}
-                      title={columnHeaderTitle({ liveFigure: isStaticColumn(c) })}
+                      title={columnHint(c.label, { hint: PLAYER_STAT_HINTS[c.key], lowerIsBetter: c.higherIsBetter === false, liveFigure: isStaticColumn(c) })}
                       layout={historicRawCols}
                       width={width}
                       sortDirection={sortEntry?.direction}

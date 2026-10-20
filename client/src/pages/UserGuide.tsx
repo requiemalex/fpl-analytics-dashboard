@@ -191,7 +191,8 @@ export function UserGuide() {
           More goals, assists, wins and points are better, scoring above expected included; a lower price and lower
           ownership are better. Games played, draws and style figures (set-piece share, assisted-shot share, PPDA) have no
           colour. Charts that tell players apart by colour never use green or red, so no one reads as better or worse by his
-          colour alone.
+          colour alone. Hover a coloured figure to see where it ranks: "Top 8% of midfielders" for a player, "3rd of 20 clubs"
+          for a club. Hover a column header for what its statistic means.
         </p>
         <p className="page-subtitle" style={{ margin: 0 }}>
           Price, ownership and availability are always today's, in every mode, including anything worked out from price like
@@ -337,9 +338,9 @@ export function UserGuide() {
           <li>
             Two Expected Points figures, never blended: <strong>FPL Official</strong> is FPL's own <code>ep_next</code> prediction
             (extended to later fixtures using fixture difficulty). <strong>Model Predicted</strong> is this app's independent
-            estimate from live per-90 stats (xG, xA, xGC, defensive contributions, saves) and FPL's scoring rules. Hover it for its
-            caveats in the Add Players table: it's a second opinion, rougher for goalkeepers and nailed-on popular picks (see the
-            README's backtest).
+            estimate from live per-90 stats (xG, xA, xGC, defensive contributions, saves) and FPL's scoring rules. Hover it, in Add
+            Players or on a pitch card, for how it adds up (appearance, goals, clean sheet, bonus…) and anything it has no data
+            for. It's a second opinion, rougher for goalkeepers and nailed-on popular picks (see the README's backtest).
           </li>
           <li>
             The status line above the pitch shows squad size, budget, composition and any club-limit breach. Going over £100m turns

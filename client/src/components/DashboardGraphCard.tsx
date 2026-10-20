@@ -101,7 +101,7 @@ export function DashboardGraphCard({
             <MinutesFloorBadge note={smallSamplesShownNote(floorNote, smallSamples?.count ?? 0, dataView)} active={(smallSamples?.count ?? 0) > 0} />
           )}
           <DataViewBadge mode={dataView} />
-          <CardEditRemoveButtons noun="graph" onEdit={onEdit} onRemove={onRemove} />
+          <CardEditRemoveButtons noun="graph" name={title} onEdit={onEdit} onRemove={onRemove} />
         </div>
       </div>
       {chartType === "scatter" ? (

@@ -6,6 +6,7 @@ import { fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../met
 import { teamDisplayColors, teamIdentityColor } from "../utils/teamColors";
 import type { Position } from "../types/normalized";
 import { coverageNote, type PartialSum } from "../metrics/partialTotals";
+import { averageFixtureHint, fixtureHint } from "./hoverText";
 
 /**
  * A Match Log Totals or Average cell (<partial_totals>): its text, with a
@@ -145,7 +146,7 @@ export function FixtureChips({ fixtures, avgTint }: { fixtures: UpcomingFixture[
             key={f.fixtureId}
             className="table-fixture-chip"
             style={{ background: fdrColor(f.difficulty) }}
-            title={`${f.opponentShortName} (${f.isHome ? "H" : "A"}), FDR ${f.difficulty}`}
+            title={fixtureHint(f)}
           >
             {f.opponentShortName.slice(0, 3)}
           </span>
@@ -153,7 +154,7 @@ export function FixtureChips({ fixtures, avgTint }: { fixtures: UpcomingFixture[
       </div>
       <span
         style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)", background: avgTint, borderRadius: 3, padding: avgTint ? "1px 4px" : 0 }}
-        title="Average fixture difficulty across the fixtures shown (1 = easiest, 5 = hardest)"
+        title={averageFixtureHint(avgFdr, fixtures.length)}
       >
         {avgFdr.toFixed(1)}
       </span>

@@ -49,6 +49,11 @@ export function DataViewPicker({
 }) {
   const { liveSeason, historicReferenceSeason } = useAppState();
   const season = dataViewSeasonLabel(mode, historicReferenceSeason, liveSeason ?? null);
+  // Each mode's button names the seasons it would show: "Historic Average: 2022/23–2025/26".
+  const modeTitle = (m: AnalysisMode, label: string) => {
+    const seasons = dataViewSeasonLabel(m, historicReferenceSeason, liveSeason ?? null);
+    return seasons ? `${label}: ${seasons}` : label;
+  };
 
   return (
     <div className="card data-view-picker">
@@ -59,7 +64,7 @@ export function DataViewPicker({
             type="button"
             className="btn btn-icon"
             aria-pressed={mode === o.mode}
-            title={o.label}
+            title={modeTitle(o.mode, o.label)}
             aria-label={o.label}
             style={mode === o.mode ? { borderColor: "var(--accent-positive)", color: "var(--accent-positive)" } : undefined}
             onClick={() => onChange(o.mode)}

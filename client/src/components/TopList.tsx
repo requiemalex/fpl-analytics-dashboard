@@ -84,7 +84,7 @@ export function TopList({
           {smallSamples && dataView && <HideSmallSamplesButton hidden={smallSamples.hidden} count={smallSamples.count} mode={dataView} onToggle={smallSamples.onToggle} />}
           {floorNote && dataView && <MinutesFloorBadge note={smallSamplesShownNote(floorNote, shownSmallSamples, dataView)} active={shownSmallSamples > 0} />}
           {dataView && <DataViewBadge mode={dataView} />}
-          <CardEditRemoveButtons noun="tile" onEdit={onEdit} onRemove={onRemove} />
+          <CardEditRemoveButtons noun="tile" name={title} onEdit={onEdit} onRemove={onRemove} />
         </div>
       </div>
       {rows.length === 0 ? (

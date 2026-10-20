@@ -167,25 +167,27 @@ export function CreateViewIcon() {
   );
 }
 
-/** Edit + Remove icon buttons for a Dashboard or Player Comparison card header. Either is omitted when its handler isn't set (e.g. the immutable Starter view). `editHint` replaces the Edit button's default hover text after the dash. */
+/** Edit + Remove icon buttons for a Dashboard or Player Comparison card header. Either is omitted when its handler isn't set (e.g. the immutable Starter view). Their hover names the card (`name`): "Edit "Top xGI"". */
 export function CardEditRemoveButtons({
   noun,
+  name,
   onEdit,
   onRemove,
-  editHint,
 }: {
   noun: "tile" | "graph" | "chart" | "panel";
+  /** The card's title, for the hover text. */
+  name?: string;
   onEdit?: () => void;
   onRemove?: () => void;
-  editHint?: string;
 }) {
+  const which = name?.trim() ? `"${name.trim()}"` : `this ${noun}`;
   return (
     <>
       {onEdit && (
         <button
           type="button"
           className="chip chip-icon"
-          title={`Edit ${noun}: ${editHint ?? `change its name, statistic${noun === "graph" ? "s" : ""}, data view or filters`}`}
+          title={`Edit ${which}`}
           aria-label={`Edit ${noun}`}
           onClick={onEdit}
         >
@@ -193,7 +195,7 @@ export function CardEditRemoveButtons({
         </button>
       )}
       {onRemove && (
-        <button type="button" className="chip chip-icon" title={`Remove this ${noun}`} aria-label={`Remove ${noun}`} onClick={onRemove}>
+        <button type="button" className="chip chip-icon" title={`Remove ${which}`} aria-label={`Remove ${noun}`} onClick={onRemove}>
           <TrashIcon />
         </button>
       )}

@@ -6,19 +6,6 @@ import { ColumnFilterControl } from "./ColumnFilterControl";
 
 type ColumnFiltersState = ReturnType<typeof useColumnFilters>;
 
-/** The hover text every sortable, movable column header carries; `liveFigure` adds that it ignores the Data View. */
-export function columnHeaderTitle(opts: { liveFigure?: boolean; sortable?: boolean; draggable?: boolean } = {}): string {
-  const { liveFigure = false, sortable = true, draggable = true } = opts;
-  return [
-    liveFigure && "Always today's live figure, regardless of the toggle above",
-    sortable && "Click to sort · Shift-click to add secondary sort",
-    draggable && "Drag to reorder",
-    "Drag the right edge to resize",
-  ]
-    .filter(Boolean)
-    .join(" · ");
-}
-
 /**
  * One column header of a customisable table (Player Explorer, Team
  * Explorer, Team Building's Add Players): click to sort (shift-click for a
@@ -47,6 +34,7 @@ export function ColumnHeader({
   columnKey: string;
   label: React.ReactNode;
   className?: string;
+  /** What the column's figure is (hoverText.ts columnHint). How to sort, drag and resize is in the User Guide. */
   title: string;
   /** The table's column customisation (useColumnCustomization). */
   layout: Pick<UseColumnCustomization, "dragOverKey" | "setDragOverKey" | "reorderColumn" | "resizingKey" | "startResize">;

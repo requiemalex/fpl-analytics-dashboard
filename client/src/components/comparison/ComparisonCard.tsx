@@ -69,12 +69,7 @@ export function ComparisonCard({
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {floorNote && <MinutesFloorBadge note={floorNote} active={floorActive} />}
           {dataView && <DataViewBadge mode={dataView} />}
-          <CardEditRemoveButtons
-            noun={noun}
-            onEdit={onEdit}
-            onRemove={onRemove}
-            editHint={noun === "graph" ? "change its name or what's on the y axis" : "change its name, statistics or data view"}
-          />
+          <CardEditRemoveButtons noun={noun} name={title} onEdit={onEdit} onRemove={onRemove} />
         </div>
       </div>
       {message ? (

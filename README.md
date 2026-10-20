@@ -856,6 +856,18 @@ by a fraction of one upcoming match.
   - Player Comparison's per-player colours and the Dashboard's charts use
     neither green nor red, so nothing reads as better or worse by its
     series colour.
+- **Hover text** (the owner's pass, 2026-10-20; `components/hoverText.ts`,
+  `<hover_text>`): a hover says what something is for *this* player, club
+  or match, in one line. A column header gives its statistic in plain words
+  (`PLAYER_STAT_HINTS`, `CLUB_STAT_HINTS`, the Understat maps), plus "Lower
+  is better" or "Today's figure" where true; how to sort, drag and resize is
+  in the User Guide only. A coloured cell, profile tile or pitch-card figure
+  says its colour's rank in words: "Top 8% of midfielders" (40th–60th
+  percentile: "Around the middle"), or for a club "3rd of 20 clubs" (a
+  tie's middle place; not on League Position, which already is one). A
+  fixture chip names the opponent, home or away, and FPL's difficulty. All
+  are short strings from figures the page already has; the rank phrases
+  are cached, so a table's cells share a few hundred strings.
 - **Historic data caveats:** `history_past` carries FPL's placeholder 0 /
   `"0.00"` for starts and the xG family (xG, xA, xGI, xGC) before 2022/23
   (Pickford 2021/22: 3,150 minutes, 0 starts), so those are `null` ("—")
@@ -1242,8 +1254,10 @@ is a warning, never a block.
   - bonus as a rough historic rate
 
   Cards, own goals and penalties are not modelled. Each estimate carries
-  `caveats[]`, shown on hover in the Add Players table (a pitch card's hover
-  is a fixed description).
+  `caveats[]` (the model's limits, documented here) and `gaps[]` (the parts
+  with no data for that player, counted as 0). Hovering the figure, in Add
+  Players or on a pitch card, shows its parts and its `gaps`
+  (`modelBreakdownHint`, `components/hoverText.ts`).
 - **Last backtest** (`client/scripts/backtestExpectedPoints.ts`, GW2–3
   2026/27, top 20 per position): Tier 2 MAE 2.66 vs a historic-rate baseline
   2.76 — better at FWD, worse at GKP and for ≥15%-owned players. It's an

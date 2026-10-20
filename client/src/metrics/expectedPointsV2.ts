@@ -93,10 +93,12 @@ export interface ExpectedPointsV2Breakdown {
   total: number;
   /** Every caveat that applied to this specific estimate — missing inputs and the deliberately-omitted event types both land here, deduplicated across a multi-fixture window. Read before trusting the total at face value. */
   caveats: string[];
+  /** The parts with no data for this player, counted as 0 ("goals", "bonus"…): the short form of the "No … data" caveats, for a hover. */
+  gaps: string[];
 }
 
 function emptyBreakdown(): ExpectedPointsV2Breakdown {
-  return { appearance: 0, goals: 0, assists: 0, cleanSheet: 0, goalsConceded: 0, saves: 0, defensiveContribution: 0, bonus: 0, total: 0, caveats: [] };
+  return { appearance: 0, goals: 0, assists: 0, cleanSheet: 0, goalsConceded: 0, saves: 0, defensiveContribution: 0, bonus: 0, total: 0, caveats: [], gaps: [] };
 }
 
 export interface MinutesModel {
@@ -193,6 +195,7 @@ export function computeExpectedPointsV2ForFixture(
   const rules = SCORING_RULES[player.position];
   const minutesModel = splitMinutesProbability(reliability);
   const caveats: string[] = [...OMITTED_EVENT_CAVEATS];
+  const gaps: string[] = [];
 
   const appearance = minutesModel.p60Plus * rules.playing60plus + minutesModel.p1to59 * rules.playing1to59;
 
@@ -216,9 +219,15 @@ export function computeExpectedPointsV2ForFixture(
   let goals = 0;
   let assists = 0;
   if (xGPer90 !== null) goals = xGPer90 * minutesModel.expectedMinutesFraction * attackMultiplier * rules.goal;
-  else caveats.push("No xG/90 data available for this player, so goal contribution is assumed zero.");
+  else {
+    caveats.push("No xG/90 data available for this player, so goal contribution is assumed zero.");
+    gaps.push("goals");
+  }
   if (xAPer90 !== null) assists = xAPer90 * minutesModel.expectedMinutesFraction * attackMultiplier * rules.assist;
-  else caveats.push("No xA/90 data available for this player, so assist contribution is assumed zero.");
+  else {
+    caveats.push("No xA/90 data available for this player, so assist contribution is assumed zero.");
+    gaps.push("assists");
+  }
 
   let cleanSheet = 0;
   if (rules.cleanSheet > 0) {
@@ -246,6 +255,7 @@ export function computeExpectedPointsV2ForFixture(
       goalsConceded = (expectedConceded / 2) * rules.everyTwoConceded;
     } else {
       caveats.push("No xGC/90 data available for this player, so the goals-conceded deduction is assumed zero.");
+      gaps.push("goals conceded");
     }
   }
 
@@ -256,6 +266,7 @@ export function computeExpectedPointsV2ForFixture(
       saves = (expectedSaves / 3) * rules.everyThreeSaves;
     } else {
       caveats.push("No saves/90 data available for this goalkeeper, so saves contribution is assumed zero.");
+      gaps.push("saves");
     }
   }
 
@@ -268,6 +279,7 @@ export function computeExpectedPointsV2ForFixture(
       defensiveContribution = pThresholdReached * rules.defensiveContribution;
     } else {
       caveats.push("No defensive-contribution/90 data available for this player, so defensive-contribution points are assumed zero.");
+      gaps.push("defensive contributions");
     }
     caveats.push(
       "Defensive contribution is a threshold on a PER-MATCH total, but only a per-90 season rate is available for the live model, so it's approximated here with a Poisson distribution rather than real match-by-match action counts. This is the least certain component in this model; see README.",
@@ -288,13 +300,14 @@ export function computeExpectedPointsV2ForFixture(
     bonus = bonusPer90 * minutesModel.expectedMinutesFraction * attackMultiplier;
   } else {
     caveats.push("No qualifying historic season available for a bonus-points rate, so bonus contribution is assumed zero.");
+    gaps.push("bonus");
   }
   caveats.push(
     "Bonus points are the roughest approximation in this model. BPS depends on how a player compares to 21 others in the same match, which nothing in this app's data can see directly. This is a historic bonus-per-90 rate scaled by fixture favourability, nothing more.",
   );
 
   const total = appearance + goals + assists + cleanSheet + goalsConceded + saves + defensiveContribution + bonus;
-  return { appearance, goals, assists, cleanSheet, goalsConceded, saves, defensiveContribution, bonus, total, caveats };
+  return { appearance, goals, assists, cleanSheet, goalsConceded, saves, defensiveContribution, bonus, total, caveats, gaps };
 }
 
 /**
@@ -320,6 +333,7 @@ export function computeExpectedPointsV2ForWindow(
   const ownTeam = teamsById.get(player.teamId);
   const combined = emptyBreakdown();
   const caveatSet = new Set<string>();
+  const gapSet = new Set<string>();
 
   for (const fixture of fixtures) {
     const opponentTeam = teamsById.get(fixture.opponentTeamId);
@@ -334,7 +348,9 @@ export function computeExpectedPointsV2ForWindow(
     combined.bonus += single.bonus;
     combined.total += single.total;
     single.caveats.forEach((c) => caveatSet.add(c));
+    single.gaps.forEach((g) => gapSet.add(g));
   }
   combined.caveats = Array.from(caveatSet);
+  combined.gaps = Array.from(gapSet);
   return combined;
 }

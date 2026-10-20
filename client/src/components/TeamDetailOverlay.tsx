@@ -21,6 +21,7 @@ import {
 import { computeClubSeasonWindow } from "../metrics/teamSeasonHistory";
 import { computeSeasonTrend } from "../metrics/careerMetrics";
 import { percentileTint } from "../utils/colorScale";
+import { clubRankHint } from "./hoverText";
 import { clubRanks, fixtureDifficultyRanks, rankAmong } from "../metrics/comparativeColour";
 import { AnalysisModeToggle } from "./AnalysisModeToggle";
 import { FixtureChips, withCoverage } from "./primitives";
@@ -99,9 +100,9 @@ export function matchLogSum(matches: ClubMatch[], value: (m: ClubMatch) => numbe
 }
 
 /** Label-above-value tile — same visual language as the player profile's StatTile. `tint` is its comparative colour: the club ranked among every club (<comparative_colouring>). */
-function StatTile({ label, value, tint }: { label: string; value: React.ReactNode; tint?: string }) {
+function StatTile({ label, value, tint, title }: { label: string; value: React.ReactNode; tint?: string; title?: string }) {
   return (
-    <div className="stat-tile" style={tint ? { background: tint } : undefined}>
+    <div className="stat-tile" style={tint ? { background: tint } : undefined} title={title}>
       <span className="stat-tile-label">{label}</span>
       <span className="stat-tile-value num">{value}</span>
     </div>
@@ -210,10 +211,13 @@ export function TeamDetailOverlay() {
   const seasonTrend = useMemo(() => computeSeasonTrend(completedSeasonHistory), [completedSeasonHistory]);
 
   // Season Totals' colours: the club ranked among every club for this Data View.
-  function totalsTint(key: keyof TeamAggregate, higherIsBetter = true): string | undefined {
-    if (!clubTotals) return undefined;
+  // Its hover says the place: "4th of 20 clubs" (<hover_text>).
+  function totalsShade(key: keyof TeamAggregate, higherIsBetter = true): { tint?: string; title?: string } {
+    if (!clubTotals) return {};
     const value = (t: TeamAggregate) => (typeof t[key] === "number" ? (t[key] as number) : null);
-    return percentileTint(clubRanks(allTeamAggregates, { id: (t) => t.teamId, value, higherIsBetter }).get(clubTotals.teamId));
+    const ranks = clubRanks(allTeamAggregates, { id: (t) => t.teamId, value, higherIsBetter });
+    const rank = ranks.get(clubTotals.teamId);
+    return { tint: percentileTint(rank), title: clubRankHint(rank, ranks.size) };
   }
 
   const upcomingFixtures = useMemo(() => (team ? getUpcomingFixtures(team.id, fixtures, teamsById) : []), [team, fixtures, teamsById]);
@@ -322,18 +326,18 @@ export function TeamDetailOverlay() {
             <div className="card">
               <div className="card-title">Season Totals</div>
               <div className="stat-tile-grid">
-                <StatTile label="FPL Points" value={fmtDecimal(clubTotals.points, countDecimals(analysisMode))} tint={totalsTint("points")} />
-                <StatTile label="Goals" value={fmtDecimal(clubTotals.goals, countDecimals(analysisMode))} tint={totalsTint("goals")} />
-                <StatTile label="Assists" value={fmtDecimal(clubTotals.assists, countDecimals(analysisMode))} tint={totalsTint("assists")} />
+                <StatTile label="FPL Points" value={fmtDecimal(clubTotals.points, countDecimals(analysisMode))} {...totalsShade("points")} />
+                <StatTile label="Goals" value={fmtDecimal(clubTotals.goals, countDecimals(analysisMode))} {...totalsShade("goals")} />
+                <StatTile label="Assists" value={fmtDecimal(clubTotals.assists, countDecimals(analysisMode))} {...totalsShade("assists")} />
               </div>
               <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                <StatTile label="xG" value={fmtDecimal(clubTotals.xG, 2)} tint={totalsTint("xG")} />
-                <StatTile label="xA" value={fmtDecimal(clubTotals.xA, 2)} tint={totalsTint("xA")} />
-                <StatTile label="xGI" value={fmtDecimal(clubTotals.xGI, 2)} tint={totalsTint("xGI")} />
+                <StatTile label="xG" value={fmtDecimal(clubTotals.xG, 2)} {...totalsShade("xG")} />
+                <StatTile label="xA" value={fmtDecimal(clubTotals.xA, 2)} {...totalsShade("xA")} />
+                <StatTile label="xGI" value={fmtDecimal(clubTotals.xGI, 2)} {...totalsShade("xGI")} />
               </div>
               <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                <StatTile label="xGC" value={fmtDecimal(clubTotals.xGC, 2)} tint={totalsTint("xGC", false)} />
-                <StatTile label="Clean Sheets" value={fmtDecimal(clubTotals.cleanSheets, countDecimals(analysisMode))} tint={totalsTint("cleanSheets")} />
+                <StatTile label="xGC" value={fmtDecimal(clubTotals.xGC, 2)} {...totalsShade("xGC", false)} />
+                <StatTile label="Clean Sheets" value={fmtDecimal(clubTotals.cleanSheets, countDecimals(analysisMode))} {...totalsShade("cleanSheets")} />
               </div>
             </div>
 
@@ -366,7 +370,7 @@ export function TeamDetailOverlay() {
             title="FPL · Points History"
             className="col-source-fpl"
             trend={seasonHistory.length > 0 ? seasonTrend : null}
-            titleHint={`Each bar is the FPL points scored for ${team.name} that season by whoever was playing for the club then, not the current squad. Seasons ${team.name} weren't in the Premier League don't appear.`}
+            titleHint={`FPL points scored for ${team.name} each season, by whoever played for them then`}
           />
           <div className="card">
             {historicStatus === "loading" && seasonHistory.length === 0 ? (

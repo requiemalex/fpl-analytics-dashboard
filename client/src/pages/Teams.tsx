@@ -6,7 +6,8 @@ import { computeTeamAggregates, type TeamAggregate } from "../metrics/teamStats"
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { TeamBadge } from "../components/primitives";
 import { TEAM_COLUMNS, teamColumnByKey, teamColumnForMode, type TeamColumn, type TeamColumnGroup } from "../components/teamColumns";
-import { ColumnHeader, columnHeaderTitle } from "../components/ColumnHeader";
+import { ColumnHeader } from "../components/ColumnHeader";
+import { CLUB_STAT_HINTS, CLUB_UNDERSTAT_HINTS, clubRankHint, columnHint, UNDERSTAT_STAT_HINTS } from "../components/hoverText";
 import { IconChipButton, ResetIcon, ColumnsIcon, FilterIcon, DownloadIcon } from "../components/IconToolbar";
 import { useColumnCustomization } from "../state/useColumnCustomization";
 import { useColumnFilters } from "../state/useColumnFilters";
@@ -194,6 +195,14 @@ export function Teams() {
     return percentileTint(columnRanks.get(column.key)?.get(team.teamId));
   }
 
+  /** What a cell's colour means for the club: "Goals For: 3rd of 20 clubs" (<hover_text>). */
+  function teamCellHint(team: TeamAggregate, column: TeamColumn): string | undefined {
+    // A league position already is its rank.
+    if (column.key === "leaguePosition") return undefined;
+    const ranks = columnRanks.get(column.key);
+    return clubRankHint(ranks?.get(team.teamId), ranks?.size ?? 0, column.label);
+  }
+
   /** Measures the sticky Team column, then shares what's left among the metric columns — so the Team column sits at its own width, not stretched by the table's leftover space. */
   function handleFitToBox() {
     fitOnce();
@@ -340,7 +349,6 @@ export function Teams() {
                   className="sticky-col"
                   ref={stickyColRef}
                   onClick={(e) => handleHeaderClick("name", e.shiftKey)}
-                  title="Click to sort · Shift-click to add secondary sort"
                   // 1px means "as narrow as its content": without it the column takes a share of the table's spare width on the first layout, and fitOnce then measures (and keeps) that inflated width.
                   style={{ width: 1 }}
                 >
@@ -360,7 +368,12 @@ export function Teams() {
                       columnKey={c.key}
                       label={c.label}
                       className={className}
-                      title={columnHeaderTitle()}
+                      title={columnHint(c.label, {
+                        hint: fromExt ? (CLUB_UNDERSTAT_HINTS[c.key] ?? UNDERSTAT_STAT_HINTS[c.key]) : CLUB_STAT_HINTS[c.key],
+                        source: fromExt ? ext?.label : undefined,
+                        // "Lower is better" says nothing a league position doesn't.
+                        lowerIsBetter: c.higherIsBetter === false && c.key !== "leaguePosition",
+                      })}
                       layout={headerLayout}
                       width={width}
                       sortDirection={sortEntry?.direction}
@@ -409,6 +422,7 @@ export function Teams() {
                           ...(width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden", textOverflow: "ellipsis" } : {}),
                           backgroundColor: teamCellTint(t, c),
                         }}
+                        title={teamCellHint(t, c)}
                       >
                         {c.format(c.getValue(t))}
                       </td>
