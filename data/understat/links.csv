@@ -45,6 +45,7 @@ fpl_code,understat_id,status,fpl_name,understat_name,season,since,note
 114283,675,confirmed,Jack Grealish,Jack Grealish,2026/27,2026-10-18,2026/27: names and 5 appearances agree
 115556,660,confirmed,Ben Davies,Ben Davies,2016/17,2026-10-18,2016/17: names and 23 appearances agree
 116535,1257,confirmed,Alisson Becker,Alisson,2026/27,2026-10-18,2026/27: names and 6 appearances agree
+119090,335,confirmed,Leon Goretzka,Leon Goretzka,2026/27,2026-10-20,2026/27: names and 1 appearances agree
 119471,76,confirmed,Fabian Schär,Fabian Schär,2026/27,2026-10-18,2026/27: names and 2 appearances agree
 121709,5652,confirmed,Walter Benítez,Walter Benítez,2026/27,2026-10-18,2026/27: names and 3 appearances agree
 122074,7076,confirmed,Marcus Bettinelli,Marcus Bettinelli,2018/19,2026-10-18,2018/19: names and 7 appearances agree
@@ -221,6 +222,7 @@ fpl_code,understat_id,status,fpl_name,understat_name,season,since,note
 232928,7438,confirmed,James Garner,James Garner,2026/27,2026-10-18,2026/27: names and 6 appearances agree
 235826,13835,confirmed,Joël Piroe,Joël Piroe,2025/26,2026-10-18,2025/26: names and 16 appearances agree
 240514,9960,confirmed,Kjell Scherpen,Kjell Scherpen,2026/27,2026-10-18,2026/27: names and 4 appearances agree
+241117,9978,confirmed,Azor Matusiwa,Azor Matusiwa,2026/27,2026-10-20,2026/27: names and 1 appearances agree
 241293,14981,confirmed,Ephron Mason-Clark,Ephron Mason-Clark,2026/27,2026-10-18,2026/27: names and 5 appearances agree
 242313,9011,confirmed,Oscar Mingueza,Óscar Mingueza,2026/27,2026-10-18,2026/27: names and 2 appearances agree
 242880,7240,confirmed,Benoît Badiashile Mukinayi,Benoit Badiashile Mukinayi,2022/23,2026-10-18,2022/23: names and 11 appearances agree
@@ -481,6 +483,7 @@ fpl_code,understat_id,status,fpl_name,understat_name,season,since,note
 549067,13306,confirmed,Zach Abbott,Zach Abbott,2025/26,2026-10-18,2025/26: names and 3 appearances agree
 549074,14029,confirmed,Tom Watson,Tom Watson,2025/26,2026-10-18,2025/26: names and 6 appearances agree
 549912,13717,confirmed,Chemsdine Talbi,Chemsdine Talbi,2026/27,2026-10-18,2026/27: names and 1 appearances agree
+549939,13816,confirmed,Mike Penders,Mike Penders,2026/27,2026-10-20,2026/27: names and 1 appearances agree
 549940,12336,confirmed,Malick Fofana,Malick Fofana,2026/27,2026-10-18,2026/27: names and 4 appearances agree
 550090,10169,confirmed,Diego Coppola,Diego Coppola,2025/26,2026-10-18,2025/26: names and 5 appearances agree
 550615,12573,confirmed,Tyrique George,Tyrique George,2026/27,2026-10-18,2026/27: names and 6 appearances agree
@@ -537,6 +540,7 @@ fpl_code,understat_id,status,fpl_name,understat_name,season,since,note
 597320,13584,confirmed,Harry Howell,Harry Howell,2024/25,2026-10-18,2024/25: names and 1 appearances agree
 597462,14765,confirmed,Lucas Herrington,Lucas Herrington,2026/27,2026-10-18,2026/27: names and 5 appearances agree
 599303,13532,confirmed,Sean Neave,Sean Neave,2025/26,2026-10-18,2025/26: names and 1 appearances agree
+604211,14277,confirmed,Tymur Tutierov,Tymur Tutierov,2026/27,2026-10-20,2026/27: names and 1 appearances agree
 605972,12779,confirmed,Honest Ahanor,Honest Ahanor,2026/27,2026-10-18,2026/27: names and 2 appearances agree
 606702,11545,confirmed,Jeremy Jacquet,Jérémy Jacquet,2026/27,2026-10-18,2026/27: names and 6 appearances agree
 606745,13080,confirmed,Ayden Heaven,Ayden Heaven,2026/27,2026-10-18,2026/27: names and 2 appearances agree
@@ -584,5 +588,6 @@ fpl_code,understat_id,status,fpl_name,understat_name,season,since,note
 661313,15111,confirmed,Juan Angulo,Juan Angulo,2026/27,2026-10-18,2026/27: names and 1 appearances agree
 661888,14744,confirmed,Caleb Yirenkyi,Caleb Yirenkyi,2026/27,2026-10-18,2026/27: names and 6 appearances agree
 672492,14263,confirmed,Joél Drakes-Thomas,Joél Drakes-Thomas,2025/26,2026-10-18,2025/26: names and 2 appearances agree
+696104,14998,confirmed,Jules Ahoka,Jules Ahoka,2026/27,2026-10-20,2026/27: names and 1 appearances agree
 699989,14460,confirmed,Djiamgone Jocelin Ta Bi,Djiamgone Jocelin Ta Bi,2026/27,2026-10-18,2026/27: names and 1 appearances agree
 700308,14855,confirmed,Zadok Yohanna,Zadok Yohanna,2026/27,2026-10-18,2026/27: names and 1 appearances agree
