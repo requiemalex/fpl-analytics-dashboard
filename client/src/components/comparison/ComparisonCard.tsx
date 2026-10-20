@@ -25,6 +25,7 @@ export function ComparisonCard({
   dataView,
   floorNote,
   floorActive = false,
+  sourceControls,
   message,
   onEdit,
   onRemove,
@@ -43,6 +44,8 @@ export function ComparisonCard({
   floorNote?: string | null;
   /** <marker_follows_data>: a player on the card is under its threshold (marked in its legend or plot), so the stopwatch is amber, not grey. */
   floorActive?: boolean;
+  /** Its ⇄ source toggle (figures both sources have) and second-source badge (SourceBadge); none for FPL-only figures. */
+  sourceControls?: React.ReactNode;
   message?: string | null;
   onEdit?: () => void;
   onRemove?: () => void;
@@ -68,6 +71,7 @@ export function ComparisonCard({
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {floorNote && <MinutesFloorBadge note={floorNote} active={floorActive} />}
+          {sourceControls}
           {dataView && <DataViewBadge mode={dataView} />}
           <CardEditRemoveButtons noun={noun} name={title} onEdit={onEdit} onRemove={onRemove} />
         </div>

@@ -1,5 +1,5 @@
 import React from "react";
-import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Tooltip } from "recharts";
+import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Text, Tooltip } from "recharts";
 import { fmtOrdinal } from "../../utils/format";
 import { ComparisonLegend, type LegendEntry } from "./ComparisonLegend";
 import { seriesKey } from "./seriesColors";
@@ -10,6 +10,20 @@ export interface RadarAxisValues {
   format: (v: number | null) => string;
   /** Per player id: his percentile within his position (flipped for a lower-is-better metric — outward is always better) and his raw figure. */
   values: Map<number, { percentile: number | null; raw: number | null }>;
+  /** A second source's figure: its axis name is in that source's colour (this class), and the hover box names it in full (`fullLabel`, "xG (Understat)"). */
+  sourceClass?: string;
+  fullLabel?: string;
+}
+
+/** An axis name: Recharts' own label, in its source's colour for a second source's figure (the colour index, as on the Explorers' headers). */
+function RadarAxisTick({ axes, ...props }: { axes: RadarAxisValues[]; index?: number } & Record<string, unknown>) {
+  const axis = typeof props.index === "number" ? axes[props.index] : undefined;
+  if (!axis) return null;
+  return (
+    <Text {...props} fill="var(--text-secondary)" fontSize={11} className={axis.sourceClass ? `recharts-polar-angle-axis-tick-value source-coloured ${axis.sourceClass}` : "recharts-polar-angle-axis-tick-value"}>
+      {axis.label}
+    </Text>
+  );
 }
 
 function RadarTooltip({ active, payload, axes, entries }: { active?: boolean; payload?: { payload: { axisKey: string } }[]; axes: RadarAxisValues[]; entries: LegendEntry[] }) {
@@ -18,7 +32,7 @@ function RadarTooltip({ active, payload, axes, entries }: { active?: boolean; pa
   if (!axis) return null;
   return (
     <div className="chart-tooltip">
-      <strong>{axis.label}</strong>
+      <strong>{axis.fullLabel ?? axis.label}</strong>
       {entries.map(({ player, color, smallSampleNote }) => {
         const v = axis.values.get(player.id);
         const pct = smallSampleNote ? "Small sample" : v?.percentile != null ? `${fmtOrdinal(v.percentile)} pct` : "No data";
@@ -56,7 +70,7 @@ export function ComparisonRadar({ axes, entries }: { axes: RadarAxisValues[]; en
       <ResponsiveContainer width="100%" height={300}>
         <RadarChart data={data} outerRadius="70%">
           <PolarGrid stroke="var(--border)" />
-          <PolarAngleAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} />
+          <PolarAngleAxis dataKey="axisKey" tick={(props: Record<string, unknown>) => <RadarAxisTick {...props} axes={axes} />} />
           <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
           {drawn.map(({ player, color }) => (
             <Radar

@@ -32,6 +32,7 @@ export function TeamTopList({
   onDragLeave,
   onDrop,
   dataView,
+  sourceControls,
 }: {
   title: string;
   rows: TeamTopListRow[];
@@ -50,6 +51,8 @@ export function TeamTopList({
   onDrop?: (e: React.DragEvent) => void;
   /** Dashboard-only: which analysis mode this tile was built from — shown as a small badge in the header. */
   dataView?: AnalysisMode;
+  /** Dashboard-only: its ⇄ source toggle (figures both sources have) and second-source badge (SourceBadge); none for FPL-only figures. */
+  sourceControls?: React.ReactNode;
 }) {
   const widths = barWidths(rows.map((r) => r.value));
 
@@ -70,6 +73,7 @@ export function TeamTopList({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <div className="card-title">{title}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          {sourceControls}
           {dataView && <DataViewBadge mode={dataView} />}
           <CardEditRemoveButtons noun="tile" name={title} onEdit={onEdit} onRemove={onRemove} />
         </div>

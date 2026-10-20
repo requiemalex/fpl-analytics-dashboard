@@ -40,8 +40,15 @@ const STORAGE_KEY = "fpl-dashboard:dashboard:summary-tiles:v1";
  * earlier) with dataView "live" has any stored minMinutes zeroed by
  * clearUnappliedLiveMinMinutes (scoutingFilters.ts), since it was never
  * actually applied — so existing tiles keep showing exactly what they did.
+ *
+ * Bumped 6 -> 7 when `metricKey` could name one of a second
+ * source's own figures ("understat:us.shots", <external_metric_key> in
+ * extensions/externalStats.ts; a figure both sources have keeps its FPL
+ * key and its unsaved ⇄).
+ * An FPL key keeps its plain form and meaning, and nothing stored before
+ * names a second source, so migrate() has nothing to change for it.
  */
-const STORAGE_VERSION = 6;
+const STORAGE_VERSION = 7;
 const DEFAULT_DATA_VIEW: AnalysisMode = "lastSeason";
 
 /** A UI/localStorage-hygiene limit, matching the same idea as Team Building's saved-squad cap and User Analysis's saved-graph cap. */
@@ -52,6 +59,7 @@ export type TileDirection = "desc" | "asc";
 export interface SummaryTileConfig {
   id: string;
   scope: SummaryTileScope;
+  /** A PLAYER_TILE_METRICS / TEAM_TILE_METRICS key, or a second source's figure (<external_metric_key>). */
   metricKey: string;
   direction: TileDirection;
   /** This tile's own analysis mode — set in the Add/Edit Tile dialog, independent of every other tile's. See Dashboard.tsx / README's Dashboard implementation notes. */

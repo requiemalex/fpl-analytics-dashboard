@@ -35,6 +35,7 @@ export function TopList({
   signed,
   floorNote,
   smallSamples,
+  sourceControls,
 }: {
   title: string;
   rows: TopListRow[];
@@ -59,6 +60,8 @@ export function TopList({
   floorNote?: string | null;
   /** Dashboard-only: the tile's Hide button (<hide_small_samples>): whether it's on, how many players shown are under the threshold, and its toggle. */
   smallSamples?: { hidden: boolean; count: number; onToggle: () => void };
+  /** Dashboard-only: its ⇄ source toggle (figures both sources have) and second-source badge (SourceBadge); none for FPL-only figures. */
+  sourceControls?: React.ReactNode;
 }) {
   // <marker_follows_data>: the tile's stopwatch is amber only while a player it shows is under the threshold.
   const shownSmallSamples = dataView ? rows.filter((r) => isSmallSample(r.player.minutes, dataView)).length : 0;
@@ -83,6 +86,7 @@ export function TopList({
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {smallSamples && dataView && <HideSmallSamplesButton hidden={smallSamples.hidden} count={smallSamples.count} mode={dataView} onToggle={smallSamples.onToggle} />}
           {floorNote && dataView && <MinutesFloorBadge note={smallSamplesShownNote(floorNote, shownSmallSamples, dataView)} active={shownSmallSamples > 0} />}
+          {sourceControls}
           {dataView && <DataViewBadge mode={dataView} />}
           <CardEditRemoveButtons noun="tile" name={title} onEdit={onEdit} onRemove={onRemove} />
         </div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
@@ -11,7 +11,7 @@ import { filterPlayers } from "../state/useFilteredPlayers";
 import { computeTeamAggregates, type TeamAggregate } from "../metrics/teamStats";
 import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFilters";
 import { DATA_VIEW_SEGMENTS } from "../components/AnalysisModeToggle";
-import { MAX_NAME_LENGTH, SegmentedControl, type SegmentOption } from "../components/MenuControls";
+import { MAX_NAME_LENGTH, SegmentedControl, fplHeading, type SegmentOption } from "../components/MenuControls";
 import { FiltersBar } from "../components/FiltersBar";
 import { CardEditRemoveButtons, CreateViewIcon, FilterIcon, PlusIcon, TrashIcon, TrendLineIcon } from "../components/IconToolbar";
 import { SectionHeading } from "../components/SectionHeading";
@@ -22,16 +22,34 @@ import { TeamTopList, type TeamTopListRow } from "../components/TeamTopList";
 import { DashboardGraphCard } from "../components/DashboardGraphCard";
 import type { ScatterPoint } from "../components/charts/ScatterWithReference";
 import { rankBars, type BarDatum } from "../components/charts/BarTopN";
-import { PLAYER_COLUMNS, columnByKey as playerColumnByKey, columnFormatForMode, columnForMode } from "../components/playerColumns";
-import { TEAM_COLUMNS, teamColumnByKey, teamColumnFormatForMode, teamColumnForMode } from "../components/teamColumns";
+import { PLAYER_COLUMNS, columnByKey as playerColumnByKey, columnFormatForMode, columnForMode, type PlayerColumn } from "../components/playerColumns";
+import { TEAM_COLUMNS, currentTeamMetricKey, teamColumnByKey, teamColumnFormatForMode, teamColumnForMode, type TeamColumn } from "../components/teamColumns";
 import {
   PLAYER_TILE_METRICS,
   TEAM_TILE_METRICS,
   playerTileMetricByKey,
+  playerTileMetricFromColumn,
   teamTileMetricByKey,
+  teamTileMetricFromColumn,
   type PlayerTileMetric,
   type SummaryTileScope,
+  type TeamTileMetric,
 } from "../components/summaryTileMetrics";
+import { SourceBadge, SourceToggle } from "../components/SourceToggle";
+import {
+  externalColumnByKey,
+  externalLabel,
+  externalLoadMessage,
+  externalMetricKey,
+  externalMetricUnavailable,
+  parseExternalMetricKey,
+  useExternalStats,
+  type ExternalColumnGroup,
+  type ExternalColumnSet,
+  type ExternalStatsSource,
+  type ColumnSourceChoice,
+  FPL_SOURCE,
+} from "../extensions/externalStats";
 import { useSummaryTiles, createSummaryTile, MAX_SUMMARY_TILES, type TileDirection, type SummaryTileConfig } from "../state/useSummaryTiles";
 import {
   useDashboardGraphs,
@@ -45,6 +63,172 @@ import { useSavedDashboardViews, isDefaultViewSelected, MAX_SAVED_DASHBOARD_VIEW
 import { fmtDate } from "../utils/format";
 import { useEscapeLayer } from "../state/useEscapeLayer";
 import type { NormalizedPlayer } from "../types/normalized";
+
+/**
+ * What one tile or graph metric key shows in a Data View, the Explorers'
+ * way (<same_toggle_everywhere>): an FPL figure (a plain key) — switched to
+ * a second source's version by the item's ⇄ toggle when it has one
+ * (`switched`) — or one of that source's own figures (<external_metric_key>),
+ * its column through the slot. One source per figure
+ * (<one_source_per_figure>). Null when this version can't show it.
+ */
+interface ItemMetric<M> {
+  metric: M;
+  /** As the item's Data View shows it (<averaged_counts>). */
+  format: (v: number | null) => string;
+  /** The second source it comes from; null for FPL. */
+  source: ExternalStatsSource | null;
+  /** The figure's own name, without the source (the toggle's and badge's hover use these). */
+  figure: string;
+  /** A figure both sources have: what the item's ⇄ toggle switches. */
+  crossover: boolean;
+}
+
+function externalSourceFor(key: string, ext: ExternalStatsSource | null): { source: ExternalStatsSource; key: string } | null | "off" {
+  const parsed = parseExternalMetricKey(key);
+  if (!parsed) return null;
+  return ext && ext.id === parsed.sourceId ? { source: ext, key: parsed.key } : "off";
+}
+
+/** Whether a key names a second source's own figure while that source isn't mounted (switched off). */
+function sourceOff(key: string, ext: ExternalStatsSource | null): boolean {
+  return externalSourceFor(key, ext) === "off";
+}
+
+/**
+ * The column a key shows from a second source's set: one of its own
+ * figures, or — switched — its version of an FPL figure. Also whether the
+ * FPL figure has such a version (a ⇄ one). "off": its own figure, with the
+ * source not mounted.
+ */
+function externalColumnFor<C extends { key: string }>(
+  key: string,
+  alternateKey: string,
+  ext: ExternalStatsSource | null,
+  setFor: (ext: ExternalStatsSource) => ExternalColumnSet<C>,
+  switched: boolean,
+): { column: C | undefined; crossover: boolean } | "off" {
+  const external = externalSourceFor(key, ext);
+  if (external === "off") return "off";
+  if (external) return { column: externalColumnByKey(setFor(external.source), external.key), crossover: false };
+  const alternate = ext ? setFor(ext).alternates[alternateKey] : undefined;
+  return { column: switched ? alternate : undefined, crossover: !!alternate };
+}
+
+export function resolvePlayerTileMetric(key: string, mode: AnalysisMode, ext: ExternalStatsSource | null, switched = false): ItemMetric<PlayerTileMetric> | null {
+  const found = externalColumnFor(key, key, ext, (e) => e.playerColumns(mode), switched);
+  if (found === "off") return null;
+  if (found.column && ext) {
+    const shown = columnForMode(found.column, mode);
+    return { metric: playerTileMetricFromColumn(shown, key, externalLabel(ext, shown.label)), format: shown.format, source: ext, figure: shown.label, crossover: found.crossover };
+  }
+  if (parseExternalMetricKey(key)) return null;
+  const metric = playerTileMetricByKey(key);
+  return metric ? { metric, format: columnFormatForMode(key, metric.format, mode), source: null, figure: metric.label, crossover: found.crossover } : null;
+}
+
+export function resolveTeamTileMetric(key: string, mode: AnalysisMode, ext: ExternalStatsSource | null, switched = false): ItemMetric<TeamTileMetric> | null {
+  const found = externalColumnFor(key, currentTeamMetricKey(key), ext, (e) => e.teamColumns(mode), switched);
+  if (found === "off") return null;
+  if (found.column && ext) {
+    const shown = teamColumnForMode(found.column, mode);
+    return { metric: teamTileMetricFromColumn(shown, key, externalLabel(ext, shown.label)), format: shown.format, source: ext, figure: shown.label, crossover: found.crossover };
+  }
+  if (parseExternalMetricKey(key)) return null;
+  const metric = teamTileMetricByKey(key);
+  return metric ? { metric, format: teamColumnFormatForMode(metric.key, metric.format, mode), source: null, figure: metric.label, crossover: found.crossover } : null;
+}
+
+/** A graph axis's column as its Data View shows it ("xG (Understat)" on the axis for a second source's: axisLabel). */
+export function resolvePlayerGraphColumn(key: string, mode: AnalysisMode, ext: ExternalStatsSource | null, switched = false): ItemMetric<PlayerColumn> | null {
+  const found = externalColumnFor(key, key, ext, (e) => e.playerColumns(mode), switched);
+  if (found === "off") return null;
+  const column = found.column ?? (parseExternalMetricKey(key) ? undefined : playerColumnByKey(key));
+  if (!column) return null;
+  const shown = columnForMode(column, mode);
+  return { metric: shown, format: shown.format, source: found.column ? ext : null, figure: shown.label, crossover: found.crossover };
+}
+
+export function resolveTeamGraphColumn(key: string, mode: AnalysisMode, ext: ExternalStatsSource | null, switched = false): ItemMetric<TeamColumn> | null {
+  const found = externalColumnFor(key, currentTeamMetricKey(key), ext, (e) => e.teamColumns(mode), switched);
+  if (found === "off") return null;
+  const column = found.column ?? (parseExternalMetricKey(key) ? undefined : teamColumnByKey(key));
+  if (!column) return null;
+  const shown = teamColumnForMode(column, mode);
+  return { metric: shown, format: shown.format, source: found.column ? ext : null, figure: shown.label, crossover: found.crossover };
+}
+
+/** An axis label: the figure's name, with its source when that's a second source. */
+function axisLabel(r: ItemMetric<{ label: string }>): string {
+  return r.source ? externalLabel(r.source, r.figure) : r.figure;
+}
+
+/** Whether a saved tile or graph shows one of a second source's own figures. */
+function usesExternalMetric(item: { metricKey: string } | { chartType: DashboardGraphType; xMetricKey: string; yMetricKey: string }): boolean {
+  if ("metricKey" in item) return parseExternalMetricKey(item.metricKey) !== null;
+  return parseExternalMetricKey(item.yMetricKey) !== null || (item.chartType === "scatter" && parseExternalMetricKey(item.xMetricKey) !== null);
+}
+
+/**
+ * A tile's or graph's source controls, in its header: the ⇄ toggle, when
+ * a figure on it is one both sources have (one toggle per card: a tile has
+ * one figure, and a graph's axis names are drawn inside the chart, so its
+ * toggle switches every such figure on it together), and the second
+ * source's badge while any figure shown is that source's.
+ */
+function itemSourceControls(ext: ExternalStatsSource | null, metrics: (ItemMetric<unknown> | null | undefined)[], switched: boolean, onToggle: () => void): React.ReactNode {
+  const shown = metrics.filter((m): m is ItemMetric<unknown> => !!m);
+  const crossover = shown.filter((m) => m.crossover);
+  const external = shown.filter((m): m is ItemMetric<unknown> & { source: ExternalStatsSource } => !!m.source);
+  if (!ext || (crossover.length === 0 && external.length === 0)) return undefined;
+  return (
+    <>
+      {crossover.length > 0 && <SourceToggle showingExternal={switched} externalLabel={ext.label} figure={crossover.map((m) => m.figure).join(" and ")} onToggle={onToggle} />}
+      {external.length > 0 && <SourceBadge source={external[0].source} figures={external.map((m) => m.figure)} />}
+    </>
+  );
+}
+
+/**
+ * The Statistic / axis picker's options, grouped the way the Explorers'
+ * Columns picker is (<same_toggle_everywhere>): "FPL ·" groups of FPL-only
+ * figures; with a second source mounted, one "FPL & <source>" group of the
+ * figures both have (⇄ on the card), then the source's own groups.
+ */
+function MetricOptions({
+  fpl,
+  external,
+}: {
+  fpl: { key: string; label: string; group?: string }[];
+  external: { sourceId: string; label: string; crossover: Set<string>; groups: ExternalColumnGroup<{ key: string; label: string }>[] } | null;
+}) {
+  const option = (key: string, label: string) => (
+    <option key={key} value={key}>
+      {label}
+    </option>
+  );
+  const crossover = external?.crossover ?? new Set<string>();
+  const groupOf = (m: { group?: string }) => m.group ?? "Other";
+  const fplGroups = [...new Set(fpl.map(groupOf))];
+  return (
+    <>
+      {fplGroups.map((g) => {
+        const metrics = fpl.filter((m) => groupOf(m) === g && !crossover.has(m.key));
+        return metrics.length > 0 ? (
+          <optgroup key={g} label={fplHeading(g)}>
+            {metrics.map((m) => option(m.key, m.label))}
+          </optgroup>
+        ) : null;
+      })}
+      {external && crossover.size > 0 && <optgroup label={`FPL & ${external.label}`}>{fpl.filter((m) => crossover.has(m.key)).map((m) => option(m.key, m.label))}</optgroup>}
+      {external?.groups.map((g) => (
+        <optgroup key={g.heading} label={g.heading}>
+          {g.columns.map((c) => option(externalMetricKey(external.sourceId, c.key), c.label))}
+        </optgroup>
+      ))}
+    </>
+  );
+}
 
 /** Same cap for both, and reused for graphs too (see MAX_TILE_PLAYERS/MAX_TILE_TEAMS usage below) — a tile or graph tracking a handful of specific players/teams is meant for close comparison, not a second way to build a big list. */
 const MAX_TILE_PLAYERS = 5;
@@ -209,8 +393,8 @@ export function gameweekDisplay(
   return { heading: "Pre-season", sub: "No active gameweek yet", progress: null };
 }
 
-/** Stand-in for a saved tile or graph whose statistic this version doesn't have (e.g. one removed in an update) — says so and can still be removed, rather than vanishing while still counting toward the cap. */
-function UnavailableItemCard({ title, noun, onRemove, minHeight }: { title: string; noun: "tile" | "graph"; onRemove?: () => void; minHeight?: number }) {
+/** Stand-in for a saved tile or graph whose statistic this version doesn't have (e.g. one removed in an update, or from a second source that's switched off) — says so and can still be removed, rather than vanishing while still counting toward the cap. */
+function UnavailableItemCard({ title, noun, onRemove, minHeight, sourceOff }: { title: string; noun: "tile" | "graph"; onRemove?: () => void; minHeight?: number; sourceOff?: boolean }) {
   return (
     <div className="card" style={minHeight ? { minHeight } : undefined}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
@@ -220,7 +404,7 @@ function UnavailableItemCard({ title, noun, onRemove, minHeight }: { title: stri
         </div>
       </div>
       <p className="page-subtitle" style={{ margin: 0 }}>
-        This {noun}'s statistic is no longer available.
+        {sourceOff ? externalMetricUnavailable(noun) : `This ${noun}'s statistic is no longer available.`}
       </p>
     </div>
   );
@@ -311,6 +495,10 @@ export function Dashboard() {
     historicReferenceSeason,
   } = useAppState();
   const [, setSearchParams] = useSearchParams();
+  // A second data source (Understat), when one is mounted: a tile or graph
+  // can show its figures (<external_metric_key>). Loaded only once an item
+  // on either side uses one.
+  const ext = useExternalStats();
 
   // Tiles resolve lastSeason/historicAverage data for every mode up front
   // (see resolvedByMode below), so this page always needs the whole-pool
@@ -601,12 +789,31 @@ export function Dashboard() {
     [savedDashboardViews.views, savedDashboardViews.selectedViewIds.player],
   );
 
+  const usesExternal = tilesState.tiles.some(usesExternalMetric) || graphsState.graphs.some(usesExternalMetric);
+  useEffect(() => {
+    if (usesExternal) ext?.request();
+  }, [ext, usesExternal]);
+  // Which source each tile's or graph's ⇄ figures show, by item id — as an
+  // Explorer column's toggle: FPL each visit, and back to FPL if the second
+  // source goes away (<same_toggle_everywhere>).
+  const [sourceChoice, setSourceChoice] = useState<ColumnSourceChoice>({});
+  const toggleItemSource = useCallback(
+    (id: string) => {
+      if (!ext) return;
+      ext.request();
+      setSourceChoice((prev) => ({ ...prev, [id]: prev[id] === ext.id ? FPL_SOURCE : ext.id }));
+    },
+    [ext],
+  );
+  const switchedItem = (id: string) => ext !== null && sourceChoice[id] === ext.id;
+
   const tileRows = useMemo(() => {
     return tilesState.tiles
       .map((tile) => {
         if (tile.scope === "player") {
-          const metric = playerTileMetricByKey(tile.metricKey);
-          if (!metric) return { tile, kind: "unavailable" as const };
+          const resolved = resolvePlayerTileMetric(tile.metricKey, tile.dataView, ext, switchedItem(tile.id));
+          if (!resolved) return { tile, kind: "unavailable" as const, sourceOff: sourceOff(tile.metricKey, ext) };
+          const { metric } = resolved;
           const floorOptions = { defaultViewShown: playerDefaultViewShown };
           const pool = resolvedByMode[tile.dataView];
           const sourcePlayers = playersForDashboardItem(tile, pool, floorOptions);
@@ -618,10 +825,12 @@ export function Dashboard() {
           const candidates = hideSmallSamples ? valueRows.filter((r) => !isSmallSample(r.player.minutes, tile.dataView)) : valueRows;
           const topRows = topN(candidates, 5, tile.direction === "asc");
           const smallSampleCount = topRows.filter((r) => isSmallSample(r.player.minutes, tile.dataView)).length;
-          return { tile, metric, kind: "player" as const, topRows, floorNote: dashboardItemFloorNote(tile, floorOptions), hideSmallSamples, smallSampleCount };
+          const sourceControls = itemSourceControls(ext, [resolved], switchedItem(tile.id), () => toggleItemSource(tile.id));
+          return { tile, metric, resolved, sourceControls, kind: "player" as const, topRows, floorNote: dashboardItemFloorNote(tile, floorOptions), hideSmallSamples, smallSampleCount };
         }
-        const metric = teamTileMetricByKey(tile.metricKey);
-        if (!metric) return { tile, kind: "unavailable" as const };
+        const resolved = resolveTeamTileMetric(tile.metricKey, tile.dataView, ext, switchedItem(tile.id));
+        if (!resolved) return { tile, kind: "unavailable" as const, sourceOff: sourceOff(tile.metricKey, ext) };
+        const { metric } = resolved;
         let teamPool = teamAggregatesByMode[tile.dataView];
         const direction = colourDirection(metric);
         const ranks = direction === null ? new Map<number, number>() : clubRanks(teamPool, { id: (t) => t.teamId, value: metric.getValue, higherIsBetter: direction });
@@ -636,9 +845,10 @@ export function Dashboard() {
           value: metric.getValue(t),
           rank: ranks.get(t.teamId),
         }));
-        return { tile, metric, kind: "team" as const, topRows: topN(valueRows, 5, tile.direction === "asc") };
+        const sourceControls = itemSourceControls(ext, [resolved], switchedItem(tile.id), () => toggleItemSource(tile.id));
+        return { tile, metric, resolved, sourceControls, kind: "team" as const, topRows: topN(valueRows, 5, tile.direction === "asc") };
       });
-  }, [tilesState.tiles, resolvedByMode, teamAggregatesByMode, playerDefaultViewShown, hiddenSmallSamples.hidden]);
+  }, [tilesState.tiles, resolvedByMode, teamAggregatesByMode, playerDefaultViewShown, hiddenSmallSamples.hidden, ext, sourceChoice, toggleItemSource]);
 
   // Split for rendering only — reordering still operates on the one
   // underlying `tilesState.tiles` array regardless of scope (drag-drop
@@ -654,10 +864,14 @@ export function Dashboard() {
   const graphRows = useMemo(() => {
     return graphsState.graphs
       .map((graph) => {
+        const graphSourceOff = sourceOff(graph.yMetricKey, ext) || (graph.chartType === "scatter" && sourceOff(graph.xMetricKey, ext));
         if (graph.scope === "player") {
-          const yColumn = playerColumnByKey(graph.yMetricKey);
-          const xColumn = graph.chartType === "scatter" ? playerColumnByKey(graph.xMetricKey) : undefined;
-          if (!yColumn || (graph.chartType === "scatter" && !xColumn)) return { graph, kind: "unavailable" as const };
+          const switched = switchedItem(graph.id);
+          const y = resolvePlayerGraphColumn(graph.yMetricKey, graph.dataView, ext, switched);
+          const x = graph.chartType === "scatter" ? resolvePlayerGraphColumn(graph.xMetricKey, graph.dataView, ext, switched) : null;
+          if (!y || (graph.chartType === "scatter" && !x)) return { graph, kind: "unavailable" as const, sourceOff: graphSourceOff };
+          const yColumn = y.metric;
+          const xColumn = x?.metric;
           const floorOptions = { defaultViewShown: playerDefaultViewShown };
           const sourcePlayers = playersForDashboardItem(graph, resolvedByMode[graph.dataView], floorOptions);
           const scatterData: ScatterPoint[] = [];
@@ -684,10 +898,12 @@ export function Dashboard() {
           return {
             graph,
             kind: "player" as const,
-            xLabel: xColumn?.label ?? "",
-            yLabel: yColumn.label,
-            format: columnForMode(yColumn, graph.dataView).format,
-            xFormat: xColumn && columnForMode(xColumn, graph.dataView).format,
+            xLabel: x ? axisLabel(x) : "",
+            yLabel: axisLabel(y),
+            format: y.format,
+            xFormat: x?.format,
+            sourceControls: itemSourceControls(ext, [x, y], switched, () => toggleItemSource(graph.id)),
+            source: y.source ?? x?.source ?? null,
             scatterData,
             barData,
             floorNote: dashboardItemFloorNote(graph, floorOptions),
@@ -696,9 +912,12 @@ export function Dashboard() {
             smallSampleCount: (graph.chartType === "scatter" ? scatterData : rankBars(barData, graph.direction === "asc")).filter((d) => smallSampleIds.has(d.id)).length,
           };
         }
-        const yColumn = teamColumnByKey(graph.yMetricKey);
-        const xColumn = graph.chartType === "scatter" ? teamColumnByKey(graph.xMetricKey) : undefined;
-        if (!yColumn || (graph.chartType === "scatter" && !xColumn)) return { graph, kind: "unavailable" as const };
+        const switched = switchedItem(graph.id);
+        const y = resolveTeamGraphColumn(graph.yMetricKey, graph.dataView, ext, switched);
+        const x = graph.chartType === "scatter" ? resolveTeamGraphColumn(graph.xMetricKey, graph.dataView, ext, switched) : null;
+        if (!y || (graph.chartType === "scatter" && !x)) return { graph, kind: "unavailable" as const, sourceOff: graphSourceOff };
+        const yColumn = y.metric;
+        const xColumn = x?.metric;
         let teamPool = teamAggregatesByMode[graph.dataView];
         if (graph.teamIds !== null) {
           const idSet = new Set(graph.teamIds);
@@ -720,10 +939,12 @@ export function Dashboard() {
         return {
           graph,
           kind: "team" as const,
-          xLabel: xColumn?.label ?? "",
-          yLabel: yColumn.label,
-          format: teamColumnForMode(yColumn, graph.dataView).format,
-          xFormat: xColumn && teamColumnForMode(xColumn, graph.dataView).format,
+          xLabel: x ? axisLabel(x) : "",
+          yLabel: axisLabel(y),
+          format: y.format,
+          xFormat: x?.format,
+          sourceControls: itemSourceControls(ext, [x, y], switched, () => toggleItemSource(graph.id)),
+          source: y.source ?? x?.source ?? null,
           scatterData,
           barData,
           floorNote: null,
@@ -731,7 +952,7 @@ export function Dashboard() {
           smallSampleCount: 0,
         };
       });
-  }, [graphsState.graphs, resolvedByMode, teamAggregatesByMode, playerDefaultViewShown, hiddenSmallSamples.hidden]);
+  }, [graphsState.graphs, resolvedByMode, teamAggregatesByMode, playerDefaultViewShown, hiddenSmallSamples.hidden, ext, sourceChoice, toggleItemSource]);
 
   const visibleGraphRows = useMemo(() => graphRows.filter((g) => g.graph.scope === tileView), [graphRows, tileView]);
 
@@ -746,9 +967,10 @@ export function Dashboard() {
 
   // Until the historic data a tile/graph needs has arrived, an empty result
   // means "not loaded", not "nobody qualifies" — say which.
-  function emptyMessageFor(item: { dataView: AnalysisMode; scope: SummaryTileScope }): string | undefined {
-    if (!needsHistoric(item) || historicStatus === "ready") return undefined;
-    return historicStatus === "error" ? "Historic data couldn't be loaded." : "Loading historic data…";
+  // Likewise while the second source an item's figures come from is loading, or couldn't be loaded.
+  function emptyMessageFor(item: { dataView: AnalysisMode; scope: SummaryTileScope }, source: ExternalStatsSource | null = null): string | undefined {
+    if (needsHistoric(item) && historicStatus !== "ready") return historicStatus === "error" ? "Historic data couldn't be loaded." : "Loading historic data…";
+    return source ? externalLoadMessage(source) : undefined;
   }
 
   function openAddTileModal() {
@@ -789,8 +1011,22 @@ export function Dashboard() {
 
   function handleMetricChange(key: string) {
     setNewTileMetricKey(key);
-    const metric = tileView === "player" ? playerTileMetricByKey(key) : teamTileMetricByKey(key);
-    if (metric) setNewTileDirection(metric.higherIsBetter ? "desc" : "asc");
+    const resolved = tileView === "player" ? resolvePlayerTileMetric(key, newTileDataView, ext) : resolveTeamTileMetric(key, newTileDataView, ext);
+    if (resolved) setNewTileDirection(resolved.metric.higherIsBetter ? "desc" : "asc");
+  }
+
+  /** The dialogs' pickers' second-source groups (MetricOptions), or null with none mounted. Names don't change with the Data View. */
+  function pickerGroups(scope: SummaryTileScope, mode: AnalysisMode) {
+    if (!ext) return null;
+    const set: ExternalColumnSet<{ key: string; label: string }> = scope === "player" ? ext.playerColumns(mode) : ext.teamColumns(mode);
+    return { sourceId: ext.id, label: ext.label, crossover: new Set(Object.keys(set.alternates)), groups: set.groups };
+  }
+
+  /** A graph metric's natural Order (defaultGraphDirection), a second source's figure included. */
+  function graphDirectionFor(scope: SummaryTileScope, key: string, mode: AnalysisMode): TileDirection {
+    if (!parseExternalMetricKey(key)) return defaultGraphDirection(scope, key);
+    const resolved = scope === "player" ? resolvePlayerGraphColumn(key, mode, ext) : resolveTeamGraphColumn(key, mode, ext);
+    return resolved?.metric.higherIsBetter === false ? "asc" : "desc";
   }
 
   /** Switching away from "players" clears any in-progress player picks — picking up to 5 players is only meaningful within that mode, so it shouldn't silently carry over if the user goes back to Filters. */
@@ -924,7 +1160,7 @@ export function Dashboard() {
   /** Same as handleMetricChange for tiles: a new metric starts in its natural order. */
   function handleGraphYMetricChange(key: string) {
     setNewGraphYKey(key);
-    setNewGraphDirection(defaultGraphDirection(tileView, key));
+    setNewGraphDirection(graphDirectionFor(tileView, key, newGraphDataView));
   }
 
   /** Switching away from "players" clears any in-progress player picks — same reasoning as togglePlayerTileMode above. */
@@ -1137,7 +1373,7 @@ export function Dashboard() {
             const { tile } = row;
             const onRemove = selectedViewIsDefault ? undefined : () => tilesState.removeTile(tile.id);
             if (row.kind === "unavailable") {
-              return <UnavailableItemCard key={tile.id} title={tile.name?.trim() || "Unavailable tile"} noun="tile" onRemove={onRemove} />;
+              return <UnavailableItemCard key={tile.id} title={tile.name?.trim() || "Unavailable tile"} noun="tile" onRemove={onRemove} sourceOff={row.sourceOff} />;
             }
             // Default is immutable (no reorder), so its tiles aren't draggable.
             const dragProps = {
@@ -1151,9 +1387,10 @@ export function Dashboard() {
             const common = {
               title: displayTileTitle(tile, row.metric.label),
               // As the tile's Data View shows it (<averaged_counts>), the same as the tables.
-              format: (row.kind === "player" ? columnFormatForMode : teamColumnFormatForMode)(row.metric.key, row.metric.format, tile.dataView),
+              format: row.resolved.format,
               dataView: tile.dataView,
-              emptyMessage: emptyMessageFor(tile),
+              emptyMessage: emptyMessageFor(tile, row.resolved.source),
+              sourceControls: row.sourceControls,
               onEdit: selectedViewIsDefault ? undefined : () => openEditTileModal(tile),
               onRemove,
               ...dragProps,
@@ -1196,6 +1433,7 @@ export function Dashboard() {
                   noun="graph"
                   minHeight={360}
                   onRemove={selectedViewIsDefault ? undefined : () => graphsState.removeGraph(graph.id)}
+                  sourceOff={row.sourceOff}
                 />
               );
             }
@@ -1213,7 +1451,8 @@ export function Dashboard() {
               format={format}
               xFormat={xFormat}
               ascending={graph.direction === "asc"}
-              emptyMessage={emptyMessageFor(graph)}
+              emptyMessage={emptyMessageFor(graph, row.source)}
+              sourceControls={row.sourceControls}
               showReferenceLine={graph.showReferenceLine}
               dataView={graph.dataView}
               floorNote={row.floorNote}
@@ -1264,11 +1503,7 @@ export function Dashboard() {
             <div className="field">
               <label htmlFor="new-tile-metric">Statistic</label>
               <select id="new-tile-metric" value={newTileMetricKey} onChange={(e) => handleMetricChange(e.target.value)}>
-                {(tileView === "player" ? PLAYER_TILE_METRICS : TEAM_TILE_METRICS).map((m) => (
-                  <option key={m.key} value={m.key}>
-                    {m.label}
-                  </option>
-                ))}
+                <MetricOptions fpl={tileView === "player" ? PLAYER_TILE_METRICS : TEAM_TILE_METRICS} external={pickerGroups(tileView, newTileDataView)} />
               </select>
             </div>
             <SegmentedControl label="Data View" options={DATA_VIEW_SEGMENTS} value={newTileDataView} onChange={setNewTileDataView} />
@@ -1408,22 +1643,14 @@ export function Dashboard() {
               <div className="field">
                 <label htmlFor="new-graph-x">X axis metric</label>
                 <select id="new-graph-x" value={newGraphXKey} onChange={(e) => setNewGraphXKey(e.target.value)}>
-                  {(tileView === "player" ? PLAYER_COLUMNS : TEAM_COLUMNS).map((c) => (
-                    <option key={c.key} value={c.key}>
-                      {c.label}
-                    </option>
-                  ))}
+                  <MetricOptions fpl={tileView === "player" ? PLAYER_COLUMNS : TEAM_COLUMNS} external={pickerGroups(tileView, newGraphDataView)} />
                 </select>
               </div>
             )}
             <div className="field">
               <label htmlFor="new-graph-y">{newGraphChartType === "scatter" ? "Y axis metric" : "Metric"}</label>
               <select id="new-graph-y" value={newGraphYKey} onChange={(e) => handleGraphYMetricChange(e.target.value)}>
-                {(tileView === "player" ? PLAYER_COLUMNS : TEAM_COLUMNS).map((c) => (
-                  <option key={c.key} value={c.key}>
-                    {c.label}
-                  </option>
-                ))}
+                <MetricOptions fpl={tileView === "player" ? PLAYER_COLUMNS : TEAM_COLUMNS} external={pickerGroups(tileView, newGraphDataView)} />
               </select>
             </div>
             <SegmentedControl label="Data View" options={DATA_VIEW_SEGMENTS} value={newGraphDataView} onChange={setNewGraphDataView} />

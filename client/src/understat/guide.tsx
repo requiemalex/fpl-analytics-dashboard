@@ -78,8 +78,8 @@ export function UnderstatGuide() {
     <>
       <p className="page-subtitle" style={{ marginTop: 0 }}>
         <strong>Understat</strong> (understat.com) is an independent football-data site with its own xG model and shot-by-shot
-        data. Player Explorer, Team Explorer and the player and team profiles add its figures as a clearly separate second source;
-        everything else in the app is FPL. It's updated once a day.
+        data. Player Explorer, Team Explorer, the player and team profiles, the Dashboard and Player Comparison add its figures as a
+        clearly separate second source; everything else in the app is FPL. It's updated once a day.
       </p>
       <ul style={list}>
         <li>
@@ -126,8 +126,19 @@ export function UnderstatGuide() {
           Understat's.
         </li>
         <li>
-          <strong>A small amber dot</strong> on an Understat header means its figures are out of date (hover it for why). FPL figures
-          are never affected.
+          <strong>On the Dashboard and in Player Comparison</strong> it works as in the Explorers. When you build a tile, graph or
+          card, the pickers have the same groups as Columns: FPL, the rose "FPL &amp; Understat" figures, then Understat's own.
+          A figure both sources have gets the <span style={{ color: "var(--col-crossover)" }}>⇄</span> icon: in a tile's header, beside
+          an Outputs row's name, or in the header of a graph, radar or trend graph (where it switches all of that chart's shared
+          figures together). It starts on FPL each visit. A tile, graph or card showing any Understat figure has the{" "}
+          <span style={{ color: "var(--col-understat)" }}>violet</span> Understat icon in its header (hover it to see which figures);
+          a graph's axis says "(Understat)", and Understat's names are violet on Outputs rows and radars. Colours, Min Minutes, Hide
+          and the stopwatch work as for FPL figures, on FPL's minutes. A player Understat has no figure for isn't listed, never
+          shown as 0. Trend graphs can plot Understat's figures season by season too; a season it has nothing for is a gap.
+        </li>
+        <li>
+          <strong>A small amber dot</strong> on an Understat header or icon means its figures are out of date (hover it for why). FPL
+          figures are never affected.
         </li>
         <li>
           Not available yet: shot zones and match xG timelines. Not available from Understat at all: pass maps, average positions,

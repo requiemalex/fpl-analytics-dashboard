@@ -1,6 +1,6 @@
 import type { NormalizedPlayer, Position } from "../types/normalized";
 import type { PlayerDerivedMetrics } from "./playerMetrics";
-import { PLAYER_COLUMNS, isStaticColumn, type ColumnGroup } from "../components/playerColumns";
+import { PLAYER_COLUMNS, isStaticColumn, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { isUnderMinimum } from "./fixedMinutesFloor";
 
 /** Section names for Player Comparison's metric pickers and Outputs panels. */
@@ -44,15 +44,25 @@ export interface ComparisonMetric {
  * already shows both. So are +/- figures (Goals − xG): Outputs bars and
  * radar axes run from 0, so a negative figure would read as nothing.
  */
-export const COMPARISON_METRICS: ComparisonMetric[] = PLAYER_COLUMNS.filter((c) => !isStaticColumn(c) && !c.signed).map((c) => ({
-  key: c.key,
-  label: LABELS[c.key] ?? c.label,
-  group: c.group,
-  higherIsBetter: c.higherIsBetter !== false,
-  format: c.format,
-  getValue: c.getValue,
-  rankValue: c.rankBy ?? c.getValue,
-}));
+export const COMPARISON_METRICS: ComparisonMetric[] = PLAYER_COLUMNS.filter(isComparableColumn).map((c) => comparisonMetricFromColumn(c, c.key, LABELS[c.key] ?? c.label));
+
+/** Whether a column can be a radar axis or an Outputs row (the rule above) — FPL's or a second source's. */
+export function isComparableColumn(c: PlayerColumn): boolean {
+  return !isStaticColumn(c) && !c.signed;
+}
+
+/** A column as a comparison metric, under `key` (a second source's is saved as its external metric key). */
+export function comparisonMetricFromColumn(c: PlayerColumn, key = c.key, label = c.label): ComparisonMetric {
+  return {
+    key,
+    label,
+    group: c.group,
+    higherIsBetter: c.higherIsBetter !== false,
+    format: c.format,
+    getValue: c.getValue,
+    rankValue: c.rankBy ?? c.getValue,
+  };
+}
 
 export function comparisonMetricByKey(key: string): ComparisonMetric | undefined {
   return COMPARISON_METRICS.find((m) => m.key === key);

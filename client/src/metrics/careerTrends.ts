@@ -50,12 +50,15 @@ export const TREND_METRICS: TrendMetric[] = [
   { key: "endCost", label: "Price (Season End)", group: "Price", decimals: 1, price: true, getValue: (s) => s.endCost },
 ];
 
+/** What a trend graph needs to name and format its figure — an FPL TrendMetric, or a second source's. */
+export type TrendDisplay = Pick<TrendMetric, "label" | "decimals" | "price">;
+
 export function trendMetricByKey(key: string): TrendMetric | undefined {
   return TREND_METRICS.find((m) => m.key === key);
 }
 
 /** One season's figure for a trend line — null (a gap, not a 0) when the season has no value. */
-export function trendValue(metric: TrendMetric, season: PlayerSeasonHistory): number | null {
+export function trendValue(metric: Pick<TrendMetric, "getValue">, season: PlayerSeasonHistory): number | null {
   const v = metric.getValue(season);
   return v !== null && Number.isFinite(v) ? v : null;
 }
@@ -86,9 +89,11 @@ export interface SeasonTrendRow {
  */
 export function buildSeasonTrend(
   playerIds: number[],
-  metric: TrendMetric,
+  metric: Pick<TrendMetric, "getValue">,
   allTimeSeasonsByPlayerId: Map<number, PlayerSeasonHistory[]>,
   minMinutes: number,
+  /** A second source's figure for one of his seasons, in place of `metric`'s (null: a gap). The seasons and their minutes stay FPL's. */
+  seasonValue?: (playerId: number, season: PlayerSeasonHistory) => number | null,
 ): SeasonTrendRow[] {
   const seasonNames = new Set<string>();
   for (const id of playerIds) for (const s of allTimeSeasonsByPlayerId.get(id) ?? []) seasonNames.add(s.seasonName);
@@ -98,7 +103,7 @@ export function buildSeasonTrend(
       const row: SeasonTrendRow = { seasonName };
       for (const id of playerIds) {
         const season = allTimeSeasonsByPlayerId.get(id)?.find((s) => s.seasonName === seasonName);
-        row[trendDataKey(id)] = season ? trendValue(metric, season) : null;
+        row[trendDataKey(id)] = season ? (seasonValue ? seasonValue(id, season) : trendValue(metric, season)) : null;
         if (season && season.minutes < minMinutes) row[trendBelowKey(id)] = season.minutes;
       }
       return row;

@@ -14,6 +14,12 @@ export interface OutputsRow {
   cells: Map<number, number | null>;
   /** Per player id: what "best" ranks on, when that isn't his figure (a lower-is-better total ranks on its per-game rate; PlayerColumn.rankBy). */
   rankCells?: Map<number, number | null>;
+  /** One of a second source's own figures: the heading it's listed under ("Understat · Shooting") and that source's colour class. FPL rows, switched or not, go under their group. */
+  sourceHeading?: { label: string; className: string };
+  /** The source's colour class while the row shows a second source's figure: its name is in that colour, as an Explorer header is. */
+  labelClassName?: string;
+  /** The row's ⇄ toggle, for a figure both sources have (SourceToggle). */
+  toggle?: React.ReactNode;
 }
 
 /** The player to bold in a row: the best among the ranked players (those at or above the card's minimum minutes), when at least two have a figure and they differ. */
@@ -121,13 +127,17 @@ export function ComparisonOutputs({ rows, entries }: { rows: OutputsRow[]; entri
   const ref = useRef<HTMLDivElement>(null);
   const trackWidth = useTrackWidth(ref);
   const ranked = entries.filter((e) => !e.smallSampleNote);
-  const groups = COMPARISON_GROUP_ORDER.map((g) => ({ group: g, rows: rows.filter((r) => r.group === g) })).filter((g) => g.rows.length > 0);
+  // FPL rows under their groups, then each second-source heading in the order its rows come.
+  const fplGroups = COMPARISON_GROUP_ORDER.map((g) => ({ key: g, label: COMPARISON_GROUP_LABELS[g], className: null as string | null, rows: rows.filter((r) => !r.sourceHeading && r.group === g) }));
+  const sourceHeadings = [...new Map(rows.flatMap((r) => (r.sourceHeading ? [[r.sourceHeading.label, r.sourceHeading] as const] : []))).values()];
+  const sourceGroups = sourceHeadings.map((h) => ({ key: h.label, label: h.label, className: h.className as string | null, rows: rows.filter((r) => r.sourceHeading?.label === h.label) }));
+  const groups = [...fplGroups, ...sourceGroups].filter((g) => g.rows.length > 0);
   return (
     <>
       <div ref={ref} className="cmp-outputs">
-        {groups.map(({ group, rows: groupRows }) => (
-          <React.Fragment key={group}>
-            <div className="cmp-outputs-group">{COMPARISON_GROUP_LABELS[group]}</div>
+        {groups.map(({ key, label, className, rows: groupRows }) => (
+          <React.Fragment key={key}>
+            <div className={className ? `cmp-outputs-group source-coloured ${className}` : "cmp-outputs-group"}>{label}</div>
             {groupRows.map((row) => (
               <OutputsTrackRow key={row.key} row={row} entries={entries} ranked={ranked} trackWidth={trackWidth} />
             ))}
@@ -177,7 +187,10 @@ function OutputsTrackRow({ row, entries, ranked, trackWidth }: { row: OutputsRow
 
   return (
     <div className="cmp-outputs-row">
-      <span className="cmp-outputs-label">{row.label}</span>
+      <span className={row.labelClassName ? `cmp-outputs-label source-coloured ${row.labelClassName}` : "cmp-outputs-label"}>
+        {row.label}
+        {row.toggle}
+      </span>
       <span className="cmp-outputs-track" title={`0 to ${row.format(leader)}, the highest here${row.higherIsBetter ? "" : "; fewer is better for this one"}`}>
         <span className="cmp-outputs-bar">
           {segments.map((s) => (

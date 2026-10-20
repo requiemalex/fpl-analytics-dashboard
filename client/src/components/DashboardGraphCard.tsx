@@ -32,6 +32,7 @@ export function DashboardGraphCard({
   dataView,
   floorNote,
   smallSamples,
+  sourceControls,
   emptyMessage: emptyMessageOverride,
   onSelect,
   onEdit,
@@ -63,6 +64,8 @@ export function DashboardGraphCard({
   floorNote?: string | null;
   /** The graph's Hide button (<hide_small_samples>): whether it's on, how many players drawn are under the threshold, and its toggle. That count also turns the stopwatch amber (<marker_follows_data>). */
   smallSamples?: { hidden: boolean; count: number; onToggle: () => void };
+  /** Its ⇄ source toggle (figures both sources have) and second-source badge (SourceBadge); none for FPL-only figures. */
+  sourceControls?: React.ReactNode;
   onSelect?: (id: number) => void;
   onEdit?: () => void;
   onRemove?: () => void;
@@ -100,6 +103,7 @@ export function DashboardGraphCard({
           {floorNote && (
             <MinutesFloorBadge note={smallSamplesShownNote(floorNote, smallSamples?.count ?? 0, dataView)} active={(smallSamples?.count ?? 0) > 0} />
           )}
+          {sourceControls}
           <DataViewBadge mode={dataView} />
           <CardEditRemoveButtons noun="graph" name={title} onEdit={onEdit} onRemove={onRemove} />
         </div>

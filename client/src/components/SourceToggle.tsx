@@ -1,5 +1,6 @@
 import React from "react";
 import { MenuGroupHeading } from "./MenuControls";
+import type { ExternalStatsSource } from "../extensions/externalStats";
 
 /** Room for a header's source toggle (extensions/externalStats.ts). */
 export const SOURCE_TOGGLE_WIDTH = 16;
@@ -11,10 +12,23 @@ export const SOURCE_TOGGLE_WIDTH = 16;
  * says which source is showing (green FPL, the source's own when switched);
  * the icon is always the crossover colour, the same as the Columns
  * picker's heading for these figures: two arrows swapping places, with
- * hover text naming both sources.
+ * hover text naming both sources. The one toggle for this everywhere
+ * (<same_toggle_everywhere>): the Explorers' headers, the profiles' Match
+ * Logs, Dashboard tiles and graphs, and Player Comparison cards.
  */
-export function SourceToggle({ showingExternal, externalLabel, onToggle }: { showingExternal: boolean; externalLabel: string; onToggle: () => void }) {
-  const label = showingExternal ? `Showing ${externalLabel}'s figure · Click to show FPL's` : `Showing FPL's figure · Click to show ${externalLabel}'s`;
+export function SourceToggle({
+  showingExternal,
+  externalLabel,
+  onToggle,
+  figure = "figure",
+}: {
+  showingExternal: boolean;
+  externalLabel: string;
+  onToggle: () => void;
+  /** What it switches, where no header beside it says so (a Dashboard card, an Outputs row): "xG", "xG and xA". */
+  figure?: string;
+}) {
+  const label = showingExternal ? `Showing ${externalLabel}'s ${figure} · Click to show FPL's` : `Showing FPL's ${figure} · Click to show ${externalLabel}'s`;
   return (
     <button
       type="button"
@@ -56,4 +70,22 @@ export function CrossoverGroupHeading({ externalLabel }: { externalLabel: string
 /** A small marker on a second source's column headers when its figures are out of date or couldn't be loaded — the reason is its hover text. */
 export function SourceStaleMarker({ note }: { note: string }) {
   return <span className="source-stale-marker" title={note} aria-label={note} role="img" />;
+}
+
+/**
+ * A Dashboard or Player Comparison card's mark that some or all of its
+ * figures are a second source's: the source's icon in its colour, its hover
+ * naming the figures ("Understat's figures: xG, Key Passes"), and the stale
+ * marker beside it when they're out of date or couldn't be loaded.
+ */
+export function SourceBadge({ source, figures }: { source: Pick<ExternalStatsSource, "label" | "className" | "icon" | "staleNote">; figures: string[] }) {
+  const note = `${source.label}'s figures: ${figures.join(", ")}`;
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center" }}>
+      <span className={`source-badge source-coloured ${source.className}`} title={note} aria-label={note} role="img">
+        {source.icon}
+      </span>
+      {source.staleNote && <SourceStaleMarker note={source.staleNote} />}
+    </span>
+  );
 }

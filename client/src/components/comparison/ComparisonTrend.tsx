@@ -1,11 +1,11 @@
 import React from "react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
-import { trendBelowKey, trendDataKey, type SeasonTrendRow, type TrendMetric } from "../../metrics/careerTrends";
+import { trendBelowKey, trendDataKey, type SeasonTrendRow, type TrendDisplay } from "../../metrics/careerTrends";
 import { fmtDecimal, fmtPrice } from "../../utils/format";
 import { ComparisonLegend, type LegendEntry } from "./ComparisonLegend";
 import { MinutesFloorIcon } from "../MinutesFloorBadge";
 
-export function formatTrendValue(metric: TrendMetric, v: number | null): string {
+export function formatTrendValue(metric: TrendDisplay, v: number | null): string {
   return metric.price ? fmtPrice(v) : fmtDecimal(v, metric.decimals);
 }
 
@@ -19,7 +19,7 @@ function TrendTooltip({
 }: {
   active?: boolean;
   label?: string;
-  metric: TrendMetric;
+  metric: TrendDisplay;
   entries: LegendEntry[];
   rows: SeasonTrendRow[];
   minMinutes: number;
@@ -78,7 +78,7 @@ function trendDot(playerId: number, color: string) {
  * its point is the amber small-sample stopwatch and the hover box adds his minutes, so a
  * small-sample season is never mistaken for a full one.
  */
-export function ComparisonTrend({ metric, rows, entries, minMinutes }: { metric: TrendMetric; rows: SeasonTrendRow[]; entries: LegendEntry[]; minMinutes: number }) {
+export function ComparisonTrend({ metric, rows, entries, minMinutes }: { metric: TrendDisplay; rows: SeasonTrendRow[]; entries: LegendEntry[]; minMinutes: number }) {
   return (
     <>
       <ResponsiveContainer width="100%" height={260}>

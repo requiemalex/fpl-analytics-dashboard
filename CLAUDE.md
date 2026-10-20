@@ -147,6 +147,15 @@ No lint script. Playwright isn't installed but works via
   `AppStateContext` does).
 
 ## UI conventions
+- **Same thing, same way, everywhere** (owner's rule, 2026-10-20). Before
+  building or changing anything in a section, check how the same thing
+  already works elsewhere in the app and do it that way: a universal rule
+  over a section-specific one, the same behaviour across sections, and the
+  shared element (component, helper, toggle, marker, picker grouping)
+  reused rather than a new variant. Example: Understat's ⇄ toggle works on
+  the Dashboard and Player Comparison exactly as in the Explorers
+  (`<same_toggle_everywhere>`). Where a section genuinely can't match, flag
+  it to me before building it, and say why in the code and README.
 - **Graceful degradation over crashes** — a bad field, unmatched player, or
   unknown value gives a warning, not a broken page.
 - **No inline explanatory captions.** Explanations go in the User Guide

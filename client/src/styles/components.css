@@ -2474,6 +2474,15 @@ kbd {
 .source-toggle.on {
   background: color-mix(in srgb, var(--col-crossover) 22%, transparent);
 }
+/* A Dashboard or Player Comparison card whose figures (some or all) come
+   from a second source: that source's icon, in its colour (set by the
+   source's own stylesheet on .source-coloured). */
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  cursor: default;
+}
+
 .source-stale-marker {
   display: inline-block;
   width: 6px;

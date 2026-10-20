@@ -8,8 +8,14 @@ const STORAGE_KEY = "fpl-dashboard:comparison:views:v1";
  * in the Add/Edit dialog, as a Dashboard tile has). A card stored under
  * version 1 had no minimum of its own, so migrate() gives it 0 — the app
  * adds no floor where the user can set one (<fixed_minutes_floor>).
+ *
+ * Bumped 2 -> 3 when a card's `metricKeys` could name one of a second
+ * source's own figures ("understat:us.shots", <external_metric_key> in
+ * extensions/externalStats.ts). FPL keys keep their form and meaning and
+ * nothing stored before names a second source, so migrate() has nothing
+ * new to change.
  */
-const STORAGE_VERSION = 2;
+const STORAGE_VERSION = 3;
 const SELECTED_VIEW_STORAGE_KEY = "fpl-dashboard:comparison:selected-view:v1";
 const SELECTED_VIEW_STORAGE_VERSION = 1;
 
@@ -25,7 +31,7 @@ export interface ComparisonElementConfig {
   name: string;
   /** radar/outputs: the analysis mode their figures come from. Null for a trend, which always spans every completed season. */
   dataView: AnalysisMode | null;
-  /** radar: its axes; outputs: its rows; trend: one key, its y axis. Metric keys this version doesn't know are kept, and the card says so. */
+  /** radar: its axes; outputs: its rows; trend: one key, its y axis. FPL keys, or a second source's (<external_metric_key>). Metric keys this version doesn't know are kept, and the card says so. */
   metricKeys: string[];
   /**
    * This card's Min Minutes (0 = none). A compared player below it is

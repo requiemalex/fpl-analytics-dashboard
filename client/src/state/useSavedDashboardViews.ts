@@ -37,8 +37,13 @@ const STORAGE_KEY = "fpl-dashboard:dashboard:saved-views:v1";
  * scope stored under an older version — unless that scope already has a
  * view by that name or is at its view cap — and renames a user's own view
  * called "Starter", so names stay unique within a scope.
+ *
+ * Bumped 6 -> 7 with the tiles and graphs stores (useSummaryTiles,
+ * useDashboardGraphs): a view's tiles and graphs can name one of a
+ * second source's own figures (<external_metric_key>). Nothing stored before does, so
+ * migrate() has nothing new to change.
  */
-const STORAGE_VERSION = 6;
+const STORAGE_VERSION = 7;
 
 export interface SavedDashboardView {
   id: string;

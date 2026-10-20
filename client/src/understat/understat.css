@@ -14,6 +14,12 @@ table.data-table th.col-source-understat,
 .profile-section-heading.col-source-understat h3 {
   color: var(--col-understat);
 }
+/* Anything else named as Understat's (.source-coloured): a Dashboard
+   card's source badge, a Player Comparison Outputs heading or radar axis. */
+.source-coloured.col-source-understat {
+  color: var(--col-understat);
+  fill: var(--col-understat);
+}
 
 /* Shot maps (ShotMap.tsx), drawn in metres. Mark outlines are a fixed
    1px whatever the map's size (non-scaling), so dots stay crisp, not

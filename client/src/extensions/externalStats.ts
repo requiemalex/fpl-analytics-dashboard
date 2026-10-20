@@ -9,7 +9,11 @@ import type { TeamColumn } from "../components/teamColumns";
  * importing it. A page asks `useExternalStats()` for extra columns, and for
  * an alternative-source version of a column it already has (xG from
  * Understat instead of FPL); with no source mounted it gets null and
- * behaves exactly as it always has.
+ * behaves exactly as it always has. The Dashboard and Player Comparison
+ * use the same columns the same way — the source's own figures saved as
+ * an external metric key (<external_metric_key> below), and a ⇄ toggle on
+ * the figures both sources have — and Player Comparison's trend graphs its
+ * season-by-season figures (`playerTrends`).
  *
  * <one_source_per_figure>: a column is one source end to end. An
  * alternative column replaces the FPL one whole — its value, rate, sort,
@@ -56,6 +60,16 @@ export interface ProfileView {
   seasons: string[] | null;
 }
 
+/** One figure a Player Comparison trend graph can plot, season by season, from a second source. */
+export interface ExternalTrendMetric {
+  /** Unique within the source; saved as externalMetricKey(source id, key). */
+  key: string;
+  label: string;
+  decimals: number;
+  /** A player's figure (FPL permanent `code`) for one completed season ("2024/25"); null (a gap in his line, never 0) when the source has none. */
+  value: (code: number, season: string) => number | null;
+}
+
 /** What a second source adds to the player and team profiles. */
 export interface ExternalProfiles {
   /** Fetch one player's or club's per-match figures for these seasons ("2025/26"); call from an effect. Loaded or loading seasons are skipped. */
@@ -97,6 +111,8 @@ export interface ExternalStatsSource {
   request: () => void;
   playerColumns: (mode: AnalysisMode) => ExternalColumnSet<PlayerColumn>;
   teamColumns: (mode: AnalysisMode) => ExternalColumnSet<TeamColumn>;
+  /** Player Comparison's trend graphs: the source's season-by-season figures — its own in picker groups, and its version of FPL trend figures (keyed by the FPL trend key) for their ⇄ toggle. */
+  playerTrends: ExternalColumnSet<ExternalTrendMetric>;
   profiles: ExternalProfiles;
   /** The source's own User Guide section (what it is, its colour, its metrics), shown before "Data sourcing & known limitations". */
   guideSection: { id: string; navLabel: string; title: string; accentVar: string; body: ReactNode };
@@ -112,3 +128,53 @@ export function useExternalStats(): ExternalStatsSource | null {
 /** Which source a toggleable column is showing: "fpl", or an external source's id. */
 export type ColumnSourceChoice = Record<string, string>;
 export const FPL_SOURCE = "fpl";
+
+/**
+ * <external_metric_key>: how a saved Dashboard tile or graph, or a Player
+ * Comparison card, names one of a second source's own figures (one FPL
+ * doesn't have) — "<source id>:<its column key>" ("understat:us.shots").
+ * An FPL figure keeps its plain key (no FPL key has a ":"), so every item
+ * saved before keeps its meaning. A figure both sources have (xG…) is
+ * saved by its FPL key and switched with its ⇄ toggle, exactly as an
+ * Explorer column is (<same_toggle_everywhere>): starts on FPL each visit,
+ * and switches the whole figure — value, colour, scale — so one figure is
+ * always one source end to end (<one_source_per_figure>). With the source
+ * switched off an item of its own figures can't be shown, and says so
+ * (externalMetricUnavailable); a switched figure goes back to FPL.
+ */
+export function externalMetricKey(sourceId: string, key: string): string {
+  return `${sourceId}:${key}`;
+}
+
+/** The source id and its own key, for an external metric key; null for an FPL key. */
+export function parseExternalMetricKey(key: string): { sourceId: string; key: string } | null {
+  const i = key.indexOf(":");
+  return i > 0 ? { sourceId: key.slice(0, i), key: key.slice(i + 1) } : null;
+}
+
+/** One of a second source's own figures (one FPL doesn't have) by its key — what an external metric key names. Its version of an FPL figure is reached through that figure's ⇄ toggle instead (`alternates`). */
+export function externalColumnByKey<C extends { key: string }>(set: ExternalColumnSet<C>, key: string): C | undefined {
+  return set.groups.flatMap((g) => g.columns).find((c) => c.key === key);
+}
+
+/** The picker heading one of a source's own figures sits under ("Understat · Shooting"), for an Outputs panel's sections. */
+export function externalMetricHeading<C extends { key: string }>(source: Pick<ExternalStatsSource, "label">, set: ExternalColumnSet<C>, key: string): string {
+  return set.groups.find((g) => g.columns.some((c) => c.key === key))?.heading ?? source.label;
+}
+
+/** A figure's name where its source has to be spelled out (a graph's axis, a tooltip): "xG (Understat)". */
+export function externalLabel(source: Pick<ExternalStatsSource, "label">, label: string): string {
+  return `${label} (${source.label})`;
+}
+
+/** The message on an item whose figure comes from a second source that isn't mounted (switched off, or removed). */
+export function externalMetricUnavailable(noun: string): string {
+  return `This ${noun} uses figures from a second data source that's switched off.`;
+}
+
+/** A card's empty message while the second source its figures come from is loading or couldn't be loaded; undefined when it's ready. */
+export function externalLoadMessage(source: Pick<ExternalStatsSource, "label" | "status">): string | undefined {
+  if (source.status === "loading") return `Loading ${source.label} data…`;
+  if (source.status === "unavailable") return `${source.label} data couldn't be loaded.`;
+  return undefined;
+}

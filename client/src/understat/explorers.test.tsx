@@ -59,6 +59,7 @@ function fakeSource(staleNote: string | null = null): ExternalStatsSource {
     // Only Saka is linked; Rice shows "—" for every Understat figure.
     playerColumns: () => understatPlayerColumns((p) => (p.id === 1 ? resolved : null)),
     teamColumns: () => understatTeamColumns(new Map(), () => null),
+    playerTrends: { groups: [], alternates: {} },
     profiles: createProfiles(new Map(), { player: () => {}, club: () => {} }),
     guideSection: { id: "understat", navLabel: "Understat stats", title: "Understat stats", accentVar: "--col-understat", body: null },
   };

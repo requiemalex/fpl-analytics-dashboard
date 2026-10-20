@@ -2,7 +2,8 @@
 
 Scoutline is a scouting and analytics app for Fantasy Premier League managers, built on the
 **live official FPL API**, with **Understat** as a clearly separate second
-source in the two Explorers (see "Understat (second data source)"). No mock
+source in the Explorers, the profiles, the Dashboard and Player Comparison
+(see "Understat (second data source)"). No mock
 data, no database, no accounts — a small Express proxy and a React UI,
 shipped as a Windows desktop app.
 
@@ -468,8 +469,9 @@ too.
 
 Understat (understat.com) adds shot-level and creative figures FPL doesn't
 have: shots, key passes, xGChain, PPDA, open-play/set-piece xG and so on,
-in **Player Explorer, Team Explorer and the player and team profiles**
-(shot maps, positions, formations, result chances). Approved by the owner
+in **Player Explorer, Team Explorer, the player and team profiles** (shot
+maps, positions, formations, result chances), **the Dashboard and Player
+Comparison**. Approved by the owner
 on two rules, both built in:
 
 1. **Full separation, removable in one go.** Understat figures appear only in
@@ -713,6 +715,62 @@ app shows "—" for those figures (never 0) until the next run.
     counts); the cell's hover says "From the N of M matches Understat has
     a figure for". "—" only when it has none of them. The same rule as
     every Match Log (`<partial_totals>`, "Totals rows").
+- **Dashboard and Player Comparison** work exactly as the Explorers do
+  (`<same_toggle_everywhere>`, `extensions/externalStats.ts`): a tile,
+  graph or comparison card shows the Explorers' columns from the same slot
+  (`playerColumns`/`teamColumns` for the item's own Data View), so the same
+  Data View rules apply.
+  - **Pickers** are grouped as the Columns picker is: green "FPL ·" groups
+    of FPL-only figures, one rose "FPL & Understat" group of the figures
+    both have (players: xG, xA, xGI and their per-game and per-£m rates,
+    Assists, Minutes, Goals − xG, Assists − xA; clubs: xG, xA, xGI, xGC,
+    Assists), then violet "Understat ·" groups of Understat's own. With
+    Understat switched off only the FPL groups show. The Dashboard's
+    Statistic and axis lists use `<optgroup>`s; Player Comparison's dialog
+    uses its chip headings (`CrossoverGroupHeading`), holding only
+    comparable figures (no +/− figures, so not NP Goals − NPxG, now flagged
+    `signed`). A new pick starts in its natural order (Blocked Shots lowest
+    first).
+  - **Saved keys** (`<external_metric_key>`): a figure both sources have is
+    saved by its FPL key, exactly as before; only Understat's own figures
+    are saved as `"understat:<column key>"` (`understat:us.shots`).
+  - **The ⇄ toggle** (`SourceToggle`, the Explorers' one) sits on each
+    figure both sources have, wherever that figure has its own name in the
+    page: a tile's header (its one figure), an Outputs row beside its name.
+    Where the names are drawn inside the chart — a graph's axes, a radar's
+    axes, a trend graph's y axis — one ⇄ in the card's header switches every
+    such figure on it together. As in the Explorers it starts on FPL each
+    visit (per page, by item id; never saved) and switches the whole figure
+    — values, ranking, colour, scale, bold — so no figure mixes sources
+    (`<one_source_per_figure>`); with Understat gone it falls back to FPL.
+  - **On screen:** a card showing any Understat figure has the violet
+    Understat icon in its header (`SourceBadge`), hover naming the figures,
+    with the amber stale dot beside it when its data is out of date. A
+    switched Outputs row keeps its name and place, its name violet (as a
+    switched Explorer header is); Understat's own rows come after FPL's
+    under violet "Understat ·" headings. A graph's axis reads "xG
+    (Understat)"; a radar names an Understat axis in violet, and its hover
+    box in full.
+  - **The same rules as FPL figures:** comparative colours rank within
+    position among the item's whole pool (`<comparative_colouring>`); rows
+    are chosen and floored on FPL minutes, like the Explorers' Mins filter
+    ("Minimum minutes": Starter floor, Min Minutes, Hide, the stopwatch);
+    a player Understat has no figure for is left out of a tile and has no
+    marker or point, never a 0. Starter views have no Understat items, but
+    their shared figures have the ⇄ like any other.
+  - **Trend graphs** (`playerTrends`, `understat/trends.ts`): Understat's
+    versions of xG, xA, xGI, their per-game rates, Assists and Minutes (the
+    graph's ⇄), and its own Shots, NPxG, xG/Shot, Key Passes, NPxGI,
+    xGChain and xGBuildup, season by season over the player's FPL seasons
+    (`buildSeasonTrend`'s `seasonValue`), per-game on Understat's minutes;
+    a season Understat has no row for is a gap. The small-sample mark stays
+    on FPL minutes.
+  - Loaded once an item on the page uses one of Understat's own figures, or
+    a ⇄ is switched. While loading, its cards say "Loading Understat
+    data…"; if it can't be loaded, "Understat data couldn't be loaded."
+    With Understat switched off, an item built on its own figures says so
+    ("…uses figures from a second data source that's switched off") and
+    can still be removed; an Outputs panel with FPL rows too keeps those.
 - Its User Guide section and metric definitions live in
   `client/src/understat/guide.tsx`, shown through the slot.
 
@@ -747,8 +805,7 @@ app shows "—" for those figures (never 0) until the next run.
   per player only on individual player pages, and they can't be reproduced
   exactly from shot coordinates (tested: 6 of about 700 shots differ), so
   they wait for an upgrade that fetches those pages.
-- Match xG timelines, Understat on the Dashboard and in Player
-  Comparison: later.
+- Match xG timelines: later.
 - **Pre-match forecasts:** Understat's win/draw/loss figures exist only for
   matches already played (worked out from the shots), so there's nothing
   to show for upcoming fixtures.
@@ -946,6 +1003,12 @@ obvious from the UI.
   `dataView`, an order) falls back to its default when loaded; a tile or
   graph whose metric no longer exists shows as an "unavailable" card that
   can still be removed, rather than vanishing while counting toward the cap.
+- A tile's or graph's metric key may name one of a second source's own
+  figures (`understat:us.shots`), and a figure both sources have has the
+  Explorers' ⇄ (see "Understat … Dashboard and Player Comparison");
+  `resolvePlayerTileMetric`/`resolveTeamTileMetric` and the graph versions
+  turn a key, and whether its ⇄ is switched, into the figure for the
+  item's Data View.
 - A bar graph ranks by its own `direction` (Order): new graphs and graphs
   saved before it existed get the metric's natural order
   (`defaultGraphDirection` — lowest first when `higherIsBetter` is false, so
@@ -1122,8 +1185,11 @@ green or red, which mean better and worse, nor a source's violet or rose).
 - Views (`useComparisonViews`) are layouts only — never players — of three
   element kinds, one section each: **radar** (3–8 axes) and **outputs** (up
   to 12 rows), each with its own Data View, from `COMPARISON_METRICS`
-  (every non-static `PLAYER_COLUMNS` metric); and **trend** (one
-  `TREND_METRICS` key on the y axis, seasons on the x). Max 5 views
+  (every non-static, non-signed `PLAYER_COLUMNS` metric, plus a second
+  source's own comparable figures as `understat:<key>`, `resolveCardMetric`;
+  shared figures have the ⇄); and **trend** (one `TREND_METRICS` key, or
+  one of a second source's own `playerTrends` figures, on the y axis,
+  seasons on the x). Max 5 views
   (Starter and My View included), 4 cards per section — the section's +
   card goes at 4; a view saved with more under the old limit of 6 keeps
   them but can't add another. **Starter**
@@ -1323,6 +1389,11 @@ whenever tiles or graphs change, since it embeds both. An empty array is a
 valid user state, not a reason to reseed defaults. If localStorage throws,
 changes still work for the session; they just don't persist.
 
+- **A metric key can name one of a second source's own figures**
+  (`understat:us.shots`, `<external_metric_key>`): tiles, graphs, saved
+  views (v7) and comparison views (v3). FPL keys keep their plain form, so
+  nothing stored before changes; with the source switched off such an
+  item says so. A ⇄ choice is never saved (as in the Explorers).
 - **One damaged entry costs only itself** (`mapReadableEntries`): tiles,
   graphs, saved views and saved squads skip an entry that isn't an object or
   can't be read, as comparison views and the notepad already did, instead of

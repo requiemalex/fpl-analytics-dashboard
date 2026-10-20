@@ -36,8 +36,14 @@ const STORAGE_KEY = "fpl-dashboard:dashboard:graphs:v1";
  * player tile and graph (applyDefaultViewFloor, Dashboard.tsx), so the
  * defaults' criteria are plain DEFAULT_FILTERS. migrate() swaps a stored
  * default for the current packaged one.
+ *
+ * Bumped 6 -> 7 when `xMetricKey`/`yMetricKey` could name one of a
+ * second source's own figures ("understat:us.shots", <external_metric_key>). FPL keys keep
+ * their form and meaning and nothing stored before names a second source,
+ * so the only step is the usual swap of a stored default for the packaged
+ * one (unchanged since version 6).
  */
-const STORAGE_VERSION = 6;
+const STORAGE_VERSION = 7;
 const DEFAULT_DATA_VIEW: AnalysisMode = "lastSeason";
 
 /**
@@ -56,7 +62,7 @@ export interface DashboardGraphConfig {
   /** Custom title, set in the Add/Edit dialog — null/"" falls back to an auto-generated "<X> vs <Y>" / "<Y>" title (see Dashboard.tsx). */
   name: string | null;
   chartType: DashboardGraphType;
-  /** X axis metric key (into PLAYER_COLUMNS/TEAM_COLUMNS depending on `scope`) — unused/ignored for a "bar" graph, which only ranks by yMetricKey. */
+  /** X axis metric key (into PLAYER_COLUMNS/TEAM_COLUMNS depending on `scope`, or a second source's figure: <external_metric_key>) — unused/ignored for a "bar" graph, which only ranks by yMetricKey. */
   xMetricKey: string;
   yMetricKey: string;
   /** This graph's own analysis mode — set in the Add/Edit dialog, independent of every other graph's and every tile's. See SummaryTileConfig.dataView. */

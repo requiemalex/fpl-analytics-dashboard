@@ -13,6 +13,7 @@ import { understatMatchesBehind } from "./staleness";
 import type { UsComparisonContext } from "./comparisons";
 import { fetchClubDetail, fetchPlayerDetail, type DetailLoad, type UsClubSeasonDetail, type UsPlayerSeasonDetail } from "./profileData";
 import { clubKey, createProfiles, playerKey } from "./profiles";
+import { understatTrends } from "./trends";
 import "./understat.css";
 
 /**
@@ -157,6 +158,7 @@ export function UnderstatProvider({ children }: { children: React.ReactNode }) {
       status: load.state === "ready" ? "ready" : load.state === "unavailable" ? "unavailable" : "loading",
       staleNote,
       request,
+      playerTrends: understatTrends(data),
       profiles: createProfiles(profileLoads, { player: requestPlayerDetail, club: requestClubDetail }, compare),
       guideSection: { id: "understat", navLabel: "Understat stats", title: "Understat stats", accentVar: "--col-understat", body: <UnderstatGuide /> },
       playerColumns(mode) {

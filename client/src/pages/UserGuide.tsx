@@ -236,7 +236,8 @@ export function UserGuide() {
           <strong>Graphs</strong> work like tiles: add one with the + card, edit it with its pencil. Pick a name, a chart type (a{" "}
           <strong>Scatter Plot</strong> of two metrics, or a <strong>Bar Chart</strong> ranking 15 by one, in the order you choose;
           it starts with the natural one, so League Position lists the best first), the metric(s), a Data View, and what to
-          include: Filters or up to 5 players, or All Teams or up to 5 teams. A scatter plot can add a dashed 45° trend line (
+          include: Filters or up to 5 players, or All Teams or up to 5 teams. The pickers include Understat's figures, grouped as in
+          the Explorers, and a figure both sources have gets the ⇄ switch (see Understat stats; the same goes for tiles). A scatter plot can add a dashed 45° trend line (
           <strong>Add Trend Line</strong>) marking where X equals Y. It's useful only when both are on the same scale, like xG and Goals.
           The Starter graphs are xG vs Goals, xA vs Assists and Price vs Points for players, and Team xG vs Goals and Team xGC vs
           Goals Against for teams; the player ones leave out players under the fixed minutes floor, who would otherwise pile up at
@@ -384,6 +385,10 @@ export function UserGuide() {
             (up to 4 cards per section); pencil edits, bin removes, and cards drag to reorder. <strong>Starter</strong> is a
             read-only set of radars, outputs and trends that works for any players. Create View adds another (up to 5, Starter
             included). A view keeps the layout, not the players.
+          </li>
+          <li>
+            Every card's statistics include Understat's, grouped as in the Explorers, with the ⇄ switch on figures both sources
+            have (see Understat stats).
           </li>
         </ul>
         <p className="page-subtitle">

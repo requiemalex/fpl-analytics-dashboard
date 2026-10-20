@@ -1,13 +1,28 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList, hasDataForMode, isAnalysisMode, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { FIXED_FLOOR_MINUTES, fixedFloorMinutes, isUnderMinimum } from "../metrics/fixedMinutesFloor";
-import { comparisonMetricByKey, comparisonPercentiles, RADAR_MIN_METRICS, type ComparisonMetric } from "../metrics/comparisonMetrics";
-import { buildSeasonTrend, trendBelowKey, trendDataKey, trendMetricByKey } from "../metrics/careerTrends";
+import { comparisonMetricByKey, comparisonMetricFromColumn, comparisonPercentiles, isComparableColumn, RADAR_MIN_METRICS, type ComparisonMetric } from "../metrics/comparisonMetrics";
+import { buildSeasonTrend, trendBelowKey, trendDataKey, trendMetricByKey, type TrendDisplay, type TrendMetric } from "../metrics/careerTrends";
 import { belowMinimumNote, historicSeasonsNote, profileFloorNote, smallSampleNote, trendFloorNote, userMinimumNote } from "../components/MinutesFloorBadge";
-import { columnFormatForMode } from "../components/playerColumns";
+import { columnFormatForMode, columnForMode } from "../components/playerColumns";
+import { SourceBadge, SourceToggle } from "../components/SourceToggle";
+import {
+  externalColumnByKey,
+  externalLabel,
+  externalLoadMessage,
+  externalMetricHeading,
+  externalMetricKey,
+  externalMetricUnavailable,
+  parseExternalMetricKey,
+  useExternalStats,
+  type ColumnSourceChoice,
+  type ExternalStatsSource,
+  type ExternalTrendMetric,
+  FPL_SOURCE,
+} from "../extensions/externalStats";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { CreateViewIcon, PlusIcon, TrashIcon } from "../components/IconToolbar";
 import { SectionHeading, type SectionIcon } from "../components/SectionHeading";
@@ -16,7 +31,7 @@ import { ComparisonCard } from "../components/comparison/ComparisonCard";
 import { ComparisonRadar, type RadarAxisValues } from "../components/comparison/ComparisonRadar";
 import { ComparisonOutputs, type OutputsRow } from "../components/comparison/ComparisonOutputs";
 import { ComparisonTrend } from "../components/comparison/ComparisonTrend";
-import { ComparisonElementDialog, ELEMENT_NOUNS } from "../components/comparison/ComparisonElementDialog";
+import { ComparisonElementDialog, ELEMENT_NOUNS, type ExternalChoices } from "../components/comparison/ComparisonElementDialog";
 import { MAX_NAME_LENGTH } from "../components/MenuControls";
 import type { LegendEntry } from "../components/comparison/ComparisonLegend";
 import { seriesColor, type ComparedPlayer } from "../components/comparison/seriesColors";
@@ -30,7 +45,7 @@ import {
   type ElementSettings,
 } from "../state/useComparisonViews";
 import { useEscapeLayer } from "../state/useEscapeLayer";
-import type { NormalizedPlayer } from "../types/normalized";
+import type { NormalizedPlayer, PlayerSeasonHistory } from "../types/normalized";
 
 const MAX_COMPARE = 5;
 /**
@@ -46,6 +61,116 @@ const SECTIONS: { kind: ComparisonElementKind; title: string; icon: SectionIcon;
   { kind: "outputs", title: "Outputs", icon: "outputs", noun: "panel", addHeight: 220 },
   { kind: "trend", title: "Trends", icon: "trends", noun: "graph", addHeight: 300 },
 ];
+
+/**
+ * One card statistic in a Data View, the Explorers' way
+ * (<same_toggle_everywhere>): an FPL figure (a plain key) — switched to a
+ * second source's version by its ⇄ toggle when it has a comparable one
+ * (`switched`) — or one of that source's own figures (<external_metric_key>),
+ * its column through the slot, held to the same rule as FPL's (comparable:
+ * follows the Data View, not +/-). Null when this version can't show it.
+ */
+interface CardMetric {
+  metric: ComparisonMetric;
+  /** As the card's Data View shows it (<averaged_counts>). */
+  format: (v: number | null) => string;
+  /** The second source it comes from (null for FPL), and — one of its own figures — the heading it's listed under there. */
+  source: ExternalStatsSource | null;
+  heading: string | null;
+  /** A figure both sources have: what a ⇄ toggle switches. */
+  crossover: boolean;
+}
+
+export function resolveCardMetric(key: string, mode: AnalysisMode, ext: ExternalStatsSource | null, switched = false): CardMetric | null {
+  const parsed = parseExternalMetricKey(key);
+  if (!parsed) {
+    const metric = comparisonMetricByKey(key);
+    if (!metric) return null;
+    const alternate = ext?.playerColumns(mode).alternates[key];
+    const crossover = !!alternate && isComparableColumn(alternate);
+    if (switched && crossover && ext && alternate) {
+      // The row keeps its name and place; only the source (and its colour) changes, as an Explorer column does.
+      const shown = columnForMode(alternate, mode);
+      return { metric: comparisonMetricFromColumn(shown, key, metric.label), format: shown.format, source: ext, heading: null, crossover };
+    }
+    return { metric, format: columnFormatForMode(metric.key, metric.format, mode), source: null, heading: null, crossover };
+  }
+  if (!ext || ext.id !== parsed.sourceId) return null;
+  const set = ext.playerColumns(mode);
+  const column = externalColumnByKey(set, parsed.key);
+  if (!column || !isComparableColumn(column)) return null;
+  const shown = columnForMode(column, mode);
+  return { metric: comparisonMetricFromColumn(shown, key), format: shown.format, source: ext, heading: externalMetricHeading(ext, set, parsed.key), crossover: false };
+}
+
+/** A trend graph's statistic: an FPL TrendMetric (switched by its ⇄ to the second source's version), or one of that source's own season-by-season figures (by the player's permanent code). */
+interface CardTrend {
+  display: TrendDisplay;
+  metric: Pick<TrendMetric, "getValue">;
+  seasonValue?: (playerId: number, season: PlayerSeasonHistory) => number | null;
+  source: ExternalStatsSource | null;
+  figure: string;
+  crossover: boolean;
+}
+
+function externalTrend(ext: ExternalStatsSource, m: ExternalTrendMetric, label: string, playersById: Map<number, NormalizedPlayer>, crossover: boolean): CardTrend {
+  return {
+    display: { label: externalLabel(ext, label), decimals: m.decimals },
+    metric: { getValue: () => null },
+    seasonValue: (playerId, season) => {
+      const code = playersById.get(playerId)?.code;
+      return code == null ? null : m.value(code, season.seasonName);
+    },
+    source: ext,
+    figure: label,
+    crossover,
+  };
+}
+
+function resolveCardTrend(key: string, ext: ExternalStatsSource | null, playersById: Map<number, NormalizedPlayer>, switched = false): CardTrend | null {
+  const parsed = parseExternalMetricKey(key);
+  if (!parsed) {
+    const metric = trendMetricByKey(key);
+    if (!metric) return null;
+    const alternate = ext?.playerTrends.alternates[key];
+    if (switched && ext && alternate) return externalTrend(ext, alternate, metric.label, playersById, true);
+    return { display: metric, metric, source: null, figure: metric.label, crossover: !!alternate };
+  }
+  if (!ext || ext.id !== parsed.sourceId) return null;
+  const m = externalColumnByKey(ext.playerTrends, parsed.key);
+  return m ? externalTrend(ext, m, m.label, playersById, false) : null;
+}
+
+/** Whether a key names a second source's own figure while that source isn't mounted (switched off). */
+function sourceOff(key: string, ext: ExternalStatsSource | null): boolean {
+  const parsed = parseExternalMetricKey(key);
+  return parsed !== null && (!ext || ext.id !== parsed.sourceId);
+}
+
+/**
+ * A card's source controls, in its header: the ⇄ toggle when `toggle` is
+ * given (a radar's or trend graph's figures both sources have — its axis
+ * names are drawn inside the chart, so one toggle switches them together;
+ * an Outputs row has its own), and the second source's badge while any
+ * figure shown is that source's.
+ */
+function cardSourceControls(
+  ext: ExternalStatsSource | null,
+  items: { source: ExternalStatsSource | null; figure: string; crossover: boolean }[],
+  toggle: { switched: boolean; onToggle: () => void } | null,
+): React.ReactNode {
+  const crossover = items.filter((i) => i.crossover);
+  const external = items.filter((i): i is { source: ExternalStatsSource; figure: string; crossover: boolean } => i.source !== null);
+  if (!ext || ((!toggle || crossover.length === 0) && external.length === 0)) return undefined;
+  return (
+    <>
+      {toggle && crossover.length > 0 && (
+        <SourceToggle showingExternal={toggle.switched} externalLabel={ext.label} figure={crossover.map((i) => i.figure).join(" and ")} onToggle={toggle.onToggle} />
+      )}
+      {external.length > 0 && <SourceBadge source={external[0].source} figures={external.map((i) => i.figure)} />}
+    </>
+  );
+}
 
 function useComparisonIds(): [number[], (ids: number[]) => void] {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -74,13 +199,14 @@ interface ModePool {
 }
 
 type CardData =
-  | { el: ComparisonElementConfig; kind: "unavailable" }
-  | { el: ComparisonElementConfig; kind: "radar"; axes: RadarAxisValues[]; entries: LegendEntry[]; floorNote: string | null; message: string | null }
-  | { el: ComparisonElementConfig; kind: "outputs"; rows: OutputsRow[]; entries: LegendEntry[]; floorNote: string | null; message: string | null }
+  | { el: ComparisonElementConfig; kind: "unavailable"; sourceOff: boolean }
+  | { el: ComparisonElementConfig; kind: "radar"; axes: RadarAxisValues[]; entries: LegendEntry[]; floorNote: string | null; message: string | null; sourceControls?: React.ReactNode }
+  | { el: ComparisonElementConfig; kind: "outputs"; rows: OutputsRow[]; entries: LegendEntry[]; floorNote: string | null; message: string | null; sourceControls?: React.ReactNode }
   | {
       el: ComparisonElementConfig;
       kind: "trend";
-      metric: NonNullable<ReturnType<typeof trendMetricByKey>>;
+      metric: TrendDisplay;
+      sourceControls?: React.ReactNode;
       rows: ReturnType<typeof buildSeasonTrend>;
       minMinutes: number;
       entries: LegendEntry[];
@@ -123,6 +249,41 @@ export function PlayerComparison() {
   // ---------- Views ----------
   const viewsState = useComparisonViews();
   const view = viewsState.selectedView;
+
+  // A second data source (Understat), when one is mounted: a card can show
+  // its figures (<external_metric_key>). Loaded once a card on the view
+  // uses one.
+  const ext = useExternalStats();
+  const usesExternal = view.elements.some((e) => e.metricKeys.some((k) => parseExternalMetricKey(k) !== null));
+  useEffect(() => {
+    if (usesExternal) ext?.request();
+  }, [ext, usesExternal]);
+  // The dialog's second-source statistics, as the Explorers' Columns picker lists them: the FPL figures it has its
+  // own version of (⇄ on the card), then its own comparable figures (names don't change with the Data View).
+  const externalChoices: ExternalChoices | null = useMemo(() => {
+    if (!ext) return null;
+    const set = ext.playerColumns("lastSeason");
+    const crossoverKeys = Object.entries(set.alternates)
+      .filter(([, c]) => isComparableColumn(c))
+      .map(([key]) => key);
+    const groups = set.groups
+      .map((g) => ({ heading: g.heading, metrics: g.columns.filter(isComparableColumn).map((c) => ({ key: externalMetricKey(ext.id, c.key), label: c.label })) }))
+      .filter((g) => g.metrics.length > 0);
+    const trendGroups = ext.playerTrends.groups.map((g) => ({ heading: g.heading, metrics: g.columns.map((m) => ({ key: externalMetricKey(ext.id, m.key), label: m.label })) }));
+    return { label: ext.label, className: ext.className, icon: ext.icon, crossoverKeys, trendCrossoverKeys: Object.keys(ext.playerTrends.alternates), groups, trendGroups };
+  }, [ext]);
+  // Which source each ⇄ figure shows — a radar's or trend graph's by card id, an Outputs row's by card and figure —
+  // as an Explorer column's toggle: FPL each visit, and back to FPL if the second source goes away.
+  const [sourceChoice, setSourceChoice] = useState<ColumnSourceChoice>({});
+  const switchedFor = (choiceKey: string) => ext !== null && sourceChoice[choiceKey] === ext.id;
+  const toggleSource = useCallback(
+    (choiceKey: string) => {
+      if (!ext) return;
+      ext.request();
+      setSourceChoice((prev) => ({ ...prev, [choiceKey]: prev[choiceKey] === ext.id ? FPL_SOURCE : ext.id }));
+    },
+    [ext],
+  );
   const readOnly = isStarterComparisonView(view);
   const [showCreateView, setShowCreateView] = useState(false);
   const [newViewName, setNewViewName] = useState("");
@@ -200,16 +361,18 @@ export function PlayerComparison() {
 
     return view.elements.map((el): CardData => {
       if (el.kind === "trend") {
-        const metric = trendMetricByKey(el.metricKeys[0] ?? "");
-        if (!metric) return { el, kind: "unavailable" };
-        const message = noPlayers ?? (historicStatus !== "ready" ? historicMessage : null);
+        const trend = resolveCardTrend(el.metricKeys[0] ?? "", ext, playersById, switchedFor(el.id));
+        if (!trend) return { el, kind: "unavailable", sourceOff: sourceOff(el.metricKeys[0] ?? "", ext) };
+        const metric = trend.display;
+        const message = noPlayers ?? (historicStatus !== "ready" ? historicMessage : null) ?? (trend.source ? (externalLoadMessage(trend.source) ?? null) : null);
         const minMinutes = readOnly ? FIXED_FLOOR_MINUTES : el.minMinutes;
-        const rows = message ? [] : buildSeasonTrend(compared.map((c) => c.player.id), metric, allTimeSeasonsByPlayerId, minMinutes);
+        const rows = message ? [] : buildSeasonTrend(compared.map((c) => c.player.id), trend.metric, allTimeSeasonsByPlayerId, minMinutes, trend.seasonValue);
         const entries: LegendEntry[] = compared.map((c) => ({ ...c, absent: !rows.some((r) => typeof r[trendDataKey(c.player.id)] === "number") }));
         return {
           el,
           kind: "trend",
           metric,
+          sourceControls: cardSourceControls(ext, [trend], { switched: switchedFor(el.id), onToggle: () => toggleSource(el.id) }),
           rows,
           minMinutes,
           entries,
@@ -218,49 +381,74 @@ export function PlayerComparison() {
         };
       }
 
-      const metrics = el.metricKeys.map(comparisonMetricByKey).filter((m): m is ComparisonMetric => !!m);
-      if (metrics.length < (el.kind === "radar" ? RADAR_MIN_METRICS : 1)) return { el, kind: "unavailable" };
       const mode: AnalysisMode = el.dataView ?? "lastSeason";
+      // A radar's ⇄ is the card's; an Outputs row's is its own.
+      const choiceKey = (key: string) => (el.kind === "radar" ? el.id : `${el.id}:${key}`);
+      const resolved = el.metricKeys.map((k) => resolveCardMetric(k, mode, ext, switchedFor(choiceKey(k)))).filter((m): m is CardMetric => !!m);
+      if (resolved.length < (el.kind === "radar" ? RADAR_MIN_METRICS : 1)) return { el, kind: "unavailable", sourceOff: el.metricKeys.some((k) => sourceOff(k, ext)) };
       const pool = poolsByMode.get(mode);
-      const message = noPlayers ?? (mode !== "live" && historicStatus !== "ready" ? historicMessage : null);
+      const external = resolved.find((r) => r.source)?.source ?? null;
+      const sourceControls = cardSourceControls(
+        ext,
+        resolved.map((r) => ({ source: r.source, figure: r.metric.label, crossover: r.crossover })),
+        el.kind === "radar" ? { switched: switchedFor(el.id), onToggle: () => toggleSource(el.id) } : null,
+      );
+      // While the second source a card uses is still loading, its figures aren't there yet: say so rather than draw them as missing.
+      const message =
+        noPlayers ?? (mode !== "live" && historicStatus !== "ready" ? historicMessage : null) ?? (external?.status === "loading" ? (externalLoadMessage(external) ?? null) : null);
       // The amber stopwatch marks any minimum-minutes threshold in force on the card (<minutes_marker>): Starter's fixed floor,
       // the card's own Min Minutes, or Historic Average's 450-minute seasons.
       const floorNote = readOnly ? profileFloorNote(mode) : el.minMinutes > 0 ? userMinimumNote(el.minMinutes, mode) : mode === "historicAverage" ? historicSeasonsNote() : null;
       if (message || !pool) {
         const shown = message ?? historicMessage;
         return el.kind === "radar"
-          ? { el, kind: "radar", axes: [], entries: [], floorNote, message: shown }
-          : { el, kind: "outputs", rows: [], entries: [], floorNote, message: shown };
+          ? { el, kind: "radar", axes: [], entries: [], floorNote, message: shown, sourceControls }
+          : { el, kind: "outputs", rows: [], entries: [], floorNote, message: shown, sourceControls };
       }
       const entries = modeEntries(el, mode, pool);
 
       if (el.kind === "radar") {
-        const axes: RadarAxisValues[] = metrics.map((metric) => {
+        const axes: RadarAxisValues[] = resolved.map(({ metric, format, source }) => {
           const percentiles = percentilesFor(el, metric, mode, pool);
           return {
             key: metric.key,
             label: metric.label,
-            format: columnFormatForMode(metric.key, metric.format, mode),
+            format,
             values: new Map(compared.map((c) => [c.player.id, { percentile: percentiles.get(c.player.id) ?? null, raw: valueFor(metric, pool, c.player.id) }])),
+            ...(source ? { sourceClass: source.className, fullLabel: externalLabel(source, metric.label) } : {}),
           };
         });
-        return { el, kind: "radar", axes, entries, floorNote, message: null };
+        return { el, kind: "radar", axes, entries, floorNote, message: null, sourceControls };
       }
 
-      const rows: OutputsRow[] = metrics.map((metric) => {
+      const rows: OutputsRow[] = resolved.map(({ metric, format, source, heading, crossover }) => {
         return {
           key: metric.key,
           label: metric.label,
           group: metric.group,
           higherIsBetter: metric.higherIsBetter,
-          format: columnFormatForMode(metric.key, metric.format, mode),
+          format,
           cells: new Map(compared.map((c) => [c.player.id, valueFor(metric, pool, c.player.id)])),
           rankCells: metric.rankValue === metric.getValue ? undefined : new Map(compared.map((c) => [c.player.id, rankFor(metric, pool, c.player.id)])),
+          ...(source && heading ? { sourceHeading: { label: heading, className: source.className } } : {}),
+          ...(source ? { labelClassName: source.className } : {}),
+          ...(ext && crossover
+            ? {
+                toggle: (
+                  <SourceToggle
+                    showingExternal={switchedFor(choiceKey(metric.key))}
+                    externalLabel={ext.label}
+                    figure={metric.label}
+                    onToggle={() => toggleSource(choiceKey(metric.key))}
+                  />
+                ),
+              }
+            : {}),
         };
       });
-      return { el, kind: "outputs", rows, entries, floorNote, message: null };
+      return { el, kind: "outputs", rows, entries, floorNote, message: null, sourceControls };
     });
-  }, [view.elements, readOnly, compared, poolsByMode, historicStatus, historicProfiles, allTimeSeasonsByPlayerId]);
+  }, [view.elements, readOnly, compared, poolsByMode, historicStatus, historicProfiles, allTimeSeasonsByPlayerId, ext, playersById, sourceChoice, toggleSource]);
 
   const usesHistoricData = view.elements.some((e) => e.kind === "trend" || e.dataView !== "live");
 
@@ -373,18 +561,18 @@ export function PlayerComparison() {
       onDrop: (e: React.DragEvent) => handleDrop(e, el.id),
     };
     if (card.kind === "unavailable") {
-      return <ComparisonCard key={el.id} {...common} onEdit={undefined} message={`This ${noun}'s statistics are no longer available.`} />;
+      return <ComparisonCard key={el.id} {...common} onEdit={undefined} message={card.sourceOff ? externalMetricUnavailable(noun) : `This ${noun}'s statistics are no longer available.`} />;
     }
     if (card.kind === "radar") {
       return (
-        <ComparisonCard key={el.id} {...common} dataView={el.dataView} floorNote={card.floorNote} floorActive={card.entries.some((e) => !!e.smallSampleNote)} message={card.message}>
+        <ComparisonCard key={el.id} {...common} dataView={el.dataView} floorNote={card.floorNote} floorActive={card.entries.some((e) => !!e.smallSampleNote)} sourceControls={card.sourceControls} message={card.message}>
           <ComparisonRadar axes={card.axes} entries={card.entries} />
         </ComparisonCard>
       );
     }
     if (card.kind === "outputs") {
       return (
-        <ComparisonCard key={el.id} {...common} dataView={el.dataView} floorNote={card.floorNote} floorActive={card.entries.some((e) => !!e.smallSampleNote)} message={card.message}>
+        <ComparisonCard key={el.id} {...common} dataView={el.dataView} floorNote={card.floorNote} floorActive={card.entries.some((e) => !!e.smallSampleNote)} sourceControls={card.sourceControls} message={card.message}>
           <ComparisonOutputs rows={card.rows} entries={card.entries} />
         </ComparisonCard>
       );
@@ -396,6 +584,7 @@ export function PlayerComparison() {
         floorNote={card.floorNote}
         // A season under the card's minimum is marked on the plot (trendBelowKey).
         floorActive={card.rows.some((r) => card.entries.some((e) => typeof r[trendBelowKey(e.player.id)] === "number"))}
+        sourceControls={card.sourceControls}
         message={card.message}
       >
         <ComparisonTrend metric={card.metric} rows={card.rows} entries={card.entries} minMinutes={card.minMinutes} />
@@ -501,6 +690,7 @@ export function PlayerComparison() {
               : undefined
           }
           error={dialogError}
+          external={externalChoices}
           onSave={handleSaveElement}
           onCancel={() => setDialog(null)}
         />
