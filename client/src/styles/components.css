@@ -2554,7 +2554,6 @@ kbd {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  max-width: 900px;
 }
 .legal-page p,
 .legal-page ul {
