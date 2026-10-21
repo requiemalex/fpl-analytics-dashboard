@@ -166,6 +166,11 @@ No lint script. Playwright isn't installed but works via
   the Dashboard and Player Comparison exactly as in the Explorers
   (`<same_toggle_everywhere>`). Where a section genuinely can't match, flag
   it to me before building it, and say why in the code and README.
+- **Three fonts only** (owner's rule, 2026-10-21, `<font_families>`):
+  Archivo (headings), IBM Plex Sans (body), JetBrains Mono (figures),
+  bundled locally and used only through `--font-display`/`--font-body`/
+  `--font-mono` or `inherit`. Never add a family, a web-font link or a
+  hard-coded font; `client/src/styles/fontRule.test.ts` fails if you do.
 - **Graceful degradation over crashes** — a bad field, unmatched player, or
   unknown value gives a warning, not a broken page.
 - **No inline explanatory captions.** Explanations go in the User Guide

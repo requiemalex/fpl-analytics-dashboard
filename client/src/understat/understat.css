@@ -24,10 +24,14 @@ table.data-table th.col-source-understat,
 /* Shot maps (ShotMap.tsx), drawn in metres: zones shaded by their share
    of the shots (one hue, the fill opacity set per zone), the pitch lines
    over them. Lines are a fixed 1px whatever the map's size (non-scaling);
-   the zones' text is in metres, so it scales with the map. The fill stops
-   at 60% violet so the light text on it stays readable. */
+   the zones' text is in metres, so it scales with the map — capped at
+   760px wide (centred in its space) so that text stays near the app's own
+   sizes on a wide card. The fill stops at 60% violet so the light text on
+   it stays readable. */
 .shot-map {
-  margin: 0;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
 }
 .shot-map svg {
   display: block;

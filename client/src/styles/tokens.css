@@ -56,9 +56,14 @@
   --pos-mid: #3fbf7f;
   --pos-fwd: #e0654a;
 
-  --font-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
-  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Roboto Mono", monospace;
+  /* The app's only three typefaces (<font_families>): headings, body text,
+     figures. Bundled from @fontsource-variable (imported in main.tsx), one
+     variable file each, so every weight is available and nothing loads
+     from the network. Everything else names one of these three tokens —
+     fontRule.test.ts fails on any other font. */
+  --font-display: "Archivo Variable", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", "Roboto Mono", monospace;
 
   /* Spacing scale. Layout-level spacing (page and card padding, gaps
      between cards and sections) uses these steps only; finer values inside

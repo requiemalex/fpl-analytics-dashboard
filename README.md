@@ -125,6 +125,19 @@ deadline) is known from the first load; the other two labels appear once
 too: `?player=<id>` (player profile), `?teamProfile=<id>` (team profile),
 `?players=id,id` (Player Comparison selection).
 
+**Fonts** (`<font_families>`, owner's rule 2026-10-21). Three typefaces
+only: Archivo for headings (`--font-display`), IBM Plex Sans for body text
+(`--font-body`) and JetBrains Mono for figures (`--font-mono`). Each is a
+variable font bundled from its `@fontsource-variable` package (imported in
+`main.tsx`), so every weight is there, the app draws the same offline and
+nothing is fetched from a font service. `tokens.css` names them once;
+everything else uses a token or `inherit`. The Electron update window
+can't see the tokens, so it has its own copy of Plex Sans's Latin file
+(`electron/fonts/`). `styles/fontRule.test.ts` scans every client source
+file, `index.html` and the Electron pages, and fails on any other family,
+a hard-coded one, a fourth token, another font package or a web-font
+link; it also checks the update window's copy still matches the package.
+
 **Pages:** Dashboard (`/`), Player Explorer (`/players`), Team Explorer (`/teams`),
 Player Comparison (`/player-comparison`), Team Building (`/team-building`),
 User Guide (`/guide`), plus the player and team profile overlays.
@@ -695,8 +708,10 @@ without it leaves that season's Shots Faced uncoloured.
   counts only window seasons of 450+ FPL minutes, the profile's fixed
   floor; a club's only seasons it was in the league). A season Understat
   has nothing for (no link, didn't play) is left out, never counted as 0.
-  - **Shot Maps** (`ShotMap.tsx`): full width with its figures in a panel
-    beside it (under it on narrow screens), headed by the season or "Per
+  - **Shot Maps** (`ShotMap.tsx`): up to 760px wide, centred, with its
+    figures in a panel beside it (under it on narrow screens); the zones'
+    text scales with the map, so the cap keeps it near the app's own text
+    sizes. Headed by the season or "Per
     season · n seasons". Which maps: a midfielder or forward gets **Shot
     Map · Taken**; a defender gets Taken and **Shot Map · Faced** (his
     club's opponents' shots while he was on the pitch, `<shots_faced_on_pitch>`

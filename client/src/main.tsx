@@ -1,6 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+// The app's three typefaces, bundled so the app draws the same offline (<font_families>, styles/fontRule.ts).
+import "@fontsource-variable/archivo";
+import "@fontsource-variable/ibm-plex-sans";
+import "@fontsource-variable/jetbrains-mono";
 import "./styles/tokens.css";
 import "./styles/layout.css";
 import "./styles/components.css";
