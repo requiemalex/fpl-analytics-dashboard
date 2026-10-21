@@ -61,11 +61,18 @@ No lint script. Playwright isn't installed but works via
   figure, and nothing forces one source to match the other. Goals included:
   a goal FPL credits to a player that Understat records as an own goal is
   two sources recording it differently, not an error. Toggles only where the
-  sources usually differ (xG family, assists, minutes); goals, scores and
+  sources usually differ (xG family incl. a player's xGC, assists, minutes); goals, scores and
   results almost always agree, so they stay FPL only, while Understat's own
   goal-based columns (Goals − xG, NP Goals) use Understat's count. The same
   data rules apply to it (null not 0, nothing inferred). No other source
   without my approval.
+  **A player's Understat xGC — one rule, everywhere** (owner's decision,
+  2026-10-21; `<understat_player_xgc>`, `client/src/understat/playerXGC.ts`):
+  the xG of the shots his club's opponents took while he was on the pitch
+  (`<shots_faced_on_pitch>`, `server/src/understat/onPitch.ts`: a starter
+  from kick-off until his minutes run out, a sub for his last minutes of a
+  90). Anything new that needs a player's Understat xGC or shots faced uses
+  these two, never its own version.
 - **Inspect the live API, never assume a field's shape.** Field availability
   is detected at runtime (`normalize/fieldAvailability.ts`).
 - Never fabricate, substitute, or infer a metric when the real value is

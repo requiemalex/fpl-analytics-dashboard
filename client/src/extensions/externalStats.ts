@@ -81,7 +81,7 @@ export interface ExternalProfiles {
   clubMatchColumns: (code: number, season: string, fixtureIds: number[]) => ExternalMatchColumn[];
   /**
    * This source's version of Match Log figures both sources have, by the
-   * log's column key (player: min, a, xg, xa, xgi; club: a, xg, xa, xgi,
+   * log's column key (player: min, a, xg, xa, xgi, xgc; club: a, xg, xa, xgi,
    * xgc) — what a column's ⇄ toggle switches to, whole column, Totals and
    * Average included (<one_source_per_figure>). A player's `matches` carry
    * FPL's minutes, so a match he didn't play is a provable 0 and one he did

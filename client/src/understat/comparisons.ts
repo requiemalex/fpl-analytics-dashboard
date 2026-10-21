@@ -1,6 +1,7 @@
 import type { Position } from "../types/normalized";
 import { FIXED_FLOOR_LIVE_MINUTES, FIXED_FLOOR_MINUTES } from "../metrics/fixedMinutesFloor";
 import { rankAmong } from "../metrics/comparativeColour";
+import { perGame } from "../metrics/calculations";
 import type { UsClubTotals, UsPlayerTotals, UsSeason } from "./schema";
 
 /**
@@ -64,19 +65,32 @@ export function playerLogRanks(
   ctx: UsComparisonContext,
   code: number,
   season: string,
-  value: (t: UsPlayerTotals) => number,
+  value: (t: UsPlayerTotals) => number | null,
   shown: { total: number | null; average: number | null },
   higherIsBetter: boolean,
 ): { total: number | null; average: number | null } {
   if (!playerEligible(ctx, code, season)) return { total: null, average: null };
-  const others = peers(ctx, code, season);
+  // Others the figure is known for (Understat's xGC isn't for a season whose shot list is short).
+  const others = peers(ctx, code, season).flatMap(([c, row]) => {
+    const v = value(row);
+    return v === null ? [] : [{ c, row, v }];
+  });
+  if (!higherIsBetter) {
+    // A lower-is-better total grows with minutes — a bench player would look best — so, as FPL's xGC does, the
+    // total ranks per game (Understat's minutes) and the average per match against each other's total ÷ his matches.
+    const mine = ctx.seasons.get(season)?.players.get(code)?.minutes ?? 0;
+    return {
+      total: rankAmong(shown.total === null ? null : perGame(shown.total, mine), others.flatMap(({ row, v }) => { const g = perGame(v, row.minutes); return g === null ? [] : [g]; }), false),
+      average: rankAmong(shown.average, others.filter(({ row }) => row.appearances > 0).map(({ row, v }) => v / row.appearances), false),
+    };
+  }
   const averages: number[] = [];
-  for (const [c, row] of others) {
+  for (const { c, v } of others) {
     const matches = clubMatches(ctx, ctx.clubCodeByPlayerCode.get(c), season);
-    if (matches !== null) averages.push(value(row) / matches);
+    if (matches !== null) averages.push(v / matches);
   }
   return {
-    total: rankAmong(shown.total, others.map(([, row]) => value(row)), higherIsBetter),
+    total: rankAmong(shown.total, others.map(({ v }) => v), higherIsBetter),
     average: rankAmong(shown.average, averages, higherIsBetter),
   };
 }

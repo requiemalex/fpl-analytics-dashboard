@@ -12,6 +12,7 @@ import type { DetailLoad, UsClubSeasonDetail, UsPlayerSeasonDetail, UsShot } fro
 import { isBeyondMap, ShotMap, SHOT_MAP_DEPTH } from "./ShotMap";
 import { FormationsSection } from "./formations";
 import { POSITION_NAMES } from "./positionNames";
+import { understatPlayerXGC, xGCByFixture } from "./playerXGC";
 
 /**
  * What Understat adds to the player and team profiles
@@ -255,12 +256,13 @@ function alternate(
 const sumOrNull = (a: number | null, b: number | null) => (a === null || b === null ? null : a + b);
 
 /** The Match Log figures both sources have, from a season summary row (for the comparison pools). */
-const PLAYER_LOG_FIGURES: Record<string, { value: (t: UsPlayerTotals) => number; higherIsBetter: boolean }> = {
+const PLAYER_LOG_FIGURES: Record<string, { value: (t: UsPlayerTotals) => number | null; higherIsBetter: boolean }> = {
   min: { value: (t) => t.minutes, higherIsBetter: true },
   a: { value: (t) => t.assists, higherIsBetter: true },
   xg: { value: (t) => t.xG, higherIsBetter: true },
   xa: { value: (t) => t.xA, higherIsBetter: true },
   xgi: { value: (t) => t.xG + t.xA, higherIsBetter: true },
+  xgc: { value: understatPlayerXGC, higherIsBetter: false },
 };
 const CLUB_LOG_FIGURES: Record<string, { value: (t: UsClubTotals) => number; higherIsBetter: boolean }> = {
   a: { value: (t) => t.assists, higherIsBetter: true },
@@ -312,6 +314,7 @@ export function createProfiles(
       const detail = playerDetail(code, season);
       const byFixture = new Map((detail?.matches ?? []).map((m) => [m.fixture, m]));
       const fixtureIds = matches.map((m) => m.fixtureId);
+      const faced = detail?.shotsFaced ? xGCByFixture(detail.shotsFaced) : null;
       // Understat lists only matches he played in: one FPL says he didn't is a provable 0; one he did that Understat lacks is "—".
       const values = (get: (m: UsPlayerSeasonDetail["matches"][number]) => number | null) =>
         new Map(
@@ -329,6 +332,8 @@ export function createProfiles(
         xg: alternate("xg", values((m) => m.xG), fixtureIds, 2, 2, rank("xg")),
         xa: alternate("xa", values((m) => m.xA), fixtureIds, 2, 2, rank("xa")),
         xgi: alternate("xgi", values((m) => sumOrNull(m.xG, m.xA)), fixtureIds, 2, 2, rank("xgi")),
+        // <understat_player_xgc>: the xG his club faced while he was on, each match (0 in one where it faced no shot then).
+        xgc: alternate("xgc", values((m) => (faced ? (faced.get(m.fixture) ?? 0) : null)), fixtureIds, 2, 2, rank("xgc")),
       };
     },
 

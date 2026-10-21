@@ -7,7 +7,8 @@
  *    own picker groups.
  *  - "Alternates": Understat's version of a figure FPL also has, where the
  *    two genuinely differ — xG, xA, xGI and their per-game and per-£m
- *    rates, Assists, Minutes, Goals − xG and Assists − xA (players); xG,
+ *    rates, Assists, Minutes, Goals − xG, Assists − xA and xGC (players,
+ *    <understat_player_xgc>); xG,
  *    xA, xGI, xGC and Assists (clubs). They keep the FPL column's key, so the column's place,
  *    width, sort and filter follow it when its source toggle is flipped.
  *    Goals, own goals, scores and results almost always agree (2 of 9,386
@@ -38,6 +39,7 @@ import { perGame } from "../metrics/calculations";
 import { fmtDecimal, fmtPercent, fmtSigned } from "../utils/format";
 import type { UsClubResolved, UsPlayerResolved } from "./resolve";
 import type { UsClubTotals, UsPlayerTotals, UsShotDetail } from "./schema";
+import { understatPlayerXGC } from "./playerXGC";
 
 export const UNDERSTAT_SOURCE_ID = "understat";
 
@@ -96,6 +98,11 @@ export function understatPlayerColumns(lookup: (p: NormalizedPlayer) => UsPlayer
   const perMillion = (f: (t: PT) => number) => (r: UsPlayerResolved, p: NormalizedPlayer) => ratio(perSeason(r, f(r.totals)), p.price);
   const xGI = (t: PT) => t.xG + t.xA;
   const npxGI = (t: PT) => t.npxG + t.xA;
+  const xGCOf = (r: UsPlayerResolved, f: (v: number) => number | null) => {
+    const v = understatPlayerXGC(r.totals);
+    return v === null ? null : f(v);
+  };
+  const xGCPerGameOf = (r: UsPlayerResolved | null) => (r ? xGCOf(r, (v) => perGame(v, r.totals.minutes)) : null);
 
   const alternates: Record<string, PlayerColumn> = {
     xG: col("xG", "xG", total((t) => t.xG), fmt(2)),
@@ -112,6 +119,10 @@ export function understatPlayerColumns(lookup: (p: NormalizedPlayer) => UsPlayer
     // Understat's goals and assists against Understat's own xG and xA.
     goalsMinusXG: col("goalsMinusXG", "Goals − xG", (r) => perSeason(r, r.totals.goals - r.totals.xG), signed(2), { signed: true }),
     assistsMinusXA: col("assistsMinusXA", "Assists − xA", (r) => perSeason(r, r.totals.assists - r.totals.xA), signed(2), { signed: true }),
+    // <understat_player_xgc>: xG his club faced while he was on the pitch. Fewer is better, and like FPL's
+    // xGC the total ranks per game, or a bench player would look best.
+    xGC: col("xGC", "xGC", (r) => xGCOf(r, (v) => perSeason(r, v)), fmt(2), { higherIsBetter: false, rankBy: (p) => xGCPerGameOf(lookup(p)) }),
+    xGCPerGame: col("xGCPerGame", "xGC/Game", xGCPerGameOf, fmt(2), { higherIsBetter: false }),
   };
 
   return {

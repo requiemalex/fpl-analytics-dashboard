@@ -68,7 +68,14 @@ function zeroPlayer(): UsPlayerTotals {
     bodyParts: Object.fromEntries(BODY_PARTS.map((k) => [k, zeroSlice()])) as UsPlayerTotals["bodyParts"],
     shotDetail: zeroDetail(),
     shotsComplete: true,
+    facing: { shots: 0, shotsOnTarget: 0, situations: Object.fromEntries(SITUATIONS.map((k) => [k, zeroSlice()])) as UsPlayerTotals["situations"], complete: true },
   };
+}
+
+/** Unknown if either side is (a season file from before the sync added it), so a sum never passes for the whole. */
+function addFacing(a: UsPlayerTotals["facing"], b: UsPlayerTotals["facing"]): UsPlayerTotals["facing"] {
+  if (!a || !b) return undefined;
+  return { shots: a.shots + b.shots, shotsOnTarget: a.shotsOnTarget + b.shotsOnTarget, situations: addSlices(a.situations, b.situations), complete: a.complete && b.complete };
 }
 
 function addSlices<K extends string>(a: Record<K, UsSlice>, b: Record<K, UsSlice>): Record<K, UsSlice> {
@@ -97,6 +104,7 @@ function addPlayers(a: UsPlayerTotals, b: UsPlayerTotals): UsPlayerTotals {
     bodyParts: addSlices(a.bodyParts, b.bodyParts),
     shotDetail: addDetail(a.shotDetail, b.shotDetail),
     shotsComplete: a.shotsComplete && b.shotsComplete,
+    facing: addFacing(a.facing, b.facing),
   };
 }
 

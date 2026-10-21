@@ -196,7 +196,8 @@ export const UNDERSTAT_STAT_HINTS: Record<string, string> = {
   xG: "Expected goals: how many goals the chances would usually bring.",
   xA: "Expected assists: how many assists the chances made would usually bring.",
   xGI: "xG + xA.",
-  xGC: "Expected goals conceded: what the opponents' chances were worth.",
+  xGC: "Expected goals conceded: what the chances his club faced while he was on the pitch were worth. Coloured per game.",
+  xGCPerGame: "Expected goals conceded per game, from the shots his club faced while he was on the pitch.",
   xGPerGame: "Expected goals per game played.",
   xAPerGame: "Expected assists per game played.",
   xGIPerGame: "xG + xA per game played.",
@@ -258,6 +259,7 @@ export const UNDERSTAT_STAT_HINTS: Record<string, string> = {
 
 /** Understat club columns whose meaning differs from the player column with the same key. */
 export const CLUB_UNDERSTAT_HINTS: Record<string, string> = {
+  xGC: "Expected goals conceded: what the opponents' chances were worth.",
   "us.blockedShots": "The club's shots blocked by a defender.",
   "us.deep": "Passes completed within about 20 yards of the opponents' goal, crosses left out.",
   "us.shotsAgainst": "Shots faced.",

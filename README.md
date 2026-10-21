@@ -637,8 +637,25 @@ without it leaves that season's Shots Faced uncoloured.
 - **Source toggle** (`components/SourceToggle.tsx`): a ⇄ icon on a header,
   only where the two sources genuinely differ:
   - players: xG, xA, xGI, their per-game and per-£m rates, Assists, Mins,
-    Goals − xG, Assists − xA;
+    Goals − xG, Assists − xA, xGC and xGC/Game;
   - clubs: xG, xA, xGI, xGC, Assists.
+
+  **A player's Understat xGC — one rule everywhere**
+  (`<understat_player_xgc>`, `understat/playerXGC.ts`; the owner's
+  decision, 2026-10-21): Understat publishes no expected goals conceded
+  per player, so its version of FPL's xGC is the xG of the shots his
+  club's opponents took while he was on the pitch (`<shots_faced_on_pitch>`,
+  `server/src/understat/onPitch.ts`) — the season summaries' `facing`
+  totals, and the same shots as his profile's Shots Faced map, whose xG
+  is this figure. Each shot's xG is summed (a club's xGA counts a shot and
+  its rebound as one chance, `<club_xg_is_per_chance>`). xGC/Game is per
+  game on Understat's minutes. Unknown ("—", never 0) for a summary
+  written before shots faced were added, or where one of those opponents'
+  shot lists is short. Fewer is better and, like FPL's xGC, the total is
+  coloured on xGC per game (`rankBy`), or a bench player would look best.
+  The Explorers, Dashboard tiles and graphs, Player Comparison cards and
+  the player Match Log all switch to this figure; Player Comparison's
+  trend graphs have no FPL xGC to switch.
 
   It starts on FPL each visit. The whole column switches source
   (`<one_source_per_figure>`): value, rate, sort, filter, tint and CSV
@@ -769,8 +786,12 @@ without it leaves that season's Shots Faced uncoloured.
     more loss chance worse, draw chance uncoloured.
   - **Match Log ⇄ toggles** (`playerMatchAlternates`,
     `clubMatchAlternates`): on the figures both sources have — a player's
-    Minutes, Assists, xG, xA, xGI; a club's Assists, xG, xA, xGI, xGC (its
-    xG against). Switched, the whole column is Understat's: each match,
+    Minutes, Assists, xG, xA, xGI, xGC (`<understat_player_xgc>`: each
+    match's xG faced while he was on, 0 in one where his club faced no
+    shot then); a club's Assists, xG, xA, xGI, xGC (its xG against). A
+    player's xGC, fewer better, is coloured per game: its Totals on xGC per
+    game (Understat's minutes), its Average against each other's total ÷
+    his matches. Switched, the whole column is Understat's: each match,
     Totals and Average, their colours ranked on Understat's own season
     figures (`understat/comparisons.ts`: a player within his position at
     Understat's own 90/450 minutes, per-match against each other's total ÷
@@ -799,7 +820,7 @@ without it leaves that season's Shots Faced uncoloured.
   - **Pickers** are grouped as the Columns picker is: green "FPL ·" groups
     of FPL-only figures, one rose "FPL & Understat" group of the figures
     both have (players: xG, xA, xGI and their per-game and per-£m rates,
-    Assists, Minutes, Goals − xG, Assists − xA; clubs: xG, xA, xGI, xGC,
+    Assists, Minutes, Goals − xG, Assists − xA, xGC, xGC/Game; clubs: xG, xA, xGI, xGC,
     Assists), then violet "Understat ·" groups of Understat's own. With
     Understat switched off only the FPL groups show. The Dashboard's
     Statistic and axis lists are `GroupedPicker`s (`metricPickerGroups`);

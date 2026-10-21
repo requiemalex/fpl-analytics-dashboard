@@ -28,6 +28,7 @@ const PLAYER_METRICS: [string, string][] = [
   ["xGChain, xGChain/Game", "The xG of every attack the player was involved in at any point, the shot and the key pass included."],
   ["xGBuildup, xGBuildup/Game", "The same without the shot and the key pass, so it credits players who start attacks."],
   ["Apps", "Matches he played in (Understat)."],
+  ["xGC, xGC/Game (with ⇄)", "Understat's version of FPL's expected goals conceded: the xG of the shots his club faced while he was on the pitch, the same shots as his Shots Faced map. Fewer is better; the total is coloured per game, so playing more isn't held against him."],
 ];
 
 const CLUB_METRICS: [string, string][] = [
@@ -122,7 +123,7 @@ export function UnderstatGuide() {
           each match (hover it for the full name; Sub means off the bench) and a club's <strong>Win, Draw and Loss
           Chance</strong>: the result its chances deserved, worked out by Understat after the match from the shots both sides
           took. Their Average is coloured against every club that season: a higher win chance greener, a higher loss chance redder. The shot maps' figures are coloured too: a player's against his position, a club's against every club (fewer shots faced is better). More penalties taken and scored is better. A player's Shots Faced are coloured against his position, fewer better, per 90 minutes on the pitch so playing more isn't held against him. Its figures both sources have (a player's
-          Minutes, Assists, xG, xA and xGI; a club's Assists, xG, xA, xGI and xGC) have the{" "}
+          Minutes, Assists, xG, xA, xGI and xGC; a club's Assists, xG, xA, xGI and xGC) have the{" "}
           <span style={{ color: "var(--col-crossover)" }}>⇄</span> icon, switching that column, Totals included, to
           Understat's.
         </li>
