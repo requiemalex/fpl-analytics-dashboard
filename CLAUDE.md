@@ -166,6 +166,13 @@ No lint script. Playwright isn't installed but works via
   the Dashboard and Player Comparison exactly as in the Explorers
   (`<same_toggle_everywhere>`). Where a section genuinely can't match, flag
   it to me before building it, and say why in the code and README.
+- **Same layout at every screen size** (owner's rule, 2026-10-21). A
+  layout keeps its structure and spacing as the window changes: gaps
+  between a graph and its figures, between cards, and so on are fixed
+  tokens, never whatever space is left over; only the room around a group
+  grows. Things of the same kind share one layout (e.g. every graph with
+  a figures panel uses `.shot-card-body`: shot maps and the formation
+  pitch alike). Check a layout change at laptop and wide-monitor widths.
 - **Three fonts only** (owner's rule, 2026-10-21, `<font_families>`):
   Archivo (headings), IBM Plex Sans (body), JetBrains Mono (figures),
   bundled locally and used only through `--font-display`/`--font-body`/

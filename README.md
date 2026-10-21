@@ -708,10 +708,12 @@ without it leaves that season's Shots Faced uncoloured.
   counts only window seasons of 450+ FPL minutes, the profile's fixed
   floor; a club's only seasons it was in the league). A season Understat
   has nothing for (no link, didn't play) is left out, never counted as 0.
-  - **Shot Maps** (`ShotMap.tsx`): up to 760px wide, centred, with its
-    figures in a panel beside it (under it on narrow screens); the zones'
-    text scales with the map, so the cap keeps it near the app's own text
-    sizes. Headed by the season or "Per
+  - **Shot Maps** (`ShotMap.tsx`): with its figures in a panel beside it
+    (under it on narrow screens), in the same graph-and-figures layout as
+    the Formations card (`.shot-card-body`): the graph fills its column up
+    to 760px, the panel always the same gap from it, the pair centred in
+    the card. The zones' text scales with the map, so the cap keeps it
+    near the app's own text sizes. Headed by the season or "Per
     season · n seasons". Which maps: a midfielder or forward gets **Shot
     Map · Taken**; a defender gets Taken and **Shot Map · Faced** (his
     club's opponents' shots while he was on the pitch, `<shots_faced_on_pitch>`

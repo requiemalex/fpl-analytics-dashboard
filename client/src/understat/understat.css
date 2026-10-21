@@ -24,19 +24,16 @@ table.data-table th.col-source-understat,
 /* Shot maps (ShotMap.tsx), drawn in metres: zones shaded by their share
    of the shots (one hue, the fill opacity set per zone), the pitch lines
    over them. Lines are a fixed 1px whatever the map's size (non-scaling);
-   the zones' text is in metres, so it scales with the map — capped at
-   760px wide (centred in its space) so that text stays near the app's own
-   sizes on a wide card. The fill stops at 60% violet so the light text on
-   it stays readable. */
+   the zones' text is in metres, so it scales with the map — which fills
+   its column of the card body below, capped at --graph-max so that text
+   stays near the app's own sizes. The fill stops at 60% violet so the
+   light text on it stays readable. */
 .shot-map {
   width: 100%;
-  max-width: 760px;
-  margin: 0 auto;
 }
 .shot-map svg {
   display: block;
   width: 100%;
-  margin: 0 auto;
 }
 .shot-map svg * {
   vector-effect: non-scaling-stroke;
@@ -99,19 +96,30 @@ table.data-table th.col-source-understat,
   background: linear-gradient(to right, color-mix(in srgb, var(--col-understat) 10%, var(--surface-raised)), var(--col-understat));
 }
 
-/* A shot map card (profiles.tsx): the map, and its figures in a panel —
-   beside the map in a full-width card (one row per figure), under it
-   otherwise (three to a row). */
+/* A graph and its figures (the shot maps, profiles.tsx, and the
+   formation pitch, formations.tsx): one layout for every such card, so
+   they look the same as each other at every screen size. The graph fills
+   its column up to --graph-max, the figures' panel sits a fixed gap beside
+   it (one row per figure) in a full-width card, under it otherwise or on
+   a narrow screen (three to a row), and the pair is centred in the card:
+   the gap between graph and figures never changes with the screen's
+   width, only the space either side of the pair does. */
 .shot-card-body {
+  --graph-max: 760px;
+  --figures-width: 260px;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  max-width: var(--graph-max);
+  margin: 0 auto;
 }
 .shot-card-body.is-wide {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-columns: minmax(0, var(--graph-max)) var(--figures-width);
+  justify-content: center;
   align-items: start;
   gap: var(--space-6);
+  max-width: none;
 }
 .shot-stats {
   padding: var(--space-3) var(--space-4);
@@ -153,7 +161,8 @@ table.data-table th.col-source-understat,
 }
 @media (max-width: 900px) {
   .shot-card-body.is-wide {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, var(--graph-max));
+    gap: var(--space-4);
   }
   .shot-card-body.is-wide .shot-stats-rows {
     grid-template-columns: repeat(3, minmax(0, 1fr));
