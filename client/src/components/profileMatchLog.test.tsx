@@ -76,6 +76,7 @@ function fakeSource(): ExternalStatsSource {
       clubMatchAlternates: () => ({ xgc: { key: "xgc", header: "xGC", cell: (fixture) => `us-xgc-${fixture}`, total: "7.77", average: "3.88" } }),
       playerCards: (_code, view) => <div className="card">Shot card for {(view.seasons ?? []).join(", ")}</div>,
       clubCards: (_code, view) => <div className="card">Club card for {(view.seasons ?? []).join(", ")}</div>,
+      clubFormations: (_code, season) => <div className="card">Formations for {season}</div>,
     },
   };
 }

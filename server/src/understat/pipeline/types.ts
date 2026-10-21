@@ -221,6 +221,13 @@ export interface PlayerSeasonTotals {
    * from the line-up and are unaffected.
    */
   shotsComplete: boolean;
+  /**
+   * <shots_faced_on_pitch> (../onPitch.ts): his club's opponents' shots
+   * while he was on the pitch — what a defender's or goalkeeper's Shots
+   * Faced map is ranked on. `complete` false when Understat's shot list
+   * for one of those opponents is short (<incomplete_shot_list>).
+   */
+  facing: { shots: number; shotsOnTarget: number; situations: Record<ShotSituation, ShotSlice>; complete: boolean };
 }
 
 export interface ClubSeasonTotals {
@@ -289,8 +296,11 @@ export interface AppSeasonFile {
  * finished FPL fixture (so checked) are in it, and every row carries that
  * FPL fixture id, which is how the profiles' match logs line them up.
  */
-/** [fplFixtureId, position (Understat's code: GK, DC, AMR, FW, …, or Sub), minutes, xG, xA, assists] — matches he played in. */
-export type ProfileMatchRow = [number, string, number, number, number, number];
+/**
+ * [fplFixtureId, position (Understat's code: GK, DC, AMR, FW, …, or Sub), minutes, xG, xA, assists, fplClubCode] —
+ * matches he played in, and the club he played for in each (his Shots Faced are its opponents').
+ */
+export type ProfileMatchRow = [number, string, number, number, number, number, number | null];
 /** [fplFixtureId, minute, x, y, xG, result, situation, shotType] — x, y as UsShot (from the shooter's side, x towards goal). */
 export type ProfileShotRow = [number, number, number, number, number, string, string, string];
 /**
@@ -300,6 +310,13 @@ export type ProfileShotRow = [number, number, number, number, number, string, st
  * chance — <club_xg_is_per_chance>); and its players' xA and assists.
  */
 export type ProfileClubMatchRow = [number, number | null, number | null, number | null, number, number, number, number];
+/**
+ * [fplFixtureId, starters] — a club's starting XI in one match, each
+ * [position, fplCode (null when he isn't linked to an FPL player), Understat's name].
+ * Understat gives each starter his slot in the formation the club started
+ * in, so the XI's positions name that formation (client/src/understat/lineups.ts).
+ */
+export type ProfileLineupRow = [number, [string, number | null, string][]];
 
 export interface ProfileFormation {
   formation: string;
@@ -318,7 +335,7 @@ export interface AppProfileFile {
   /** Keyed by FPL player code — confirmed links only. */
   players: Record<string, { matches: ProfileMatchRow[]; shots: ProfileShotRow[] }>;
   /** Keyed by FPL club code. Its shots against are the opponents' shots in its matches (route.ts). */
-  clubs: Record<string, { matches: ProfileClubMatchRow[]; shots: ProfileShotRow[]; formations: ProfileFormation[] | null }>;
+  clubs: Record<string, { matches: ProfileClubMatchRow[]; shots: ProfileShotRow[]; formations: ProfileFormation[] | null; lineups: ProfileLineupRow[] }>;
 }
 
 export interface UnderstatStatus {

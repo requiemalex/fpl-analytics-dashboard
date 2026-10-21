@@ -435,7 +435,8 @@ export function UserGuide() {
         </p>
         <p className="page-subtitle">
           <strong>Team Profile</strong> shows season totals, the team radars, upcoming fixtures, Points History and the Match Log:
-          club figures only, no players (for a club's players, use Player Explorer's Team column). The header's position, points and results
+          club figures only, no players (for a club's players, use Player Explorer's Team column). The one exception is this season's
+          Formations (an Understat section), which name who has started where. The header's position, points and results
           follow the Data View; in Historic Average, position is rounded (two clubs can both be "2nd"), points show one decimal,
           and wins, draws and losses are whole numbers that always add up to the games played. On the Defense radar, more Defensive Contributions counts as better, so a
           dominant side that rarely defends can sit low on that axis.

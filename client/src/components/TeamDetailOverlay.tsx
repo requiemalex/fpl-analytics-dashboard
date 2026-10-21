@@ -365,6 +365,17 @@ export function TeamDetailOverlay() {
 
         <hr className="profile-divider" />
 
+        {/* This season's formations, whatever the Data View — the club's set-up now, not its past ones (owner's decision, 2026-10-21). */}
+        {external && team.code !== null && liveSeasonName && (
+          <div className="profile-section">
+            <div className={`profile-section-heading match-log-head ${external.className}`}>
+              <h3>{external.label} · Formations</h3>
+              <span className="match-log-season">{liveSeasonName} (current season)</span>
+            </div>
+            {external.profiles.clubFormations(team.code, liveSeasonName)}
+          </div>
+        )}
+
         <div className="profile-section">
           <PointsHistoryHeader
             title="FPL · Points History"

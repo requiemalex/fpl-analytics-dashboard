@@ -52,3 +52,33 @@ describe("buildAppSeason: shot detail", () => {
     expect(file.clubs["2"].shotDetailAgainst.woodwork).toBe(1);
   });
 });
+
+describe("buildAppSeason: shots faced while on the pitch (<shots_faced_on_pitch>)", () => {
+  // Away keeper u3 plays it all; away centre-back u4 goes off after 60; away substitute u5 comes on for the last 25.
+  const away = (playerId: string, position: string, minutes: number) => ({ ...appearance, playerId, teamId: "a1", side: "a", position, minutes, goals: 0, shots: 0 }) as UsAppearance;
+  const links = new Map(
+    [
+      [503, "u3"],
+      [504, "u4"],
+      [505, "u5"],
+    ].map(([fplCode, understatId]) => [fplCode as number, { ...link, fplCode: fplCode as number, understatId: understatId as string }]),
+  );
+  const faced = { ...data, appearances: [...data.appearances, away("u3", "GK", 90), away("u4", "DC", 60), away("u5", "Sub", 25)] } as SeasonData;
+  const lateShots = [...shots, shot(7, { playerId: "u6", minute: 70, result: "Goal", xG: 0.5 }), shot(8, { playerId: "u6", minute: 93, situation: "Penalty", result: "SavedShot", xG: 0.76 })];
+  const file = buildAppSeason({ ...faced, shots: lateShots }, links, true, new Set(["m1"]));
+
+  it("counts the opponents' shots in his time on, never his own club's or an own goal", () => {
+    // The home side's 4 shots at 10' (2 on target), the 70' goal and the saved 93' penalty.
+    expect(file.players["503"].facing).toMatchObject({ shots: 6, shotsOnTarget: 4, complete: true });
+    expect(file.players["503"].facing.situations.Penalty).toEqual({ shots: 1, goals: 0, xG: 0.76 });
+    expect(file.players["503"].facing.situations.OpenPlay.goals).toBe(2);
+    expect(file.players["504"].facing.shots).toBe(4);
+    // On from the 65th minute.
+    expect(file.players["505"].facing.shots).toBe(2);
+  });
+
+  it("not complete when the opponents' shot list for one of his matches is short", () => {
+    const short = buildAppSeason({ ...faced, shots: lateShots.filter((s) => s.shotId !== "s1") }, links, true, new Set(["m1"]));
+    expect(short.players["503"].facing.complete).toBe(false);
+  });
+});

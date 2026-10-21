@@ -976,7 +976,7 @@ export function PlayerDetailOverlay() {
             <div className={`profile-section-heading ${external.className}`}>
               <h3>{external.label} · Views</h3>
             </div>
-            <div className="profile-grid">{external.profiles.playerCards(player.code, externalView)}</div>
+            <div className="profile-grid">{external.profiles.playerCards(player.code, externalView, player.position)}</div>
           </div>
         )}
 

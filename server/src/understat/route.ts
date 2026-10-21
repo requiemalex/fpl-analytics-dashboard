@@ -20,6 +20,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TtlCache } from "../cache.js";
 import { cachedFetch, type ProxyResult } from "../proxy.js";
+import { onPitchWindow, wasOnPitch, type OnPitch } from "./onPitch.js";
 
 export const UNDERSTAT_REMOTE_BASE = "https://raw.githubusercontent.com/requiemalex/fpl-analytics-dashboard/master/data/understat";
 const LIVE_TTL_MS = 30 * 60 * 1000;
@@ -157,12 +158,43 @@ export function createUnderstatRouter(options: { localDir?: string } = {}): Rout
 /** pipeline/types.ts AppProfileFile, as far as this route reads it (it doesn't import the pipeline). */
 type ShotRow = [number, number, number, number, number, string, string, string];
 /** Rows from before a field was added are shorter; a missing field is sent as null ("—"), never 0. */
+type PlayerMatchRow = [number, string, number, number?, number?, number?, (number | null)?];
 interface ProfileFileLike {
-  players: Record<string, { matches: [number, string, number, number?, number?, number?][]; shots: ShotRow[] }>;
-  clubs: Record<string, { matches: [number, number | null, number | null, number | null, number?, number?, number?, number?][]; shots: ShotRow[]; formations: unknown[] | null }>;
+  players: Record<string, { matches: PlayerMatchRow[]; shots: ShotRow[] }>;
+  clubs: Record<
+    string,
+    {
+      matches: [number, number | null, number | null, number | null, number?, number?, number?, number?][];
+      shots: ShotRow[];
+      formations: unknown[] | null;
+      lineups?: [number, [string, number | null, string][]][];
+    }
+  >;
 }
 
 const shotObject = ([fixture, minute, x, y, xG, result, situation, shotType]: ShotRow) => ({ fixture, minute, x, y, xG, result, situation, shotType });
+
+/**
+ * The shots a player's club faced while he was on the pitch — its
+ * opponents' shots in each match he played, within his time on
+ * (`onPitchWindow`, <shots_faced_on_pitch>). Null when a match row has no
+ * club (a file written before it was added): unknown, never no shots.
+ */
+export function shotsFacedOnPitch(file: ProfileFileLike, matches: PlayerMatchRow[]): ShotRow[] | null {
+  const windows = new Map<number, { club: number; on: OnPitch }>();
+  for (const [fixture, position, minutes, , , , club] of matches) {
+    if (club === undefined || club === null) return null;
+    windows.set(fixture, { club, on: onPitchWindow(position, minutes) });
+  }
+  const faced: ShotRow[] = [];
+  for (const [clubCode, club] of Object.entries(file.clubs)) {
+    for (const s of club.shots) {
+      const w = windows.get(s[0]);
+      if (w && Number(clubCode) !== w.club && wasOnPitch(w.on, s[1])) faced.push(s);
+    }
+  }
+  return faced.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+}
 
 function playerSlice(file: ProfileFileLike, code: string) {
   const p = file.players[code];
@@ -171,6 +203,7 @@ function playerSlice(file: ProfileFileLike, code: string) {
     found: true,
     matches: p.matches.map(([fixture, position, minutes, xG, xA, assists]) => ({ fixture, position, minutes, xG: xG ?? null, xA: xA ?? null, assists: assists ?? null })),
     shots: p.shots.map(shotObject),
+    shotsFaced: shotsFacedOnPitch(file, p.matches)?.map(shotObject) ?? null,
   };
 }
 
@@ -184,8 +217,9 @@ function meanChances(matches: ProfileFileLike["clubs"][string]["matches"]) {
 
 /**
  * The club's own shots, and its opponents' in its matches (the shots it
- * faced); and every club's mean result chances that season (`league`), what
- * its Match Log Average is coloured against.
+ * faced); its starting XI in each match (`lineups`, null in a file written
+ * before they were added); and every club's mean result chances that
+ * season (`league`), what its Match Log Average is coloured against.
  */
 function clubSlice(file: ProfileFileLike, code: string) {
   const c = file.clubs[code];
@@ -212,6 +246,7 @@ function clubSlice(file: ProfileFileLike, code: string) {
     shots: c.shots.map(shotObject),
     shotsAgainst: against.map(shotObject),
     formations: c.formations,
+    lineups: c.lineups?.map(([fixture, xi]) => ({ fixture, starters: xi.map(([position, code, name]) => ({ position, code, name })) })) ?? null,
     league: Object.values(file.clubs).flatMap((club) => {
       const m = meanChances(club.matches);
       return m ? [m] : [];

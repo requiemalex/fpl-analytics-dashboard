@@ -128,8 +128,18 @@ describe("runSync", () => {
     const report = await sync(fakeClient());
     expect(report.ok).toBe(true);
     const profile = JSON.parse(readFileSync(join(understatRoot, "app", "profile", "2026-27.json"), "utf8")) as AppProfileFile;
-    // Position, minutes, xG, xA, assists.
-    expect(profile.players["1001"].matches).toEqual([[1, "FW", 90, 1.2, 0.1, 0]]);
+    // Position, minutes, xG, xA, assists, and the FPL club he played for.
+    expect(profile.players["1001"].matches).toEqual([[1, "FW", 90, 1.2, 0.1, 0, 11]]);
+    // Each club's starting XI: position, FPL code (linked players only), Understat's name.
+    expect(profile.clubs["11"].lineups).toEqual([
+      [
+        1,
+        [
+          ["FW", 1001, "Harry Striker"],
+          ["FW", 1002, "Kev Keeper"],
+        ],
+      ],
+    ]);
     expect(profile.players["1001"].shots).toHaveLength(3);
     expect(profile.players["1001"].shots[0]).toEqual([1, 10, 0.9, 0.5, 0.5, "Goal", "OpenPlay", "RightFoot"]);
     // Understat's forecast is home win / draw / away win; the away club's is turned round to its own side.

@@ -140,7 +140,7 @@ User Guide (`/guide`), plus the player and team profile overlays.
 | `entry/{id}/`, `entry/{id}/history/`, `entry/{id}/event/{gw}/picks/` | Team Building's FPL team import (read-only, unauthenticated) | 2 min |
 | `event/{gw}/live/` | Proxied, not currently used by the client | 60 s |
 | `understat` (app's own) | Understat season summaries, from this repo's `data/understat/` on GitHub (from disk under `npm run dev`) — never understat.com | 30 min; completed seasons 12 h |
-| `understat/profile/{player|club}/{code}/{season}` (app's own) | One player's or club's Understat detail for one season (positions, shots, result chances, formations), sliced server-side from `app/profile/<season>.json` | as `understat` |
+| `understat/profile/{player|club}/{code}/{season}` (app's own) | One player's or club's Understat detail for one season (positions, shots, a player's shots faced while on the pitch, result chances, formations, starting XIs), sliced server-side from `app/profile/<season>.json` | as `understat` |
 | `player-seasons/{code}` (app's own) | One player's match rows for every completed season (the profile's past-season Match Log), bundled with the server | none needed |
 
 Outbound requests time out after 8 s and retry twice (capped backoff) on
@@ -328,17 +328,18 @@ grey. Two uses:
   (`dashboardItemFloorNote`); each Player Comparison card with one
   (Starter's floor, a card's Min Minutes above 0, or Historic Average);
   Team Building's Model Predicted header (its bonus rate uses only window
-  seasons of 900+ minutes, `MIN_QUALIFYING_SEASON_MINUTES`).
+  seasons of 900+ minutes, `MIN_QUALIFYING_SEASON_MINUTES`); the Team
+  Profile's Formations card title (only formations used for 90+ minutes
+  are shown, `FORMATION_MIN_MINUTES` — too few for a formation's rates,
+  not a club floor, which clubs don't have — so it's always grey).
 - **On an entry under one:** a row in Player Explorer, Team Building's Add
   Players and a Dashboard tile (`RowSmallSampleBadge`, no minutes counting
   as 0); the profile's radar, Underlying Numbers and Value card titles for
   a small sample; an under-floor season on the profile's Points History
   chart; the Match Log heading when the shown season is under the floor;
-  the profile's Understat Shot Map title when he's under Understat's own
-  floor for every season shown; a Player Comparison legend entry, trend
-  point and Outputs marker; a Team Profile formation's xG/90 and xGA/90
-  cells when it was used for under 90 minutes (`FORMATION_MIN_MINUTES`:
-  too few for a rate — not a club floor, which clubs don't have).
+  the profile's Understat Shot Map · Taken title when he's under
+  Understat's own floor for every season shown; a Player Comparison legend
+  entry, trend point and Outputs marker.
 
 **Hide** (`<hide_small_samples>`, `HideSmallSamplesButton`): the stopwatch
 struck through, in each section that lists players chosen by criteria —
@@ -574,17 +575,33 @@ appearances, shots, formations: what Understat said), `app/<season>.json`
 (the season summary the app reads: totals per FPL player code and per FPL
 club code) and `app/profile/<season>.json` (the profiles' per-match
 detail, `pipeline/profile.ts`: each linked player's position, minutes,
-xG, xA and assists in each match and his shots; each club's shots, result
-chances, xG and xGA (its match line), its players' xA and assists, and
-its formations — every row by FPL fixture id, checked matches only; the
+xG, xA and assists in each match, the FPL club he played for in it, and
+his shots; each club's shots, result chances, xG and xGA (its match line),
+its players' xA and assists, its formations, and its starting XI in each
+match (each starter's Understat position, FPL code when linked, and
+Understat name) — every row by FPL fixture id, checked matches only; the
 server sends one player or club at a time, never the file; a field a file
-written before it was added lacks is sent as null, "—"). Coverage: 2016/17 on, the same as club history. Every run rebuilds
+written before it was added lacks is sent as null, "—"). From a player's
+match rows and the opponents' shots the server works out his **shots
+faced** (`shotsFacedOnPitch`, `<shots_faced_on_pitch>` in
+`server/src/understat/route.ts`): his club's opponents' shots while he
+was on the pitch — a starter from kick-off until his minutes run out (all
+of it, stoppage time included, at 90), a substitute from 90 minus his
+minutes to the end. Understat counts a match as 90 minutes (a club's
+players' minutes add up to 990, or a minute or two over), and shot minutes
+and playing time are whole minutes, so a shot around a substitution can be
+a minute out. Coverage: 2016/17 on, the same as club history. Every run rebuilds
 every season's summary from the stored files, so a new summary figure
 reaches all seasons at the next run without re-downloading anything. The
 summary's shot detail (`shotDetail`: woodwork, blocked, assisted, and
 shots by the action before them: cross, through ball, dribble, rebound)
 was added on 2026-10-18; a summary written before then has none, and the
-app shows "—" for those figures (never 0) until the next run.
+app shows "—" for those figures (never 0) until the next run. Each
+player's `facing` (added 2026-10-21) is his club's opponents' shots while
+he was on the pitch (`server/src/understat/onPitch.ts`, the same rule as
+the profile route's shots faced): shots, on target, by situation, and
+whether every one of those opponents' shot lists was complete; a summary
+without it leaves that season's Shots Faced uncoloured.
 
 ### In the app
 
@@ -661,34 +678,84 @@ app shows "—" for those figures (never 0) until the next run.
   counts only window seasons of 450+ FPL minutes, the profile's fixed
   floor; a club's only seasons it was in the league). A season Understat
   has nothing for (no link, didn't play) is left out, never counted as 0.
-  - **Shot Map** (`ShotMap.tsx`): full width with its figures in a panel
+  - **Shot Maps** (`ShotMap.tsx`): full width with its figures in a panel
     beside it (under it on narrow screens), headed by the season or "Per
-    season · n seasons"; a club gets two, one above the other (shots taken,
-    and shots faced — its opponents' in its matches). It draws
-    the last 35 m (`SHOT_MAP_DEPTH`, over 99% of shots, so they have room);
-    a shot from further out is a small arrow on the bottom edge where it
-    was taken across the pitch, and counted — never moved inside. One
-    season draws a dot per shot, solid for a goal, an outline otherwise,
-    sized by xG, part-transparent with 1px outlines, hover for detail.
-    Understat places every penalty exactly on the spot, so stacked shots
-    hide each other: a point more than one goal was scored from shows
-    the count in white on its violet dot, no badge behind it (its hover
-    gives goals and shots from there). A
-    Historic Average shades zones (12 × 10) by shots a season. Figures:
-    shots, on target (scored or saved), goals, xG, NPxG, xG/shot — per
-    season when averaged. Own goals are nobody's shots. Each figure is
-    coloured (`understat/comparisons.ts`, "Comparative colouring"): a
-    player's within his position among every other player's Understat
-    figures for the same season(s), a club's among every club's — shots
-    faced fewer-is-better.
-  - **Formations** (clubs, full width under the shot maps): each
-    formation's share of the club's minutes, xG and xGA per 90, and goals
-    scored and conceded, summed over the view's seasons, most-used first:
-    the top 3 (`FORMATIONS_SHOWN`), and a chevron under them listing every
-    one used. A formation used for under 90 minutes gets no rate: its xG/90
-    and xGA/90 cells carry the amber stopwatch (`<minutes_marker>`), never "—"
-    (missing data) — too few minutes for a rate, not a club floor. Season figures
-    only: Understat doesn't record a formation per match.
+    season · n seasons". Which maps: a midfielder or forward gets **Shot
+    Map · Taken**; a defender gets Taken and **Shot Map · Faced** (his
+    club's opponents' shots while he was on the pitch, `<shots_faced_on_pitch>`
+    above); a goalkeeper gets Faced only (the owner's decision,
+    2026-10-21); a club gets Taken and Faced (its opponents' shots in its
+    matches). One **zone map** for all of them, one season or several:
+    the last 35 m (`SHOT_MAP_DEPTH`, over 99% of shots) cut into zones on
+    the pitch's markings (`shotZones`): the six-yard box, the middle of the
+    box (the six-yard box's width, out to 16.5 m), the box's left and right,
+    wide of the box either side, the edge of the box (16.5–25 m, the box's
+    width), long range (25–35 m) and outside the box left and right; shots
+    from further out are a band of their own under the 35 m line, drawn
+    only when there are some, so every shot is in one zone and the shares
+    add up to 100%. Each zone shows its share of the shots ("<1%" for one
+    that rounds to nothing), how many (a season, in a Historic Average) and
+    their average xG, and is shaded by its share (one violet hue, the
+    busiest darkest, capped at 60% so its text stays readable); hover adds
+    its goals. A zone with none shows nothing. Figures: shots, on target
+    (scored or saved), On Target % (of the shots), goals, Conversion %
+    (goals per shot), xG, NPxG, xG/shot, Penalties Taken and Penalty Goals
+    (taken and scored, or faced and conceded) — counts per season when
+    averaged, the rates from the totals. Own goals are nobody's shots.
+    Every figure is coloured (`understat/comparisons.ts`, "Comparative
+    colouring"), the rates ranked as rates: a player's within his position
+    among every other player's Understat figures for the same season(s), a
+    club's among every club's — more penalties taken and scored better,
+    shots faced fewer-is-better. A defender's or goalkeeper's Shots Faced
+    are ranked within his position on the season summaries' `facing`
+    totals (`playerFacedRanks`), fewer better: a count per 90 minutes on
+    the pitch, so more minutes isn't held against him (the figure shown is
+    still the total, as the FPL Match Log colours xGC Totals by xGC per
+    game), a share as it is. Others need a complete shot list; under the
+    floor he gets the amber stopwatch and no colour. A season from a
+    profile file written before shots faced were added says "Not available
+    for this view yet (—)".
+- **Formations** (`client/src/understat/formations.tsx`, the slot's
+  `clubFormations`): the Team Profile's own "Understat · Formations"
+  section after its Views — the live season only, whatever the Data View
+  (the owner's decision, 2026-10-21: a club's set-up now, not its past
+  ones; past seasons would also bring in players no longer in FPL). The
+  formations used for 90+ minutes (`FORMATION_MIN_MINUTES`), the 3
+  most-used at most (`FORMATIONS_SHOWN`), one at a time with arrows in the
+  card title stepping round them both ways. The card title has the grey
+  stopwatch (`<minutes_marker>`: the 90-minute threshold is in force,
+  nothing shown is under it). Each is drawn on a pitch, attack at the top,
+  its lines from forwards to goalkeeper, every slot naming who started
+  there and how many times (3 names, then "+n more" with the rest on
+  hover); beside it, as the shot maps have theirs: Time (share of the
+  club's minutes), Minutes, Starts, xG/90, xGA/90, Scored, Conceded.
+  xG/90, xGA/90, Scored and Conceded are coloured (`formationRank`): the
+  figure per 90 minutes in the formation against every other club's per-90
+  figure for the whole season (its total ÷ matches played) — more xG and
+  goals better, less xGA and fewer conceded better. Time, Minutes and
+  Starts say how much it was used, so like games played they aren't
+  coloured. **Who started where**
+  (`understat/lineups.ts`): Understat gives each starter his slot in the
+  formation the club started in, from a fixed set of templates (26
+  distinct XIs over 10 seasons), so the XI's slots name the formation, as
+  Understat names them — the slots in each line counted and joined
+  (defence, holding midfield, midfield with the wing-backs, attacking
+  midfield, forwards, the forwards always named: 4-2-4-0). Checked: 7,734
+  of 7,740 club-matches (2016/17–2025/26) and all 140 so far this season
+  name a formation in that club's own Understat list. A formation is drawn
+  from the XI the club most often started it with; a starter in a slot
+  that XI hasn't (one name, two XIs: wing-backs or wide midfielders) is
+  counted in the nearest slot in his line, same side first. Identical
+  slots (two centre-backs) share their starters out in turn, most starts
+  first — Understat doesn't say which one is on the left. A name in FPL's
+  player list today is a link: it opens his profile and closes the team's
+  (which would sit over it). Anyone else — no longer in FPL, or never
+  linked to an FPL player — is greyed out with his Understat name, not a
+  link, and drops out as the season goes on. A formation the club never
+  started in (used only after a change during a match) says so, its
+  figures still beside it. Starts count the XI a club kicked off with;
+  Time and the rates are Understat's minutes in the formation, changes
+  during matches included.
   - **Match Log columns** (violet headers; the log's heading turns rose,
     "FPL & Understat · Match Log"): a player's **Position** in each match
     (Understat's code, spelled out on hover; "Sub" off the bench), and a
@@ -811,17 +878,21 @@ app shows "—" for those figures (never 0) until the next run.
 
 ### Not included yet
 
-- **Shot zones** (six-yard box / box / outside): Understat publishes them
-  per player only on individual player pages, and they can't be reproduced
-  exactly from shot coordinates (tested: 6 of about 700 shots differ), so
-  they wait for an upgrade that fetches those pages.
+- **Understat's own shot-zone figures** (six-yard box / box / outside):
+  Understat publishes them per player only on individual player pages, and
+  they can't be reproduced exactly from shot coordinates (tested: 6 of
+  about 700 shots differ), so they wait for an upgrade that fetches those
+  pages. The shot maps' zones are the app's own, worked out from each
+  shot's coordinates on the pitch markings (`shotZones`), so a shot right
+  on a line can sit in the zone next to the one Understat's count has it in.
 - Match xG timelines: later.
 - **Pre-match forecasts:** Understat's win/draw/loss figures exist only for
   matches already played (worked out from the shots), so there's nothing
   to show for upcoming fixtures.
-- **Formations per match:** Understat publishes season totals per
-  formation only; working one out from players' positions would be
-  inferring it.
+- **Figures per formation per match:** Understat publishes each
+  formation's figures as season totals only. The formation a club
+  *started* each match in is named from its XI's slots (Formations,
+  above); a change during a match isn't in the line-ups.
 - Pass maps, average positions, sprints: not on Understat at all (it has
   shots only).
 
@@ -1283,10 +1354,16 @@ longest word (`TEAM_MIN_COLUMN_WIDTHS`).
   and league points 1 decimal; a season the club has no record of reads "—".
 - **Club figures only — no players** (the owner's rule, 2026-09-26): no
   squad list, no player names, no link to player pages, and no minutes
-  floor or badge.
+  floor or badge. **One exception** (the owner's, 2026-10-21): a second
+  source's Formations section, this season only, names who started in
+  each slot of each formation from Understat's own line-ups, match by
+  match, with links to their profiles (below). The rule's other direction
+  has one exception too: a defender's or goalkeeper's Shots Faced map on
+  the player profile.
 - Same layout as the player profile (the radars, then Season Totals beside
   Upcoming Fixtures): "FPL · Views", a second source's
-  Views, "FPL · Points History", then the **Match Log**
+  Views, a second source's Formations (Understat: this season, whatever
+  the Data View), "FPL · Points History", then the **Match Log**
   (`<club_match_log>`): the live season (`clubLiveMatches`) unless a season
   is picked on Points History, then that season's `ClubSeason.matches`,
   opponents named as they were that season. Never the Data View. One row

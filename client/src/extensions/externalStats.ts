@@ -2,6 +2,7 @@ import { createContext, useContext, type ReactNode } from "react";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import type { PlayerColumn } from "../components/playerColumns";
 import type { TeamColumn } from "../components/teamColumns";
+import type { Position } from "../types/normalized";
 
 /**
  * The one slot through which a second data source (today: Understat, in
@@ -89,9 +90,11 @@ export interface ExternalProfiles {
    */
   playerMatchAlternates: (code: number, season: string, matches: { fixtureId: number; minutes: number }[]) => Record<string, ExternalMatchColumn>;
   clubMatchAlternates: (code: number, season: string, fixtureIds: number[]) => Record<string, ExternalMatchColumn>;
-  /** The source's own profile cards for a Data View (each a `.card`). */
-  playerCards: (code: number, view: ProfileView) => ReactNode;
+  /** The source's own profile cards for a Data View (each a `.card`); a player's depend on his position (a defender's and goalkeeper's shots faced). */
+  playerCards: (code: number, view: ProfileView, position: Position) => ReactNode;
   clubCards: (code: number, view: ProfileView) => ReactNode;
+  /** A club's formations in `season` (the live one) — the Team Profile's own section, outside its Data View; loads what it needs itself. */
+  clubFormations: (code: number, season: string) => ReactNode;
 }
 
 export interface ExternalStatsSource {

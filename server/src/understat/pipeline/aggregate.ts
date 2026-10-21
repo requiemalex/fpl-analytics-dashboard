@@ -25,6 +25,7 @@ import type {
   UsShot,
 } from "./types.js";
 import type { SeasonData } from "./files.js";
+import { onPitchWindow, wasOnPitch, type OnPitch } from "../onPitch.js";
 
 const round = (v: number, dp = 4) => Math.round(v * 10 ** dp) / 10 ** dp;
 const emptySlice = (): ShotSlice => ({ shots: 0, goals: 0, xG: 0 });
@@ -105,13 +106,20 @@ export function buildAppSeason(data: SeasonData, links: Map<number, PlayerLink>,
       bodyParts: slices(SHOT_BODY_PARTS),
       shotDetail: emptyDetail(),
       shotsComplete: !shortPlayers.has(understatId),
+      facing: { shots: 0, shotsOnTarget: 0, situations: slices(SHOT_SITUATIONS), complete: true },
     };
     return players[code];
   };
+  // Who was on the pitch for each side of each match, and when (<shots_faced_on_pitch>).
+  const onPitchBySide = new Map<string, { t: PlayerSeasonTotals; on: OnPitch }[]>();
+  const otherSide = (side: string) => (side === "h" ? "a" : "h");
   for (const a of appearances) {
     if (a.minutes <= 0) continue;
     const t = totalsFor(a.playerId);
     if (!t) continue;
+    const key = `${a.matchId}|${a.side}`;
+    onPitchBySide.set(key, [...(onPitchBySide.get(key) ?? []), { t, on: onPitchWindow(a.position, a.minutes) }]);
+    if (shortSides.has(`${a.matchId}|${otherSide(a.side)}`)) t.facing.complete = false;
     t.appearances += 1;
     t.minutes += a.minutes;
     t.goals += a.goals;
@@ -135,7 +143,16 @@ export function buildAppSeason(data: SeasonData, links: Map<number, PlayerLink>,
     if ((SHOT_BODY_PARTS as readonly string[]).includes(s.shotType)) addShot(t.bodyParts[s.shotType as ShotBodyPart], s);
     addShotDetail(t.shotDetail, s);
   }
+  for (const s of shots) {
+    for (const { t, on } of onPitchBySide.get(`${s.matchId}|${otherSide(s.side)}`) ?? []) {
+      if (!wasOnPitch(on, s.minute)) continue;
+      t.facing.shots += 1;
+      if (ON_TARGET_RESULTS.has(s.result)) t.facing.shotsOnTarget += 1;
+      if ((SHOT_SITUATIONS as readonly string[]).includes(s.situation)) addShot(t.facing.situations[s.situation as ShotSituation], s);
+    }
+  }
   for (const t of Object.values(players)) {
+    roundSlices(t.facing.situations);
     for (const k of ["xG", "xA", "npxG", "xGChain", "xGBuildup"] as const) t[k] = round(t[k]);
     roundSlices(t.situations);
     roundSlices(t.bodyParts);

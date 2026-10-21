@@ -21,9 +21,11 @@ table.data-table th.col-source-understat,
   fill: var(--col-understat);
 }
 
-/* Shot maps (ShotMap.tsx), drawn in metres. Mark outlines are a fixed
-   1px whatever the map's size (non-scaling), so dots stay crisp, not
-   chunky; fills are part-transparent so clustered shots show through. */
+/* Shot maps (ShotMap.tsx), drawn in metres: zones shaded by their share
+   of the shots (one hue, the fill opacity set per zone), the pitch lines
+   over them. Lines are a fixed 1px whatever the map's size (non-scaling);
+   the zones' text is in metres, so it scales with the map. The fill stops
+   at 60% violet so the light text on it stays readable. */
 .shot-map {
   margin: 0;
 }
@@ -49,52 +51,26 @@ table.data-table th.col-source-understat,
 .shot-map-spot {
   fill: var(--border-strong);
 }
-.shot-map-goal {
+.shot-map-zone-fill {
   fill: var(--col-understat);
-  fill-opacity: 0.85;
-  stroke: color-mix(in srgb, var(--col-understat) 60%, var(--text-primary));
+  stroke: var(--border);
   stroke-width: 1;
 }
-.shot-map-miss {
-  fill: var(--text-secondary);
-  fill-opacity: 0.08;
-  stroke: var(--text-secondary);
-  stroke-opacity: 0.55;
-  stroke-width: 1;
-}
-.shot-map-goal:hover,
-.shot-map-miss:hover {
+.shot-map-zone:hover .shot-map-zone-fill {
   stroke: var(--text-primary);
-  stroke-opacity: 1;
 }
-/* The count on a point more than one goal was scored from (a penalty
-   taker's spot): white on the goal dot, in user units (metres) so it
-   scales with the map like the dots. The circle over the dot is clear —
-   it only carries the hover. */
-.shot-map-count circle {
-  fill: transparent;
-  stroke: none;
-}
-.shot-map-count:hover circle {
-  stroke: var(--text-primary);
-  stroke-width: 1;
-}
-.shot-map-count text {
-  fill: #fff;
+.shot-map-zone text {
+  fill: var(--text-primary);
   font-family: var(--font-mono);
-  font-weight: 700;
   pointer-events: none;
 }
-.shot-map-beyond {
-  fill: var(--text-secondary);
-  fill-opacity: 0.7;
+.shot-map-zone-share {
+  font-size: 1.7px;
+  font-weight: 700;
 }
-.shot-map-beyond.is-goal {
-  fill: var(--col-understat);
-  fill-opacity: 1;
-}
-.shot-map-zone {
-  fill: var(--col-understat);
+.shot-map-zone-detail {
+  font-size: 1.1px;
+  fill-opacity: 0.8;
 }
 .shot-map-key {
   display: flex;
@@ -180,26 +156,122 @@ table.data-table th.col-source-understat,
   }
 }
 
-/* Formations (profiles.tsx): the chevron under the table that lists every formation used. */
-.formations-more {
+/* The Team Profile's Formations section (formations.tsx): a pitch, attack
+   at the top, its lines spread from forwards to goalkeeper; each slot a
+   small card naming who started there (the first, most starts, bolder),
+   and the arrows in the card title stepping through the formations. The
+   markings are stretched to the pitch, a guide only. */
+.formation-card-title {
   display: flex;
-  justify-content: center;
-  margin-top: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
-
-/* Formations (profiles.tsx): the share-of-minutes bar in each row. */
-.formation-share {
-  display: inline-block;
-  width: 48px;
-  height: 6px;
-  margin-right: var(--space-2);
-  border-radius: 2px;
-  background: var(--surface-hover);
-  vertical-align: middle;
-  overflow: hidden;
+.formation-pager {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  text-transform: none;
+  letter-spacing: normal;
 }
-.formation-share > span {
-  display: block;
+.formation-pager-count {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.formation-pitch {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: 520px;
+  padding: var(--space-5) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+.formation-pitch-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
   height: 100%;
-  background: var(--col-understat);
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  pointer-events: none;
+}
+.formation-pitch-lines * {
+  vector-effect: non-scaling-stroke;
+}
+.formation-pitch-empty {
+  position: relative;
+  margin: auto;
+  max-width: 340px;
+  text-align: center;
+}
+.formation-line {
+  position: relative;
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+.formation-slot {
+  display: flex;
+  flex: 0 1 150px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.formation-slot-position {
+  align-self: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--col-understat);
+}
+.formation-player {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 1px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.formation-slot > :nth-child(2) {
+  font-weight: 600;
+}
+button.formation-player:hover .formation-player-name,
+button.formation-player:focus-visible .formation-player-name {
+  text-decoration: underline;
+}
+.formation-player.is-gone {
+  color: var(--text-muted);
+  cursor: default;
+}
+.formation-player-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.formation-player-starts {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+.formation-slot-more {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  cursor: help;
 }

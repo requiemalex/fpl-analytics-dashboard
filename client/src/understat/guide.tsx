@@ -110,20 +110,29 @@ export function UnderstatGuide() {
         </li>
         <li>
           <strong>In the profiles</strong>, an <span style={{ color: "var(--col-understat)" }}>Understat · Views</span> section follows
-          the profile's Data View. A <strong>Shot Map</strong> shows where shots were taken from in the last 35 metres (a club gets
-          two: shots taken and shots faced): one season has a dot per shot, solid for a goal, an outline if not, bigger for higher
-          xG, hover for the detail. Every penalty is placed on the spot, so a number on a dot counts the goals scored from exactly
-          there. Historic Average shades areas of the pitch by shots a season instead. The rare shot from
-          further out is a small arrow on the bottom edge. Beside or under the map: shots, on target, goals, xG, non-penalty xG and
-          xG per shot. A club's <strong>Formations</strong> table shows how much of its time it spent in each formation, with xG
-          for and against per 90 minutes and goals scored and conceded: its three most-used, with an arrow underneath to list every
-          formation it used (no rates for one used under 90 minutes: the amber stopwatch marks those). The Match Log gains violet columns: a player's <strong>Position</strong> in
+          the profile's Data View. A <strong>Shot Map</strong> splits the last 35 metres into zones (the six-yard box, the middle
+          and sides of the penalty area, wide of it, the edge of the box and further out): each zone shows its share of the shots,
+          how many shots that was (a season, in Historic Average) and their average xG, and is shaded darker the more shots came
+          from there. Hover a zone for its goals too; shots from further out get a band of their own along the bottom. Midfielders
+          and forwards get <strong>Shot Map · Taken</strong>. Defenders also get <strong>Shot Map · Faced</strong>, the shots their
+          club faced while they were on the pitch (worked out from their minutes, so a shot around a substitution can be a minute
+          out). Goalkeepers get Faced only, and a club gets both. Beside or under each map: shots, on target and On Target %,
+          goals and Conversion % (goals per shot), xG, non-penalty xG, xG per shot, Penalties Taken and Penalty Goals (on a Faced
+          map, Penalties Conceded and the Penalty Goals scored against). The Match Log gains violet columns: a player's <strong>Position</strong> in
           each match (hover it for the full name; Sub means off the bench) and a club's <strong>Win, Draw and Loss
           Chance</strong>: the result its chances deserved, worked out by Understat after the match from the shots both sides
-          took. Their Average is coloured against every club that season: a higher win chance greener, a higher loss chance redder. The shot maps' figures are coloured too: a player's against his position, a club's against every club (fewer shots faced is better). Its figures both sources have (a player's
+          took. Their Average is coloured against every club that season: a higher win chance greener, a higher loss chance redder. The shot maps' figures are coloured too: a player's against his position, a club's against every club (fewer shots faced is better). More penalties taken and scored is better. A player's Shots Faced are coloured against his position, fewer better, per 90 minutes on the pitch so playing more isn't held against him. Its figures both sources have (a player's
           Minutes, Assists, xG, xA and xGI; a club's Assists, xG, xA, xGI and xGC) have the{" "}
           <span style={{ color: "var(--col-crossover)" }}>⇄</span> icon, switching that column, Totals included, to
           Understat's.
+        </li>
+        <li>
+          <strong>On a team profile</strong>, an <span style={{ color: "var(--col-understat)" }}>Understat · Formations</span> section
+          shows this season's formations, whatever the Data View: those used for at least 90 minutes (the grey stopwatch), the
+          three most-used at most, with arrows to step between them. Each is drawn on a pitch with who started in each position and
+          how many starts they've had. Click a name to open that player's profile. A greyed-out name is a player who isn't in FPL
+          any more. Beside the pitch: the share of the club's minutes in that formation, its minutes and starts, xG and xG against
+          per 90 minutes, and goals scored and conceded in it, coloured against every club's per-90 figures for the season (more xG and goals greener, less xG against and fewer conceded greener).
         </li>
         <li>
           <strong>On the Dashboard and in Player Comparison</strong> it works as in the Explorers. When you build a tile, graph or
@@ -141,8 +150,8 @@ export function UnderstatGuide() {
           figures are never affected.
         </li>
         <li>
-          Not available yet: shot zones and match xG timelines. Not available from Understat at all: pass maps, average positions,
-          sprint data, a formation for each match (only season totals), and forecasts for matches not yet played (its result
+          Not available yet: match xG timelines. Not available from Understat at all: pass maps, average positions, sprint data,
+          figures for each formation in each match (only season totals), and forecasts for matches not yet played (its result
           chances are worked out afterwards). Seasons outside the Premier League aren't covered, so a promoted player's previous season shows "—".
         </li>
       </ul>

@@ -1,9 +1,11 @@
 import React from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, render } from "@testing-library/react";
 import { percentileTint } from "../utils/colorScale";
 import { clubKey, createProfiles, playerKey } from "./profiles";
 import type { DetailLoad, UsClubSeasonDetail, UsPlayerSeasonDetail, UsShot } from "./profileData";
+import type { UsComparisonContext } from "./comparisons";
+import type { UsPlayerTotals } from "./schema";
 
 afterEach(cleanup);
 
@@ -16,7 +18,7 @@ function profilesWith(entries: [string, DetailLoad<UsPlayerSeasonDetail> | Detai
 
 describe("Understat's Match Log columns", () => {
   it("a player's position in each match, spelled out on hover; — for a match Understat has none for", () => {
-    const p = profilesWith([[playerKey(500, "2025/26"), { state: "ready", detail: { matches: [{ fixture: 7, position: "AMR", minutes: 90, xG: 0.3, xA: 0.1, assists: 1 }], shots: [] } }]]);
+    const p = profilesWith([[playerKey(500, "2025/26"), { state: "ready", detail: { matches: [{ fixture: 7, position: "AMR", minutes: 90, xG: 0.3, xA: 0.1, assists: 1 }], shots: [], shotsFaced: [] } }]]);
     const [col] = p.playerMatchColumns(500, "2025/26");
     const { container } = render(
       <div>
@@ -39,6 +41,7 @@ describe("Understat's Match Log columns", () => {
       shots: [],
       shotsAgainst: [],
       formations: null,
+      lineups: null,
       league: [
         { win: 0.45, draw: 0.275, loss: 0.275 },
         { win: 0.2, draw: 0.3, loss: 0.5 },
@@ -72,7 +75,7 @@ describe("Understat's Match Log columns", () => {
 
 describe("Understat's version of figures both sources have (the ⇄ toggles)", () => {
   it("a player: a match FPL says he didn't play is a provable 0; one he played that Understat lacks is —", () => {
-    const p = profilesWith([[playerKey(500, "2025/26"), { state: "ready", detail: { matches: [{ fixture: 7, position: "AMR", minutes: 88, xG: 0.3, xA: 0.1, assists: 1 }], shots: [] } }]]);
+    const p = profilesWith([[playerKey(500, "2025/26"), { state: "ready", detail: { matches: [{ fixture: 7, position: "AMR", minutes: 88, xG: 0.3, xA: 0.1, assists: 1 }], shots: [], shotsFaced: [] } }]]);
     const alt = p.playerMatchAlternates(500, "2025/26", [
       { fixtureId: 7, minutes: 90 },
       { fixtureId: 8, minutes: 0 },
@@ -89,7 +92,7 @@ describe("Understat's version of figures both sources have (the ⇄ toggles)", (
   });
 
   it("a player: Totals and Average cover the matches Understat has, leaving out (not zeroing) one it hasn't synced yet, and say so on hover", () => {
-    const p = profilesWith([[playerKey(500, "2025/26"), { state: "ready", detail: { matches: [{ fixture: 7, position: "AMR", minutes: 88, xG: 0.3, xA: 0.1, assists: 1 }], shots: [] } }]]);
+    const p = profilesWith([[playerKey(500, "2025/26"), { state: "ready", detail: { matches: [{ fixture: 7, position: "AMR", minutes: 88, xG: 0.3, xA: 0.1, assists: 1 }], shots: [], shotsFaced: [] } }]]);
     const alt = p.playerMatchAlternates(500, "2025/26", [
       { fixtureId: 7, minutes: 90 },
       { fixtureId: 8, minutes: 0 },
@@ -125,6 +128,7 @@ describe("Understat's version of figures both sources have (the ⇄ toggles)", (
       shots: [],
       shotsAgainst: [],
       formations: null,
+      lineups: null,
       league: [],
     };
     const alt = profilesWith([[clubKey(3, "2025/26"), { state: "ready", detail }]]).clubMatchAlternates(3, "2025/26", [1, 2]);
@@ -136,87 +140,216 @@ describe("Understat's version of figures both sources have (the ⇄ toggles)", (
   });
 });
 
-describe("Understat's profile cards", () => {
-  it("one season: a dot per shot, goals filled", () => {
-    const shots = [shot(1, "Goal", 0.76), shot(1, "SavedShot", 0.05), shot(2, "MissedShots", 0.1)];
-    const p = profilesWith([[playerKey(500, "2025/26"), { state: "ready", detail: { matches: [], shots } }]]);
-    const { container, getByText } = render(<>{p.playerCards(500, { mode: "lastSeason", seasons: ["2025/26"] })}</>);
-    expect(container.querySelectorAll("circle.shot-map-goal")).toHaveLength(1 + 1); // the goal, and the key's swatch
-    expect(container.querySelectorAll("svg[role=img] circle.shot-map-miss")).toHaveLength(2);
-    expect(getByText("2025/26", { selector: ".shot-stats-heading" })).toBeTruthy();
-    expect(getByText("Shots").nextSibling!.textContent).toBe("3");
-    expect(getByText("On Target").nextSibling!.textContent).toBe("2");
-    expect(getByText("xG").nextSibling!.textContent).toBe("0.91");
+/** A zone's group on the map, found by the zone's name (its hover starts with it). */
+function zone(container: HTMLElement, name: string): Element | undefined {
+  return [...container.querySelectorAll("g.shot-map-zone")].find((g) => g.querySelector("title")!.textContent!.startsWith(`${name}:`));
+}
+const zoneTitle = (container: HTMLElement, name: string) => zone(container, name)?.querySelector("title")!.textContent ?? null;
+const zoneText = (container: HTMLElement, name: string) => zone(container, name)!.querySelector("text")?.textContent ?? "";
+const zoneFill = (container: HTMLElement, name: string) => Number((zone(container, name)!.querySelector("rect") as SVGElement).style.fillOpacity);
+const panel = (getByText: (t: string) => HTMLElement, label: string) => getByText(label).nextSibling!.textContent;
+const playerDetail = (shots: UsShot[], shotsFaced: UsShot[] | null = []): DetailLoad<UsPlayerSeasonDetail> => ({ state: "ready", detail: { matches: [], shots, shotsFaced } });
+
+describe("Understat's shot maps: zones", () => {
+  // x 0.97 is 3 m out (the six-yard box), 0.9 is 10.5 m (the middle of the box), 0.8 is 21 m (the edge of the box); y 0.5 is central.
+  const shots = [shot(1, "Goal", 0.5, 0.97), shot(1, "SavedShot", 0.3, 0.97), shot(2, "MissedShots", 0.1, 0.9), shot(2, "BlockedShot", 0.06, 0.8)];
+
+  it("each zone shows its share of the shots, how many and their average xG; one with none shows nothing", () => {
+    const p = profilesWith([[playerKey(500, "2025/26"), playerDetail(shots)]]);
+    const { container } = render(<>{p.playerCards(500, { mode: "lastSeason", seasons: ["2025/26"] }, "MID")}</>);
+    expect(zoneText(container, "Six-yard box")).toBe("50%2 shots0.40 xG/shot");
+    expect(zoneTitle(container, "Six-yard box")).toBe("Six-yard box: 2 shots (50% of them) · 1 goal · 0.40 xG per shot");
+    expect(zoneText(container, "Centre of the box")).toBe("25%1 shot0.10 xG/shot");
+    expect(zoneText(container, "Edge of the box")).toBe("25%1 shot0.06 xG/shot");
+    expect(zoneText(container, "Left of the box")).toBe("");
+    expect(zoneTitle(container, "Left of the box")).toBe("Left of the box: no shots");
+    // The busiest zone is shaded darkest; an empty one not at all.
+    expect(zoneFill(container, "Six-yard box")).toBeCloseTo(0.6);
+    expect(zoneFill(container, "Centre of the box")).toBeCloseTo(0.34);
+    expect(zoneFill(container, "Left of the box")).toBe(0);
+    // No dots any more, and no band for shots from further out when there are none.
+    expect(container.querySelectorAll("svg[role=img] circle.shot-map-goal, svg[role=img] circle.shot-map-miss")).toHaveLength(0);
+    expect(zoneTitle(container, "Further than 35 m")).toBeNull();
   });
 
-  it("a Historic Average: zones shaded by shots a season, figures per season, over only the seasons Understat has", () => {
+  it("the panel: shots, on target and its share, goals and conversion, xG, NPxG, xG per shot, penalties", () => {
+    const p = profilesWith([[playerKey(500, "2025/26"), playerDetail(shots)]]);
+    const { getByText } = render(<>{p.playerCards(500, { mode: "lastSeason", seasons: ["2025/26"] }, "MID")}</>);
+    expect(getByText("2025/26", { selector: ".shot-stats-heading" })).toBeTruthy();
+    expect(panel(getByText, "Shots")).toBe("4");
+    expect(panel(getByText, "On Target")).toBe("2");
+    expect(panel(getByText, "On Target %")).toBe("50%");
+    expect(panel(getByText, "Goals")).toBe("1");
+    expect(panel(getByText, "Conversion %")).toBe("25%");
+    expect(panel(getByText, "xG")).toBe("0.96");
+    expect(panel(getByText, "xG/Shot")).toBe("0.24");
+    expect(panel(getByText, "Penalties Taken")).toBe("0");
+  });
+
+  it("penalties: how many he took, and how many he scored (Understat puts them all on the spot)", () => {
+    const pen = (result: string) => ({ ...shot(1, result, 0.76, 0.895, 0.5), situation: "Penalty" });
+    const p = profilesWith([[playerKey(500, "2025/26"), playerDetail([pen("Goal"), pen("Goal"), pen("Goal"), pen("SavedShot"), shot(2, "Goal", 0.3)])]]);
+    const { getByText, container } = render(<>{p.playerCards(500, { mode: "lastSeason", seasons: ["2025/26"] }, "FWD")}</>);
+    expect(panel(getByText, "Penalties Taken")).toBe("4");
+    expect(panel(getByText, "Penalty Goals")).toBe("3");
+    expect(panel(getByText, "Conversion %")).toBe("80%");
+    expect(zoneText(container, "Centre of the box")).toBe("100%5 shots0.67 xG/shot");
+  });
+
+  it("a Historic Average: shots a season in each zone, shares and rates from the totals, over only the seasons Understat has", () => {
     const p = profilesWith([
-      [playerKey(500, "2024/25"), { state: "ready", detail: { matches: [], shots: [shot(1, "Goal", 0.5), shot(2, "Goal", 0.5)] } }],
-      [playerKey(500, "2023/24"), { state: "ready", detail: { matches: [], shots: [shot(3, "MissedShots", 0.2)] } }],
+      [playerKey(500, "2024/25"), playerDetail([shot(1, "Goal", 0.5), shot(2, "Goal", 0.5)])],
+      [playerKey(500, "2023/24"), playerDetail([shot(3, "MissedShots", 0.2)])],
       [playerKey(500, "2022/23"), { state: "none" }],
     ]);
-    const { container, getByText } = render(<>{p.playerCards(500, { mode: "historicAverage", seasons: ["2024/25", "2023/24", "2022/23"] })}</>);
-    expect(container.querySelectorAll("rect.shot-map-zone")).toHaveLength(1);
-    expect(container.querySelector("rect.shot-map-zone title")!.textContent).toBe("1.5 shots a season · 1.0 goals · 0.60 xG");
-    // One heading says the figures are per season, over the seasons Understat has.
+    const { container, getByText } = render(<>{p.playerCards(500, { mode: "historicAverage", seasons: ["2024/25", "2023/24", "2022/23"] }, "MID")}</>);
+    expect(zoneTitle(container, "Centre of the box")).toBe("Centre of the box: 1.5 shots a season (100% of them) · 1.0 goal · 0.40 xG per shot");
     expect(getByText("Per season · 2 seasons")).toBeTruthy();
-    expect(getByText("Shots").nextSibling!.textContent).toBe("1.5");
+    expect(panel(getByText, "Shots")).toBe("1.5");
+    expect(panel(getByText, "Conversion %")).toBe("67%");
   });
 
-  it("a point more than one goal was scored from (penalties, all on the spot) carries a count of them", () => {
-    const pen = (result: string) => ({ ...shot(1, result, 0.76, 0.885, 0.5), situation: "Penalty" });
-    const shots = [pen("Goal"), pen("Goal"), pen("Goal"), pen("SavedShot"), shot(2, "Goal", 0.3)];
-    const p = profilesWith([[playerKey(500, "2025/26"), { state: "ready", detail: { matches: [], shots } }]]);
-    const { container } = render(<>{p.playerCards(500, { mode: "lastSeason", seasons: ["2025/26"] })}</>);
-    const counts = container.querySelectorAll("svg[role=img] .shot-map-count");
-    expect(counts).toHaveLength(1);
-    expect(counts[0].querySelector("text")!.textContent).toBe("3");
-    expect(counts[0].querySelector("title")!.textContent).toBe("3 goals from 4 shots taken from exactly here");
+  it("shots from further than the map draws are a band of their own, so every shot is in one zone", () => {
+    const p = profilesWith([[playerKey(500, "2025/26"), playerDetail([shot(1, "Goal", 0.5), shot(2, "MissedShots", 0.02, 0.55, 0.3)])]]);
+    const { container, getByText } = render(<>{p.playerCards(500, { mode: "lastSeason", seasons: ["2025/26"] }, "MID")}</>);
+    expect(zoneTitle(container, "Further than 35 m")).toBe("Further than 35 m: 1 shot (50% of them) · 0 goals · 0.02 xG per shot");
+    expect(zoneText(container, "Further than 35 m")).toBe("Further than 35 m · 50% · 1 shot · 0.02 xG/shot");
+    expect(getByText("Shots").parentElement!.getAttribute("title")).toBe("1 of them from further than 35 m");
   });
 
-  it("a shot from further out than the map draws is marked on its edge and counted, never moved inside", () => {
-    const shots = [shot(1, "Goal", 0.5), shot(2, "MissedShots", 0.02, 0.55, 0.3)];
-    const p = profilesWith([[playerKey(500, "2025/26"), { state: "ready", detail: { matches: [], shots } }]]);
-    const { container, getByText } = render(<>{p.playerCards(500, { mode: "lastSeason", seasons: ["2025/26"] })}</>);
-    expect(container.querySelectorAll("svg[role=img] circle.shot-map-miss")).toHaveLength(0);
-    const marker = container.querySelector("svg[role=img] path.shot-map-beyond")!;
-    expect(marker.querySelector("title")!.textContent).toContain("47 m out");
-    expect(getByText("Further than 35 m")).toBeTruthy();
-    expect(getByText("Shots").nextSibling!.textContent).toBe("2");
+  it("colours the new rates as rates, and penalties taken, within his position (<comparative_colouring>)", () => {
+    const none = { shots: 0, goals: 0, xG: 0 };
+    const totals = (shots: number, goals: number, penalties = 0) =>
+      ({
+        minutes: 2000,
+        xG: 3,
+        xA: 0,
+        assists: 0,
+        shots,
+        shotsOnTarget: goals,
+        shotsComplete: true,
+        situations: { OpenPlay: { shots: shots - penalties, goals: goals - penalties, xG: 3 }, FromCorner: none, SetPiece: none, DirectFreekick: none, Penalty: { shots: penalties, goals: penalties, xG: 0.76 * penalties } },
+      }) as unknown as UsPlayerTotals;
+    const compare: UsComparisonContext = {
+      seasons: new Map([
+        [
+          "2025/26",
+          {
+            season: "2025/26",
+            complete: true,
+            latestMatchDate: null,
+            players: new Map([
+              [500, totals(4, 1)],
+              [2, totals(10, 1, 1)],
+              [3, totals(10, 2, 1)],
+            ]),
+            clubs: new Map(),
+          },
+        ],
+      ]),
+      liveSeason: "2026/27",
+      positionByCode: new Map([
+        [500, "MID"],
+        [2, "MID"],
+        [3, "MID"],
+      ]),
+      clubCodeByPlayerCode: new Map(),
+    };
+    const p = createProfiles(new Map([[playerKey(500, "2025/26"), playerDetail(shots)]]), noop, compare);
+    const { getByText } = render(<>{p.playerCards(500, { mode: "lastSeason", seasons: ["2025/26"] }, "MID")}</>);
+    // His 25% conversion beats 10% and 20%, though his 1 goal is no more than theirs: ranked on the rates, top of three.
+    const shade = (label: string) => (getByText(label).nextSibling as HTMLElement).style.background;
+    const tint = percentileTint((2.5 / 3) * 100);
+    expect(tint).toBeTruthy();
+    const expected = render(<span style={{ background: tint }} />).container.querySelector("span")!.style.background;
+    expect(shade("Conversion %")).toBe(expected);
+    // Goals, a count, ranks below the others (1 against 1 and 2): not green.
+    expect(shade("Goals")).not.toBe(expected);
+    // Penalties: more is better — his none against their 1 and 1 (both scored, within the goals above) is the bottom of three.
+    const low = render(<span style={{ background: percentileTint(100 / 6) }} />).container.querySelector("span")!.style.background;
+    expect(low).not.toBe("");
+    expect(shade("Penalties Taken")).toBe(low);
+    expect(shade("Penalty Goals")).toBe(low);
+  });
+});
+
+describe("Understat's shot maps: who gets which", () => {
+  const faced = [shot(1, "Goal", 0.4), shot(1, "SavedShot", 0.1), shot(2, "MissedShots", 0.05)];
+  const p = profilesWith([[playerKey(500, "2025/26"), playerDetail([shot(1, "MissedShots", 0.1)], faced)]]);
+  const view = { mode: "lastSeason" as const, seasons: ["2025/26"] };
+
+  it("a midfielder or forward: the shots he took only", () => {
+    const { queryByText } = render(<>{p.playerCards(500, view, "MID")}</>);
+    expect(queryByText("Shot Map · Taken")).toBeTruthy();
+    expect(queryByText("Shot Map · Faced")).toBeNull();
+  });
+
+  it("a defender: the shots he took, and the shots his club faced while he was on the pitch, worded as faced", () => {
+    const { getByText } = render(<>{p.playerCards(500, view, "DEF")}</>);
+    expect(getByText("Shot Map · Taken")).toBeTruthy();
+    const title = getByText("Shot Map · Faced");
+    expect(title.getAttribute("title")).toContain("while he was on the pitch");
+    const card = title.closest(".card") as HTMLElement;
+    const inCard = (label: string) => [...card.querySelectorAll(".shot-stats-label")].find((l) => l.textContent === label)!;
+    expect(inCard("Shots").nextSibling!.textContent).toBe("3");
+    expect(inCard("Conversion %").nextSibling!.textContent).toBe("33%");
+    expect(inCard("Conversion %").parentElement!.getAttribute("title")).toBe("Share of the shots conceded");
+  });
+
+  it("a defender's shots faced are coloured within his position, per 90 minutes on the pitch, fewer better", () => {
+    const none = { shots: 0, goals: 0, xG: 0 };
+    const row = (minutes: number, facedShots: number) =>
+      ({
+        minutes,
+        shots: 0,
+        shotsOnTarget: 0,
+        shotsComplete: true,
+        situations: { OpenPlay: none, FromCorner: none, SetPiece: none, DirectFreekick: none, Penalty: none },
+        facing: { shots: facedShots, shotsOnTarget: 0, complete: true, situations: { OpenPlay: { shots: facedShots, goals: 0, xG: facedShots * 0.1 }, FromCorner: none, SetPiece: none, DirectFreekick: none, Penalty: none } },
+      }) as unknown as UsPlayerTotals;
+    // His 30 in 900 minutes is the fewest shots, but the most per 90 (3.0, against 1.5 and 2.0).
+    const compare: UsComparisonContext = {
+      seasons: new Map([["2025/26", { season: "2025/26", complete: true, latestMatchDate: null, players: new Map([[500, row(900, 30)], [2, row(3600, 60)], [3, row(1800, 40)]]), clubs: new Map() }]]),
+      liveSeason: "2026/27",
+      positionByCode: new Map([[500, "DEF"], [2, "DEF"], [3, "DEF"]]),
+      clubCodeByPlayerCode: new Map(),
+    };
+    const coloured = createProfiles(new Map([[playerKey(500, "2025/26"), playerDetail([], faced)]]), noop, compare);
+    const { getByText } = render(<>{coloured.playerCards(500, view, "DEF")}</>);
+    const card = getByText("Shot Map · Faced").closest(".card") as HTMLElement;
+    const shade = (label: string) => ([...card.querySelectorAll(".shot-stats-label")].find((l) => l.textContent === label)!.nextSibling as HTMLElement).style.background;
+    const worst = render(<span style={{ background: percentileTint(100 / 6) }} />).container.querySelector("span")!.style.background;
+    expect(worst).not.toBe("");
+    expect(shade("Shots")).toBe(worst);
+    expect(shade("xG")).toBe(worst);
+  });
+
+  it("a goalkeeper: the shots he faced only", () => {
+    const { queryByText } = render(<>{p.playerCards(500, view, "GKP")}</>);
+    expect(queryByText("Shot Map · Taken")).toBeNull();
+    expect(queryByText("Shot Map · Faced")).toBeTruthy();
+  });
+
+  it("shots faced from a season that doesn't have them yet: says so, never an empty map", () => {
+    const old = profilesWith([[playerKey(500, "2025/26"), playerDetail([], null)]]);
+    const { getByText } = render(<>{old.playerCards(500, view, "GKP")}</>);
+    expect(getByText(/Not available for this view yet/)).toBeTruthy();
   });
 
   it("says loading, and never shows a 0 for a season Understat has nothing for", () => {
     const loading = profilesWith([[playerKey(500, "2025/26"), { state: "loading" }]]);
-    expect(render(<>{loading.playerCards(500, { mode: "live", seasons: ["2025/26"] })}</>).getByText("Loading…")).toBeTruthy();
+    expect(render(<>{loading.playerCards(500, { mode: "live", seasons: ["2025/26"] }, "MID")}</>).getByText("Loading…")).toBeTruthy();
     cleanup();
     const none = profilesWith([[playerKey(500, "2025/26"), { state: "none" }]]);
-    expect(render(<>{none.playerCards(500, { mode: "live", seasons: ["2025/26"] })}</>).getByText(/No Understat record/)).toBeTruthy();
+    expect(render(<>{none.playerCards(500, { mode: "live", seasons: ["2025/26"] }, "MID")}</>).getByText(/No Understat record/)).toBeTruthy();
   });
 
-  it("a club's formations: the top three by time, a chevron listing every one used, no rate under a match's worth of minutes", () => {
-    const formation = (name: string, minutes: number, xG: number) => ({ formation: name, minutes, shots: 10, goals: 2, xG, shotsAgainst: 8, goalsAgainst: 1, xGA: xG / 2 });
-    const detail: UsClubSeasonDetail = {
-      matches: [],
-      shots: [],
-      shotsAgainst: [],
-      formations: [formation("4-3-3", 900, 15), formation("3-5-2", 45, 0.4), formation("4-4-2", 30, 0.2), formation("5-4-1", 20, 0.1)],
-      league: [],
-    };
-    const p = profilesWith([[clubKey(3, "2025/26"), { state: "ready", detail }]]);
-    const { getByText, queryByText, getByRole } = render(<>{p.clubCards(3, { mode: "lastSeason", seasons: ["2025/26"] })}</>);
-    const main = getByText("4-3-3").closest("tr")!;
-    expect([...main.querySelectorAll("td")].map((td) => td.textContent)).toEqual(["4-3-3", "90%", "1.50", "0.75", "2", "1"]);
-    const brief = getByText("3-5-2").closest("tr")!;
-    // Under a match's worth of minutes: the amber stopwatch, never "—" (which means missing data) — <minutes_marker>.
-    const briefCells = [...brief.querySelectorAll("td")].slice(2, 4);
-    expect(briefCells.map((td) => td.textContent)).toEqual(["", ""]);
-    for (const td of briefCells) expect(td.querySelector(".small-sample-badge")!.getAttribute("title")).toBe("Minimum minutes: 45 min in this formation, under 90: too few for a per-90 rate.");
-    expect(queryByText("5-4-1")).toBeNull();
-    fireEvent.click(getByRole("button", { name: "Show all 4 formations used" }));
-    expect(getByText("5-4-1")).toBeTruthy();
-    fireEvent.click(getByRole("button", { name: "Show the top 3 only" }));
-    expect(queryByText("5-4-1")).toBeNull();
+  it("a club: shots taken and faced in the Data View; formations aren't in it any more (their own section)", () => {
+    const detail: UsClubSeasonDetail = { matches: [], shots: [shot(1, "Goal", 0.3)], shotsAgainst: faced, formations: [], lineups: [], league: [] };
+    const club = profilesWith([[clubKey(3, "2025/26"), { state: "ready", detail }]]);
+    const { getByText, queryByText } = render(<>{club.clubCards(3, view)}</>);
     expect(getByText("Shot Map · Taken")).toBeTruthy();
     expect(getByText("Shot Map · Faced")).toBeTruthy();
+    expect(queryByText(/Formation/)).toBeNull();
   });
 });

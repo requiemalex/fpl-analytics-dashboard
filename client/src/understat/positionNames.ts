@@ -1,0 +1,20 @@
+/** Understat's position codes, spelled out on hover (the Match Log's Position column, the Formations section's slots). */
+export const POSITION_NAMES: Record<string, string> = {
+  GK: "Goalkeeper",
+  DC: "Centre-back",
+  DL: "Left-back",
+  DR: "Right-back",
+  DMC: "Defensive midfield",
+  DML: "Defensive midfield, left",
+  DMR: "Defensive midfield, right",
+  MC: "Central midfield",
+  ML: "Left midfield",
+  MR: "Right midfield",
+  AMC: "Attacking midfield",
+  AML: "Attacking midfield, left",
+  AMR: "Attacking midfield, right",
+  FW: "Forward",
+  FWL: "Forward, left",
+  FWR: "Forward, right",
+  Sub: "Came off the bench",
+};

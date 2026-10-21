@@ -68,10 +68,22 @@ describe("GET /api/understat/profile", () => {
       JSON.stringify({
         schema: 1,
         season: "2026/27",
-        players: { "1001": { matches: [[1, "FW", 90, 0.4, 0.1, 1]], shots: [shot(1, 10)] }, "1002": { matches: [[1, "DC", 90]], shots: [] } },
+        players: {
+          "1001": { matches: [[1, "FW", 90, 0.4, 0.1, 1]], shots: [shot(1, 10)] },
+          "1002": { matches: [[1, "DC", 90]], shots: [] },
+          // Club 11's centre-backs: one all match, one off after 60; club 22's substitute, on for the last 30.
+          "1003": { matches: [[1, "DC", 90, 0, 0, 0, 11]], shots: [] },
+          "1004": { matches: [[1, "DC", 60, 0, 0, 0, 11]], shots: [] },
+          "1005": { matches: [[1, "Sub", 30, 0, 0, 0, 22]], shots: [] },
+        },
         clubs: {
-          "11": { matches: [[1, 0.5, 0.3, 0.2, 1.5, 0.7, 0.9, 2]], shots: [shot(1, 10)], formations: [{ formation: "4-3-3", minutes: 90 }] },
-          "22": { matches: [[1, 0.2, 0.3, 0.5]], shots: [shot(1, 50)], formations: null },
+          "11": {
+            matches: [[1, 0.5, 0.3, 0.2, 1.5, 0.7, 0.9, 2]],
+            shots: [shot(1, 10), shot(1, 75)],
+            formations: [{ formation: "4-3-3", minutes: 90 }],
+            lineups: [[1, [["GK", 1002, "Kev Keeper"], ["DC", null, "Not Linked"]]]],
+          },
+          "22": { matches: [[1, 0.2, 0.3, 0.5]], shots: [shot(1, 50), shot(1, 92)], formations: null },
           "33": { matches: [[2, 0.1, 0.1, 0.8]], shots: [shot(2, 5)], formations: null },
         },
       }),
@@ -89,8 +101,17 @@ describe("GET /api/understat/profile", () => {
     await start(dir);
     const body = await json(await fetch(`${base}/api/understat/profile/club/11/2026-27`));
     expect(body.data.matches).toEqual([{ fixture: 1, win: 0.5, draw: 0.3, loss: 0.2, xG: 1.5, xGA: 0.7, xA: 0.9, assists: 2 }]);
-    expect(body.data.shotsAgainst.map((s: { minute: number }) => s.minute)).toEqual([50]);
+    expect(body.data.shotsAgainst.map((s: { minute: number }) => s.minute)).toEqual([50, 92]);
     expect(body.data.formations).toEqual([{ formation: "4-3-3", minutes: 90 }]);
+    expect(body.data.lineups).toEqual([
+      {
+        fixture: 1,
+        starters: [
+          { position: "GK", code: 1002, name: "Kev Keeper" },
+          { position: "DC", code: null, name: "Not Linked" },
+        ],
+      },
+    ]);
     // Every club's mean result chances that season, for colouring its Average.
     expect(body.data.league).toEqual([
       { win: 0.5, draw: 0.3, loss: 0.2 },
@@ -103,6 +124,23 @@ describe("GET /api/understat/profile", () => {
     await start(dir);
     const body = await json(await fetch(`${base}/api/understat/profile/player/1002/2026-27`));
     expect(body.data.matches).toEqual([{ fixture: 1, position: "DC", minutes: 90, xG: null, xA: null, assists: null }]);
+    // No club on his match rows: his shots faced are unknown, not none.
+    expect(body.data.shotsFaced).toBeNull();
+    // A club from such a file has no line-ups: unknown, not an empty list.
+    const club = await json(await fetch(`${base}/api/understat/profile/club/22/2026-27`));
+    expect(club.data.lineups).toBeNull();
+  });
+
+  it("serves a player's shots faced: his club's opponents' shots while he was on the pitch (<shots_faced_on_pitch>)", async () => {
+    await start(dir);
+    const faced = async (code: number) =>
+      ((await json(await fetch(`${base}/api/understat/profile/player/${code}/2026-27`))).data.shotsFaced as { minute: number }[]).map((s) => s.minute);
+    // All match: stoppage time included; never his own club's shots.
+    expect(await faced(1003)).toEqual([50, 92]);
+    // Off after 60.
+    expect(await faced(1004)).toEqual([50]);
+    // On for the last 30 (from the 60th minute).
+    expect(await faced(1005)).toEqual([75]);
   });
 
   it("tells apart a code with no record and a season with no file", async () => {

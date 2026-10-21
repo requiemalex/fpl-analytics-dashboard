@@ -3761,3 +3761,29 @@ tiles/graphs only:
   window. Nothing imported it any more.
 - **Why it went:** unused code (owner's decision).
 - **Last commit with it:** `7105a0b`.
+
+### Understat dot shot map (replaced 2026-10-21)
+- **What it did:** the profiles' Understat Shot Map drew one season as a
+  dot per shot (solid for a goal, an outline otherwise, sized by xG, hover
+  for minute, result, situation and body part), with a white count on a
+  point more than one goal was scored from (penalties) and a small arrow
+  on the bottom edge for a shot from further than 35 m. Only a Historic
+  Average was shaded by zones (a 12 × 10 grid, shots a season).
+- **Why it went:** feedback the owner took up: dots get messy for a
+  high-volume shooter and far too busy for a club. One zone map for every
+  case now, on the pitch's markings, with each zone's share of the shots,
+  count and xG per shot (`ShotMap.tsx`).
+- **Last commit with it:** `61b0737`.
+
+### Understat Formations table in the Team Profile's Data View (replaced 2026-10-21)
+- **What it did:** a table in "Understat · Views" following the Data View:
+  every formation's share of the club's minutes, xG/90, xGA/90, goals
+  scored and conceded, summed over the view's seasons; the top 3, a
+  chevron listing every one used, and the amber stopwatch in place of the
+  rates of one used under 90 minutes.
+- **Why it went:** the owner wants a club's formations now, not past ones
+  (past seasons would also bring in players no longer in FPL), and a
+  visual of each with who starts where. Replaced by the "Understat ·
+  Formations" section (`understat/formations.tsx`): live season only, up
+  to 3 formations used 90+ minutes, arrows between them, starters by slot.
+- **Last commit with it:** `61b0737`.

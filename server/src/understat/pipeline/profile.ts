@@ -1,8 +1,9 @@
 /**
  * Builds one season's profile file (data/understat/app/profile/<season>.json):
  * the per-match detail behind the player and team profiles — where each
- * linked player played in each match and every shot he took, and each
- * club's shots, its post-match result chances and its formations.
+ * linked player played in each match, for which club, and every shot he
+ * took; and each club's shots, its post-match result chances, its
+ * formations and its starting XI in each match.
  *
  * Same rules as the season summaries (aggregate.ts): only matches paired
  * with a finished FPL fixture count (so checked against FPL), players by
@@ -10,7 +11,7 @@
  * row carries its FPL fixture id. Own goals are nobody's shots.
  */
 import type { SeasonData } from "./files.js";
-import type { AppProfileFile, PlayerLink, ProfileFormation, ProfileShotRow, UsFormation, UsShot } from "./types.js";
+import type { AppProfileFile, PlayerLink, ProfileFormation, ProfileLineupRow, ProfileShotRow, UsFormation, UsShot } from "./types.js";
 
 const round = (v: number, dp: number) => Math.round(v * 10 ** dp) / 10 ** dp;
 
@@ -47,14 +48,22 @@ export function buildProfileSeason(
   const clubFor = (teamId: string) => {
     const code = codeByTeamId.get(teamId);
     if (code === undefined) return null;
-    return (clubs[code] ??= { matches: [], shots: [], formations: null });
+    return (clubs[code] ??= { matches: [], shots: [], formations: null, lineups: [] });
   };
 
+  // Each club's starting XI (every line-up entry not off the bench), linked players by FPL code.
+  const starters = new Map<string, { fixture: number; teamId: string; xi: ProfileLineupRow[1] }>();
   for (const a of data.appearances) {
     const fixture = fixtureByMatch.get(a.matchId);
-    if (fixture === undefined || !matchById.has(a.matchId) || a.minutes <= 0) continue;
-    playerFor(a.playerId)?.matches.push([fixture, a.position, a.minutes, round(a.xG, 4), round(a.xA, 4), a.assists]);
+    if (fixture === undefined || !matchById.has(a.matchId)) continue;
+    if (a.minutes > 0) playerFor(a.playerId)?.matches.push([fixture, a.position, a.minutes, round(a.xG, 4), round(a.xA, 4), a.assists, codeByTeamId.get(a.teamId) ?? null]);
+    if (a.position === "Sub") continue;
+    const key = `${a.matchId}|${a.teamId}`;
+    const entry = starters.get(key) ?? { fixture, teamId: a.teamId, xi: [] };
+    entry.xi.push([a.position, codeByUnderstatId.get(a.playerId) ?? null, a.playerName]);
+    starters.set(key, entry);
   }
+  for (const { fixture, teamId, xi } of starters.values()) clubFor(teamId)?.lineups.push([fixture, xi]);
 
   // Each club's line in each match, and its players' xA and assists in it.
   const teamLine = new Map(data.teamMatches.map((t) => [`${t.matchId}|${t.teamId}`, t]));
@@ -108,6 +117,7 @@ export function buildProfileSeason(
   }
   for (const c of Object.values(clubs)) {
     c.matches.sort(byFixture);
+    c.lineups.sort(byFixture);
     c.shots.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   }
   return { schema: 1, season: data.season, players, clubs };

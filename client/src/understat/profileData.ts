@@ -46,8 +46,14 @@ const playerSlice = z.union([
       z.object({ fixture: z.number(), position: z.string(), minutes: z.number(), xG: maybe, xA: maybe, assists: maybe }),
     ),
     shots: z.array(shot),
+    shotsFaced: z.array(shot).nullable().default(null),
   }),
 ]);
+
+const lineup = z.object({
+  fixture: z.number(),
+  starters: z.array(z.object({ position: z.string(), code: z.number().nullable(), name: z.string() })),
+});
 
 const clubSlice = z.union([
   z.object({ enabled: z.literal(false) }),
@@ -72,16 +78,21 @@ const clubSlice = z.union([
     shots: z.array(shot),
     shotsAgainst: z.array(shot),
     formations: z.array(formation).nullable(),
+    lineups: z.array(lineup).nullable().default(null),
     league: z.array(z.object({ win: z.number(), draw: z.number(), loss: z.number() })).default([]),
   }),
 ]);
 
 export type UsShot = z.infer<typeof shot>;
 export type UsFormation = z.infer<typeof formation>;
+/** A club's starting XI in one match: each starter's Understat position (his slot in the formation), FPL code (null when not linked) and Understat name. */
+export type UsLineup = z.infer<typeof lineup>;
 
 export interface UsPlayerSeasonDetail {
   matches: { fixture: number; position: string; minutes: number; xG: number | null; xA: number | null; assists: number | null }[];
   shots: UsShot[];
+  /** His club's opponents' shots while he was on the pitch (server <shots_faced_on_pitch>); null when not available for the season. */
+  shotsFaced: UsShot[] | null;
 }
 
 export interface UsClubSeasonDetail {
@@ -100,6 +111,8 @@ export interface UsClubSeasonDetail {
   shotsAgainst: UsShot[];
   /** Null when the season's formations aren't available (not fetched yet, or the club's didn't check out). */
   formations: UsFormation[] | null;
+  /** Its starting XI in each match; null when not available for the season. */
+  lineups: UsLineup[] | null;
   /** Every club's mean result chances that season (this one included) — what its Match Log Average is coloured against. */
   league: { win: number; draw: number; loss: number }[];
 }
@@ -117,12 +130,12 @@ export async function fetchPlayerDetail(code: number, season: string): Promise<D
   const envelope = await getEnvelope<unknown>(`/api/understat/profile/player/${code}/${folder(season)}`);
   const d = playerSlice.parse(envelope.data);
   if (!d.enabled || !d.available || !d.found) return { state: "none" };
-  return { state: "ready", detail: { matches: d.matches, shots: d.shots } };
+  return { state: "ready", detail: { matches: d.matches, shots: d.shots, shotsFaced: d.shotsFaced } };
 }
 
 export async function fetchClubDetail(code: number, season: string): Promise<DetailLoad<UsClubSeasonDetail>> {
   const envelope = await getEnvelope<unknown>(`/api/understat/profile/club/${code}/${folder(season)}`);
   const d = clubSlice.parse(envelope.data);
   if (!d.enabled || !d.available || !d.found) return { state: "none" };
-  return { state: "ready", detail: { matches: d.matches, shots: d.shots, shotsAgainst: d.shotsAgainst, formations: d.formations, league: d.league } };
+  return { state: "ready", detail: { matches: d.matches, shots: d.shots, shotsAgainst: d.shotsAgainst, formations: d.formations, lineups: d.lineups, league: d.league } };
 }

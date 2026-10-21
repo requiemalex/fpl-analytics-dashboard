@@ -178,3 +178,55 @@ export function leagueChanceRank(average: number | null, league: number[], highe
   for (let i = 1; i < league.length; i++) if (Math.abs(league[i] - average) < Math.abs(league[nearest] - average)) nearest = i;
   return rankAmong(average, league.filter((_, i) => i !== nearest), higherIsBetter);
 }
+
+/** A player's figure for shots faced from one season's summary row, as [numerator, denominator]; null when that row can't give one. */
+export type FacedPart = (row: UsPlayerTotals) => [number, number] | null;
+
+/**
+ * A defender's or goalkeeper's Shots Faced figures ranked within his
+ * position (<shots_faced_on_pitch>), fewer always better. Shots faced
+ * depend on time on the pitch, so each `part` is a rate: a count as
+ * [count × 90, minutes] (per 90 minutes), a share as [part, whole]. His own
+ * figure is worked out from his own season rows the same way, so he's
+ * ranked on exactly what the others are. Null for every figure when he's
+ * under the floor, or a season here has no shots-faced totals yet (a file
+ * from before the sync added them); others need complete ones.
+ */
+export function playerFacedRanks(ctx: UsComparisonContext, code: number, seasons: string[], parts: Record<string, FacedPart>): Record<string, number | null> {
+  const out: Record<string, number | null> = {};
+  const own = seasons.flatMap((s) => {
+    const row = ctx.seasons.get(s)?.players.get(code);
+    return row ? [row] : [];
+  });
+  const usable = playerShotsEligible(ctx, code, seasons) && own.length > 0 && own.every((row) => !!row.facing);
+  const rowsBySeason = seasons.map((s) => new Map(peers(ctx, code, s).filter(([, row]) => row.facing?.complete)));
+  for (const [key, part] of Object.entries(parts)) {
+    if (!usable) {
+      out[key] = null;
+      continue;
+    }
+    let num = 0;
+    let den = 0;
+    for (const row of own) {
+      const p = part(row);
+      if (p) {
+        num += p[0];
+        den += p[1];
+      }
+    }
+    out[key] = den > 0 ? rankAmong(num / den, multiSeasonPool(rowsBySeason, part, false), false) : null;
+  }
+  return out;
+}
+
+/**
+ * A formation's per-90 figure ranked among every other club's per-90
+ * figure for the whole season (`value` over its matches played) — how the
+ * club does in that formation against the league. Clubs have no floor.
+ */
+export function formationRank(ctx: UsComparisonContext, code: number, season: string, shown: number | null, value: (t: UsClubTotals) => number, higherIsBetter: boolean): number | null {
+  const file = ctx.seasons.get(season);
+  if (!file) return null;
+  const others = [...file.clubs].filter(([c, row]) => c !== code && row.played > 0).map(([, row]) => value(row) / row.played);
+  return rankAmong(shown, others, higherIsBetter);
+}

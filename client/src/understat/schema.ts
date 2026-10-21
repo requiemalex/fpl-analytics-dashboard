@@ -42,6 +42,13 @@ export const usPlayerSchema = z.object({
   shotDetail: shotDetail.optional(),
   /** <incomplete_shot_list> (server/src/understat/pipeline/types.ts). */
   shotsComplete: z.boolean().default(true),
+  /**
+   * His club's opponents' shots while he was on the pitch (server
+   * <shots_faced_on_pitch>), what a defender's or goalkeeper's Shots Faced
+   * map is coloured against. Null in a season file written before the sync
+   * added it: that season's Shots Faced have no colour until it does.
+   */
+  facing: z.object({ shots: z.number(), shotsOnTarget: z.number(), situations, complete: z.boolean() }).nullish(),
 });
 
 export const usClubSchema = z.object({
