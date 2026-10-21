@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass } from "./primitives";
+import { PitchMarkings } from "./PitchMarkings";
 import { fmtPrice, fmtPercent, fmtDecimal, DASH } from "../utils/format";
 import { fdrColor, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { percentileColour, percentileTint } from "../utils/colorScale";
@@ -337,14 +338,7 @@ export function SquadPitch({
           if (draggedId) onAddToPitch(draggedId);
         }}
       >
-        <div className="pitch-markings">
-          <div className="pitch-center-circle" />
-          <div className="pitch-center-spot" />
-          <div className="pitch-penalty-box top" />
-          <div className="pitch-goal top" />
-          <div className="pitch-penalty-box bottom" />
-          <div className="pitch-goal bottom" />
-        </div>
+        <PitchMarkings />
         {PITCH_ROW_ORDER.map((pos) => {
           const players = positionGroups[pos];
           if (players.length === 0) return null;

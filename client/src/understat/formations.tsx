@@ -5,7 +5,8 @@ import { DASH, fmtDecimal, fmtPercent } from "../utils/format";
 import { MinutesFloorBadge } from "../components/MinutesFloorBadge";
 import type { DetailLoad, UsClubSeasonDetail, UsFormation, UsLineup } from "./profileData";
 import { formationLineups, type FormationSlot, type SlotPlayer } from "./lineups";
-import { POSITION_NAMES } from "./positionNames";
+import { POSITION_NAMES, positionGroupOf } from "./positionNames";
+import { PitchMarkings } from "../components/PitchMarkings";
 import { percentileTint } from "../utils/colorScale";
 import { formationRank, type UsComparisonContext } from "./comparisons";
 import type { UsClubTotals } from "./schema";
@@ -55,20 +56,6 @@ export function shownFormations(formations: UsFormation[]): UsFormation[] {
     .slice(0, FORMATIONS_SHOWN);
 }
 
-function PitchMarkings() {
-  // Stretched to the pitch's box, so the lines stay 1px (non-scaling) and the boxes are only a guide.
-  return (
-    <svg className="formation-pitch-lines" viewBox="0 0 68 105" preserveAspectRatio="none" aria-hidden="true">
-      <rect x="0" y="0" width="68" height="105" />
-      <path d="M 0 52.5 H 68" />
-      <rect x={34 - 20.16} y="0" width="40.32" height="16.5" />
-      <rect x={34 - 9.16} y="0" width="18.32" height="5.5" />
-      <rect x={34 - 20.16} y={105 - 16.5} width="40.32" height="16.5" />
-      <rect x={34 - 9.16} y={105 - 5.5} width="18.32" height="5.5" />
-    </svg>
-  );
-}
-
 function PlayerName({ player, idByCode }: { player: SlotPlayer; idByCode: ReadonlyMap<number, { id: number; name: string }> }) {
   const [, setSearchParams] = useSearchParams();
   const fpl = player.code === null ? undefined : idByCode.get(player.code);
@@ -109,19 +96,26 @@ function Slot({ slot, idByCode }: { slot: FormationSlot; idByCode: ReadonlyMap<n
   const shown = slot.players.slice(0, NAMES_PER_SLOT);
   const rest = slot.players.slice(NAMES_PER_SLOT);
   const nameOf = (p: SlotPlayer) => (p.code !== null ? (idByCode.get(p.code)?.name ?? p.name) : p.name);
+  // Team Building's pitch card: a shirt carrying the slot (in its FPL position's colour), a nameplate under it.
   return (
     <div className="formation-slot">
-      <span className="formation-slot-position" title={POSITION_NAMES[slot.position] ?? slot.position}>
-        {slot.position}
-      </span>
-      {shown.map((p) => (
-        <PlayerName key={p.code ?? p.name} player={p} idByCode={idByCode} />
-      ))}
-      {rest.length > 0 && (
-        <span className="formation-slot-more" title={rest.map((p) => `${nameOf(p)} (${p.starts})`).join(", ")}>
-          +{rest.length} more
+      <div className="pitch-card-jersey formation-slot-jersey">
+        <span className="pitch-card-jersey-position">
+          <span className={`badge pos-${positionGroupOf(slot.position)}`} title={POSITION_NAMES[slot.position] ?? slot.position}>
+            {slot.position}
+          </span>
         </span>
-      )}
+      </div>
+      <div className="pitch-card-plate formation-slot-plate">
+        {shown.map((p) => (
+          <PlayerName key={p.code ?? p.name} player={p} idByCode={idByCode} />
+        ))}
+        {rest.length > 0 && (
+          <span className="formation-slot-more" title={rest.map((p) => `${nameOf(p)} (${p.starts})`).join(", ")}>
+            +{rest.length} more
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -188,11 +182,11 @@ function FormationCard({ code, formations, lineups, season, compare }: { code: n
         )}
       </div>
       <div className="shot-card-body is-wide">
-        <div className="formation-pitch" role="group" aria-label={`${f.formation}: who started where`}>
+        <div className="pitch formation-pitch" role="group" aria-label={`${f.formation}: who started where`}>
           <PitchMarkings />
           {xi ? (
             xi.lines.map((line, i) => (
-              <div className="formation-line" key={i}>
+              <div className="pitch-row formation-line" key={i}>
                 {line.map((slot, j) => (
                   <Slot key={`${slot.position}-${j}`} slot={slot} idByCode={idByCode} />
                 ))}

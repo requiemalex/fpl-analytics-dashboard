@@ -63,7 +63,7 @@ table.data-table th.col-source-understat,
 .shot-map-zone:hover .shot-map-zone-fill {
   stroke: var(--text-primary);
 }
-.shot-map-zone text {
+.shot-map-labels text {
   fill: var(--text-primary);
   font-family: var(--font-mono);
   pointer-events: none;
@@ -162,9 +162,8 @@ table.data-table th.col-source-understat,
 
 /* The Team Profile's Formations section (formations.tsx): a pitch, attack
    at the top, its lines spread from forwards to goalkeeper; each slot a
-   small card naming who started there (the first, most starts, bolder),
-   and the arrows in the card title stepping through the formations. The
-   markings are stretched to the pitch, a guide only. */
+   card naming who started there (the first, most starts, bolder), and the
+   arrows in the card title stepping through the formations. */
 .formation-card-title {
   display: flex;
   align-items: center;
@@ -182,85 +181,68 @@ table.data-table th.col-source-understat,
   font-size: 12px;
   color: var(--text-secondary);
 }
+/* The board is Team Building's pitch (.pitch, .pitch-row, PitchMarkings)
+   and its card: a shirt with the slot's badge in its FPL position's colour,
+   a white nameplate under it. The shirt is Understat's violet, as these
+   are Understat's line-ups. */
 .formation-pitch {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: var(--space-4);
   min-height: 520px;
-  padding: var(--space-5) var(--space-3);
-  border-radius: var(--radius-md);
-  background: var(--surface-raised);
-}
-.formation-pitch-lines {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  fill: none;
-  stroke: var(--border-strong);
-  stroke-width: 1;
-  pointer-events: none;
-}
-.formation-pitch-lines * {
-  vector-effect: non-scaling-stroke;
 }
 .formation-pitch-empty {
   position: relative;
+  z-index: 1;
   margin: auto;
   max-width: 340px;
   text-align: center;
+  color: rgba(255, 255, 255, 0.85);
 }
 .formation-line {
-  position: relative;
-  display: flex;
+  flex-wrap: nowrap;
   justify-content: space-around;
   align-items: flex-start;
   gap: var(--space-2);
 }
 .formation-slot {
   display: flex;
-  flex: 0 1 150px;
+  flex: 0 1 136px;
   flex-direction: column;
-  align-items: stretch;
-  gap: 2px;
+  align-items: center;
   min-width: 0;
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface);
 }
-.formation-slot-position {
-  align-self: center;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--col-understat);
+.formation-slot-jersey {
+  background: var(--col-understat);
+}
+.formation-slot-plate {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 .formation-player {
   display: flex;
   justify-content: space-between;
   gap: 6px;
-  padding: 1px 0;
+  width: 100%;
+  padding: 0;
   border: 0;
   background: none;
   font: inherit;
-  font-size: 12.5px;
-  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 500;
+  color: #12261a;
   text-align: left;
   cursor: pointer;
 }
-.formation-slot > :nth-child(2) {
-  font-weight: 600;
+/* The first name, most starts, bolder. */
+.formation-slot-plate > :first-child {
+  font-weight: 700;
 }
 button.formation-player:hover .formation-player-name,
 button.formation-player:focus-visible .formation-player-name {
   text-decoration: underline;
 }
 .formation-player.is-gone {
-  color: var(--text-muted);
+  color: #7a877f;
   cursor: default;
 }
 .formation-player-name {
@@ -270,12 +252,13 @@ button.formation-player:focus-visible .formation-player-name {
   white-space: nowrap;
 }
 .formation-player-starts {
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--text-secondary);
+  font-size: 10.5px;
+  font-weight: 500;
+  color: #4c5d52;
 }
 .formation-slot-more {
-  font-size: 11.5px;
-  color: var(--text-muted);
+  font-size: 10px;
+  color: #4c5d52;
+  text-align: center;
   cursor: help;
 }

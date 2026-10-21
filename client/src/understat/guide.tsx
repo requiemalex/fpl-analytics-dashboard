@@ -130,8 +130,8 @@ export function UnderstatGuide() {
         <li>
           <strong>On a team profile</strong>, an <span style={{ color: "var(--col-understat)" }}>Understat · Formations</span> section
           shows this season's formations, whatever the Data View: those used for at least 90 minutes (the grey stopwatch), the
-          three most-used at most, with arrows to step between them. Each is drawn on a pitch with who started in each position and
-          how many starts they've had. Click a name to open that player's profile. A greyed-out name is a player who isn't in FPL
+          three most-used at most, with arrows to step between them. Each is drawn on a pitch like Team Building's: a shirt for each
+          position (its badge in that position's colour) with a nameplate saying who started there and how many starts they've had. Click a name to open that player's profile. A greyed-out name is a player who isn't in FPL
           any more. Beside the pitch: the share of the club's minutes in that formation, its minutes and starts, xG and xG against
           per 90 minutes, and goals scored and conceded in it, coloured against every club's per-90 figures for the season (more xG and goals greener, less xG against and fewer conceded greener).
         </li>

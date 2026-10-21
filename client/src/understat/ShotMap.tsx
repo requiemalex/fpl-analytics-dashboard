@@ -153,15 +153,14 @@ export function ShotMap({ shots, seasons, label }: { shots: UsShot[]; seasons: n
     <figure className="shot-map">
       <svg viewBox={viewBox} role="img" aria-label={label} preserveAspectRatio="xMidYMid meet">
         <rect x={-PAD} y={top} width={WIDTH + PAD * 2} height={height} className="shot-map-pitch" />
+        {/* Three layers: the zones' shading, the pitch's lines over it, and the zones' text over both, so no line or spot crosses a figure. */}
         {zones.map((z) => {
           const hover =
             z.shots > 0
               ? `${z.name}: ${shotsText(z.shots)}${perSeason} (${shareText(z.share)} of them) · ${fmtDecimal(z.goals, dp)} goal${z.goals === 1 ? "" : "s"} · ${fmtDecimal(z.xGPerShot, 2)} xG per shot`
               : `${z.name}: no shots`;
-          const cx = z.x + z.w / 2;
-          const banded = z.key === "beyond";
           return (
-            <g key={z.key} className="shot-map-zone">
+            <g key={z.key} className="shot-map-zone" data-zone={z.key}>
               <title>{hover}</title>
               <rect
                 x={z.x}
@@ -171,28 +170,33 @@ export function ShotMap({ shots, seasons, label }: { shots: UsShot[]; seasons: n
                 className="shot-map-zone-fill"
                 style={{ fillOpacity: z.shots > 0 && maxShare > 0 ? 0.08 + 0.52 * (z.share / maxShare) : 0 }}
               />
-              {z.shots > 0 &&
-                (banded ? (
-                  <text x={cx} y={z.y + z.h / 2} dy="0.35em" textAnchor="middle" className="shot-map-zone-detail">
-                    {`${z.name} · ${shareText(z.share)} · ${shotsText(z.shots)} · ${fmtDecimal(z.xGPerShot, 2)} xG/shot`}
-                  </text>
-                ) : (
-                  <text x={cx} y={z.y + z.h / 2} textAnchor="middle">
-                    <tspan x={cx} dy="-0.9" className="shot-map-zone-share">
-                      {shareText(z.share)}
-                    </tspan>
-                    <tspan x={cx} dy="1.75" className="shot-map-zone-detail">
-                      {shotsText(z.shots)}
-                    </tspan>
-                    <tspan x={cx} dy="1.35" className="shot-map-zone-detail">
-                      {`${fmtDecimal(z.xGPerShot, 2)} xG/shot`}
-                    </tspan>
-                  </text>
-                ))}
             </g>
           );
         })}
         <PitchLines />
+        <g className="shot-map-labels">
+          {zones.map((z) => {
+            if (z.shots === 0) return null;
+            const cx = z.x + z.w / 2;
+            return z.key === "beyond" ? (
+              <text key={z.key} data-zone={z.key} x={cx} y={z.y + z.h / 2} dy="0.35em" textAnchor="middle" className="shot-map-zone-detail">
+                {`${z.name} · ${shareText(z.share)} · ${shotsText(z.shots)} · ${fmtDecimal(z.xGPerShot, 2)} xG/shot`}
+              </text>
+            ) : (
+              <text key={z.key} data-zone={z.key} x={cx} y={z.y + z.h / 2} textAnchor="middle">
+                <tspan x={cx} dy="-0.9" className="shot-map-zone-share">
+                  {shareText(z.share)}
+                </tspan>
+                <tspan x={cx} dy="1.75" className="shot-map-zone-detail">
+                  {shotsText(z.shots)}
+                </tspan>
+                <tspan x={cx} dy="1.35" className="shot-map-zone-detail">
+                  {`${fmtDecimal(z.xGPerShot, 2)} xG/shot`}
+                </tspan>
+              </text>
+            );
+          })}
+        </g>
       </svg>
       <figcaption className="shot-map-key">
         <span className="shot-map-key-item">

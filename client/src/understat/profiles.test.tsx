@@ -145,7 +145,9 @@ function zone(container: HTMLElement, name: string): Element | undefined {
   return [...container.querySelectorAll("g.shot-map-zone")].find((g) => g.querySelector("title")!.textContent!.startsWith(`${name}:`));
 }
 const zoneTitle = (container: HTMLElement, name: string) => zone(container, name)?.querySelector("title")!.textContent ?? null;
-const zoneText = (container: HTMLElement, name: string) => zone(container, name)!.querySelector("text")?.textContent ?? "";
+/** A zone's figures: drawn in the label layer over the pitch lines, matched to the zone by its key. */
+const zoneText = (container: HTMLElement, name: string) =>
+  container.querySelector(`.shot-map-labels [data-zone="${zone(container, name)!.getAttribute("data-zone")}"]`)?.textContent ?? "";
 const zoneFill = (container: HTMLElement, name: string) => Number((zone(container, name)!.querySelector("rect") as SVGElement).style.fillOpacity);
 const panel = (getByText: (t: string) => HTMLElement, label: string) => getByText(label).nextSibling!.textContent;
 const playerDetail = (shots: UsShot[], shotsFaced: UsShot[] | null = []): DetailLoad<UsPlayerSeasonDetail> => ({ state: "ready", detail: { matches: [], shots, shotsFaced } });
@@ -153,6 +155,15 @@ const playerDetail = (shots: UsShot[], shotsFaced: UsShot[] | null = []): Detail
 describe("Understat's shot maps: zones", () => {
   // x 0.97 is 3 m out (the six-yard box), 0.9 is 10.5 m (the middle of the box), 0.8 is 21 m (the edge of the box); y 0.5 is central.
   const shots = [shot(1, "Goal", 0.5, 0.97), shot(1, "SavedShot", 0.3, 0.97), shot(2, "MissedShots", 0.1, 0.9), shot(2, "BlockedShot", 0.06, 0.8)];
+
+  it("draws the figures over the pitch lines, so the penalty spot never crosses them", () => {
+    const p = profilesWith([[playerKey(500, "2025/26"), playerDetail(shots)]]);
+    const { container } = render(<>{p.playerCards(500, { mode: "lastSeason", seasons: ["2025/26"] }, "MID")}</>);
+    const layers = [...container.querySelector(".shot-map svg")!.children].map((el) => el.getAttribute("class"));
+    expect(layers.indexOf("shot-map-labels")).toBe(layers.length - 1);
+    expect(layers.indexOf("shot-map-lines")).toBeLessThan(layers.indexOf("shot-map-labels"));
+    expect(layers.lastIndexOf("shot-map-zone")).toBeLessThan(layers.indexOf("shot-map-lines"));
+  });
 
   it("each zone shows its share of the shots, how many and their average xG; one with none shows nothing", () => {
     const p = profilesWith([[playerKey(500, "2025/26"), playerDetail(shots)]]);

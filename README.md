@@ -756,10 +756,14 @@ without it leaves that season's Shots Faced uncoloured.
   most-used at most (`FORMATIONS_SHOWN`), one at a time with arrows in the
   card title stepping round them both ways. The card title has the grey
   stopwatch (`<minutes_marker>`: the 90-minute threshold is in force,
-  nothing shown is under it). Each is drawn on a pitch, attack at the top,
-  its lines from forwards to goalkeeper, every slot naming who started
-  there and how many times (3 names, then "+n more" with the rest on
-  hover); beside it, as the shot maps have theirs: Time (share of the
+  nothing shown is under it). Each is drawn on Team Building's pitch (the
+  `.pitch` turf and the shared `PitchMarkings`), attack at the top, its
+  lines from forwards to goalkeeper. Every slot is Team Building's pitch
+  card: a shirt (Understat's violet) carrying the slot's code in its FPL
+  position's colour (`positionGroupOf`: GK keeper, D* defence, DM*/M*/AM*
+  midfield with the wing-backs, FW* forwards), and a white nameplate
+  naming who started there and how many times (3 names, then "+n more"
+  with the rest on hover); beside it, as the shot maps have theirs: Time (share of the
   club's minutes), Minutes, Starts, xG/90, xGA/90, Scored, Conceded.
   xG/90, xGA/90, Scored and Conceded are coloured (`formationRank`): the
   figure per 90 minutes in the formation against every other club's per-90

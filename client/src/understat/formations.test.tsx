@@ -100,6 +100,17 @@ describe("The Team Profile's Formations section", () => {
     expect(getByTestId("location").textContent).toBe("?player=10");
   });
 
+  it("draws each slot as Team Building's pitch card, its badge in the FPL position's colour", () => {
+    const { container } = renderSection(ready(formations, lineups));
+    expect(container.querySelector(".formation-pitch.pitch .pitch-markings")).toBeTruthy();
+    const badges = [...container.querySelectorAll(".formation-slot .pitch-card-jersey .badge")].map((b) => `${b.textContent} ${b.className}`);
+    expect(badges).toContain("GK badge pos-GKP");
+    expect(badges).toContain("DC badge pos-DEF");
+    expect(badges).toContain("DMC badge pos-MID");
+    expect(badges).toContain("AMR badge pos-MID");
+    expect(badges).toContain("FW badge pos-FWD");
+  });
+
   it("a player no longer in FPL is greyed out, not a link", () => {
     const { getByText, queryByRole } = renderSection(ready(formations, lineups));
     const gone = getByText("Gone Player").closest(".formation-player")!;
