@@ -19,6 +19,12 @@ permissions:
   actions: read # the alert step reads run history
   issues: write # the alert issue (scripts/alerts/)
 
+# One release build at a time (a hand-pushed tag and the club-history
+# archive's could otherwise overlap, each pruning while the other publishes).
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   build-and-publish:
     runs-on: windows-latest
@@ -47,9 +53,28 @@ jobs:
           fi
           npm pkg set version="${GITHUB_REF#refs/tags/v}"
 
+      # Uploads to a draft release (package.json's build.publish.releaseType):
+      # installed apps never see a draft.
       - run: npm run electron:build -- --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Only now, with the installer, its blockmap and latest.yml all
+      # uploaded, does the release go public. Published as it was being
+      # uploaded, an app checking in that minute could find latest.yml
+      # naming an installer that wasn't there yet (audit 2026-10-23,
+      # finding 9). If this step fails, the release stays a draft and the
+      # alert below fires; installed apps keep the previous version.
+      - name: Publish the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name' | tee assets.txt
+          grep -qx "latest.yml" assets.txt
+          grep -qE '^Scoutline-Setup-.*\.exe$' assets.txt
+          grep -qE '^Scoutline-Setup-.*\.exe\.blockmap$' assets.txt
+          gh release edit "$GITHUB_REF_NAME" --draft=false --latest
 
       # Keeps the Releases page from accumulating every installer ever
       # built — deletes the release (and its uploaded .exe/.blockmap/

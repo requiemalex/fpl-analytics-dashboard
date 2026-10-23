@@ -213,7 +213,10 @@ publishes automatically on every `v*` tag push — the exact same
 tagging convention this project already uses for the web deploy, now
 with one added effect: it also builds the Windows installer and
 publishes it (plus the `latest.yml` update-metadata file) to a GitHub
-Release, which every installed copy's `electron-updater` then finds.
+Release, which every installed copy's `electron-updater` then finds. The
+release is created as a draft (`build.publish.releaseType`), which installed
+copies never see, and made public by the workflow's "Publish the release"
+step only once all three files are uploaded.
 The workflow derives the app version from the pushed tag itself
 (`npm pkg set version=...`) rather than requiring `package.json`'s
 `version` field to be kept in sync by hand.

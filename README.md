@@ -1765,7 +1765,10 @@ window forward.
    if it's only fixes.
 
 `.github/workflows/release.yml` builds the installer, takes the version from
-the tag, and publishes a GitHub Release. A closed copy installs it the next
+the tag, uploads it to a draft GitHub Release, and makes the release public
+only once the installer, its blockmap and `latest.yml` are all there (a
+release that went public mid-upload could point installed apps at a file
+not there yet). One release build runs at a time. A closed copy installs it the next
 time it's opened, before the app appears; an open one finds it within about
 10 minutes and offers to restart into it (or install it when next closed).
 
