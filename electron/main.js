@@ -1,4 +1,5 @@
 const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require("electron");
+const os = require("os");
 const path = require("path");
 const { autoUpdater } = require("electron-updater");
 
@@ -22,6 +23,32 @@ const APP_NAME = "Scoutline";
  * for good. Must run before the app is ready.
  */
 app.setPath("userData", path.join(app.getPath("appData"), "FPL Analytics Dashboard"));
+
+// <app_log> (electron/log.js): after the userData path above, which the log lives under.
+const { log, captureConsole, logFilePath } = require("./log");
+captureConsole();
+const launchStartedAt = Date.now();
+log.info(`${APP_NAME} ${app.getVersion()} starting: Windows ${os.release()} ${process.arch}, Electron ${process.versions.electron}`);
+
+/**
+ * An error nothing else caught. Electron's own dialog for this ("A
+ * JavaScript error occurred in the main process") shows a raw stack trace
+ * and records nothing; this one says what to do and where the details are
+ * — once per session, so a repeating error can't stack up dialogs. The app
+ * carries on, as it would with Electron's.
+ */
+let errorDialogShown = false;
+process.on("uncaughtException", (err) => {
+  log.error("Uncaught error in the main process:", err);
+  if (errorDialogShown) return;
+  errorDialogShown = true;
+  dialog.showErrorBox(
+    `${APP_NAME} hit a problem`,
+    `Something went wrong: ${err && err.message ? err.message : String(err)}\n\nIf the app stops working, close it and open it again. Your saved data is safe.\n\nDetails were saved to:\n${logFilePath()}`,
+  );
+});
+process.on("unhandledRejection", (reason) => log.error("Unhandled promise rejection in the main process:", reason));
+app.on("child-process-gone", (_event, details) => log.warn("Child process gone:", details));
 
 /**
  * A distinct port from the dev-mode default (4000, in server/src/config.ts)
@@ -95,6 +122,17 @@ app.on("web-contents-created", (_event, contents) => {
     event.preventDefault();
     openExternally(url);
   });
+
+  // <app_log>: what goes wrong inside a page (its errors, a crash, a failed load) is recorded too.
+  contents.on("console-message", ({ level, message, sourceId, lineNumber }) => {
+    if (level === "error") log.error(`Page error: ${message} (${sourceId}:${lineNumber})`);
+  });
+  contents.on("render-process-gone", (_event, details) => log.error(`Page process gone (${contents.getURL()}):`, details));
+  contents.on("unresponsive", () => log.warn(`Page not responding: ${contents.getURL()}`));
+  contents.on("did-fail-load", (_event, code, description, url, isMainFrame) => {
+    if (isMainFrame) log.error(`Page failed to load: ${url} (${code} ${description})`);
+  });
+  contents.on("preload-error", (_event, preloadPath, error) => log.error(`Preload script failed (${preloadPath}):`, error));
 });
 
 function originOf(url) {
@@ -156,7 +194,10 @@ function createWindow() {
 
 /** Shows the main window once its page is ready and the launch update check (see checkAtLaunch) has let it through. */
 function showMainWindow() {
-  if (mainWindow && mainWindowReady && !holdMainWindow && !mainWindow.isVisible()) mainWindow.show();
+  if (mainWindow && mainWindowReady && !holdMainWindow && !mainWindow.isVisible()) {
+    mainWindow.show();
+    log.info(`Main window shown ${Date.now() - launchStartedAt} ms after launch`);
+  }
 }
 
 // The only window-control surface left now that the native frame is gone —
@@ -280,6 +321,7 @@ function abandonLaunchUpdate() {
  */
 function startUpdateChecks() {
   let checkTimer = null;
+  autoUpdater.logger = log;
 
   autoUpdater.on("error", (err) => {
     console.error("Auto-update error:", err);
@@ -343,13 +385,16 @@ if (!isFirstInstance) {
   app.whenReady().then(async () => {
     try {
       await startEmbeddedServer();
+      log.info(`Built-in server ready ${Date.now() - launchStartedAt} ms after launch`);
     } catch (err) {
+      log.error("Built-in server didn't start:", err);
       const inUse = err && err.code === "EADDRINUSE";
       dialog.showErrorBox(
         `${APP_NAME} couldn't start`,
-        inUse
+        (inUse
           ? `Another program is using port ${DESKTOP_PORT}, which this app needs. Close that program (or restart the computer) and open the app again. Your saved data is safe.`
-          : `The app's built-in server didn't start: ${err && err.message ? err.message : String(err)}. Your saved data is safe.`,
+          : `The app's built-in server didn't start: ${err && err.message ? err.message : String(err)}. Your saved data is safe.`) +
+          `\n\nDetails were saved to:\n${logFilePath()}`,
       );
       app.quit();
       return;

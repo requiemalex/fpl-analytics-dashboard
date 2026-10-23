@@ -44,6 +44,7 @@ const SECTION_META = [
   { id: "teams", label: "Team Explorer", accent: "--accent-positive" },
   { id: "player-profile", label: "Player Profile", accent: "--accent-focus" },
   { id: "notepad", label: "Notepad", accent: "--accent-value" },
+  { id: "app", label: "Opening & updating", accent: "--accent-positive" },
   { id: "limitations", label: "Data sourcing & known limitations", accent: "--accent-negative" },
   { id: "metric-reference", label: "Metric reference", accent: "--accent-value" },
 ];
@@ -520,6 +521,20 @@ export function UserGuide() {
           the <kbd>`</kbd> key opens and closes the notepad, it can't be typed into a note.
         </p>
         <Try>press <kbd>`</kbd> now, type a note, and press <kbd>`</kbd> again.</Try>
+      </Section>
+
+      <Section id="app" title="Opening & updating the app">
+        <p className="page-subtitle" style={{ marginTop: 0 }}>
+          Scoutline keeps itself up to date. Each time you open it, it first checks for a new version; if there is one, a small
+          Updating window shows the download, then the app installs it and reopens on the new version by itself. With no internet,
+          or a check or download that takes too long, it just opens as it is. While it's open it checks again every 10 minutes, and
+          when an update is ready it offers to restart into it now or install it the next time you close the app.
+        </p>
+        <p className="page-subtitle">
+          If something goes wrong, the app writes down what happened in a log on this computer (it's never sent anywhere). To find
+          it, type <code>%APPDATA%\FPL Analytics Dashboard\logs</code> into File Explorer's address bar and open{" "}
+          <code>scoutline.log</code>; sharing that file is the quickest way to get a problem looked at.
+        </p>
       </Section>
 
       {extSection && (

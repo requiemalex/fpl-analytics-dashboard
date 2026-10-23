@@ -63,7 +63,7 @@ export function Legal() {
           <div className="card-title">Privacy</div>
           <p>
             No accounts, advertising, analytics or tracking, and nothing about you is sent to the developer. Your settings, saved views,
-            squads and notes stay on this computer. The app connects only to the Fantasy Premier League data feed (including a team ID you
+            squads and notes stay on this computer, as does the app's log of what it did and any errors it hit. The app connects only to the Fantasy Premier League data feed (including a team ID you
             type to import a squad), to GitHub for the Understat dataset, and to GitHub Releases for updates; each of those sees your IP
             address under its own privacy policy. The built-in server accepts connections only from this computer.
           </p>

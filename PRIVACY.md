@@ -1,6 +1,6 @@
 # Scoutline privacy notice
 
-Version 1, 19 October 2026
+Version 2, 23 October 2026
 
 Scoutline is a desktop app. It has no accounts, no advertising, no
 analytics and no tracking, and it never sends anything about you to its
@@ -15,7 +15,9 @@ storage:
 - Player Comparison views;
 - saved squads (including a squad you imported by FPL team ID);
 - notepad notes;
-- that you accepted the app's terms, and which version.
+- that you accepted the app's terms, and which version;
+- a log of what the app did (launches, update checks) and any errors it
+  hit, in the data folder's `logs` subfolder, so a problem can be traced.
 
 Nothing of this leaves your computer. Uninstalling the app and deleting its
 data folder (`%APPDATA%\FPL Analytics Dashboard` on Windows: the folder kept

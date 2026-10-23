@@ -1665,11 +1665,15 @@ app says so in a dialog and quits, instead of crashing with no window.
   any of those four.
 - The server's memory caches are capped at 2,000 entries each
   (`TtlCache`, `server/src/cache.ts`), least recently stored out first.
-- **Releases are batched**: each change is committed (and pushed) as it's
-  finished, and a `v*` tag releases everything since the last one.
-  `npm run unreleased` (`scripts/release/unreleased.ts`) lists what the next
-  release would ship, read from git, and warns about edits not committed
-  and commits not pushed.
+- **Its own log** (`<app_log>`, `electron/log.js`): launches (with how
+  long the server and the window took), update checks, and every error, from
+  the app itself, the built-in server, the updater and the pages (console
+  errors, crashes, failed loads), go to `logs/scoutline.log` in the
+  saved-data folder, on this computer only. It starts afresh past 1 MB,
+  keeping one previous file. An error nothing else caught is logged and
+  shown once per session in the app's own dialog, which says where the log
+  is (instead of Electron's raw "A JavaScript error occurred" box). The User
+  Guide tells users how to find it.
 
 ## Legal
 
@@ -1693,13 +1697,17 @@ app says so in a dialog and quits, instead of crashing with no window.
 - **Data credits:** FPL, Understat and the vaastav archive (MIT) are
   credited on About & Legal and in `LICENSE.txt` section 6.
 
-**To release:**
-1. Make sure this README reflects the change.
+**To release** (batched, when the owner says: CLAUDE.md "Releasing"):
+1. `npm run unreleased` lists what the release will ship (read from git,
+   with dates and times; `scripts/release/unreleased.ts`), and warns about
+   edits not committed and commits not pushed. Make sure this README
+   reflects each of them.
 2. Commit, then `git pull --rebase`: the Understat sync (daily) and the
    club-history archive commit data to master on their own, so a local copy
    is usually a few data commits behind.
 3. `git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin master && git push origin vX.Y.Z`
-   — bump the minor version for features, the patch version for fixes.
+   — bump the minor version if the batch has any feature, the patch version
+   if it's only fixes.
 
 `.github/workflows/release.yml` builds the installer, takes the version from
 the tag, and publishes a GitHub Release. A closed copy installs it the next
