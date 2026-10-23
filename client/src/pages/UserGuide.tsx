@@ -455,8 +455,9 @@ export function UserGuide() {
           with the same rolling 4-season average as the player profile; older seasons are grey, marked † on hover, and a season
           outside the Premier League has no bar. Click a season's bar to show its matches in the <strong>Match Log</strong> below
           (click this season's bar to come back). The Match Log lists that season's matches, newest first: opponent, home or away,
-          score, then the club's FPL points, goals, assists, xG, xA, xGI, clean sheet, xGC and defensive contributions, with Totals
-          and a per-match Average, coloured against every other club that season. If some matches lack a figure, Totals adds up
+          score, then the club's FPL points, goals (scored by its players, so excluding opponents' own goals, as in Team Explorer's
+          "Goals (excl. OGs)"; Goals For counts every goal), assists, xG, xA, xGI, clean sheet, xGC and defensive contributions, with
+          Totals and a per-match Average, coloured against every other club that season. If some matches lack a figure, Totals adds up
           the ones that have it and Average divides by them (hover to see how many). FPL records xG and the rest per player, so
           each match adds up whoever played.
         </p>

@@ -783,7 +783,7 @@ describe("The Team Profile shows club figures only", () => {
     ]);
     const [totals, average] = [...table.querySelectorAll("tfoot tr")].map((r) => [...r.querySelectorAll("td")].map((td) => td.textContent));
     expect(totals).toEqual(["Totals", "80", "3", "4", "2.70", "2.40", "6.00", "1", "3.10", "160"]);
-    expect(average).toEqual(["Average", "40.00", "1.50", "2.00", "1.35", "1.20", "3.00", "0.50", "1.55", "80.00"]);
+    expect(average).toEqual(["Average", "40.0", "1.50", "2.00", "1.35", "1.20", "3.00", "0.50", "1.55", "80.0"]);
   });
 
   it("the match log is always the live season, whatever the Data View", () => {
@@ -806,7 +806,7 @@ describe("The Team Profile shows club figures only", () => {
     const averageDc = [...average.querySelectorAll("td")].at(-1)!;
     // The one match with a figure (80), never "—" for the whole column and never the missing match as 0 (which would average 40).
     expect(totalDc.textContent).toBe("80");
-    expect(averageDc.textContent).toBe("80.00");
+    expect(averageDc.textContent).toBe("80.0");
     expect(totalDc.querySelector("span")!.getAttribute("title")).toBe("From the 1 of 2 matches that have a figure");
     expect(averageDc.querySelector("span")!.getAttribute("title")).toBe("From the 1 of 2 matches that have a figure");
     // A column every match has: no hover note.

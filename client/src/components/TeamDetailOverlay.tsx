@@ -82,16 +82,17 @@ function matchResult(m: ClubMatch): { label: string; outcomeClass: string } {
  * of the player gameweek log's. Goals are the club's own players' (the
  * partner for xG); the Result column has the score.
  */
-const MATCH_LOG_COLUMNS: { key: string; header: string; decimals: number; higherIsBetter: boolean; value: (m: ClubMatch) => number | null }[] = [
-  { key: "pts", header: "FPL Points", decimals: 0, higherIsBetter: true, value: (m) => m.fantasyPoints },
-  { key: "g", header: "Goals", decimals: 0, higherIsBetter: true, value: (m) => m.goals },
-  { key: "a", header: "Assists", decimals: 0, higherIsBetter: true, value: (m) => m.assists },
-  { key: "xg", header: "xG", decimals: 2, higherIsBetter: true, value: (m) => m.xG },
-  { key: "xa", header: "xA", decimals: 2, higherIsBetter: true, value: (m) => m.xA },
-  { key: "xgi", header: "xGI", decimals: 2, higherIsBetter: true, value: (m) => m.xGI },
-  { key: "cs", header: "Clean Sheets", decimals: 0, higherIsBetter: true, value: (m) => (m.goalsAgainst === 0 ? 1 : 0) },
-  { key: "xgc", header: "xGC", decimals: 2, higherIsBetter: false, value: (m) => m.xGC },
-  { key: "dc", header: "Defensive Contributions", decimals: 0, higherIsBetter: true, value: (m) => m.dc },
+/** `averageDecimals`: the Average row's, as the player Match Log's — one for a count that runs to dozens a match (FPL points, DC), two otherwise. */
+const MATCH_LOG_COLUMNS: { key: string; header: string; decimals: number; averageDecimals: number; higherIsBetter: boolean; value: (m: ClubMatch) => number | null }[] = [
+  { key: "pts", header: "FPL Points", decimals: 0, averageDecimals: 1, higherIsBetter: true, value: (m) => m.fantasyPoints },
+  { key: "g", header: "Goals (excl. OGs)", decimals: 0, averageDecimals: 2, higherIsBetter: true, value: (m) => m.goals },
+  { key: "a", header: "Assists", decimals: 0, averageDecimals: 2, higherIsBetter: true, value: (m) => m.assists },
+  { key: "xg", header: "xG", decimals: 2, averageDecimals: 2, higherIsBetter: true, value: (m) => m.xG },
+  { key: "xa", header: "xA", decimals: 2, averageDecimals: 2, higherIsBetter: true, value: (m) => m.xA },
+  { key: "xgi", header: "xGI", decimals: 2, averageDecimals: 2, higherIsBetter: true, value: (m) => m.xGI },
+  { key: "cs", header: "Clean Sheets", decimals: 0, averageDecimals: 2, higherIsBetter: true, value: (m) => (m.goalsAgainst === 0 ? 1 : 0) },
+  { key: "xgc", header: "xGC", decimals: 2, averageDecimals: 2, higherIsBetter: false, value: (m) => m.xGC },
+  { key: "dc", header: "Defensive Contributions", decimals: 0, averageDecimals: 1, higherIsBetter: true, value: (m) => m.dc },
 ];
 
 /** A column's Totals and Average over the matches (<partial_totals>): those with a figure added up, a match without one left out; null if none has one. */
@@ -327,7 +328,7 @@ export function TeamDetailOverlay() {
               <div className="card-title">Season Totals</div>
               <div className="stat-tile-grid">
                 <StatTile label="FPL Points" value={fmtDecimal(clubTotals.points, countDecimals(analysisMode))} {...totalsShade("points")} />
-                <StatTile label="Goals" value={fmtDecimal(clubTotals.goals, countDecimals(analysisMode))} {...totalsShade("goals")} />
+                <StatTile label="Goals (excl. OGs)" value={fmtDecimal(clubTotals.goals, countDecimals(analysisMode))} {...totalsShade("goals")} />
                 <StatTile label="Assists" value={fmtDecimal(clubTotals.assists, countDecimals(analysisMode))} {...totalsShade("assists")} />
               </div>
               <div className="stat-tile-grid" style={{ marginTop: 10 }}>
@@ -509,7 +510,7 @@ export function TeamDetailOverlay() {
                         const average = partialAverage(sum);
                         return (
                           <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} style={{ background: alt ? alt.averageTint : matchLogTint(c.key, "average", average, c.higherIsBetter) }}>
-                            {alt ? alt.average : withCoverage(fmtDecimal(average, 2), sum)}
+                            {alt ? alt.average : withCoverage(fmtDecimal(average, c.averageDecimals), sum)}
                           </td>
                         );
                       })}

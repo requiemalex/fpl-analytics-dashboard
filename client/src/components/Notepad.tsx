@@ -181,7 +181,7 @@ export function Notepad({ open, onClose }: { open: boolean; onClose: () => void 
               <span className="notepad-title">Notepad</span>
             </div>
             <div className="notepad-actions">
-              <button type="button" className="chip chip-icon" title="New tab" aria-label="New tab" disabled={atTabLimit} onClick={handleAdd}>
+              <button type="button" className="chip chip-icon" title={atTabLimit ? `New tab: up to ${MAX_TABS} tabs, so delete one first` : "New tab"} aria-label="New tab" disabled={atTabLimit} onClick={handleAdd}>
                 <PlusIcon size={13} />
               </button>
               {activeTab && (
