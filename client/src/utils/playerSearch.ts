@@ -81,9 +81,46 @@ function matchesWords(words: string[], query: string, allowTypos = true): boolea
   );
 }
 
-/** Team Explorer's "Team name…" search — the same accent-stripping, any-order, typo-tolerant word matching as players, over the club's name and short name ("man utd" and "mun" both find Man Utd; "forest" finds Nott'm Forest). */
+/**
+ * Clubs' full names, by FPL's three-letter code, so a search for the name
+ * people actually say finds FPL's short form ("tottenham" finds Spurs,
+ * "manchester united" Man Utd, "nottingham" Nott'm Forest; audit
+ * 2026-10-23 in-app). Search words only, never shown. A code that isn't
+ * here just searches by FPL's own names.
+ */
+const CLUB_FULL_NAMES: Record<string, string> = {
+  ARS: "Arsenal",
+  AVL: "Aston Villa",
+  BOU: "AFC Bournemouth",
+  BRE: "Brentford",
+  BHA: "Brighton and Hove Albion",
+  BUR: "Burnley",
+  CHE: "Chelsea",
+  COV: "Coventry City",
+  CRY: "Crystal Palace",
+  EVE: "Everton",
+  FUL: "Fulham",
+  HUL: "Hull City",
+  IPS: "Ipswich Town",
+  LEE: "Leeds United",
+  LEI: "Leicester City",
+  LIV: "Liverpool",
+  LUT: "Luton Town",
+  MCI: "Manchester City",
+  MUN: "Manchester United",
+  NEW: "Newcastle United",
+  NFO: "Nottingham Forest",
+  SHU: "Sheffield United",
+  SOU: "Southampton",
+  SUN: "Sunderland",
+  TOT: "Tottenham Hotspur",
+  WHU: "West Ham United",
+  WOL: "Wolverhampton Wanderers Wolves",
+};
+
+/** Team Explorer's "Team name…" search — the same accent-stripping, any-order, typo-tolerant word matching as players, over the club's name, short name and full name ("man utd", "mun" and "manchester united" all find Man Utd; "forest" finds Nott'm Forest). */
 export function matchesTeamSearch(team: Pick<TeamAggregate, "name" | "shortName">, query: string): boolean {
-  return matchesWords(normalizeSearchText(`${team.name} ${team.shortName}`).split(WORD_SEPARATORS).filter(Boolean), query);
+  return matchesWords(normalizeSearchText(`${team.name} ${team.shortName} ${CLUB_FULL_NAMES[team.shortName] ?? ""}`).split(WORD_SEPARATORS).filter(Boolean), query);
 }
 
 /** Splits both names and the query, so a name typed as FPL displays it ("B.Fernandes", "O'Brien") breaks into the same words the player's name does. Curly apostrophes count too, so a name pasted from a web page ("O’Riley") still matches. */

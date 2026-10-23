@@ -6,14 +6,22 @@ export interface SortSpec {
 }
 
 /**
- * Click a header to sort by it (descending first); click again to flip
- * direction; click a different header to replace the sort entirely;
- * shift-click to add it as a secondary tiebreaker instead of replacing.
+ * Click a header to sort by it; click again to flip direction; click a
+ * different header to replace the sort entirely; shift-click to add it as
+ * a secondary tiebreaker instead of replacing.
+ *
+ * <natural_first_click>: a column's first click puts its best first, the
+ * order the Dashboard's Order starts on: lowest first where lower is better
+ * (Goals Against, xGC, League Position, Price…), names A to Z, highest
+ * first otherwise. `firstDirection` says which for a key (descending if
+ * not given). Before, every first click was descending, so those columns
+ * opened worst first (audit 2026-10-23 in-app).
  */
-export function useSortSpec(initial: SortSpec[]) {
+export function useSortSpec(initial: SortSpec[], firstDirection: (key: string) => "asc" | "desc" = () => "desc") {
   const [sort, setSort] = useState<SortSpec[]>(initial);
 
   function handleHeaderClick(key: string, shiftKey: boolean) {
+    const first = firstDirection(key);
     setSort((prev) => {
       const existingIdx = prev.findIndex((s) => s.key === key);
       if (shiftKey) {
@@ -22,12 +30,12 @@ export function useSortSpec(initial: SortSpec[]) {
           next[existingIdx] = { key, direction: next[existingIdx].direction === "asc" ? "desc" : "asc" };
           return next;
         }
-        return [...prev, { key, direction: "desc" }];
+        return [...prev, { key, direction: first }];
       }
       if (existingIdx === 0 && prev.length === 1) {
         return [{ key, direction: prev[0].direction === "asc" ? "desc" : "asc" }];
       }
-      return [{ key, direction: "desc" }];
+      return [{ key, direction: first }];
     });
   }
 

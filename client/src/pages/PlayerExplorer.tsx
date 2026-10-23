@@ -361,7 +361,10 @@ export function PlayerExplorer() {
   }, [allRows, search]);
 
   const [showColumnPopover, setShowColumnPopover] = useState(false);
-  const { sort, setSort, handleHeaderClick } = useSortSpec(EXPLORER_DEFAULT_SORT);
+  // <natural_first_click>: names and clubs A to Z, Position in pitch order (its first, descending, click), a lower-is-better figure lowest first.
+  const { sort, setSort, handleHeaderClick } = useSortSpec(EXPLORER_DEFAULT_SORT, (key) =>
+    key === "name" || key === TEAM_COLUMN_KEY ? "asc" : key === POSITION_COLUMN_KEY ? "desc" : lookupColumn(key)?.higherIsBetter === false ? "asc" : "desc",
+  );
 
   const {
     visibleColumns,

@@ -147,9 +147,10 @@ describe("Player Explorer — findings from the 2026-09-25 audit", () => {
 
   it("L3: sorting by Player A→Z is alphabetical, accented names included", () => {
     const { container } = renderExplorer();
-    fireEvent.click(header(container, "Player")); // first click: descending
-    fireEvent.click(header(container, "Player")); // second click: ascending
+    fireEvent.click(header(container, "Player")); // first click: A to Z (<natural_first_click>)
     expect(rowNames(container)).toEqual(["Ángel", "Bob", "Ødegaard", "Zubimendi"]);
+    fireEvent.click(header(container, "Player")); // second click: Z to A
+    expect(rowNames(container)).toEqual(["Zubimendi", "Ødegaard", "Bob", "Ángel"]);
   });
 });
 

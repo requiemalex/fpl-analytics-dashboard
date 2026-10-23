@@ -273,7 +273,9 @@ export function UserGuide() {
             table scrolls sideways.
           </li>
           <li>
-            <strong>Sort:</strong> click a header; shift-click another (the Player name too) to add a tiebreaker. A blank (—)
+            <strong>Sort:</strong> click a header; its first click puts the best first (lowest first where lower is better, like
+            Price, Goals Against or xGC; names A to Z), the next reverses it. Shift-click another (the Player name too) to add a
+            tiebreaker. A blank (—)
             counts as lower than any value. Names sort alphabetically, ignoring accents (Ødegaard sits among the Os); Position sorts GKP, DEF, MID, FWD.
           </li>
           <li>
@@ -403,7 +405,8 @@ export function UserGuide() {
           </li>
           <li>
             <strong>Views</strong> work like the Dashboard's: <strong>My View</strong> starts blank, with a + card in each section
-            (up to 4 cards per section); pencil edits, bin removes (after you confirm), and cards drag to reorder. <strong>Starter</strong> is a
+            (up to 4 cards per section); pencil edits, bin removes (after you confirm), and cards drag to reorder. A card's name is
+            optional, and its dialog's box filters the statistics by name. <strong>Starter</strong> is a
             read-only set of radars, outputs and trends that works for any players. Create View adds another (up to 5, Starter
             included). A view keeps the layout, not the players.
           </li>
@@ -438,7 +441,7 @@ export function UserGuide() {
           sheets, xG, xGC, xA and FPL points) with Player Explorer's toolbar and column toolkit, saved views included (up to 5 of
           its own). Columns adds more team metrics
           (played, wins, draws, losses, goal difference, goals, assists, bonus, xGI, defensive contributions), and the "Team name…"
-          box searches by name or short name. A team's pill, a swatch of its real kit colours where known, opens its Team
+          box searches by name, short name or the club's full name ("Tottenham" finds Spurs). A team's pill, a swatch of its real kit colours where known, opens its Team
           Profile wherever it appears in the app.
           {ext ? ` ${ext.label}'s club figures are in Columns too, in their own colour; see "${ext.guideSection.navLabel}" below.` : ""}
         </p>

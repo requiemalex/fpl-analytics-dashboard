@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { compareSortValues, sortWithinColumns, sortWithoutHiddenColumn, type SortSpec } from "./useSortSpec";
+import { act, renderHook } from "@testing-library/react";
+import { compareSortValues, sortWithinColumns, sortWithoutHiddenColumn, useSortSpec, type SortSpec } from "./useSortSpec";
 
 describe("compareSortValues — null handling", () => {
   it("'last' (default): a null always sorts after every real value, in EITHER direction", () => {
@@ -83,5 +84,31 @@ describe("Reset drops a sort on a column it hides (audit 2026-10-18 M17)", () =>
   it("a sort on a column still shown is kept as it was (same object)", () => {
     const sort: SortSpec[] = [{ key: "xG", direction: "asc" }];
     expect(sortWithinColumns(sort, VISIBLE_AFTER_RESET, DEFAULT)).toBe(sort);
+  });
+});
+
+describe("<natural_first_click> a column's first click puts its best first (audit 2026-10-23 in-app)", () => {
+  const natural = (key: string) => (key === "goalsAgainst" || key === "name" ? "asc" : "desc");
+
+  it("lowest first for a lower-is-better column, highest first otherwise; a second click flips it", () => {
+    const { result } = renderHook(() => useSortSpec([{ key: "leaguePosition", direction: "asc" }], natural));
+    act(() => result.current.handleHeaderClick("goalsAgainst", false));
+    expect(result.current.sort).toEqual([{ key: "goalsAgainst", direction: "asc" }]);
+    act(() => result.current.handleHeaderClick("goalsAgainst", false));
+    expect(result.current.sort).toEqual([{ key: "goalsAgainst", direction: "desc" }]);
+    act(() => result.current.handleHeaderClick("points", false));
+    expect(result.current.sort).toEqual([{ key: "points", direction: "desc" }]);
+  });
+
+  it("a shift-click tiebreaker starts on its own natural order too", () => {
+    const { result } = renderHook(() => useSortSpec([{ key: "points", direction: "desc" }], natural));
+    act(() => result.current.handleHeaderClick("name", true));
+    expect(result.current.sort).toEqual([{ key: "points", direction: "desc" }, { key: "name", direction: "asc" }]);
+  });
+
+  it("without a rule, every first click is descending, as before", () => {
+    const { result } = renderHook(() => useSortSpec([]));
+    act(() => result.current.handleHeaderClick("goalsAgainst", false));
+    expect(result.current.sort).toEqual([{ key: "goalsAgainst", direction: "desc" }]);
   });
 });

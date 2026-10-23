@@ -1232,7 +1232,9 @@ obvious from the UI.
     axis-triggered tooltip that never fired or named the wrong player.
 
 **Player Explorer / tables** — column reorder, resize, fit and reset
-(`state/useColumnCustomization.ts`), multi-column sort (`state/useSortSpec.ts`; a "—"
+(`state/useColumnCustomization.ts`), multi-column sort (`state/useSortSpec.ts`; a
+column's first click puts its best first, `<natural_first_click>`: lowest first
+where `higherIsBetter` is false, names A to Z, Position in pitch order; a "—"
 sorts below every real value in Player Explorer, at the owner's request,
 and last in either direction everywhere else; Shift-click adds any header,
 the name column included, as a tiebreaker), and ≤/≥/= column filters

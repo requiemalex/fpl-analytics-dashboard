@@ -350,7 +350,10 @@ export function TeamBuilder() {
   const historicRawMinWidths = useMemo(() => Object.fromEntries(PLAYER_COLUMNS.map((c) => [c.key, headerMinWidth(c.label)])), []);
   const predictiveCols = useColumnCustomization(DEFAULT_PREDICTIVE_COLUMN_KEYS, predictiveMinWidths, () => pickerFitRef.current());
   const historicRawCols = useColumnCustomization(DEFAULT_HISTORIC_RAW_COLUMN_KEYS, historicRawMinWidths, () => pickerFitRef.current());
-  const { sort: pickerSort, setSort: setPickerSort, handleHeaderClick: handlePickerHeaderClick } = useSortSpec(PICKER_DEFAULT_SORT);
+  // <natural_first_click>: names A to Z, a lower-is-better figure (fixture difficulty, price, GC…) lowest first, as in the Explorers.
+  const { sort: pickerSort, setSort: setPickerSort, handleHeaderClick: handlePickerHeaderClick } = useSortSpec(PICKER_DEFAULT_SORT, (key) =>
+    key === "name" ? "asc" : (PREDICTIVE_COLUMNS.find((c) => c.key === key) ?? columnByKey(key))?.higherIsBetter === false ? "asc" : "desc",
+  );
   const pickerTableWrapRef = useRef<HTMLDivElement>(null);
 
   // Keep activeId pointing at a real squad even after a delete/first-load.

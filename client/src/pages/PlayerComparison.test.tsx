@@ -71,17 +71,19 @@ describe("PlayerComparison", () => {
     expect(tag.querySelector(".team-badge")).toBeTruthy();
   });
 
-  it("builds an Outputs panel from the dialog: a name and at least one statistic are required", () => {
+  it("builds an Outputs panel from the dialog: at least one statistic is required, a name is optional", () => {
     const { getByRole, getByLabelText, container } = renderPage("1,2");
     fireEvent.click(getByRole("button", { name: "Add Outputs Panel" }));
     const dialog = container.querySelector(".dialog") as HTMLElement;
     const save = within(dialog).getByRole("button", { name: "Add Outputs Panel" }) as HTMLButtonElement;
-    expect(save.disabled).toBe(true);
+    // Pressed with no statistic: the problem shows in the dialog, which stays open (as on the Dashboard).
+    fireEvent.click(save);
+    expect(within(dialog).getByText("Pick at least one statistic.")).toBeTruthy();
+    expect(container.querySelector(".dialog")).toBeTruthy();
     fireEvent.change(getByLabelText("Name"), { target: { value: "Goals race" } });
-    expect(save.disabled).toBe(true);
     fireEvent.click(within(dialog).getByRole("button", { name: "Goals" }));
     fireEvent.click(within(dialog).getByRole("radio", { name: "Current Season" }));
-    expect(save.disabled).toBe(false);
+    expect(within(dialog).queryByText("Pick at least one statistic.")).toBeNull();
     fireEvent.click(save);
     expect(container.querySelector(".dialog")).toBeNull();
     const panel = container.querySelector(".cmp-outputs") as HTMLElement;

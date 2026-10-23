@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { filterBySearch, matchesPlayerSearch, rankBySearch } from "./playerSearch";
+import { filterBySearch, matchesPlayerSearch, matchesTeamSearch, rankBySearch } from "./playerSearch";
 import { makePlayer } from "../test/fixtures";
 
 // Real 2026/27 names from bootstrap-static (web_name, first_name, second_name).
@@ -80,5 +80,21 @@ describe("<exact_before_typos> filterBySearch and rankBySearch (audit 2026-10-23
   it("puts the player whose FPL name is the query first, keeping the rest in order", () => {
     const ranked = rankBySearch(filterBySearch(pool, "joao pedro", (p) => p), "joao pedro", (p) => p).map((p) => p.name);
     expect(ranked).toEqual(["João Pedro", "Costinha"]);
+  });
+});
+
+describe("matchesTeamSearch finds a club by the name people say, not only FPL's short form (audit 2026-10-23 in-app)", () => {
+  const spurs = { name: "Spurs", shortName: "TOT" };
+  const united = { name: "Man Utd", shortName: "MUN" };
+  const forest = { name: "Nott'm Forest", shortName: "NFO" };
+  it("full names find FPL's short forms", () => {
+    expect(matchesTeamSearch(spurs, "tottenham")).toBe(true);
+    expect(matchesTeamSearch(united, "manchester united")).toBe(true);
+    expect(matchesTeamSearch(forest, "nottingham")).toBe(true);
+  });
+  it("FPL's own names still work, and a full name doesn't match the wrong club", () => {
+    expect(matchesTeamSearch(united, "man utd")).toBe(true);
+    expect(matchesTeamSearch(united, "mun")).toBe(true);
+    expect(matchesTeamSearch(spurs, "manchester")).toBe(false);
   });
 });

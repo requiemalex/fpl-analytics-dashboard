@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { DATA_VIEW_SEGMENTS } from "../AnalysisModeToggle";
-import { MAX_NAME_LENGTH, MenuGroupHeading, MinutesSlider, SegmentedControl, SelectionMeter } from "../MenuControls";
+import { MAX_NAME_LENGTH, MenuGroupHeading, MinutesSlider, SegmentedControl, SelectionMeter, useTextFilter } from "../MenuControls";
 import { CrossoverGroupHeading } from "../SourceToggle";
 import {
   COMPARISON_GROUP_LABELS,
@@ -85,13 +85,19 @@ export function ComparisonElementDialog({
   const trendCrossover = new Set(external?.trendCrossoverKeys ?? []);
   const name = settings.name.trim();
 
-  const problem = !name
-    ? "Name is required"
-    : kind === "radar" && picked.length < RADAR_MIN_METRICS
-      ? `Pick at least ${RADAR_MIN_METRICS} statistics: a radar needs 3 axes to make a shape`
+  // A name is optional: an unnamed card is titled by its kind, as its placeholder shows (as on the Dashboard).
+  const problem =
+    kind === "radar" && picked.length < RADAR_MIN_METRICS
+      ? `Pick at least ${RADAR_MIN_METRICS} statistics: a radar needs 3 axes to make a shape.`
       : kind === "outputs" && picked.length === 0
-        ? "Pick at least one statistic"
+        ? "Pick at least one statistic."
         : undefined;
+  /** Add/Save was pressed with a problem: it shows in the dialog until fixed, as on the Dashboard. */
+  const [submitTried, setSubmitTried] = useState(false);
+  const [filter, setFilter] = useState("");
+  const chipsRef = useRef<HTMLDivElement>(null);
+  const noMatchRef = useRef<HTMLDivElement>(null);
+  useTextFilter(chipsRef, filter, "button.chip", noMatchRef);
 
   function toggleMetric(key: string) {
     setSettings((prev) => {
@@ -123,7 +129,10 @@ export function ComparisonElementDialog({
   }
 
   function save() {
-    if (problem) return;
+    if (problem) {
+      setSubmitTried(true);
+      return;
+    }
     onSave({ ...settings, name, metricKeys: kind === "trend" ? settings.metricKeys : picked });
   }
 
@@ -139,7 +148,7 @@ export function ComparisonElementDialog({
             id="cmp-element-name"
             type="text"
             maxLength={MAX_NAME_LENGTH}
-            placeholder={kind === "radar" ? "e.g. Attacking Shape" : kind === "outputs" ? "e.g. Last Season Output" : "e.g. Points by Season"}
+            placeholder={ELEMENT_NOUNS[kind]}
             value={settings.name}
             onChange={(e) => setSettings((prev) => ({ ...prev, name: e.target.value }))}
           />
@@ -152,7 +161,18 @@ export function ComparisonElementDialog({
                 <span className="selection-meter-title">Y axis</span>
               </div>
             </div>
-            <div className="menu-chips">
+            <input
+              type="text"
+              className="columns-popover-filter"
+              placeholder="Type to filter…"
+              aria-label="Filter the statistics"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+            <div ref={noMatchRef} className="columns-popover-empty" style={{ display: "none" }}>
+              No statistic matches "{filter.trim()}".
+            </div>
+            <div className="menu-chips" ref={chipsRef}>
               {TREND_METRIC_GROUP_ORDER.map((group) => (
                 <div key={group}>
                   <MenuGroupHeading group={group} label={fplHeading(group)} className={fplHeadingClass} />
@@ -182,7 +202,18 @@ export function ComparisonElementDialog({
               onChange={(dataView) => setSettings((prev) => ({ ...prev, dataView }))}
             />
             <SelectionMeter title={kind === "radar" ? "Axes" : "Statistics"} count={picked.length} max={maxMetrics} />
-            <div className="menu-chips">
+            <input
+              type="text"
+              className="columns-popover-filter"
+              placeholder="Type to filter…"
+              aria-label="Filter the statistics"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+            <div ref={noMatchRef} className="columns-popover-empty" style={{ display: "none" }}>
+              No statistic matches "{filter.trim()}".
+            </div>
+            <div className="menu-chips" ref={chipsRef}>
               {COMPARISON_GROUP_ORDER.map((group) => (
                 <div key={group}>
                   <MenuGroupHeading group={group} label={fplHeading(COMPARISON_GROUP_LABELS[group])} className={fplHeadingClass} />
@@ -211,12 +242,12 @@ export function ComparisonElementDialog({
           onChange={(minMinutes) => setSettings((prev) => ({ ...prev, minMinutes }))}
         />
 
-        {error && <div className="banner error">{error}</div>}
+        {submitTried && problem ? <div className="banner error">{problem}</div> : error && <div className="banner error">{error}</div>}
         <div className="dialog-actions">
           <button type="button" className="btn" onClick={onCancel}>
             Cancel
           </button>
-          <button type="button" className="btn primary" onClick={save} disabled={!!problem} title={problem}>
+          <button type="button" className="btn primary" onClick={save}>
             {initial ? "Save Changes" : `Add ${ELEMENT_NOUNS[kind]}`}
           </button>
         </div>

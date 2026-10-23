@@ -264,39 +264,49 @@ export function foldText(s: string): string {
 }
 
 /**
- * The Explorers' and Add Players' Columns picker: its checkboxes under
- * their group headings, with a filter box on top that has the focus and
- * leaves only the columns whose name contains what's typed, and the
- * headings that still have one (audit 2026-10-23 in-app: the list runs to
- * about ninety). Pages pass their own groups (a div per group, a label per
- * column) as children, so each keeps its own headings and order.
+ * <text_filter>: after every render, hides the items in `list` (matched by
+ * `itemSelector`, e.g. "label" or "button.chip") whose text doesn't contain
+ * `filter` (accents and case aside), and while filtering hides each of the
+ * list's groups (its direct children) with nothing left, heading and all.
+ * Returns nothing; `empty`, if given, is shown only when nothing matches.
+ * Shared by the Columns pickers and Player Comparison's statistic chips.
  */
-export function ColumnsPopover({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
-  const [filter, setFilter] = useState("");
-  const listRef = useRef<HTMLDivElement>(null);
-  const emptyRef = useRef<HTMLDivElement>(null);
-
-  // Hides what doesn't match after every render, so a column the page adds
-  // or renames is filtered like the rest.
+export function useTextFilter(list: React.RefObject<HTMLElement>, filter: string, itemSelector: string, empty?: React.RefObject<HTMLElement>): void {
   useLayoutEffect(() => {
-    const list = listRef.current;
-    if (!list) return;
+    const root = list.current;
+    if (!root) return;
     const needle = foldText(filter.trim());
     let shown = 0;
-    for (const group of list.children) {
-      const labels = [...group.querySelectorAll<HTMLElement>("label")];
+    for (const group of root.children) {
+      const items = [...group.querySelectorAll<HTMLElement>(itemSelector)];
       let groupShown = 0;
-      for (const label of labels) {
-        const hide = needle !== "" && !foldText(label.textContent ?? "").includes(needle);
-        label.style.display = hide ? "none" : "";
+      for (const item of items) {
+        const hide = needle !== "" && !foldText(item.textContent ?? "").includes(needle);
+        item.style.display = hide ? "none" : "";
         if (!hide) groupShown += 1;
       }
       // While filtering, a heading with nothing under it that matches goes too.
       (group as HTMLElement).style.display = needle !== "" && groupShown === 0 ? "none" : "";
       shown += groupShown;
     }
-    if (emptyRef.current) emptyRef.current.style.display = shown === 0 ? "" : "none";
+    if (empty?.current) empty.current.style.display = shown === 0 ? "" : "none";
   });
+}
+
+/**
+ * The Explorers' and Add Players' Columns picker: its checkboxes under
+ * their group headings, with a filter box on top that has the focus and
+ * leaves only the columns whose name contains what's typed, and the
+ * headings that still have one (<text_filter>; audit 2026-10-23 in-app:
+ * the list runs to about ninety). Pages pass their own groups (a div per
+ * group, a label per column) as children, so each keeps its own headings
+ * and order.
+ */
+export function ColumnsPopover({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  const [filter, setFilter] = useState("");
+  const listRef = useRef<HTMLDivElement>(null);
+  const emptyRef = useRef<HTMLDivElement>(null);
+  useTextFilter(listRef, filter, "label", emptyRef);
 
   return (
     <div className="popover columns-popover" style={style}>

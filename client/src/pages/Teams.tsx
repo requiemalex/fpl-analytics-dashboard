@@ -50,7 +50,10 @@ export function Teams() {
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("lastSeason");
   const [search, setSearch] = useState("");
   const columnFiltersState = useColumnFilters();
-  const { sort, setSort, handleHeaderClick } = useSortSpec(TEAM_EXPLORER_DEFAULT_SORT);
+  // <natural_first_click>: club names A to Z, a lower-is-better figure (League Position, Goals Against, xGC…) lowest first.
+  const { sort, setSort, handleHeaderClick } = useSortSpec(TEAM_EXPLORER_DEFAULT_SORT, (key) =>
+    key === "name" ? "asc" : lookupColumn(key)?.higherIsBetter === false ? "asc" : "desc",
+  );
 
   // A second data source (Understat), when one is mounted — same as Player
   // Explorer: its own club columns, and its version of a figure FPL also has,
