@@ -3812,3 +3812,14 @@ tiles/graphs only:
   free port (`<app_address>`), so the address, and the saved data that
   belongs to it, didn't change.
 - **Last commit with it:** `7f1236d`.
+
+### The installer opening the app when it finishes (replaced 2026-10-23)
+- **What it did:** the one-click installer opened Scoutline when it
+  finished (electron-builder's default `nsis.runAfterFinish`), including a
+  first install from the setup file.
+- **Why it went:** with updates now installing visibly (not silently), it
+  also reopened the app after an update installed on close, after the
+  person had closed it. It's off; the app reopens after an update only when
+  the app asks (`--force-run`: the launch update and "Restart now"). A first
+  install now ends without opening the app; its shortcut opens it.
+- **Last commit with it:** `c1695d8`.

@@ -70,7 +70,8 @@
       "target": "nsis"
     },
     "nsis": {
-      "license": "LICENSE.txt"
+      "license": "LICENSE.txt",
+      "runAfterFinish": false
     },
     "linux": {
       "target": "AppImage",

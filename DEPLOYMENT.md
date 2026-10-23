@@ -203,8 +203,11 @@ after an install that didn't take (the app notes each attempt in
 `update-state.json`). While the app is open it checks again every 10
 minutes, downloads in the background, and a dialog offers "Restart now"
 (install with its progress bar, then the app reopens) or "Later"
-(installs the same way the next time the app is closed). Installs are
-never silent: a silent one showed nothing while it ran, and opening the
+(installs the same way the next time the app is closed, leaving it closed,
+but never while Windows is shutting down). `build.nsis.runAfterFinish` is
+off: otherwise a visible one-click install always reopens the app, even
+after the person closed it; the app is reopened only via `--force-run`.
+Installs are never silent: a silent one showed nothing while it ran, and opening the
 app in that gap started the old copy mid-install. This is a no-op during `npm run electron:start`
 (electron-updater skips itself for an unpackaged dev run).
 

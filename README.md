@@ -1710,7 +1710,12 @@ window forward.
   then the app closes and the installer runs with its own progress bar
   (never silently: a silent install left nothing on screen while it ran)
   and reopens it. "Later" installs it, with that progress bar, as the app
-  closes. Each install attempt is noted first; if the next launch is still
+  closes, and leaves it closed (`build.nsis.runAfterFinish` is off, so the
+  installer reopens the app only when told to with `--force-run`; the cost:
+  a first install from the setup file doesn't open the app at the end).
+  Not while Windows is shutting down (`session-end`): an installer cut off
+  half-way would leave a broken copy, so the next launch installs it
+  instead. Each install attempt is noted first; if the next launch is still
   on the old version, that install failed, and the app opens as it is
   instead of trying it again before opening, so a failing update can't
   close the app on every launch. A second launch brings forward whichever

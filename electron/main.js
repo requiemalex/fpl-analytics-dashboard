@@ -292,6 +292,10 @@ function createWindow() {
     clearTimeout(readyTimer);
     if (mainWindow === window) mainWindow = null;
   });
+  window.on("session-end", () => {
+    sessionEnding = true;
+    log.info("Windows is shutting down or signing out");
+  });
 }
 
 /** The main window can't be opened: say so, with where the details are, and quit rather than stay running unseen. */
@@ -406,6 +410,8 @@ let launchUpdate = null;
 let downloadedVersion = null;
 /** Set once an installer has been started this session, so it's never started twice. */
 let installStarted = false;
+/** Set when Windows says it's shutting down, restarting or signing out. */
+let sessionEnding = false;
 
 const UPDATE_STATE_FILE = path.join(app.getPath("userData"), "update-state.json");
 let updateState = readUpdateState(UPDATE_STATE_FILE);
@@ -432,7 +438,10 @@ function reviewLastInstall() {
  * a silent install showed nothing for the 10–30 seconds it ran, and opening
  * the app in that gap started the old copy while its files were being
  * replaced (audit 2026-10-23, finding 2). `relaunch`: reopen the app once
- * installed (launch and "Restart now"); not when the person closed it.
+ * installed (launch and "Restart now"); not when the person closed it. The
+ * installer reopens it only when told to (--force-run): package.json's
+ * nsis.runAfterFinish is off, as a visible one-click install otherwise
+ * always reopens the app, even after the person closed it.
  */
 function installUpdate(version, { relaunch }) {
   if (installStarted) return;
@@ -585,9 +594,12 @@ function startUpdateChecks() {
     if (response === 0) installUpdate(info.version, { relaunch: true });
   });
 
-  // "Later": the downloaded update installs as the app closes (an ordinary close only, not a crash).
+  // "Later": the downloaded update installs as the app closes (an ordinary close only, not a crash). Not when
+  // Windows is shutting down: an installer cut off half-way would leave a broken copy. The next launch installs it.
   app.on("quit", (_event, exitCode) => {
-    if (downloadedVersion && !installStarted && exitCode === 0) installUpdate(downloadedVersion, { relaunch: false });
+    if (!downloadedVersion || installStarted || exitCode !== 0) return;
+    if (sessionEnding) log.info(`Not installing ${downloadedVersion} while Windows shuts down: the next launch will`);
+    else installUpdate(downloadedVersion, { relaunch: false });
   });
 
   checkTimer = setInterval(

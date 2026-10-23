@@ -530,7 +530,8 @@ export function UserGuide() {
           small installer window shows its progress, and the app reopens on the new version by itself. With no internet, or a check
           or download that takes too long, it just opens as it is. While it's open it checks again every 10 minutes, and when an
           update is ready it offers to restart into it now or install it the next time you close the app (the installer window
-          shows then too; wait for it to finish before opening the app again). If an update ever fails to install, the app opens
+          shows then too; wait for it to finish before opening the app again, or let the next launch install it if you're shutting
+          down the computer). If an update ever fails to install, the app opens
           on the version you have and offers the update again later. Without an internet connection (or while FPL's own site is
           down), the app opens on the last data it downloaded, if that's no more than a week old, with a banner saying how old it is.
         </p>
