@@ -10,7 +10,9 @@
  *
  * The bots' own commits (the daily Understat sync, the club-history
  * archive) are counted, not listed: the app reads Understat data from
- * GitHub directly, and the archive releases itself when it needs to.
+ * GitHub directly, and the archive releases itself when it needs to. A
+ * release's own "Release notes: vX.Y.Z" commit (docs/RELEASES.md,
+ * notes.ts) is neither: it's the record of a release, not a change in one.
  */
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -19,20 +21,20 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-function git(args: string): string {
+export function git(args: string): string {
   // Only trailing whitespace: `status --porcelain` lines start with a meaningful space.
   // stderr piped, not inherited: git's line-ending warnings would otherwise land in the report.
   return execSync(`git ${args}`, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trimEnd();
 }
 
-function when(iso: string): string {
+export function when(iso: string): string {
   const d = new Date(iso);
   const date = d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   const time = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
   return `${date} ${time}`;
 }
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 /** Lines added/removed per path, staged and unstaged together (both are "since the last commit"). */
 function lineCounts(): Map<string, string> {
@@ -94,26 +96,42 @@ export function uncommittedLines(): string[] {
   return lines;
 }
 
+/** The subject of the commit that records a release in docs/RELEASES.md (notes.ts). */
+export const RELEASE_NOTES_SUBJECT = /^Release notes: v\d+\.\d+\.\d+$/;
+
+/** When a release's tag was made. */
+export function releasedAt(tag: string): string {
+  return git(`for-each-ref refs/tags/${tag} --format=%(creatordate:iso-strict)`);
+}
+
+/**
+ * The changes in `range` (git's "from..to", or one ref for everything up to
+ * it), newest first, and the automatic data commits it also holds, by hash.
+ */
+export function changesIn(range: string): { changes: { date: string; subject: string }[]; botCommits: string[] } {
+  const SEP = "\u001f";
+  const commits = git(`log ${range} --format=%H${SEP}%cI${SEP}%ae${SEP}%s`)
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const [hash, date, email, subject] = line.split(SEP);
+      return { hash, date, subject, bot: email.includes("[bot]") };
+    })
+    .filter((c) => !RELEASE_NOTES_SUBJECT.test(c.subject));
+  const changes = commits.filter((c) => !c.bot).map(({ date, subject }) => ({ date, subject }));
+  return { changes, botCommits: commits.filter((c) => c.bot).map((c) => c.hash) };
+}
+
 /**
  * Commits since a release (the last one, or `sinceTag`), newest first, and a
  * warning when any aren't on GitHub yet.
  */
 export function unreleasedLines(sinceTag?: string): string[] {
   const lastTag = sinceTag ?? git('describe --tags --abbrev=0 --match "v*"');
-  const releasedAt = git(`for-each-ref refs/tags/${lastTag} --format=%(creatordate:iso-strict)`);
+  const { changes, botCommits } = changesIn(`${lastTag}..HEAD`);
+  const botCount = botCommits.length;
 
-  const SEP = "\u001f";
-  const commits = git(`log ${lastTag}..HEAD --format=%cI${SEP}%ae${SEP}%s`)
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => {
-      const [date, email, subject] = line.split(SEP);
-      return { date, subject, bot: email.includes("[bot]") };
-    });
-  const changes = commits.filter((c) => !c.bot);
-  const botCount = commits.length - changes.length;
-
-  const since = `${sinceTag ? "" : "the last release, "}${lastTag} (released ${when(releasedAt)})`;
+  const since = `${sinceTag ? "" : "the last release, "}${lastTag} (released ${when(releasedAt(lastTag))})`;
   const lines: string[] = [];
   if (changes.length === 0) {
     lines.push(`Nothing changed since ${since}.`);

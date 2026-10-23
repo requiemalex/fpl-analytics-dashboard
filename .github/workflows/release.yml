@@ -29,7 +29,10 @@ jobs:
   build-and-publish:
     runs-on: windows-latest
     steps:
+      # Full history and tags: the release page's change list is read from git (scripts/release/notes.ts).
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v7
         with:
@@ -75,6 +78,18 @@ jobs:
           grep -qE '^Scoutline-Setup-.*\.exe$' assets.txt
           grep -qE '^Scoutline-Setup-.*\.exe\.blockmap$' assets.txt
           gh release edit "$GITHUB_REF_NAME" --draft=false --latest
+
+      # The version's changes on its Releases page (docs/RELEASES.md keeps every
+      # release's, since this page is pruned below). Failing here leaves the
+      # page without its list, never the release unpublished.
+      - name: Add the change list to the release page
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm run -s release-notes -- --list "$GITHUB_REF_NAME" > notes.md
+          gh release edit "$GITHUB_REF_NAME" --notes-file notes.md
 
       # Keeps the Releases page from accumulating every installer ever
       # built — deletes the release (and its uploaded .exe/.blockmap/

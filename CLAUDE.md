@@ -25,6 +25,8 @@ workspaces at this root. Shipped as a Windows desktop app (Electron).
 - `docs/HISTORY.md` — how things **used to** work. Archived: ignore it unless
   I ask to understand or restore an old feature.
 - `DEPLOYMENT.md` — desktop build/packaging/auto-update.
+- `docs/RELEASES.md` — every release and the changes it shipped, written
+  from git ("Releasing" below).
 
 ```bash
 npm install     # first time
@@ -223,10 +225,17 @@ report, uncommitted edits first, is shown to me when a session opens
 `.claude/settings.local.json`; `scripts/release/changes.ts` builds both). Remind me
 to release when the list has grown or holds a fix users are waiting for.
 
-To release: commit, then `git tag -a vX.Y.Z -m "vX.Y.Z"` and push both
-master and the tag (minor if the batch has any feature, patch if it's only
-fixes). `.github/workflows/release.yml` builds and publishes; installed
-copies update themselves. The club-history archive releases a patch by
+To release: commit and `git pull --rebase`; `npm run release-notes -- vX.Y.Z`
+(minor if the batch has any feature, patch if it's only fixes) and commit
+`docs/RELEASES.md` as "Release notes: vX.Y.Z"; then `git tag -a vX.Y.Z -m
+"vX.Y.Z"` and push both master and the tag.
+`.github/workflows/release.yml` builds and publishes, with the version's
+change list on its GitHub Release page; installed copies update
+themselves. **Once the build has finished, end your reply with `npm run
+released`'s output** ("vX.Y.Z now released" and every change in it; it
+says so if the release isn't public yet). `docs/RELEASES.md` keeps every
+release's changes for good (GitHub keeps only the last 5 releases); it's
+written from git, never by hand. The club-history archive releases a patch by
 itself when a season completes (around May), and that release ships
 whatever is on master, so around then, release first or expect it to
 carry the pending changes. Railway hosting is retired and its files

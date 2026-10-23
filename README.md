@@ -55,6 +55,7 @@ npm run dev      # server :4000 + client :5173 (Vite proxies /api/*) — open ht
 | `npm run electron:build` | Packages the Windows installer into `release/` |
 | `npm run club-history:*` | Club-history data scripts — see "Club history" |
 | `npm run understat:sync` | One Understat sync by hand (the daily job's script) — see "Understat (second data source)" |
+| `npm run unreleased` / `release-notes` / `released` | What the next release would ship; the release log (`docs/RELEASES.md`); what the latest release shipped — see "To release" |
 
 There is no lint script. TypeScript runs `strict`, with `noUnusedLocals`/
 `noUnusedParameters` off.
@@ -1767,15 +1768,25 @@ window forward.
 2. Commit, then `git pull --rebase`: the Understat sync (daily) and the
    club-history archive commit data to master on their own, so a local copy
    is usually a few data commits behind.
-3. `git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin master && git push origin vX.Y.Z`
-   — bump the minor version if the batch has any feature, the patch version
-   if it's only fixes.
+3. `npm run release-notes -- vX.Y.Z` — bump the minor version if the batch
+   has any feature, the patch version if it's only fixes. It rewrites
+   `docs/RELEASES.md`, the release log: every release, newest first, with
+   its changes (each version's commits since the one before, read from git;
+   `scripts/release/notes.ts`), including vX.Y.Z. Commit it as
+   "Release notes: vX.Y.Z"; that commit isn't listed as a change. A release
+   the club-history archive made by itself is filled in the next time.
+4. `git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin master && git push origin vX.Y.Z`
+5. Once the build has finished, `npm run released` says "vX.Y.Z now
+   released" with every change in it, or that it isn't public yet (it asks
+   GitHub, via `gh`).
 
 `.github/workflows/release.yml` builds the installer, takes the version from
 the tag, uploads it to a draft GitHub Release, and makes the release public
 only once the installer, its blockmap and `latest.yml` are all there (a
 release that went public mid-upload could point installed apps at a file
-not there yet). One release build runs at a time. A closed copy installs it the next
+not there yet), then puts the version's change list on its Release page
+(`npm run release-notes -- --list vX.Y.Z`; a failure there leaves the page
+without it, never the release unpublished). One release build runs at a time. A closed copy installs it the next
 time it's opened, before the app appears; an open one finds it within about
 10 minutes and offers to restart into it (or install it when next closed).
 
