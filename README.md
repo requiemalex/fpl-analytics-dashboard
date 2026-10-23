@@ -1198,8 +1198,11 @@ obvious from the UI.
   (`defaultGraphDirection` — lowest first when `higherIsBetter` is false, so
   a League Position graph shows 1–15). A graph without a custom name is
   titled by its metric (bar) or "<X> vs <Y>" (scatter); a tile by its metric,
-  plus "· Lowest First" when ordered that way (`displayTileTitle`), so the two
-  Starter Goals vs xG tiles read differently. A tile's bars
+  plus its order when that runs against the metric's natural one ("· Lowest
+  First" on a higher-is-better metric, "· Highest First" on a lower-is-better
+  one; `displayTileTitle`), so the two Starter Goals vs xG tiles read
+  differently and a League Position tile listing 1st first isn't "Lowest
+  First". A tile's bars
   (`components/statBar.ts`) give the top row, its leader, a full-length bar:
   Highest First (or any +/- metric) as |value| ÷ largest |value|; Lowest First
   on a non-negative metric as leader ÷ value.

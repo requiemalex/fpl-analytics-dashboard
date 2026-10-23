@@ -336,16 +336,21 @@ export function topN<T extends { value: number | null }>(rowsIn: T[], n: number,
   return eligible.slice(0, n);
 }
 
-/** A tile's custom name (set in the Add/Edit dialog) if it has one, else just its metric's name. */
 /**
- * A tile's custom name if it has one, else its metric's name, plus "Lowest
- * First" when it's ordered that way: otherwise a Highest First and a Lowest
- * First tile of one metric (the two Starter "Goals vs xG" tiles) shared a
- * title, told apart only by their signs (audit 2026-10-18 L1).
+ * A tile's custom name if it has one, else its metric's name, plus its
+ * order when that runs against the metric's natural one ("Lowest First" for
+ * a higher-is-better metric, "Highest First" for a lower-is-better one):
+ * otherwise a Highest First and a Lowest First tile of one metric (the two
+ * Starter "Goals vs xG" tiles) shared a title, told apart only by their
+ * signs (audit 2026-10-18 L1). A tile in its natural order needs no
+ * suffix: "League Position · Lowest First" read as the bottom of the table
+ * when it lists the top (audit 2026-10-23 in-app).
  */
-export function displayTileTitle(tile: Pick<SummaryTileConfig, "name" | "direction">, metricLabel: string): string {
+export function displayTileTitle(tile: Pick<SummaryTileConfig, "name" | "direction">, metricLabel: string, higherIsBetter = true): string {
   if (tile.name && tile.name.trim()) return tile.name;
-  return tile.direction === "asc" ? `${metricLabel} · Lowest First` : metricLabel;
+  const natural = higherIsBetter ? "desc" : "asc";
+  if (tile.direction === natural) return metricLabel;
+  return `${metricLabel} · ${tile.direction === "asc" ? "Lowest First" : "Highest First"}`;
 }
 
 /** A scatter graph is "<X> vs <Y>"; a bar graph is just its metric's name. */
@@ -1084,7 +1089,12 @@ export function Dashboard() {
 
   // What an unnamed tile or graph is titled, shown as the Name box's placeholder.
   const metricLabelOf = (key: string, list: { key: string; label: string }[]) => list.find((m) => m.key === key)?.label ?? "Its statistic's name";
-  const autoTileName = displayTileTitle({ name: null, direction: newTileDirection }, metricLabelOf(newTileMetricKey, tileView === "player" ? PLAYER_TILE_METRICS : TEAM_TILE_METRICS));
+  const tileMetricList: { key: string; label: string; higherIsBetter: boolean }[] = tileView === "player" ? PLAYER_TILE_METRICS : TEAM_TILE_METRICS;
+  const autoTileName = displayTileTitle(
+    { name: null, direction: newTileDirection },
+    metricLabelOf(newTileMetricKey, tileMetricList),
+    tileMetricList.find((m) => m.key === newTileMetricKey)?.higherIsBetter ?? true,
+  );
   const graphColumns = tileView === "player" ? PLAYER_COLUMNS : TEAM_COLUMNS;
   const autoGraphName =
     newGraphChartType === "scatter" ? `${metricLabelOf(newGraphXKey, graphColumns)} vs ${metricLabelOf(newGraphYKey, graphColumns)}` : metricLabelOf(newGraphYKey, graphColumns);
@@ -1404,7 +1414,7 @@ export function Dashboard() {
         <div className="card-grid">
           {visibleTileRows.map((row) => {
             const { tile } = row;
-            const onRemove = selectedViewIsDefault ? undefined : () => setConfirmRemove({ kind: "tile", id: tile.id, title: tile.name?.trim() || (row.kind === "unavailable" ? "this tile" : displayTileTitle(tile, row.metric.label)) });
+            const onRemove = selectedViewIsDefault ? undefined : () => setConfirmRemove({ kind: "tile", id: tile.id, title: tile.name?.trim() || (row.kind === "unavailable" ? "this tile" : displayTileTitle(tile, row.metric.label, row.metric.higherIsBetter)) });
             if (row.kind === "unavailable") {
               return <UnavailableItemCard key={tile.id} title={tile.name?.trim() || "Unavailable tile"} noun="tile" onRemove={onRemove} sourceOff={row.sourceOff} />;
             }
@@ -1418,7 +1428,7 @@ export function Dashboard() {
               onDrop: (e: React.DragEvent) => handleTileDrop(e, tile.id),
             };
             const common = {
-              title: displayTileTitle(tile, row.metric.label),
+              title: displayTileTitle(tile, row.metric.label, row.metric.higherIsBetter),
               // As the tile's Data View shows it (<averaged_counts>), the same as the tables.
               format: row.resolved.format,
               dataView: tile.dataView,

@@ -230,7 +230,8 @@ export function UserGuide() {
           <li>
             Each row reads club pill, position, name, bar, value. Bars start at the same point and the top row's is full length, so
             a shorter bar shows how far behind that row is, whichever way the tile is ordered (on a Lowest First tile, a row with
-            twice the leader's figure has half its bar). A tile ordered Lowest First says so in its title. Each figure is
+            twice the leader's figure has half its bar). A tile ordered against its statistic's usual way says so in its title ("Goals vs xG · Lowest
+            First"); one in the usual order (League Position from 1st, say) doesn't need to. Each figure is
             coloured green/red as everywhere (see Overview), against the whole pool for the tile's Data View, not just the
             players it lists.
           </li>

@@ -175,6 +175,9 @@ describe("tile titles (audit 2026-10-18 L1)", () => {
   });
   it("a custom name is shown as given", () => {
     expect(displayTileTitle({ name: "Cheapest", direction: "asc" }, "Price")).toBe("Cheapest");
+    // Only an order against the metric's natural one is named (audit 2026-10-23 in-app).
+    expect(displayTileTitle({ name: null, direction: "asc" }, "League Position", false)).toBe("League Position");
+    expect(displayTileTitle({ name: null, direction: "desc" }, "League Position", false)).toBe("League Position · Highest First");
   });
 });
 
