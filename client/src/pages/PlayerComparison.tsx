@@ -289,6 +289,8 @@ export function PlayerComparison() {
   const [newViewName, setNewViewName] = useState("");
   const [createViewError, setCreateViewError] = useState<string | null>(null);
   const [showDeleteView, setShowDeleteView] = useState(false);
+  /** A card waiting for the person to confirm its removal (no undo), as on the Dashboard. */
+  const [confirmRemove, setConfirmRemove] = useState<{ id: string; title: string; noun: string } | null>(null);
   const [dialog, setDialog] = useState<{ kind: ComparisonElementKind; editing?: ComparisonElementConfig } | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
@@ -536,10 +538,11 @@ export function PlayerComparison() {
   }
 
   // Escape closes whichever dialog is open, discarding it like Cancel.
-  useEscapeLayer(!!dialog || showCreateView || showDeleteView, () => {
+  useEscapeLayer(!!dialog || showCreateView || showDeleteView || confirmRemove !== null, () => {
     setDialog(null);
     setShowCreateView(false);
     setShowDeleteView(false);
+    setConfirmRemove(null);
   });
 
   function renderCard(card: CardData, noun: "chart" | "panel" | "graph") {
@@ -549,7 +552,7 @@ export function PlayerComparison() {
       title: el.name.trim() || ELEMENT_NOUNS[el.kind],
       noun,
       onEdit: editable ? () => openEdit(el) : undefined,
-      onRemove: editable ? () => viewsState.removeElement(el.id) : undefined,
+      onRemove: editable ? () => setConfirmRemove({ id: el.id, title: el.name.trim() || ELEMENT_NOUNS[el.kind], noun }) : undefined,
       draggable: editable,
       isDragOver: dragOverId === el.id,
       onDragStart: (e: React.DragEvent) => handleDragStart(e, el.id),
@@ -694,6 +697,32 @@ export function PlayerComparison() {
           onSave={handleSaveElement}
           onCancel={() => setDialog(null)}
         />
+      )}
+
+      {confirmRemove && (
+        <div className="dialog-backdrop" onClick={() => setConfirmRemove(null)}>
+          <div className="dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-title">Remove {confirmRemove.noun}</div>
+            <p className="page-subtitle" style={{ margin: "0 0 12px" }}>
+              Remove "{confirmRemove.title}" from this view? This can't be undone.
+            </p>
+            <div className="dialog-actions">
+              <button type="button" className="btn" onClick={() => setConfirmRemove(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn primary"
+                onClick={() => {
+                  viewsState.removeElement(confirmRemove.id);
+                  setConfirmRemove(null);
+                }}
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showDeleteView && (

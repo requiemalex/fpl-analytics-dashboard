@@ -88,7 +88,11 @@ export interface SummaryTileConfig {
 }
 
 /** Backfills a possibly-older-shaped stored tile to the current SummaryTileConfig shape — shared by this store's own migrate() below and by useSavedDashboardViews' (which embeds this same tile shape inside each saved view's `tiles` array and needs to stay in sync with it). */
-export function normalizeSummaryTile(t: Partial<SummaryTileConfig>): SummaryTileConfig {
+export function normalizeSummaryTile(t: Partial<SummaryTileConfig>): SummaryTileConfig | null {
+  // Without an id, a scope or a statistic there's nothing to draw: skipped
+  // (mapReadableEntries), as a damaged entry can't be repaired, rather than
+  // reaching the Dashboard and stopping it (audit 2026-10-23 in-app).
+  if (typeof t.id !== "string" || (t.scope !== "player" && t.scope !== "team") || typeof t.metricKey !== "string" || t.metricKey === "") return null;
   return {
     ...t,
     // An unrecognised value (corrupted storage, or data from a newer app

@@ -5,7 +5,7 @@ import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { clubRanks, colourDirection, positionRanks } from "../metrics/comparativeColour";
 import { FIXED_FLOOR_LIVE_MINUTES, FIXED_FLOOR_MINUTES, fixedFloorMinutes } from "../metrics/fixedMinutesFloor";
-import { dashboardFloorNote, isSmallSample } from "../components/MinutesFloorBadge";
+import { dashboardFloorNote, isSmallSample, smallSampleNote } from "../components/MinutesFloorBadge";
 import { useHiddenSmallSamples } from "../state/useHiddenSmallSamples";
 import { filterPlayers } from "../state/useFilteredPlayers";
 import { computeTeamAggregates, type TeamAggregate } from "../metrics/teamStats";
@@ -630,6 +630,11 @@ export function Dashboard() {
   const [createViewError, setCreateViewError] = useState<string | null>(null);
   const [loadViewError, setLoadViewError] = useState<string | null>(null);
   const [showDeleteViewConfirm, setShowDeleteViewConfirm] = useState(false);
+  /** A tile or graph waiting for the person to confirm its removal (no undo). */
+  const [confirmRemove, setConfirmRemove] = useState<{ kind: "tile" | "graph"; id: string; title: string } | null>(null);
+  /** The Add/Save button was pressed with a problem: show it in the dialog until it's fixed (as Create View does). */
+  const [tileSubmitTried, setTileSubmitTried] = useState(false);
+  const [graphSubmitTried, setGraphSubmitTried] = useState(false);
 
   const visibleSavedViews = useMemo(
     () => savedDashboardViews.views.filter((v) => v.scope === tileView),
@@ -885,19 +890,22 @@ export function Dashboard() {
           const hideSmallSamples = hiddenSmallSamples.hidden.has(graph.id);
           const smallSampleIds = new Set<number>();
           for (const p of sourcePlayers) {
+            // <minutes_marker>: a player under the floor is marked on the graph too (the amber stopwatch), as in every list.
+            let smallSample: string | undefined;
             if (isSmallSample(p.minutes, graph.dataView)) {
               if (hideSmallSamples) continue;
               smallSampleIds.add(p.id);
+              smallSample = smallSampleNote(p.minutes, graph.dataView);
             }
             const derived = getPlayerDerivedMetrics(p);
             const y = yColumn.getValue(p, derived);
             if (graph.chartType === "scatter") {
               const x = xColumn!.getValue(p, derived);
               if (x === null || y === null) continue;
-              scatterData.push({ id: p.id, label: p.name, x, y });
+              scatterData.push({ id: p.id, label: p.name, x, y, smallSample });
             } else {
               if (y === null) continue;
-              barData.push({ id: p.id, label: p.name, value: y });
+              barData.push({ id: p.id, label: p.name, value: y, smallSample });
             }
           }
           return {
@@ -990,6 +998,7 @@ export function Dashboard() {
     setNewTileTeamMode("all");
     setNewTileTeamIds([]);
     setNewTileError(null);
+    setTileSubmitTried(false);
     setEditingTileId(null);
     setShowAddTileModal(true);
   }
@@ -1006,6 +1015,7 @@ export function Dashboard() {
     setNewTileTeamMode(tile.teamIds !== null ? "selected" : "all");
     setNewTileTeamIds(tile.teamIds ?? []);
     setNewTileError(null);
+    setTileSubmitTried(false);
     setEditingTileId(tile.id);
     setShowAddTileModal(true);
   }
@@ -1061,27 +1071,34 @@ export function Dashboard() {
     setNewTileTeamIds((prev) => prev.filter((x) => x !== id));
   }
 
+  // A name is optional: without one, a tile is titled by its statistic (displayTileTitle).
   const trimmedNewTileName = newTileName.trim();
-  const newTileNameMissing = trimmedNewTileName.length === 0;
   const newTilePlayersMissing = tileView === "player" && newTilePlayerMode === "players" && newTilePlayerIds.length === 0;
   const newTileTeamsMissing = tileView === "team" && newTileTeamMode === "selected" && newTileTeamIds.length === 0;
   const newTilePriceProblem = tileView === "player" && newTilePlayerMode === "filters" ? priceRangeProblem(newTileCriteria) : undefined;
-  const addTileDisabled = newTileNameMissing || newTilePlayersMissing || newTileTeamsMissing || !!newTilePriceProblem;
-  const addTileDisabledReason = newTileNameMissing
-    ? "Name is required"
-    : newTilePlayersMissing
-      ? "Select at least one player to track"
-      : newTileTeamsMissing
-        ? "Select at least one team to track"
-        : newTilePriceProblem;
+  const addTileProblem = newTilePlayersMissing
+    ? "Select at least one player to track."
+    : newTileTeamsMissing
+      ? "Select at least one team to track."
+      : newTilePriceProblem && `${newTilePriceProblem}.`;
+
+  // What an unnamed tile or graph is titled, shown as the Name box's placeholder.
+  const metricLabelOf = (key: string, list: { key: string; label: string }[]) => list.find((m) => m.key === key)?.label ?? "Its statistic's name";
+  const autoTileName = displayTileTitle({ name: null, direction: newTileDirection }, metricLabelOf(newTileMetricKey, tileView === "player" ? PLAYER_TILE_METRICS : TEAM_TILE_METRICS));
+  const graphColumns = tileView === "player" ? PLAYER_COLUMNS : TEAM_COLUMNS;
+  const autoGraphName =
+    newGraphChartType === "scatter" ? `${metricLabelOf(newGraphXKey, graphColumns)} vs ${metricLabelOf(newGraphYKey, graphColumns)}` : metricLabelOf(newGraphYKey, graphColumns);
 
   function handleAddTile() {
-    if (addTileDisabled) return;
+    if (addTileProblem) {
+      setTileSubmitTried(true);
+      return;
+    }
     const settings = {
       metricKey: newTileMetricKey,
       direction: newTileDirection,
       dataView: newTileDataView,
-      name: trimmedNewTileName,
+      name: trimmedNewTileName || null,
       criteria: tileView === "player" && newTilePlayerMode === "filters" ? newTileCriteria : null,
       playerIds: tileView === "player" && newTilePlayerMode === "players" ? newTilePlayerIds : null,
       teamIds: tileView === "team" && newTileTeamMode === "selected" ? newTileTeamIds : null,
@@ -1135,6 +1152,7 @@ export function Dashboard() {
     setNewGraphTeamMode("all");
     setNewGraphTeamIds([]);
     setNewGraphError(null);
+    setGraphSubmitTried(false);
     setEditingGraphId(null);
     setShowAddGraphModal(true);
   }
@@ -1154,6 +1172,7 @@ export function Dashboard() {
     setNewGraphTeamMode(graph.teamIds !== null ? "selected" : "all");
     setNewGraphTeamIds(graph.teamIds ?? []);
     setNewGraphError(null);
+    setGraphSubmitTried(false);
     setEditingGraphId(graph.id);
     setShowAddGraphModal(true);
   }
@@ -1195,24 +1214,24 @@ export function Dashboard() {
     setNewGraphTeamIds((prev) => prev.filter((x) => x !== id));
   }
 
+  // A name is optional: without one, a graph is titled by its statistics (displayGraphTitle).
   const trimmedNewGraphName = newGraphName.trim();
-  const newGraphNameMissing = trimmedNewGraphName.length === 0;
   const newGraphPlayersMissing = tileView === "player" && newGraphPlayerMode === "players" && newGraphPlayerIds.length === 0;
   const newGraphTeamsMissing = tileView === "team" && newGraphTeamMode === "selected" && newGraphTeamIds.length === 0;
   const newGraphPriceProblem = tileView === "player" && newGraphPlayerMode === "filters" ? priceRangeProblem(newGraphCriteria) : undefined;
-  const addGraphDisabled = newGraphNameMissing || newGraphPlayersMissing || newGraphTeamsMissing || !!newGraphPriceProblem;
-  const addGraphDisabledReason = newGraphNameMissing
-    ? "Name is required"
-    : newGraphPlayersMissing
-      ? "Select at least one player to plot"
-      : newGraphTeamsMissing
-        ? "Select at least one team to plot"
-        : newGraphPriceProblem;
+  const addGraphProblem = newGraphPlayersMissing
+    ? "Select at least one player to plot."
+    : newGraphTeamsMissing
+      ? "Select at least one team to plot."
+      : newGraphPriceProblem && `${newGraphPriceProblem}.`;
 
   function handleAddGraph() {
-    if (addGraphDisabled) return;
+    if (addGraphProblem) {
+      setGraphSubmitTried(true);
+      return;
+    }
     const settings = {
-      name: trimmedNewGraphName,
+      name: trimmedNewGraphName || null,
       chartType: newGraphChartType,
       xMetricKey: newGraphXKey,
       yMetricKey: newGraphYKey,
@@ -1268,13 +1287,22 @@ export function Dashboard() {
   const gwDisplay = useMemo(() => gameweekDisplay(gameweekState, events), [gameweekState, events]);
 
   // Escape closes whichever dialog is open, discarding it like Cancel.
-  const anyDialogOpen = showAddTileModal || showAddGraphModal || showCreateViewModal || showDeleteViewConfirm;
+  const anyDialogOpen = showAddTileModal || showAddGraphModal || showCreateViewModal || showDeleteViewConfirm || confirmRemove !== null;
   useEscapeLayer(anyDialogOpen, () => {
     setShowAddTileModal(false);
     setShowAddGraphModal(false);
     setShowCreateViewModal(false);
     setShowDeleteViewConfirm(false);
+    setConfirmRemove(null);
   });
+
+  /** Removes the tile or graph the person just confirmed. */
+  function handleConfirmRemove() {
+    if (!confirmRemove) return;
+    if (confirmRemove.kind === "tile") tilesState.removeTile(confirmRemove.id);
+    else graphsState.removeGraph(confirmRemove.id);
+    setConfirmRemove(null);
+  }
 
   return (
     <div>
@@ -1376,7 +1404,7 @@ export function Dashboard() {
         <div className="card-grid">
           {visibleTileRows.map((row) => {
             const { tile } = row;
-            const onRemove = selectedViewIsDefault ? undefined : () => tilesState.removeTile(tile.id);
+            const onRemove = selectedViewIsDefault ? undefined : () => setConfirmRemove({ kind: "tile", id: tile.id, title: tile.name?.trim() || (row.kind === "unavailable" ? "this tile" : displayTileTitle(tile, row.metric.label)) });
             if (row.kind === "unavailable") {
               return <UnavailableItemCard key={tile.id} title={tile.name?.trim() || "Unavailable tile"} noun="tile" onRemove={onRemove} sourceOff={row.sourceOff} />;
             }
@@ -1437,7 +1465,7 @@ export function Dashboard() {
                   title={graph.name?.trim() || "Unavailable graph"}
                   noun="graph"
                   minHeight={360}
-                  onRemove={selectedViewIsDefault ? undefined : () => graphsState.removeGraph(graph.id)}
+                  onRemove={selectedViewIsDefault ? undefined : () => setConfirmRemove({ kind: "graph", id: graph.id, title: graph.name?.trim() || "this graph" })}
                   sourceOff={row.sourceOff}
                 />
               );
@@ -1470,7 +1498,7 @@ export function Dashboard() {
               onDragLeave={() => setDragOverGraphId((k) => (k === graph.id ? null : k))}
               onDrop={(e) => handleGraphDrop(e, graph.id)}
               onEdit={selectedViewIsDefault ? undefined : () => openEditGraphModal(graph)}
-              onRemove={selectedViewIsDefault ? undefined : () => graphsState.removeGraph(graph.id)}
+              onRemove={selectedViewIsDefault ? undefined : () => setConfirmRemove({ kind: "graph", id: graph.id, title: displayGraphTitle(graph, xLabel, yLabel) })}
             />
             );
           })}
@@ -1501,6 +1529,7 @@ export function Dashboard() {
                 id="new-tile-name"
                 type="text"
                 maxLength={MAX_NAME_LENGTH}
+                placeholder={autoTileName}
                 value={newTileName}
                 onChange={(e) => setNewTileName(e.target.value)}
               />
@@ -1617,12 +1646,12 @@ export function Dashboard() {
                 )}
               </>
             )}
-            {newTileError && <div className="banner error">{newTileError}</div>}
+            {tileSubmitTried && addTileProblem ? <div className="banner error">{addTileProblem}</div> : newTileError && <div className="banner error">{newTileError}</div>}
             <div className="dialog-actions">
               <button type="button" className="btn" onClick={closeAddTileModal}>
                 Cancel
               </button>
-              <button type="button" className="btn primary" onClick={handleAddTile} disabled={addTileDisabled} title={addTileDisabledReason}>
+              <button type="button" className="btn primary" onClick={handleAddTile}>
                 {editingTileId ? "Save Changes" : "Add Tile"}
               </button>
             </div>
@@ -1642,6 +1671,7 @@ export function Dashboard() {
                 id="new-graph-name"
                 type="text"
                 maxLength={MAX_NAME_LENGTH}
+                placeholder={autoGraphName}
                 value={newGraphName}
                 onChange={(e) => setNewGraphName(e.target.value)}
               />
@@ -1789,13 +1819,32 @@ export function Dashboard() {
                 )}
               </>
             )}
-            {newGraphError && <div className="banner error">{newGraphError}</div>}
+            {graphSubmitTried && addGraphProblem ? <div className="banner error">{addGraphProblem}</div> : newGraphError && <div className="banner error">{newGraphError}</div>}
             <div className="dialog-actions">
               <button type="button" className="btn" onClick={closeAddGraphModal}>
                 Cancel
               </button>
-              <button type="button" className="btn primary" onClick={handleAddGraph} disabled={addGraphDisabled} title={addGraphDisabledReason}>
+              <button type="button" className="btn primary" onClick={handleAddGraph}>
                 {editingGraphId ? "Save Changes" : "Add Graph"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmRemove && (
+        <div className="dialog-backdrop" onClick={() => setConfirmRemove(null)}>
+          <div className="dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-title">Remove {confirmRemove.kind}</div>
+            <p className="page-subtitle" style={{ margin: "0 0 12px" }}>
+              Remove "{confirmRemove.title}" from this view? This can't be undone.
+            </p>
+            <div className="dialog-actions">
+              <button type="button" className="btn" onClick={() => setConfirmRemove(null)}>
+                Cancel
+              </button>
+              <button type="button" className="btn primary" onClick={handleConfirmRemove}>
+                Remove
               </button>
             </div>
           </div>

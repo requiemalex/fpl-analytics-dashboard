@@ -16,6 +16,20 @@ export function MinutesFloorIcon({ size = 13 }: { size?: number }) {
   );
 }
 
+/**
+ * An entry under a minutes threshold drawn on a chart (<minutes_marker>):
+ * the amber stopwatch in place of a dot, centred on (cx, cy). Player
+ * Comparison's trend points and the Dashboard's scatter points share it.
+ */
+export function SmallSampleMark({ cx, cy, size = 14 }: { cx: number; cy: number; size?: number }) {
+  return (
+    <g className="small-sample-mark" transform={`translate(${cx - size / 2},${cy - size / 2})`}>
+      <circle cx={size / 2} cy={size / 2} r={size / 2} />
+      <MinutesFloorIcon size={size} />
+    </g>
+  );
+}
+
 /** The stopwatch struck through: "leave out what's under the minutes threshold" (HideSmallSamplesButton). */
 export function HideSmallSamplesIcon({ size = 15 }: { size?: number }) {
   return (
@@ -51,8 +65,8 @@ export function SmallSampleBadge({ note }: { note: string }) {
 /**
  * The marker on a view where a threshold is in force (<minutes_marker>).
  * <marker_follows_data>: `active` — something the view shows right now is
- * under its threshold (marked with an entry stopwatch, or for a graph's
- * points, counted in the hover) — makes it amber; otherwise it's grey: the
+ * under its threshold (marked with an entry stopwatch: on a graph, the
+ * point or bar's own) — makes it amber; otherwise it's grey: the
  * threshold is still in force, nothing shown falls under it.
  */
 export function MinutesFloorBadge({ note, active }: { note: string; active: boolean }) {

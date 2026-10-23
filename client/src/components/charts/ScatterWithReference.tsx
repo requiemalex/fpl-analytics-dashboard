@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { noRowsMessage } from "../emptyMessages";
-import { ResponsiveContainer, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ZAxis, Cell, Label } from "recharts";
+import { ResponsiveContainer, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ZAxis, Cell, Label, Symbols } from "recharts";
+import { SmallSampleMark } from "../MinutesFloorBadge";
 import { planScatterAxes, type AxisScale } from "./axisScaling";
 
 export interface ScatterPoint {
@@ -10,6 +11,17 @@ export interface ScatterPoint {
   y: number;
   /** Optional third dimension, rendered as bubble size (default) or as a per-point colour when `colorScale` is set. Existing charts that omit this keep the current fixed-size, single-colour dots. */
   z?: number;
+  /** Set for an entry under a minutes threshold: drawn as the amber stopwatch, with this in its hover box (<minutes_marker>). */
+  smallSample?: string;
+}
+
+/** A point: the usual dot, or the amber stopwatch for a small sample (<minutes_marker>). */
+function PointShape(shapeProps: unknown) {
+  const props = shapeProps as { cx?: number; cy?: number; payload?: ScatterPoint };
+  const { cx, cy, payload } = props;
+  if (cx == null || cy == null) return <g />;
+  if (payload?.smallSample) return <SmallSampleMark cx={cx} cy={cy} size={12} />;
+  return <Symbols {...(props as object)} type="circle" />;
 }
 
 export interface ColorScaleConfig {
@@ -63,6 +75,7 @@ function CustomTooltip({ active, payload, xLabel, yLabel, zLabel, xFormat, yForm
         {xLabel}: {fx(p.x)} · {yLabel}: {fy(p.y)}
         {p.z !== undefined && zLabel ? ` · ${zLabel}: ${p.z.toFixed(2)}` : ""}
       </div>
+      {p.smallSample && <div className="chart-tooltip-small-sample">{p.smallSample}</div>}
     </div>
   );
 }
@@ -193,7 +206,7 @@ export function ScatterWithReference({
             cursor={{ stroke: "var(--border-strong)", strokeDasharray: "3 3" }}
           />
           {referenceSegment && <ReferenceLine segment={referenceSegment} stroke="var(--text-muted)" strokeDasharray="4 4" ifOverflow="hidden" />}
-          <Scatter data={data} fillOpacity={useBubbleSize ? 0.8 : 0.55} onClick={(point: any) => onPointClick?.(point.id)} cursor={onPointClick ? "pointer" : "default"}>
+          <Scatter data={data} shape={PointShape} fillOpacity={useBubbleSize ? 0.8 : 0.55} onClick={(point: any) => onPointClick?.(point.id)} cursor={onPointClick ? "pointer" : "default"}>
             {data.map((d) => {
               let fill = "var(--accent-focus)";
               if (colorScale && zRange && d.z !== undefined && d.z !== null) {

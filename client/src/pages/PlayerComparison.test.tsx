@@ -143,6 +143,10 @@ describe("PlayerComparison", () => {
     const { getByText, getByRole, queryByText } = renderPage("1");
     expect(getByText("This graph's statistics are no longer available.")).toBeTruthy();
     fireEvent.click(getByRole("button", { name: "Remove graph" }));
+    // Removing asks first (no undo), as on the Dashboard.
+    expect(getByText('Remove "Old" from this view? This can\'t be undone.')).toBeTruthy();
+    expect(queryByText("Old")).toBeTruthy();
+    fireEvent.click(getByRole("button", { name: "Remove" }));
     expect(queryByText("Old")).toBeNull();
   });
 

@@ -179,7 +179,7 @@ export function UserGuide() {
           threshold: click it to leave those players out, and again to bring them back. The stopwatch appears on a view where one is in force (the mode toggle in Historic Average, the profile, a tile, graph or card
           with a floor or your own minimum, Player Explorer's Mins heading when you filter it, Team Building's Min minutes and
           its Model Predicted column), and on anything under one (a player's row, a season in Points History, the Match Log's
-          season, a card on the profile, a point or marker on Player Comparison). Team Building's Expected Points, Minutes
+          season, a card on the profile, a point or marker on Player Comparison, a point or bar on a Dashboard graph). Team Building's Expected Points, Minutes
           Reliability and pitch cards look ahead rather than back, so no minutes floor touches their colours.
         </p>
         <p className="page-subtitle">
@@ -213,13 +213,14 @@ export function UserGuide() {
             <strong>Views.</strong> <strong>My View</strong> is where you start: blank, with a + card in the tile grid and the graph
             grid. <strong>Starter</strong> is the app's ready-made layout. It's always in the dropdown and can't be changed or
             deleted. <strong>Create View</strong> (next to the dropdown) starts another blank view, up to 5 each for Players and
-            Teams, Starter included. The pencil icon on a tile or graph edits it and its bin removes it; the bin next to the dropdown
-            deletes the selected view after you confirm (no undo). Everything saves as you go, and switching views changes only the
+            Teams, Starter included. The pencil icon on a tile or graph edits it and its bin removes it after you confirm; the bin next
+            to the dropdown deletes the selected view, also after you confirm (neither can be undone). Everything saves as you go, and switching views changes only the
             Players or Teams side you're on.
           </li>
           <li>
-            <strong>Each tile has its own settings</strong>, set in its dialog: a name, a Data View (shown as an{" "}
-            <code>LS</code>/<code>HA</code>/<code>CS</code> badge in its header), an order and, for player tiles, either{" "}
+            <strong>Each tile has its own settings</strong>, set in its dialog: a name (optional: left blank, the tile is titled by
+            its statistic), a Data View (shown by the same icon as the page's Data View toggle in its header; hover it for the name),
+            an order and, for player tiles, either{" "}
             <strong>Filters</strong> (Position, Team, a price range and Min Minutes) or <strong>Player Search</strong> (up to 5
             specific players), so two tiles can watch different slices of the pool. Min Minutes is a slider in whole matches;
             type in the box beside it for an exact figure. It starts at 0 in every Data View, so per-game statistics rank everyone
@@ -235,7 +236,7 @@ export function UserGuide() {
           </li>
         </ul>
         <p className="page-subtitle">
-          <strong>Graphs</strong> work like tiles: add one with the + card, edit it with its pencil. Pick a name, a chart type (a{" "}
+          <strong>Graphs</strong> work like tiles: add one with the + card, edit it with its pencil. Pick a name (optional, as for a tile), a chart type (a{" "}
           <strong>Scatter Plot</strong> of two metrics, or a <strong>Bar Chart</strong> ranking 15 by one, in the order you choose;
           it starts with the natural one, so League Position lists the best first), the metric(s), a Data View, and what to
           include: Filters or up to 5 players, or All Teams or up to 5 teams. The pickers include Understat's figures, grouped as in
@@ -243,7 +244,8 @@ export function UserGuide() {
           <strong>Add Trend Line</strong>) marking where X equals Y. It's useful only when both are on the same scale, like xG and Goals.
           The Starter graphs are xG vs Goals, xA vs Assists and Price vs Points for players, and Team xG vs Goals and Team xGC vs
           Goals Against for teams; the player ones leave out players under the fixed minutes floor, who would otherwise pile up at
-          zero.
+          zero. On a graph you build, a player under the floor is drawn as the amber stopwatch instead of a dot (on a bar chart,
+          beside his name), and hovering him says why.
         </p>
         <p className="page-subtitle">
           Scatter axes fit the data rather than starting at 0. If one axis is five or more times the other's size, the trend line
@@ -399,7 +401,7 @@ export function UserGuide() {
           </li>
           <li>
             <strong>Views</strong> work like the Dashboard's: <strong>My View</strong> starts blank, with a + card in each section
-            (up to 4 cards per section); pencil edits, bin removes, and cards drag to reorder. <strong>Starter</strong> is a
+            (up to 4 cards per section); pencil edits, bin removes (after you confirm), and cards drag to reorder. <strong>Starter</strong> is a
             read-only set of radars, outputs and trends that works for any players. Create View adds another (up to 5, Starter
             included). A view keeps the layout, not the players.
           </li>

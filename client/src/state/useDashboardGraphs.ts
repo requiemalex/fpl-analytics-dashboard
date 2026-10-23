@@ -86,8 +86,16 @@ export function defaultGraphDirection(scope: SummaryTileScope, yMetricKey: strin
 }
 
 /** Backfills a possibly-older-shaped stored graph to the current DashboardGraphConfig shape — mirrors normalizeSummaryTile (useSummaryTiles.ts), shared by this store's migrate() and by useSavedDashboardViews' (which embeds this same graph shape inside each saved view's `graphs` array). */
-export function normalizeDashboardGraph(g: Partial<DashboardGraphConfig>): DashboardGraphConfig {
+export function normalizeDashboardGraph(g: Partial<DashboardGraphConfig>): DashboardGraphConfig | null {
+  // Without an id, a scope or its statistics there's nothing to draw:
+  // skipped (mapReadableEntries), like a damaged tile (normalizeSummaryTile),
+  // rather than reaching the Dashboard and stopping it (audit 2026-10-23
+  // in-app). A bar graph doesn't use its X metric.
+  const validKey = (k: unknown) => typeof k === "string" && k !== "";
+  if (typeof g.id !== "string" || (g.scope !== "player" && g.scope !== "team") || !validKey(g.yMetricKey)) return null;
+  if (g.chartType !== "bar" && !validKey(g.xMetricKey)) return null;
   return {
+    xMetricKey: "",
     ...g,
     dataView: isAnalysisMode(g.dataView) ? g.dataView : DEFAULT_DATA_VIEW,
     name: g.name ?? null,

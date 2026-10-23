@@ -359,8 +359,11 @@ always names the threshold. An entry's is always amber. A view's is amber
 only while something it shows is under the threshold, and grey when
 nothing is (`<marker_follows_data>`, the owner's rule, 2026-10-20): "under"
 is the entry stopwatch's own test (`isSmallSample`: under the fixed floor
-for the Data View, no minutes counting as 0); a graph's points aren't
-marked one by one, so its stopwatch's hover counts them. A threshold
+for the Data View, no minutes counting as 0). A Dashboard graph marks its
+entries too: a scatter point under the floor is drawn as the amber
+stopwatch (`SmallSampleMark`, the same mark as Player Comparison's trend
+points) and a bar's stopwatch sits beside its name, each with the reason
+in its hover box; the graph's own stopwatch hover counts them. A threshold
 inside a model (Team Building's Model Predicted) marks no entry, so it's
 grey. Two uses:
 - **On a view where a threshold is in force:** the Data View toggle of a
@@ -1169,6 +1172,14 @@ obvious from the UI.
   `dataView`, an order) falls back to its default when loaded; a tile or
   graph whose metric no longer exists shows as an "unavailable" card that
   can still be removed, rather than vanishing while counting toward the cap.
+  One missing its id, scope or metric key altogether can't be repaired and
+  is skipped when loaded (`normalizeSummaryTile`/`normalizeDashboardGraph`
+  return null), so damaged saved data can't stop the page.
+- A name is optional (blank uses the auto title, shown as the Name box's
+  placeholder). A dialog with a problem (no players or teams picked, a
+  price range nothing meets) says so inside it when Add/Save is pressed, as
+  Create View does. Removing a tile or graph asks first (no undo), as do
+  Player Comparison's cards.
 - A tile's or graph's metric key may name one of a second source's own
   figures (`understat:us.shots`), and a figure both sources have has the
   Explorers' ⇄ (see "Understat … Dashboard and Player Comparison");

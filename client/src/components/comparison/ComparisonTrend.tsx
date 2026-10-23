@@ -3,7 +3,7 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tool
 import { trendBelowKey, trendDataKey, type SeasonTrendRow, type TrendDisplay } from "../../metrics/careerTrends";
 import { fmtDecimal, fmtPrice } from "../../utils/format";
 import { ComparisonLegend, type LegendEntry } from "./ComparisonLegend";
-import { MinutesFloorIcon } from "../MinutesFloorBadge";
+import { SmallSampleMark } from "../MinutesFloorBadge";
 
 export function formatTrendValue(metric: TrendDisplay, v: number | null): string {
   return metric.price ? fmtPrice(v) : fmtDecimal(v, metric.decimals);
@@ -60,10 +60,7 @@ function trendDot(playerId: number, color: string) {
     if (cx == null || cy == null || !payload) return <g key={index} />;
     const below = typeof payload[trendBelowKey(playerId)] === "number";
     return below ? (
-      <g key={index} className="cmp-trend-below-dot" transform={`translate(${cx - BELOW_MARK_PX / 2},${cy - BELOW_MARK_PX / 2})`}>
-        <circle cx={BELOW_MARK_PX / 2} cy={BELOW_MARK_PX / 2} r={BELOW_MARK_PX / 2} />
-        <MinutesFloorIcon size={BELOW_MARK_PX} />
-      </g>
+      <SmallSampleMark key={index} cx={cx} cy={cy} size={BELOW_MARK_PX} />
     ) : (
       <circle key={index} cx={cx} cy={cy} r={3} fill={color} />
     );

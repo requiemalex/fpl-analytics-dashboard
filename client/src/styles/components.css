@@ -1606,10 +1606,11 @@ select:focus {
 .field input.minutes-slider-value {
   width: 72px;
   min-width: 0;
-  padding: 2px 4px;
-  border: 1px solid transparent;
+  padding: 2px 6px;
+  /* A visible box, so the exact figure reads as something to type in, not a label (audit 2026-10-23 in-app). */
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: transparent;
+  background: var(--bg);
   color: var(--text-primary);
   font-size: 12.5px;
   font-weight: 700;
@@ -1624,9 +1625,11 @@ select:focus {
 .field input.minutes-slider-value::placeholder {
   color: var(--text-primary);
 }
-.field input.minutes-slider-value:hover,
-.field input.minutes-slider-value:focus {
+.field input.minutes-slider-value:hover {
   border-color: var(--border-strong);
+}
+.field input.minutes-slider-value:focus {
+  border-color: var(--accent-positive);
   outline: none;
 }
 .minutes-slider input[type="range"] {
@@ -2300,11 +2303,16 @@ button.points-history-col.is-selectable:focus-visible {
 /* A trend season under the card's minimum minutes: an amber ring at the
    bottom of the dip, amber text in the hover box — the small-sample colour. */
 /* A season under a card's minimum: the amber stopwatch on a disc of the card's own colour, so the line doesn't run through it. */
-.cmp-trend-below-dot {
+.small-sample-mark {
   color: var(--accent-value);
 }
-.cmp-trend-below-dot circle {
+.small-sample-mark circle {
   fill: var(--surface);
+}
+.chart-tooltip-small-sample {
+  margin-top: 4px;
+  max-width: 260px;
+  color: var(--accent-value);
 }
 .chart-tooltip-row .cmp-trend-below {
   color: var(--accent-value);

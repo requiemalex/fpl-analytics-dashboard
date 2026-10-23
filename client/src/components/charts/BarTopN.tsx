@@ -1,11 +1,38 @@
 import React from "react";
 import { noRowsMessage } from "../emptyMessages";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from "recharts";
+import { MinutesFloorIcon } from "../MinutesFloorBadge";
 
 export interface BarDatum {
   id: number;
   label: string;
   value: number;
+  /** Set for an entry under a minutes threshold: the amber stopwatch by its name, and this in its hover box (<minutes_marker>). */
+  smallSample?: string;
+}
+
+/** Size of the small-sample stopwatch beside a name. */
+const MARK_PX = 11;
+/** The name axis's width; a stopwatch sits at its left edge, so the marks line up in a column. */
+const NAME_AXIS_PX = 130;
+
+/** A bar's name on the axis, with the amber stopwatch before it for a small sample (<minutes_marker>). */
+function NameTick({ x, y, index, rows }: { x?: number; y?: number; index?: number; rows: BarDatum[] }) {
+  const row = index != null ? rows[index] : undefined;
+  if (x == null || y == null || !row) return <g />;
+  return (
+    <g>
+      <text x={x} y={y} dy={4} textAnchor="end" fontSize={11} fill="var(--text-secondary)">
+        {row.label}
+      </text>
+      {row.smallSample && (
+        <g className="small-sample-mark" transform={`translate(${x - NAME_AXIS_PX + 4},${y - MARK_PX / 2})`}>
+          <title>{row.smallSample}</title>
+          <MinutesFloorIcon size={MARK_PX} />
+        </g>
+      )}
+    </g>
+  );
 }
 
 const TOP_N = 15;
@@ -27,6 +54,7 @@ function CustomTooltip({ active, payload, valueLabel, format }: any) {
       <div className="mono">
         {valueLabel}: {format ? format(d.value) : d.value.toFixed(2)}
       </div>
+      {d.smallSample && <div className="chart-tooltip-small-sample">{d.smallSample}</div>}
     </div>
   );
 }
@@ -82,8 +110,9 @@ export function BarTopN({
           type="category"
           dataKey="label"
           stroke="var(--text-muted)"
-          width={130}
-          tick={{ fontSize: 11, fill: "var(--text-secondary)" }}
+          width={NAME_AXIS_PX}
+          interval={0}
+          tick={<NameTick rows={top} />}
         />
         <Tooltip content={<CustomTooltip valueLabel={valueLabel} format={format} />} cursor={{ fill: "var(--surface-hover)" }} />
         <Bar dataKey="value" onClick={(point: any) => onBarClick?.(point.id)} cursor={onBarClick ? "pointer" : "default"}>
