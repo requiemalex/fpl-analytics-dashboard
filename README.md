@@ -167,16 +167,19 @@ User Guide (`/guide`), plus the player and team profile overlays.
 
 Outbound requests time out after 8 s and retry twice (capped backoff) on
 network errors or 5xx only. Concurrent requests for the same resource share
-one upstream call. **Refresh Data** calls `/api/refresh/*`, which bypasses
-the cache (a refresh never piggybacks on a non-refresh request in flight).
-If the historic dataset has been loaded this session, it is rebuilt too
+one upstream call. There's no manual refresh: the app keeps itself current
+(below). **Try again**, on the screen shown
+when the data can't be loaded (`LoadStateGate`), calls `/api/refresh/*`,
+which bypasses the cache (a refresh never piggybacks on a non-refresh
+request in flight). If the historic dataset has been loaded this session, it is rebuilt too
 (`/api/refresh/historic-bulk`, up to a minute, with the old data on screen
 until it arrives): it carries the live season's club figures, including
 Current Season's league table in Team Explorer and the Team Profile, which
 otherwise stayed as first loaded.
 
 **What refreshes by itself** (a session left open across a match catches up
-without Refresh Data):
+by itself; hovering the topbar's status dot shows when the data was last
+updated):
 - `bootstrap-static` and `fixtures/`: the silent 10-minute poll.
 - The historic dataset: rebuilt when the poll's fixtures show more finished
   matches than when it was last built, at most once an hour
@@ -184,7 +187,7 @@ without Refresh Data):
   build is one request per player, so a match day's kick-off windows cost a
   few builds, not one per match.
 - An open player profile's Match Log: reloaded quietly with each poll (the
-  proxy's copy, at most 30 minutes old) and fetched afresh by Refresh Data
+  proxy's copy, at most 30 minutes old) and fetched afresh by Try again
   (`liveDataVersion`); its rows stay until the new ones arrive.
 - Understat: checked hourly. When a newer sync has been published
   (status.json's `generatedAt`), the live season's profile figures already
@@ -1454,7 +1457,7 @@ included.
 - The backtick key (`` ` ``, `NOTEPAD_KEY`) toggles it from anywhere, even
   while typing in a field or in the notes themselves (so a backtick can't be
   typed into a note); Ctrl/Alt/Cmd+backtick and key-repeat are ignored. The
-  topbar button beside Refresh does the same, and Escape closes it through
+  notepad button in the topbar does the same, and Escape closes it through
   `useEscapeLayer`, so it closes in turn with profiles and dialogs.
 - It slides in from the right below the topbar (the desktop window's
   minimize/close stay reachable), at z-index 45: over a profile (40), under

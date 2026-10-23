@@ -4,7 +4,7 @@ import React from "react";
  * Icon-only chip buttons for table toolbars (Player Explorer, Team
  * Building's Add Players table) — replaces the old text-label chip row.
  * Each button's `title` is its only label, shown as a native tooltip on
- * hover, matching the convention already used by AppShell's refresh/window
+ * hover, matching the convention already used by AppShell's notepad/window
  * controls and TeamBuilder's analysis-mode icon buttons.
  */
 

@@ -156,9 +156,8 @@ export function UserGuide() {
           </li>
           <li>
             <strong>Current Season:</strong> this season's live figures. Player figures update every 10 minutes by themselves, and so does an open profile's
-            Match Log; this season's club figures and league table catch up within the hour after FPL confirms a match. The
-            Refresh button at the top fetches everything straight away (club figures can take up to a minute; the current ones
-            stay on screen meanwhile).
+            Match Log; this season's club figures and league table catch up within the hour after FPL confirms a match. Hover the dot at
+            the top left to see when the data was last updated.
           </li>
         </ul>
         <p className="page-subtitle">
@@ -510,7 +509,7 @@ export function UserGuide() {
         <p className="page-subtitle" style={{ marginTop: 0 }}>
           A place to jot down ideas, players to watch and figures as you build a team. Press the <kbd>`</kbd> key (top left of the
           keyboard, under Esc) on any page to slide it in from the right; press it again, or Esc, to put it away. The notepad button
-          beside Refresh does the same. The page behind stays visible, just dimmed, and you can still scroll and click it while the
+          at the top does the same. The page behind stays visible, just dimmed, and you can still scroll and click it while the
           notepad is open, so you can read numbers off a table as you write. The double arrow at the notepad's top left widens it
           to fill the page; press it again to shrink it back to the side.
         </p>

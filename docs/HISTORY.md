@@ -3840,3 +3840,16 @@ tiles/graphs only:
   is ever built, and the icon files are committed. DEPLOYMENT.md "Web
   hosting (retired)" says how to restore the hosting.
 - **Last commit with it:** `300f745`.
+
+### The topbar Refresh button (removed 2026-10-23)
+- **What it did:** a round button in the topbar fetched the FPL data again,
+  bypassing every cache (`/api/refresh/*`), and rebuilt the historic dataset
+  if it had been loaded (up to a minute). It never re-read Understat. Its
+  hover text said when the data was last updated.
+- **Why it went:** the app keeps itself current without it (the 10-minute
+  poll, the historic rebuild after finished matches, Understat hourly), so
+  it rarely showed anything new, while each click asked FPL for everything
+  again, hundreds of requests. The owner's decision, 2026-10-23. The
+  status dot's hover still says when the data was last updated, and the
+  load-failure screen's Try again still forces a fresh fetch.
+- **Last commit with it:** `553685d`.

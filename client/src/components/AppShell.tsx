@@ -89,20 +89,8 @@ function PersonIcon() {
   );
 }
 
-/** Two arcs chasing each other round: fetch everything again. */
-function RefreshIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M13 6.4A5.2 5.2 0 0 0 3.6 4.9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M3 9.6a5.2 5.2 0 0 0 9.4 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M13.4 2.6v3.8H9.6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M2.6 13.4V9.6h3.8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { status, isStale, staleDatasets, lastUpdated, refreshing, refresh, players, errorMessage, gameweekState, events } = useAppState();
+  const { status, isStale, staleDatasets, lastUpdated, players, errorMessage, gameweekState, events } = useAppState();
   const staleParts = [staleDatasets.fixtures && "fixtures", staleDatasets.historic && "historic data"].filter((x): x is string => !!x);
   const gwInfo = getGameweekInfo(gameweekState, events);
   const [notepadOpen, setNotepadOpen] = useState(false);
@@ -163,16 +151,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <PersonIcon />×{players.length.toLocaleString("en-GB")}
             </span>
           </div>
-          <button
-            type="button"
-            className={`refresh-btn${refreshing ? " spinning" : ""}`}
-            onClick={() => refresh()}
-            disabled={refreshing}
-            title={refreshing ? "Refreshing…" : `Refresh data (updated ${fmtTimeAgo(lastUpdated)})`}
-            aria-label={refreshing ? "Refreshing…" : "Refresh data"}
-          >
-            <RefreshIcon />
-          </button>
           <button
             type="button"
             className={`topbar-icon-btn${notepadOpen ? " active" : ""}`}
