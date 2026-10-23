@@ -5,6 +5,11 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.101.1 · 23 Oct 2026
+
+- Desktop app: opens normally again instead of a blank window (v1.101.0)
+- Release log: every release's changes kept in docs/RELEASES.md, and a "now released" message
+
 ## v1.101.0 · 23 Oct 2026
 
 - Top bar: Refresh button removed — the app keeps its data current by itself
