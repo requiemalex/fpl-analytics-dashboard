@@ -1665,6 +1665,11 @@ app says so in a dialog and quits, instead of crashing with no window.
   any of those four.
 - The server's memory caches are capped at 2,000 entries each
   (`TtlCache`, `server/src/cache.ts`), least recently stored out first.
+- **Releases are batched**: each change is committed (and pushed) as it's
+  finished, and a `v*` tag releases everything since the last one.
+  `npm run unreleased` (`scripts/release/unreleased.ts`) lists what the next
+  release would ship, read from git, and warns about edits not committed
+  and commits not pushed.
 
 ## Legal
 

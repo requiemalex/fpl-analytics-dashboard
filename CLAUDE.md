@@ -210,11 +210,24 @@ No lint script. Playwright isn't installed but works via
   dependency change, run `npm run legal:notices` and commit the result.
 
 ## Releasing
-Commit, then `git tag -a vX.Y.Z -m "vX.Y.Z"` and push both master and the tag
-(minor for features, patch for fixes). `.github/workflows/release.yml` builds
-and publishes; installed copies update themselves. The club-history
-archive releases a patch by itself when a season completes. Railway hosting is
-retired — `Dockerfile`/`railway.json` are reference only.
+**Releases are batched, and only when I say** (owner's decision,
+2026-10-23). Every finished change is committed straight away with a
+plain-language subject line (that line is what the change list shows), and
+master is pushed, but nothing is tagged. Git is the record of what's
+waiting, never anyone's memory of a past session: `npm run unreleased`
+lists every change since the last release, with dates and times, and warns
+about edits not committed and commits not pushed. **After finishing and
+committing a change, end your reply with that command's output.** Remind me
+to release when the list has grown or holds a fix users are waiting for.
+
+To release: commit, then `git tag -a vX.Y.Z -m "vX.Y.Z"` and push both
+master and the tag (minor if the batch has any feature, patch if it's only
+fixes). `.github/workflows/release.yml` builds and publishes; installed
+copies update themselves. The club-history archive releases a patch by
+itself when a season completes (around May), and that release ships
+whatever is on master, so around then, release first or expect it to
+carry the pending changes. Railway hosting is retired;
+`Dockerfile`/`railway.json` are reference only.
 
 ## Quality
 - Never "fix" a failing test by weakening or removing it.
