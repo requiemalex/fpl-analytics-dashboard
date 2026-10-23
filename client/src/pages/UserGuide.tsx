@@ -402,7 +402,8 @@ export function UserGuide() {
           </li>
           <li>
             <strong>Trends</strong> graph one statistic season by season across the completed seasons on record. A season with no
-            figure is a gap, not a zero.
+            figure is a gap, not a zero. A spell when a player wasn't in FPL (say, his club was relegated) between two of his
+            seasons is a dotted line in his colour; hover it to see he wasn't in FPL.
           </li>
           <li>
             <strong>Views</strong> work like the Dashboard's: <strong>My View</strong> starts blank, with a + card in each section

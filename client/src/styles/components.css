@@ -2366,6 +2366,11 @@ button.points-history-col.is-selectable:focus-visible {
   color: var(--accent-value);
 }
 
+.chart-tooltip-row .cmp-trend-away {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 /* User Guide sections: each has its own accent colour (--guide-accent, set
    per section from SECTION_META in UserGuide.tsx) on the heading, its
    numbered badge, its sub-headings and its "On this page" chip. Tints are

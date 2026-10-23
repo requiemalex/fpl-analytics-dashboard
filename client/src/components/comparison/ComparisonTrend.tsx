@@ -1,6 +1,6 @@
 import React from "react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
-import { trendBelowKey, trendDataKey, type SeasonTrendRow, type TrendDisplay } from "../../metrics/careerTrends";
+import { trendAwayKey, trendBelowKey, trendBridgeKey, trendDataKey, type SeasonTrendRow, type TrendDisplay } from "../../metrics/careerTrends";
 import { fmtDecimal, fmtPrice } from "../../utils/format";
 import { ComparisonLegend, type LegendEntry } from "./ComparisonLegend";
 import { SmallSampleMark } from "../MinutesFloorBadge";
@@ -35,6 +35,14 @@ function TrendTooltip({
       {entries.map(({ player, color }) => {
         const v = row[trendDataKey(player.id)];
         const below = row[trendBelowKey(player.id)];
+        if (row[trendAwayKey(player.id)] === true)
+          return (
+            <div key={player.id} className="chart-tooltip-row">
+              <span className="cmp-legend-swatch" style={{ background: color }} />
+              <span>{player.name}</span>
+              <span className="cmp-trend-away">Not in FPL this season</span>
+            </div>
+          );
         return (
           <div key={player.id} className="chart-tooltip-row">
             <span className="cmp-legend-swatch" style={{ background: color }} />
@@ -71,6 +79,9 @@ function trendDot(playerId: number, color: string) {
  * One metric season by season: completed seasons along the bottom, the
  * metric (named on the y axis) up the side, one line per player in his
  * colour. A season with no figure is a gap in his line, not a zero. A
+ * spell out of FPL between two of his seasons is a dotted line in his
+ * colour, and the hover box says he wasn't in FPL, so a return isn't read
+ * as a missing figure. A
  * season under the card's minimum minutes still shows his real figure, but
  * its point is the amber small-sample stopwatch and the hover box adds his minutes, so a
  * small-sample season is never mistaken for a full one.
@@ -92,6 +103,23 @@ export function ComparisonTrend({ metric, rows, entries, minMinutes }: { metric:
             label={{ value: metric.label, angle: -90, position: "insideLeft", offset: 0, fill: "var(--text-muted)", fontSize: 11, style: { textAnchor: "middle" } }}
           />
           <Tooltip content={<TrendTooltip metric={metric} entries={entries} rows={rows} minMinutes={minMinutes} />} cursor={{ stroke: "var(--border-strong)" }} />
+          {entries.map(({ player, color }) => (
+            <Line
+              key={`bridge-${player.id}`}
+              type="linear"
+              dataKey={trendBridgeKey(player.id)}
+              stroke={color}
+              strokeWidth={2}
+              strokeDasharray="1 5"
+              strokeLinecap="round"
+              dot={false}
+              activeDot={false}
+              connectNulls={false}
+              legendType="none"
+              tooltipType="none"
+              isAnimationActive={false}
+            />
+          ))}
           {entries.map(({ player, color }) => (
             <Line
               key={player.id}

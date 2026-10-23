@@ -74,18 +74,56 @@ export function trendBelowKey(playerId: number): string {
 }
 
 
+/** Key set on a season where a player has no FPL record at all — not at a Premier League club that season (absent otherwise). */
+export function trendAwayKey(playerId: number): string {
+  return `away_${playerId}`;
+}
+
+/** Recharts dataKey for a player's dotted bridge across a spell out of FPL between two of his seasons. */
+export function trendBridgeKey(playerId: number): string {
+  return `bridge_${playerId}`;
+}
+
 export interface SeasonTrendRow {
   seasonName: string;
-  [dataKey: string]: string | number | null;
+  [dataKey: string]: string | number | boolean | null;
+}
+
+/** "2019/20" → "2020/21" (null for a name not in that form). */
+function nextSeasonName(seasonName: string): string | null {
+  const m = /^(\d{4})\/\d{2}$/.exec(seasonName);
+  if (!m) return null;
+  const start = Number(m[1]) + 1;
+  return `${start}/${String((start + 1) % 100).padStart(2, "0")}`;
+}
+
+/** Every season from the first name to the last, so a season nobody has still takes its place on the axis. */
+function seasonRange(names: string[]): string[] {
+  const sorted = [...names].sort();
+  if (sorted.length === 0) return [];
+  const last = sorted[sorted.length - 1];
+  const out = [sorted[0]];
+  while (out[out.length - 1] < last) {
+    const next = nextSeasonName(out[out.length - 1]);
+    if (!next || next > last) return sorted; // unexpected names: just the ones on record
+    out.push(next);
+  }
+  return out;
 }
 
 /**
- * One row per completed season any of the players has on record, oldest
- * first, with each player's figure for `metric` (null — a gap — where he
- * has no season or no value). A season with fewer than `minMinutes` still
- * plots his real figure, and its minutes are kept under trendBelowKey so the
- * card can mark it (the amber small-sample stopwatch) and say why; seasons either side plot as
- * normal. No windowing — this is about a whole career's shape.
+ * One row per season from the earliest any of the players has on record to
+ * the latest, oldest first — a season none of them has still gets its row,
+ * so two seasons either side of it are never drawn as back to back. Each
+ * player's figure for `metric` is null (a gap) where he has no season or no
+ * value. A season with fewer than `minMinutes` still plots his real figure,
+ * and its minutes are kept under trendBelowKey so the card can mark it (the
+ * amber small-sample stopwatch) and say why; seasons either side plot as
+ * normal. A season he has no FPL record for is marked under trendAwayKey,
+ * and where that spell sits between two of his seasons that both have a
+ * figure, trendBridgeKey holds a straight line between them (those two
+ * figures at the ends, evenly stepped across the spell) for the dotted
+ * bridge. No windowing — this is about a whole career's shape.
  */
 export function buildSeasonTrend(
   playerIds: number[],
@@ -97,15 +135,37 @@ export function buildSeasonTrend(
 ): SeasonTrendRow[] {
   const seasonNames = new Set<string>();
   for (const id of playerIds) for (const s of allTimeSeasonsByPlayerId.get(id) ?? []) seasonNames.add(s.seasonName);
-  return Array.from(seasonNames)
-    .sort()
-    .map((seasonName) => {
-      const row: SeasonTrendRow = { seasonName };
-      for (const id of playerIds) {
-        const season = allTimeSeasonsByPlayerId.get(id)?.find((s) => s.seasonName === seasonName);
-        row[trendDataKey(id)] = season ? (seasonValue ? seasonValue(id, season) : trendValue(metric, season)) : null;
-        if (season && season.minutes < minMinutes) row[trendBelowKey(id)] = season.minutes;
-      }
-      return row;
-    });
+  const rows = seasonRange(Array.from(seasonNames)).map((seasonName) => {
+    const row: SeasonTrendRow = { seasonName };
+    for (const id of playerIds) {
+      const season = allTimeSeasonsByPlayerId.get(id)?.find((s) => s.seasonName === seasonName);
+      row[trendDataKey(id)] = season ? (seasonValue ? seasonValue(id, season) : trendValue(metric, season)) : null;
+      if (!season) row[trendAwayKey(id)] = true;
+      if (season && season.minutes < minMinutes) row[trendBelowKey(id)] = season.minutes;
+    }
+    return row;
+  });
+  for (const id of playerIds) addBridges(rows, id);
+  return rows;
+}
+
+/** Fill trendBridgeKey across each run of away seasons with one of his seasons either side, both with a figure. */
+function addBridges(rows: SeasonTrendRow[], id: number): void {
+  const away = (i: number) => rows[i][trendAwayKey(id)] === true;
+  let i = 0;
+  while (i < rows.length) {
+    if (!away(i)) {
+      i++;
+      continue;
+    }
+    let end = i;
+    while (end < rows.length && away(end)) end++;
+    const before = rows[i - 1]?.[trendDataKey(id)];
+    const after = rows[end]?.[trendDataKey(id)];
+    if (typeof before === "number" && typeof after === "number") {
+      const steps = end - (i - 1);
+      for (let k = i - 1; k <= end; k++) rows[k][trendBridgeKey(id)] = before + ((after - before) * (k - (i - 1))) / steps;
+    }
+    i = end;
+  }
 }

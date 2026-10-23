@@ -1415,7 +1415,11 @@ green or red, which mean better and worse, nor a source's violet or rose).
   source's own comparable figures as `understat:<key>`, `resolveCardMetric`;
   shared figures have the ⇄); and **trend** (one `TREND_METRICS` key, or
   one of a second source's own `playerTrends` figures, on the y axis,
-  seasons on the x). Max 5 views
+  seasons on the x — every season from the earliest on record to the
+  latest, so one nobody has still takes its place; a player's spell out
+  of FPL between two of his seasons is a dotted bridge in his colour,
+  `buildSeasonTrend`'s `trendBridgeKey`, and the hover box says "Not in
+  FPL this season"). Max 5 views
   (Starter and My View included), 4 cards per section — the section's +
   card goes at 4; a view saved with more under the old limit of 6 keeps
   them but can't add another. **Starter**
