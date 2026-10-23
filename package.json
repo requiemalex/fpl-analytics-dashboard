@@ -26,7 +26,8 @@
     "club-history:archive": "tsx scripts/club-history/archive-current.ts",
     "club-history:build": "tsx scripts/club-history/build-aggregates.ts",
     "understat:sync": "tsx scripts/understat/sync.ts",
-    "unreleased": "tsx scripts/release/unreleased.ts"
+    "unreleased": "tsx scripts/release/unreleased.ts",
+    "session-start": "tsx scripts/release/session-start.ts"
   },
   "devDependencies": {
     "concurrently": "^9.0.1",

@@ -217,7 +217,10 @@ master is pushed, but nothing is tagged. Git is the record of what's
 waiting, never anyone's memory of a past session: `npm run unreleased`
 lists every change since the last release, with dates and times, and warns
 about edits not committed and commits not pushed. **After finishing and
-committing a change, end your reply with that command's output.** Remind me
+committing a change, end your reply with that command's output.** The same
+report, uncommitted edits first, is shown to me when a session opens
+(`npm run session-start`, run by the SessionStart hook in the parent folder's
+`.claude/settings.local.json`; `scripts/release/changes.ts` builds both). Remind me
 to release when the list has grown or holds a fix users are waiting for.
 
 To release: commit, then `git tag -a vX.Y.Z -m "vX.Y.Z"` and push both
