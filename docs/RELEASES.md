@@ -5,6 +5,20 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.102.0 · 23 Oct 2026
+
+- Audit 2026-10-23 in-app: report (audit and fixes in one session)
+- Dashboard: a tile is titled with its order only when that's against the statistic's usual way (League Position no longer reads 'Lowest First')
+- Keyboard: a player's name opens his profile with Tab and Enter, everywhere it can be clicked
+- Team Profile suggests a Data View when the club has no matches in the chosen one; squads never show a blank name; delete confirmations say Delete
+- Tables open a column on its best first; club search knows full names; Player Comparison cards: name optional, filterable statistics
+- Team Profile: 'Goals (excl. OGs)' named as in Team Explorer; Match Log averages to one decimal for points and DC, as the player's
+- Errors: a fixture list that won't load is flagged with Try again; plain-English error messages; Retry on the Match Log
+- Search: exact names before typo matches, keyboard-friendly suggestions, filterable pickers; CSV opens correctly in Excel
+- Dashboard: graphs mark small samples; removing a tile, graph or card asks first; names optional; damaged saved graphs can't stop the page
+- Tables: column headers never run under the filter arrow at laptop widths
+- Team Building: imported squads use their real budget; Clear Draft asks first; Add fills the pitch; captain badge visible
+
 ## v1.101.1 · 23 Oct 2026
 
 - Desktop app: opens normally again instead of a blank window (v1.101.0)
