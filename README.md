@@ -161,7 +161,6 @@ User Guide (`/guide`), plus the player and team profile overlays.
 | `element-summary/{id}/` | One player's gameweek history — fetched lazily when a profile opens | 30 min |
 | `historic-bulk` (app's own) | Every player's `history_past` plus this season's club data, built server-side from hundreds of `element-summary` calls | 30 min |
 | `entry/{id}/`, `entry/{id}/history/`, `entry/{id}/event/{gw}/picks/` | Team Building's FPL team import (read-only, unauthenticated) | 2 min |
-| `event/{gw}/live/` | Proxied, not currently used by the client | 60 s |
 | `understat` (app's own) | Understat season summaries, from this repo's `data/understat/` on GitHub (from disk under `npm run dev`) — never understat.com | 30 min; completed seasons 12 h |
 | `understat/profile/{player|club}/{code}/{season}` (app's own) | One player's or club's Understat detail for one season (positions, shots, a player's shots faced while on the pitch, result chances, formations, starting XIs), sliced server-side from `app/profile/<season>.json` | as `understat` |
 | `player-seasons/{code}` (app's own) | One player's match rows for every completed season (the profile's past-season Match Log), bundled with the server | none needed |
@@ -220,7 +219,7 @@ used. Each copy is the latest fetched, so never from an earlier season
 than the app has already seen. A live-season Understat file put back from
 disk has no `readUnderSync` record, so it's read again if it was fetched
 before the newest sync. Only the desktop app turns this on (`createApp`'s
-`dataCacheDir`); `npm run dev` and the Dockerfile stay memory-only.
+`dataCacheDir`); `npm run dev` and `npm start` stay memory-only.
 Understat's files are fetched side by side, not one after another.
 
 **The historic bulk build** (`server/src/routes/historicBulk.ts`) fetches
@@ -1688,8 +1687,8 @@ window forward.
 - **This computer only** (`<loopback_only>`, `server/src/listen.ts`): the
   server listens on the loopback addresses (127.0.0.1 and ::1; the desktop
   app's on 127.0.0.1 alone), never every network interface, so nothing else
-  on the network can use it. `npm run dev` does the same; a container sets
-  `HOST=0.0.0.0` (the reference `Dockerfile` does).
+  on the network can use it. `npm run dev` does the same; a container would
+  set `HOST=0.0.0.0` (DEPLOYMENT.md "Web hosting (retired)").
 - **Its own pages only** (`<navigation_guard>`, `electron/main.js`): a
   window never navigates away from `http://localhost:4317` or opens another
   window; an outside http(s) link opens in the person's own browser.

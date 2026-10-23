@@ -6,9 +6,7 @@ const { autoUpdater } = require("electron-updater");
 // No File/Edit/View/Window/Help — those are Electron's generic defaults
 // (reload, dev tools, zoom, etc.), not anything this app's own UI exposes
 // or needs; removing the whole application menu is what actually gets rid
-// of that strip, on Windows/Linux at least (macOS always keeps a minimal
-// app menu regardless — not a concern since this app is Windows-only for
-// now). Must run before any window is created.
+// of that strip. Must run before any window is created.
 Menu.setApplicationMenu(null);
 
 /** The product's name, everywhere a person sees it (window titles, dialogs). */
@@ -67,8 +65,6 @@ app.on("child-process-gone", (_event, details) => log.warn("Child process gone:"
 const DESKTOP_PORT = "4317";
 const APP_ORIGIN = `http://localhost:${DESKTOP_PORT}`;
 const APP_HOST = `localhost:${DESKTOP_PORT}`;
-// The server's CORS allow-list (server/src/config.ts reads it once, as the bundle loads).
-process.env.CLIENT_ORIGIN = APP_ORIGIN;
 
 let mainWindow = null;
 let mainWindowReady = false;
@@ -85,7 +81,7 @@ let serverReady = null;
  *
  * <build_prerequisite>: this requires server/dist/app.bundle.cjs, produced
  * by `npm run build:electron-server` (esbuild, bundling app.ts and its
- * dependencies — express, cors — into one self-contained CommonJS file).
+ * dependencies — express — into one self-contained CommonJS file).
  * That's deliberate: this is an npm-workspaces monorepo with dependencies
  * hoisted to the root node_modules, and having the packaged app rely on
  * electron-builder correctly resolving that from server/'s own
@@ -651,19 +647,8 @@ if (!isFirstInstance) {
     const launchCheck = checkAtLaunch();
     createWindow();
     await launchCheck;
-
-    // macOS convention: clicking the dock icon with no windows open
-    // re-creates one rather than doing nothing.
-    app.on("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow();
-    });
   });
 }
 
-// Windows/Linux convention: closing the last window quits the app.
-// macOS convention: the app stays running until explicitly quit (Cmd+Q),
-// even with no windows open — handled by leaving this to the platform
-// default rather than calling app.quit() unconditionally here.
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
-});
+// Closing the last window quits the app.
+app.on("window-all-closed", () => app.quit());

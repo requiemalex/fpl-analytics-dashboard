@@ -2,13 +2,10 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { existsSync } from "fs";
 import express from "express";
-import cors from "cors";
-import { CORS_ORIGIN } from "./config.js";
 import { useDiskCopies } from "./diskCopies.js";
 import { bootstrapRouter } from "./routes/bootstrap.js";
 import { fixturesRouter } from "./routes/fixtures.js";
 import { elementSummaryRouter } from "./routes/elementSummary.js";
-import { eventLiveRouter } from "./routes/eventLive.js";
 import { historicBulkRouter } from "./routes/historicBulk.js";
 import { entryImportRouter } from "./routes/entryImport.js";
 import { playerSeasonsRouter } from "./routes/playerSeasons.js";
@@ -29,7 +26,7 @@ export { listenOnLoopback } from "./listen.js";
  *
  * `clientDistPath` is explicit, not auto-detected via `import.meta.url`,
  * because this same source file is loaded two different ways: normal
- * ESM (index.ts, tsc build, Docker) where `import.meta.url` works fine,
+ * ESM (index.ts, tsc build) where `import.meta.url` works fine,
  * and an esbuild CJS bundle (Electron — see electron/main.js) where
  * `import.meta` is empty and `__dirname` also no longer points at this
  * file's real location once bundled into one file elsewhere. Rather
@@ -44,17 +41,11 @@ export function createApp(options?: { clientDistPath?: string; understatLocalDir
   const app = express();
   useDiskCopies(options?.dataCacheDir);
 
-  app.use(cors({ origin: CORS_ORIGIN }));
   app.use(express.json());
-
-  app.get("/api/health", (_req, res) => {
-    res.json({ ok: true, service: "scoutline-server", time: new Date().toISOString() });
-  });
 
   app.use("/api", bootstrapRouter);
   app.use("/api", fixturesRouter);
   app.use("/api", elementSummaryRouter);
-  app.use("/api", eventLiveRouter);
   app.use("/api", historicBulkRouter);
   app.use("/api", entryImportRouter);
   app.use("/api", playerSeasonsRouter);

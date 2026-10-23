@@ -33,8 +33,7 @@
     "concurrently": "^9.0.1",
     "electron": "^44.5.1",
     "electron-builder": "^25.1.8",
-    "esbuild": "^0.24.0",
-    "png-to-ico": "^3.0.2"
+    "esbuild": "^0.24.0"
   },
   "engines": {
     "node": ">=18.18.0"
@@ -62,10 +61,6 @@
       "repo": "fpl-analytics-dashboard",
       "releaseType": "draft"
     },
-    "mac": {
-      "target": "dmg",
-      "category": "public.app-category.sports"
-    },
     "icon": "build/icon.ico",
     "win": {
       "target": "nsis"
@@ -73,10 +68,6 @@
     "nsis": {
       "license": "LICENSE.txt",
       "runAfterFinish": false
-    },
-    "linux": {
-      "target": "AppImage",
-      "category": "Sports"
     }
   },
   "dependencies": {

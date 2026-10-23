@@ -14,7 +14,7 @@ import {
 import { PLAYER_COLUMNS } from "./playerColumns";
 import { TEAM_COLUMNS } from "./teamColumns";
 import { understatPlayerColumns, understatTeamColumns } from "../understat/columns";
-import { computeExpectedPointsV2ForFixture, computeExpectedPointsV2ForWindow } from "../metrics/expectedPointsV2";
+import { computeExpectedPointsV2ForFixture } from "../metrics/expectedPointsV2";
 import { clubRanks } from "../metrics/comparativeColour";
 import { makePlayer } from "../test/fixtures";
 import type { UpcomingFixture } from "../metrics/fixtureTicker";
@@ -87,11 +87,6 @@ describe("modelBreakdownHint — the model's figure in parts", () => {
     const p = makePlayer({ id: 1, position: "MID", minutes: 900, xG: 3, xA: 2 });
     const b = computeExpectedPointsV2ForFixture(p, fixture(), undefined, undefined, 0.9, undefined);
     expect(modelBreakdownHint(b, fixture(), true)).toContain(`(captain ×2): ${(b.total * 2).toFixed(1)} pts`);
-  });
-  it("lists a gap once across a window of matches", () => {
-    const p = makePlayer({ id: 1, position: "FWD", minutes: 900, xG: null, xA: 1 });
-    const b = computeExpectedPointsV2ForWindow(p, [fixture(), fixture({ fixtureId: 2 }), fixture({ fixtureId: 3 })], 3, new Map(), 0.9, undefined)!;
-    expect(b.gaps.filter((g) => g === "goals")).toHaveLength(1);
   });
 });
 

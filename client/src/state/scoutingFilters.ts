@@ -46,14 +46,3 @@ export function clearUnappliedLiveMinMinutes<T extends { dataView?: AnalysisMode
   if (item.dataView !== "live" || !item.criteria || !item.criteria.minMinutes) return item;
   return { ...item, criteria: { ...item.criteria, minMinutes: 0 } };
 }
-
-/** One page's (or one saved graph's) own analysis-mode + filter selection — see `GlobalScoutingFilters` above for why this is deliberately local, never shared via AppStateContext. */
-export interface LocalViewState {
-  analysisMode: AnalysisMode;
-  filters: GlobalScoutingFilters;
-}
-
-/** Every page defaults to "Last Completed Season", never "live" — live-season bootstrap data is empty before a season's first gameweek, so opening on it would show an all-zero view. */
-export function createDefaultLocalViewState(): LocalViewState {
-  return { analysisMode: "lastSeason", filters: { ...DEFAULT_FILTERS } };
-}

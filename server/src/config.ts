@@ -28,7 +28,6 @@ export const CACHE_TTL_MS = {
   // score could take half an hour to reach the app. One request, so cheap.
   fixtures: 10 * 60 * 1000, // 10 minutes
   elementSummary: 30 * 60 * 1000, // 30 minutes
-  eventLive: 60 * 1000, // 60 seconds
   // The bulk build carries the live season's club figures and every
   // player's live gameweek log as well as history_past, so it goes out of
   // date with every match — kept no longer than the per-player data it's
@@ -43,5 +42,3 @@ export const CACHE_TTL_MS = {
 
 /** Simultaneous element-summary requests when building the whole-pool historic dataset — a courtesy limit on the official API, not a hard requirement it imposes. */
 export const HISTORIC_BULK_CONCURRENCY = 15;
-
-export const CORS_ORIGIN = process.env.CLIENT_ORIGIN ?? "http://localhost:5173";

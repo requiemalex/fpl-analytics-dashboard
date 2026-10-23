@@ -743,8 +743,4 @@ export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
   }),
 };
 
-export function getMetricDefinition(internalName: string): MetricDefinition | undefined {
-  return METRIC_DICTIONARY[internalName];
-}
-
 export const METRIC_LIST = Object.values(METRIC_DICTIONARY);

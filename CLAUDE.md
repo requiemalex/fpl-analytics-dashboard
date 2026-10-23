@@ -229,8 +229,8 @@ fixes). `.github/workflows/release.yml` builds and publishes; installed
 copies update themselves. The club-history archive releases a patch by
 itself when a season completes (around May), and that release ships
 whatever is on master, so around then, release first or expect it to
-carry the pending changes. Railway hosting is retired;
-`Dockerfile`/`railway.json` are reference only.
+carry the pending changes. Railway hosting is retired and its files
+removed; DEPLOYMENT.md "Web hosting (retired)" says how to restore it.
 
 ## Quality
 - Never "fix" a failing test by weakening or removing it.

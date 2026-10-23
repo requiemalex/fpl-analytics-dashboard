@@ -15,7 +15,7 @@
  *   app/<2025-26>.json           the season summary the app reads
  *   app/profile/<2025-26>.json   per-match detail for the profiles (positions, shots, formations)
  */
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseCsv, toCsv } from "../../clubHistory/csv.js";
 import type {
@@ -36,7 +36,6 @@ import type {
 } from "./types.js";
 
 export const seasonFolder = (season: string) => season.replace("/", "-");
-export const seasonFromFolder = (folder: string) => folder.replace("-", "/");
 
 /** Write to a temporary name, then rename, so a crash mid-write never leaves a half file. */
 function writeAtomic(path: string, content: string): void {
@@ -72,15 +71,6 @@ const CLUB_HEADER = ["fpl_team_code", "understat_team_id", "understat_title"];
 
 export function seasonDir(root: string, season: string): string {
   return join(root, "seasons", seasonFolder(season));
-}
-
-export function listStoredSeasons(root: string): string[] {
-  const dir = join(root, "seasons");
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir)
-    .filter((f) => /^\d{4}-\d{2}$/.test(f))
-    .map(seasonFromFolder)
-    .sort();
 }
 
 export function readSeasonData(root: string, season: string): SeasonData | null {
@@ -272,11 +262,6 @@ export function writeStatus(root: string, status: UnderstatStatus): void {
 export function writeAppSeason(root: string, file: AppSeasonFile): void {
   mkdirSync(join(root, "app"), { recursive: true });
   writeAtomic(join(root, "app", `${seasonFolder(file.season)}.json`), JSON.stringify(file) + "\n");
-}
-
-export function readAppSeason(root: string, season: string): AppSeasonFile | null {
-  const path = join(root, "app", `${seasonFolder(season)}.json`);
-  return existsSync(path) ? (JSON.parse(readFileSync(path, "utf8")) as AppSeasonFile) : null;
 }
 
 export function writeAppProfile(root: string, file: AppProfileFile): void {

@@ -3823,3 +3823,20 @@ tiles/graphs only:
   the app asks (`--force-run`: the launch update and "Restart now"). A first
   install now ends without opening the app; its shortcut opens it.
 - **Last commit with it:** `c1695d8`.
+
+### Railway/Docker hosting files and unused server routes (removed 2026-10-23)
+- **What it did:** `Dockerfile`, `railway.json` and `.dockerignore` built
+  and deployed the app as a website on Railway, which health-checked
+  `/api/health`. The server also proxied `/api/event/{gw}/live` (never
+  called by the client), answered `POST /api/refresh/understat` (never
+  called either: Refresh Data doesn't re-read Understat), and sent CORS
+  headers for one allowed address (`CLIENT_ORIGIN`, the `cors` package).
+  `package.json` carried macOS (dmg) and Linux (AppImage) build targets and
+  the `png-to-ico` tool; `electron/main.js` a macOS dock handler.
+- **Why it went:** a lean pass (owner request, 2026-10-23). Railway was
+  retired in 2026-09; nothing else used the health check or the two routes;
+  the page and the API are always on the same address (dev, desktop app,
+  any single-host deploy), so the browser never applied CORS; only Windows
+  is ever built, and the icon files are committed. DEPLOYMENT.md "Web
+  hosting (retired)" says how to restore the hosting.
+- **Last commit with it:** `300f745`.

@@ -98,7 +98,6 @@ export class TtlCache<T = unknown> {
 export const bootstrapCache = new TtlCache<unknown>();
 export const fixturesCache = new TtlCache<unknown>();
 export const elementSummaryCache = new TtlCache<unknown>();
-export const eventLiveCache = new TtlCache<unknown>();
 export const historicBulkCache = new TtlCache<unknown>();
 /** Real managers' team data — kept separate from the pool caches above, and much shorter-lived (see CACHE_TTL_MS.entryImport), since this reflects one person's live, changeable squad rather than shared, slower-moving league data. */
 export const entryImportCache = new TtlCache<unknown>();

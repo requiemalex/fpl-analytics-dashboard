@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SCORING_RULES, splitMinutesProbability, computeExpectedPointsV2ForFixture, computeExpectedPointsV2ForWindow } from "./expectedPointsV2";
+import { SCORING_RULES, splitMinutesProbability, computeExpectedPointsV2ForFixture } from "./expectedPointsV2";
 import { computeExpectedPointsForSingleFixture, computeExpectedPointsForWindow } from "./expectedPoints";
 import { getUpcomingFixtures, firstPickableEventId, type UpcomingFixture } from "./fixtureTicker";
 import { computeBlendedMinutesReliability } from "./minutesReliabilityBlend";
@@ -94,11 +94,6 @@ describe("Expected Points Tier 2 — null-safety", () => {
     expect(Number.isFinite(b.total)).toBe(true);
     expect(b.goals).toBe(0);
     expect(b.caveats.some((c) => c.includes("xG/90"))).toBe(true);
-  });
-  it("window returns null without reliability or fixtures", () => {
-    const p = makePlayer({ id: 1, position: "MID" });
-    expect(computeExpectedPointsV2ForWindow(p, [fixture()], 1, new Map(), null, undefined)).toBeNull();
-    expect(computeExpectedPointsV2ForWindow(p, [], 1, new Map(), 0.8, undefined)).toBeNull();
   });
 });
 

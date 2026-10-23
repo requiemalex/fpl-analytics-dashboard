@@ -90,10 +90,6 @@ export function computeRadarDataForAxes(
   });
 }
 
-export function computeRadarData(player: NormalizedPlayer, allPlayers: NormalizedPlayer[], minMinutesThreshold: number): RadarDataPoint[] {
-  return computeRadarDataForAxes(getRadarAxesForPosition(player.position), player, allPlayers, minMinutesThreshold);
-}
-
 export interface RadarAxisGroup {
   /** "" for a position with one combined radar (GKP, FWD — points come
    * overwhelmingly from one facet already); "Defense"/"Offense" for a

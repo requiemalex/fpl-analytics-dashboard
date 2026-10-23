@@ -1,7 +1,7 @@
 import type { NormalizedPlayer, NormalizedTeam, Position } from "../types/normalized";
 import type { UpcomingFixture } from "./fixtureTicker";
 import type { HistoricPlayerProfile } from "./historicAnalysis";
-import { fixtureMultiplier, FDR_SENSITIVITY, type ExpectedPointsWindow } from "./expectedPoints";
+import { fixtureMultiplier, FDR_SENSITIVITY } from "./expectedPoints";
 import { per90 } from "./calculations";
 import { computeCareerAverages } from "./careerMetrics";
 
@@ -95,10 +95,6 @@ export interface ExpectedPointsV2Breakdown {
   caveats: string[];
   /** The parts with no data for this player, counted as 0 ("goals", "bonus"…): the short form of the "No … data" caveats, for a hover. */
   gaps: string[];
-}
-
-function emptyBreakdown(): ExpectedPointsV2Breakdown {
-  return { appearance: 0, goals: 0, assists: 0, cleanSheet: 0, goalsConceded: 0, saves: 0, defensiveContribution: 0, bonus: 0, total: 0, caveats: [], gaps: [] };
 }
 
 export interface MinutesModel {
@@ -308,49 +304,4 @@ export function computeExpectedPointsV2ForFixture(
 
   const total = appearance + goals + assists + cleanSheet + goalsConceded + saves + defensiveContribution + bonus;
   return { appearance, goals, assists, cleanSheet, goalsConceded, saves, defensiveContribution, bonus, total, caveats, gaps };
-}
-
-/**
- * Sums computeExpectedPointsV2ForFixture across the player's next
- * `window` fixtures — same "next N fixtures, not calendar gameweeks"
- * unit as computeExpectedPointsForWindow in expectedPoints.ts, so the
- * two remain directly comparable. Returns null on the same terms Tier 1
- * does: no reliability figure at all, or no upcoming fixtures in the
- * window.
- */
-export function computeExpectedPointsV2ForWindow(
-  player: NormalizedPlayer,
-  upcomingFixtures: UpcomingFixture[],
-  window: ExpectedPointsWindow,
-  teamsById: Map<number, NormalizedTeam>,
-  reliability: number | null,
-  historicProfile: HistoricPlayerProfile | undefined,
-): ExpectedPointsV2Breakdown | null {
-  if (reliability === null) return null;
-  const fixtures = upcomingFixtures.slice(0, window);
-  if (fixtures.length === 0) return null;
-
-  const ownTeam = teamsById.get(player.teamId);
-  const combined = emptyBreakdown();
-  const caveatSet = new Set<string>();
-  const gapSet = new Set<string>();
-
-  for (const fixture of fixtures) {
-    const opponentTeam = teamsById.get(fixture.opponentTeamId);
-    const single = computeExpectedPointsV2ForFixture(player, fixture, ownTeam, opponentTeam, reliability, historicProfile);
-    combined.appearance += single.appearance;
-    combined.goals += single.goals;
-    combined.assists += single.assists;
-    combined.cleanSheet += single.cleanSheet;
-    combined.goalsConceded += single.goalsConceded;
-    combined.saves += single.saves;
-    combined.defensiveContribution += single.defensiveContribution;
-    combined.bonus += single.bonus;
-    combined.total += single.total;
-    single.caveats.forEach((c) => caveatSet.add(c));
-    single.gaps.forEach((g) => gapSet.add(g));
-  }
-  combined.caveats = Array.from(caveatSet);
-  combined.gaps = Array.from(gapSet);
-  return combined;
 }

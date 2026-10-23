@@ -1,7 +1,6 @@
-import React, { useState } from "react";
+import React from "react";
 import { useSearchParams } from "react-router-dom";
-import { fmtDecimal, DASH } from "../utils/format";
-import { getMetricDefinition } from "../metrics/dictionary";
+import { DASH } from "../utils/format";
 import { fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { teamDisplayColors, teamIdentityColor } from "../utils/teamColors";
 import type { Position } from "../types/normalized";
@@ -129,11 +128,6 @@ export function AvailabilityFlag({
   return <span className={`availability-flag ${info.className}`} title={title} aria-label={title} />;
 }
 
-/** Renders a number, or "—" when null — never NaN/Infinity/undefined. */
-export function Num({ value, decimals = 0 }: { value: number | null | undefined; decimals?: number }) {
-  return <span className="num">{fmtDecimal(value, decimals)}</span>;
-}
-
 /** A team's upcoming fixtures as coloured FDR chips plus the average difficulty — shared by every table that offers a fixtures column (Team Building's picker, Player Explorer), so the visual reads identically wherever it appears. `avgTint` is an optional pre-computed background colour (relativeCellTint, lower-is-better) for the average-difficulty figure — comparative colouring against every other team, used by the team profile's Upcoming Fixtures card; every other caller omits it and gets the plain untinted figure unchanged. */
 export function FixtureChips({ fixtures, avgTint }: { fixtures: UpcomingFixture[]; avgTint?: string }) {
   const avgFdr = averageFixtureDifficulty(fixtures);
@@ -159,40 +153,5 @@ export function FixtureChips({ fixtures, avgTint }: { fixtures: UpcomingFixture[
         {avgFdr.toFixed(1)}
       </span>
     </div>
-  );
-}
-
-export function Tooltip({ label, children }: { label: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <span className="tooltip-wrap" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)} tabIndex={0}>
-      {label}
-      {open && <span className="tooltip-bubble">{children}</span>}
-    </span>
-  );
-}
-
-/** Metric-name label with a hover tooltip sourced from the central metric dictionary. */
-export function MetricLabel({ metricKey, fallback }: { metricKey: string; fallback: string }) {
-  const def = getMetricDefinition(metricKey);
-  if (!def) return <>{fallback}</>;
-  return (
-    <Tooltip label={fallback}>
-      <strong>{def.displayName}</strong>
-      <br />
-      Source: {def.source}
-      {def.formula ? (
-        <>
-          <br />
-          {def.formula}
-        </>
-      ) : null}
-      {def.caveats ? (
-        <>
-          <br />
-          <em>{def.caveats}</em>
-        </>
-      ) : null}
-    </Tooltip>
   );
 }

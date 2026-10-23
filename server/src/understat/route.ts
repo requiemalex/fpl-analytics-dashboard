@@ -58,7 +58,7 @@ export function createUnderstatRouter(options: { localDir?: string } = {}): Rout
    */
   const readUnderSync = new Map<string, string>();
 
-  async function load(rel: string, ttlMs: number, bypassCache: boolean, sync?: string): Promise<ProxyResult<unknown>> {
+  async function load(rel: string, ttlMs: number, sync?: string): Promise<ProxyResult<unknown>> {
     if (options.localDir) {
       const path = join(options.localDir, rel);
       if (!existsSync(path)) return { ok: false, error: `${rel} not found`, status: 404 };
@@ -72,15 +72,15 @@ export function createUnderstatRouter(options: { localDir?: string } = {}): Rout
       const fetchedAt = cache.getStale(rel)?.fetchedAt;
       stale = readUnder !== undefined ? readUnder !== sync : fetchedAt !== undefined && fetchedAt < Date.parse(sync);
     }
-    const result = await cachedFetch({ cache, cacheKey: rel, ttlMs, url: `${UNDERSTAT_REMOTE_BASE}/${rel}`, bypassCache: bypassCache || stale, persistAs });
+    const result = await cachedFetch({ cache, cacheKey: rel, ttlMs, url: `${UNDERSTAT_REMOTE_BASE}/${rel}`, bypassCache: stale, persistAs });
     if (sync !== undefined && result.ok && result.source !== "stale-cache") readUnderSync.set(rel, sync);
     return result;
   }
 
-  async function build(bypassCache: boolean) {
+  async function build() {
     const sources: Source[] = [];
     // Side by side: status is cheap, and wasted only when Understat is switched off.
-    const [control, status] = await Promise.all([load("control.json", LIVE_TTL_MS, bypassCache), load("status.json", LIVE_TTL_MS, bypassCache)]);
+    const [control, status] = await Promise.all([load("control.json", LIVE_TTL_MS), load("status.json", LIVE_TTL_MS)]);
     if (control.ok) {
       sources.push(control.source);
       const c = control.data as { enabled?: boolean; note?: string };
@@ -95,7 +95,7 @@ export function createUnderstatRouter(options: { localDir?: string } = {}): Rout
     const files = await Promise.all(
       wanted.map((season) => {
         const live = season === s.liveSeason;
-        return load(`app/${season.replace("/", "-")}.json`, live ? LIVE_TTL_MS : COMPLETED_TTL_MS, bypassCache, live ? s.generatedAt : undefined);
+        return load(`app/${season.replace("/", "-")}.json`, live ? LIVE_TTL_MS : COMPLETED_TTL_MS, live ? s.generatedAt : undefined);
       }),
     );
     const seasons: Record<string, unknown> = {};
@@ -107,9 +107,9 @@ export function createUnderstatRouter(options: { localDir?: string } = {}): Rout
     return { ok: true as const, body: { enabled: true, status: status.data, seasons }, sources };
   }
 
-  async function handle(bypassCache: boolean, res: import("express").Response) {
+  router.get("/understat", async (_req, res) => {
     try {
-      const result = await build(bypassCache);
+      const result = await build();
       if (!result.ok) {
         res.status(result.status).json({ error: `Understat data unavailable: ${result.error}` });
         return;
@@ -119,10 +119,7 @@ export function createUnderstatRouter(options: { localDir?: string } = {}): Rout
     } catch (err) {
       res.status(502).json({ error: `Understat data unreadable: ${err instanceof Error ? err.message : String(err)}` });
     }
-  }
-
-  router.get("/understat", (_req, res) => handle(false, res));
-  router.post("/refresh/understat", (_req, res) => handle(true, res));
+  });
 
   /**
    * GET /api/understat/profile/(player|club)/:code/:season ("2025-26") —
@@ -139,7 +136,7 @@ export function createUnderstatRouter(options: { localDir?: string } = {}): Rout
     }
     try {
       const sources: Source[] = [];
-      const [control, status] = await Promise.all([load("control.json", LIVE_TTL_MS, false), load("status.json", LIVE_TTL_MS, false)]);
+      const [control, status] = await Promise.all([load("control.json", LIVE_TTL_MS), load("status.json", LIVE_TTL_MS)]);
       if (control.ok) {
         sources.push(control.source);
         if ((control.data as { enabled?: boolean }).enabled === false) {
@@ -149,7 +146,7 @@ export function createUnderstatRouter(options: { localDir?: string } = {}): Rout
       }
       const live = status.ok ? (status.data as StatusLike).liveSeason.replace("/", "-") === season : true;
       const sync = status.ok && live ? (status.data as StatusLike).generatedAt : undefined;
-      const file = await load(`app/profile/${season}.json`, live ? LIVE_TTL_MS : COMPLETED_TTL_MS, false, sync);
+      const file = await load(`app/profile/${season}.json`, live ? LIVE_TTL_MS : COMPLETED_TTL_MS, sync);
       if (!file.ok) {
         if (file.status === 404) {
           res.json({ data: { enabled: true, available: false }, meta: { source: "live", fetchedAt: Date.now() } });
