@@ -9,6 +9,7 @@ async function handle(bypassCache: boolean) {
   return cachedFetch({
     cache: fixturesCache,
     cacheKey: "fixtures",
+    persistAs: "fpl/fixtures.json",
     ttlMs: CACHE_TTL_MS.fixtures,
     url: `${FPL_BASE_URL}/fixtures/`,
     bypassCache,

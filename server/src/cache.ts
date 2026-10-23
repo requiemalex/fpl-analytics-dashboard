@@ -4,7 +4,9 @@
  * This is intentionally simple: the project brief explicitly rules out a
  * database or persistent backend storage. Entries disappear when the process
  * restarts, which is fine — bootstrap/fixtures/element-summary data is cheap
- * to re-fetch from the official API.
+ * to re-fetch from the official API. The one exception is the desktop app's
+ * last good copy of what a launch needs (<disk_copies>, diskCopies.ts),
+ * put back with `restore`.
  */
 
 interface CacheEntry<T> {
@@ -67,6 +69,17 @@ export class TtlCache<T = unknown> {
       if (oldest === undefined) break;
       this.store.delete(oldest);
     }
+  }
+
+  /**
+   * Puts back an entry fetched at `fetchedAt` in an earlier run
+   * (<disk_copies>): it keeps that time, so it's fresh only for what's left
+   * of its TTL, and stale (getStale only) after that.
+   */
+  restore(key: string, value: T, ttlMs: number, fetchedAt: number): void {
+    this.set(key, value, ttlMs, fetchedAt);
+    const entry = this.store.get(key);
+    if (entry) entry.fetchedAt = fetchedAt;
   }
 
   invalidate(key: string): void {

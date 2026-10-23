@@ -111,7 +111,11 @@ let serverReady = null;
 function startEmbeddedServer() {
   serverReady = (async () => {
     const { createApp, listenOnLoopback } = require(path.join(__dirname, "../server/dist/app.bundle.cjs"));
-    const expressApp = createApp({ clientDistPath: path.join(__dirname, "../client/dist") });
+    const expressApp = createApp({
+      clientDistPath: path.join(__dirname, "../client/dist"),
+      // The last good copy of what a launch needs (<disk_copies>, server/src/diskCopies.ts).
+      dataCacheDir: path.join(app.getPath("userData"), "data-cache"),
+    });
     return listenOnLoopback(expressApp, 0, "127.0.0.1");
   })();
   return serverReady;

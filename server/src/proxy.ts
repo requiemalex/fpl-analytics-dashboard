@@ -1,5 +1,6 @@
 import { fetchJson, UpstreamError } from "./httpClient.js";
 import { TtlCache } from "./cache.js";
+import { restoreDiskCopy, saveDiskCopy } from "./diskCopies.js";
 
 export type ProxyResult<T> =
   | { ok: true; data: T; source: "live" | "cache" | "stale-cache"; fetchedAt: number }
@@ -18,8 +19,11 @@ export async function cachedFetch<T>(options: {
   ttlMs: number;
   url: string;
   bypassCache?: boolean;
+  /** Keep the last good copy on disk under this name (<disk_copies>): only for what a launch needs. */
+  persistAs?: string;
 }): Promise<ProxyResult<T>> {
-  const { cache, cacheKey, ttlMs, url, bypassCache } = options;
+  const { cache, cacheKey, ttlMs, url, bypassCache, persistAs } = options;
+  if (persistAs) restoreDiskCopy(cache as TtlCache<unknown>, cacheKey, persistAs, ttlMs);
 
   if (!bypassCache) {
     const cached = cache.get(cacheKey);
@@ -43,7 +47,9 @@ export async function cachedFetch<T>(options: {
   try {
     const data = await pending;
     cache.set(cacheKey, data, ttlMs, requestStartedAt.get(pending));
-    return { ok: true, data, source: "live", fetchedAt: Date.now() };
+    const fetchedAt = Date.now();
+    if (persistAs) saveDiskCopy(persistAs, data, fetchedAt);
+    return { ok: true, data, source: "live", fetchedAt };
   } catch (err) {
     // Graceful degradation: if we have any previously-cached value (even
     // expired), serve it with a clear staleness flag rather than failing.

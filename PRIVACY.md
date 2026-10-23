@@ -17,7 +17,10 @@ storage:
 - notepad notes;
 - that you accepted the app's terms, and which version;
 - a log of what the app did (launches, update checks) and any errors it
-  hit, in the data folder's `logs` subfolder, so a problem can be traced.
+  hit, in the data folder's `logs` subfolder, so a problem can be traced;
+- copies of the latest FPL and Understat data it downloaded (the same data
+  everyone gets, nothing about you), in the data folder's `data-cache`
+  subfolder, so it can open without an internet connection.
 
 Nothing of this leaves your computer. Uninstalling the app and deleting its
 data folder (`%APPDATA%\FPL Analytics Dashboard` on Windows: the folder kept

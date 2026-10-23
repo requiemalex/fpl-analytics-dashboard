@@ -6,10 +6,14 @@
  * disk when given `localDir`: `npm run dev` from a checkout).
  *
  * Returns the off-switch state, the sync status and the season summaries a
- * Data View can need: the live season and the last 4 completed ones.
- * Cached like every other upstream (30 minutes; completed seasons 12 hours),
- * and like them falls back to the last good copy if GitHub can't be
- * reached, flagged "stale-cache".
+ * Data View can need: the live season and the last 4 completed ones,
+ * fetched side by side rather than one after another (audit 2026-10-23,
+ * Efficiency C). Cached like every other upstream (30 minutes; completed
+ * seasons 12 hours), and like them falls back to the last good copy if
+ * GitHub can't be reached, flagged "stale-cache". In the desktop app every
+ * file's last good copy is also kept on disk (<disk_copies>), so a launch
+ * within those times downloads none of them, and one without internet
+ * still has them.
  *
  * Self-contained: nothing outside server/src/understat/ imports this
  * except app.ts, which mounts it — removing Understat removes this folder
@@ -20,6 +24,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TtlCache } from "../cache.js";
 import { cachedFetch, type ProxyResult } from "../proxy.js";
+import { restoreDiskCopy } from "../diskCopies.js";
 import { onPitchWindow, wasOnPitch, type OnPitch } from "./onPitch.js";
 
 export const UNDERSTAT_REMOTE_BASE = "https://raw.githubusercontent.com/requiemalex/fpl-analytics-dashboard/master/data/understat";
@@ -48,7 +53,8 @@ export function createUnderstatRouter(options: { localDir?: string } = {}): Rout
    * a fresh status could otherwise come with a live file cached just before
    * that sync landed; a file read under an older sync is read again — once
    * per sync, not per request. A failed re-read still falls back to the
-   * last good copy (cachedFetch).
+   * last good copy (cachedFetch). A copy put back from disk (<disk_copies>)
+   * has no record here: it's read again if it was fetched before the sync.
    */
   const readUnderSync = new Map<string, string>();
 
@@ -58,15 +64,23 @@ export function createUnderstatRouter(options: { localDir?: string } = {}): Rout
       if (!existsSync(path)) return { ok: false, error: `${rel} not found`, status: 404 };
       return { ok: true, data: JSON.parse(readFileSync(path, "utf8")), source: "live", fetchedAt: Date.now() };
     }
-    const stale = sync !== undefined && readUnderSync.has(rel) && readUnderSync.get(rel) !== sync;
-    const result = await cachedFetch({ cache, cacheKey: rel, ttlMs, url: `${UNDERSTAT_REMOTE_BASE}/${rel}`, bypassCache: bypassCache || stale });
+    const persistAs = `understat/${rel}`;
+    let stale = false;
+    if (sync !== undefined) {
+      restoreDiskCopy(cache, rel, persistAs, ttlMs);
+      const readUnder = readUnderSync.get(rel);
+      const fetchedAt = cache.getStale(rel)?.fetchedAt;
+      stale = readUnder !== undefined ? readUnder !== sync : fetchedAt !== undefined && fetchedAt < Date.parse(sync);
+    }
+    const result = await cachedFetch({ cache, cacheKey: rel, ttlMs, url: `${UNDERSTAT_REMOTE_BASE}/${rel}`, bypassCache: bypassCache || stale, persistAs });
     if (sync !== undefined && result.ok && result.source !== "stale-cache") readUnderSync.set(rel, sync);
     return result;
   }
 
   async function build(bypassCache: boolean) {
     const sources: Source[] = [];
-    const control = await load("control.json", LIVE_TTL_MS, bypassCache);
+    // Side by side: status is cheap, and wasted only when Understat is switched off.
+    const [control, status] = await Promise.all([load("control.json", LIVE_TTL_MS, bypassCache), load("status.json", LIVE_TTL_MS, bypassCache)]);
     if (control.ok) {
       sources.push(control.source);
       const c = control.data as { enabled?: boolean; note?: string };
@@ -74,18 +88,21 @@ export function createUnderstatRouter(options: { localDir?: string } = {}): Rout
     } else if (control.status !== 404) {
       return { ok: false as const, status: control.status, error: control.error };
     }
-    const status = await load("status.json", LIVE_TTL_MS, bypassCache);
     if (!status.ok) return { ok: false as const, status: status.status, error: status.error };
     sources.push(status.source);
     const s = status.data as StatusLike;
     const wanted = (s.seasons ?? []).slice(-SEASONS_SERVED);
+    const files = await Promise.all(
+      wanted.map((season) => {
+        const live = season === s.liveSeason;
+        return load(`app/${season.replace("/", "-")}.json`, live ? LIVE_TTL_MS : COMPLETED_TTL_MS, bypassCache, live ? s.generatedAt : undefined);
+      }),
+    );
     const seasons: Record<string, unknown> = {};
-    for (const season of wanted) {
-      const live = season === s.liveSeason;
-      const file = await load(`app/${season.replace("/", "-")}.json`, live ? LIVE_TTL_MS : COMPLETED_TTL_MS, bypassCache, live ? s.generatedAt : undefined);
+    for (const [i, file] of files.entries()) {
       if (!file.ok) return { ok: false as const, status: file.status, error: file.error };
       sources.push(file.source);
-      seasons[season] = file.data;
+      seasons[wanted[i]] = file.data;
     }
     return { ok: true as const, body: { enabled: true, status: status.data, seasons }, sources };
   }
@@ -122,7 +139,7 @@ export function createUnderstatRouter(options: { localDir?: string } = {}): Rout
     }
     try {
       const sources: Source[] = [];
-      const control = await load("control.json", LIVE_TTL_MS, false);
+      const [control, status] = await Promise.all([load("control.json", LIVE_TTL_MS, false), load("status.json", LIVE_TTL_MS, false)]);
       if (control.ok) {
         sources.push(control.source);
         if ((control.data as { enabled?: boolean }).enabled === false) {
@@ -130,7 +147,6 @@ export function createUnderstatRouter(options: { localDir?: string } = {}): Rout
           return;
         }
       }
-      const status = await load("status.json", LIVE_TTL_MS, false);
       const live = status.ok ? (status.data as StatusLike).liveSeason.replace("/", "-") === season : true;
       const sync = status.ok && live ? (status.data as StatusLike).generatedAt : undefined;
       const file = await load(`app/profile/${season}.json`, live ? LIVE_TTL_MS : COMPLETED_TTL_MS, false, sync);

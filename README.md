@@ -204,6 +204,25 @@ shows a "stale data" banner — never blank, never presented as current. That
 covers fixtures and the historic dataset too: either served from a stale
 copy gets its own banner naming it (`staleDatasets`).
 
+**The desktop app's copies on disk** (`<disk_copies>`,
+`server/src/diskCopies.ts`). The caches live in memory, so a fresh launch
+used to have no last copy to fall back on: offline, during FPL's "the game
+is being updated" spells, or on a slow connection it opened on "Couldn't
+load live FPL data". Now the last good `bootstrap-static`, `fixtures/` and
+every Understat file are also kept in the saved-data folder
+(`data-cache/`, about 5 MB, written whole then renamed into place), and put
+back into the memory cache with the time they were really fetched. The
+rules above then apply unchanged: within its TTL a copy is served as cached
+(a relaunch soon after downloads none of it; Understat's request went from
+~0.9 s to ~0.06 s), past it a live fetch is tried first and the copy is
+only the stale fallback, with its banner. A copy over 7 days old is never
+used. Each copy is the latest fetched, so never from an earlier season
+than the app has already seen. A live-season Understat file put back from
+disk has no `readUnderSync` record, so it's read again if it was fetched
+before the newest sync. Only the desktop app turns this on (`createApp`'s
+`dataCacheDir`); `npm run dev` and the Dockerfile stay memory-only.
+Understat's files are fetched side by side, not one after another.
+
 **The historic bulk build** (`server/src/routes/historicBulk.ts`) fetches
 every player's `element-summary` 15 at a time. A cold build takes up to a
 minute, so it is demand-driven: a page that needs historic data calls

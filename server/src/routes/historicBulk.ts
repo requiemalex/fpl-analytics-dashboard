@@ -81,6 +81,7 @@ export async function buildBulkHistoricData(bypassCache: boolean): Promise<BulkR
   const bootstrap = await cachedFetch({
     cache: bootstrapCache,
     cacheKey: "bootstrap-static",
+    persistAs: "fpl/bootstrap-static.json",
     ttlMs: CACHE_TTL_MS.bootstrapStatic,
     url: `${FPL_BASE_URL}/bootstrap-static/`,
     bypassCache,
@@ -98,6 +99,7 @@ export async function buildBulkHistoricData(bypassCache: boolean): Promise<BulkR
   const fixtures = await cachedFetch({
     cache: fixturesCache,
     cacheKey: "fixtures",
+    persistAs: "fpl/fixtures.json",
     ttlMs: CACHE_TTL_MS.fixtures,
     url: `${FPL_BASE_URL}/fixtures/`,
     bypassCache,

@@ -4,6 +4,7 @@ import { existsSync } from "fs";
 import express from "express";
 import cors from "cors";
 import { CORS_ORIGIN } from "./config.js";
+import { useDiskCopies } from "./diskCopies.js";
 import { bootstrapRouter } from "./routes/bootstrap.js";
 import { fixturesRouter } from "./routes/fixtures.js";
 import { elementSummaryRouter } from "./routes/elementSummary.js";
@@ -35,9 +36,13 @@ export { listenOnLoopback } from "./listen.js";
  * than branch on which module system loaded this file, each caller just
  * tells createApp() where client/dist actually is; index.ts's default
  * covers every non-Electron caller unchanged.
+ *
+ * `dataCacheDir`: where to keep the last good copy of what a launch needs
+ * (<disk_copies>, diskCopies.ts). Only the desktop app gives one.
  */
-export function createApp(options?: { clientDistPath?: string; understatLocalDir?: string }): express.Express {
+export function createApp(options?: { clientDistPath?: string; understatLocalDir?: string; dataCacheDir?: string }): express.Express {
   const app = express();
+  useDiskCopies(options?.dataCacheDir);
 
   app.use(cors({ origin: CORS_ORIGIN }));
   app.use(express.json());

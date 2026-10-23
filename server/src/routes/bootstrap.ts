@@ -9,6 +9,7 @@ async function handle(bypassCache: boolean) {
   return cachedFetch({
     cache: bootstrapCache,
     cacheKey: "bootstrap-static",
+    persistAs: "fpl/bootstrap-static.json",
     ttlMs: CACHE_TTL_MS.bootstrapStatic,
     url: `${FPL_BASE_URL}/bootstrap-static/`,
     bypassCache,
