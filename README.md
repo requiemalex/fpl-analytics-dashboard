@@ -1234,6 +1234,16 @@ shared engines, reused by Team Building's Add Players table. Search is
 accent- and order-insensitive with small-typo tolerance, splits the
 query at dots/apostrophes (curly ones too)/hyphens as it does names, and treats a one-letter
 word as an initial that must start a name word (`utils/playerSearch.ts`).
+Every search box goes through `filterBySearch` (`<exact_before_typos>`):
+typo matches count only when no player matches the query as typed, so
+"wilson" doesn't bring in Nilson Angulo. PlayerSearch's suggestions are
+ranked (`rankBySearch`: the player whose FPL name is the query first) and
+work from the keyboard as a combobox (↓/↑, Enter, Escape closes just the
+list). The Columns pickers (`ColumnsPopover`, `components/MenuControls.tsx`)
+and the Dashboard's Statistic/axis pickers (`GroupedPicker`) have a filter
+box that narrows them by name. CSV exports start with a UTF-8 byte-order
+mark so Excel on Windows reads £ and accented names correctly
+(`utils/csvExport.ts`).
 - Filters compare a value **as displayed**: each column declares its
   `decimals` and the value is rounded the way its cell is
   (`roundAsDisplayed`) before ≤/≥/=. A range nothing can meet is refused

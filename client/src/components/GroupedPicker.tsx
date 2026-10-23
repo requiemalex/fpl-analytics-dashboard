@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useEscapeLayer } from "../state/useEscapeLayer";
+import { foldText } from "./MenuControls";
 
 export interface PickerOption {
   value: string;
@@ -33,16 +34,27 @@ function ChevronIcon({ open }: { open: boolean }) {
  * and End move, Enter or Space picks, a letter jumps to the next name
  * starting with it, Escape closes only the list (useEscapeLayer), Tab
  * leaves it. A click outside closes it.
+ *
+ * Open, a filter box at the top has the focus: typing narrows the list to
+ * the statistics whose name contains what's typed (accents and case
+ * aside), keeping their headings, and the arrows, Enter and Tab work from
+ * it as from the list (audit 2026-10-23 in-app: the Statistic picker is
+ * about ninety names long).
  */
 export function GroupedPicker({ id, value, groups, onChange }: { id: string; value: string; groups: PickerGroup[]; onChange: (value: string) => void }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(value);
+  const [filter, setFilter] = useState("");
   const wrapRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
-  const options = groups.flatMap((g) => g.options);
-  const selected = options.find((o) => o.value === value);
-  const optionId = (v: string) => `${id}-option-${options.findIndex((o) => o.value === v)}`;
+  const filterRef = useRef<HTMLInputElement>(null);
+  const allOptions = groups.flatMap((g) => g.options);
+  const needle = foldText(filter.trim());
+  const shownGroups = needle ? groups.map((g) => ({ ...g, options: g.options.filter((o) => foldText(o.label).includes(needle)) })) : groups;
+  const options = shownGroups.flatMap((g) => g.options);
+  const selected = allOptions.find((o) => o.value === value);
+  const optionId = (v: string) => `${id}-option-${allOptions.findIndex((o) => o.value === v)}`;
 
   function close(refocus: boolean) {
     setOpen(false);
@@ -56,13 +68,19 @@ export function GroupedPicker({ id, value, groups, onChange }: { id: string; val
 
   useEscapeLayer(open, () => close(true));
 
-  // Opening starts on the current choice, focuses the list and scrolls the choice into view.
+  // Opening starts on the current choice with an empty filter, focuses the filter box and scrolls the choice into view.
   useEffect(() => {
     if (!open) return;
     setActive(value);
-    listRef.current?.focus();
+    setFilter("");
+    (filterRef.current ?? listRef.current)?.focus();
     // Only on opening: value is read then, not followed while open.
   }, [open]);
+
+  // A filter that hides the highlighted option moves the highlight to the first one left.
+  useEffect(() => {
+    if (open && options.length > 0 && !options.some((o) => o.value === active)) setActive(options[0].value);
+  }, [open, filter]);
 
   useEffect(() => {
     if (!open || !listRef.current) return;
@@ -79,7 +97,17 @@ export function GroupedPicker({ id, value, groups, onChange }: { id: string; val
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
 
+  /** The filter box: the list's keys except a letter or Space, which type. */
+  function onFilterKeyDown(e: React.KeyboardEvent) {
+    if (e.key === " " || (e.key.length === 1 && /\S/.test(e.key))) return;
+    onListKeyDown(e);
+  }
+
   function onListKeyDown(e: React.KeyboardEvent) {
+    if (options.length === 0) {
+      if (e.key === "Tab") close(false);
+      return;
+    }
     const i = Math.max(0, options.findIndex((o) => o.value === active));
     const moveTo = (n: number) => setActive(options[Math.min(options.length - 1, Math.max(0, n))].value);
     if (e.key === "ArrowDown") moveTo(i + 1);
@@ -130,7 +158,23 @@ export function GroupedPicker({ id, value, groups, onChange }: { id: string; val
           aria-activedescendant={options.some((o) => o.value === active) ? optionId(active) : undefined}
           onKeyDown={onListKeyDown}
         >
-          {groups
+          <input
+            ref={filterRef}
+            type="text"
+            className="grouped-picker-filter"
+            placeholder="Type to filter…"
+            aria-label="Filter the list"
+            aria-controls={`${id}-list`}
+            aria-activedescendant={options.some((o) => o.value === active) ? optionId(active) : undefined}
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              onFilterKeyDown(e);
+            }}
+          />
+          {options.length === 0 && <div className="grouped-picker-empty">Nothing matches "{filter.trim()}".</div>}
+          {shownGroups
             .filter((g) => g.options.length > 0)
             .map((g) => (
               <div key={g.key} role="group" aria-label={g.label}>

@@ -18,13 +18,13 @@ import { fmtPercent, fmtPrice } from "../utils/format";
 import { percentileTint } from "../utils/colorScale";
 import { colourDirection, fixtureDifficultyRanks, positionRanks } from "../metrics/comparativeColour";
 import { downloadCsv } from "../utils/csvExport";
-import { matchesPlayerSearch } from "../utils/playerSearch";
+import { filterBySearch } from "../utils/playerSearch";
 import { useEscapeLayer } from "../state/useEscapeLayer";
 import { HideSmallSamplesButton, isSmallSample, MinutesFloorBadge, RowSmallSampleBadge, smallSamplesShownNote, userMinimumNote } from "../components/MinutesFloorBadge";
 import type { ColumnFilterSpec } from "../state/useColumnFilters";
 import { useProgressiveRowCount, INITIAL_ROW_COUNT } from "../state/useProgressiveRowCount";
 import type { NormalizedPlayer, Position } from "../types/normalized";
-import { MenuGroupHeading, fplHeading } from "../components/MenuControls";
+import { ColumnsPopover, MenuGroupHeading, fplHeading } from "../components/MenuControls";
 import { headerMinWidth } from "../components/headerWidth";
 import { CrossoverGroupHeading, SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
 import { FPL_SOURCE, useExternalStats, type ColumnSourceChoice } from "../extensions/externalStats";
@@ -357,7 +357,7 @@ export function PlayerExplorer() {
 
   const rows = useMemo(() => {
     const query = search.trim();
-    return query ? allRows.filter((r) => matchesPlayerSearch(r.player, query)) : allRows;
+    return query ? filterBySearch(allRows, query, (r) => r.player) : allRows;
   }, [allRows, search]);
 
   const [showColumnPopover, setShowColumnPopover] = useState(false);
@@ -684,7 +684,7 @@ export function PlayerExplorer() {
               onClick={() => setShowColumnPopover((v) => !v)}
             />
             {showColumnPopover && (
-              <div className="popover" style={{ left: 0, right: "auto" }}>
+              <ColumnsPopover style={{ left: 0, right: "auto" }}>
                 {/* Ownership/Price/Team/Position aren't listed here at all — they're the fixed identity block (IDENTITY_COLUMNS), always shown, never toggleable. */}
                 <div>
                   <MenuGroupHeading group="Other" label={fplHeading("Other")} className="col-source-fpl" />
@@ -732,7 +732,7 @@ export function PlayerExplorer() {
                       ))}
                     </div>
                   ))}
-              </div>
+              </ColumnsPopover>
             )}
           </div>
           <IconChipButton

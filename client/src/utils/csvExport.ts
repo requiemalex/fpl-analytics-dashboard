@@ -7,7 +7,10 @@ function escapeCsvField(value: string | number): string {
 /** Builds a CSV from a header row plus data rows and triggers a browser download. Values are exported exactly as shown on screen (formatted strings, — for unavailable), not raw numbers, so the file matches the table view it came from. */
 export function downloadCsv(filename: string, headers: string[], rows: (string | number)[][]): void {
   const lines = [headers, ...rows].map((row) => row.map(escapeCsvField).join(","));
-  const csv = lines.join("\r\n");
+  // A byte-order mark first: without it Excel on Windows reads the file in
+  // the old Windows code page, so "£15.7m" opens as "Â£15.7m" and "Ødegaard"
+  // as "Ã˜degaard" (audit 2026-10-23 in-app).
+  const csv = "﻿" + lines.join("\r\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

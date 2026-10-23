@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { matchesPlayerSearch } from "./playerSearch";
+import { filterBySearch, matchesPlayerSearch, rankBySearch } from "./playerSearch";
 import { makePlayer } from "../test/fixtures";
 
 // Real 2026/27 names from bootstrap-static (web_name, first_name, second_name).
@@ -57,5 +57,28 @@ describe("matchesPlayerSearch — curly apostrophes (audit 2026-09-25)", () => {
     expect(matchesPlayerSearch(ORILEY, "O’Riley")).toBe(true);
     expect(matchesPlayerSearch(ORILEY, "o'riley")).toBe(true);
     expect(matchesPlayerSearch(ORILEY, "O‘Riley")).toBe(true);
+  });
+});
+
+describe("<exact_before_typos> filterBySearch and rankBySearch (audit 2026-10-23 in-app)", () => {
+  const WILSON = makePlayer({ id: 20, position: "FWD", name: "Wilson", firstName: "Callum", lastName: "Wilson" });
+  const ANGULO = makePlayer({ id: 21, position: "MID", name: "N.Angulo", firstName: "Nilson", lastName: "Angulo" });
+  const COSTINHA = makePlayer({ id: 22, position: "DEF", name: "Costinha", firstName: "João Pedro", lastName: "Loureiro da Costa" });
+  const JOAO_PEDRO = makePlayer({ id: 23, position: "FWD", name: "João Pedro", firstName: "João Pedro", lastName: "Junqueira de Jesus" });
+  const pool = [ANGULO, WILSON, COSTINHA, JOAO_PEDRO, HAALAND];
+  const names = (q: string) => filterBySearch(pool, q, (p) => p).map((p) => p.name);
+
+  it("a name someone actually has wins over one a letter away", () => {
+    expect(names("wilson")).toEqual(["Wilson"]);
+  });
+
+  it("typos still find a player when nobody matches as typed", () => {
+    expect(names("haalnd")).toEqual(["Haaland"]);
+    expect(names("nilsen")).toEqual(["N.Angulo"]);
+  });
+
+  it("puts the player whose FPL name is the query first, keeping the rest in order", () => {
+    const ranked = rankBySearch(filterBySearch(pool, "joao pedro", (p) => p), "joao pedro", (p) => p).map((p) => p.name);
+    expect(ranked).toEqual(["João Pedro", "Costinha"]);
   });
 });

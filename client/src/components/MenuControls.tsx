@@ -1,4 +1,4 @@
-import React, { useId, useState } from "react";
+import React, { useId, useLayoutEffect, useRef, useState } from "react";
 
 /**
  * The building blocks every dialog and column menu is made from, so they
@@ -254,6 +254,65 @@ export function MinutesSlider({
         <span>0</span>
         <span>{MINUTES_SLIDER_MAX.toLocaleString("en-GB")}</span>
       </div>
+    </div>
+  );
+}
+
+/** Lower case without accents, so "creat" finds "Creativity": the Columns and Statistic pickers' filters. */
+export function foldText(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+
+/**
+ * The Explorers' and Add Players' Columns picker: its checkboxes under
+ * their group headings, with a filter box on top that has the focus and
+ * leaves only the columns whose name contains what's typed, and the
+ * headings that still have one (audit 2026-10-23 in-app: the list runs to
+ * about ninety). Pages pass their own groups (a div per group, a label per
+ * column) as children, so each keeps its own headings and order.
+ */
+export function ColumnsPopover({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  const [filter, setFilter] = useState("");
+  const listRef = useRef<HTMLDivElement>(null);
+  const emptyRef = useRef<HTMLDivElement>(null);
+
+  // Hides what doesn't match after every render, so a column the page adds
+  // or renames is filtered like the rest.
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const needle = foldText(filter.trim());
+    let shown = 0;
+    for (const group of list.children) {
+      const labels = [...group.querySelectorAll<HTMLElement>("label")];
+      let groupShown = 0;
+      for (const label of labels) {
+        const hide = needle !== "" && !foldText(label.textContent ?? "").includes(needle);
+        label.style.display = hide ? "none" : "";
+        if (!hide) groupShown += 1;
+      }
+      // While filtering, a heading with nothing under it that matches goes too.
+      (group as HTMLElement).style.display = needle !== "" && groupShown === 0 ? "none" : "";
+      shown += groupShown;
+    }
+    if (emptyRef.current) emptyRef.current.style.display = shown === 0 ? "" : "none";
+  });
+
+  return (
+    <div className="popover columns-popover" style={style}>
+      <input
+        type="text"
+        className="columns-popover-filter"
+        placeholder="Type to filter…"
+        aria-label="Filter the columns"
+        autoFocus
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+      />
+      <div ref={emptyRef} className="columns-popover-empty" style={{ display: "none" }}>
+        No column matches "{filter.trim()}".
+      </div>
+      <div ref={listRef}>{children}</div>
     </div>
   );
 }

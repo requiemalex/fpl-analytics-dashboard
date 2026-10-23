@@ -18,7 +18,7 @@ import { computeExpectedPointsForSingleFixture } from "../metrics/expectedPoints
 import { computeExpectedPointsV2ForFixture, type ExpectedPointsV2Breakdown } from "../metrics/expectedPointsV2";
 import { fetchEntryTeam, fetchEntryHistory, fetchEntryPicks, ApiRequestError } from "../api/client";
 import { normalizeEntryImport } from "../normalize/normalizeEntryImport";
-import { matchesPlayerSearch } from "../utils/playerSearch";
+import { filterBySearch } from "../utils/playerSearch";
 import { computeBlendedMinutesReliability } from "../metrics/minutesReliabilityBlend";
 import { getUpcomingFixtures, firstPickableEventId, fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, cellText, columnByKey, columnForMode, isStaticColumn, rankValue, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
@@ -35,7 +35,7 @@ import { isUnderMinimum } from "../metrics/fixedMinutesFloor";
 import { MIN_QUALIFYING_SEASON_MINUTES } from "../metrics/historicAnalysis";
 import { downloadCsv } from "../utils/csvExport";
 import type { NormalizedPlayer, Position } from "../types/normalized";
-import { MenuGroupHeading, fplHeading } from "../components/MenuControls";
+import { ColumnsPopover, MenuGroupHeading, fplHeading } from "../components/MenuControls";
 
 /** How long a rejected drag's warning message stays visible before clearing itself. */
 const WARNING_DISPLAY_MS = 4000;
@@ -916,10 +916,10 @@ export function TeamBuilder() {
 
   const pickerBuiltRows: PickerRowData[] = useMemo(() => {
     const search = pickerSearch.trim();
-    return pickerAllRows
+    const rows = pickerAllRows
       .filter((r) => pickerPosition === "ALL" || r.live.position === pickerPosition)
-      .filter((r) => pickerTeamId === "ALL" || r.live.teamId === pickerTeamId)
-      .filter((r) => !search || matchesPlayerSearch(r.live, search));
+      .filter((r) => pickerTeamId === "ALL" || r.live.teamId === pickerTeamId);
+    return search ? filterBySearch(rows, search, (r) => r.live) : rows;
   }, [pickerAllRows, pickerSearch, pickerPosition, pickerTeamId]);
 
   const pickerFilteredRows: PickerRowData[] = useMemo(
@@ -1325,7 +1325,7 @@ export function TeamBuilder() {
               onClick={() => setShowHistoricRawColumnPopover((v) => !v)}
             />
             {showHistoricRawColumnPopover && (
-              <div className="popover" style={{ left: 0, right: "auto" }}>
+              <ColumnsPopover style={{ left: 0, right: "auto" }}>
                 {HISTORIC_RAW_GROUPS.map((group) => (
                   <div key={group}>
                     <MenuGroupHeading group={group} label={fplHeading(group)} className="col-source-fpl" />
@@ -1341,7 +1341,7 @@ export function TeamBuilder() {
                     ))}
                   </div>
                 ))}
-              </div>
+              </ColumnsPopover>
             )}
           </div>
           <IconChipButton

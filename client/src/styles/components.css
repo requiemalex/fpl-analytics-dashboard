@@ -1446,6 +1446,45 @@ select:focus {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
 }
+.grouped-picker-filter {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  width: 100%;
+  margin-bottom: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+.grouped-picker-filter:focus {
+  outline: none;
+  border-color: var(--accent-positive);
+}
+.columns-popover-filter {
+  width: 100%;
+  margin-bottom: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+.columns-popover-filter:focus {
+  outline: none;
+  border-color: var(--accent-positive);
+}
+.columns-popover-empty,
+.grouped-picker-empty {
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
 .grouped-picker-list:focus {
   outline: none;
 }
@@ -1711,6 +1750,15 @@ select:focus {
 }
 
 /* ---------- Column visibility popover ---------- */
+/* PlayerSearch's suggestions: the one under the mouse or picked with ↓/↑ (Enter adds it). */
+.popover[role="listbox"] .stat-row {
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+  border-radius: var(--radius-sm);
+}
+.popover[role="listbox"] .stat-row.is-active {
+  background: var(--surface-hover);
+}
 .popover {
   position: absolute;
   top: calc(100% + 6px);

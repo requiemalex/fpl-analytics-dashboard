@@ -239,7 +239,7 @@ export function UserGuide() {
           <strong>Graphs</strong> work like tiles: add one with the + card, edit it with its pencil. Pick a name (optional, as for a tile), a chart type (a{" "}
           <strong>Scatter Plot</strong> of two metrics, or a <strong>Bar Chart</strong> ranking 15 by one, in the order you choose;
           it starts with the natural one, so League Position lists the best first), the metric(s), a Data View, and what to
-          include: Filters or up to 5 players, or All Teams or up to 5 teams. The pickers include Understat's figures, grouped as in
+          include: Filters or up to 5 players, or All Teams or up to 5 teams. The pickers (type in their box to find a statistic) include Understat's figures, grouped as in
           the Explorers, and a figure both sources have gets the ⇄ switch (see Understat stats; the same goes for tiles). A scatter plot can add a dashed 45° trend line (
           <strong>Add Trend Line</strong>) marking where X equals Y. It's useful only when both are on the same scale, like xG and Goals.
           The Starter graphs are xG vs Goals, xA vs Assists and Price vs Points for players, and Team xG vs Goals and Team xGC vs
@@ -284,12 +284,14 @@ export function UserGuide() {
           <li>
             <strong>Search:</strong> the toolbar box finds players by name, here and on Team Building and Player Comparison. It
             ignores accents ("odegaard" finds Ødegaard), takes names in any order or as FPL writes them ("B.Fernandes"), and
-            tolerates small typos.
+            tolerates small typos when no name matches what you typed ("haalnd" finds Haaland; "wilson" finds only Wilsons).
+            Where a search suggests players (Player Comparison, the Dashboard's Player Search), the one whose name you typed comes
+            first, ↓/↑ move through the list, Enter adds the highlighted one and Escape closes the list.
           </li>
           <li>
             <strong>Toolbar icons</strong> (hover each for its name): Reset restores the default columns, order and widths and clears
-            every filter; Columns picks which columns show; Clear filters empties the search and every column filter; Saved views
-            (right of Clear filters) saves or loads a view; Export CSV downloads exactly what's on screen.
+            every filter; Columns picks which columns show (type in its box to find one); Clear filters empties the search and every column filter; Saved views
+            (right of Clear filters) saves or loads a view; Export CSV downloads exactly what's on screen, ready to open in Excel.
           </li>
           <li>
             <strong>Saved views:</strong> "Save current view" keeps the Data View, the columns and their order, any widths you've

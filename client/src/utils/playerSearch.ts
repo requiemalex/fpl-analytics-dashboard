@@ -35,7 +35,41 @@ export function matchesPlayerSearch(player: NormalizedPlayer, query: string): bo
   return matchesWords(playerSearchWords(player), query);
 }
 
-function matchesWords(words: string[], query: string): boolean {
+/**
+ * <exact_before_typos>: the players a search box shows. If any player
+ * matches the query as typed (accents, word order and initials aside),
+ * those are the results; the typo tolerance only steps in when nobody
+ * does. So "haalnd" still finds Haaland, but "Wilson" finds the Wilsons
+ * and not Nilson Angulo, a letter away (audit 2026-10-23 in-app). Every
+ * search box uses this: Player Explorer, Add Players, the Dashboard's
+ * criteria and the PlayerSearch suggestions.
+ */
+export function filterBySearch<T>(items: T[], query: string, playerOf: (item: T) => NormalizedPlayer): T[] {
+  if (!normalizeSearchText(query)) return items;
+  const withWords = items.map((item) => ({ item, words: playerSearchWords(playerOf(item)) }));
+  const exact = withWords.filter(({ words }) => matchesWords(words, query, false));
+  return (exact.length > 0 ? exact : withWords.filter(({ words }) => matchesWords(words, query, true))).map(({ item }) => item);
+}
+
+/**
+ * Suggestions in the order someone typing a name expects: a player whose
+ * FPL name is the query first ("João Pedro" before Costinha, whose first
+ * names are João Pedro), then names starting with it, then the rest in
+ * their original order.
+ */
+export function rankBySearch<T>(items: T[], query: string, playerOf: (item: T) => NormalizedPlayer): T[] {
+  const q = normalizeSearchText(query).split(WORD_SEPARATORS).filter(Boolean).join(" ");
+  const rank = (item: T) => {
+    const name = normalizeSearchText(playerOf(item).name).split(WORD_SEPARATORS).filter(Boolean).join(" ");
+    return name === q ? 0 : name.startsWith(q) ? 1 : 2;
+  };
+  return items
+    .map((item, index) => ({ item, index, rank: rank(item) }))
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map(({ item }) => item);
+}
+
+function matchesWords(words: string[], query: string, allowTypos = true): boolean {
   const q = normalizeSearchText(query);
   if (!q) return true;
   const tokens = q.split(WORD_SEPARATORS).filter(Boolean);
@@ -43,7 +77,7 @@ function matchesWords(words: string[], query: string): boolean {
   return tokens.every((token) =>
     // A lone letter is an initial ("B" of "B.Fernandes"): it has to start a
     // word, or it would match any name containing that letter.
-    token.length === 1 ? words.some((w) => w.startsWith(token)) : haystack.includes(token) || words.some((w) => fuzzyWordMatch(token, w)),
+    token.length === 1 ? words.some((w) => w.startsWith(token)) : haystack.includes(token) || (allowTypos && words.some((w) => fuzzyWordMatch(token, w))),
   );
 }
 

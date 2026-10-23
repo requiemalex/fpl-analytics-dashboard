@@ -81,4 +81,25 @@ describe("GroupedPicker", () => {
     fireEvent.mouseDown(getByRole("button", { name: "Elsewhere" }));
     expect(queryByRole("listbox")).toBeNull();
   });
+  it("typing in its filter box narrows the list, keeping headings; Enter picks the first match (audit 2026-10-23 in-app)", () => {
+    const { getByRole, getByLabelText, queryByRole } = render(<Harness />);
+    fireEvent.click(getByLabelText("Statistic"));
+    const filter = getByLabelText("Filter the list");
+    fireEvent.change(filter, { target: { value: "XG" } });
+    expect(queryByRole("option", { name: "Points" })).toBeNull();
+    expect(getByRole("listbox").querySelectorAll('[role="group"]')).toHaveLength(1);
+    fireEvent.keyDown(filter, { key: "Enter" });
+    expect(getByLabelText("Statistic").textContent).toBe("xGC");
+  });
+
+  it("says so when nothing matches, and Escape still closes only the list", () => {
+    let dialogClosed = false;
+    const { getByText, getByLabelText, queryByRole } = render(<Harness onDialogEscape={() => (dialogClosed = true)} />);
+    fireEvent.click(getByLabelText("Statistic"));
+    fireEvent.change(getByLabelText("Filter the list"), { target: { value: "zzz" } });
+    expect(getByText('Nothing matches "zzz".')).toBeTruthy();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(queryByRole("listbox")).toBeNull();
+    expect(dialogClosed).toBe(false);
+  });
 });

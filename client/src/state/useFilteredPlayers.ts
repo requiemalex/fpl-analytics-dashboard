@@ -1,7 +1,7 @@
 import type { NormalizedPlayer } from "../types/normalized";
 import type { GlobalScoutingFilters } from "./scoutingFilters";
 import { isUnderMinimum } from "../metrics/fixedMinutesFloor";
-import { matchesPlayerSearch } from "../utils/playerSearch";
+import { filterBySearch } from "../utils/playerSearch";
 
 /**
  * A page's (or a Dashboard tile's or graph's) own criteria applied to a
@@ -13,9 +13,9 @@ import { matchesPlayerSearch } from "../utils/playerSearch";
  */
 export function filterPlayers(players: NormalizedPlayer[], filters: GlobalScoutingFilters): NormalizedPlayer[] {
   const search = filters.search.trim();
+  const searched = search ? filterBySearch(players, search, (p) => p) : players;
 
-  return players.filter((p) => {
-    if (search && !matchesPlayerSearch(p, search)) return false;
+  return searched.filter((p) => {
     if (filters.position !== "ALL" && p.position !== filters.position) return false;
     if (filters.teamId !== "ALL" && p.teamId !== filters.teamId) return false;
     // Live price, always today's real price regardless of analysis mode

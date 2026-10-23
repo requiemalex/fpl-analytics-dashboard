@@ -17,7 +17,7 @@ import { percentileTint } from "../utils/colorScale";
 import { clubRanks, colourDirection } from "../metrics/comparativeColour";
 import { downloadCsv } from "../utils/csvExport";
 import { matchesTeamSearch } from "../utils/playerSearch";
-import { MenuGroupHeading, fplHeading } from "../components/MenuControls";
+import { ColumnsPopover, MenuGroupHeading, fplHeading } from "../components/MenuControls";
 import { headerMinWidth } from "../components/headerWidth";
 import { CrossoverGroupHeading, SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
 import { FPL_SOURCE, useExternalStats, type ColumnSourceChoice } from "../extensions/externalStats";
@@ -323,7 +323,7 @@ export function Teams() {
               onClick={() => setShowColumnPopover((v) => !v)}
             />
             {showColumnPopover && (
-              <div className="popover" style={{ left: 0, right: "auto" }}>
+              <ColumnsPopover style={{ left: 0, right: "auto" }}>
                 {/* Three kinds of heading, by source: green FPL only, the crossover colour for figures both sources have (⇄ on the header), then the second source's own. */}
                 {GROUPS.map((group) => (
                   <div key={group}>
@@ -359,7 +359,7 @@ export function Teams() {
                       ))}
                     </div>
                   ))}
-              </div>
+              </ColumnsPopover>
             )}
           </div>
           <IconChipButton
