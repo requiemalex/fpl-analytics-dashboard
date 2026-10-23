@@ -525,10 +525,13 @@ export function UserGuide() {
 
       <Section id="app" title="Opening & updating the app">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Scoutline keeps itself up to date. Each time you open it, it first checks for a new version; if there is one, a small
-          Updating window shows the download, then the app installs it and reopens on the new version by itself. With no internet,
-          or a check or download that takes too long, it just opens as it is. While it's open it checks again every 10 minutes, and
-          when an update is ready it offers to restart into it now or install it the next time you close the app.
+          Scoutline keeps itself up to date. Each time you open it, it first checks for a new version (a small Opening Scoutline
+          window shows if that takes more than a second). If there is one, that window shows the download, then the app closes, a
+          small installer window shows its progress, and the app reopens on the new version by itself. With no internet, or a check
+          or download that takes too long, it just opens as it is. While it's open it checks again every 10 minutes, and when an
+          update is ready it offers to restart into it now or install it the next time you close the app (the installer window
+          shows then too; wait for it to finish before opening the app again). If an update ever fails to install, the app opens
+          on the version you have and offers the update again later.
         </p>
         <p className="page-subtitle">
           If something goes wrong, the app writes down what happened in a log on this computer (it's never sent anywhere). To find

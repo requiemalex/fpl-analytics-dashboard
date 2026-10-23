@@ -1,15 +1,18 @@
 <!doctype html>
 <!--
-  The "Updating…" window shown when the app finds an update at launch (see
-  beginLaunchUpdate in main.js). main.js drives it through setProgress()
-  and setDownloaded(); the version comes in as ?version=. Colours are the
-  app's own tokens (client/src/styles/tokens.css); icons are inline SVG
-  (Tabler's download/check), so the window needs no network to draw.
+  <launch_window>: the small window shown while the app opens (main.js,
+  showLaunchWindow). It says "Opening Scoutline" if opening takes more than
+  a moment, then, if the launch check finds an update, shows the download
+  and that it's installing. main.js drives it through startUpdate(),
+  setProgress() and setDownloaded(); this copy's version comes in as
+  ?version=. Colours are the app's own tokens (client/src/styles/tokens.css);
+  icons are inline SVG (Tabler's loader/download/check), so the window needs
+  no network to draw.
 -->
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Updating Scoutline</title>
+    <title>Opening Scoutline</title>
     <style>
       /* The app's body face (<font_families>), from a local copy of
          @fontsource-variable/ibm-plex-sans's Latin file, so this window
@@ -97,6 +100,20 @@
         background: var(--accent-positive);
         transition: width 0.18s linear;
       }
+      /* Opening: no figure to show yet, so a segment sweeps across instead. */
+      .track.waiting .fill {
+        width: 30%;
+        transition: none;
+        animation: sweep 1.2s ease-in-out infinite;
+      }
+      @keyframes sweep {
+        from {
+          transform: translateX(-100%);
+        }
+        to {
+          transform: translateX(333%);
+        }
+      }
       .row {
         display: flex;
         justify-content: space-between;
@@ -123,25 +140,40 @@
       <div class="top">
         <div class="tile" id="icon"></div>
         <div>
-          <p class="title" id="title">Updating Scoutline</p>
+          <p class="title" id="title">Opening Scoutline</p>
           <p class="version">Version <b id="version"></b></p>
         </div>
       </div>
-      <div class="track"><div class="fill" id="fill"></div></div>
-      <div class="row"><span id="stage">Downloading update</span><span class="pct" id="pct">0%</span></div>
-      <div class="foot" id="foot">Don't close this window</div>
+      <div class="track waiting" id="track"><div class="fill" id="fill"></div></div>
+      <div class="row"><span id="stage">Checking for updates</span><span class="pct" id="pct"></span></div>
+      <div class="foot" id="foot">Your saved data is kept as it is</div>
     </div>
     <script>
       const ICONS = {
+        loader:
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6l0 -3"/><path d="M16.25 7.75l2.15 -2.15"/><path d="M18 12l3 0"/><path d="M16.25 16.25l2.15 2.15"/><path d="M12 18l0 3"/><path d="M7.75 16.25l-2.15 2.15"/><path d="M6 12l-3 0"/><path d="M7.75 7.75l-2.15 -2.15"/></svg>',
         download:
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 11l5 5l5 -5"/><path d="M12 4l0 12"/></svg>',
         check:
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5l10 -10"/></svg>',
       };
       const $ = (id) => document.getElementById(id);
-      const version = new URLSearchParams(location.search).get("version") ?? "";
-      $("icon").innerHTML = ICONS.download;
+      let version = new URLSearchParams(location.search).get("version") ?? "";
+      $("icon").innerHTML = ICONS.loader;
       $("version").textContent = version;
+
+      // The launch check found an update: the window now follows its download.
+      function startUpdate(newVersion) {
+        version = newVersion;
+        $("icon").innerHTML = ICONS.download;
+        $("title").textContent = "Updating Scoutline";
+        $("version").textContent = version;
+        $("track").classList.remove("waiting");
+        $("stage").textContent = "Downloading update";
+        $("pct").textContent = "0%";
+        $("foot").textContent = "Don't close this window";
+        document.title = "Updating Scoutline";
+      }
 
       function setProgress(percent) {
         const p = Math.max(0, Math.min(100, Math.floor(percent)));
@@ -149,7 +181,7 @@
         $("pct").textContent = `${p}%`;
       }
 
-      // The download is done; main.js closes the app a moment later and the installer runs, then reopens it.
+      // The download is done; main.js closes the app a moment later and the installer runs (with its own progress bar), then reopens it.
       function setDownloaded() {
         setProgress(100);
         $("icon").innerHTML = ICONS.check;

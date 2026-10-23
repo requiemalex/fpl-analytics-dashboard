@@ -30,7 +30,7 @@ workspaces at this root. Shipped as a Windows desktop app (Electron).
 npm install     # first time
 npm run dev     # server :4000 + client :5173
 npm run build   # type-checks both packages — a type error fails the build
-npm test        # Vitest, both workspaces (coverage is partial — extend it)
+npm test        # Vitest, both workspaces, + electron/*.test.js (node --test); coverage is partial — extend it
 ```
 No lint script. Playwright isn't installed but works via
 `npx playwright install chromium` + a throwaway script (commit nothing).

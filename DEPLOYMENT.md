@@ -193,14 +193,19 @@ specific to that were found and fixed:
 **Auto-updates**: wired via `electron-updater` in `main.js`. Nothing
 runs while the app is closed, so on every launch it checks GitHub
 Releases (`package.json`'s `build.publish` config) before showing the
-main window (which loads hidden meanwhile). If there's a newer tag, a
-small "Updating…" window shows the download, then the app installs it
-silently and relaunches on the new version. No answer within 8s, no
-internet, or a download stalled for 30s opens the app as it is. While
-the app is open it checks again every 10 minutes, downloads in the
-background, and a dialog offers "Restart now" (silent install, then
-the app reopens) or "Later" (installs the next time the app is
-closed). This is a no-op during `npm run electron:start`
+main window (which loads hidden meanwhile), unless a check found nothing
+new in the last 10 minutes. If opening takes over a second, a small
+launch window says so; if there's a newer tag, it shows the download,
+then the app closes, the installer runs with its own progress bar and
+reopens the app on the new version. No answer within 4s, no internet, or
+a download stalled for 30s opens the app as it is, and so does a launch
+after an install that didn't take (the app notes each attempt in
+`update-state.json`). While the app is open it checks again every 10
+minutes, downloads in the background, and a dialog offers "Restart now"
+(install with its progress bar, then the app reopens) or "Later"
+(installs the same way the next time the app is closed). Installs are
+never silent: a silent one showed nothing while it ran, and opening the
+app in that gap started the old copy mid-install. This is a no-op during `npm run electron:start`
 (electron-updater skips itself for an unpackaged dev run).
 
 **Release pipeline**: `.github/workflows/release.yml` builds and

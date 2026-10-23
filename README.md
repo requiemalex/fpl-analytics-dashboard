@@ -1675,6 +1675,25 @@ app says so in a dialog and quits, instead of crashing with no window.
   any of those four.
 - The server's memory caches are capped at 2,000 entries each
   (`TtlCache`, `server/src/cache.ts`), least recently stored out first.
+- **Opening and updating** (`electron/main.js`). The main window loads
+  hidden while the launch update check runs (it waits up to 4 s, and not
+  at all if a check found nothing new in the last 10 minutes,
+  `<update_state>`, `electron/updateState.js`). If opening takes over a
+  second, the `<launch_window>` (`electron/launch-window.html`) says
+  "Opening Scoutline"; if the check finds an update, it shows the download,
+  then the app closes and the installer runs with its own progress bar
+  (never silently: a silent install left nothing on screen while it ran)
+  and reopens it. "Later" installs it, with that progress bar, as the app
+  closes. Each install attempt is noted first; if the next launch is still
+  on the old version, that install failed, and the app opens as it is
+  instead of trying it again before opening, so a failing update can't
+  close the app on every launch. A second launch brings forward whichever
+  window is showing.
+- **Never running unseen** (`<window_watchdog>`, `electron/main.js`): a
+  failed load or a crashed page process is reloaded (up to 3 times a
+  session), a page that hasn't drawn in 20 s is reloaded once, and if the
+  window still can't open the app says so and quits, instead of staying
+  running with nothing on screen and the one-copy lock held.
 - **Its own log** (`<app_log>`, `electron/log.js`): launches (with how
   long the server and the window took), update checks, and every error, from
   the app itself, the built-in server, the updater and the pages (console
