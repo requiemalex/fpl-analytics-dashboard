@@ -325,15 +325,17 @@ export function UserGuide() {
         <p className="page-subtitle" style={{ marginTop: 0 }}>
           Picking a squad for the season ahead. Start with <strong>New Squad</strong>: a blank one (just give it a name), or import
           a real squad by its FPL team ID, the number in your team's FPL web address (Pick Team → Gameweek History shows it).
-          Importing reads FPL's public data for that team, chip history included; no login, nothing written back. The rest of the
-          page appears once a squad is loaded. Up to 5 squads can be saved; <strong>Delete</strong> asks you to confirm the name
+          Importing reads FPL's public data for that team, chip history included; no login, nothing written back. The squad's own
+          buttons (Captain, Vice-Captain, Clear Draft, Delete) appear once a squad is loaded. Up to 5 squads can be saved; <strong>Delete</strong> asks you to confirm the name
           first (no undo).
         </p>
         <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
           <li>
-            The <strong>pitch</strong> is drag-and-drop: drag a player from Add Players onto the pitch or bench, or one card onto
-            another to swap. Click a name for the profile; click <strong>Captain</strong>/<strong>Vice-Captain</strong>, then a
-            starter, to assign it; <strong>Clear Draft</strong> empties the squad. A saved player FPL no longer lists is named in a
+            <strong>Add</strong> (in Add Players) puts a player in the starting XI while there's a legal place for him, otherwise on
+            the bench. The <strong>pitch</strong> is drag-and-drop: drag a player from Add Players onto the pitch or bench, or one
+            card onto another to swap. Click a name for the profile; click <strong>Captain</strong>/<strong>Vice-Captain</strong>,
+            then a starter, to assign it (the C or V badge sits at the card's top left); <strong>Clear Draft</strong> empties the
+            squad after you confirm (no undo). A saved player FPL no longer lists is named in a
             banner above the pitch, with a bin to remove him. Cards show live price, ownership, minutes
             reliability, the next fixtures and both Expected Points figures (doubled for the captain).
           </li>
@@ -356,8 +358,11 @@ export function UserGuide() {
             for. It's a second opinion, rougher for goalkeepers and nailed-on popular picks (see the README's backtest).
           </li>
           <li>
-            The status line above the pitch shows squad size, budget, composition and any club-limit breach. Going over £100m turns
-            the budget red but never stops you adding a player.
+            The status line above the pitch shows squad size, budget, composition and any club-limit breach. A squad built from
+            scratch has FPL's £100m; an imported one has its own: its players at today's prices when you imported it, plus its money
+            in the bank, so an unchanged import shows exactly that bank left (FPL's own selling prices need your login, so a player
+            who has risen counts at today's price; hover the budget for its make-up). Going over turns the budget red and says how
+            far over, but never stops you adding a player.
           </li>
           <li>
             The <strong>Add Players</strong> table has Player Explorer's toolkit, in two groups either side of a divider:{" "}

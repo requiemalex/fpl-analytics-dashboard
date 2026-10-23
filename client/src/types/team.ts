@@ -45,7 +45,27 @@ export interface SavedSquad {
   /** Chips already spent, from an FPL import. Empty for a squad built from scratch. Stored, but no page shows it at the moment. */
   usedChips: UsedChip[];
   /** Set when this squad was loaded from a real FPL team ID rather than built from scratch — its own bank/value at the time of import, and which team ID/gameweek it came from, purely for display ("Loaded from Team 1234567, GW3") and re-sync. Null for a from-scratch squad. */
-  importedFrom: { teamId: number; teamName: string; managerName: string; asOfEvent: number; bank: number | null } | null;
+  importedFrom: {
+    teamId: number;
+    teamName: string;
+    managerName: string;
+    asOfEvent: number;
+    bank: number | null;
+    /**
+     * <imported_budget>: £m this squad has to spend: its 15 players at
+     * today's prices when it was imported, plus the bank. So an unchanged
+     * import has exactly the manager's real money left, not a flat £100m
+     * that a squad whose players have risen is always over. Null when that
+     * can't be known (no bank from FPL, a player FPL no longer lists, or a
+     * squad imported before this existed): the £100m then applies.
+     */
+    budget: number | null;
+  } | null;
+}
+
+/** £m the squad can spend: an import's own budget (<imported_budget>), else FPL's starting £100m. */
+export function squadBudget(squad: Pick<SavedSquad, "importedFrom"> | null | undefined): number {
+  return squad?.importedFrom?.budget ?? SQUAD_RULES.budget;
 }
 
 export function createBlankSquad(name: string): SavedSquad {

@@ -816,13 +816,16 @@ select:focus {
 .pitch-card-jersey-position .badge.pos-FWD {
   border: 1px solid color-mix(in srgb, var(--pos-fwd) 35%, var(--bg));
 }
+/* Top left of the card, opposite the remove button (top right): inside
+   the jersey, its clip-path cut the badge away and the × covered the rest
+   (audit 2026-10-23 in-app). */
 .pitch-card-armband {
   position: absolute;
-  top: -3px;
-  right: -3px;
-  width: 15px;
-  height: 15px;
-  line-height: 15px;
+  top: 0;
+  left: 6px;
+  width: 16px;
+  height: 16px;
+  line-height: 13px;
   text-align: center;
   border-radius: 50%;
   background: var(--accent-value);
@@ -833,9 +836,6 @@ select:focus {
   z-index: 1;
 }
 .pitch-card-armband.vc {
-  top: auto;
-  bottom: -3px;
-  right: -3px;
   background: var(--text-secondary);
   color: #0a0f0c;
 }

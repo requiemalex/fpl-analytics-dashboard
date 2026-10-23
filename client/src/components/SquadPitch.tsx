@@ -31,15 +31,23 @@ function FixtureTicker({ fixtures }: { fixtures: UpcomingFixture[] }) {
   );
 }
 
+/** "£0.1m left", or "£2.1m over" rather than a negative amount left. */
+export function budgetLeftText(remaining: number): string {
+  // To the tenth, as prices are, so float dust (-0.0000001) isn't "over".
+  const tenths = Math.round(remaining * 10);
+  // Math.max also turns a rounded -0 into 0, which would print as "£-0.0m".
+  return tenths < 0 ? `${fmtPrice(-tenths / 10)} over` : `${fmtPrice(Math.max(0, tenths) / 10)} left`;
+}
+
 /** Compact squad-status line — size, budget, composition, club violations — now living in the pitch header instead of a separate card. */
-function SquadStatusLine({ validation }: { validation: SquadValidation }) {
+function SquadStatusLine({ validation, budgetHint }: { validation: SquadValidation; budgetHint: string }) {
   return (
     <div className="pitch-status-line">
       <span className={validation.squadComplete ? "value-positive" : "value-muted"}>
         {validation.squadSize}/{SQUAD_RULES.squadSize} players
       </span>
-      <span className={validation.budgetOk ? "value-muted" : "value-negative"}>
-        {fmtPrice(validation.budgetUsed)}/{fmtPrice(SQUAD_RULES.budget)} ({fmtPrice(validation.budgetRemaining)} left)
+      <span className={validation.budgetOk ? "value-muted" : "value-negative"} title={budgetHint}>
+        {fmtPrice(validation.budgetUsed)}/{fmtPrice(validation.budget)} ({budgetLeftText(validation.budgetRemaining)})
       </span>
       <span>
         {COMPOSITION_ORDER.map((pos) => (
@@ -158,17 +166,17 @@ function PlayerCard({
       >
         ×
       </button>
+      {isCaptain && (
+        <span className="pitch-card-armband" title="Captain">
+          C
+        </span>
+      )}
+      {isViceCaptain && (
+        <span className="pitch-card-armband vc" title="Vice-Captain">
+          V
+        </span>
+      )}
       <div className="pitch-card-jersey">
-        {isCaptain && (
-          <span className="pitch-card-armband" title="Captain">
-            C
-          </span>
-        )}
-        {isViceCaptain && (
-          <span className="pitch-card-armband vc" title="Vice-Captain">
-            V
-          </span>
-        )}
         <span className="pitch-card-jersey-position">
           <PositionBadge position={player.position} />
         </span>
@@ -240,6 +248,8 @@ export function SquadPitch({
   onRemove,
   onClearSquad,
   warning,
+  hasSquad,
+  budgetHint,
 }: {
   squadName: string;
   squadValidation: SquadValidation;
@@ -267,6 +277,10 @@ export function SquadPitch({
   onClearSquad: () => void;
   /** A rejected drag/drop shows its reason here briefly (e.g. a club-limit breach). */
   warning: string | null;
+  /** False before any squad exists: the armband and Clear Draft buttons have nothing to act on, so they're left out. */
+  hasSquad: boolean;
+  /** Hover text for the budget: where it comes from. */
+  budgetHint: string;
 }) {
   const [pitchDragOver, setPitchDragOver] = useState(false);
   const [benchDragOver, setBenchDragOver] = useState(false);
@@ -276,29 +290,31 @@ export function SquadPitch({
       <div className="pitch-view-header">
         <div>
           <div className="pitch-view-title">{squadName}</div>
-          <SquadStatusLine validation={squadValidation} />
+          <SquadStatusLine validation={squadValidation} budgetHint={budgetHint} />
         </div>
-        <div className="captain-tiles">
-          <button
-            type="button"
-            className={`captain-tile ${captainPickMode === "captain" ? "active" : ""}`}
-            onClick={() => onCaptainTileClick("captain")}
-            title="Click, then click a starting player to make them captain"
-          >
-            Captain
-          </button>
-          <button
-            type="button"
-            className={`captain-tile vc ${captainPickMode === "viceCaptain" ? "active" : ""}`}
-            onClick={() => onCaptainTileClick("viceCaptain")}
-            title="Click, then click a starting player to make them vice-captain"
-          >
-            Vice-Captain
-          </button>
-          <button type="button" className="chip" onClick={onClearSquad} title={`Remove every player from ${squadName}`}>
-            Clear Draft
-          </button>
-        </div>
+        {hasSquad && (
+          <div className="captain-tiles">
+            <button
+              type="button"
+              className={`captain-tile ${captainPickMode === "captain" ? "active" : ""}`}
+              onClick={() => onCaptainTileClick("captain")}
+              title="Click, then click a starting player to make them captain"
+            >
+              Captain
+            </button>
+            <button
+              type="button"
+              className={`captain-tile vc ${captainPickMode === "viceCaptain" ? "active" : ""}`}
+              onClick={() => onCaptainTileClick("viceCaptain")}
+              title="Click, then click a starting player to make them vice-captain"
+            >
+              Vice-Captain
+            </button>
+            <button type="button" className="chip" onClick={onClearSquad} title={`Remove every player from ${squadName}`}>
+              Clear Draft
+            </button>
+          </div>
+        )}
       </div>
       <div className="gw-navigator">
         <span className="gw-navigator-label">Exp. Pts for:</span>

@@ -11,6 +11,20 @@ export interface EntryImportResult {
 }
 
 /**
+ * <imported_budget>: the squad's players at today's prices plus the bank,
+ * in £m, rounded to £0.1m as FPL prices are. FPL's own selling prices
+ * (which keep only half of a rise) need the manager's login, so today's
+ * prices are the nearest public figure, and the same prices Team Building
+ * costs every other player at. Null unless every pick matched a current
+ * player and FPL sent the bank: a partial total would understate it.
+ */
+function importedBudget(playerIds: number[], pickCount: number, bankTenths: number | null, livePlayersById: Map<number, NormalizedPlayer>): number | null {
+  if (bankTenths === null || pickCount === 0 || playerIds.length !== pickCount) return null;
+  const tenths = playerIds.reduce((sum, id) => sum + Math.round((livePlayersById.get(id)?.price ?? NaN) * 10), 0) + bankTenths;
+  return Number.isFinite(tenths) ? tenths / 10 : null;
+}
+
+/**
  * Builds a SavedSquad from one gameweek's real picks, the manager's real
  * chip-usage history, and their real team identity — all three already
  * fetched and schema-validated by the caller (see api/client.ts). Never
@@ -76,6 +90,7 @@ export function normalizeEntryImport(
     managerName: `${team.player_first_name} ${team.player_last_name}`.trim(),
     asOfEvent: eventId,
     bank: bankTenths === null ? null : bankTenths / 10,
+    budget: importedBudget(squad.playerIds, rawPicks.length, bankTenths, livePlayersById),
   };
 
   return { squad, warnings };

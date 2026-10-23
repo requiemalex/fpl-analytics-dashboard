@@ -1488,8 +1488,19 @@ toggle; its Historic/Raw columns have their own. Squads (`useSavedSquads`,
 max 5) are created blank or imported by FPL team ID (positions 1–11 are the
 starting XI, also in a Bench Boost week; a Free Hit week imports that week's
 temporary squad). Squad rules
-(`metrics/squadRules.ts`) always use live price and club. Budget over £100m
-is a warning, never a block.
+(`metrics/squadRules.ts`) always use live price and club. The budget is
+FPL's £100m for a squad built from scratch; an imported squad has its own
+(`<imported_budget>`, `types/team.ts`): its players at today's prices when
+imported plus the bank, so an unchanged import has exactly the manager's
+bank left (FPL's selling prices, which keep half of a rise, need the
+manager's login). Null where that can't be known (no bank, a pick FPL no
+longer lists, or a squad saved before saved-squads store version 2): the
+£100m applies, and the budget's hover text says to import again. Going over
+is a warning ("£2.1m over"), never a block. **Add** starts a player while
+the XI still has a legal place for him (`<add_to_xi>`, `fitsStartingXI`),
+otherwise benches him; dragging moves anyone between pitch and bench.
+**Clear Draft** asks first (there's no undo). The armband and Clear Draft
+buttons appear once a squad exists.
 
 - **GW+1…GW+5** — the navigator picks one of the player's next five
   fixtures (a blank has none; a double shows two consecutive steps). They

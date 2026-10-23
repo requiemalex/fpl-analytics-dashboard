@@ -3,7 +3,8 @@ import type { SavedSquad } from "../types/team";
 import { mapReadableEntries, type VersionedStore, usePersistentState } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:saved-squads:v1";
-const STORAGE_VERSION = 1;
+/** 2: an import's `importedFrom.budget` (<imported_budget>); a version-1 import gets null, so the £100m it had still applies. */
+const STORAGE_VERSION = 2;
 
 const ids = (v: unknown): number[] => (Array.isArray(v) ? v.filter((id): id is number => typeof id === "number" && Number.isFinite(id)) : []);
 const idOrNull = (v: unknown, allowed: number[]): number | null => (typeof v === "number" && allowed.includes(v) ? v : null);
@@ -30,7 +31,25 @@ export function normalizeSavedSquad(raw: Record<string, unknown>): SavedSquad | 
     captainId: idOrNull(raw.captainId, startingXI),
     viceCaptainId: idOrNull(raw.viceCaptainId, startingXI),
     usedChips: Array.isArray(raw.usedChips) ? (raw.usedChips as SavedSquad["usedChips"]) : [],
-    importedFrom: raw.importedFrom && typeof raw.importedFrom === "object" ? (raw.importedFrom as SavedSquad["importedFrom"]) : null,
+    importedFrom: normalizeImportedFrom(raw.importedFrom),
+  };
+}
+
+const numberOrNull = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+
+/** An import's record, with each field checked; null without the team id it names. `budget` is null where it wasn't saved (version 1). */
+function normalizeImportedFrom(raw: unknown): SavedSquad["importedFrom"] {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const teamId = numberOrNull(r.teamId);
+  if (teamId === null) return null;
+  return {
+    teamId,
+    teamName: typeof r.teamName === "string" ? r.teamName : "",
+    managerName: typeof r.managerName === "string" ? r.managerName : "",
+    asOfEvent: numberOrNull(r.asOfEvent) ?? 0,
+    bank: numberOrNull(r.bank),
+    budget: numberOrNull(r.budget),
   };
 }
 

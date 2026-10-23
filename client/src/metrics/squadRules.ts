@@ -36,6 +36,8 @@ export function squadClubViolations(squadPlayers: NormalizedPlayer[]): ClubViola
 export interface SquadValidation {
   squadSize: number;
   squadComplete: boolean; // exactly 15 players
+  /** £m the squad can spend: FPL's £100m, or an import's own (<imported_budget>, types/team.ts). */
+  budget: number;
   budgetUsed: number;
   budgetRemaining: number;
   budgetOk: boolean; // used <= budget
@@ -50,19 +52,20 @@ export interface SquadValidation {
  * Validates the full 15-player squad against budget, composition, and
  * club-limit rules. Does not check the starting XI — see validateStartingXI.
  */
-export function validateSquad(squadPlayers: NormalizedPlayer[]): SquadValidation {
+export function validateSquad(squadPlayers: NormalizedPlayer[], budget: number = SQUAD_RULES.budget): SquadValidation {
   const budgetUsed = squadBudgetUsed(squadPlayers);
   const composition = squadCompositionCounts(squadPlayers);
   const clubViolations = squadClubViolations(squadPlayers);
   const compositionOk = POSITIONS.every((pos) => composition[pos] === SQUAD_RULES.composition[pos]);
-  const budgetOk = budgetUsed <= SQUAD_RULES.budget + 1e-9;
+  const budgetOk = budgetUsed <= budget + 1e-9;
   const squadComplete = squadPlayers.length === SQUAD_RULES.squadSize;
 
   return {
     squadSize: squadPlayers.length,
     squadComplete,
+    budget,
     budgetUsed,
-    budgetRemaining: SQUAD_RULES.budget - budgetUsed,
+    budgetRemaining: budget - budgetUsed,
     budgetOk,
     composition,
     compositionOk,
@@ -99,6 +102,24 @@ export function validateStartingXI(startingXIPlayers: NormalizedPlayer[]): Start
   return { size: startingXIPlayers.length, sizeOk, composition, formationOk, issues, valid: sizeOk && formationOk };
 }
 
+/**
+ * <add_to_xi>: can `candidate` join the starting XI (`xiPlayers`, not yet
+ * including him) and still leave room for a legal formation? True while
+ * the XI has a place, his position is under its starting maximum, and the
+ * places left after him still cover every position's minimum. So Add
+ * fills the pitch first and the bench takes the rest: a second goalkeeper,
+ * or an outfielder who would leave no room for the 3 DEF / 2 MID / 1 FWD a
+ * formation needs, goes to the bench.
+ */
+export function fitsStartingXI(xiPlayers: NormalizedPlayer[], candidate: NormalizedPlayer): boolean {
+  if (xiPlayers.length >= SQUAD_RULES.startingXISize) return false;
+  const after = squadCompositionCounts([...xiPlayers, candidate]);
+  if (after[candidate.position] > SQUAD_RULES.startingXIBounds[candidate.position].max) return false;
+  const placesLeft = SQUAD_RULES.startingXISize - (xiPlayers.length + 1);
+  const stillNeeded = POSITIONS.reduce((sum, pos) => sum + Math.max(0, SQUAD_RULES.startingXIBounds[pos].min - after[pos]), 0);
+  return stillNeeded <= placesLeft;
+}
+
 export interface AddPlayerCheck {
   ok: boolean;
   reason?: string;
@@ -114,7 +135,7 @@ export function canAddPlayer(squadPlayers: NormalizedPlayer[], candidate: Normal
     return { ok: false, reason: `${candidate.position} slots full (${SQUAD_RULES.composition[candidate.position]}/${SQUAD_RULES.composition[candidate.position]})` };
   }
 
-  // No budget check here by design — the £100m figure is only ever shown
+  // No budget check here by design — the budget is only ever shown
   // as a tracker (red once over, via SquadStatusLine's budgetOk), never a
   // hard block on adding a player. A user building a squad they intend to
   // trim down, or just exploring "what if" combinations, shouldn't be

@@ -8,9 +8,10 @@ import { useComparativeColour } from "../state/comparativeColour";
 import { ColumnHeader } from "../components/ColumnHeader";
 import { averageFixtureHint, columnHint, fixtureHint, modelBreakdownHint, playerRankHint, PLAYER_STAT_HINTS, versusText } from "../components/hoverText";
 import { useSortSpec, compareSortValues, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
+import { useEscapeLayer } from "../state/useEscapeLayer";
 import { useProgressiveRowCount } from "../state/useProgressiveRowCount";
-import { SQUAD_RULES, createBlankSquad, type SavedSquad } from "../types/team";
-import { validateSquad, validateStartingXI, canAddPlayer } from "../metrics/squadRules";
+import { SQUAD_RULES, createBlankSquad, squadBudget, type SavedSquad } from "../types/team";
+import { validateSquad, validateStartingXI, canAddPlayer, fitsStartingXI } from "../metrics/squadRules";
 import { resolvePlayerStats, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { computeExpectedPointsForSingleFixture } from "../metrics/expectedPoints";
@@ -299,6 +300,16 @@ export function pickerMeetsMinMinutes(minutes: number | null, minMinutes: number
   return minMinutes === null || !isUnderMinimum(minutes, minMinutes);
 }
 
+/** Hover text for the status line's budget: where it comes from (<imported_budget>, types/team.ts). */
+function budgetHint(squad: SavedSquad | null): string {
+  const imported = squad?.importedFrom;
+  if (imported && imported.budget !== null) {
+    return `Budget ${fmtPrice(imported.budget)}: this squad's players at today's prices when it was imported, plus ${fmtPrice(imported.bank ?? 0)} in the bank. FPL's own selling prices need the manager's login, so a player who has risen counts at today's price.`;
+  }
+  if (imported) return `Budget ${fmtPrice(SQUAD_RULES.budget)}, FPL's starting budget: this squad was imported before Scoutline kept an import's own budget. Import the team again to use it.`;
+  return `Budget ${fmtPrice(SQUAD_RULES.budget)}, FPL's starting budget.`;
+}
+
 export function TeamBuilder() {
   const { players, teams, teamsById, fixtures, events, historicProfiles, historicStatus, currentSeasonHasStarted, gameweekState, requestHistoricData } = useAppState();
   useEffect(() => {
@@ -319,6 +330,7 @@ export function TeamBuilder() {
   const [showNewSquadModal, setShowNewSquadModal] = useState(false);
   const [newSquadName, setNewSquadName] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
   const [importTeamIdInput, setImportTeamIdInput] = useState("");
   const [importStatus, setImportStatus] = useState<"idle" | "loading" | "error">("idle");
   const [importError, setImportError] = useState<string | null>(null);
@@ -356,6 +368,11 @@ export function TeamBuilder() {
     if (!active) return;
     upsert(mutator(active));
   }
+
+  // Escape closes the newest of these, as on every other page.
+  useEscapeLayer(showNewSquadModal, () => setShowNewSquadModal(false));
+  useEscapeLayer(confirmDeleteId !== null, () => setConfirmDeleteId(null));
+  useEscapeLayer(confirmClear, () => setConfirmClear(false));
 
 /** Opens the New Squad dialog, clearing any state left over from a previous open/attempt. */
   function openNewSquadModal() {
@@ -439,8 +456,10 @@ export function TeamBuilder() {
     setConfirmDeleteId(null);
   }
 
+  /** Add starts him while the XI has a legal place for him (<add_to_xi>), else benches him. */
   function handleAdd(player: NormalizedPlayer) {
-    updateActive((s) => ({ ...s, playerIds: [...s.playerIds, player.id] }));
+    const starts = fitsStartingXI(startingXIPlayers, player);
+    updateActive((s) => ({ ...s, playerIds: [...s.playerIds, player.id], startingXI: starts ? [...s.startingXI, player.id] : s.startingXI }));
   }
 
   /** Drops every saved id FPL no longer lists (see missingSavedIds) from the squad, the XI and the armbands. */
@@ -467,8 +486,15 @@ export function TeamBuilder() {
     }));
   }
 
-  /** Empties the squad and bench in one click — keeps the saved squad's own name/id, just clears its contents (players, starting XI, captain/vice-captain all reset together, since none of them mean anything without a squad to belong to). */
+  /**
+   * Empties the squad and bench after the person confirms (there's no undo,
+   * and a squad saves as it changes) — keeps the saved squad's own name/id,
+   * just clears its contents (players, starting XI, captain/vice-captain
+   * all reset together, since none of them mean anything without a squad
+   * to belong to).
+   */
   function handleClearSquad() {
+    setConfirmClear(false);
     updateActive((s) => ({
       ...s,
       playerIds: [],
@@ -736,7 +762,7 @@ export function TeamBuilder() {
     FWD: startingXIPlayers.filter((p) => p.position === "FWD"),
   };
 
-  const squadValidation = validateSquad(squadPlayers);
+  const squadValidation = validateSquad(squadPlayers, squadBudget(active));
   const xiValidation = validateStartingXI(startingXIPlayers);
 
   // Upcoming fixtures for every club (cheap — 20 clubs), reused below for
@@ -1141,6 +1167,30 @@ export function TeamBuilder() {
           );
         })()}
 
+      {confirmClear && active && (
+        <div className="dialog-backdrop" onClick={() => setConfirmClear(false)}>
+          <div className="dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-title">Clear draft</div>
+            <p className="page-subtitle" style={{ marginTop: 0 }}>
+              Remove all {squadPlayers.length} players from "{active.name}"? This can't be undone.
+            </p>
+            <div className="dialog-actions">
+              <button type="button" className="btn" onClick={() => setConfirmClear(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn primary"
+                style={{ borderColor: "var(--accent-negative)", color: "var(--accent-negative)" }}
+                onClick={handleClearSquad}
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="card" style={{ marginBottom: 24 }}>
         <div className="card-title">
           Squad ({squadPlayers.length}/{SQUAD_RULES.squadSize})
@@ -1177,7 +1227,9 @@ export function TeamBuilder() {
           onAddToPitch={handleDropOnPitch}
           onBench={handleDropOnBench}
           onRemove={handleRemovePlayer}
-          onClearSquad={handleClearSquad}
+          onClearSquad={() => setConfirmClear(true)}
+          hasSquad={!!active}
+          budgetHint={budgetHint(active)}
           warning={warning}
         />
       </div>
@@ -1305,9 +1357,10 @@ export function TeamBuilder() {
         <div style={{ display: "flex", gap: 28, flexWrap: "wrap", marginBottom: 12 }}>
           <div>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Predictive columns show:</div>
-            <p className="page-subtitle" style={{ margin: 0, maxWidth: 320 }}>
-              GW+{gwOffset}. Use the gameweek navigator on the pitch above to change which upcoming fixture both Exp. Pts columns estimate.
-            </p>
+            {/* No inline caption (CLAUDE.md): the how-to is the hover text and the User Guide. */}
+            <span className="badge" title="Both Exp. Pts columns estimate this upcoming fixture. Change it with the GW+1 to GW+5 buttons above the pitch.">
+              GW+{gwOffset}
+            </span>
           </div>
           <div>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Historic/raw columns show:</div>
