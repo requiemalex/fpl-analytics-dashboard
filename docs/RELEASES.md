@@ -5,6 +5,10 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.103.0 · 23 Oct 2026
+
+- Player Comparison trends: a spell out of FPL between two of a player's seasons is a dotted line (hover says he wasn't in FPL), and every season takes its place on the axis
+
 ## v1.102.0 · 23 Oct 2026
 
 - Audit 2026-10-23 in-app: report (audit and fixes in one session)
