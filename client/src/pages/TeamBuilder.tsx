@@ -36,6 +36,7 @@ import { MIN_QUALIFYING_SEASON_MINUTES } from "../metrics/historicAnalysis";
 import { downloadCsv } from "../utils/csvExport";
 import type { NormalizedPlayer, Position } from "../types/normalized";
 import { ColumnsPopover, MenuGroupHeading, fplHeading } from "../components/MenuControls";
+import { describeLoadError } from "../api/errors";
 
 /** How long a rejected drag's warning message stays visible before clearing itself. */
 const WARNING_DISPLAY_MS = 4000;
@@ -406,7 +407,8 @@ export function TeamBuilder() {
     const trimmedTeamId = importTeamIdInput.trim();
     if (trimmedTeamId) {
       const teamId = Number(trimmedTeamId);
-      if (!Number.isFinite(teamId) || teamId <= 0) {
+      // Whole numbers only: "1.5" or "1e3" isn't a team ID, so it's caught here, not sent to FPL.
+      if (!/^\d+$/.test(trimmedTeamId) || teamId <= 0) {
         setImportError("Enter a valid FPL team ID: the number in your team's URL (fantasy.premierleague.com/entry/1234567/...).");
         setImportStatus("error");
         return;
@@ -430,9 +432,9 @@ export function TeamBuilder() {
       } catch (err) {
         setImportStatus("error");
         if (err instanceof ApiRequestError) {
-          setImportError(err.status === 404 ? "No FPL team found with that ID." : `Couldn't load that team (${err.message}).`);
+          setImportError(err.status === 404 ? "No FPL team found with that ID." : `Couldn't load that team. ${describeLoadError(err)}`);
         } else {
-          setImportError("Couldn't reach the FPL API. Check your connection and try again.");
+          setImportError(`Couldn't load that team. ${describeLoadError(err)}`);
         }
       }
       return;

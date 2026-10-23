@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { fetchBootstrap, fetchFixtures, fetchHistoricBulk, ApiRequestError } from "../api/client";
+import { fetchBootstrap, fetchFixtures, fetchHistoricBulk } from "../api/client";
+import { describeLoadError } from "../api/errors";
 import { normalizePlayers } from "../normalize/normalizePlayers";
 import { normalizeTeams } from "../normalize/normalizeTeams";
 import { normalizeFixtures } from "../normalize/normalizeFixtures";
@@ -9,7 +10,7 @@ import { deriveGameweekState, normalizeEvents, seasonHasStarted } from "../norma
 import { normalizeChips } from "../normalize/normalizeChips";
 import { runMetricValidation, type ValidationReport } from "../metrics/validation";
 import { buildAllHistoricProfiles, type HistoricPlayerProfile } from "../metrics/historicAnalysis";
-import { SchemaValidationError, skippedRecordCount } from "../validation/schema";
+import { skippedRecordCount } from "../validation/schema";
 import { liveSeasonName, rolloverSavedIds } from "./seasonIdRollover";
 import type { NormalizedPlayer, NormalizedTeam, NormalizedFixture, NormalizedEvent, GameweekState, ChipWindow, PlayerSeasonHistory, ClubSeason } from "../types/normalized";
 import type { AdvancedFieldAvailability } from "../normalize/fieldAvailability";
@@ -24,6 +25,8 @@ interface AppState {
   isStale: boolean;
   /** Fixtures or the historic dataset served from a stale cached copy (FPL didn't answer) — flagged, never shown as current (audit 2026-10-18 M3). */
   staleDatasets: { fixtures: boolean; historic: boolean };
+  /** True while the fixtures list couldn't be loaded and there's no copy to show: upcoming fixtures, Expected Points and this season's table are missing (AppShell says so). */
+  fixturesUnavailable: boolean;
   lastUpdated: number | null;
   players: NormalizedPlayer[];
   teams: NormalizedTeam[];
@@ -96,10 +99,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isStale, setIsStale] = useState(false);
   const [staleDatasets, setStaleDatasets] = useState({ fixtures: false, historic: false });
+  const [fixturesUnavailable, setFixturesUnavailable] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [players, setPlayers] = useState<NormalizedPlayer[]>([]);
   const [teams, setTeams] = useState<NormalizedTeam[]>([]);
   const [fixtures, setFixtures] = useState<NormalizedFixture[]>([]);
+  // Read by the once-created load(), which would otherwise see only the first render's list.
+  const fixturesRef = useRef(fixtures);
+  fixturesRef.current = fixtures;
   const [gameweekState, setGameweekState] = useState<GameweekState | null>(null);
   const [events, setEvents] = useState<NormalizedEvent[]>([]);
   const [chips, setChips] = useState<ChipWindow[]>([]);
@@ -160,6 +167,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     // is still awaited and error-handled independently right below.
     const bootstrapPromise = fetchBootstrap({ forceRefresh });
     const fixturesPromise = fetchFixtures({ forceRefresh });
+    // Handled below once bootstrap is in; this stops a fixtures failure that
+    // lands first from counting as an unhandled rejection meanwhile.
+    fixturesPromise.catch(() => {});
 
     try {
       const result = await bootstrapPromise;
@@ -213,12 +223,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setErrorMessage(null);
       setLiveDataVersion((v) => ({ count: v.count + 1, forced: forceRefresh }));
     } catch (err) {
-      const message =
-        err instanceof SchemaValidationError
-          ? err.message
-          : err instanceof ApiRequestError
-            ? err.message
-            : `Unexpected error loading FPL data: ${(err as Error).message}`;
+      const message = describeLoadError(err);
 
       // Only move to a hard error state if we have no data at all to fall
       // back on. If we already have data on screen, keep showing it rather
@@ -249,8 +254,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setSkippedRecordCounts((prev) => (prev.fixtures === skippedFixtures ? prev : { ...prev, fixtures: skippedFixtures }));
       const fixturesStale = fixturesResult.source === "stale-cache";
       setStaleDatasets((prev) => (prev.fixtures === fixturesStale ? prev : { ...prev, fixtures: fixturesStale }));
-    } catch {
-      // leave fixtures as-is (empty on first failure) — not fatal.
+      setFixturesUnavailable(false);
+    } catch (err) {
+      // Not fatal: fixtures already on screen stay. With none at all, the
+      // shell says what's missing (fixturesUnavailable) until a later load
+      // (the 10-minute poll, or Try again) gets them.
+      console.error("Fixtures failed to load:", err);
+      if (fixturesRef.current.length === 0) setFixturesUnavailable(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -319,12 +329,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       historicBuiltForRef.current = builtFor ?? finishedFixturesRef.current;
       historicBuiltOnceRef.current = true;
     } catch (err) {
-      const message =
-        err instanceof SchemaValidationError
-          ? err.message
-          : err instanceof ApiRequestError
-            ? err.message
-            : `Unexpected error loading historic data: ${(err as Error).message}`;
+      const message = describeLoadError(err);
       if (historicProfilesRef.current.size === 0) {
         setHistoricStatus("error");
       }
@@ -410,6 +415,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       errorMessage,
       isStale,
       staleDatasets,
+      fixturesUnavailable,
       lastUpdated,
       players,
       teams: teamsWithRealStandings,
@@ -450,6 +456,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       errorMessage,
       isStale,
       staleDatasets,
+      fixturesUnavailable,
       lastUpdated,
       players,
       teamsWithRealStandings,

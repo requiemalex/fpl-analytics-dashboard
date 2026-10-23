@@ -541,7 +541,7 @@ export function UserGuide() {
           shows then too; wait for it to finish before opening the app again, or let the next launch install it if you're shutting
           down the computer). If an update ever fails to install, the app opens
           on the version you have and offers the update again later. Without an internet connection (or while FPL's own site is
-          down), the app opens on the last data it downloaded, if that's no more than a week old, with a banner saying how old it is.
+          down), the app opens on the last data it downloaded, if that's no more than a week old, with a banner saying how old it is. If some of FPL's data can't be loaded at all (the fixture list, say), a banner says what's missing, with Try again.
         </p>
         <p className="page-subtitle">
           If something goes wrong, the app writes down what happened in a log on this computer (it's never sent anywhere). To find

@@ -3,13 +3,14 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, cleanup, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
-const state = { isStale: false, staleDatasets: { fixtures: false, historic: false } };
+const refresh = vi.fn();
+const state = { isStale: false, staleDatasets: { fixtures: false, historic: false }, fixturesUnavailable: false };
 vi.mock("../state/AppStateContext", () => ({
   useAppState: () => ({
     status: "ready",
     lastUpdated: Date.now(),
     refreshing: false,
-    refresh: () => {},
+    refresh,
     players: [],
     errorMessage: null,
     gameweekState: null,
@@ -25,6 +26,8 @@ afterEach(() => {
   cleanup();
   state.isStale = false;
   state.staleDatasets = { fixtures: false, historic: false };
+  state.fixturesUnavailable = false;
+  refresh.mockClear();
   setComparativeColourOn(true);
 });
 
@@ -44,6 +47,27 @@ describe("stale fixtures or historic data are flagged, never shown as current (a
   it("names the datasets served from a cached copy", () => {
     state.staleDatasets = { fixtures: true, historic: true };
     expect(banner()).toContain("cached copy of the fixtures and historic data");
+  });
+});
+
+describe("a fixture list that couldn't load is flagged, with Try again (audit 2026-10-23 in-app)", () => {
+  const shell = () =>
+    render(
+      <MemoryRouter>
+        <AppShell>
+          <div />
+        </AppShell>
+      </MemoryRouter>,
+    );
+  it("no banner while fixtures are in", () => {
+    expect(shell().container.querySelector(".banner.error")).toBeNull();
+  });
+  it("says what's missing, and Try again reloads", () => {
+    state.fixturesUnavailable = true;
+    const { container, getByRole } = shell();
+    expect(container.querySelector(".banner.error")?.textContent).toContain("Couldn't load FPL's fixture list");
+    fireEvent.click(getByRole("button", { name: "Try again" }));
+    expect(refresh).toHaveBeenCalledTimes(1);
   });
 });
 

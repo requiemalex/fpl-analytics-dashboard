@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchPlayerSeasons } from "../api/client";
 import type { PlayerPastMatch, PlayerSeasonPeer } from "../types/normalized";
+import { describeLoadError } from "../api/errors";
 
 type State =
   | { status: "idle" | "loading" }
@@ -23,7 +24,7 @@ export function usePlayerPastSeasons(code: number | null, enabled: boolean): Sta
     fetchPlayerSeasons(c)
       .then((result) => setHeld((prev) => (prev?.code === c ? { code: c, state: { status: "ready", seasons: result.data.seasons, peers: result.data.peers } } : prev)))
       .catch((err) =>
-        setHeld((prev) => (prev?.code === c ? { code: c, state: { status: "error", errorMessage: err instanceof Error ? err.message : String(err) } } : prev)),
+        setHeld((prev) => (prev?.code === c ? { code: c, state: { status: "error", errorMessage: describeLoadError(err) } } : prev)),
       );
   }, []);
 

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { fetchElementSummary } from "../api/client";
 import { normalizeElementSummary, normalizeSeasonHistory } from "../normalize/normalizeElementSummary";
 import type { PlayerGameweekHistory, PlayerSeasonHistory } from "../types/normalized";
+import { describeLoadError } from "../api/errors";
 
 interface State {
   status: "idle" | "loading" | "ready" | "error";
@@ -72,7 +73,7 @@ export function usePlayerHistory(playerId: number | null, liveDataVersion?: { co
             }, RETRY_DELAY_MS);
             return;
           }
-          setState({ status: "error", history: [], seasonHistory: [], errorMessage: (err as Error).message });
+          setState({ status: "error", history: [], seasonHistory: [], errorMessage: describeLoadError(err) });
         });
     }
     attempt();

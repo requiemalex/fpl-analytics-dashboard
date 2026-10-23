@@ -206,6 +206,13 @@ If the upstream fails, the server serves its last cached copy and the client
 shows a "stale data" banner — never blank, never presented as current. That
 covers fixtures and the historic dataset too: either served from a stale
 copy gets its own banner naming it (`staleDatasets`).
+With no copy at all, a fixtures failure is never silent either: a banner
+says upcoming fixtures, Team Building's Expected Points and this season's
+table are missing, with Try again (`fixturesUnavailable`). Every load
+error is put in plain words by `describeLoadError` (`<plain_errors>`,
+`api/errors.ts`): no internal addresses or raw status lines on screen, the
+detail in the console (the desktop app's log). Each profile section that
+can fail to load has its own Retry.
 
 **The desktop app's copies on disk** (`<disk_copies>`,
 `server/src/diskCopies.ts`). The caches live in memory, so a fresh launch

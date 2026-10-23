@@ -1081,7 +1081,14 @@ export function PlayerDetailOverlay() {
             {pastLogSeason === null ? (
               <>
                 {history.status === "loading" && <p className="page-subtitle">Loading gameweek history…</p>}
-                {history.status === "error" && <p className="page-subtitle">Couldn't load gameweek history: {history.errorMessage}</p>}
+                {history.status === "error" && (
+                  <p className="page-subtitle">
+                    Couldn't load this season's matches: {history.errorMessage}{" "}
+                    <button type="button" className="chip" onClick={history.retry} style={{ marginLeft: 4 }}>
+                      Retry
+                    </button>
+                  </p>
+                )}
                 {history.status === "ready" && history.history.length === 0 && <p className="page-subtitle">No matches played yet this season.</p>}
               </>
             ) : (

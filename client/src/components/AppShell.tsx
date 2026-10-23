@@ -90,7 +90,7 @@ function PersonIcon() {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { status, isStale, staleDatasets, lastUpdated, players, errorMessage, gameweekState, events } = useAppState();
+  const { status, isStale, staleDatasets, fixturesUnavailable, refresh, refreshing, lastUpdated, players, errorMessage, gameweekState, events } = useAppState();
   const staleParts = [staleDatasets.fixtures && "fixtures", staleDatasets.historic && "historic data"].filter((x): x is string => !!x);
   const gwInfo = getGameweekInfo(gameweekState, events);
   const [notepadOpen, setNotepadOpen] = useState(false);
@@ -185,6 +185,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="banner stale">Showing a cached copy of the {staleParts.join(" and ")} because the live API request failed. It may not be current.</div>
         )}
         {errorMessage && status !== "error" && <div className="banner error">Refresh failed: {errorMessage}</div>}
+        {fixturesUnavailable && status === "ready" && (
+          <div className="banner error">
+            Couldn't load FPL's fixture list, so upcoming fixtures, Team Building's Expected Points and this season's league table are
+            missing until it loads.{" "}
+            <button type="button" className="chip" onClick={() => void refresh()} disabled={refreshing}>
+              {refreshing ? "Trying…" : "Try again"}
+            </button>
+          </div>
+        )}
         {children}
       </main>
 
