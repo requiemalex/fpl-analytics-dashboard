@@ -109,6 +109,16 @@ fatal. Validation adds no defaults that would invent a figure: a missing
 available (Minutes Reliability is then `null`); an imported squad with no
 bank has bank `null`, not £0.0m.
 
+**Display errors** (`<crash_screen>`, `components/ErrorBoundary.tsx`). A
+bug while drawing shows "Something went wrong", the reason and a Reload
+button instead of a blank window, and is logged (`<app_log>` in the desktop
+app). One boundary wraps the pages and overlays (`PageErrorBoundary`, in
+`App.tsx`), so the menu keeps working and any change of address (another
+page, a profile closed) tries again; another wraps the whole app
+(`main.tsx`). Reload drops the address's overlay part, so a profile that
+fails to draw doesn't fail again at once. A page whose code file can't be
+loaded lands here too.
+
 **Shared vs per-page state.** `AppStateContext` holds only shared,
 expensive-to-fetch data: players, teams, fixtures, events, historic profiles
 (`historicProfiles`, `allTimeSeasonsByPlayerId`), club seasons. It polls

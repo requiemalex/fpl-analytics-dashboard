@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 // The app's three typefaces, bundled so the app draws the same offline (<font_families>, styles/fontRule.ts).
 import "@fontsource-variable/archivo";
 import "@fontsource-variable/ibm-plex-sans";
@@ -11,6 +12,8 @@ import "./styles/components.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary scope="app">
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>,
 );

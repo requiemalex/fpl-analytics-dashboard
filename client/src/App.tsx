@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppStateProvider } from "./state/AppStateContext";
 import { AppShell } from "./components/AppShell";
 import { LoadStateGate } from "./components/LoadStateGate";
+import { PageErrorBoundary } from "./components/ErrorBoundary";
 import { PlayerDetailOverlay } from "./components/PlayerDetailOverlay";
 import { TeamDetailOverlay } from "./components/TeamDetailOverlay";
 import { TermsGate } from "./components/TermsGate";
@@ -33,19 +34,21 @@ export default function App() {
         <BrowserRouter>
           <AppShell>
             <LoadStateGate>
-              <Suspense fallback={null}>
-                <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/players" element={<PlayerExplorer />} />
-                  <Route path="/teams" element={<Teams />} />
-                  <Route path="/player-comparison" element={<PlayerComparison />} />
-                  <Route path="/team-building" element={<TeamBuilder />} />
-                  <Route path="/guide" element={<UserGuide />} />
-                  <Route path="/legal" element={<Legal />} />
-                </Routes>
-              </Suspense>
-              <PlayerDetailOverlay />
-              <TeamDetailOverlay />
+              <PageErrorBoundary>
+                <Suspense fallback={null}>
+                  <Routes>
+                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/players" element={<PlayerExplorer />} />
+                    <Route path="/teams" element={<Teams />} />
+                    <Route path="/player-comparison" element={<PlayerComparison />} />
+                    <Route path="/team-building" element={<TeamBuilder />} />
+                    <Route path="/guide" element={<UserGuide />} />
+                    <Route path="/legal" element={<Legal />} />
+                  </Routes>
+                </Suspense>
+                <PlayerDetailOverlay />
+                <TeamDetailOverlay />
+              </PageErrorBoundary>
             </LoadStateGate>
           </AppShell>
           <TermsGate />
