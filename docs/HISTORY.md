@@ -3787,3 +3787,28 @@ tiles/graphs only:
   Formations" section (`understat/formations.tsx`): live season only, up
   to 3 formations used 90+ minutes, arrows between them, starters by slot.
 - **Last commit with it:** `61b0737`.
+
+### Silent update installs (replaced 2026-10-23)
+- **What it did:** every update installed with the installer hidden
+  (`autoUpdater.quitAndInstall(true, true)` at launch and on "Restart now";
+  electron-updater's own silent install-on-quit for "Later"), in
+  `electron/main.js`. The launch's "Updating…" window was
+  `electron/update-window.html`.
+- **Why it went:** nothing was on screen for the 10–30 seconds the installer
+  ran, and opening the app in that gap started the old copy while its files
+  were being replaced, a likely source of launch-time errors (audit
+  2026-10-23, finding 2). Installs now show the installer's own progress
+  bar, and the window became the launch window (`launch-window.html`).
+- **Last commit with it:** `f9d95fd`.
+
+### The desktop server listening on port 4317 (replaced 2026-10-23)
+- **What it did:** the built-in server listened on port 4317 itself
+  (127.0.0.1 and ::1), and the app showed "Another program is using port
+  4317…" and quit if it couldn't.
+- **Why it went:** another program on that port (4317 is OpenTelemetry's
+  standard port; Windows can also reserve it for Hyper-V/WSL/Docker) stopped
+  the app opening at all (audit 2026-10-23, finding 4). The app now answers
+  `http://localhost:4317` itself and passes requests to the server on any
+  free port (`<app_address>`), so the address, and the saved data that
+  belongs to it, didn't change.
+- **Last commit with it:** `7f1236d`.

@@ -87,7 +87,7 @@ client/src/
   api/ validation/ types/ normalize/ metrics/ state/ components/ pages/ styles/ utils/
   extensions/          the slot a second data source plugs into (externalStats.ts)
   understat/           Understat's columns, Data View logic, guide section, colour
-electron/main.js       desktop shell — starts the bundled server on :4317
+electron/main.js       desktop shell — starts the bundled server, answers http://localhost:4317
 scripts/club-history/  snapshot, backfill, archive, build-aggregates
 scripts/understat/     the daily Understat sync; scripts/alerts/ raises a workflow's alert issue
 data/                  club-history ledgers, the frozen vaastav snapshot, data/understat/
@@ -1653,17 +1653,24 @@ It runs on Electron 44 (a supported release line: Electron supports only
 its three newest major versions, so move up at least once a year to keep
 getting its browser's security fixes).
 
-It always serves on port 4317, never a `PORT` from the environment: the
-port is part of the page's address, which saved data belongs to. One copy
-runs at a time (`requestSingleInstanceLock`); a second launch brings the
-first one's window forward. If port 4317 is taken by another program, the
-app says so in a dialog and quits, instead of crashing with no window.
+The page's address is always `http://localhost:4317`, never a `PORT` from
+the environment: saved data belongs to the address. But nothing listens on
+4317 (`<app_address>`, `electron/main.js`): the app answers that address
+itself (`protocol.handle("http")`) and passes each request to the built-in
+server, which listens on any free port of 127.0.0.1. So another program on
+4317 (an OpenTelemetry agent's standard port, or a block Windows reserves
+for Hyper-V/WSL/Docker) can't stop the app opening, as it used to. The
+server runs inside the app's main process: a separate process was tried
+(2026-10-23) and measured no faster, as its heavy work waits on the network
+far more than it computes. One copy runs at a time
+(`requestSingleInstanceLock`); a second launch brings the first one's
+window forward.
 
 - **This computer only** (`<loopback_only>`, `server/src/listen.ts`): the
-  server listens on the loopback addresses (127.0.0.1 and ::1), never every
-  network interface, so nothing else on the network can use it. `npm run
-  dev` does the same; a container sets `HOST=0.0.0.0` (the reference
-  `Dockerfile` does).
+  server listens on the loopback addresses (127.0.0.1 and ::1; the desktop
+  app's on 127.0.0.1 alone), never every network interface, so nothing else
+  on the network can use it. `npm run dev` does the same; a container sets
+  `HOST=0.0.0.0` (the reference `Dockerfile` does).
 - **Its own pages only** (`<navigation_guard>`, `electron/main.js`): a
   window never navigates away from `http://localhost:4317` or opens another
   window; an outside http(s) link opens in the person's own browser.

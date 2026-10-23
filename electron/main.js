@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, Menu, dialog, ipcMain, net, protocol, shell } = require("electron");
 const os = require("os");
 const path = require("path");
 const { autoUpdater } = require("electron-updater");
@@ -52,30 +52,36 @@ process.on("unhandledRejection", (reason) => log.error("Unhandled promise reject
 app.on("child-process-gone", (_event, details) => log.warn("Child process gone:", details));
 
 /**
- * A distinct port from the dev-mode default (4000, in server/src/config.ts)
- * — this process never runs alongside the dev server, but picking a
- * separate, less-common port avoids any conflict with something else
- * already running on the user's machine. Set via env var BEFORE the
- * server module loads, since config.ts reads process.env.PORT once, at
- * import time.
- *
- * Always this port, never one from the user's environment: the port is
- * part of the page's address, and saved data (localStorage) belongs to
- * that address, so a PORT variable set for something else would make
+ * The page's address: always http://localhost:4317, because saved data
+ * (localStorage) belongs to the address, so a different one would make
  * every saved squad, view and note seem lost (audit 2026-10-18 M5).
+ *
+ * <app_address>: nothing actually listens on port 4317. The app answers
+ * that address itself (answerAppAddress below) and passes each request on
+ * to the built-in server, which takes whatever port is free. Before, the
+ * server had to get 4317 itself, and couldn't open at all if another
+ * program had it: an OpenTelemetry agent (4317 is its standard port), or a
+ * block of ports Windows reserves for Hyper-V, WSL or Docker (audit
+ * 2026-10-23, finding 4).
  */
 const DESKTOP_PORT = "4317";
-process.env.PORT = DESKTOP_PORT;
-process.env.CLIENT_ORIGIN = `http://localhost:${process.env.PORT}`;
+const APP_ORIGIN = `http://localhost:${DESKTOP_PORT}`;
+const APP_HOST = `localhost:${DESKTOP_PORT}`;
+// The server's CORS allow-list (server/src/config.ts reads it once, as the bundle loads).
+process.env.CLIENT_ORIGIN = APP_ORIGIN;
 
 let mainWindow = null;
 let mainWindowReady = false;
 /** True until the launch update check has decided the app can open as it is. */
 let holdMainWindow = true;
 
+/** Resolves with the built-in server's port once it's listening; requests to the app's address wait on it. */
+let serverReady = null;
+
 /**
- * Starts the embedded server and resolves once it's actually listening —
- * the window must not try to load the URL before that.
+ * Starts the embedded server on any free port of 127.0.0.1 (this computer
+ * only: <loopback_only>, server/src/listen.ts) and resolves with that port
+ * once it's actually listening — the window must not load before that.
  *
  * <build_prerequisite>: this requires server/dist/app.bundle.cjs, produced
  * by `npm run build:electron-server` (esbuild, bundling app.ts and its
@@ -95,17 +101,56 @@ let holdMainWindow = true;
  * CJS output keeps a real, working `require` in scope, so that same call
  * just works — confirmed by actually hitting the ESM version's failure
  * on a real Windows run and fixing it, not reasoned through untested.
+ *
+ * In this process, not a separate one: a separate process was tried
+ * (2026-10-23) and measured no faster, since the server's heavy work waits
+ * on the network far more than it computes — the windows stayed just as
+ * responsive either way (at most ~20 ms of delay during a full historic
+ * build).
  */
-async function startEmbeddedServer() {
-  const bundlePath = path.join(__dirname, "../server/dist/app.bundle.cjs");
-  const { createApp, listenOnLoopback } = require(bundlePath);
-  const expressApp = createApp({ clientDistPath: path.join(__dirname, "../client/dist") });
-  // This computer only, never the network (<loopback_only>, server/src/listen.ts).
-  // Port taken (another program on it): rejected and reported, not an uncaught crash with no window (audit 2026-10-18 M5).
-  await listenOnLoopback(expressApp, Number(DESKTOP_PORT));
+function startEmbeddedServer() {
+  serverReady = (async () => {
+    const { createApp, listenOnLoopback } = require(path.join(__dirname, "../server/dist/app.bundle.cjs"));
+    const expressApp = createApp({ clientDistPath: path.join(__dirname, "../client/dist") });
+    return listenOnLoopback(expressApp, 0, "127.0.0.1");
+  })();
+  return serverReady;
 }
 
-const APP_ORIGIN = `http://localhost:${DESKTOP_PORT}`;
+/** A JSON error the page shows like any other failed request (the client reads `error`). */
+function serverUnavailable(message) {
+  return new Response(JSON.stringify({ error: message }), { status: 503, headers: { "content-type": "application/json" } });
+}
+
+/**
+ * <app_address>: requests to the page's address go to the built-in
+ * server; anything else over http goes out as normal. Only this session's
+ * (the windows'); electron-updater fetches through a session of its own.
+ */
+function answerAppAddress() {
+  protocol.handle("http", async (request) => {
+    const url = new URL(request.url);
+    if (url.host !== APP_HOST) return net.fetch(request, { bypassCustomProtocolHandlers: true });
+    let port;
+    try {
+      port = await serverReady;
+    } catch {
+      return serverUnavailable(`${APP_NAME}'s built-in server isn't running.`);
+    }
+    try {
+      const body = request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer();
+      return await net.fetch(`http://127.0.0.1:${port}${url.pathname}${url.search}`, {
+        method: request.method,
+        headers: request.headers,
+        body,
+        bypassCustomProtocolHandlers: true,
+      });
+    } catch (err) {
+      log.warn(`Request to the built-in server failed (${request.method} ${url.pathname}):`, err);
+      return serverUnavailable(`${APP_NAME}'s built-in server didn't answer. Try again in a moment.`);
+    }
+  });
+}
 
 /**
  * <navigation_guard>: the app's windows only ever show the app's own pages.
@@ -548,8 +593,8 @@ function startUpdateChecks() {
 }
 
 /**
- * One copy at a time (audit 2026-10-18 M5): a second launch would find the
- * port taken, and could still run an update install under the first. It
+ * One copy at a time (audit 2026-10-18 M5): two copies would share one
+ * saved-data folder, and a second could run an update install under the first. It
  * brings the running copy's window forward and quits instead — the launch
  * window while the first copy is still opening or updating.
  */
@@ -571,19 +616,16 @@ if (!isFirstInstance) {
   app.whenReady().then(async () => {
     reviewLastInstall();
     createLaunchWindow();
+    answerAppAddress();
     try {
       await startEmbeddedServer();
       log.info(`Built-in server ready ${Date.now() - launchStartedAt} ms after launch`);
     } catch (err) {
       log.error("Built-in server didn't start:", err);
       closeLaunchWindow();
-      const inUse = err && err.code === "EADDRINUSE";
       dialog.showErrorBox(
         `${APP_NAME} couldn't start`,
-        (inUse
-          ? `Another program is using port ${DESKTOP_PORT}, which this app needs. Close that program (or restart the computer) and open the app again. Your saved data is safe.`
-          : `The app's built-in server didn't start: ${err && err.message ? err.message : String(err)}. Your saved data is safe.`) +
-          `\n\nDetails were saved to:\n${logFilePath()}`,
+        `The app's built-in server didn't start: ${err && err.message ? err.message : String(err)}. Open the app again; if it keeps happening, restart the computer. Your saved data is safe.\n\nDetails were saved to:\n${logFilePath()}`,
       );
       app.quit();
       return;

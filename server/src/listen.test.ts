@@ -34,6 +34,14 @@ describe("<loopback_only>: listenOnLoopback", () => {
     if (lan) await expect(get(lan, port)).rejects.toThrow();
   });
 
+  it("takes any free port when given 0, and says which (the desktop app's server: <app_address>)", async () => {
+    port = await listenOnLoopback(app, 0, "127.0.0.1");
+    expect(port).toBeGreaterThan(0);
+    expect(await get("127.0.0.1", port)).toBe(200);
+    const both = await listenOnLoopback(app, 0);
+    expect(await get("127.0.0.1", both)).toBe(200);
+  });
+
   it("reports a port another program already has, rather than starting half-way", async () => {
     port = 40000 + Math.floor(Math.random() * 20000);
     const blocker = http.createServer().listen(port, "127.0.0.1");
