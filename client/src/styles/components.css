@@ -234,11 +234,12 @@ table.data-table th {
   top: 0;
   background: var(--surface-raised);
   text-align: center;
-  /* Extra right padding (vs. the 10px every other side gets) reserves room
-     for the absolutely-positioned column-filter-icon (right: 12px, 14px
-     wide — see below), which otherwise overlaps a centered label + its
-     sort-indicator arrow in anything but the widest columns. */
-  padding: 8px 26px 8px 10px;
+  /* Extra right padding reserves room for the absolutely-positioned
+     column-filter-icon (right: 6px, 14px wide — see below). A column is
+     never narrower than its longest header word plus this padding
+     (<header_floor>, components/headerWidth.ts), so the label can't run
+     under the icon; keep the two in step. */
+  padding: 8px 22px 8px 8px;
   font-weight: 600;
   color: var(--text-secondary);
   font-size: 11px;
@@ -250,9 +251,10 @@ table.data-table th {
   border-bottom: 1px solid var(--border-strong);
   z-index: 2;
 }
-/* Team Explorer's labels run longer ("Goals Against", "Def. Contributions"),
-   so on a narrow screen they wrap between words instead of forcing their
-   column wider than its share — see TEAM_MIN_COLUMN_WIDTHS in Teams.tsx. */
+/* The customisable tables' headers (Player Explorer, Team Explorer, Add
+   Players) wrap between words, the sort arrow included, instead of forcing
+   a column wider than its share: only the longest word must fit
+   (<header_floor>). */
 table.data-table.wrap-headers th {
   white-space: normal;
 }
@@ -363,7 +365,7 @@ table.data-table td.column-group-divider {
 .column-filter-icon {
   position: absolute;
   top: 50%;
-  right: 12px;
+  right: 6px;
   transform: translateY(-50%);
   width: 14px;
   height: 14px;

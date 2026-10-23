@@ -1236,8 +1236,14 @@ word as an initial that must start a name word (`utils/playerSearch.ts`).
   historic dataset…" instead while a historic view is still loading, when
   a number filter fails every "—".
 - Auto-fit (`fitToBox`) keeps any width set by dragging, until Reset, and
-  shares the rest; a table can give a column a minimum (Player Explorer's
-  Next 5 Fixtures: 190px), which also floors dragging. It runs again when a
+  shares the rest; each column has a minimum, which also floors dragging:
+  its header's longest word plus the header's padding, measured in the
+  header font (`<header_floor>`, `components/headerWidth.ts`), or more where
+  a table sets one (Player Explorer's Next 5 Fixtures: 190px). Headers in
+  all three customisable tables (`wrap-headers`) wrap between words, and
+  the sort arrow and ⇄ source toggle wrap under the label rather than
+  widening the column, so the label never runs under the ▾ filter icon
+  (it did at 1366–1440px before; audit 2026-10-23 in-app). It runs again when a
   drag ends, so widening one column narrows the others. It reads current
   columns through refs, so a once-registered window-resize listener stays
   correct. Player Explorer measures its fixed Player/Own%/Price/Team/Position
@@ -1420,7 +1426,7 @@ drag-reorder, resize, a ▾ filter per column, and Fit to Box sharing the width
 left after the pinned, content-width Team column. The Columns picker lists
 every `TEAM_COLUMNS` metric; beyond the nine league-table defaults they're
 off. Headers wrap between words on narrow screens, each column floored at its
-longest word (`TEAM_MIN_COLUMN_WIDTHS`).
+longest word (`<header_floor>`, as in every customisable table).
 - The Team Profile's header (position, league points, played, W/D/L)
   follows its Data View like every other club figure, formatted as Team
   Explorer's columns show it (`teamHeaderLine`): in a Historic Average the

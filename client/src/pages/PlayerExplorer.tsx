@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
-import { useColumnCustomization, MIN_COLUMN_WIDTH } from "../state/useColumnCustomization";
+import { useColumnCustomization } from "../state/useColumnCustomization";
 import { useSortSpec, compareSortValues, sortWithinColumns, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
 import { useColumnFilters } from "../state/useColumnFilters";
 import { useComparativeColour } from "../state/comparativeColour";
@@ -25,7 +25,8 @@ import type { ColumnFilterSpec } from "../state/useColumnFilters";
 import { useProgressiveRowCount, INITIAL_ROW_COUNT } from "../state/useProgressiveRowCount";
 import type { NormalizedPlayer, Position } from "../types/normalized";
 import { MenuGroupHeading, fplHeading } from "../components/MenuControls";
-import { CrossoverGroupHeading, SOURCE_TOGGLE_WIDTH, SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
+import { headerMinWidth } from "../components/headerWidth";
+import { CrossoverGroupHeading, SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
 import { FPL_SOURCE, useExternalStats, type ColumnSourceChoice } from "../extensions/externalStats";
 import { explorerViewToApply, useExplorerViews, type ExplorerView, type ExplorerViewSettings } from "../state/useExplorerViews";
 import { ExplorerViewNotice, ExplorerViewsMenu, explorerViewNote } from "../components/ExplorerViewsMenu";
@@ -324,11 +325,14 @@ export function PlayerExplorer() {
   }, [ext, extColumns, sourceChoice, clearFilter]);
 
 
+  // Every column's floor fits its header's longest word (<header_floor>;
+  // a source toggle wraps under it like the sort arrow); Next 5 Fixtures
+  // keeps its own larger one.
   const explorerMinWidths = useMemo(() => {
     const widths: Record<string, number> = { ...EXPLORER_MIN_COLUMN_WIDTHS };
-    for (const key of Object.keys(extColumns?.alternates ?? {})) widths[key] = MIN_COLUMN_WIDTH + SOURCE_TOGGLE_WIDTH;
+    for (const c of [...PLAYER_COLUMNS, ...extOnlyByKey.values()]) widths[c.key] = Math.max(widths[c.key] ?? 0, headerMinWidth(c.label));
     return widths;
-  }, [extColumns]);
+  }, [extOnlyByKey]);
 
   const { resolved: resolvedPlayers } = useMemo(
     () => resolvePlayerStatsList(players, analysisMode, historicProfiles, currentSeasonHasStarted),
@@ -775,7 +779,7 @@ export function PlayerExplorer() {
 
       <div className="page-fill-body">
         <div className="table-wrap" ref={tableWrapRef}>
-          <table className="data-table resizable-columns">
+          <table className="data-table resizable-columns wrap-headers">
             <thead>
               <tr>
                 <th

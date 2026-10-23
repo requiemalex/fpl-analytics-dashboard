@@ -18,7 +18,8 @@ import { clubRanks, colourDirection } from "../metrics/comparativeColour";
 import { downloadCsv } from "../utils/csvExport";
 import { matchesTeamSearch } from "../utils/playerSearch";
 import { MenuGroupHeading, fplHeading } from "../components/MenuControls";
-import { CrossoverGroupHeading, SOURCE_TOGGLE_WIDTH, SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
+import { headerMinWidth } from "../components/headerWidth";
+import { CrossoverGroupHeading, SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
 import { FPL_SOURCE, useExternalStats, type ColumnSourceChoice } from "../extensions/externalStats";
 import { explorerViewToApply, useExplorerViews, type ExplorerView, type ExplorerViewSettings } from "../state/useExplorerViews";
 import { ExplorerViewNotice, ExplorerViewsMenu, explorerViewNote } from "../components/ExplorerViewsMenu";
@@ -33,15 +34,8 @@ const TEAM_EXPLORER_KEYS_AFTER_RESET = new Set<string>(["name", ...TEAM_EXPLORER
 /** Always on screen, so never in a saved view's visibleColumns: the club name. */
 const TEAM_EXPLORER_ALWAYS_SHOWN_KEYS = new Set<string>(["name"]);
 
-/**
- * Team headers are longer than Player Explorer's ("Goals Against", "Def.
- * Contributions") and wrap between words when their column is narrow, so a
- * column's floor is its longest word — uppercase 11px letter-spaced text,
- * about 8px a character — plus the header's padding (10px left, 26px right
- * for the filter icon) and the sort arrow, which can't wrap away from it.
- */
-const minColumnWidth = (c: TeamColumn) => 36 + 14 + 8 * Math.max(...c.label.split(/\s+/).map((w) => w.length));
-const TEAM_MIN_COLUMN_WIDTHS: Record<string, number> = Object.fromEntries(TEAM_COLUMNS.map((c) => [c.key, minColumnWidth(c)]));
+/** A column's floor is its header's longest word plus the header's padding (<header_floor>, components/headerWidth.ts). */
+const minColumnWidth = (c: TeamColumn) => headerMinWidth(c.label);
 
 /** "2025/26", "2026/27", or "2022/23–2025/26" for a Historic Average window. */
 
@@ -96,11 +90,10 @@ export function Teams() {
     [lookupColumn],
   );
   const minColumnWidths = useMemo(() => {
-    const widths: Record<string, number> = { ...TEAM_MIN_COLUMN_WIDTHS };
+    const widths: Record<string, number> = Object.fromEntries(TEAM_COLUMNS.map((c) => [c.key, minColumnWidth(c)]));
     for (const c of extOnlyByKey.values()) widths[c.key] = minColumnWidth(c);
-    for (const key of Object.keys(extColumns?.alternates ?? {})) widths[key] = (widths[key] ?? 0) + SOURCE_TOGGLE_WIDTH;
     return widths;
-  }, [extOnlyByKey, extColumns]);
+  }, [extOnlyByKey]);
 
   const [showColumnPopover, setShowColumnPopover] = useState(false);
   const {

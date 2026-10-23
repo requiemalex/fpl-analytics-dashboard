@@ -93,8 +93,19 @@ export function ColumnHeader({
     >
       {label}
       {badges}
-      {sortDirection && <span className="sort-indicator">{sortDirection === "asc" ? "↑" : "↓"}</span>}
-      {trailing}
+      {/* <wbr> lets the arrow and a source toggle wrap under a label that fills its column (<header_floor>). */}
+      {sortDirection && (
+        <>
+          <wbr />
+          <span className="sort-indicator">{sortDirection === "asc" ? "↑" : "↓"}</span>
+        </>
+      )}
+      {trailing && (
+        <>
+          <wbr />
+          {trailing}
+        </>
+      )}
       {filters && (
         <ColumnFilterControl
           isOpen={filters.openFilterKey === columnKey}

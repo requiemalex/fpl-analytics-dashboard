@@ -2,9 +2,6 @@ import React from "react";
 import { MenuGroupHeading } from "./MenuControls";
 import type { ExternalStatsSource } from "../extensions/externalStats";
 
-/** Room for a header's source toggle (extensions/externalStats.ts). */
-export const SOURCE_TOGGLE_WIDTH = 16;
-
 /**
  * The FPL / second-source switch on a column header, for a figure both
  * sources have but disagree on (xG, assists, minutes…; see

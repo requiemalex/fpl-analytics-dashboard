@@ -25,6 +25,7 @@ import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, cellText, columnByKey, columnF
 import { DataViewPicker } from "../components/AnalysisModeToggle";
 import { HideSmallSamplesButton, historicSeasonsNote, isSmallSample, MinutesFloorBadge, RowSmallSampleBadge, smallSamplesShownNote, userMinimumNote } from "../components/MinutesFloorBadge";
 import { SquadPitch, type PitchColourRanks } from "../components/SquadPitch";
+import { headerMinWidth } from "../components/headerWidth";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass } from "../components/primitives";
 import { IconChipButton, ResetIcon, ForecastIcon, ClockIcon, FilterIcon, DownloadIcon, TrashIcon } from "../components/IconToolbar";
 import { fmtPrice, fmtDecimal, fmtPercent, fmtSigned, DASH } from "../utils/format";
@@ -343,8 +344,11 @@ export function TeamBuilder() {
   // callback is kept by the column hook, so both would otherwise run the
   // first render's copy, which sizes the budget for that render's columns.
   const pickerFitRef = useRef<() => void>(() => {});
-  const predictiveCols = useColumnCustomization(DEFAULT_PREDICTIVE_COLUMN_KEYS, {}, () => pickerFitRef.current());
-  const historicRawCols = useColumnCustomization(DEFAULT_HISTORIC_RAW_COLUMN_KEYS, {}, () => pickerFitRef.current());
+  // Every column's floor fits its header's longest word (<header_floor>), as in the Explorers.
+  const predictiveMinWidths = useMemo(() => Object.fromEntries(PREDICTIVE_COLUMNS.map((c) => [c.key, headerMinWidth(c.label)])), []);
+  const historicRawMinWidths = useMemo(() => Object.fromEntries(PLAYER_COLUMNS.map((c) => [c.key, headerMinWidth(c.label)])), []);
+  const predictiveCols = useColumnCustomization(DEFAULT_PREDICTIVE_COLUMN_KEYS, predictiveMinWidths, () => pickerFitRef.current());
+  const historicRawCols = useColumnCustomization(DEFAULT_HISTORIC_RAW_COLUMN_KEYS, historicRawMinWidths, () => pickerFitRef.current());
   const { sort: pickerSort, setSort: setPickerSort, handleHeaderClick: handlePickerHeaderClick } = useSortSpec(PICKER_DEFAULT_SORT);
   const pickerTableWrapRef = useRef<HTMLDivElement>(null);
 
@@ -1379,7 +1383,7 @@ export function TeamBuilder() {
         )}
 
         <div className="table-wrap" ref={pickerTableWrapRef} style={{ maxHeight: 420 }}>
-          <table className="data-table compact resizable-columns">
+          <table className="data-table compact resizable-columns wrap-headers">
             <thead>
               <tr>
                 <th
