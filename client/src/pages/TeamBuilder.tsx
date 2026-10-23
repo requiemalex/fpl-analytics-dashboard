@@ -302,6 +302,11 @@ export function pickerMeetsMinMinutes(minutes: number | null, minMinutes: number
   return minMinutes === null || !isUnderMinimum(minutes, minMinutes);
 }
 
+/** A squad's name as shown: a name cleared while editing reads "Untitled squad" rather than leaving a blank in the dropdown and over the pitch. */
+function squadTitle(squad: SavedSquad): string {
+  return squad.name.trim() || "Untitled squad";
+}
+
 /** Hover text for the status line's budget: where it comes from (<imported_budget>, types/team.ts). */
 function budgetHint(squad: SavedSquad | null): string {
   const imported = squad?.importedFrom;
@@ -1073,7 +1078,7 @@ export function TeamBuilder() {
               <select id="squad-select" value={active.id} onChange={(e) => setActiveId(e.target.value)}>
                 {squads.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name}
+                    {squadTitle(s)}
                   </option>
                 ))}
               </select>
@@ -1156,7 +1161,7 @@ export function TeamBuilder() {
               <div className="dialog" onClick={(e) => e.stopPropagation()}>
                 <div className="dialog-title">Delete squad</div>
                 <p className="page-subtitle" style={{ marginTop: 0 }}>
-                  Do you want to delete squad "{target.name}"?
+                  Delete squad "{squadTitle(target)}"? This can't be undone.
                 </p>
                 <div className="dialog-actions">
                   <button type="button" className="btn" onClick={() => setConfirmDeleteId(null)}>
@@ -1168,7 +1173,7 @@ export function TeamBuilder() {
                     style={{ borderColor: "var(--accent-negative)", color: "var(--accent-negative)" }}
                     onClick={handleConfirmDelete}
                   >
-                    Yes
+                    Delete
                   </button>
                 </div>
               </div>
@@ -1215,7 +1220,7 @@ export function TeamBuilder() {
         )}
         {xiValidation.size > 0 && !xiValidation.valid && <div className="banner info">Formation: {xiValidation.issues.join(" · ")}</div>}
         <SquadPitch
-          squadName={active?.name ?? ""}
+          squadName={active ? squadTitle(active) : ""}
           squadValidation={squadValidation}
           positionGroups={pitchPositionGroups}
           benchPlayers={benchPlayers}

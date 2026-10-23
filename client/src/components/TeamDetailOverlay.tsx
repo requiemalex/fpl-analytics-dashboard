@@ -23,7 +23,7 @@ import { computeSeasonTrend } from "../metrics/careerMetrics";
 import { percentileTint } from "../utils/colorScale";
 import { clubRankHint } from "./hoverText";
 import { clubRanks, fixtureDifficultyRanks, rankAmong } from "../metrics/comparativeColour";
-import { AnalysisModeToggle } from "./AnalysisModeToggle";
+import { ANALYSIS_MODE_OPTIONS, AnalysisModeToggle } from "./AnalysisModeToggle";
 import { FixtureChips, withCoverage } from "./primitives";
 import { partialAverage, partialTotal, sumKnown, type PartialSum } from "../metrics/partialTotals";
 import { PercentileRadarChart } from "./PlayerRadarChart";
@@ -139,6 +139,17 @@ export function TeamDetailOverlay() {
   const clubTotals: TeamAggregate | null = useMemo(
     () => (team ? (allTeamAggregates.find((t) => t.teamId === team.id) ?? null) : null),
     [allTeamAggregates, team],
+  );
+  // A club with no matches in this view (not in the Premier League then, or
+  // none played yet) shows "—" throughout, so the profile says so and names
+  // the views it did play in, as the player profile does.
+  const noDataForMode = !!clubTotals && !clubTotals.played;
+  const modesWithData = useMemo(
+    () =>
+      noDataForMode && team
+        ? ANALYSIS_MODE_OPTIONS.filter((o) => o.mode !== analysisMode && (computeTeamAggregates(teams, o.mode, clubCtx).find((t) => t.teamId === team.id)?.played ?? 0) > 0).map((o) => o.label)
+        : [],
+    [noDataForMode, team, analysisMode, teams, clubCtx],
   );
 
   // The Match Log's season (<club_match_log>): the live one, unless a
@@ -310,6 +321,12 @@ export function TeamDetailOverlay() {
         </div>
 
         <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} clubFigures />
+        {noDataForMode && (
+          <div className="banner info" style={{ marginBottom: 16 }}>
+            No matches for {team.name} in this mode, so every figure below shows {DASH}.
+            {modesWithData.length > 0 && ` Try ${modesWithData.join(" or ")}.`} Points History and the Match Log below are unaffected.
+          </div>
+        )}
 
         <div className="profile-section">
           <div className="profile-section-heading col-source-fpl">

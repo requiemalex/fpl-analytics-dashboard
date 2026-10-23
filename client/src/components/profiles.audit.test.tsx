@@ -767,6 +767,22 @@ describe("The Team Profile shows club figures only", () => {
     expect(queryByRole("link")).toBeNull();
   });
 
+  it("a club with no matches in the view says so and suggests the views it played in, as the player profile does (audit 2026-10-23 in-app)", () => {
+    setApp(state.app.players as NormalizedPlayer[], {
+      clubSeasons: [clubSeason(101, "2025/26"), clubSeason(101, LIVE, { complete: false, played: 2, matches }), clubSeason(102, LIVE, { complete: false, played: 2 })],
+    });
+    const { container } = render(
+      <MemoryRouter initialEntries={["/teams?teamProfile=2"]}>
+        <TeamDetailOverlay />
+      </MemoryRouter>,
+    );
+    const note = container.querySelector(".banner.info")?.textContent ?? "";
+    expect(note).toMatch(/^No matches for .+ in this mode, so every figure below shows —\. Try Current Season\./);
+    cleanup();
+    const arsenal = renderClub();
+    expect(arsenal.container.querySelector(".banner.info")).toBeNull();
+  });
+
   it("has no minimum-minutes badge: no floor applies to club figures", () => {
     const { queryByLabelText } = renderClub();
     expect(queryByLabelText(/^Minimum minutes applied/)).toBeNull();

@@ -254,7 +254,7 @@ export function Notepad({ open, onClose }: { open: boolean; onClose: () => void 
                   setConfirmDelete(null);
                 }}
               >
-                Yes
+                Delete
               </button>
             </div>
           </div>
