@@ -1681,8 +1681,12 @@ the environment: saved data belongs to the address. But nothing listens on
 itself (`protocol.handle("http")`) and passes each request to the built-in
 server, which listens on any free port of 127.0.0.1. So another program on
 4317 (an OpenTelemetry agent's standard port, or a block Windows reserves
-for Hyper-V/WSL/Docker) can't stop the app opening, as it used to. The
-server runs inside the app's main process: a separate process was tried
+for Hyper-V/WSL/Docker) can't stop the app opening, as it used to. A
+request is passed on with every header except `Origin`
+(`<forwarded_headers>`, `electron/appAddress.js`): the page's script and
+stylesheet are `crossorigin`, so their Origin would make the hop to the
+server's own address a cross-origin request, which Electron refuses, and
+the window would open blank (as v1.101.0 did). The server runs inside the app's main process: a separate process was tried
 (2026-10-23) and measured no faster, as its heavy work waits on the network
 far more than it computes. One copy runs at a time
 (`requestSingleInstanceLock`); a second launch brings the first one's

@@ -25,6 +25,7 @@ app.setPath("userData", path.join(app.getPath("appData"), "FPL Analytics Dashboa
 // <app_log> (electron/log.js): after the userData path above, which the log lives under.
 const { log, captureConsole, logFilePath } = require("./log");
 const { readUpdateState, writeUpdateState, reviewInstallAttempt, checkedRecently } = require("./updateState");
+const { forwardedHeaders } = require("./appAddress");
 captureConsole();
 const launchStartedAt = Date.now();
 log.info(`${APP_NAME} ${app.getVersion()} starting: Windows ${os.release()} ${process.arch}, Electron ${process.versions.electron}`);
@@ -141,7 +142,7 @@ function answerAppAddress() {
       const body = request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer();
       return await net.fetch(`http://127.0.0.1:${port}${url.pathname}${url.search}`, {
         method: request.method,
-        headers: request.headers,
+        headers: forwardedHeaders(request.headers),
         body,
         bypassCustomProtocolHandlers: true,
       });
