@@ -26,7 +26,7 @@ import { DataViewPicker } from "../components/AnalysisModeToggle";
 import { HideSmallSamplesButton, historicSeasonsNote, isSmallSample, MinutesFloorBadge, RowSmallSampleBadge, smallSamplesShownNote, userMinimumNote } from "../components/MinutesFloorBadge";
 import { SquadPitch, type PitchColourRanks } from "../components/SquadPitch";
 import { headerMinWidth } from "../components/headerWidth";
-import { PositionBadge, AvailabilityFlag, availabilityTextClass } from "../components/primitives";
+import { PositionBadge, AvailabilityFlag, availabilityTextClass, pressable } from "../components/primitives";
 import { IconChipButton, ResetIcon, ForecastIcon, ClockIcon, FilterIcon, DownloadIcon, TrashIcon } from "../components/IconToolbar";
 import { fmtPrice, fmtDecimal, fmtPercent, fmtSigned, DASH } from "../utils/format";
 import { percentileTint } from "../utils/colorScale";
@@ -225,12 +225,8 @@ const PickerRow = React.memo(function PickerRow({
         <div className="player-name-cell">
           <span
             className={`name ${availabilityTextClass(row.live.status)}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onViewProfile(row.live.id);
-            }}
+            {...pressable(() => onViewProfile(row.live.id), `View ${row.live.name}'s profile`)}
             style={{ cursor: "pointer" }}
-            title={`View ${row.live.name}'s profile`}
           >
             {row.live.name}
             <AvailabilityFlag status={row.live.status} news={row.live.news} chanceOfPlayingNextRound={row.live.chanceOfPlayingNextRound} />

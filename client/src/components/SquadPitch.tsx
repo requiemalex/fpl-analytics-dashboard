@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { PositionBadge, AvailabilityFlag, availabilityTextClass } from "./primitives";
+import { PositionBadge, AvailabilityFlag, availabilityTextClass, pressable } from "./primitives";
 import { PitchMarkings } from "./PitchMarkings";
 import { fmtPrice, fmtPercent, fmtDecimal, DASH } from "../utils/format";
 import { fdrColor, type UpcomingFixture } from "../metrics/fixtureTicker";
@@ -184,13 +184,9 @@ function PlayerCard({
       <div className="pitch-card-plate">
         <div
           className="pitch-card-name"
-          onClick={(e) => {
-            // A distinct reference point: viewing a profile shouldn't also
-            // trigger the card's own click (captain-assign) behaviour.
-            e.stopPropagation();
-            onViewProfile(player.id);
-          }}
-          title={`View ${player.name}'s profile`}
+          // A distinct reference point: viewing a profile shouldn't also
+          // trigger the card's own click (captain-assign) behaviour; pressable stops it.
+          {...pressable(() => onViewProfile(player.id), `View ${player.name}'s profile`)}
         >
           <span className={availabilityTextClass(player.status)}>{player.name}</span>
           <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />

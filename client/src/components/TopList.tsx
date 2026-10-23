@@ -1,6 +1,6 @@
 import React from "react";
 import { barWidths } from "./statBar";
-import { PositionBadge, TeamBadge, AvailabilityFlag, availabilityTextClass } from "./primitives";
+import { PositionBadge, TeamBadge, AvailabilityFlag, availabilityTextClass, pressable } from "./primitives";
 import { DataViewBadge } from "./DataViewBadge";
 import { HideSmallSamplesButton, isSmallSample, MinutesFloorBadge, RowSmallSampleBadge, smallSamplesShownNote } from "./MinutesFloorBadge";
 import { CardEditRemoveButtons } from "./IconToolbar";
@@ -102,7 +102,9 @@ export function TopList({
               <span className="stat-row-name">
                 <TeamBadge teamId={player.teamId} shortName={player.teamShortName} />
                 <PositionBadge position={player.position} />
-                <span className={availabilityTextClass(player.status)}>{player.name}</span>
+                <span className={availabilityTextClass(player.status)} {...(onSelect ? pressable(() => onSelect(player.id), `View ${player.name}'s profile`) : {})}>
+                  {player.name}
+                </span>
                 <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />
                 {dataView && <RowSmallSampleBadge minutes={player.minutes} mode={dataView} />}
               </span>

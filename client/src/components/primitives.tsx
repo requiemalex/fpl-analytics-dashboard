@@ -48,6 +48,34 @@ export function PositionBadge({ position }: { position: Position }) {
  * "the same colour"; the swatch stripe below stays literal primary/
  * secondary, unblended, so it still shows each club's real colours too.
  */
+/**
+ * <keyboard_reachable>: what a clickable name that isn't a button needs to
+ * work like one from the keyboard — a Tab stop, Enter or Space to press,
+ * and a name for screen readers — as TeamBadge has. Player names used to be
+ * mouse-only, so a profile couldn't be opened from the keyboard (audit
+ * 2026-10-23 in-app). Stops the event, so a row or card around the name
+ * doesn't act on it too.
+ */
+export function pressable(onPress: () => void, label: string) {
+  return {
+    role: "button" as const,
+    tabIndex: 0,
+    title: label,
+    "aria-label": label,
+    onClick: (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onPress();
+    },
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        e.stopPropagation();
+        onPress();
+      }
+    },
+  };
+}
+
 export function TeamBadge({ teamId, shortName }: { teamId: number; shortName: string }) {
   const { primary, secondary } = teamDisplayColors(teamId, shortName);
   const identity = teamIdentityColor(teamId, shortName);

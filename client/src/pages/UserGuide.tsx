@@ -476,7 +476,7 @@ export function UserGuide() {
 
       <Section id="player-profile" title="Player Profile">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Click a player's name almost anywhere to open it; × or Escape closes it. The "FPL · Views" zone (Actual vs Expected,
+          Click a player's name almost anywhere to open it (or Tab to it and press Enter); × or Escape closes it. The "FPL · Views" zone (Actual vs Expected,
           Underlying Numbers, Percentile Radar, Value) follows the analysis mode; Points History, the Match Log and Playing Time
           don't. Section headings are coloured by where their figures come from: green for FPL, violet for Understat, and rose for
           the Match Log when it holds both. The Percentile Radar is position-specific: defenders and midfielders get Defense and Offense radars, goalkeepers

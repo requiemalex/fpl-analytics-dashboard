@@ -11,7 +11,7 @@ import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/p
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { getUpcomingFixtures, formatFixturesForCsv, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
-import { PositionBadge, TeamBadge, AvailabilityFlag, availabilityTextClass, FixtureChips } from "../components/primitives";
+import { PositionBadge, TeamBadge, AvailabilityFlag, availabilityTextClass, FixtureChips, pressable } from "../components/primitives";
 import { PLAYER_COLUMNS, cellText, columnByKey, columnForMode, isStaticColumn, rankValue, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { IconChipButton, ResetIcon, ColumnsIcon, FilterIcon, DownloadIcon } from "../components/IconToolbar";
 import { fmtPercent, fmtPrice } from "../utils/format";
@@ -109,11 +109,12 @@ function columnRankHint(ranks: ColumnRanks, player: NormalizedPlayer, c: PlayerC
 }
 
 /** The sticky Player cell — shared by real rows and the width-sizer rows, so both measure exactly the same. */
-function PlayerCell({ player, mode }: { player: NormalizedPlayer; mode: AnalysisMode }) {
+/** `onOpen` makes the name a keyboard-reachable button (<keyboard_reachable>); the hidden width-sizer rows leave it out, so they're never a Tab stop. */
+function PlayerCell({ player, mode, onOpen }: { player: NormalizedPlayer; mode: AnalysisMode; onOpen?: (id: number) => void }) {
   return (
     <td className="sticky-col">
       <div className="player-name-cell">
-        <span className={`name ${availabilityTextClass(player.status)}`}>
+        <span className={`name ${availabilityTextClass(player.status)}`} {...(onOpen ? pressable(() => onOpen(player.id), `View ${player.name}'s profile`) : {})}>
           {player.name}
           <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />
           <RowSmallSampleBadge minutes={player.minutes} mode={mode} />
@@ -148,7 +149,7 @@ const ExplorerRow = React.memo(function ExplorerRow({ player, derived, mode, col
   useComparativeColour();
   return (
     <tr onClick={() => onOpenPlayer(player.id)}>
-      <PlayerCell player={player} mode={mode} />
+      <PlayerCell player={player} mode={mode} onOpen={onOpenPlayer} />
       {IDENTITY_COLUMNS.map((c, idx) => {
         const width = columnWidths[typeof c === "string" ? c : c.key];
         const isFirst = idx === 0;
