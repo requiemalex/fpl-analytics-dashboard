@@ -22,14 +22,14 @@ describe("<no_data_is_zero>: no minutes for the mode counts as 0 against any min
   it("is under any minimum above 0, and meets a minimum of 0", () => {
     expect(isUnderMinimum(null, 1)).toBe(true);
     expect(isUnderMinimum(null, 0)).toBe(false);
-    expect(isUnderMinimum(449, 450)).toBe(true);
-    expect(isUnderMinimum(450, 450)).toBe(false);
+    expect(isUnderMinimum(854, 855)).toBe(true);
+    expect(isUnderMinimum(855, 855)).toBe(false);
   });
 
   it("a row with no minutes carries the amber stopwatch, saying it counts as 0", () => {
     const { container } = render(<RowSmallSampleBadge minutes={null} mode="lastSeason" />);
     expect(container.querySelector(".small-sample-badge")!.getAttribute("title")).toBe(
-      "No minutes in this mode (counts as 0), under the 450-minute floor: its figures for this Data View have no percentiles or colours.",
+      "No minutes in this mode (counts as 0), under the 855-minute floor: its figures for this Data View have no percentiles or colours.",
     );
     expect(smallSampleNote(null, "live")).toContain("under the 90-minute floor");
   });
@@ -41,9 +41,9 @@ describe("<no_data_is_zero>: no minutes for the mode counts as 0 against any min
 });
 
 describe("<minutes_marker>: the stopwatch on a view where a threshold is in force", () => {
-  it("a player view's Data View toggle shows it in Historic Average (its 450-minute seasons), not in the other two", () => {
+  it("a player view's Data View toggle shows it in Historic Average (its 855-minute seasons), not in the other two", () => {
     const { container, rerender } = render(<AnalysisModeToggle mode="historicAverage" onChange={() => {}} />);
-    expect(container.querySelector(".minutes-floor-badge")!.getAttribute("title")).toContain("Historic Average counts only seasons of 450+ minutes");
+    expect(container.querySelector(".minutes-floor-badge")!.getAttribute("title")).toContain("Historic Average counts only seasons of 855+ minutes");
     rerender(<AnalysisModeToggle mode="lastSeason" onChange={() => {}} />);
     expect(container.querySelector(".minutes-floor-badge")).toBeNull();
   });
@@ -65,7 +65,7 @@ describe("<minutes_marker>: the stopwatch on a view where a threshold is in forc
 
   it("<marker_follows_data>: a view's badge says how many shown are under it", () => {
     const { container } = render(<MinutesFloorBadge note={smallSamplesShownNote("Your minimum minutes: 0.", 2, "lastSeason")} active />);
-    expect(container.querySelector(".small-sample-badge")!.getAttribute("title")).toBe("Your minimum minutes: 0. 2 players shown here are under the 450-minute floor.");
+    expect(container.querySelector(".small-sample-badge")!.getAttribute("title")).toBe("Your minimum minutes: 0. 2 players shown here are under the 855-minute floor.");
   });
 
   it("an entry's stopwatch is always amber", () => {
@@ -75,7 +75,7 @@ describe("<minutes_marker>: the stopwatch on a view where a threshold is in forc
 
   it("names the user's own minimum", () => {
     expect(userMinimumNote(270, "live")).toContain("Your minimum minutes: 270");
-    expect(userMinimumNote(900, "historicAverage")).toContain("Historic Average also counts only seasons of 450+ minutes");
+    expect(userMinimumNote(900, "historicAverage")).toContain("Historic Average also counts only seasons of 855+ minutes");
   });
 });
 
@@ -84,7 +84,8 @@ describe("<hide_small_samples>: the Hide button", () => {
     expect(isSmallSample(89, "live")).toBe(true);
     expect(isSmallSample(90, "live")).toBe(false);
     expect(isSmallSample(null, "historicAverage")).toBe(true);
-    expect(isSmallSample(450, "lastSeason")).toBe(false);
+    expect(isSmallSample(854, "lastSeason")).toBe(true);
+    expect(isSmallSample(855, "lastSeason")).toBe(false);
   });
 
   it("appears only when there's something to hide, or while it's on, and toggles", () => {
@@ -99,6 +100,6 @@ describe("<hide_small_samples>: the Hide button", () => {
     expect(toggled).toBe(1);
     rerender(<HideSmallSamplesButton hidden count={0} mode="lastSeason" onToggle={() => toggled++} />);
     expect(container.querySelector("button")!.getAttribute("aria-pressed")).toBe("true");
-    expect(container.querySelector("button")!.getAttribute("aria-label")).toContain("Show the players under the 450-minute floor again");
+    expect(container.querySelector("button")!.getAttribute("aria-label")).toContain("Show the players under the 855-minute floor again");
   });
 });

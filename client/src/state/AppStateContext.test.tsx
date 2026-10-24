@@ -3,6 +3,8 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import React from "react";
 import { AppStateProvider, useAppState } from "./AppStateContext";
 import { makeRawElement, makeRawTeam, RAW_ELEMENT_TYPES } from "../test/rawFixtures";
+import { finishedGameweeks, setFinishedGameweeks } from "./seasonProgress";
+import { fixedFloorMinutes } from "../metrics/fixedMinutesFloor";
 
 const fetchBootstrapMock = vi.fn();
 const fetchFixturesMock = vi.fn();
@@ -79,6 +81,28 @@ describe("AppStateProvider — R3: a failed fixtures request doesn't make a seas
     await waitFor(() => expect(fetchFixturesMock).toHaveBeenCalled());
     expect(result.current.fixtures).toEqual([]);
     expect(result.current.currentSeasonHasStarted).toBe(true);
+  });
+});
+
+describe("AppStateProvider — Current Season's minutes floor follows the gameweeks finished (<fixed_minutes_floor>)", () => {
+  it("counts FPL's finished gameweeks on load, so the floor is a quarter of their minutes", async () => {
+    const payload = bootstrapPayload();
+    payload.data.events = Array.from({ length: 10 }, (_, i) => ({
+      id: i + 1,
+      name: `Gameweek ${i + 1}`,
+      deadline_time: `2026-08-${String(15 + i).padStart(2, "0")}T17:30:00Z`,
+      finished: i < 9,
+      is_previous: i === 8,
+      is_current: i === 9,
+      is_next: false,
+    })) as never[];
+    fetchBootstrapMock.mockResolvedValue(payload);
+    fetchFixturesMock.mockResolvedValue({ data: [], source: "live", fetchedAt: Date.now() });
+    const { result } = renderHook(() => useAppState(), { wrapper: ({ children }) => <AppStateProvider>{children}</AppStateProvider> });
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    expect(finishedGameweeks()).toBe(9);
+    expect(fixedFloorMinutes("live")).toBe(203);
+    setFinishedGameweeks(0);
   });
 });
 

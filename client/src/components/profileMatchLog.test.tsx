@@ -188,8 +188,8 @@ describe("Player profile — Match Log", () => {
   });
 
   it("colours a past season's Totals and Average against his position that season, at the fixed floor", async () => {
-    // Six full matches: 540 minutes, 8 points each (48), 6 goals.
-    state.pastSeasons = { "2024/25": Array.from({ length: 6 }, (_, i) => past(i + 1, { totalPoints: 8, goals: 1 })) };
+    // Ten full matches: 900 minutes (over the 855 floor), 8 points each (80), 10 goals.
+    state.pastSeasons = { "2024/25": Array.from({ length: 10 }, (_, i) => past(i + 1, { totalPoints: 8, goals: 1 })) };
     const peer = (minutes: number, matches: number, totalPoints: number, xGC: number): PlayerSeasonPeer => ({ minutes, matches, totals: { minutes, matches, totalPoints, goals: 0, xGC } });
     // Two peers above the floor, both scoring less, and one under it (ignored, or he wouldn't top the pool).
     state.pastPeers = { "2024/25": [peer(900, 10, 20, 5), peer(900, 10, 30, 15), peer(100, 2, 999, 0)] };
@@ -199,7 +199,7 @@ describe("Player profile — Match Log", () => {
     const log = matchLog(container);
     const headers = [...log.querySelectorAll("thead th")].map((th) => th.textContent);
     const cell = (row: number, name: string) => log.querySelectorAll("tfoot tr")[row].querySelectorAll("td")[headers.indexOf(name) - 2] as HTMLElement;
-    // Totals: 48 points tops 20 and 30 — (2 below + half of his own tie) of 3.
+    // Totals: 80 points tops 20 and 30 — (2 below + half of his own tie) of 3.
     // (The browser rewrites colours with its own spacing.)
     const bare = (c: string | undefined) => (c ?? "").replace(/\s/g, "");
     const top = bare(percentileTint(((2 + 0.5) / 3) * 100));

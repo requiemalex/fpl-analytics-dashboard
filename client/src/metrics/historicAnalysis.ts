@@ -75,13 +75,13 @@ export interface HistoricPlayerProfile {
   allSeasonsInWindow: PlayerSeasonHistory[];
   /**
    * The window's seasons with at least the fixed minutes floor
-   * (FIXED_FLOOR_MINUTES, 450), oldest first — never reaching back past the
+   * (FIXED_FLOOR_MINUTES, 855), oldest first — never reaching back past the
    * window to replace one that falls short. Historic Average counts only
    * these, everywhere in the app (the owner's rule, 2026-10-19: one Historic
    * Average, replacing a second version that counted every season, 0-minute
    * ones included, where the user sets minimum minutes). A season under the
    * floor (a cameo year, one lost to injury, or 0 minutes) is a small
-   * sample, so its figures don't count at all. A light season of 450+ still
+   * sample, so its figures don't count at all. A light season of 855+ still
    * counts and pulls the average down (<no_survivorship_bias>).
    */
   floorSeasonsInWindow: PlayerSeasonHistory[];

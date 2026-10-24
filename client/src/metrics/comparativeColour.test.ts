@@ -17,11 +17,11 @@ describe("<comparative_colouring>: players ranked within their position", () => 
     expect(ranks.get(4)).toBe(75);
   });
 
-  it("leaves anyone under the fixed floor out of the pool and uncoloured: 450 minutes, or 90 in Current Season", () => {
-    const rows = [row(1, "MID", 449, 30), row(2, "MID", 450, 5), row(3, "MID", 2000, 3)];
+  it("leaves anyone under the fixed floor out of the pool and uncoloured: 855 minutes, or Current Season's floor", () => {
+    const rows = [row(1, "MID", 854, 30), row(2, "MID", 855, 5), row(3, "MID", 2000, 3)];
     const completed = ranksOf(rows, "lastSeason");
     expect(completed.has(1)).toBe(false);
-    expect(completed.get(2)).toBe(75); // top of the two who qualify — the 449-minute 30 goals doesn't push him down
+    expect(completed.get(2)).toBe(75); // top of the two who qualify — the 854-minute 30 goals doesn't push him down
     const live = ranksOf([row(1, "MID", 89, 3), row(2, "MID", 90, 1), row(3, "MID", 400, 0)], "live");
     expect(live.has(1)).toBe(false);
     expect(live.get(2)).toBe(75);
@@ -45,8 +45,8 @@ describe("<comparative_colouring>: players ranked within their position", () => 
   it("isColourEligible: minutes at or above the mode's floor; null minutes never", () => {
     expect(isColourEligible(90, "live")).toBe(true);
     expect(isColourEligible(89, "live")).toBe(false);
-    expect(isColourEligible(450, "historicAverage")).toBe(true);
-    expect(isColourEligible(449, "lastSeason")).toBe(false);
+    expect(isColourEligible(855, "historicAverage")).toBe(true);
+    expect(isColourEligible(854, "lastSeason")).toBe(false);
     expect(isColourEligible(null, "live")).toBe(false);
   });
 });

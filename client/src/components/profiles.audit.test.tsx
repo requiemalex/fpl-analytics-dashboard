@@ -314,7 +314,7 @@ describe("H1: the profile's percentiles use the fixed minutes floor", () => {
       </MemoryRouter>,
     );
     // No banner: the amber stopwatch on each card left uncoloured for it — the Summary and both radars (Defense and Offense) — explains on hover (<minutes_marker>).
-    const badges = getAllByLabelText(/^Small sample: 136 min in this mode, under the 450-minute floor/);
+    const badges = getAllByLabelText(/^Small sample: 136 min in this mode, under the 855-minute floor/);
     expect(badges.length).toBe(3);
     expect(badges.map((b) => b.closest(".card-title")!.textContent)).toEqual(["Summary", "Percentile Radar · Defense", "Percentile Radar · Offense"]);
     for (const b of badges) expect(b.getAttribute("title")).toBe(b.getAttribute("aria-label"));
@@ -371,10 +371,10 @@ describe("H1: the profile's percentiles use the fixed minutes floor", () => {
 
 });
 
-describe("In the profile, only seasons of 450+ minutes count toward Historic Average (V2, then the owner's 450 rule)", () => {
+describe("In the profile, only seasons of 855+ minutes count toward Historic Average (V2, then the owner's floor rule)", () => {
   // 2022/23 on record with 0 minutes (a season out of the Premier League) and
   // 2024/25 a 300-minute cameo season. The window is the last 4 completed
-  // seasons, 2022/23–2025/26: only 2023/24 and 2025/26 reach 450, averaging
+  // seasons, 2022/23–2025/26: only 2023/24 and 2025/26 reach 855, averaging
   // 120 — and 2021/22 is never pulled in to replace the others.
   const seasons = [
     makeSeason({ seasonName: "2021/22", minutes: 3000, totalPoints: 200 }),
@@ -384,7 +384,7 @@ describe("In the profile, only seasons of 450+ minutes count toward Historic Ave
     makeSeason({ seasonName: "2025/26", minutes: 1800, totalPoints: 150 }),
   ];
 
-  it("Points History averages the 2 window seasons that reach 450 and marks the 0- and 300-minute ones with the amber small-sample stopwatch (<minutes_marker>)", () => {
+  it("Points History averages the 2 window seasons that reach 855 and marks the 0- and 300-minute ones with the amber small-sample stopwatch (<minutes_marker>)", () => {
     setApp([makePlayer({ id: 1, name: "Ndiaye", position: "MID", teamId: 1 })], { historicProfiles: profiles({ 1: seasons }) });
     setHistory([gw(1)], seasons);
     const { getByLabelText, queryByLabelText, container } = render(
@@ -393,7 +393,7 @@ describe("In the profile, only seasons of 450+ minutes count toward Historic Ave
       </MemoryRouter>,
     );
     expect(getByLabelText("Season average over 2 seasons: 120 pts")).toBeTruthy();
-    const note = "Under 450 minutes this season: a small sample, not counted in the season average";
+    const note = "Under 855 minutes this season: a small sample, not counted in the season average";
     // The chart: the amber stopwatch beside each under-floor season's label, and the reason on hover — never "†", which is for a season outside the window.
     expect(container.querySelectorAll(".points-history-axis .small-sample-mark")).toHaveLength(2);
     expect(getByLabelText(`2024/25 (${note}): 20 pts. Show its matches below`)).toBeTruthy();
@@ -712,12 +712,12 @@ describe("R5 (not a defect — guards the right behaviour): keyboard focus throu
 
 // ---------------------------------------------------------------------------
 // The owner's follow-up (2026-09-25): where the user can't set minimum
-// minutes, Historic Average counts only seasons of 450+ minutes; Player
+// minutes, Historic Average counts only seasons of 855+ minutes; Player
 // Comparison's table treats a small sample as its radars do.
 // ---------------------------------------------------------------------------
 
-describe("Historic Average counts only 450+ minute seasons in the fixed-floor sections", () => {
-  it("the profile calls a player who played but never reached 450 in a season a small sample, not 'no data'", () => {
+describe("Historic Average counts only 855+ minute seasons in the fixed-floor sections", () => {
+  it("the profile calls a player who played but never reached 855 in a season a small sample, not 'no data'", () => {
     setApp(state.app.players as NormalizedPlayer[], {
       historicProfiles: profiles({ 1: [makeSeason({ seasonName: "2024/25", minutes: 300, totalPoints: 12 }), makeSeason({ seasonName: "2025/26", minutes: 400, totalPoints: 15 })] }),
     });
@@ -727,7 +727,7 @@ describe("Historic Average counts only 450+ minute seasons in the fixed-floor se
       </MemoryRouter>,
     );
     fireEvent.click(getByRole("button", { name: "Historic Average" }));
-    expect(getAllByLabelText(/^Small sample. No season in the last 4 with 450\+ minutes/).length).toBeGreaterThan(0);
+    expect(getAllByLabelText(/^Small sample. No season in the last 4 with 855\+ minutes/).length).toBeGreaterThan(0);
     expect(queryByText(/No data for Saliba/)).toBeNull();
   });
 

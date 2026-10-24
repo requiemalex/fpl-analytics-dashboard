@@ -8,6 +8,7 @@ import { PlayerDetailOverlay } from "./components/PlayerDetailOverlay";
 import { TeamDetailOverlay } from "./components/TeamDetailOverlay";
 import { TermsGate } from "./components/TermsGate";
 import { useComparativeColour } from "./state/comparativeColour";
+import { useFinishedGameweeks } from "./state/seasonProgress";
 // Understat (optional second source): this import and the provider below are its only connection to the app.
 import { UnderstatProvider } from "./understat/UnderstatProvider";
 
@@ -28,6 +29,9 @@ export default function App() {
   // and overlay, which then paint (or don't) through percentileTint
   // (<comparative_colour_switch>).
   useComparativeColour();
+  // Likewise for Current Season's minutes floor, which grows with the
+  // gameweeks finished (<fixed_minutes_floor>).
+  useFinishedGameweeks();
   return (
     <AppStateProvider>
       <UnderstatProvider>

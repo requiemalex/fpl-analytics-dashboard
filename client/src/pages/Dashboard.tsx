@@ -4,7 +4,7 @@ import { useAppState } from "../state/AppStateContext";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { clubRanks, colourDirection, positionRanks } from "../metrics/comparativeColour";
-import { FIXED_FLOOR_LIVE_MINUTES, FIXED_FLOOR_MINUTES, fixedFloorMinutes } from "../metrics/fixedMinutesFloor";
+import { fixedFloorMinutes } from "../metrics/fixedMinutesFloor";
 import { dashboardFloorNote, isSmallSample, smallSampleNote } from "../components/MinutesFloorBadge";
 import { useHiddenSmallSamples } from "../state/useHiddenSmallSamples";
 import { filterPlayers } from "../state/useFilteredPlayers";
@@ -260,9 +260,6 @@ const MODES: AnalysisMode[] = ["live", "lastSeason", "historicAverage"];
 // per-game list and every Default ranking and plot is built the same way.
 // A tile or graph the user builds has its own Min Minutes instead. Never
 // applied to specifically picked players.
-export const LIVE_DEFAULT_VIEW_MIN_MINUTES = FIXED_FLOOR_LIVE_MINUTES;
-export const DEFAULT_VIEW_MIN_MINUTES = FIXED_FLOOR_MINUTES;
-
 export function applyDefaultViewFloor(players: NormalizedPlayer[], dataView: AnalysisMode): NormalizedPlayer[] {
   const floor = fixedFloorMinutes(dataView);
   return players.filter((p) => p.minutes !== null && p.minutes >= floor);
@@ -296,9 +293,9 @@ export function playersForDashboardItem(
  * The hover text for a player-scope tile or graph's amber stopwatch
  * (<minutes_marker>), or null when no minimum-minutes threshold applies to
  * it: the Starter view's fixed floor, the item's own Min Minutes when it's
- * above 0, and Historic Average's 450-minute seasons (every Historic
+ * above 0, and Historic Average's 855-minute seasons (every Historic
  * Average item, in any view). Picked players are never floored, but a
- * Historic Average of theirs still counts only 450+ seasons.
+ * Historic Average of theirs still counts only 855+ seasons.
  */
 export function dashboardItemFloorNote(
   item: { dataView: AnalysisMode; playerIds: number[] | null; criteria?: GlobalScoutingFilters | null },

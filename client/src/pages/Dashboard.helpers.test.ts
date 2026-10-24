@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { applyDefaultViewFloor, dashboardItemFloorNote, displayTileTitle, gameweekDisplay, playersForDashboardItem, playerTileRanks, LIVE_DEFAULT_VIEW_MIN_MINUTES, DEFAULT_VIEW_MIN_MINUTES } from "./Dashboard";
+import { applyDefaultViewFloor, dashboardItemFloorNote, displayTileTitle, gameweekDisplay, playersForDashboardItem, playerTileRanks } from "./Dashboard";
 import { playerTileMetricByKey } from "../components/summaryTileMetrics";
 import { DEFAULT_DASHBOARD_GRAPHS } from "../state/useDashboardGraphs";
 import { DEFAULT_SUMMARY_TILES } from "../state/useSummaryTiles";
@@ -33,15 +33,13 @@ describe("rankBars — a bar graph's Order", () => {
 
 describe("applyDefaultViewFloor", () => {
   const p = (id: number, minutes: number | null) => ({ id, minutes }) as NormalizedPlayer;
-  const pool = [p(1, 1), p(2, 89), p(3, 90), p(4, 449), p(5, 450), p(6, null)];
+  const pool = [p(1, 1), p(2, 89), p(3, 90), p(4, 854), p(5, 855), p(6, null)];
 
-  it("needs one full match in Current Season", () => {
-    expect(LIVE_DEFAULT_VIEW_MIN_MINUTES).toBe(90);
+  it("needs one full match in Current Season before five gameweeks are finished", () => {
     expect(applyDefaultViewFloor(pool, "live").map((x) => x.id)).toEqual([3, 4, 5]);
   });
 
-  it("needs five full matches in the other views", () => {
-    expect(DEFAULT_VIEW_MIN_MINUTES).toBe(450);
+  it("needs a quarter of a season (855 minutes) in the other views", () => {
     expect(applyDefaultViewFloor(pool, "lastSeason").map((x) => x.id)).toEqual([5]);
     expect(applyDefaultViewFloor(pool, "historicAverage").map((x) => x.id)).toEqual([5]);
   });
@@ -139,11 +137,11 @@ describe("dashboardItemFloorNote — the minutes-floor badge shows exactly where
   const item = { dataView: "lastSeason" as const, playerIds: null };
 
   it("every player tile or graph in the Default view gets the badge, naming the floor for its Data View", () => {
-    expect(dashboardItemFloorNote(item, { defaultViewShown: true })).toContain(`${DEFAULT_VIEW_MIN_MINUTES}+ minutes`);
-    expect(dashboardItemFloorNote({ ...item, dataView: "live" }, { defaultViewShown: true })).toContain(`${LIVE_DEFAULT_VIEW_MIN_MINUTES}+ minutes`);
+    expect(dashboardItemFloorNote(item, { defaultViewShown: true })).toContain("855+ minutes (a quarter of a season's minutes)");
+    expect(dashboardItemFloorNote({ ...item, dataView: "live" }, { defaultViewShown: true })).toContain("90+ minutes (a quarter of the minutes in the gameweeks finished so far, never under one full match)");
   });
 
-  it("Historic Average in the Default view also says only 450+ minute seasons count", () => {
+  it("Historic Average in the Default view also says only 855+ minute seasons count", () => {
     expect(dashboardItemFloorNote({ ...item, dataView: "historicAverage" }, { defaultViewShown: true })).toContain("Historic Average counts only seasons");
   });
 
@@ -153,11 +151,11 @@ describe("dashboardItemFloorNote — the minutes-floor badge shows exactly where
     expect(dashboardItemFloorNote({ ...item, playerIds: [1] }, { defaultViewShown: true })).toBeNull();
   });
 
-  it("<minutes_marker>: a tile the user builds shows it for its own Min Minutes, and any Historic Average item for its 450-minute seasons", () => {
+  it("<minutes_marker>: a tile the user builds shows it for its own Min Minutes, and any Historic Average item for its 855-minute seasons", () => {
     expect(dashboardItemFloorNote({ ...item, criteria: { ...DEFAULT_FILTERS, minMinutes: 270 } }, { defaultViewShown: false })).toContain("your Min Minutes: only players with 270+ minutes");
-    expect(dashboardItemFloorNote({ ...item, dataView: "historicAverage" }, { defaultViewShown: false })).toContain("Historic Average counts only seasons of 450+ minutes");
-    // Picked players are never floored, but their Historic Average still counts only 450+ seasons.
-    expect(dashboardItemFloorNote({ ...item, dataView: "historicAverage", playerIds: [1] }, { defaultViewShown: true })).toBe("Minimum minutes applied: Historic Average counts only seasons of 450+ minutes.");
+    expect(dashboardItemFloorNote({ ...item, dataView: "historicAverage" }, { defaultViewShown: false })).toContain("Historic Average counts only seasons of 855+ minutes");
+    // Picked players are never floored, but their Historic Average still counts only 855+ seasons.
+    expect(dashboardItemFloorNote({ ...item, dataView: "historicAverage", playerIds: [1] }, { defaultViewShown: true })).toBe("Minimum minutes applied: Historic Average counts only seasons of 855+ minutes.");
   });
 
   it("every packaged Default player tile and graph shows it", () => {

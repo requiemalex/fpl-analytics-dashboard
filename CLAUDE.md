@@ -104,11 +104,12 @@ No lint script. Playwright isn't installed but works via
   tiles/graphs they build, Player Comparison cards in views they build,
   Team Building) theirs decides the rows, in every Data View, Current
   Season included. Where they can't (player profile, the packaged Starter
-  views) the fixed floor applies — 90 min in Current Season, 450 otherwise
-  (`metrics/fixedMinutesFloor.ts`) — to every percentile, totals too; below
+  views) the fixed floor applies — a quarter of the minutes available: 855 for a
+  completed season, and in Current Season 25% of the finished gameweeks × 90,
+  never under 90 (`metrics/fixedMinutesFloor.ts`, `state/seasonProgress.ts`) — to every percentile, totals too; below
   it is a "small sample" with no percentile or colour. Everywhere: no data
   counts as 0 minutes (`isUnderMinimum`); **one Historic Average**, counting
-  only seasons of 450+ minutes (a shorter season's figures don't count at
+  only seasons of 855+ minutes (a shorter season's figures don't count at
   all), over the last 4 completed seasons, never reaching further back.
   Clubs and forward-looking figures (Team Building's Exp. Pts, Minutes
   Reliability, pitch cards) have no floor. **Every** threshold shows the
@@ -126,7 +127,7 @@ No lint script. Playwright isn't installed but works via
   README "Comparative colouring", `metrics/comparativeColour.ts`). Green /
   red on any figure is its rank: a player's within his position among the
   whole pool for the view's Data View (never just the filtered rows), a
-  club's among all clubs. The fixed floor (90 live / 450 otherwise) always
+  club's among all clubs. The fixed floor (a quarter of the minutes available) always
   applies to colour, on every page: under it, no colour and out of the
   pool. More is better (over-performance included); lower price and
   ownership are better; played, draws and style stats are never coloured.

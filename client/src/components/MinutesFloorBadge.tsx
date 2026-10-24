@@ -81,7 +81,7 @@ export function MinutesFloorBadge({ note, active }: { note: string; active: bool
 
 /**
  * Whether an entry is a small sample for the mode: under the fixed floor
- * (90 minutes Current Season, 450 otherwise), no minutes counting as 0
+ * (a quarter of the minutes available: fixedMinutesFloor.ts), no minutes counting as 0
  * (<no_data_is_zero>). The one test behind every entry stopwatch, every
  * view stopwatch's amber, and every Hide button.
  */
@@ -119,7 +119,7 @@ export function HideSmallSamplesButton({ hidden, count, mode, onToggle }: { hidd
 /**
  * Hover text for an entry under the fixed floor. A player with no minutes
  * for the mode counts as 0 (<no_data_is_zero>); in Historic Average that
- * means no window season reached 450, so nothing counts.
+ * means no window season reached the floor, so nothing counts.
  */
 export function smallSampleNote(minutes: number | null, mode: AnalysisMode): string {
   if (mode === "historicAverage" && minutes === null) {
@@ -142,6 +142,11 @@ export function RowSmallSampleBadge({ minutes, mode }: { minutes: number | null;
 
 const PREFIX = "Minimum minutes applied automatically";
 
+/** What the fixed floor is (<fixed_minutes_floor>): Current Season's grows with the gameweeks finished. */
+function floorBasis(mode: AnalysisMode): string {
+  return mode === "live" ? "a quarter of the minutes in the gameweeks finished so far, never under one full match" : "a quarter of a season's minutes";
+}
+
 /** Hover text for a view in Historic Average: the one Historic Average rule, everywhere. */
 export function historicSeasonsNote(): string {
   return `${PREFIX}: Historic Average counts only seasons of ${FIXED_FLOOR_MINUTES}+ minutes. A player with none has no figures.`;
@@ -153,7 +158,7 @@ export function profileFloorNote(mode: AnalysisMode): string {
     return `${PREFIX}: Historic Average counts only seasons of ${FIXED_FLOOR_MINUTES}+ minutes. A player with none is a small sample, with no figures, percentile or colour.`;
   }
   const scope = mode === "live" ? " this season" : "";
-  return `${PREFIX}: a player under ${fixedFloorMinutes(mode)} minutes${scope} is a small sample, with no percentile or colour.`;
+  return `${PREFIX}: a player under ${fixedFloorMinutes(mode)} minutes${scope} (${floorBasis(mode)}) is a small sample, with no percentile or colour.`;
 }
 
 /** Hover text for a Starter-view Player Comparison trend graph: a season under the floor is marked (careerTrends.ts `buildSeasonTrend`). */
@@ -185,7 +190,7 @@ export function dashboardFloorNote(
   { playerFloor, userMinimum = 0, historicSeasons }: { playerFloor: boolean; userMinimum?: number; historicSeasons: boolean },
 ): string | null {
   const parts: string[] = [];
-  if (playerFloor) parts.push(`only players with ${fixedFloorMinutes(mode)}+ minutes are included`);
+  if (playerFloor) parts.push(`only players with ${fixedFloorMinutes(mode)}+ minutes (${floorBasis(mode)}) are included`);
   if (userMinimum > 0) parts.push(`your Min Minutes: only players with ${fmtDecimal(userMinimum, 0)}+ minutes are included (no minutes counts as 0)`);
   if (historicSeasons) parts.push(`Historic Average counts only seasons of ${FIXED_FLOOR_MINUTES}+ minutes`);
   if (parts.length === 0) return null;

@@ -58,9 +58,9 @@ describe("buildHistoricPlayerProfile", () => {
     expect(profile.allSeasonsInWindow.map((s) => s.seasonName)).toEqual(["2022/23", "2023/24", "2024/25", "2025/26"]);
   });
 
-  it("<no_survivorship_bias>: the one Historic Average counts a light season of 450+ minutes, but not a season under 450 (the owner's rule, 2026-10-19)", () => {
-    const cameo = makeSeason({ seasonName: "2023/24", totalPoints: 5, minutes: 300 }); // under 450: a small sample, not counted
-    const lightSeason = makeSeason({ seasonName: "2024/25", totalPoints: 20, minutes: 600 }); // light (under 900) but over 450: counted
+  it("<no_survivorship_bias>: the one Historic Average counts a light season of 855+ minutes, but not a season under 855 (the owner's rules, 2026-10-19 and 2026-10-24)", () => {
+    const cameo = makeSeason({ seasonName: "2023/24", totalPoints: 5, minutes: 600 }); // under 855: a small sample, not counted
+    const lightSeason = makeSeason({ seasonName: "2024/25", totalPoints: 20, minutes: 870 }); // light (under 900) but over 855: counted
     const fullSeason = makeSeason({ seasonName: "2025/26", totalPoints: 200, minutes: 3000 });
     const profile = buildHistoricPlayerProfile([cameo, lightSeason, fullSeason], "2025/26");
     // (20+200)/2 = 110: the light season pulls the average down, never 200; the cameo doesn't count.
@@ -75,9 +75,9 @@ describe("buildHistoricPlayerProfile", () => {
     expect(profile.qualifyingSeasons.map((s) => s.seasonName)).toEqual(["2025/26"]);
   });
 
-  it("Historic Average is null when no window season reaches 450 minutes (or there are none)", () => {
+  it("Historic Average is null when no window season reaches 855 minutes (or there are none)", () => {
     expect(buildHistoricPlayerProfile([], "2025/26").floorWindowAverage).toBeNull();
-    expect(buildHistoricPlayerProfile([makeSeason({ seasonName: "2025/26", minutes: 449 })], "2025/26").floorWindowAverage).toBeNull();
+    expect(buildHistoricPlayerProfile([makeSeason({ seasonName: "2025/26", minutes: 854 })], "2025/26").floorWindowAverage).toBeNull();
   });
 });
 

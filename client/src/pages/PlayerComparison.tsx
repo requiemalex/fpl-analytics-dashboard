@@ -394,7 +394,7 @@ export function PlayerComparison() {
       const message =
         noPlayers ?? (mode !== "live" && historicStatus !== "ready" ? historicMessage : null) ?? (external?.status === "loading" ? (externalLoadMessage(external) ?? null) : null);
       // The amber stopwatch marks any minimum-minutes threshold in force on the card (<minutes_marker>): Starter's fixed floor,
-      // the card's own Min Minutes, or Historic Average's 450-minute seasons.
+      // the card's own Min Minutes, or Historic Average's 855-minute seasons.
       const floorNote = readOnly ? profileFloorNote(mode) : el.minMinutes > 0 ? userMinimumNote(el.minMinutes, mode) : mode === "historicAverage" ? historicSeasonsNote() : null;
       if (message || !pool) {
         const shown = message ?? historicMessage;

@@ -1,5 +1,5 @@
 import type { Position } from "../types/normalized";
-import { FIXED_FLOOR_LIVE_MINUTES, FIXED_FLOOR_MINUTES } from "../metrics/fixedMinutesFloor";
+import { fixedFloorMinutes } from "../metrics/fixedMinutesFloor";
 import { rankAmong } from "../metrics/comparativeColour";
 import { perGame } from "../metrics/calculations";
 import type { UsClubTotals, UsPlayerTotals, UsSeason } from "./schema";
@@ -12,8 +12,8 @@ import { sumPlayerSeasons, type UsPlayerResolved } from "./resolve";
  * (today's, as in every Data View) among every other player's Understat
  * figure for the same season(s); a club's among every other club's.
  *
- * The fixed floor is checked on Understat's own minutes (90 in the live
- * season, 450 in a completed one): a player under it gets no colour and
+ * The fixed floor is checked on Understat's own minutes (Current Season's
+ * floor in the live season, 855 in a completed one): a player under it gets no colour and
  * isn't in anyone's pool. Clubs have no floor.
  */
 export interface UsComparisonContext {
@@ -29,7 +29,7 @@ export interface UsComparisonContext {
 const COMPLETED_SEASON_MATCHES = 38;
 
 export function floorFor(ctx: UsComparisonContext, season: string): number {
-  return season === ctx.liveSeason ? FIXED_FLOOR_LIVE_MINUTES : FIXED_FLOOR_MINUTES;
+  return fixedFloorMinutes(season === ctx.liveSeason ? "live" : "lastSeason");
 }
 
 /** Whether a player's Understat figures for the season are coloured: he has a row at or above the floor. */

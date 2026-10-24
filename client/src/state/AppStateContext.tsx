@@ -12,6 +12,7 @@ import { runMetricValidation, type ValidationReport } from "../metrics/validatio
 import { buildAllHistoricProfiles, type HistoricPlayerProfile } from "../metrics/historicAnalysis";
 import { skippedRecordCount } from "../validation/schema";
 import { liveSeasonName, rolloverSavedIds } from "./seasonIdRollover";
+import { setFinishedGameweeks } from "./seasonProgress";
 import type { NormalizedPlayer, NormalizedTeam, NormalizedFixture, NormalizedEvent, GameweekState, ChipWindow, PlayerSeasonHistory, ClubSeason } from "../types/normalized";
 import type { AdvancedFieldAvailability } from "../normalize/fieldAvailability";
 
@@ -202,6 +203,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         }
       }
       setLiveSeason(season);
+      // Before the players: Current Season's minutes floor grows with this (<fixed_minutes_floor>).
+      setFinishedGameweeks(normalizedEvents.filter((e) => e.finished).length);
       setPlayers(normalizedPlayers);
       playersRef.current = normalizedPlayers;
       setTeams(normalizedTeams);

@@ -272,7 +272,7 @@ Every analysis page has the same three-way toggle, resolved through
 - **Last Completed Season** — that season's actual totals, however much or
   little the player played.
 - **Historic Average** — the mean across the last **4 completed seasons**
-  the player has, counting only seasons of 450+ minutes, on every page
+  the player has, counting only seasons of 855+ minutes, on every page
   (see "Minimum minutes"); a light season over that still counts
   (`<no_survivorship_bias>`, `metrics/historicAnalysis.ts`).
   `MIN_QUALIFYING_SEASON_MINUTES` (900) only decides which seasons Model
@@ -321,23 +321,30 @@ stop tiny samples taking over. The whole of it, as of 2026-10-19:
 | | Where | Which rows show | Colour (green/red) |
 |---|---|---|---|
 | **You set the minimum** | Player Explorer (Mins column filter), Dashboard tiles and graphs you build (Min Minutes), Player Comparison cards in views you build (Min Minutes), Team Building's Add Players (Min minutes) | Yours, in **every** Data View, Current Season included; 0 by default | Fixed floor |
-| **You can't** | Player profile, the packaged Starter views (Dashboard and Player Comparison) | Fixed floor: 90 minutes in Current Season, 450 otherwise (`metrics/fixedMinutesFloor.ts`, `<fixed_minutes_floor>`) | Fixed floor |
+| **You can't** | Player profile, the packaged Starter views (Dashboard and Player Comparison) | Fixed floor: a quarter of the minutes available — 855 for a completed season; in Current Season a quarter of the gameweeks finished so far, never under 90 (`metrics/fixedMinutesFloor.ts`, `<fixed_minutes_floor>`) | Fixed floor |
+
+The floor is a quarter of the minutes available (the owner's rule,
+2026-10-24, replacing 90 / 450): 25% of a completed season's 38 matches is
+855 minutes; in Current Season it's 25% of the gameweeks FPL has finished
+× 90 (`state/seasonProgress.ts`, set on every load), never under one full
+match, so it rises as the season goes on (203 after 9 gameweeks, 450
+after 20).
 
 Three rules hold everywhere:
 - **No data is 0** (`<no_data_is_zero>`, `isUnderMinimum`): a player with no
   minutes for the Data View counts as 0 against any minimum — under it
   once a minimum is set, kept at the default 0.
-- **One Historic Average**: only window seasons of **450+ minutes** count
+- **One Historic Average**: only window seasons of **855+ minutes** count
   (`HistoricPlayerProfile.floorWindowAverage`), on every page. A season
   under that (a cameo year, one lost to injury, a 0) is a small sample and
-  none of its figures count; a light season of 450+ still counts and pulls
+  none of its figures count; a light season of 855+ still counts and pulls
   the average down (`<no_survivorship_bias>`). A player with no such
   season in the window has no Historic Average. The window is always the
   last 4 completed seasons; a short one is never replaced by an older one.
   (Until 2026-10-19 pages where you set minutes counted every season,
   0-minute ones included, so one player had two Historic Averages.)
 - **Colours use the fixed floor** (the owner's rule, 2026-10-19): a player
-  under 90 minutes in Current Season (450 otherwise) has no colour and
+  under the fixed floor for the Data View has no colour and
   isn't in anyone's comparison, even where your own minimum lets his row
   show (see "Comparative colouring"). Clubs have no floor, and nor do
   forward-looking figures (Team Building's two Exp. Pts, Minutes
@@ -375,7 +382,7 @@ in its hover box; the graph's own stopwatch hover counts them. A threshold
 inside a model (Team Building's Model Predicted) marks no entry, so it's
 grey. Two uses:
 - **On a view where a threshold is in force:** the Data View toggle of a
-  player view in Historic Average (its 450-minute seasons;
+  player view in Historic Average (its 855-minute seasons;
   `historicSeasonsNote`), and the profile's always (`profileFloorNote`);
   Player Explorer's Mins header when a "≥"/"=" filter is set; Team
   Building's Min minutes label when set, and its Historic/Raw toggle in
@@ -733,7 +740,7 @@ without it leaves that season's Shots Faced uncoloured.
     A season FPL says he played 0 minutes in is "—", like his FPL figures
     (`<no_minutes_no_figures>`), and so is one he played in with no
     Understat row (held link). Historic Average is the one Historic
-    Average: only window seasons of 450+ FPL minutes count
+    Average: only window seasons of 855+ FPL minutes count
     (`floorSeasonsInWindow`), the same seasons as the FPL figure beside it.
   - **Clubs:** clubs use `clubSeasonsForMode`.
   - **Rates:** per game is from **Understat's own minutes**
@@ -750,7 +757,7 @@ without it leaves that season's Shots Faced uncoloured.
   `profiles`): an "Understat · Views" section (violet heading) after the
   profile's "FPL · Views", following the profile's Data View over the
   seasons the FPL side names (`ProfileView`: a player's Historic Average
-  counts only window seasons of 450+ FPL minutes, the profile's fixed
+  counts only window seasons of 855+ FPL minutes, the profile's fixed
   floor; a club's only seasons it was in the league). A season Understat
   has nothing for (no link, didn't play) is left out, never counted as 0.
   A profile asking for its Understat details also starts the season
@@ -888,7 +895,7 @@ without it leaves that season's Shots Faced uncoloured.
     his matches. Switched, the whole column is Understat's: each match,
     Totals and Average, their colours ranked on Understat's own season
     figures (`understat/comparisons.ts`: a player within his position at
-    Understat's own 90/450 minutes, per-match against each other's total ÷
+    Understat's own minutes against the fixed floor, per-match against each other's total ÷
     his club's matches — 38 in a completed season; a club among every
     club) — `<one_source_per_figure>`. A match FPL
     says the player didn't play is "—" in its row, like his FPL figures
@@ -1184,8 +1191,8 @@ team strength ratings, `expectedPointsV2.ts`).
     profile's;
   - a **club's** figure is ranked among every club with one (all 20);
     upcoming fixture difficulty is a club figure wherever it's shown;
-  - a player under the **fixed floor** for the Data View (90 minutes in
-    Current Season, 450 otherwise) has no colour and isn't in anyone's
+  - a player under the **fixed floor** for the Data View (a quarter of
+    the minutes available, see "Minimum minutes") has no colour and isn't in anyone's
     pool — on every page, including those where the user sets minimum
     minutes for the rows themselves (see "Minimum minutes"). Understat
     figures check Understat's own minutes. Clubs have no floor, and nor
@@ -1514,7 +1521,7 @@ FPL's 385 and 28); every other current player's 2022/23–2025/26 record
 matches. A past season's Totals and Average are tinted like the live season's
 (`<past_season_tints>`): ranked within his position that season (his
 position then, from the ledger) among everyone at or above the fixed
-floor (450, a completed season's), xGC per game; Average as his total ÷
+floor (855, a completed season's), xGC per game; Average as his total ÷
 his log's matches against each other player's total ÷ theirs (every
 player's full log exists for a past season, so no club-matches stand-in).
 The pool comes with his rows (`peers` in `/api/player-seasons`,
@@ -1538,7 +1545,7 @@ Current Season floor for both; no colour if no one else qualifies (e.g.
 fixtures failed to load). Only columns with a whole-pool season total are
 shown, so both rows can be compared. Points History (`playerProfile/PointsHistory.tsx`,
 shared with the Team Profile: bars with their own figures, no axis) uses the Historic Average (window
-seasons of 450+ minutes; a window season under that carries the amber small-sample stopwatch, one outside the window "†"); its "(current season)" season is resolved as Current Season,
+seasons of 855+ minutes; a window season under that carries the amber small-sample stopwatch, one outside the window "†"); its "(current season)" season is resolved as Current Season,
 so pre-season it reads "—", not FPL's carried-over totals. A player's season
 of 0 minutes has no figure (`<no_minutes_no_figures>`, `hasSeasonFigure`): "—"
 and no bar, the hover saying he didn't play ("no minutes yet" for the live
@@ -1598,7 +1605,7 @@ green or red, which mean better and worse, nor a source's violet or rose).
   uses the fixed floor. On any other view each card has its own
   `minMinutes` (store v2; 0 by default), in every Data View. Each card
   with a threshold — Starter's, its own above 0, or Historic Average's
-  450-minute seasons — shows the amber stopwatch (`<minutes_marker>`). No
+  855-minute seasons — shows the amber stopwatch (`<minutes_marker>`). No
   minutes counts as 0. Either way the threshold is per card: a player under
   it gets the amber badge on that card, isn't drawn on a radar, gets a
   stopwatch for its Outputs marker (pinned to the end with ▸ when past the
@@ -1617,7 +1624,7 @@ green or red, which mean better and worse, nor a source's violet or rose).
   apart (`placeLabels`, sized from the mono font's fixed 0.6em width).
   The colour key sits under the panel, as under a radar.
 - Trends use the full unwindowed career (`allTimeSeasonsByPlayerId`,
-  completed seasons). A season under the card's threshold (450 on Starter)
+  completed seasons). A season under the card's threshold (855 on Starter)
   still plots the real figure; its minutes are kept under `trendBelowKey`,
   so its point is the amber small-sample stopwatch and the hover text adds the minutes.
 

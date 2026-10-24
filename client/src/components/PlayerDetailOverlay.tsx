@@ -700,7 +700,7 @@ export function PlayerDetailOverlay() {
   // A completed season: its match rows, its Totals and Average tinted as
   // the live season's are (<past_season_tints>) — ranked within his
   // position that season (his position then, from the ledger) among
-  // everyone at or above the fixed floor (450 minutes, a completed
+  // everyone at or above the fixed floor (855 minutes, a completed
   // season's), xGC on xGC per game. Average is per match: his total ÷ the
   // log's matches with a figure, against each other player's total ÷ his
   // matches (every player's full log is on record for a past season, so no

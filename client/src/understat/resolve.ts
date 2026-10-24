@@ -161,7 +161,7 @@ export function resolveUnderstatPlayer(player: NormalizedPlayer, mode: AnalysisM
     const row = seasonRow(data, s.seasonName, player.code, s.minutes);
     return row === "unknown" || row === null ? null : { totals: row, seasons: 1 };
   }
-  // The one Historic Average: only window seasons of 450+ FPL minutes count
+  // The one Historic Average: only window seasons of 855+ FPL minutes count
   // (HistoricPlayerProfile.floorSeasonsInWindow), the same seasons as the
   // FPL figure beside it. A season Understat has nothing for is left out.
   let totals = zeroPlayer();

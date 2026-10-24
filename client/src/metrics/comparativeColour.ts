@@ -13,8 +13,8 @@ import { averageFixtureDifficulty, type UpcomingFixture } from "./fixtureTicker"
  *   leaves on screen;
  * - a club's, among every club with a figure (all 20 in a season).
  *
- * A player under the fixed floor for the view's Data View (90 minutes in
- * Current Season, 450 otherwise: fixedMinutesFloor.ts) gets no colour and
+ * A player under the fixed floor for the view's Data View (a quarter of
+ * the minutes available: fixedMinutesFloor.ts) gets no colour and
  * isn't in anyone's pool — wherever the figure is, whatever minimum the
  * user has set for the rows themselves. Clubs have no floor.
  *

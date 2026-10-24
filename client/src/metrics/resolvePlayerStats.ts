@@ -229,7 +229,7 @@ export function resolvePlayerStats(
   }
 
   // historicAverage
-  // One Historic Average everywhere: only window seasons of 450+ minutes count (HistoricPlayerProfile.floorWindowAverage).
+  // One Historic Average everywhere: only window seasons of 855+ minutes count (HistoricPlayerProfile.floorWindowAverage).
   const avg = historicProfile?.floorWindowAverage;
   if (!avg) return nullPerformanceFields(player);
   return {

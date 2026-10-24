@@ -1,5 +1,6 @@
 import type { AnalysisMode } from "./resolvePlayerStats";
 import type { HistoricPlayerProfile } from "./historicAnalysis";
+import { finishedGameweeks } from "../state/seasonProgress";
 
 /**
  * <fixed_minutes_floor>: the minimum-minutes principle (the owner's rule,
@@ -9,18 +10,31 @@ import type { HistoricPlayerProfile } from "./historicAnalysis";
  * card in a view they build, Team Building) theirs is the only one for
  * which rows show, in every Data View. Where they can't — the player
  * profile and the packaged Starter views on the Dashboard and Player
- * Comparison — this fixed floor applies: one full match in Current
- * Season, five otherwise. Colours use it everywhere.
+ * Comparison — this fixed floor applies. Colours use it everywhere.
+ *
+ * The floor is a quarter of the minutes available (the owner's rule,
+ * 2026-10-24): a completed season's 38 matches make it 855; in Current
+ * Season it grows with the gameweeks finished so far, never under one
+ * full match, so it keeps pace as the season goes on.
  *
  * Below it a player is a small sample: no percentile, no colour.
  * Historic Average counts only seasons that reach FIXED_FLOOR_MINUTES
  * (HistoricPlayerProfile.floorWindowAverage), everywhere.
  */
-export const FIXED_FLOOR_LIVE_MINUTES = 90;
-export const FIXED_FLOOR_MINUTES = 450;
+export const FLOOR_SEASON_SHARE = 0.25;
+const MATCH_MINUTES = 90;
+const SEASON_MATCHES = 38;
+/** Current Season's floor never drops below one full match, so a cameo in the first gameweeks can't top a chart. */
+export const FIXED_FLOOR_LIVE_MINIMUM = MATCH_MINUTES;
+export const FIXED_FLOOR_MINUTES = Math.ceil(FLOOR_SEASON_SHARE * SEASON_MATCHES * MATCH_MINUTES);
+
+/** Current Season's floor: a quarter of the minutes in the gameweeks finished so far, never under one full match. */
+export function liveFloorMinutes(gameweeks: number = finishedGameweeks()): number {
+  return Math.max(FIXED_FLOOR_LIVE_MINIMUM, Math.ceil(FLOOR_SEASON_SHARE * gameweeks * MATCH_MINUTES));
+}
 
 export function fixedFloorMinutes(mode: AnalysisMode): number {
-  return mode === "live" ? FIXED_FLOOR_LIVE_MINUTES : FIXED_FLOOR_MINUTES;
+  return mode === "live" ? liveFloorMinutes() : FIXED_FLOOR_MINUTES;
 }
 
 /**
