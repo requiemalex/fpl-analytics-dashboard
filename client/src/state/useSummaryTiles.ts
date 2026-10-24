@@ -108,21 +108,22 @@ export function normalizeSummaryTile(t: Partial<SummaryTileConfig>): SummaryTile
 }
 
 /**
- * Matches exactly what the Dashboard showed before this customisation
- * feature existed, so a first-time visitor (nothing in localStorage yet)
- * sees the same tiles in the same order — customising is opt-in, not a
- * layout change forced on everyone.
+ * The Starter view's FPL tiles (the view is "Default" in code): Points, the
+ * value of those points (Pts/£m) and Defensive Contributions per game, the
+ * FPL-only figures a manager checks first. Pared back on 2026-10-24, when
+ * Understat's Starter tiles (<source_starter_items>, shown after these
+ * while it's mounted) took over the attacking picture: xGI and xGI/£m
+ * overlapped Points and Pts/£m, and the two Goals − xG tiles and G+A − xGI
+ * repeated what the xG vs Goals graph shows (docs/HISTORY.md). Changing
+ * these needs no storage bump: the stored Starter is replaced by the
+ * packaged one on every load (useSavedDashboardViews), and the Dashboard
+ * puts it back on screen whenever it's picked.
  */
 export const DEFAULT_SUMMARY_TILES: SummaryTileConfig[] = [
   { id: "default-points", scope: "player", metricKey: "totalPoints", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS, playerIds: null, teamIds: null },
-  { id: "default-xgi", scope: "player", metricKey: "xGI", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS, playerIds: null, teamIds: null },
   { id: "default-value", scope: "player", metricKey: "pointsPerMillion", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS, playerIds: null, teamIds: null },
-  { id: "default-goals-above-xg", scope: "player", metricKey: "goalsMinusXG", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS, playerIds: null, teamIds: null },
-  { id: "default-xg-above-goals", scope: "player", metricKey: "goalsMinusXG", direction: "asc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS, playerIds: null, teamIds: null },
-  { id: "default-xgi-per-million", scope: "player", metricKey: "xGIPerMillion", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS, playerIds: null, teamIds: null },
-  { id: "default-ga-above-xgi", scope: "player", metricKey: "goalInvolvementsMinusXGI", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS, playerIds: null, teamIds: null },
+  { id: "default-dc-per-game", scope: "player", metricKey: "defensiveContributionsPerGame", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS, playerIds: null, teamIds: null },
   { id: "default-team-points", scope: "team", metricKey: "points", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: null, playerIds: null, teamIds: null },
-  { id: "default-team-xgi", scope: "team", metricKey: "xGI", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: null, playerIds: null, teamIds: null },
   { id: "default-team-clean-sheets", scope: "team", metricKey: "cleanSheets", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: null, playerIds: null, teamIds: null },
 ];
 

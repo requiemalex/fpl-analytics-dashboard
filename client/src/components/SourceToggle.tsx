@@ -86,3 +86,39 @@ export function SourceBadge({ source, figures }: { source: Pick<ExternalStatsSou
     </span>
   );
 }
+
+/**
+ * <card_source_mark>: where a Dashboard or Player Comparison card's
+ * figures come from, shown by its title's colour, the colour index the
+ * Explorers' headers and the profiles' section headings use: green when
+ * every figure on it is FPL's, the second source's own colour when every
+ * one is that source's, the crossover colour when it shows both (an FPL
+ * axis against an Understat one). A figure both sources have counts as
+ * whichever its ⇄ is showing, as a switched Explorer header turns violet.
+ * The title's hover names each source's figures.
+ */
+export interface CardSource {
+  className: string;
+  note: string;
+}
+
+export function cardSource(items: { source: Pick<ExternalStatsSource, "label" | "className"> | null; figure: string }[]): CardSource | undefined {
+  if (items.length === 0) return undefined;
+  const names = (list: typeof items) => [...new Set(list.map((i) => i.figure))].join(", ");
+  const fpl = items.filter((i) => !i.source);
+  const external = items.filter((i) => i.source);
+  const parts: string[] = [];
+  if (fpl.length > 0) parts.push(`FPL's figures: ${names(fpl)}`);
+  if (external.length > 0) parts.push(`${external[0].source!.label}'s figures: ${names(external)}`);
+  const className = external.length === 0 ? "col-source-fpl" : fpl.length === 0 ? external[0].source!.className : "col-source-crossover";
+  return { className, note: parts.join(" · ") };
+}
+
+/** A card's title, coloured by where its figures come from (<card_source_mark>) when that's given. */
+export function CardTitle({ title, source, style }: { title: string; source?: CardSource; style?: React.CSSProperties }) {
+  return (
+    <div className={source ? `card-title source-coloured ${source.className}` : "card-title"} style={style} title={source?.note}>
+      {title}
+    </div>
+  );
+}

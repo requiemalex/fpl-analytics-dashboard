@@ -2618,6 +2618,16 @@ kbd {
   cursor: default;
 }
 
+/* A Dashboard or Player Comparison card's title by where its figures come
+   from (<card_source_mark>, CardTitle): green FPL, the crossover colour for
+   both, a second source's own colour (its stylesheet). */
+.source-coloured.col-source-fpl {
+  color: var(--accent-positive);
+}
+.source-coloured.col-source-crossover {
+  color: var(--col-crossover);
+}
+
 .source-stale-marker {
   display: inline-block;
   width: 6px;

@@ -60,6 +60,7 @@ function fakeSource(staleNote: string | null = null): ExternalStatsSource {
     playerColumns: () => understatPlayerColumns((p) => (p.id === 1 ? resolved : null)),
     teamColumns: () => understatTeamColumns(new Map(), () => null),
     playerTrends: { groups: [], alternates: {} },
+    dashboardStarter: { tiles: [], graphs: [] },
     profiles: createProfiles(new Map(), { player: () => {}, club: () => {} }),
     guideSection: { id: "understat", navLabel: "Understat stats", title: "Understat stats", accentVar: "--col-understat", body: null },
   };

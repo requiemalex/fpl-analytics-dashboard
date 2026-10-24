@@ -35,7 +35,7 @@ import {
   type SummaryTileScope,
   type TeamTileMetric,
 } from "../components/summaryTileMetrics";
-import { CrossoverGroupHeading, SourceBadge, SourceToggle } from "../components/SourceToggle";
+import { cardSource, CrossoverGroupHeading, SourceBadge, SourceToggle } from "../components/SourceToggle";
 import { GroupedPicker, type PickerGroup } from "../components/GroupedPicker";
 import {
   externalColumnByKey,
@@ -60,7 +60,7 @@ import {
   type DashboardGraphType,
   type DashboardGraphConfig,
 } from "../state/useDashboardGraphs";
-import { useSavedDashboardViews, isDefaultViewSelected, MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE, type SavedDashboardView } from "../state/useSavedDashboardViews";
+import { useSavedDashboardViews, isDefaultSavedView, isDefaultViewSelected, MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE, type SavedDashboardView } from "../state/useSavedDashboardViews";
 import { fmtDate } from "../utils/format";
 import { useEscapeLayer } from "../state/useEscapeLayer";
 import type { NormalizedPlayer } from "../types/normalized";
@@ -162,6 +162,17 @@ export function resolveTeamGraphColumn(key: string, mode: AnalysisMode, ext: Ext
 /** An axis label: the figure's name, with its source when that's a second source. */
 function axisLabel(r: ItemMetric<{ label: string }>): string {
   return r.source ? externalLabel(r.source, r.figure) : r.figure;
+}
+
+/** The Starter view as shown: the packaged FPL tiles and graphs, then the second source's own (<source_starter_items>). Any other view as saved. */
+export function withSourceStarterItems(view: SavedDashboardView, ext: Pick<ExternalStatsSource, "dashboardStarter"> | null): SavedDashboardView {
+  if (!ext || !isDefaultSavedView(view)) return view;
+  const { tiles, graphs } = ext.dashboardStarter;
+  return {
+    ...view,
+    tiles: [...view.tiles, ...tiles.filter((t) => t.scope === view.scope)],
+    graphs: [...view.graphs, ...graphs.filter((g) => g.scope === view.scope)],
+  };
 }
 
 /** Whether a saved tile or graph shows one of a second source's own figures. */
@@ -641,9 +652,12 @@ export function Dashboard() {
   const [tileSubmitTried, setTileSubmitTried] = useState(false);
   const [graphSubmitTried, setGraphSubmitTried] = useState(false);
 
+  // The Starter view is the packaged FPL set plus, while a second source
+  // is mounted, that source's own Starter items after it
+  // (<source_starter_items>), so switching the source off takes them away.
   const visibleSavedViews = useMemo(
-    () => savedDashboardViews.views.filter((v) => v.scope === tileView),
-    [savedDashboardViews.views, tileView],
+    () => savedDashboardViews.views.filter((v) => v.scope === tileView).map((v) => withSourceStarterItems(v, ext)),
+    [savedDashboardViews.views, tileView, ext],
   );
   const selectedViewIsDefault = useMemo(() => isDefaultViewSelected(visibleSavedViews, selectedViewId), [visibleSavedViews, selectedViewId]);
 
@@ -922,6 +936,7 @@ export function Dashboard() {
             xFormat: x?.format,
             sourceControls: itemSourceControls(ext, [x, y], switched, () => toggleItemSource(graph.id)),
             source: y.source ?? x?.source ?? null,
+            metrics: x ? [x, y] : [y],
             scatterData,
             barData,
             floorNote: dashboardItemFloorNote(graph, floorOptions),
@@ -963,6 +978,7 @@ export function Dashboard() {
           xFormat: x?.format,
           sourceControls: itemSourceControls(ext, [x, y], switched, () => toggleItemSource(graph.id)),
           source: y.source ?? x?.source ?? null,
+          metrics: x ? [x, y] : [y],
           scatterData,
           barData,
           floorNote: null,
@@ -1434,6 +1450,7 @@ export function Dashboard() {
               dataView: tile.dataView,
               emptyMessage: emptyMessageFor(tile, row.resolved.source),
               sourceControls: row.sourceControls,
+              source: cardSource([row.resolved]),
               onEdit: selectedViewIsDefault ? undefined : () => openEditTileModal(tile),
               onRemove,
               ...dragProps,
@@ -1496,6 +1513,7 @@ export function Dashboard() {
               ascending={graph.direction === "asc"}
               emptyMessage={emptyMessageFor(graph, row.source)}
               sourceControls={row.sourceControls}
+              source={cardSource(row.metrics)}
               showReferenceLine={graph.showReferenceLine}
               dataView={graph.dataView}
               floorNote={row.floorNote}

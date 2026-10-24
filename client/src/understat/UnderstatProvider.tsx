@@ -14,6 +14,7 @@ import type { UsComparisonContext } from "./comparisons";
 import { fetchClubDetail, fetchPlayerDetail, type DetailLoad, type UsClubSeasonDetail, type UsPlayerSeasonDetail } from "./profileData";
 import { clubKey, createProfiles, playerKey } from "./profiles";
 import { understatTrends } from "./trends";
+import { UNDERSTAT_DASHBOARD_STARTER } from "./dashboardStarter";
 import "./understat.css";
 
 /**
@@ -159,6 +160,7 @@ export function UnderstatProvider({ children }: { children: React.ReactNode }) {
       staleNote,
       request,
       playerTrends: understatTrends(data),
+      dashboardStarter: UNDERSTAT_DASHBOARD_STARTER,
       profiles: createProfiles(profileLoads, { player: requestPlayerDetail, club: requestClubDetail }, compare),
       guideSection: { id: "understat", navLabel: "Understat stats", title: "Understat stats", accentVar: "--col-understat", body: <UnderstatGuide /> },
       playerColumns(mode) {

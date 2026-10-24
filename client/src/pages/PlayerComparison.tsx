@@ -8,7 +8,7 @@ import { comparisonMetricByKey, comparisonMetricFromColumn, comparisonPercentile
 import { buildSeasonTrend, trendBelowKey, trendDataKey, trendMetricByKey, type TrendDisplay, type TrendMetric } from "../metrics/careerTrends";
 import { belowMinimumNote, historicSeasonsNote, profileFloorNote, smallSampleNote, trendFloorNote, userMinimumNote } from "../components/MinutesFloorBadge";
 import { columnFormatForMode, columnForMode } from "../components/playerColumns";
-import { SourceBadge, SourceToggle } from "../components/SourceToggle";
+import { cardSource, SourceBadge, SourceToggle, type CardSource } from "../components/SourceToggle";
 import {
   externalColumnByKey,
   externalLabel,
@@ -200,13 +200,14 @@ interface ModePool {
 
 type CardData =
   | { el: ComparisonElementConfig; kind: "unavailable"; sourceOff: boolean }
-  | { el: ComparisonElementConfig; kind: "radar"; axes: RadarAxisValues[]; entries: LegendEntry[]; floorNote: string | null; message: string | null; sourceControls?: React.ReactNode }
-  | { el: ComparisonElementConfig; kind: "outputs"; rows: OutputsRow[]; entries: LegendEntry[]; floorNote: string | null; message: string | null; sourceControls?: React.ReactNode }
+  | { el: ComparisonElementConfig; kind: "radar"; axes: RadarAxisValues[]; entries: LegendEntry[]; floorNote: string | null; message: string | null; sourceControls?: React.ReactNode; source?: CardSource }
+  | { el: ComparisonElementConfig; kind: "outputs"; rows: OutputsRow[]; entries: LegendEntry[]; floorNote: string | null; message: string | null; sourceControls?: React.ReactNode; source?: CardSource }
   | {
       el: ComparisonElementConfig;
       kind: "trend";
       metric: TrendDisplay;
       sourceControls?: React.ReactNode;
+      source?: CardSource;
       rows: ReturnType<typeof buildSeasonTrend>;
       minMinutes: number;
       entries: LegendEntry[];
@@ -375,6 +376,7 @@ export function PlayerComparison() {
           kind: "trend",
           metric,
           sourceControls: cardSourceControls(ext, [trend], { switched: switchedFor(el.id), onToggle: () => toggleSource(el.id) }),
+          source: cardSource([trend]),
           rows,
           minMinutes,
           entries,
@@ -395,6 +397,7 @@ export function PlayerComparison() {
         resolved.map((r) => ({ source: r.source, figure: r.metric.label, crossover: r.crossover })),
         el.kind === "radar" ? { switched: switchedFor(el.id), onToggle: () => toggleSource(el.id) } : null,
       );
+      const source = cardSource(resolved.map((r) => ({ source: r.source, figure: r.metric.label })));
       // While the second source a card uses is still loading, its figures aren't there yet: say so rather than draw them as missing.
       const message =
         noPlayers ?? (mode !== "live" && historicStatus !== "ready" ? historicMessage : null) ?? (external?.status === "loading" ? (externalLoadMessage(external) ?? null) : null);
@@ -404,8 +407,8 @@ export function PlayerComparison() {
       if (message || !pool) {
         const shown = message ?? historicMessage;
         return el.kind === "radar"
-          ? { el, kind: "radar", axes: [], entries: [], floorNote, message: shown, sourceControls }
-          : { el, kind: "outputs", rows: [], entries: [], floorNote, message: shown, sourceControls };
+          ? { el, kind: "radar", axes: [], entries: [], floorNote, message: shown, sourceControls, source }
+          : { el, kind: "outputs", rows: [], entries: [], floorNote, message: shown, sourceControls, source };
       }
       const entries = modeEntries(el, mode, pool);
 
@@ -420,7 +423,7 @@ export function PlayerComparison() {
             ...(source ? { sourceClass: source.className, fullLabel: externalLabel(source, metric.label) } : {}),
           };
         });
-        return { el, kind: "radar", axes, entries, floorNote, message: null, sourceControls };
+        return { el, kind: "radar", axes, entries, floorNote, message: null, sourceControls, source };
       }
 
       const rows: OutputsRow[] = resolved.map(({ metric, format, source, heading, crossover }) => {
@@ -448,7 +451,7 @@ export function PlayerComparison() {
             : {}),
         };
       });
-      return { el, kind: "outputs", rows, entries, floorNote, message: null, sourceControls };
+      return { el, kind: "outputs", rows, entries, floorNote, message: null, sourceControls, source };
     });
   }, [view.elements, readOnly, compared, poolsByMode, historicStatus, historicProfiles, allTimeSeasonsByPlayerId, ext, playersById, sourceChoice, toggleSource]);
 
@@ -568,14 +571,14 @@ export function PlayerComparison() {
     }
     if (card.kind === "radar") {
       return (
-        <ComparisonCard key={el.id} {...common} dataView={el.dataView} floorNote={card.floorNote} floorActive={card.entries.some((e) => !!e.smallSampleNote)} sourceControls={card.sourceControls} message={card.message}>
+        <ComparisonCard key={el.id} {...common} dataView={el.dataView} floorNote={card.floorNote} floorActive={card.entries.some((e) => !!e.smallSampleNote)} sourceControls={card.sourceControls} source={card.source} message={card.message}>
           <ComparisonRadar axes={card.axes} entries={card.entries} />
         </ComparisonCard>
       );
     }
     if (card.kind === "outputs") {
       return (
-        <ComparisonCard key={el.id} {...common} dataView={el.dataView} floorNote={card.floorNote} floorActive={card.entries.some((e) => !!e.smallSampleNote)} sourceControls={card.sourceControls} message={card.message}>
+        <ComparisonCard key={el.id} {...common} dataView={el.dataView} floorNote={card.floorNote} floorActive={card.entries.some((e) => !!e.smallSampleNote)} sourceControls={card.sourceControls} source={card.source} message={card.message}>
           <ComparisonOutputs rows={card.rows} entries={card.entries} />
         </ComparisonCard>
       );
@@ -588,6 +591,7 @@ export function PlayerComparison() {
         // A season under the card's minimum is marked on the plot (trendBelowKey).
         floorActive={card.rows.some((r) => card.entries.some((e) => typeof r[trendBelowKey(e.player.id)] === "number"))}
         sourceControls={card.sourceControls}
+        source={card.source}
         message={card.message}
       >
         <ComparisonTrend metric={card.metric} rows={card.rows} entries={card.entries} minMinutes={card.minMinutes} />

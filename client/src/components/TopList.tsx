@@ -4,6 +4,7 @@ import { PositionBadge, TeamBadge, AvailabilityFlag, availabilityTextClass, pres
 import { DataViewBadge } from "./DataViewBadge";
 import { HideSmallSamplesButton, isSmallSample, MinutesFloorBadge, RowSmallSampleBadge, smallSamplesShownNote } from "./MinutesFloorBadge";
 import { CardEditRemoveButtons } from "./IconToolbar";
+import { CardTitle, type CardSource } from "./SourceToggle";
 import { noRowsMessage } from "./emptyMessages";
 import { percentileTint } from "../utils/colorScale";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
@@ -36,6 +37,7 @@ export function TopList({
   floorNote,
   smallSamples,
   sourceControls,
+  source,
 }: {
   title: string;
   rows: TopListRow[];
@@ -62,6 +64,8 @@ export function TopList({
   smallSamples?: { hidden: boolean; count: number; onToggle: () => void };
   /** Dashboard-only: its ⇄ source toggle (figures both sources have) and second-source badge (SourceBadge); none for FPL-only figures. */
   sourceControls?: React.ReactNode;
+  /** Where its figures come from: the title's colour (<card_source_mark>). */
+  source?: CardSource;
 }) {
   // <marker_follows_data>: the tile's stopwatch is amber only while a player it shows is under the threshold.
   const shownSmallSamples = dataView ? rows.filter((r) => isSmallSample(r.player.minutes, dataView)).length : 0;
@@ -82,7 +86,7 @@ export function TopList({
       }
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-        <div className="card-title">{title}</div>
+        <CardTitle title={title} source={source} />
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {smallSamples && dataView && <HideSmallSamplesButton hidden={smallSamples.hidden} count={smallSamples.count} mode={dataView} onToggle={smallSamples.onToggle} />}
           {floorNote && dataView && <MinutesFloorBadge note={smallSamplesShownNote(floorNote, shownSmallSamples, dataView)} active={shownSmallSamples > 0} />}

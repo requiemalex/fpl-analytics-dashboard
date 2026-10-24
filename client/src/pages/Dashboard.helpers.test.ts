@@ -168,8 +168,9 @@ describe("dashboardItemFloorNote — the minutes-floor badge shows exactly where
 });
 
 describe("tile titles (audit 2026-10-18 L1)", () => {
-  it("the two Starter Goals vs xG tiles no longer share a title", () => {
-    const [desc, asc] = DEFAULT_SUMMARY_TILES.filter((t) => t.metricKey === "goalsMinusXG");
+  it("a Highest First and a Lowest First tile of one metric (once the Starter's two Goals vs xG tiles) no longer share a title", () => {
+    const desc = { name: null, direction: "desc" as const };
+    const asc = { name: null, direction: "asc" as const };
     expect(displayTileTitle(desc, "Goals vs xG (Goals − xG)")).toBe("Goals vs xG (Goals − xG)");
     expect(displayTileTitle(asc, "Goals vs xG (Goals − xG)")).toBe("Goals vs xG (Goals − xG) · Lowest First");
   });

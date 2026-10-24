@@ -140,11 +140,15 @@ export function UnderstatGuide() {
           card, the pickers have the same groups as Columns: FPL, the rose "FPL &amp; Understat" figures, then Understat's own.
           A figure both sources have gets the <span style={{ color: "var(--col-crossover)" }}>⇄</span> icon: in a tile's header, beside
           an Outputs row's name, or in the header of a graph, radar or trend graph (where it switches all of that chart's shared
-          figures together). It starts on FPL each visit. A tile, graph or card showing any Understat figure has the{" "}
+          figures together). It starts on FPL each visit. Every tile, graph and card's title says where its figures come from, in
+          the same colours: green when they're all FPL's, violet when they're all Understat's, and{" "}
+          <span style={{ color: "var(--col-crossover)" }}>rose</span> when it shows both (hover the title to see which are which); a
+          figure with ⇄ counts as whichever source it's showing. One showing any Understat figure also has the{" "}
           <span style={{ color: "var(--col-understat)" }}>violet</span> Understat icon in its header (hover it to see which figures);
           a graph's axis says "(Understat)", and Understat's names are violet on Outputs rows and radars. Colours, Min Minutes, Hide
           and the stopwatch work as for FPL figures, on FPL's minutes. A player Understat has no figure for isn't listed, never
-          shown as 0. Trend graphs can plot Understat's figures season by season too; a season it has nothing for is a gap.
+          shown as 0. Trend graphs can plot Understat's figures season by season too; a season it has nothing for is a gap. The
+          Dashboard's Starter view adds Understat's own tiles and graphs after FPL's (see Dashboard).
         </li>
         <li>
           <strong>A small amber dot</strong> on an Understat header or icon means its figures are out of date (hover it for why). FPL

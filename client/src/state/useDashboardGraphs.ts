@@ -113,7 +113,10 @@ export function normalizeDashboardGraph(g: Partial<DashboardGraphConfig>): Dashb
  * scope, ported over from the old Underlying Numbers page's most broadly
  * useful "expected vs actual" and "value" charts (never its Thematic
  * Analysis line charts, which don't fit this per-graph, single-analysis-
- * mode model). Player defaults use DEFAULT_FILTERS: the Default view's
+ * mode model). xA vs Assists went on 2026-10-24 (it repeated xG vs
+ * Goals' question); Understat's Starter graphs follow these while it's
+ * mounted (<source_starter_items>). No storage bump: see
+ * DEFAULT_SUMMARY_TILES. Player defaults use DEFAULT_FILTERS: the Default view's
  * fixed minutes floor (applyDefaultViewFloor, Dashboard.tsx) keeps the
  * hundreds of players with a handful of minutes from piling up at 0,0.
  * Team defaults have no criteria at all, same as every other team
@@ -128,20 +131,6 @@ export const DEFAULT_DASHBOARD_GRAPHS: DashboardGraphConfig[] = [
     direction: "desc",
     xMetricKey: "xG",
     yMetricKey: "goals",
-    dataView: DEFAULT_DATA_VIEW,
-    showReferenceLine: true,
-    criteria: DEFAULT_FILTERS,
-    playerIds: null,
-    teamIds: null,
-  },
-  {
-    id: "default-graph-xa-assists",
-    scope: "player",
-    name: "xA vs Assists",
-    chartType: "scatter",
-    direction: "desc",
-    xMetricKey: "xA",
-    yMetricKey: "assists",
     dataView: DEFAULT_DATA_VIEW,
     showReferenceLine: true,
     criteria: DEFAULT_FILTERS,

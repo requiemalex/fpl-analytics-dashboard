@@ -10,6 +10,7 @@ import { makePlayer, makeSeason, makeTeam } from "../test/fixtures";
 import { understatPlayerColumns, understatTeamColumns } from "./columns";
 import { createProfiles } from "./profiles";
 import { understatTrends } from "./trends";
+import { UNDERSTAT_DASHBOARD_STARTER } from "./dashboardStarter";
 import type { UsClubResolved, UsPlayerResolved } from "./resolve";
 import type { UsClubTotals, UsPlayerTotals } from "./schema";
 
@@ -71,6 +72,7 @@ function fakeSource(overrides: Partial<ExternalStatsSource> = {}): ExternalStats
     playerColumns: () => understatPlayerColumns((p) => (p.id === 1 ? resolved : null)),
     teamColumns: () => understatTeamColumns(new Map(TEAMS.map((t) => [t.id, t])), () => null),
     playerTrends: understatTrends(null),
+    dashboardStarter: { tiles: [], graphs: [] },
     profiles: createProfiles(new Map(), { player: () => {}, club: () => {} }),
     guideSection: { id: "understat", navLabel: "Understat stats", title: "Understat stats", accentVar: "--col-understat", body: null },
     ...overrides,
@@ -259,6 +261,73 @@ describe("Dashboard with Understat mounted", () => {
   });
 });
 
+describe("the Dashboard's Starter view (<source_starter_items>) and its cards' source marks (<card_source_mark>)", () => {
+  function showStarter() {
+    storeDashboard([]);
+    localStorage.setItem("fpl-dashboard:dashboard:selected-view:v1", JSON.stringify({ version: 2, data: { player: "default-view-player", team: "my-view-team" } }));
+  }
+  const titles = (container: HTMLElement) => [...container.querySelectorAll<HTMLElement>(".card .card-title")];
+  const titleOf = (container: HTMLElement, text: string) => titles(container).find((t) => t.textContent === text)!;
+
+  it("with Understat mounted, its Starter tiles and graphs follow the FPL ones", () => {
+    showStarter();
+    const { container } = renderDashboard(fakeSource({ dashboardStarter: UNDERSTAT_DASHBOARD_STARTER }));
+    expect(titles(container).map((t) => t.textContent)).toEqual([
+      "Points",
+      "Pts/£m",
+      "DC/Game",
+      "NPxGI/Game (Understat)",
+      "Shots/Game (Understat)",
+      "Key Passes/Game (Understat)",
+      "Penalties Taken (Understat)",
+      "NP Goals − NPxG (Understat) · Lowest First",
+      "xG vs Goals",
+      "Price vs Points",
+      "Shots/Game vs xG/Shot",
+      "Price vs NPxGI/Game",
+    ]);
+    expect(container.textContent).not.toContain("no longer available");
+  });
+
+  it("with Understat switched off, the Starter view is FPL's tiles and graphs alone, with nothing marked unavailable", () => {
+    showStarter();
+    const { container } = renderDashboard(null);
+    expect(titles(container).map((t) => t.textContent)).toEqual(["Points", "Pts/£m", "DC/Game", "xG vs Goals", "Price vs Points"]);
+    expect(container.textContent).not.toContain("switched off");
+  });
+
+  it("each card's title is coloured by its figures' source: FPL green, Understat violet, both rose; the hover names them", () => {
+    showStarter();
+    const { container } = renderDashboard(fakeSource({ dashboardStarter: UNDERSTAT_DASHBOARD_STARTER }));
+    const points = titleOf(container, "Points");
+    expect(points.classList.contains("col-source-fpl")).toBe(true);
+    expect(points.getAttribute("title")).toBe("FPL's figures: Points");
+    const shots = titleOf(container, "Shots/Game (Understat)");
+    expect(shots.classList.contains("col-source-understat")).toBe(true);
+    expect(shots.getAttribute("title")).toBe("Understat's figures: Shots/Game");
+    expect(titleOf(container, "Shots/Game vs xG/Shot").classList.contains("col-source-understat")).toBe(true);
+    const mixed = titleOf(container, "Price vs NPxGI/Game");
+    expect(mixed.classList.contains("col-source-crossover")).toBe(true);
+    expect(mixed.getAttribute("title")).toBe("FPL's figures: Price · Understat's figures: NPxGI/Game");
+    expect(titleOf(container, "Price vs Points").getAttribute("title")).toBe("FPL's figures: Price, Points");
+  });
+
+  it("a figure both sources have is marked by the source its ⇄ is showing", () => {
+    storeDashboard([tile("t-xg", "xG", "xG")]);
+    const { container } = renderDashboard(fakeSource());
+    expect(titleOf(container, "xG").classList.contains("col-source-fpl")).toBe(true);
+    fireEvent.click(within(tileCard(container, "xG")).getByRole("button", { name: "Showing FPL's xG · Click to show Understat's" }));
+    expect(titleOf(container, "xG").classList.contains("col-source-understat")).toBe(true);
+    expect(titleOf(container, "xG").getAttribute("title")).toBe("Understat's figures: xG");
+  });
+
+  it("FPL tiles are marked green with no second source mounted too", () => {
+    storeDashboard([tile("t-fpl", "Goals", "goals")]);
+    const { container } = renderDashboard(null);
+    expect(titleOf(container, "Goals").classList.contains("col-source-fpl")).toBe(true);
+  });
+});
+
 // ---------- Player Comparison ----------
 
 function storeComparison(elements: unknown[]) {
@@ -294,12 +363,28 @@ describe("Player Comparison with Understat mounted", () => {
     expect(valuesOf(rows()[1])).toEqual(["3.21", "1.11"]); // FPL's xG first
     expect(valuesOf(rows()[2])).toEqual(["25"]);
     expect(panel().closest(".card")!.querySelector(".source-badge")!.getAttribute("title")).toBe("Understat's figures: Shots");
+    // <card_source_mark>: FPL and Understat figures together, so its title is the crossover colour.
+    const title = () => panel().closest(".card")!.querySelector(".card-title")!;
+    expect(title().classList.contains("col-source-crossover")).toBe(true);
+    expect(title().getAttribute("title")).toBe("FPL's figures: Goals, xG · Understat's figures: Shots");
 
     fireEvent.click(within(rows()[1]).getByRole("button", { name: "Showing FPL's xG · Click to show Understat's" }));
     // The row keeps its name and place; its figures are Understat's (Rice has none: no marker, never a 0), its name violet.
     expect(valuesOf(rows()[1])).toEqual(["4.56"]);
     expect(rows()[1].querySelector(".cmp-outputs-label")!.classList.contains("col-source-understat")).toBe(true);
     expect(panel().closest(".card")!.querySelector(".source-badge")!.getAttribute("title")).toBe("Understat's figures: xG, Shots");
+    expect(title().getAttribute("title")).toBe("FPL's figures: Goals · Understat's figures: xG, Shots");
+  });
+
+  it("a card of FPL figures only has a green title, one of Understat's only a violet one (<card_source_mark>)", () => {
+    storeComparison([
+      { id: "e1", kind: "outputs", name: "FPL", dataView: "live", metricKeys: ["goals", "xG"], minMinutes: 0 },
+      { id: "e2", kind: "outputs", name: "Understat", dataView: "live", metricKeys: ["understat:us.shots"], minMinutes: 0 },
+    ]);
+    const { container } = renderComparison(fakeSource());
+    const titleOf = (text: string) => [...container.querySelectorAll(".card .card-title")].find((t) => t.textContent === text)!;
+    expect(titleOf("FPL").classList.contains("col-source-fpl")).toBe(true);
+    expect(titleOf("Understat").classList.contains("col-source-understat")).toBe(true);
   });
 
   it("the card dialog offers Understat's comparable figures under its own headings, and saves them by source", () => {

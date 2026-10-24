@@ -2,6 +2,7 @@ import React from "react";
 import { DataViewBadge } from "../DataViewBadge";
 import { MinutesFloorBadge } from "../MinutesFloorBadge";
 import { CardEditRemoveButtons } from "../IconToolbar";
+import { CardTitle, type CardSource } from "../SourceToggle";
 import type { AnalysisMode } from "../../metrics/resolvePlayerStats";
 
 export interface CardDragProps {
@@ -26,6 +27,7 @@ export function ComparisonCard({
   floorNote,
   floorActive = false,
   sourceControls,
+  source,
   message,
   onEdit,
   onRemove,
@@ -46,6 +48,8 @@ export function ComparisonCard({
   floorActive?: boolean;
   /** Its ⇄ source toggle (figures both sources have) and second-source badge (SourceBadge); none for FPL-only figures. */
   sourceControls?: React.ReactNode;
+  /** Where its figures come from: the title's colour (<card_source_mark>). */
+  source?: CardSource;
   message?: string | null;
   onEdit?: () => void;
   onRemove?: () => void;
@@ -66,9 +70,7 @@ export function ComparisonCard({
       }
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
-        <div className="card-title" style={{ marginBottom: 0 }}>
-          {title}
-        </div>
+        <CardTitle title={title} source={source} style={{ marginBottom: 0 }} />
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {floorNote && <MinutesFloorBadge note={floorNote} active={floorActive} />}
           {sourceControls}

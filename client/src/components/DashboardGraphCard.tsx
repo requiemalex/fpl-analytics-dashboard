@@ -3,6 +3,7 @@ import { noRowsMessage } from "./emptyMessages";
 import { DataViewBadge } from "./DataViewBadge";
 import { HideSmallSamplesButton, MinutesFloorBadge, smallSamplesShownNote } from "./MinutesFloorBadge";
 import { CardEditRemoveButtons } from "./IconToolbar";
+import { CardTitle, type CardSource } from "./SourceToggle";
 import { ScatterWithReference, type ScatterPoint } from "./charts/ScatterWithReference";
 import { BarTopN, type BarDatum } from "./charts/BarTopN";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
@@ -33,6 +34,7 @@ export function DashboardGraphCard({
   floorNote,
   smallSamples,
   sourceControls,
+  source,
   emptyMessage: emptyMessageOverride,
   onSelect,
   onEdit,
@@ -66,6 +68,8 @@ export function DashboardGraphCard({
   smallSamples?: { hidden: boolean; count: number; onToggle: () => void };
   /** Its ⇄ source toggle (figures both sources have) and second-source badge (SourceBadge); none for FPL-only figures. */
   sourceControls?: React.ReactNode;
+  /** Where its figures come from: the title's colour (<card_source_mark>). */
+  source?: CardSource;
   onSelect?: (id: number) => void;
   onEdit?: () => void;
   onRemove?: () => void;
@@ -95,9 +99,7 @@ export function DashboardGraphCard({
       }
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
-        <div className="card-title" style={{ marginBottom: 0 }}>
-          {title}
-        </div>
+        <CardTitle title={title} source={source} style={{ marginBottom: 0 }} />
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {smallSamples && <HideSmallSamplesButton hidden={smallSamples.hidden} count={smallSamples.count} mode={dataView} onToggle={smallSamples.onToggle} />}
           {floorNote && (

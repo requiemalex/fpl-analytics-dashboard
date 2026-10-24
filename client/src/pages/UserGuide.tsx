@@ -243,9 +243,14 @@ export function UserGuide() {
           include: Filters or up to 5 players, or All Teams or up to 5 teams. The pickers (type in their box to find a statistic) include Understat's figures, grouped as in
           the Explorers, and a figure both sources have gets the ⇄ switch (see Understat stats; the same goes for tiles). A scatter plot can add a dashed 45° trend line (
           <strong>Add Trend Line</strong>) marking where X equals Y. It's useful only when both are on the same scale, like xG and Goals.
-          The Starter graphs are xG vs Goals, xA vs Assists and Price vs Points for players, and Team xG vs Goals and Team xGC vs
-          Goals Against for teams; the player ones leave out players under the fixed minutes floor, who would otherwise pile up at
-          zero. On a graph you build, a player under the floor is drawn as the amber stopwatch instead of a dot (on a bar chart,
+          The Starter view, all Last Season, starts with FPL's figures, then Understat's (while Understat is on):
+          for players, tiles of Points, Pts/£m and DC/Game, then NPxGI/Game, Shots/Game, Key Passes/Game, Penalties Taken and NP Goals
+          − NPxG (lowest first: finishing that has fallen short of the chances, which tends to even out), and graphs of xG vs Goals
+          and Price vs Points, then Shots/Game vs xG/Shot (many shots, or good ones) and Price vs NPxGI/Game; for teams, tiles of FPL
+          Points and Clean Sheets, then xGD, Pts − xPts, Shots Against and Set-Piece xG, and graphs of Team xG vs Goals and Team xGC
+          vs Goals Against, then NPxG vs NPxGA. Its player tiles and graphs leave out players under the fixed minutes floor, who
+          would otherwise pile up at zero. A tile's or graph's title is coloured by where its figures come from: green for FPL,
+          violet for Understat, rose for both (hover it to see which). On a graph you build, a player under the floor is drawn as the amber stopwatch instead of a dot (on a bar chart,
           beside his name), and hovering him says why.
         </p>
         <p className="page-subtitle">

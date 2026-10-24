@@ -917,8 +917,30 @@ without it leaves that season's Shots Faced uncoloured.
     are chosen and floored on FPL minutes, like the Explorers' Mins filter
     ("Minimum minutes": Starter floor, Min Minutes, Hide, the stopwatch);
     a player Understat has no figure for is left out of a tile and has no
-    marker or point, never a 0. Starter views have no Understat items, but
-    their shared figures have the ⇄ like any other.
+    marker or point, never a 0. The Dashboard's Starter view has
+    Understat's own items after the FPL ones (<source_starter_items>,
+    below); Player Comparison's Starter has none, but its shared figures
+    have the ⇄ like any other.
+  - **Starter items** (<source_starter_items>, `dashboardStarter` in the
+    slot, `understat/dashboardStarter.ts`): the source's own tiles and
+    graphs in the Dashboard's Starter view, after the packaged FPL ones
+    (`withSourceStarterItems`, Dashboard.tsx), with the same rules (Last
+    Season, no criteria, the fixed floor). They live in the Understat
+    folder, so switching it off or removing it leaves the FPL Starter
+    alone, with nothing marked unavailable. Players: NPxGI/Game,
+    Shots/Game, Key Passes/Game, Penalties Taken, NP Goals − NPxG lowest
+    first (finishing below the chances); graphs Shots/Game vs xG/Shot and
+    Price vs NPxGI/Game (FPL & Understat). Clubs: xGD, Pts − xPts, Shots
+    Against (fewest first), Set-Piece xG; graph NPxG vs NPxGA.
+  - **Card titles** (<card_source_mark>, `cardSource`/`CardTitle` in
+    `components/SourceToggle.tsx`): every Dashboard tile and graph and
+    Player Comparison card has its title in the colour index, by where its
+    figures come from: green (`col-source-fpl`) all FPL, the source's
+    colour all its own, rose (`col-source-crossover`) both. A ⇄ figure
+    counts as the source it's showing. The title's hover names each
+    source's figures ("FPL's figures: Price · Understat's figures:
+    NPxGI/Game"). Source only, as on the profiles' section headings: a
+    card doesn't use the Explorers' muted red for always-live figures.
   - **Trend graphs** (`playerTrends`, `understat/trends.ts`): Understat's
     versions of xG, xA, xGI, their per-game rates, Assists and Minutes (the
     graph's ⇄), and its own Shots, NPxG, xG/Shot, Key Passes, NPxGI,
@@ -1200,9 +1222,9 @@ obvious from the UI.
   titled by its metric (bar) or "<X> vs <Y>" (scatter); a tile by its metric,
   plus its order when that runs against the metric's natural one ("· Lowest
   First" on a higher-is-better metric, "· Highest First" on a lower-is-better
-  one; `displayTileTitle`), so the two Starter Goals vs xG tiles read
-  differently and a League Position tile listing 1st first isn't "Lowest
-  First". A tile's bars
+  one; `displayTileTitle`), so a Highest First and a Lowest First tile of
+  one metric read differently and a League Position tile listing 1st first
+  isn't "Lowest First". A tile's bars
   (`components/statBar.ts`) give the top row, its leader, a full-length bar:
   Highest First (or any +/- metric) as |value| ÷ largest |value|; Lowest First
   on a non-negative metric as leader ÷ value.
@@ -1210,7 +1232,12 @@ obvious from the UI.
   The selected non-Default view live-syncs every change. **Starter** (one
   per scope; "Default" in code, ids `default-view-*`) is immutable: no
   add, edit, remove or reorder, and it is re-synced to the packaged set on
-  every load. A default-id tile or graph can therefore only ever be an
+  every load (so changing the packaged set needs no storage bump). The
+  packaged FPL set is Points, Pts/£m and DC/Game tiles and xG vs Goals and
+  Price vs Points graphs for players, FPL Points and Clean Sheets tiles and
+  Team xG vs Goals and Team xGC vs Goals Against graphs for clubs; a
+  mounted second source adds its own after them, on screen only
+  (`withSourceStarterItems`; Understat's: <source_starter_items>). A default-id tile or graph can therefore only ever be an
   unmodified default, and Starter's cards aren't draggable. **My View**
   (`my-view-*`) is seeded blank per scope and is what a new install opens
   on; otherwise it's an ordinary view. Store v6 added it to existing

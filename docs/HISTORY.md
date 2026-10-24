@@ -3853,3 +3853,23 @@ tiles/graphs only:
   status dot's hover still says when the data was last updated, and the
   load-failure screen's Try again still forces a fresh fetch.
 - **Last commit with it:** `553685d`.
+
+### Six Dashboard Starter items (replaced 2026-10-24)
+- **What it did:** the Dashboard's packaged Starter view also had player
+  tiles of xGI, xGI/£m, Goals − xG (highest first and lowest first) and
+  G+A − xGI, a player graph of xA vs Assists, and a team tile of xGI
+  (`DEFAULT_SUMMARY_TILES` ids `default-xgi`, `default-xgi-per-million`,
+  `default-goals-above-xg`, `default-xg-above-goals`,
+  `default-ga-above-xgi`, `default-team-xgi`; `DEFAULT_DASHBOARD_GRAPHS`
+  id `default-graph-xa-assists`).
+- **Why it went:** with Understat in the app, the owner asked for the
+  Starter's repeats and weaker items to make way for views that show what
+  Understat adds (2026-10-24). xGI/£m repeated Pts/£m's question; the two
+  Goals − xG tiles, G+A − xGI and xA vs Assists repeated what the xG vs
+  Goals graph shows; a club's xGI adds its xA to its xG, counting the same
+  chances twice. Understat's NPxGI/Game (attacking threat without
+  penalties) and NP Goals − NPxG (finishing, without penalties) answer the
+  same questions better, and xGD replaces club xGI. A DC/Game tile was
+  added on the FPL side. The figures themselves are all still available to
+  build into your own views.
+- **Last commit with it:** `7ac51e0`.
