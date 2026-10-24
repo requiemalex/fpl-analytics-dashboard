@@ -1,6 +1,6 @@
 import React from "react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
-import { trendAwayKey, trendBelowKey, trendBridgeKey, trendDataKey, type SeasonTrendRow, type TrendDisplay } from "../../metrics/careerTrends";
+import { trendAwayKey, trendBelowKey, trendBridgeKey, trendDataKey, trendUnplayedKey, type SeasonTrendRow, type TrendDisplay } from "../../metrics/careerTrends";
 import { fmtDecimal, fmtPrice } from "../../utils/format";
 import { ComparisonLegend, type LegendEntry } from "./ComparisonLegend";
 import { SmallSampleMark } from "../MinutesFloorBadge";
@@ -43,6 +43,14 @@ function TrendTooltip({
               <span className="cmp-trend-away">Not in FPL this season</span>
             </div>
           );
+        if (row[trendUnplayedKey(player.id)] === true)
+          return (
+            <div key={player.id} className="chart-tooltip-row">
+              <span className="cmp-legend-swatch" style={{ background: color }} />
+              <span>{player.name}</span>
+              <span className="cmp-trend-away">Didn't play this season</span>
+            </div>
+          );
         return (
           <div key={player.id} className="chart-tooltip-row">
             <span className="cmp-legend-swatch" style={{ background: color }} />
@@ -81,7 +89,8 @@ function trendDot(playerId: number, color: string) {
  * colour. A season with no figure is a gap in his line, not a zero. A
  * spell out of FPL between two of his seasons is a dotted line in his
  * colour, and the hover box says he wasn't in FPL, so a return isn't read
- * as a missing figure. A
+ * as a missing figure; a season of 0 minutes likewise, the hover box
+ * saying he didn't play (<no_minutes_no_figures>: never a 0 on the line). A
  * season under the card's minimum minutes still shows his real figure, but
  * its point is the amber small-sample stopwatch and the hover box adds his minutes, so a
  * small-sample season is never mistaken for a full one.

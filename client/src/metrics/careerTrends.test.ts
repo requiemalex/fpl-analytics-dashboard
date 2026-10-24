@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { makeSeason } from "../test/fixtures";
-import { buildSeasonTrend, trendAwayKey, trendBelowKey, trendBridgeKey, trendDataKey, trendMetricByKey, trendValue } from "./careerTrends";
+import { buildSeasonTrend, trendAwayKey, trendBelowKey, trendBridgeKey, trendDataKey, trendMetricByKey, trendUnplayedKey, trendValue } from "./careerTrends";
 
 const seasons = new Map([
   [
@@ -44,6 +44,35 @@ describe("buildSeasonTrend", () => {
     const rows = buildSeasonTrend([1], trendMetricByKey("totalPoints")!, seasons, 450);
     expect(rows[1][trendDataKey(1)]).toBe(40);
     expect(rows[1][trendBelowKey(1)]).toBe(300);
+  });
+});
+
+describe("buildSeasonTrend — 0-minute seasons (<no_minutes_no_figures>)", () => {
+  // N.Jackson's shape (live API 2026-10-24): 2025/26 in FPL with 0 points in 0 minutes, on loan abroad.
+  const career = new Map([
+    [
+      1,
+      [
+        makeSeason({ seasonName: "2023/24", totalPoints: 142, minutes: 2801 }),
+        makeSeason({ seasonName: "2024/25", totalPoints: 121, minutes: 2220 }),
+        makeSeason({ seasonName: "2025/26", totalPoints: 0, minutes: 0 }),
+      ],
+    ],
+    [2, [makeSeason({ seasonName: "2023/24", totalPoints: 50, minutes: 900 }), makeSeason({ seasonName: "2024/25", totalPoints: 0, minutes: 0 }), makeSeason({ seasonName: "2025/26", totalPoints: 90, minutes: 1500 })]],
+  ]);
+
+  it("plots nothing for a season of 0 minutes, marked as one he didn't play, never under the minimum", () => {
+    const rows = buildSeasonTrend([1], trendMetricByKey("totalPoints")!, career, 450);
+    expect(rows[2][trendDataKey(1)]).toBeNull();
+    expect(rows[2][trendUnplayedKey(1)]).toBe(true);
+    expect(rows[2][trendAwayKey(1)]).toBeUndefined();
+    expect(rows[2][trendBelowKey(1)]).toBeUndefined();
+  });
+
+  it("does the same for minutes, and bridges a 0-minute season between two with figures", () => {
+    const rows = buildSeasonTrend([2], trendMetricByKey("minutes")!, career, 0);
+    expect(rows[1][trendDataKey(2)]).toBeNull();
+    expect(rows.map((r) => r[trendBridgeKey(2)] ?? null)).toEqual([900, 1200, 1500]);
   });
 });
 

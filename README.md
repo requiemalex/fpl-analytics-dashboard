@@ -1423,7 +1423,11 @@ fixtures failed to load). Only columns with a whole-pool season total are
 shown, so both rows can be compared. Points History (`playerProfile/PointsHistory.tsx`,
 shared with the Team Profile: bars with their own figures, no axis) uses the Historic Average (window
 seasons of 450+ minutes; a window season under that carries the amber small-sample stopwatch, one outside the window "†"); its "(current season)" season is resolved as Current Season,
-so pre-season it reads 0, not FPL's carried-over totals. The gameweek-history
+so pre-season it reads "—", not FPL's carried-over totals. A player's season
+of 0 minutes has no figure (`<no_minutes_no_figures>`, `hasSeasonFigure`): "—"
+and no bar, the hover saying he didn't play ("no minutes yet" for the live
+season), and the change badge at the top right (`computeSeasonTrend`)
+compares the latest two seasons he played in, its hover naming them. The gameweek-history
 fetch (`usePlayerHistory`) is lazy, retries network failures twice, and
 drops responses for a player no longer selected.
 - The profile asks for the historic dataset only while it's open (both
@@ -1462,7 +1466,9 @@ green or red, which mean better and worse, nor a source's violet or rose).
   latest, so one nobody has still takes its place; a player's spell out
   of FPL between two of his seasons is a dotted bridge in his colour,
   `buildSeasonTrend`'s `trendBridgeKey`, and the hover box says "Not in
-  FPL this season"). Max 5 views
+  FPL this season"; a season of 0 minutes is no figure either
+  (`<no_minutes_no_figures>`, `trendUnplayedKey`), bridged the same way,
+  the hover box saying "Didn't play this season"). Max 5 views
   (Starter and My View included), 4 cards per section — the section's +
   card goes at 4; a view saved with more under the old limit of 6 keeps
   them but can't add another. **Starter**

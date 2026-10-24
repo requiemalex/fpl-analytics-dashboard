@@ -176,12 +176,18 @@ export interface SeasonTrend {
  * Only reads seasonName/totalPoints, so it also works for a club's season
  * totals (metrics/teamStats.ts clubSeasonHistory) — not just a single
  * player's real PlayerSeasonHistory.
+ *
+ * A player's season of 0 minutes has no figure (<no_minutes_no_figures>),
+ * so it's skipped: the two seasons compared are the latest two he played
+ * in, and the badge's hover names them. Comparing against FPL's 0 for a
+ * season on loan abroad read as a collapse ("−121").
  */
-export function computeSeasonTrend(seasons: Pick<PlayerSeasonHistory, "seasonName" | "totalPoints">[]): SeasonTrend {
-  if (seasons.length < 2) {
-    return { direction: "unknown", pointsDelta: null, latestSeason: seasons[0]?.seasonName ?? null, previousSeason: null };
+export function computeSeasonTrend(seasons: (Pick<PlayerSeasonHistory, "seasonName" | "totalPoints"> & { minutes?: number })[]): SeasonTrend {
+  const withFigures = seasons.filter((s) => s.minutes !== 0);
+  if (withFigures.length < 2) {
+    return { direction: "unknown", pointsDelta: null, latestSeason: withFigures[0]?.seasonName ?? null, previousSeason: null };
   }
-  const sorted = [...seasons].sort((a, b) => a.seasonName.localeCompare(b.seasonName));
+  const sorted = [...withFigures].sort((a, b) => a.seasonName.localeCompare(b.seasonName));
   const latest = sorted[sorted.length - 1];
   const previous = sorted[sorted.length - 2];
   const delta = latest.totalPoints - previous.totalPoints;

@@ -108,9 +108,10 @@ afterEach(cleanup);
 describe("Player profile — Career History's live season", () => {
   // H2: before a ball is kicked, FPL's bootstrap still carries last season's
   // totals (README "Analysis modes", <live_mode_preseason_fix>). The live row
-  // must read 0, as Current Season does everywhere else — not repeat last
-  // season's 209 points as the new season's.
-  it("H2: pre-season, the current season's Points History bar shows 0 points, not last season's carried-over total", () => {
+  // has no figure ("—": nobody has played, <no_minutes_no_figures>), as
+  // Current Season does everywhere else — not repeat last season's 209
+  // points as the new season's.
+  it("H2: pre-season, the current season's Points History bar has no figure, not last season's carried-over total", () => {
     const carried = makePlayer({ id: 1, name: "Gabriel", position: "DEF", teamId: 1, totalPoints: 209, minutes: 2750, goals: 4 });
     setApp([carried], { currentSeasonHasStarted: false });
     setHistory([], [makeSeason({ seasonName: "2025/26", totalPoints: 209, minutes: 2750, goals: 4 })]);
@@ -119,7 +120,8 @@ describe("Player profile — Career History's live season", () => {
         <PlayerDetailOverlay />
       </MemoryRouter>,
     );
-    expect(getByLabelText(/^2026\/27 \(current season\): 0 pts/)).toBeTruthy();
+    expect(getByLabelText(/^2026\/27 \(current season\): no minutes yet/)).toBeTruthy();
+    expect(getByLabelText(/^2026\/27 \(current season\)/).querySelector(".points-history-value")?.textContent).toBe("—");
     expect(getAllByText(/2026\/27 \(current season\)/).length).toBeGreaterThan(0);
   });
 });
@@ -391,7 +393,8 @@ describe("In the profile, only seasons of 450+ minutes count toward Historic Ave
     // The chart: the amber stopwatch beside each under-floor season's label, and the reason on hover — never "†", which is for a season outside the window.
     expect(container.querySelectorAll(".points-history-axis .small-sample-mark")).toHaveLength(2);
     expect(getByLabelText(`2024/25 (${note}): 20 pts. Show its matches below`)).toBeTruthy();
-    expect(getByLabelText(`2022/23 (${note}): 0 pts. Show its matches below`)).toBeTruthy();
+    // A 0-minute season has no figure (<no_minutes_no_figures>): "—", the hover saying he didn't play.
+    expect(getByLabelText(`2022/23 (${note}): didn't play. Show its matches below`)).toBeTruthy();
     // A counted season has no marker. (The season-by-season table is gone — the Match Log has its figures.)
     expect(getByLabelText(/^2023\/24: 90 pts\. Show its matches below/)).toBeTruthy();
     expect(queryByLabelText("Show season-by-season detail")).toBeNull();

@@ -409,7 +409,8 @@ export function UserGuide() {
           <li>
             <strong>Trends</strong> graph one statistic season by season across the completed seasons on record. A season with no
             figure is a gap, not a zero. A spell when a player wasn't in FPL (say, his club was relegated) between two of his
-            seasons is a dotted line in his colour; hover it to see he wasn't in FPL.
+            seasons is a dotted line in his colour; hover it to see he wasn't in FPL. A season he played no minutes in has nothing
+            to show either, so it's drawn the same way, the hover saying he didn't play.
           </li>
           <li>
             <strong>Views</strong> work like the Dashboard's: <strong>My View</strong> starts blank, with a + card in each section
@@ -520,7 +521,8 @@ export function UserGuide() {
         </p>
         <p className="page-subtitle">
           <strong>Points History</strong> has a bar per season: green if counted in the average, grey if not, this season as an
-          outline. The line is the average of the last 4 completed seasons; top right is the change between the last two. The icons
+          outline. A season he played no minutes in shows "—" with no bar. The line is the average of the last 4 completed seasons;
+          top right is the change between the last two he played in (hover to see which). The icons
           underneath are per-season averages of points, minutes, goals and assists (hover for which). A season under 450
           minutes carries the amber stopwatch under its bar, and one outside the 4 seasons a † on hover; neither counts. Click a
           bar for that season's matches in the Match Log below.

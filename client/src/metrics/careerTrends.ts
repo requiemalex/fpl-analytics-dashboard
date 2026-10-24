@@ -79,7 +79,12 @@ export function trendAwayKey(playerId: number): string {
   return `away_${playerId}`;
 }
 
-/** Recharts dataKey for a player's dotted bridge across a spell out of FPL between two of his seasons. */
+/** Key set on a season FPL has for a player but in which he played 0 minutes: nothing to show (<no_minutes_no_figures>), so a gap (absent otherwise). */
+export function trendUnplayedKey(playerId: number): string {
+  return `unplayed_${playerId}`;
+}
+
+/** Recharts dataKey for a player's dotted bridge across a spell out of FPL, or of 0-minute seasons, between two of his seasons. */
 export function trendBridgeKey(playerId: number): string {
   return `bridge_${playerId}`;
 }
@@ -120,10 +125,13 @@ function seasonRange(names: string[]): string[] {
  * and its minutes are kept under trendBelowKey so the card can mark it (the
  * amber small-sample stopwatch) and say why; seasons either side plot as
  * normal. A season he has no FPL record for is marked under trendAwayKey,
- * and where that spell sits between two of his seasons that both have a
- * figure, trendBridgeKey holds a straight line between them (those two
- * figures at the ends, evenly stepped across the spell) for the dotted
- * bridge. No windowing — this is about a whole career's shape.
+ * and one he has with 0 minutes is a gap marked under trendUnplayedKey
+ * (<no_minutes_no_figures>: FPL's 0 points for a season on loan abroad is
+ * nothing to show, never a 0 on the line). Where a run of such seasons
+ * sits between two of his seasons that both have a figure, trendBridgeKey
+ * holds a straight line between them (those two figures at the ends,
+ * evenly stepped across the spell) for the dotted bridge. No windowing —
+ * this is about a whole career's shape.
  */
 export function buildSeasonTrend(
   playerIds: number[],
@@ -139,9 +147,11 @@ export function buildSeasonTrend(
     const row: SeasonTrendRow = { seasonName };
     for (const id of playerIds) {
       const season = allTimeSeasonsByPlayerId.get(id)?.find((s) => s.seasonName === seasonName);
-      row[trendDataKey(id)] = season ? (seasonValue ? seasonValue(id, season) : trendValue(metric, season)) : null;
+      const played = season !== undefined && season.minutes > 0;
+      row[trendDataKey(id)] = played ? (seasonValue ? seasonValue(id, season) : trendValue(metric, season)) : null;
       if (!season) row[trendAwayKey(id)] = true;
-      if (season && season.minutes < minMinutes) row[trendBelowKey(id)] = season.minutes;
+      else if (!played) row[trendUnplayedKey(id)] = true;
+      if (played && season.minutes < minMinutes) row[trendBelowKey(id)] = season.minutes;
     }
     return row;
   });
@@ -149,9 +159,9 @@ export function buildSeasonTrend(
   return rows;
 }
 
-/** Fill trendBridgeKey across each run of away seasons with one of his seasons either side, both with a figure. */
+/** Fill trendBridgeKey across each run of away or 0-minute seasons with one of his seasons either side, both with a figure. */
 function addBridges(rows: SeasonTrendRow[], id: number): void {
-  const away = (i: number) => rows[i][trendAwayKey(id)] === true;
+  const away = (i: number) => rows[i][trendAwayKey(id)] === true || rows[i][trendUnplayedKey(id)] === true;
   let i = 0;
   while (i < rows.length) {
     if (!away(i)) {

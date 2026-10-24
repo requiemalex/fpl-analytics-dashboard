@@ -13,6 +13,13 @@ import { MinutesFloorIcon } from "../MinutesFloorBadge";
 export interface SeasonPointsEntry {
   seasonName: string;
   totalPoints: number;
+  /** A player's minutes that season: 0 means nothing to show (<no_minutes_no_figures>), "—" and no bar. Absent for a club. */
+  minutes?: number;
+}
+
+/** A season with a figure to show: not a player's 0-minute season (FPL's 0 points for a season on loan abroad, say). */
+export function hasSeasonFigure(s: Pick<SeasonPointsEntry, "minutes">): boolean {
+  return s.minutes !== 0;
 }
 
 /** Height (px) of the tallest bar; the plot adds room above it for the value label. */
@@ -149,7 +156,7 @@ export function PointsHistoryChart({
   /** The hover text for that marker. */
   smallSampleNote?: string;
 }) {
-  const max = Math.max(0, ...seasons.map((s) => s.totalPoints));
+  const max = Math.max(0, ...seasons.filter(hasSeasonFigure).map((s) => s.totalPoints));
   const heightFor = (points: number) => (max > 0 ? (Math.max(0, points) / max) * BAR_AREA_PX : 0);
   const latestCompleted = [...seasons].reverse().find((s) => s.seasonName !== currentSeasonName)?.seasonName ?? null;
   const n = seasons.length;
@@ -174,21 +181,23 @@ export function PointsHistoryChart({
     const state = isLive ? "live" : counted === null ? "neutral" : counted ? "counted" : "uncounted";
     const smallSample = !isLive && smallSampleSeasonNames?.has(s.seasonName) === true;
     const mark = isLive ? " (current season)" : smallSample && smallSampleNote ? ` (${smallSampleNote})` : counted === false ? " †" : "";
-    const hover = `${s.seasonName}${mark}: ${fmtDecimal(s.totalPoints, 0)} pts`;
-    return { s, state, hover, smallSample, isLatest: s.seasonName === latestCompleted };
+    const figure = hasSeasonFigure(s) ? s.totalPoints : null;
+    const noFigure = isLive ? "no minutes yet" : "didn't play";
+    const hover = `${s.seasonName}${mark}: ${figure === null ? noFigure : `${fmtDecimal(figure, 0)} pts`}`;
+    return { s, figure, state, hover, smallSample, isLatest: s.seasonName === latestCompleted };
   });
 
   return (
     <div className="points-history">
       <div className="points-history-plot" style={{ height: BAR_AREA_PX + 24 }}>
-        {columns.map(({ s, state, hover, isLatest }) => {
+        {columns.map(({ s, figure, state, hover, isLatest }) => {
           const selected = onSelectSeason !== undefined && s.seasonName === selectedSeasonName;
           const content = (
             <>
               <span className={`points-history-value${state === "uncounted" ? " is-muted" : ""}${isLatest ? " is-latest" : ""}`}>
-                {fmtDecimal(s.totalPoints, 0)}
+                {fmtDecimal(figure, 0)}
               </span>
-              <span className={`points-history-bar is-${state}`} style={{ height: heightFor(s.totalPoints) }} />
+              <span className={`points-history-bar is-${state}`} style={{ height: figure === null ? 0 : heightFor(figure) }} />
             </>
           );
           if (!onSelectSeason) {
