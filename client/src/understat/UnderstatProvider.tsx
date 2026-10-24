@@ -161,7 +161,22 @@ export function UnderstatProvider({ children }: { children: React.ReactNode }) {
       request,
       playerTrends: understatTrends(data),
       dashboardStarter: UNDERSTAT_DASHBOARD_STARTER,
-      profiles: createProfiles(profileLoads, { player: requestPlayerDetail, club: requestClubDetail }, compare),
+      // A profile also needs the season summaries — its Summary, and what its colours rank against — wherever it's
+      // opened from, not only on a page that has loaded them, so asking for its details loads them too.
+      profiles: createProfiles(
+        profileLoads,
+        {
+          player: (code, seasons) => {
+            request();
+            requestPlayerDetail(code, seasons);
+          },
+          club: (code, seasons) => {
+            request();
+            requestClubDetail(code, seasons);
+          },
+        },
+        compare,
+      ),
       guideSection: { id: "understat", navLabel: "Understat stats", title: "Understat stats", accentVar: "--col-understat", body: <UnderstatGuide /> },
       playerColumns(mode) {
         const cached = playerCache.get(mode);
