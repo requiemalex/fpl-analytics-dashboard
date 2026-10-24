@@ -349,13 +349,22 @@ export function UserGuide() {
             <strong>Add</strong> (in Add Players) puts a player in the starting XI while there's a legal place for him, otherwise on
             the bench. The <strong>pitch</strong> is drag-and-drop: drag a player from Add Players onto the pitch or bench, or one
             card onto another to swap. Click a name for the profile; click <strong>Captain</strong>/<strong>Vice-Captain</strong>,
-            then a starter, to assign it (the C or V badge sits at the card's top left); <strong>Clear Draft</strong> empties the
+            then a starter, to assign it (the C or V badge sits at the shirt's top left); <strong>Clear Draft</strong> empties the
             squad after you confirm (no undo). A saved player FPL no longer lists is named in a
-            banner above the pitch, with a bin to remove him. Cards show live price, ownership, minutes
-            reliability, the next fixtures and both Expected Points figures (doubled for the captain).
+            banner above the pitch, with a bin to remove him. Hover a card for its remove button.
           </li>
           <li>
-            The <strong>GW+1..GW+5 navigator</strong> picks which of each player's next five fixtures the Expected Points figures
+            Each player wears his club's kit in its colours (a goalkeeper's are swapped). Under it, <strong>Show on kits</strong>{" "}
+            picks the one figure each card shows: FPL or Model Expected Points (doubled for the captain), price, ownership or
+            minutes reliability, beside the match picked in <strong>Match</strong>, coloured by FPL difficulty. <strong>Fixtures</strong>{" "}
+            shows the next five matches instead, the picked one outlined.
+          </li>
+          <li>
+            Every place the squad still has to fill is a <strong>+</strong>, on the pitch first (in a legal shape, 4-4-2 for an
+            empty squad) and then on the bench. Click one to list that position in Add Players, or drag a player onto it.
+          </li>
+          <li>
+            <strong>Match</strong> (GW+1 to GW+5) picks which of each player's next five fixtures the Expected Points figures
             estimate: his own Nth fixture, not a calendar gameweek, so a blank gameweek has nothing to select and a double
             gameweek's two fixtures are consecutive steps. GW+1 is always in the next gameweek you can still pick for (the one FPL's
             own estimate is for): once a deadline passes, that gameweek's matches drop out, even before FPL confirms the results.
@@ -373,7 +382,8 @@ export function UserGuide() {
             for. It's a second opinion, rougher for goalkeepers and nailed-on popular picks (see the README's backtest).
           </li>
           <li>
-            The status line above the pitch shows squad size, budget, composition and any club-limit breach. A squad built from
+            Above the pitch: the starting shape, squad size (hover for its composition), Squad value and In the bank; a club-limit
+            breach shows as a banner. A squad built from
             scratch has FPL's £100m; an imported one has its own: its players at today's prices when you imported it, plus its money
             in the bank, so an unchanged import shows exactly that bank left (FPL's own selling prices need your login, so a player
             who has risen counts at today's price; hover the budget for its make-up). Going over turns the budget red and says how

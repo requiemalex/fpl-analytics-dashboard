@@ -120,6 +120,45 @@ export function fitsStartingXI(xiPlayers: NormalizedPlayer[], candidate: Normali
   return stillNeeded <= placesLeft;
 }
 
+/** The shape empty pitch slots fill toward once each line has its minimum: FPL's own default, 4-4-2. */
+const DEFAULT_SHAPE: Record<Position, number> = { GKP: 1, DEF: 4, MID: 4, FWD: 2 };
+
+export interface OpenSlots {
+  /** Empty places drawn on the pitch, by position. */
+  pitch: Record<Position, number>;
+  /** Empty bench places, goalkeeper first. */
+  bench: Position[];
+}
+
+/**
+ * <open_slots>: the "+" places a squad still has to fill, so the pitch and
+ * bench always show where the next players go. Only positions the squad is
+ * short of (2 GKP, 5 DEF, 5 MID, 3 FWD) get one. The starting XI's open
+ * places take them first, in an order that keeps it legal: every line to
+ * its minimum, then toward 4-4-2, then to its maximum. What's left goes on
+ * the bench. An empty squad shows a 4-4-2 and a bench of GKP, DEF, MID, FWD.
+ */
+export function openSquadSlots(squadPlayers: NormalizedPlayer[], xiPlayers: NormalizedPlayer[]): OpenSlots {
+  const squad = squadCompositionCounts(squadPlayers);
+  const xi = squadCompositionCounts(xiPlayers);
+  const pitch: Record<Position, number> = { GKP: 0, DEF: 0, MID: 0, FWD: 0 };
+  const short = (pos: Position) => Math.max(0, SQUAD_RULES.composition[pos] - squad[pos]) - pitch[pos];
+  let open = Math.max(0, SQUAD_RULES.startingXISize - xiPlayers.length);
+  const fillTo = (limit: (pos: Position) => number) => {
+    for (const pos of POSITIONS) {
+      while (open > 0 && short(pos) > 0 && xi[pos] + pitch[pos] < limit(pos)) {
+        pitch[pos] += 1;
+        open -= 1;
+      }
+    }
+  };
+  fillTo((pos) => SQUAD_RULES.startingXIBounds[pos].min);
+  fillTo((pos) => DEFAULT_SHAPE[pos]);
+  fillTo((pos) => SQUAD_RULES.startingXIBounds[pos].max);
+  const bench = POSITIONS.flatMap((pos) => Array<Position>(short(pos)).fill(pos));
+  return { pitch, bench };
+}
+
 export interface AddPlayerCheck {
   ok: boolean;
   reason?: string;

@@ -843,9 +843,10 @@ without it leaves that season's Shots Faced uncoloured.
   nothing shown is under it). Each is drawn on Team Building's pitch (the
   `.pitch` turf and the shared `PitchMarkings`), attack at the top, its
   lines from forwards to goalkeeper. Every slot is Team Building's pitch
-  card: a shirt (Understat's violet) carrying the slot's code in its FPL
+  card: the shared kit (`components/Kit.tsx`, here in Understat's violet)
+  carrying the slot's code in its FPL
   position's colour (`positionGroupOf`: GK keeper, D* defence, DM*/M*/AM*
-  midfield with the wing-backs, FW* forwards), and a white nameplate
+  midfield with the wing-backs, FW* forwards), and the dark nameplate
   naming who started there and how many times (3 names, then "+n more"
   with the rest on hover); beside it, as the shot maps have theirs: Time (share of the
   club's minutes), Minutes, Starts, xG/90, xGA/90, Scored, Conceded.
@@ -1752,7 +1753,29 @@ otherwise benches him; dragging moves anyone between pitch and bench.
 **Clear Draft** asks first (there's no undo). The armband and Clear Draft
 buttons appear once a squad exists.
 
-- **GW+1…GW+5** — the navigator picks one of the player's next five
+- **The pitch** (`components/SquadPitch.tsx`) — each player is his club's
+  kit (`<club_kit>`, `components/Kit.tsx`): body in the club's colour,
+  collar and cuffs in its second, the same pair as the team pill's swatch
+  (`teamDisplayColors`); a goalkeeper's swaps them. The Team Profile's
+  Formations section draws the same kit, in Understat's violet. Under the
+  kit, a dark nameplate: the name, then **one** figure, picked with **Show
+  on kits** (`<kit_view>`: FPL pts, Model pts, Price, Owned, Minutes,
+  coloured as before), beside the match the **Match** switch picks as an
+  FDR-coloured chip; **Fixtures** shows the next five chips instead, the
+  picked one outlined. The switch is per page, like every view switch.
+  The header shows the starting shape, the squad size (hover for its
+  composition), Squad value and In the bank; a club-limit breach is a
+  banner.
+- **Open places** (`<open_slots>`, `openSquadSlots` in
+  `metrics/squadRules.ts`) — every place the squad is still short of
+  (2 GKP, 5 DEF, 5 MID, 3 FWD) is a "+": the XI's open places take them
+  first, keeping it legal (each line to its minimum, then toward 4-4-2,
+  then to its maximum), the rest on the bench, so an empty squad shows a
+  4-4-2 and a bench of GKP, DEF, MID, FWD. A "+" sets Add Players'
+  Position to that position and moves there; Add then places the player
+  as always (`<add_to_xi>`). A player dragged onto a "+" lands on the
+  pitch or bench it's on. With no squad yet, a "+" opens New Squad.
+- **GW+1…GW+5** — the Match switch picks one of the player's next five
   fixtures (a blank has none; a double shows two consecutive steps). They
   start at FPL's `is_next` gameweek (`firstPickableEventId`,
   `metrics/fixtureTicker.ts`): the one `ep_next` estimates and the first

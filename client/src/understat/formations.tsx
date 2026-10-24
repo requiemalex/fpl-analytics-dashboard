@@ -7,6 +7,7 @@ import type { DetailLoad, UsClubSeasonDetail, UsFormation, UsLineup } from "./pr
 import { formationLineups, type FormationSlot, type SlotPlayer } from "./lineups";
 import { POSITION_NAMES, positionGroupOf } from "./positionNames";
 import { PitchMarkings } from "../components/PitchMarkings";
+import { Kit } from "../components/Kit";
 import { percentileTint } from "../utils/colorScale";
 import { formationRank, type UsComparisonContext } from "./comparisons";
 import type { UsClubTotals } from "./schema";
@@ -35,6 +36,8 @@ import type { UsClubTotals } from "./schema";
 export const FORMATION_MIN_MINUTES = 90;
 /** Formations the arrows step through: the club's most-used. */
 export const FORMATIONS_SHOWN = 3;
+/** The slots' shirts are Understat's violet, as these are Understat's line-ups. */
+const UNDERSTAT_KIT = { body: "var(--col-understat)", trim: "color-mix(in srgb, var(--col-understat) 45%, #fff)" };
 /** Names shown in a slot before the rest go into "+n more". */
 const NAMES_PER_SLOT = 3;
 
@@ -99,13 +102,11 @@ function Slot({ slot, idByCode }: { slot: FormationSlot; idByCode: ReadonlyMap<n
   // Team Building's pitch card: a shirt carrying the slot (in its FPL position's colour), a nameplate under it.
   return (
     <div className="formation-slot">
-      <div className="pitch-card-jersey formation-slot-jersey">
-        <span className="pitch-card-jersey-position">
-          <span className={`badge pos-${positionGroupOf(slot.position)}`} title={POSITION_NAMES[slot.position] ?? slot.position}>
-            {slot.position}
-          </span>
+      <Kit colours={UNDERSTAT_KIT}>
+        <span className={`badge pos-${positionGroupOf(slot.position)}`} title={POSITION_NAMES[slot.position] ?? slot.position}>
+          {slot.position}
         </span>
-      </div>
+      </Kit>
       <div className="pitch-card-plate formation-slot-plate">
         {shown.map((p) => (
           <PlayerName key={p.code ?? p.name} player={p} idByCode={idByCode} />

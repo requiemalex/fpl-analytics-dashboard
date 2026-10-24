@@ -3911,3 +3911,17 @@ tiles/graphs only:
   Assists is in Actual vs Expected as Assists − xA and in Team Explorer).
   FPL's difficulty stays on each opponent's hover and in the Explorers.
 - **Last commit with it:** `427f7d7`.
+
+### Team Building's every-figure pitch card and status line (replaced 2026-10-24)
+- **What it did:** each pitch card was a plain green shirt with the
+  player's position badge, a white nameplate (name and club), then FPL's
+  Exp. Pts, the Model figure, price, ownership, a minutes-reliability dot
+  and five fixture chips, all at once. Above the pitch, a status line gave
+  squad size, budget used/total, composition and any club-limit breach, and
+  a row of GW+1…GW+5 chips picked the match.
+- **Why it went:** the owner found the page's plain text overwhelming and
+  asked for a redesign (2026-10-24): kits in club colours (`<club_kit>`),
+  one figure at a time picked with Show on kits (`<kit_view>`), "+" places
+  for the players still to add (`<open_slots>`), and the header as tiles.
+  The Match switch replaces the GW chips with the app's segmented control.
+- **Last commit with it:** `77bb939`.

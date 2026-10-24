@@ -11,7 +11,7 @@ import { useSortSpec, compareSortValues, sortWithoutHiddenColumn, type SortSpec 
 import { useEscapeLayer } from "../state/useEscapeLayer";
 import { useProgressiveRowCount } from "../state/useProgressiveRowCount";
 import { SQUAD_RULES, createBlankSquad, squadBudget, type SavedSquad } from "../types/team";
-import { validateSquad, validateStartingXI, canAddPlayer, fitsStartingXI } from "../metrics/squadRules";
+import { validateSquad, validateStartingXI, canAddPlayer, fitsStartingXI, openSquadSlots } from "../metrics/squadRules";
 import { resolvePlayerStats, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { computeExpectedPointsForSingleFixture } from "../metrics/expectedPoints";
@@ -356,6 +356,7 @@ export function TeamBuilder() {
     key === "name" ? "asc" : (PREDICTIVE_COLUMNS.find((c) => c.key === key) ?? columnByKey(key))?.higherIsBetter === false ? "asc" : "desc",
   );
   const pickerTableWrapRef = useRef<HTMLDivElement>(null);
+  const addPlayersRef = useRef<HTMLDivElement>(null);
 
   // Keep activeId pointing at a real squad even after a delete/first-load.
   useEffect(() => {
@@ -630,6 +631,21 @@ export function TeamBuilder() {
     setSearchParams((prev) => ({ ...Object.fromEntries(prev), player: String(playerId) }));
   }
 
+  /**
+   * <open_slots>: a "+" place lists its position in Add Players and takes
+   * you there, search box ready. Add then places him as it always does
+   * (<add_to_xi>). With no squad yet, it opens New Squad instead.
+   */
+  function handleAddSlot(position: Position) {
+    if (!active) {
+      openNewSquadModal();
+      return;
+    }
+    setPickerPosition(position);
+    addPlayersRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    addPlayersRef.current?.querySelector<HTMLInputElement>("#picker-search")?.focus({ preventScroll: true });
+  }
+
   /** The C/V tiles arm "pick" mode; clicking a tile again while it's already armed cancels it. */
   function handleCaptainTileClick(role: "captain" | "viceCaptain") {
     setCaptainPickMode((mode) => (mode === role ? null : role));
@@ -774,6 +790,7 @@ export function TeamBuilder() {
 
   const squadValidation = validateSquad(squadPlayers, squadBudget(active));
   const xiValidation = validateStartingXI(startingXIPlayers);
+  const openSlots = openSquadSlots(squadPlayers, startingXIPlayers);
 
   // Upcoming fixtures for every club (cheap — 20 clubs), reused below for
   // both the squad's expected-points map and the picker's sort/display,
@@ -1202,9 +1219,7 @@ export function TeamBuilder() {
       )}
 
       <div className="card" style={{ marginBottom: 24 }}>
-        <div className="card-title">
-          Squad ({squadPlayers.length}/{SQUAD_RULES.squadSize})
-        </div>
+        <div className="card-title">Squad</div>
         {missingSavedIds.length > 0 && (
           <div className="banner stale" style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ flex: 1 }}>
@@ -1220,6 +1235,7 @@ export function TeamBuilder() {
           squadValidation={squadValidation}
           positionGroups={pitchPositionGroups}
           benchPlayers={benchPlayers}
+          openSlots={openSlots}
           captainId={active?.captainId ?? null}
           viceCaptainId={active?.viceCaptainId ?? null}
           expectedPointsByPlayerId={expectedPointsByPlayerId}
@@ -1237,6 +1253,7 @@ export function TeamBuilder() {
           onAddToPitch={handleDropOnPitch}
           onBench={handleDropOnBench}
           onRemove={handleRemovePlayer}
+          onAddSlot={handleAddSlot}
           onClearSquad={() => setConfirmClear(true)}
           hasSquad={!!active}
           budgetHint={budgetHint(active)}
@@ -1252,7 +1269,7 @@ export function TeamBuilder() {
       )}
 
       {active && (
-      <div className="card" style={{ marginBottom: 24 }}>
+      <div className="card" style={{ marginBottom: 24 }} ref={addPlayersRef}>
         <div className="card-title">Add Players</div>
         <div className="filters-bar" style={{ marginBottom: 12 }}>
           <div className="field">
@@ -1368,7 +1385,7 @@ export function TeamBuilder() {
           <div>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Predictive columns show:</div>
             {/* No inline caption (CLAUDE.md): the how-to is the hover text and the User Guide. */}
-            <span className="badge" title="Both Exp. Pts columns estimate this upcoming fixture. Change it with the GW+1 to GW+5 buttons above the pitch.">
+            <span className="badge" title="Both Exp. Pts columns estimate this upcoming fixture. Change it with the Match switch above the pitch.">
               GW+{gwOffset}
             </span>
           </div>

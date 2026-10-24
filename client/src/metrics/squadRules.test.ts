@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fitsStartingXI, validateSquad } from "./squadRules";
+import { fitsStartingXI, openSquadSlots, validateSquad } from "./squadRules";
 import { budgetLeftText } from "../components/SquadPitch";
 import { makePlayer } from "../test/fixtures";
 import type { Position } from "../types/normalized";
@@ -29,6 +29,33 @@ describe("<add_to_xi> fitsStartingXI", () => {
     const xi = [...players("GKP", 1), ...players("DEF", 4), ...players("MID", 4), ...players("FWD", 2)];
     expect(xi).toHaveLength(11);
     expect(fitsStartingXI(xi, makePlayer({ id: 906, position: "DEF" }))).toBe(false);
+  });
+});
+
+describe("<open_slots> openSquadSlots", () => {
+  it("an empty squad shows a 4-4-2 and a bench of GKP, DEF, MID, FWD", () => {
+    expect(openSquadSlots([], [])).toEqual({ pitch: { GKP: 1, DEF: 4, MID: 4, FWD: 2 }, bench: ["GKP", "DEF", "MID", "FWD"] });
+  });
+
+  it("fills around the starters: a 5-at-the-back XI keeps its back five and takes the rest from the 4-4-2", () => {
+    const xi = [...players("GKP", 1), ...players("DEF", 5)];
+    const slots = openSquadSlots(xi, xi);
+    expect(slots.pitch).toEqual({ GKP: 0, DEF: 0, MID: 4, FWD: 1 });
+    expect(slots.bench).toEqual(["GKP", "MID", "FWD", "FWD"]);
+  });
+
+  it("never offers a place the squad's composition is already full for", () => {
+    const squad = [...players("GKP", 2), ...players("FWD", 3)];
+    const xi = squad.filter((p, i) => i !== 1); // the second goalkeeper is on the bench
+    const slots = openSquadSlots(squad, xi);
+    expect(slots.pitch.GKP + slots.pitch.FWD).toBe(0);
+    expect(slots.bench).not.toContain("GKP");
+    expect(slots.pitch.DEF + slots.pitch.MID + slots.bench.length).toBe(10);
+  });
+
+  it("a full squad has no open places, wherever its players sit", () => {
+    const squad = [...players("GKP", 2), ...players("DEF", 5), ...players("MID", 5), ...players("FWD", 3)];
+    expect(openSquadSlots(squad, squad.slice(0, 9))).toEqual({ pitch: { GKP: 0, DEF: 0, MID: 0, FWD: 0 }, bench: [] });
   });
 });
 

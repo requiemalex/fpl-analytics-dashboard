@@ -1,26 +1,59 @@
 import React, { useState } from "react";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass, pressable } from "./primitives";
 import { PitchMarkings } from "./PitchMarkings";
+import { Kit } from "./Kit";
+import { CloseIcon, PlusIcon } from "./IconToolbar";
+import { SegmentedControl, type SegmentOption } from "./MenuControls";
 import { fmtPrice, fmtPercent, fmtDecimal, DASH } from "../utils/format";
 import { fdrColor, type UpcomingFixture } from "../metrics/fixtureTicker";
-import { percentileColour, percentileTint } from "../utils/colorScale";
+import { percentileTint } from "../utils/colorScale";
 import { SQUAD_RULES } from "../types/team";
-import type { SquadValidation } from "../metrics/squadRules";
+import type { OpenSlots, SquadValidation } from "../metrics/squadRules";
 import type { NormalizedPlayer, Position } from "../types/normalized";
 import type { ExpectedPointsV2Breakdown } from "../metrics/expectedPointsV2";
 import { fixtureHint, modelBreakdownHint, playerRankHint, versusText } from "./hoverText";
 
 const PITCH_ROW_ORDER: Position[] = ["FWD", "MID", "DEF", "GKP"];
 const COMPOSITION_ORDER: Position[] = ["GKP", "DEF", "MID", "FWD"];
+const POSITION_NOUN: Record<Position, [string, string]> = {
+  GKP: ["goalkeeper", "goalkeepers"],
+  DEF: ["defender", "defenders"],
+  MID: ["midfielder", "midfielders"],
+  FWD: ["forward", "forwards"],
+};
 
-function FixtureTicker({ fixtures }: { fixtures: UpcomingFixture[] }) {
-  if (fixtures.length === 0) return null;
+/**
+ * <kit_view>: the one figure each kit's nameplate shows, picked with the
+ * "Show on kits" switch — rather than every figure at once. Beside it, the
+ * match the Match switch picks. Fixtures shows the next five instead.
+ */
+export type KitView = "fixtures" | "fpl" | "model" | "price" | "ownership" | "reliability";
+
+const KIT_VIEW_OPTIONS: SegmentOption<KitView>[] = [
+  { value: "fixtures", label: "Fixtures", title: "Each player's next five matches, coloured by FPL difficulty" },
+  { value: "fpl", label: "FPL pts", title: "Exp. Pts (FPL Official) for the match picked in Match" },
+  { value: "model", label: "Model pts", title: "Exp. Pts (Model Predicted): Scoutline's own estimate for the match picked in Match" },
+  { value: "price", label: "Price", title: "Today's price" },
+  { value: "ownership", label: "Owned", title: "Share of FPL managers who own him" },
+  { value: "reliability", label: "Minutes", title: "Minutes Reliability: the share of each match he's expected to play" },
+];
+
+type GwOffset = 1 | 2 | 3 | 4 | 5;
+const GW_OPTIONS: SegmentOption<`${GwOffset}`>[] = ([1, 2, 3, 4, 5] as const).map((offset) => ({
+  value: `${offset}`,
+  label: `GW+${offset}`,
+  title: offset === 1 ? "Each player's next match" : `Each player's ${offset}${offset === 2 ? "nd" : offset === 3 ? "rd" : "th"} match from now (his own, so a blank gameweek is skipped)`,
+}));
+
+/** The next five matches as FPL-difficulty chips; the one the Match switch picks is outlined. */
+function FixtureTicker({ fixtures, selected }: { fixtures: UpcomingFixture[]; selected: number }) {
+  if (fixtures.length === 0) return <span className="value-muted">{DASH}</span>;
   return (
     <div className="pitch-card-fixtures">
-      {fixtures.map((f) => (
+      {fixtures.map((f, i) => (
         <span
           key={f.fixtureId}
-          className="pitch-card-fixture"
+          className={`pitch-card-fixture${i === selected ? " is-selected" : ""}`}
           style={{ background: fdrColor(f.difficulty) }}
           title={fixtureHint(f)}
         >
@@ -28,6 +61,22 @@ function FixtureTicker({ fixtures }: { fixtures: UpcomingFixture[] }) {
         </span>
       ))}
     </div>
+  );
+}
+
+/** One match as a chip: opponent and (H)/(A), coloured by FPL difficulty. */
+function FixturePill({ fixture, gwOffset }: { fixture: UpcomingFixture | undefined; gwOffset: number }) {
+  if (!fixture) {
+    return (
+      <span className="pitch-card-match is-blank" title={`No match at GW+${gwOffset}`}>
+        {DASH}
+      </span>
+    );
+  }
+  return (
+    <span className="pitch-card-match" style={{ background: fdrColor(fixture.difficulty) }} title={fixtureHint(fixture)}>
+      {fixture.opponentShortName.slice(0, 3)} ({fixture.isHome ? "H" : "A"})
+    </span>
   );
 }
 
@@ -39,28 +88,46 @@ export function budgetLeftText(remaining: number): string {
   return tenths < 0 ? `${fmtPrice(-tenths / 10)} over` : `${fmtPrice(Math.max(0, tenths) / 10)} left`;
 }
 
-/** Compact squad-status line — size, budget, composition, club violations — now living in the pitch header instead of a separate card. */
-function SquadStatusLine({ validation, budgetHint }: { validation: SquadValidation; budgetHint: string }) {
+/** The pitch header: the squad's name, its starting shape and size on the left; value and money left as tiles on the right. */
+function SquadHeader({
+  squadName,
+  validation,
+  positionGroups,
+  budgetHint,
+}: {
+  squadName: string;
+  validation: SquadValidation;
+  positionGroups: Record<Position, NormalizedPlayer[]>;
+  budgetHint: string;
+}) {
+  const xiSize = COMPOSITION_ORDER.reduce((n, pos) => n + positionGroups[pos].length, 0);
+  const shape = [positionGroups.DEF.length, positionGroups.MID.length, positionGroups.FWD.length].join("-");
+  const composition = COMPOSITION_ORDER.map((pos) => `${pos} ${validation.composition[pos]}/${SQUAD_RULES.composition[pos]}`).join(" · ");
+  // To the tenth, as budgetLeftText does.
+  const tenths = Math.round(validation.budgetRemaining * 10);
   return (
-    <div className="pitch-status-line">
-      <span className={validation.squadComplete ? "value-positive" : "value-muted"}>
-        {validation.squadSize}/{SQUAD_RULES.squadSize} players
-      </span>
-      <span className={validation.budgetOk ? "value-muted" : "value-negative"} title={budgetHint}>
-        {fmtPrice(validation.budgetUsed)}/{fmtPrice(validation.budget)} ({budgetLeftText(validation.budgetRemaining)})
-      </span>
-      <span>
-        {COMPOSITION_ORDER.map((pos) => (
-          <span key={pos} className={validation.composition[pos] === SQUAD_RULES.composition[pos] ? "value-positive" : "value-muted"} style={{ marginRight: 8 }}>
-            {pos} {validation.composition[pos]}/{SQUAD_RULES.composition[pos]}
+    <div className="pitch-view-header">
+      <div className="pitch-view-heading">
+        <span className="pitch-view-title">{squadName}</span>
+        {xiSize > 0 && (
+          <span className="badge num" title={`Starting shape: ${xiSize} of ${SQUAD_RULES.startingXISize} starters (defenders-midfielders-forwards)`}>
+            {shape}
           </span>
-        ))}
-      </span>
-      {validation.clubViolations.length > 0 && (
-        <span className="value-negative">
-          {validation.clubViolations.map((v) => `${v.teamName} ${v.count}/${SQUAD_RULES.maxPerClub}`).join(", ")}
+        )}
+        <span className={`pitch-view-count num ${validation.squadComplete ? "value-positive" : "value-muted"}`} title={composition}>
+          {validation.squadSize}/{SQUAD_RULES.squadSize} players
         </span>
-      )}
+      </div>
+      <div className="pitch-view-tiles">
+        <div className="stat-tile" title={budgetHint}>
+          <span className="stat-tile-label">Squad value</span>
+          <span className="stat-tile-value num">{fmtPrice(validation.budgetUsed)}</span>
+        </div>
+        <div className="stat-tile" title={`${budgetLeftText(validation.budgetRemaining)} of ${fmtPrice(validation.budget)}. ${budgetHint}`}>
+          <span className="stat-tile-label">In the bank</span>
+          <span className={`stat-tile-value num${tenths < 0 ? " value-negative" : ""}`}>{tenths < 0 ? `−${fmtPrice(-tenths / 10)}` : fmtPrice(Math.max(0, tenths) / 10)}</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -82,6 +149,7 @@ function pitchCardRanks(ranks: PitchColourRanks, id: number): PitchCardRanks {
 function PlayerCard({
   player,
   zone,
+  view,
   isCaptain,
   isViceCaptain,
   isPickable,
@@ -98,6 +166,7 @@ function PlayerCard({
 }: {
   player: NormalizedPlayer;
   zone: "pitch" | "bench";
+  view: KitView;
   isCaptain: boolean;
   isViceCaptain: boolean;
   isPickable: boolean;
@@ -127,10 +196,31 @@ function PlayerCard({
     const phrase = playerRankHint(rank, player.position);
     return phrase ? `${text}\n${phrase}` : text;
   };
-  const tintStyle = (rank: number | undefined) => {
-    const tint = percentileTint(rank);
-    return tint ? { backgroundImage: `linear-gradient(${tint}, ${tint})` } : undefined;
-  };
+  const noMatch = `No match at GW+${gwOffset}`;
+  const figure: { text: string; title: string; rank: number | undefined } | null =
+    view === "fpl"
+      ? {
+          text: displayPoints !== null ? fmtDecimal(displayPoints, 1) : DASH,
+          title: target ? `FPL's expected points${versusText(target)}${isCaptain ? " (captain ×2)" : ""}` : noMatch,
+          rank: ranks.points,
+        }
+      : view === "model"
+        ? {
+            text: displayModelPredicted !== null ? fmtDecimal(displayModelPredicted, 1) : DASH,
+            title: modelBreakdown ? modelBreakdownHint(modelBreakdown, target, isCaptain) : target ? "Scoutline's model has no figure: there's no playing-time estimate for him" : noMatch,
+            rank: ranks.model,
+          }
+        : view === "price"
+          ? { text: fmtPrice(player.price), title: `${fmtPrice(player.price)} today`, rank: ranks.price }
+          : view === "ownership"
+            ? { text: fmtPercent(player.ownership, 1), title: `Owned by ${fmtPercent(player.ownership, 1)} of FPL managers`, rank: ranks.ownership }
+            : view === "reliability"
+              ? {
+                  text: reliability !== null ? fmtPercent(reliability * 100, 0) : DASH,
+                  title: reliability !== null ? `Expected to play about ${fmtPercent(reliability * 100, 0)} of each match` : "No playing-time estimate for him",
+                  rank: ranks.reliability,
+                }
+              : null;
 
   return (
     <div
@@ -163,8 +253,9 @@ function PlayerCard({
           onRemove(player.id);
         }}
         title={`Remove ${player.name} from the squad`}
+        aria-label={`Remove ${player.name} from the squad`}
       >
-        ×
+        <CloseIcon size={10} />
       </button>
       {isCaptain && (
         <span className="pitch-card-armband" title="Captain">
@@ -176,11 +267,7 @@ function PlayerCard({
           V
         </span>
       )}
-      <div className="pitch-card-jersey">
-        <span className="pitch-card-jersey-position">
-          <PositionBadge position={player.position} />
-        </span>
-      </div>
+      <Kit club={{ id: player.teamId, shortName: player.teamShortName }} goalkeeper={player.position === "GKP"} title={player.teamName} />
       <div className="pitch-card-plate">
         <div
           className="pitch-card-name"
@@ -191,32 +278,31 @@ function PlayerCard({
           <span className={availabilityTextClass(player.status)}>{player.name}</span>
           <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />
         </div>
-        <div className="pitch-card-team">{player.teamShortName}</div>
+        {figure ? (
+          <div className="pitch-card-info">
+            <span className="pitch-card-figure num" style={{ background: percentileTint(figure.rank) }} title={withRank(figure.title, figure.rank)}>
+              {figure.text}
+            </span>
+            <FixturePill fixture={target} gwOffset={gwOffset} />
+          </div>
+        ) : (
+          <FixtureTicker fixtures={fixtures} selected={gwOffset - 1} />
+        )}
       </div>
-      <div className="pitch-card-points" style={tintStyle(ranks.points)} title={withRank(target ? `FPL's expected points${versusText(target)}${isCaptain ? " (captain ×2)" : ""}` : `No match at GW+${gwOffset}`, ranks.points)}>
-        {displayPoints !== null ? fmtDecimal(displayPoints, 1) : DASH} <span className="pitch-card-points-label">pts</span>
-      </div>
-      <div
-        className="pitch-card-model-points"
-        style={tintStyle(ranks.model)}
-        title={withRank(modelBreakdown ? modelBreakdownHint(modelBreakdown, target, isCaptain) : target ? "Scoutline's model has no figure: there's no playing-time estimate for him" : `No match at GW+${gwOffset}`, ranks.model)}
-      >
-        Model {displayModelPredicted !== null ? fmtDecimal(displayModelPredicted, 1) : DASH}
-      </div>
-      <div className="pitch-card-meta">
-        <span className="pitch-card-stat" style={tintStyle(ranks.price)} title={withRank(`${fmtPrice(player.price)} today`, ranks.price)}>
-          {fmtPrice(player.price)}
-        </span>
-        <span className="pitch-card-stat" style={tintStyle(ranks.ownership)} title={withRank(`Owned by ${fmtPercent(player.ownership, 1)} of FPL managers`, ranks.ownership)}>
-          {fmtPercent(player.ownership, 1)}
-        </span>
-        <span className="pitch-card-reliability" title={withRank(reliability !== null ? `Expected to play about ${fmtPercent(reliability * 100, 0)} of each match` : "No playing-time estimate for him", ranks.reliability)}>
-          <span className="reliability-dot" style={{ background: percentileColour(ranks.reliability) }} />
-          {reliability !== null ? fmtPercent(reliability * 100, 0) : DASH}
-        </span>
-      </div>
-      <FixtureTicker fixtures={fixtures} />
     </div>
+  );
+}
+
+/** <open_slots>: an empty place, on the pitch or the bench. Picking it lists that position in Add Players; a player dragged onto it lands there. */
+function OpenSlot({ position, onAdd }: { position: Position; onAdd: (position: Position) => void }) {
+  const label = `Add a ${POSITION_NOUN[position][0]}: lists ${POSITION_NOUN[position][1]} in Add Players`;
+  return (
+    <button type="button" className="pitch-slot-open" onClick={() => onAdd(position)} title={label} aria-label={label}>
+      <span className="pitch-slot-plus" aria-hidden="true">
+        <PlusIcon size={16} />
+      </span>
+      <span className="pitch-slot-label">{position}</span>
+    </button>
   );
 }
 
@@ -225,6 +311,7 @@ export function SquadPitch({
   squadValidation,
   positionGroups,
   benchPlayers,
+  openSlots,
   captainId,
   viceCaptainId,
   expectedPointsByPlayerId,
@@ -242,6 +329,7 @@ export function SquadPitch({
   onAddToPitch,
   onBench,
   onRemove,
+  onAddSlot,
   onClearSquad,
   warning,
   hasSquad,
@@ -251,6 +339,8 @@ export function SquadPitch({
   squadValidation: SquadValidation;
   positionGroups: Record<Position, NormalizedPlayer[]>;
   benchPlayers: NormalizedPlayer[];
+  /** The empty places still to fill (<open_slots>). */
+  openSlots: OpenSlots;
   captainId: number | null;
   viceCaptainId: number | null;
   expectedPointsByPlayerId: Map<number, number | null>;
@@ -260,8 +350,8 @@ export function SquadPitch({
   colourRanks: PitchColourRanks;
   fixturesByTeamId: Map<number, UpcomingFixture[]>;
   /** Which of the squad's next 1-5 upcoming fixtures both Exp. Pts figures currently estimate — 1 = the very next fixture. Same "next N fixtures" unit used throughout this app, not a calendar gameweek number (a blank gameweek has no fixture to select). */
-  gwOffset: 1 | 2 | 3 | 4 | 5;
-  onGwOffsetChange: (offset: 1 | 2 | 3 | 4 | 5) => void;
+  gwOffset: GwOffset;
+  onGwOffsetChange: (offset: GwOffset) => void;
   captainPickMode: "captain" | "viceCaptain" | null;
   onCaptainTileClick: (role: "captain" | "viceCaptain") => void;
   onPlayerCardClick: (playerId: number) => void;
@@ -270,6 +360,8 @@ export function SquadPitch({
   onAddToPitch: (draggedId: number) => void;
   onBench: (draggedId: number) => void;
   onRemove: (id: number) => void;
+  /** An open slot was picked: list that position in Add Players. */
+  onAddSlot: (position: Position) => void;
   onClearSquad: () => void;
   /** A rejected drag/drop shows its reason here briefly (e.g. a club-limit breach). */
   warning: string | null;
@@ -280,14 +372,47 @@ export function SquadPitch({
 }) {
   const [pitchDragOver, setPitchDragOver] = useState(false);
   const [benchDragOver, setBenchDragOver] = useState(false);
+  // Per page, like every other view switch (<kit_view>).
+  const [view, setView] = useState<KitView>("fpl");
+
+  const card = (p: NormalizedPlayer, zone: "pitch" | "bench") => (
+    <PlayerCard
+      key={p.id}
+      player={p}
+      zone={zone}
+      view={view}
+      isCaptain={zone === "pitch" && p.id === captainId}
+      isViceCaptain={zone === "pitch" && p.id === viceCaptainId}
+      isPickable={zone === "pitch" && captainPickMode !== null}
+      expectedPoints={expectedPointsByPlayerId.get(p.id) ?? null}
+      modelBreakdown={modelBreakdownByPlayerId.get(p.id) ?? null}
+      reliability={reliabilityByPlayerId.get(p.id) ?? null}
+      ranks={pitchCardRanks(colourRanks, p.id)}
+      fixtures={fixturesByTeamId.get(p.teamId) ?? []}
+      gwOffset={gwOffset}
+      onDropOnCard={onSwap}
+      onRemove={onRemove}
+      onClick={onPlayerCardClick}
+      onViewProfile={onViewProfile}
+    />
+  );
+  // The bench in position order, goalkeeper first; each position's players before its open places.
+  const benchPlaces = COMPOSITION_ORDER.flatMap((pos) => [
+    ...benchPlayers.filter((p) => p.position === pos).map((p) => ({ position: pos, player: p })),
+    ...openSlots.bench.filter((b) => b === pos).map(() => ({ position: pos, player: null })),
+  ]);
 
   return (
     <div>
-      <div className="pitch-view-header">
-        <div>
-          <div className="pitch-view-title">{squadName}</div>
-          <SquadStatusLine validation={squadValidation} budgetHint={budgetHint} />
+      <SquadHeader squadName={squadName} validation={squadValidation} positionGroups={positionGroups} budgetHint={budgetHint} />
+      {squadValidation.clubViolations.length > 0 && (
+        <div className="banner error">
+          Over {SQUAD_RULES.maxPerClub} from one club: {squadValidation.clubViolations.map((v) => `${v.teamName} ${v.count}/${SQUAD_RULES.maxPerClub}`).join(", ")}
         </div>
+      )}
+      <div className="pitch-controls">
+        <SegmentedControl label="Show on kits" options={KIT_VIEW_OPTIONS} value={view} onChange={setView} />
+        <SegmentedControl label="Match" options={GW_OPTIONS} value={`${gwOffset}`} onChange={(v) => onGwOffsetChange(Number(v) as GwOffset)} />
         {hasSquad && (
           <div className="captain-tiles">
             <button
@@ -311,22 +436,6 @@ export function SquadPitch({
             </button>
           </div>
         )}
-      </div>
-      <div className="gw-navigator">
-        <span className="gw-navigator-label">Exp. Pts for:</span>
-        {([1, 2, 3, 4, 5] as const).map((offset) => (
-          <button
-            key={offset}
-            type="button"
-            className="chip"
-            aria-pressed={gwOffset === offset}
-            style={gwOffset === offset ? { borderColor: "var(--accent-positive)", color: "var(--accent-positive)" } : undefined}
-            onClick={() => onGwOffsetChange(offset)}
-            title={offset === 1 ? "Points for each player's next match" : `Points for each player's ${offset}${offset === 2 ? "nd" : offset === 3 ? "rd" : "th"} match from now (his own, so a blank gameweek is skipped)`}
-          >
-            GW+{offset}
-          </button>
-        ))}
       </div>
       {captainPickMode && (
         <p className="page-subtitle" style={{ marginTop: 0, marginBottom: 8 }}>
@@ -353,28 +462,13 @@ export function SquadPitch({
         <PitchMarkings />
         {PITCH_ROW_ORDER.map((pos) => {
           const players = positionGroups[pos];
-          if (players.length === 0) return null;
+          const open = openSlots.pitch[pos];
+          if (players.length === 0 && open === 0) return null;
           return (
             <div className="pitch-row" key={pos}>
-              {players.map((p) => (
-                <PlayerCard
-                  key={p.id}
-                  player={p}
-                  zone="pitch"
-                  isCaptain={p.id === captainId}
-                  isViceCaptain={p.id === viceCaptainId}
-                  isPickable={captainPickMode !== null}
-                  expectedPoints={expectedPointsByPlayerId.get(p.id) ?? null}
-                  modelBreakdown={modelBreakdownByPlayerId.get(p.id) ?? null}
-                  reliability={reliabilityByPlayerId.get(p.id) ?? null}
-                  ranks={pitchCardRanks(colourRanks, p.id)}
-                  fixtures={fixturesByTeamId.get(p.teamId) ?? []}
-                  gwOffset={gwOffset}
-                  onDropOnCard={onSwap}
-                  onRemove={onRemove}
-                  onClick={onPlayerCardClick}
-                  onViewProfile={onViewProfile}
-                />
+              {players.map((p) => card(p, "pitch"))}
+              {Array.from({ length: open }, (_, i) => (
+                <OpenSlot key={`open-${i}`} position={pos} onAdd={onAddSlot} />
               ))}
             </div>
           );
@@ -397,27 +491,15 @@ export function SquadPitch({
       >
         <div className="bench-label">Bench</div>
         <div className="bench-row">
-          {benchPlayers.map((p) => (
-            <PlayerCard
-              key={p.id}
-              player={p}
-              zone="bench"
-              isCaptain={false}
-              isViceCaptain={false}
-              isPickable={false}
-              expectedPoints={expectedPointsByPlayerId.get(p.id) ?? null}
-              modelBreakdown={modelBreakdownByPlayerId.get(p.id) ?? null}
-              reliability={reliabilityByPlayerId.get(p.id) ?? null}
-              ranks={pitchCardRanks(colourRanks, p.id)}
-              fixtures={fixturesByTeamId.get(p.teamId) ?? []}
-                  gwOffset={gwOffset}
-              onDropOnCard={onSwap}
-              onRemove={onRemove}
-              onClick={onPlayerCardClick}
-              onViewProfile={onViewProfile}
-            />
+          {benchPlaces.map((place, i) => (
+            <div className={`bench-slot${place.player ? "" : " is-open"}`} key={place.player?.id ?? `open-${place.position}-${i}`}>
+              <span className="bench-slot-position">
+                <PositionBadge position={place.position} />
+              </span>
+              {place.player ? card(place.player, "bench") : <OpenSlot position={place.position} onAdd={onAddSlot} />}
+            </div>
           ))}
-          {benchPlayers.length === 0 && (
+          {benchPlaces.length === 0 && (
             <p className="page-subtitle" style={{ margin: 0 }}>
               No bench players.
             </p>
