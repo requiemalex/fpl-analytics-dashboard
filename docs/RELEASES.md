@@ -5,6 +5,12 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.106.0 · 24 Oct 2026
+
+- Player profile: one Summary card of tiles replaces Underlying Numbers, Actual vs Expected and Value; Understat's Views open with their own Summary, chosen by position
+- Player and team profiles: Understat's colours load wherever a profile is opened, not only after a page that uses Understat
+- Understat shot maps: the map no longer runs under its figures panel, and sits a fixed 64px from it
+
 ## v1.105.0 · 24 Oct 2026
 
 - Player profile: a past season's Match Log says so when its matches don't add up to FPL's season total, giving both (Evan Ferguson's 2024/25 is missing a Brighton appearance in the archive)
