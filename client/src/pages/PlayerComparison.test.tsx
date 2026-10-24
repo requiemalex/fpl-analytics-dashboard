@@ -99,25 +99,28 @@ describe("PlayerComparison", () => {
     expect(container.querySelector('[aria-label^="Minimum minutes applied"]')).toBeNull();
   });
 
-  it("a custom card with no Min Minutes ranks everyone, a 45-minute cameo included", () => {
+  it("a custom card with no Min Minutes still marks a 45-minute cameo under the fixed floor, as Player Explorer and the Dashboard do (the owner's rule, 2026-10-24)", () => {
     storeView([{ id: "e1", kind: "outputs", name: "Now", dataView: "live", metricKeys: ["goals"], minMinutes: 0 }]);
     const { container } = renderPage("1,3");
     const panel = container.querySelector(".cmp-outputs") as HTMLElement;
-    expect(panel.querySelectorAll(".cmp-outputs-marker:not(.small-sample)")).toHaveLength(2);
-    expect(panel.closest(".card")!.querySelectorAll(".small-sample-badge")).toHaveLength(0);
+    expect(panel.querySelectorAll(".cmp-outputs-marker:not(.small-sample)")).toHaveLength(1);
+    expect(panel.querySelectorAll(".cmp-outputs-marker.small-sample")).toHaveLength(1);
+    const badge = panel.closest(".card")!.querySelector(".cmp-legend .small-sample-badge")!;
+    expect(badge.getAttribute("title")).toMatch(/^Small sample: 45 min in this mode, under the 90-minute floor/);
   });
 
   it("greys a player under the card's own Min Minutes, on that card only", () => {
     storeView([
-      { id: "e1", kind: "outputs", name: "Regulars", dataView: "live", metricKeys: ["goals"], minMinutes: 90 },
+      { id: "e1", kind: "outputs", name: "Regulars", dataView: "live", metricKeys: ["goals"], minMinutes: 520 },
       { id: "e2", kind: "outputs", name: "Everyone", dataView: "live", metricKeys: ["goals"], minMinutes: 0 },
     ]);
-    const { container } = renderPage("1,3");
+    // 540 and 500 minutes: both over Current Season's fixed floor.
+    const { container } = renderPage("1,4");
     const [regulars, everyone] = [...container.querySelectorAll<HTMLElement>(".cmp-outputs")];
     expect(regulars.querySelectorAll(".cmp-outputs-marker:not(.small-sample)")).toHaveLength(1);
     expect(regulars.querySelectorAll(".cmp-outputs-marker.small-sample")).toHaveLength(1);
     const badge = regulars.closest(".card")!.querySelector(".cmp-legend .small-sample-badge")!;
-    expect(badge.getAttribute("title")).toMatch(/^Below this card's Min Minutes: 45 min in this mode, under 90/);
+    expect(badge.getAttribute("title")).toMatch(/^Below this card's Min Minutes: 500 min in this mode, under 520/);
     expect(everyone.querySelectorAll(".cmp-outputs-marker:not(.small-sample)")).toHaveLength(2);
   });
 

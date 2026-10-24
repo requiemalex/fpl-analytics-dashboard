@@ -319,15 +319,19 @@ export function PlayerComparison() {
     const noPlayers = compared.length === 0 ? "Add players above to compare them here." : null;
 
     // Each compared player on one card: marked (amber badge, greyed, not
-    // drawn or ranked) when he's under the card's minimum — the fixed floor
-    // on Starter, the card's own Min Minutes elsewhere. Card by card: the
-    // same player can be greyed on one card and shown in full on another.
+    // drawn or ranked) when he's under the fixed floor, or under the card's
+    // own Min Minutes in a view the user builds — as Player Explorer and the
+    // Dashboard mark a player under the fixed floor whatever minimum is set
+    // (the owner's rule, 2026-10-24). Card by card: the same player can be
+    // greyed on one card and shown in full on another.
     function modeEntries(el: ComparisonElementConfig, mode: AnalysisMode, pool: ModePool | undefined): LegendEntry[] {
       return compared.map((c) => {
         const resolved = pool?.byId.get(c.player.id);
         // No minutes for the mode counts as 0 (<no_data_is_zero>), so a player with no data is under any minimum above 0.
-        const below = !!resolved && isUnderMinimum(resolved.minutes, readOnly ? fixedFloorMinutes(mode) : el.minMinutes);
-        const note = !below ? null : readOnly ? smallSampleNote(resolved!.minutes, mode) : belowMinimumNote(resolved!.minutes, el.minMinutes);
+        const underCard = !readOnly && !!resolved && isUnderMinimum(resolved.minutes, el.minMinutes);
+        const underFloor = !!resolved && isUnderMinimum(resolved.minutes, fixedFloorMinutes(mode));
+        const below = underCard || underFloor;
+        const note = underCard ? belowMinimumNote(resolved!.minutes, el.minMinutes) : underFloor ? smallSampleNote(resolved!.minutes, mode) : null;
         return {
           ...c,
           smallSampleNote: note,
@@ -336,9 +340,10 @@ export function PlayerComparison() {
       });
     }
 
-    function percentilesFor(el: ComparisonElementConfig, metric: ComparisonMetric, mode: AnalysisMode, pool: ModePool) {
+    // Ranked against everyone at or above the fixed floor, on every card, as every colour is (<comparative_colouring>).
+    function percentilesFor(metric: ComparisonMetric, mode: AnalysisMode, pool: ModePool) {
       const targets = compared.map((c) => pool.byId.get(c.player.id)).filter((p): p is NormalizedPlayer => !!p);
-      return comparisonPercentiles(metric, pool.resolved, pool.derivedById, targets, readOnly ? fixedFloorMinutes(mode) : el.minMinutes);
+      return comparisonPercentiles(metric, pool.resolved, pool.derivedById, targets, fixedFloorMinutes(mode));
     }
 
     function valueFor(metric: ComparisonMetric, pool: ModePool, id: number): number | null {
@@ -359,7 +364,8 @@ export function PlayerComparison() {
         if (!trend) return { el, kind: "unavailable", sourceOff: sourceOff(el.metricKeys[0] ?? "", ext) };
         const metric = trend.display;
         const message = noPlayers ?? (historicStatus !== "ready" ? historicMessage : null) ?? (trend.source ? (externalLoadMessage(trend.source) ?? null) : null);
-        const minMinutes = readOnly ? FIXED_FLOOR_MINUTES : el.minMinutes;
+        // A season under the fixed floor is marked on every card, and one under the card's own Min Minutes where that's higher.
+        const minMinutes = readOnly ? FIXED_FLOOR_MINUTES : Math.max(el.minMinutes, FIXED_FLOOR_MINUTES);
         const rows = message ? [] : buildSeasonTrend(compared.map((c) => c.player.id), trend.metric, allTimeSeasonsByPlayerId, minMinutes, trend.seasonValue);
         const entries: LegendEntry[] = compared.map((c) => ({ ...c, absent: !rows.some((r) => typeof r[trendDataKey(c.player.id)] === "number") }));
         return {
@@ -406,7 +412,7 @@ export function PlayerComparison() {
 
       if (el.kind === "radar") {
         const axes: RadarAxisValues[] = resolved.map(({ metric, format, source }) => {
-          const percentiles = percentilesFor(el, metric, mode, pool);
+          const percentiles = percentilesFor(metric, mode, pool);
           return {
             key: metric.key,
             label: metric.label,
@@ -580,7 +586,7 @@ export function PlayerComparison() {
         key={el.id}
         {...common}
         floorNote={card.floorNote}
-        // A season under the card's minimum is marked on the plot (trendBelowKey).
+        // A season under the card's threshold is marked on the plot (trendBelowKey).
         floorActive={card.rows.some((r) => card.entries.some((e) => typeof r[trendBelowKey(e.player.id)] === "number"))}
         sourceControls={card.sourceControls}
         source={card.source}
