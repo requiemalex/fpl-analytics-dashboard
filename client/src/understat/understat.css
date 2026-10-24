@@ -27,9 +27,12 @@ table.data-table th.col-source-understat,
    the zones' text is in metres, so it scales with the map — which fills
    its column of the card body below, capped at --graph-max so that text
    stays near the app's own sizes. The fill stops at 60% violet so the
-   light text on it stays readable. */
+   light text on it stays readable. The map is a <figure>, so the
+   browser's own margin (40px a side) is cleared: it would push the map
+   out of its column, under the figures beside it. */
 .shot-map {
   width: 100%;
+  margin: 0;
 }
 .shot-map svg {
   display: block;
@@ -118,7 +121,7 @@ table.data-table th.col-source-understat,
   grid-template-columns: minmax(0, var(--graph-max)) var(--figures-width);
   justify-content: center;
   align-items: start;
-  gap: var(--space-6);
+  gap: var(--space-16);
   max-width: none;
 }
 .shot-stats {
