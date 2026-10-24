@@ -1,12 +1,29 @@
 import React from "react";
 import type { ExternalMatchColumn, ExternalProfiles, ProfileView } from "../extensions/externalStats";
-import { DASH, fmtDecimal, fmtPercent } from "../utils/format";
+import { DASH, fmtDecimal, fmtPercent, fmtSigned } from "../utils/format";
 import { percentileTint } from "../utils/colorScale";
 import { sumKnown, type PartialSum } from "../metrics/partialTotals";
 import { withCoverage } from "../components/primitives";
 import { SmallSampleBadge } from "../components/MinutesFloorBadge";
+import { ProfileSummary, type SummaryGroup } from "../components/playerProfile/ProfileSummary";
+import { countDecimals } from "../components/playerColumns";
 import type { Position } from "../types/normalized";
-import { clubLogRanks, clubShotRanks, floorFor, leagueChanceRank, playerLogRanks, playerShotRanks, playerFacedRanks, playerShotsEligible, type FacedPart, type UsComparisonContext } from "./comparisons";
+import type { AnalysisMode } from "../metrics/resolvePlayerStats";
+import {
+  clubLogRanks,
+  clubShotRanks,
+  floorFor,
+  leagueChanceRank,
+  playerLogRanks,
+  playerShotRanks,
+  playerFacedRanks,
+  playerShotsEligible,
+  playerSummaryRanks,
+  type FacedPart,
+  type UsComparisonContext,
+} from "./comparisons";
+import { sumPlayerSeasons } from "./resolve";
+import { US_SUMMARY_FIGURES, usSummaryGroups, type UsSummaryFigure, type UsSummaryKey } from "./summary";
 import type { UsClubTotals, UsPlayerTotals, UsSlice } from "./schema";
 import type { DetailLoad, UsClubSeasonDetail, UsPlayerSeasonDetail, UsShot } from "./profileData";
 import { isBeyondMap, ShotMap, SHOT_MAP_DEPTH } from "./ShotMap";
@@ -291,6 +308,48 @@ export function createProfiles(
     return load?.state === "ready" ? load.detail : null;
   };
 
+  /**
+   * A player's Summary card for the view's seasons, from Understat's season
+   * summaries (summary.ts), coloured against his position (comparisons.ts
+   * playerSummaryRanks). `state` "none": Understat has no row for him in
+   * any of them.
+   */
+  const summaryCard = (
+    code: number,
+    seasons: string[],
+    mode: AnalysisMode,
+    position: Position,
+    smallSampleNote: string | null,
+  ): { card: React.ReactNode; state: "loading" | "none" | "ready" } => {
+    if (!compare) return { card: <StatusCard title="Summary" wide>Loading…</StatusCard>, state: "loading" };
+    const own = sumPlayerSeasons(seasons.flatMap((s) => {
+      const row = compare.seasons.get(s)?.players.get(code);
+      return row ? [row] : [];
+    }));
+    if (!own) return { card: <StatusCard title="Summary" wide>No Understat record for this view ({DASH}).</StatusCard>, state: "none" };
+    const groups = usSummaryGroups(position);
+    const figure = (key: UsSummaryKey): UsSummaryFigure => US_SUMMARY_FIGURES[key];
+    const ranks = playerSummaryRanks(
+      compare,
+      code,
+      seasons,
+      own,
+      groups.flatMap((g) => g.keys).map((key) => ({ key, higherIsBetter: figure(key).higherIsBetter, rank: figure(key).rankBy ?? figure(key).value })),
+    );
+    const format = (f: UsSummaryFigure, v: number | null) => (f.kind === "signed" ? fmtSigned(v, 2) : fmtDecimal(v, f.kind === "count" ? countDecimals(mode) : 2));
+    const summaryGroups: SummaryGroup[] = groups.map((g) => ({
+      title: g.title,
+      figures: g.keys.map((key) => {
+        const f = figure(key);
+        return { label: f.label, value: format(f, f.value(own)), percentile: ranks[key], title: f.title };
+      }),
+    }));
+    return {
+      card: <ProfileSummary groups={summaryGroups} position={position} badge={smallSampleNote ? <SmallSampleBadge note={smallSampleNote} /> : null} />,
+      state: "ready",
+    };
+  };
+
   return {
     requestPlayer: request.player,
     requestClub: request.club,
@@ -379,23 +438,34 @@ export function createProfiles(
     },
 
     playerCards(code, view, position) {
-      // Shots taken for every outfield player; shots faced for defenders and goalkeepers (owner's decision, 2026-10-21) —
-      // a goalkeeper's own shots are next to none, so his map is the shots he faced alone.
+      // The Summary (summary.ts), then the shot maps: shots taken for every outfield player; shots faced for defenders and
+      // goalkeepers (owner's decision, 2026-10-21) — a goalkeeper's own shots are next to none, so his map is the shots he
+      // faced alone. The same order as FPL's Views: Summary, then the graphs.
       const taken = position !== "GKP";
       const facing = position === "GKP" || position === "DEF";
       const title = taken && facing ? "Shot Maps" : taken ? "Shot Map · Taken" : "Shot Map · Faced";
-      if (view.seasons === null) return <StatusCard title={title} wide>Loading…</StatusCard>;
-      if (view.seasons.length === 0) return <StatusCard title={title} wide>No seasons in this view.</StatusCard>;
-      const got = gather<UsPlayerSeasonDetail>(loads, view.seasons.map((s) => playerKey(code, s)));
-      if (got.state === "loading") return <StatusCard title={title} wide>Loading…</StatusCard>;
-      if (got.state === "error") return <StatusCard title={title} wide>Couldn't load Understat's shots.</StatusCard>;
-      if (got.details.length === 0) return <StatusCard title={title} wide>No Understat record for this view ({DASH}).</StatusCard>;
-      const n = got.details.length;
-      const label = seasonsLabel(view, n);
+      if (view.seasons === null) return <StatusCard title="Summary" wide>Loading…</StatusCard>;
+      if (view.seasons.length === 0) return <StatusCard title="Summary" wide>No seasons in this view.</StatusCard>;
       const smallSampleNote =
         compare && !playerShotsEligible(compare, code, view.seasons)
           ? `Small sample: under ${floorFor(compare, view.seasons[view.seasons.length - 1])} of Understat's minutes in ${view.seasons.length > 1 ? "every season here" : "this season"}, so these figures have no colours.`
           : null;
+      const got = gather<UsPlayerSeasonDetail>(loads, view.seasons.map((s) => playerKey(code, s)));
+      const summary = summaryCard(code, view.seasons, view.mode, position, smallSampleNote);
+      const mapStatus = (text: React.ReactNode) => (
+        <>
+          {summary.card}
+          <StatusCard title={title} wide>
+            {text}
+          </StatusCard>
+        </>
+      );
+      if (got.state === "loading") return mapStatus("Loading…");
+      if (got.state === "error") return mapStatus("Couldn't load Understat's shots.");
+      // Nothing from Understat for this view at all: the Summary says so, once.
+      if (got.details.length === 0) return summary.state === "none" ? summary.card : mapStatus(<>No Understat record for this view ({DASH}).</>);
+      const n = got.details.length;
+      const label = seasonsLabel(view, n);
       let takenCard: React.ReactNode = null;
       if (taken) {
         const shots = got.details.flatMap((d) => d.shots);
@@ -453,6 +523,7 @@ export function createProfiles(
       }
       return (
         <>
+          {summary.card}
           {takenCard}
           {facedCard}
         </>

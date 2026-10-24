@@ -111,7 +111,13 @@ export function UnderstatGuide() {
         </li>
         <li>
           <strong>In the profiles</strong>, an <span style={{ color: "var(--col-understat)" }}>Understat · Views</span> section follows
-          the profile's Data View. A <strong>Shot Map</strong> splits the last 35 metres into zones (the six-yard box, the middle
+          the profile's Data View. It opens with a <strong>Summary</strong> of the Understat figures that matter most for his
+          position, as tiles coloured against his position: a goalkeeper's shots faced while he was on the pitch (xGC, shots and
+          shots on target, each in total and per game, fewer better); a defender's shots faced and attacking figures (xG, xA, xGI
+          and each per game); a midfielder's attacking and creating figures (key passes, xGChain, xGBuildup); a forward's
+          attacking and shooting figures (shots, non-penalty xG and goals). Outfielders also get Actual vs Expected (goals,
+          assists and non-penalty goals against their expected figures), beside creating per game for defenders and forwards and
+          shooting per game for midfielders. A <strong>Shot Map</strong> splits the last 35 metres into zones (the six-yard box, the middle
           and sides of the penalty area, wide of it, the edge of the box and further out): each zone shows its share of the shots,
           how many shots that was (a season, in Historic Average) and their average xG, and is shaded darker the more shots came
           from there. Hover a zone for its goals too; shots from further out get a band of their own along the bottom. Midfielders

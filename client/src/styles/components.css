@@ -1149,16 +1149,37 @@ select:focus {
     grid-template-columns: minmax(0, 1fr);
   }
 }
-/* Two tile groups side by side in one card (Underlying Numbers for a
-   defender or midfielder: Defensive | Offensive). */
-.stat-groups {
+/* The player profile's Summary card (ProfileSummary.tsx): titled groups of
+   tiles on one six-column grid. A group of 6 fills a row, a group of 3
+   half of one; the groups' gap is the tiles' gap, so every tile is the
+   same width and the columns line up down the card. Three columns on a
+   narrow screen, where every group takes whole rows. */
+.summary-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-6);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-2);
 }
-@media (max-width: 700px) {
-  .stat-groups {
-    grid-template-columns: minmax(0, 1fr);
+.summary-group {
+  grid-column: span 3;
+  min-width: 0;
+}
+.summary-group.is-full {
+  grid-column: 1 / -1;
+}
+.summary-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.summary-group.is-full .summary-tiles {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+@media (max-width: 900px) {
+  .summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .summary-group.is-full .summary-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 .stat-group-title {
@@ -1216,45 +1237,6 @@ select:focus {
   margin: 28px 0;
 }
 
-/* Actual vs Expected bars */
-.avx-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.avx-row {
-  display: grid;
-  grid-template-columns: 130px 1fr 60px;
-  align-items: center;
-  gap: 10px;
-}
-.avx-label {
-  font-size: 12.5px;
-  color: var(--text-secondary);
-}
-.avx-track {
-  height: 8px;
-  border-radius: 4px;
-  background: var(--surface-raised);
-  overflow: hidden;
-}
-.avx-fill {
-  display: block;
-  height: 100%;
-  border-radius: 4px;
-  background: var(--text-muted);
-}
-.avx-fill.positive {
-  background: var(--accent-positive);
-}
-.avx-fill.negative {
-  background: var(--accent-negative);
-}
-.avx-value {
-  text-align: right;
-  font-size: 12.5px;
-}
-
 /* Icon + text side by side (Playing Time card) — the gauge stays the
    at-a-glance summary (color tier, tooltip with the full sentence), the
    text next to it spells out the two numbers behind it so the card reads
@@ -1293,9 +1275,12 @@ select:focus {
   color: var(--text-muted);
 }
 
-/* Stacked label-above-value tiles (Underlying Numbers, Value) — StatBlock's
-   side-by-side label/value only has room to breathe in a full-width card;
-   these sit 3-up in a narrow column instead. */
+/* Stacked label-above-value tiles (the player profile's Summary, the Team
+   Profile's Season Totals). Every tile has the raised surface, so the grid
+   reads as tiles whether a figure is coloured or not (in the middle of its
+   pool, under the floor, or with comparative colouring off); its
+   comparative colour (--tile-tint, ProfileSummary.tsx tileTint) is laid
+   over that surface. */
 .stat-tile-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1305,8 +1290,10 @@ select:focus {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 4px 6px;
+  min-width: 0;
+  padding: 6px 8px;
   border-radius: 6px;
+  background: linear-gradient(var(--tile-tint, transparent), var(--tile-tint, transparent)), var(--surface-raised);
 }
 .stat-tile-label {
   font-size: 11px;

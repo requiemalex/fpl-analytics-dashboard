@@ -485,20 +485,23 @@ export function UserGuide() {
 
       <Section id="player-profile" title="Player Profile">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Click a player's name almost anywhere to open it (or Tab to it and press Enter); × or Escape closes it. The "FPL · Views" zone (Actual vs Expected,
-          Underlying Numbers, Percentile Radar, Value) follows the analysis mode; Points History, the Match Log and Playing Time
+          Click a player's name almost anywhere to open it (or Tab to it and press Enter); × or Escape closes it. The "FPL · Views" zone (Summary and
+          Percentile Radar) follows the analysis mode; Points History, the Match Log and Playing Time
           don't. Section headings are coloured by where their figures come from: green for FPL, violet for Understat, and rose for
           the Match Log when it holds both. The Percentile Radar is position-specific: defenders and midfielders get Defense and Offense radars, goalkeepers
-          and forwards one combined radar. Underlying Numbers and Value are coloured green/red against his position.
-          Goalkeepers get no Defensive Contribution tiles, since FPL's defensive contributions exclude them. In tables, a figure
+          and forwards one combined radar. The <strong>Summary</strong> gives every figure as a tile, in groups: Defensive (for
+          defenders, midfielders and goalkeepers), Offensive (for defenders, midfielders and forwards), then Actual vs Expected
+          (goals, assists and goal involvements against their expected figures) beside Value. Each tile is coloured green/red
+          against his position; for Actual vs Expected, doing better than expected is greener. Goalkeepers get Saves and Saves/Game
+          instead of Defensive Contribution tiles, since FPL's defensive contributions exclude them. In tables, a figure
           a position can't have (a goalkeeper's Defensive Contributions, an outfielder's saves) is left blank, not 0. Defensive
           Contributions are a count of actions (for defenders clearances, blocks, interceptions and tackles; for midfielders and
           forwards recoveries too), not FPL points.
         </p>
         <p className="page-subtitle">
           The profile has no minutes setting, so its percentiles use the fixed floor (see Analysis modes): only players with 450+
-          minutes (90 in Current Season) are ranked. A player under it is a <em>small sample</em>: his radars, Underlying
-          Numbers and Value carry an amber stopwatch (hover for the figures) and nothing is coloured. If he has no figures in the chosen mode, the profile suggests
+          minutes (90 in Current Season) are ranked. A player under it is a <em>small sample</em>: his Summary and radars
+          carry an amber stopwatch (hover for the figures) and nothing is coloured. If he has no figures in the chosen mode, the profile suggests
           Data Views that do.
         </p>
         <p className="page-subtitle">

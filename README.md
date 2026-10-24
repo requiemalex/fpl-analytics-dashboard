@@ -389,8 +389,8 @@ grey. Two uses:
   not a club floor, which clubs don't have — so it's always grey).
 - **On an entry under one:** a row in Player Explorer, Team Building's Add
   Players and a Dashboard tile (`RowSmallSampleBadge`, no minutes counting
-  as 0); the profile's radar, Underlying Numbers and Value card titles for
-  a small sample; an under-floor season on the profile's Points History
+  as 0); the profile's Summary and radar card titles for a small sample
+  (FPL's and Understat's Summary alike); an under-floor season on the profile's Points History
   chart; the Match Log heading when the shown season is under the floor;
   the profile's Understat Shot Map · Taken title when he's under
   Understat's own floor for every season shown; a Player Comparison legend
@@ -752,11 +752,39 @@ without it leaves that season's Shots Faced uncoloured.
   counts only window seasons of 450+ FPL minutes, the profile's fixed
   floor; a club's only seasons it was in the league). A season Understat
   has nothing for (no link, didn't play) is left out, never counted as 0.
+  A profile asking for its Understat details also starts the season
+  summaries loading, so its Summary and colours work wherever it's
+  opened from, not only after a page that uses Understat has loaded them.
+  - **Summary** (`summary.ts`, on the shared `ProfileSummary` card, first
+    in the section): the figures that matter most for his position, from
+    the season summaries over the view's seasons summed as a Data View's
+    (`sumPlayerSeasons`), each worked out exactly as the Explorer column of
+    the same name (`summary.test.ts` checks they agree). Groups of 6 are
+    three totals over the same three per game: **Defensive** (xGC, Shots
+    Faced, On Target Faced and each per game: his club's opponents' shots
+    while he was on the pitch, `<understat_player_xgc>`), **Offensive**
+    (xG, xA, xGI and each per game), **Shooting** (Shots, NPxG, NP Goals;
+    Shots, NPxG per game; NPxG/Shot), **Creating** (Key Passes, xGChain,
+    xGBuildup and each per game); and **Actual vs Expected** (Goals − xG,
+    Assists − xA, NP Goals − NPxG). By position (the choice made on the
+    owner's request, 2026-10-24): a goalkeeper Defensive only (all
+    Understat has on a keeper); a defender Defensive and Offensive, then
+    Actual vs Expected beside Creating's per-game half; a midfielder
+    Offensive and Creating, then Actual vs Expected beside Shooting's
+    per-game half; a forward Offensive and Shooting, then Actual vs
+    Expected beside Creating's per-game half. Coloured within his position
+    (`playerSummaryRanks`): each other player's figure from his own rows
+    for the view's seasons he reaches Understat's floor in, summed the same
+    way; fewer is better for the shots-faced figures, whose totals rank per
+    game (as xGC's do); under the floor, no colour and the amber stopwatch.
+    With nothing from Understat for the view at all, the Summary says so
+    and no shot-map card repeats it.
   - **Shot Maps** (`ShotMap.tsx`): with its figures in a panel beside it
     (under it on narrow screens), in the same graph-and-figures layout as
     the Formations card (`.shot-card-body`): the graph fills its column up
-    to 760px, the panel always the same gap from it, the pair centred in
-    the card. The zones' text scales with the map, so the cap keeps it
+    to 760px, the panel always the same gap from it (64px), the pair
+    centred in the card. The map is a `<figure>`, whose browser margin is
+    cleared so it stays in its column. The zones' text scales with the map, so the cap keeps it
     near the app's own text sizes. Headed by the season or "Per
     season · n seasons". Which maps: a midfielder or forward gets **Shot
     Map · Taken**; a defender gets Taken and **Shot Map · Faced** (his
@@ -1384,11 +1412,26 @@ Views if mounted, then "FPL · Points History" and the **Match Log**
 Section headings use the colour index
 (`.profile-section-heading.col-source-*`), and so do the Match Log's
 headers (FPL green). Cards sit on `.profile-grid`, two columns laid out
-row by row (`.profile-span-2` for a full-width card): a defender or
-midfielder gets both radars, Underlying Numbers across the width
-(Defensive | Offensive), then Actual vs Expected beside Value; a
-goalkeeper or forward the radar beside Actual vs Expected, then
-Underlying Numbers beside Value.
+row by row (`.profile-span-2` for a full-width card). Each source's Views
+open with a **Summary** card across the width, then its graphs: FPL's
+radars (a defender's or midfielder's two side by side, a goalkeeper's or
+forward's one across the width, the chart the same size, centred), a
+second source's own (Understat's shot maps). The Summary
+(`components/playerProfile/ProfileSummary.tsx`, the same card for both
+sources) is titled groups of label-above-value tiles on one six-column
+grid (`.summary-grid`): a group of 6 fills a row, two groups of 3 share
+one, every tile the same width so the columns line up; three columns on
+a narrow screen. Every tile has the raised surface and its comparative
+colour laid over it (`--tile-tint`), so an uncoloured figure never reads
+as a gap. FPL's groups: **Defensive** (Clean Sheets, xGC, Def. Contrib.,
+xGC/Game, DC/Game, BPS; a goalkeeper's Saves and Saves/Game where an
+outfielder's DC figures are, as FPL's DC points exclude goalkeepers),
+**Offensive** (xG, xA, xGI and each per game), then **Actual vs Expected**
+(Goals − xG, Assists − xA, Goal Inv. − xGI) beside **Value** (Pts/£m,
+PPG, Min/Goal). A defender or midfielder gets both Defensive and
+Offensive, a forward Offensive only, a goalkeeper Defensive only. Every
+tile is coloured by its rank within his position (Actual vs Expected
+too, over-performance better, as in the Explorers).
 The Match Log shows the live season unless a season is picked on Points
 History (each bar is a button; the picked one is outlined, and the live
 bar goes back); it never follows the Data View. A past season's rows come

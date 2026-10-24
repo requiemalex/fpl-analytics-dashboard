@@ -119,6 +119,11 @@ export interface UsPlayerResolved {
   seasons: number;
 }
 
+/** Season rows summed as a Data View's (the profile's Summary, over the view's seasons): null when there are none. */
+export function sumPlayerSeasons(rows: UsPlayerTotals[]): UsPlayerResolved | null {
+  return rows.length === 0 ? null : { totals: rows.reduce(addPlayers, zeroPlayer()), seasons: rows.length };
+}
+
 export interface PlayerResolveContext {
   data: EnabledData;
   historicProfiles: Map<number, HistoricPlayerProfile>;

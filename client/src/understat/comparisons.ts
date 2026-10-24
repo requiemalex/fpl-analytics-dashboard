@@ -3,6 +3,7 @@ import { FIXED_FLOOR_LIVE_MINUTES, FIXED_FLOOR_MINUTES } from "../metrics/fixedM
 import { rankAmong } from "../metrics/comparativeColour";
 import { perGame } from "../metrics/calculations";
 import type { UsClubTotals, UsPlayerTotals, UsSeason } from "./schema";
+import { sumPlayerSeasons, type UsPlayerResolved } from "./resolve";
 
 /**
  * <comparative_colouring> for Understat figures on the profiles (the same
@@ -163,6 +164,49 @@ export function playerShotRanks(
   const rowsBySeason = seasons.map((s) => new Map(peers(ctx, code, s).filter(([, row]) => row.shotsComplete)));
   for (const f of figures) {
     out[f.key] = eligible ? rankAmong(f.shown, multiSeasonPool(rowsBySeason, f.get, f.perSeason), f.higherIsBetter) : null;
+  }
+  return out;
+}
+
+/**
+ * A player's profile Summary figures (summary.ts) ranked within his
+ * position over the view's seasons: each other player's from his own rows
+ * for the seasons of the view he reaches the floor in, summed as a Data
+ * View's (sumPlayerSeasons) — so worked out exactly as the player's own,
+ * a count per season, a rate from the totals. `rank`: what the figure
+ * ranks on (null where it's unknown, which leaves that player out). Null
+ * for every figure when the player is under the floor in all of them.
+ */
+export function playerSummaryRanks(
+  ctx: UsComparisonContext,
+  code: number,
+  seasons: string[],
+  own: UsPlayerResolved,
+  figures: { key: string; higherIsBetter: boolean; rank: (r: UsPlayerResolved) => number | null }[],
+): Record<string, number | null> {
+  const out: Record<string, number | null> = {};
+  const eligible = playerShotsEligible(ctx, code, seasons);
+  const rowsByPeer = new Map<number, UsPlayerTotals[]>();
+  if (eligible) {
+    for (const s of seasons) {
+      for (const [c, row] of peers(ctx, code, s)) rowsByPeer.set(c, [...(rowsByPeer.get(c) ?? []), row]);
+    }
+  }
+  const pool = [...rowsByPeer.values()].flatMap((rows) => {
+    const r = sumPlayerSeasons(rows);
+    return r ? [r] : [];
+  });
+  for (const f of figures) {
+    out[f.key] = eligible
+      ? rankAmong(
+          f.rank(own),
+          pool.flatMap((r) => {
+            const v = f.rank(r);
+            return v !== null && Number.isFinite(v) ? [v] : [];
+          }),
+          f.higherIsBetter,
+        )
+      : null;
   }
   return out;
 }

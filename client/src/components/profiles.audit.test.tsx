@@ -247,6 +247,11 @@ function profiles(seasonsById: Record<number, PlayerSeasonHistory[]>) {
   return new Map(Object.entries(seasonsById).map(([id, seasons]) => [Number(id), buildHistoricPlayerProfile(seasons, "2025/26")]));
 }
 
+/** A Summary tile's comparative colour (ProfileSummary.tsx tileTint): "" when it has none. */
+function tileTintOf(label: HTMLElement): string {
+  return label.closest<HTMLElement>(".stat-tile")!.style.getPropertyValue("--tile-tint");
+}
+
 /** A CSS colour as jsdom stores it, so a rendered style can be compared with percentileTint's output. */
 function asRendered(css: string | undefined): string {
   const el = document.createElement("div");
@@ -308,13 +313,13 @@ describe("H1: the profile's percentiles use the fixed minutes floor", () => {
         <PlayerDetailOverlay />
       </MemoryRouter>,
     );
-    // No banner: the amber stopwatch on each card left uncoloured for it — both radars (Defense and Offense), Underlying Numbers and Value — explains on hover (<minutes_marker>).
+    // No banner: the amber stopwatch on each card left uncoloured for it — the Summary and both radars (Defense and Offense) — explains on hover (<minutes_marker>).
     const badges = getAllByLabelText(/^Small sample: 136 min in this mode, under the 450-minute floor/);
-    expect(badges.length).toBe(4);
-    expect(badges.map((b) => b.closest(".card-title")!.textContent)).toEqual(["Percentile Radar · Defense", "Percentile Radar · Offense", "Underlying Numbers", "Value"]);
+    expect(badges.length).toBe(3);
+    expect(badges.map((b) => b.closest(".card-title")!.textContent)).toEqual(["Summary", "Percentile Radar · Defense", "Percentile Radar · Offense"]);
     for (const b of badges) expect(b.getAttribute("title")).toBe(b.getAttribute("aria-label"));
     // No tint on any tile.
-    expect(asRendered(getByText("xG/Game").closest<HTMLElement>(".stat-tile")!.style.background)).toBe("");
+    expect(tileTintOf(getByText("xG/Game"))).toBe("");
   });
 
   it("a regular's percentile ignores the cameo: top of the two regulars (75th), not level with the middle behind a 136-minute sample", () => {
@@ -324,9 +329,8 @@ describe("H1: the profile's percentiles use the fixed minutes floor", () => {
         <PlayerDetailOverlay />
       </MemoryRouter>,
     );
-    const tile = getByText("xG/Game").closest<HTMLElement>(".stat-tile")!;
     // Among the two regulars, the higher is (1 + ½) ÷ 2 = 75th; counting the cameo it would be the 50th (no colour).
-    expect(tile.style.background).toBe(asRendered(percentileTint(75)));
+    expect(tileTintOf(getByText("xG/Game"))).toBe(percentileTint(75));
   });
 
   it("a player alone in his comparison pool has no colour: there's nobody to compare him with", () => {
@@ -336,7 +340,7 @@ describe("H1: the profile's percentiles use the fixed minutes floor", () => {
         <PlayerDetailOverlay />
       </MemoryRouter>,
     );
-    expect(getByText("xG/Game").closest<HTMLElement>(".stat-tile")!.style.background).toBe("");
+    expect(tileTintOf(getByText("xG/Game"))).toBe("");
   });
 
   it("the floor also applies in Current Season: 60 minutes is under one full match", () => {
@@ -510,7 +514,7 @@ describe("Player profile — Live Data details", () => {
     expect(queryByText("Tackles")).toBeNull();
   });
 
-  it("L4: a goalkeeper's Underlying Numbers have no Defensive Contribution tiles", () => {
+  it("L4: a goalkeeper's Summary has no Defensive Contribution tiles", () => {
     setApp([makePlayer({ id: 1, name: "Raya", position: "GKP", teamId: 1, minutes: 450 })]);
     const { queryByText, getByText } = render(
       <MemoryRouter initialEntries={["/players?player=1"]}>
@@ -520,6 +524,47 @@ describe("Player profile — Live Data details", () => {
     expect(getByText("xGC/Game")).toBeTruthy();
     expect(queryByText("Def. Contrib.")).toBeNull();
     expect(queryByText("DC/Game")).toBeNull();
+  });
+});
+
+describe("The FPL Summary: every figure of the Views as tiles, one card", () => {
+  const groupsIn = (container: HTMLElement) =>
+    [...container.querySelectorAll(".summary-group")].map((g) => [g.querySelector(".stat-group-title")!.textContent, g.querySelectorAll(".stat-tile").length]);
+
+  it.each([
+    ["DEF", [["Defensive", 6], ["Offensive", 6], ["Actual vs Expected", 3], ["Value", 3]]],
+    ["MID", [["Defensive", 6], ["Offensive", 6], ["Actual vs Expected", 3], ["Value", 3]]],
+    ["FWD", [["Offensive", 6], ["Actual vs Expected", 3], ["Value", 3]]],
+    ["GKP", [["Defensive", 6], ["Actual vs Expected", 3], ["Value", 3]]],
+  ] as const)("a %s: groups of 6 fill a row, the two groups of 3 share one", (position, groups) => {
+    setApp([makePlayer({ id: 1, name: "Player", position, teamId: 1, minutes: 900 })]);
+    const { container, queryByText } = render(
+      <MemoryRouter initialEntries={["/players?player=1"]}>
+        <PlayerDetailOverlay />
+      </MemoryRouter>,
+    );
+    expect(groupsIn(container)).toEqual(groups);
+    // One card: no separate Underlying Numbers, Actual vs Expected or Value cards, and no bars.
+    expect([...container.querySelectorAll(".card-title")].filter((t) => /Summary|Underlying|Actual|Value/.test(t.textContent ?? "")).map((t) => t.textContent)).toEqual(["Summary"]);
+    expect(container.querySelector(".avx-bars")).toBeNull();
+    // A goalkeeper's saves score him points where an outfielder's Defensive Contributions do.
+    expect(queryByText("Saves/Game") !== null).toBe(position === "GKP");
+  });
+
+  it("Actual vs Expected is coloured by rank within his position, over-performance better (no more sign-coloured bars)", () => {
+    // Last Completed Season, no goals: Goals − xG is −1.0 for Konsa and −0.5 for Mings, so Mings is the top of the two.
+    setApp([CAMEO, REGULAR, REGULAR_2], { historicProfiles: profiles(LAST_SEASON) });
+    const view = (id: number) =>
+      render(
+        <MemoryRouter initialEntries={[`/players?player=${id}`]}>
+          <PlayerDetailOverlay />
+        </MemoryRouter>,
+      );
+    const mings = view(3);
+    expect(mings.getByText("Goals − xG").nextSibling!.textContent).toBe("-0.50");
+    expect(tileTintOf(mings.getByText("Goals − xG"))).toBe(percentileTint(75));
+    cleanup();
+    expect(tileTintOf(view(2).getByText("Goals − xG"))).toBe(percentileTint(25));
   });
 });
 

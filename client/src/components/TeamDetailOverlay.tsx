@@ -32,6 +32,7 @@ import { fmtDecimal, fmtOrdinal, DASH } from "../utils/format";
 import { useExternalStats, type ProfileView } from "../extensions/externalStats";
 import { SourceToggle } from "./SourceToggle";
 import { CloseIcon } from "./IconToolbar";
+import { tileTint } from "./playerProfile/ProfileSummary";
 import type { ClubMatch, NormalizedTeam } from "../types/normalized";
 
 /**
@@ -103,7 +104,7 @@ export function matchLogSum(matches: ClubMatch[], value: (m: ClubMatch) => numbe
 /** Label-above-value tile — same visual language as the player profile's StatTile. `tint` is its comparative colour: the club ranked among every club (<comparative_colouring>). */
 function StatTile({ label, value, tint, title }: { label: string; value: React.ReactNode; tint?: string; title?: string }) {
   return (
-    <div className="stat-tile" style={tint ? { background: tint } : undefined} title={title}>
+    <div className="stat-tile" style={tileTint(tint)} title={title}>
       <span className="stat-tile-label">{label}</span>
       <span className="stat-tile-value num">{value}</span>
     </div>

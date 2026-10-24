@@ -3873,3 +3873,22 @@ tiles/graphs only:
   added on the FPL side. The figures themselves are all still available to
   build into your own views.
 - **Last commit with it:** `7ac51e0`.
+
+### Player profile's Underlying Numbers, Actual vs Expected and Value cards (replaced 2026-10-24)
+- **What it did:** the player profile's "FPL · Views" had three cards
+  beside the Percentile Radar(s): **Underlying Numbers** (stat tiles —
+  Defensive and Offensive groups for a defender or midfielder, the
+  offensive tiles for a forward, Clean Sheets, xGC, xGC/Game and xGI for a
+  goalkeeper), **Actual vs Expected** (Goals − xG, Assists − xA and Goal
+  Inv. − xGI as horizontal bars scaled to the largest of the three,
+  coloured green/red by sign, `components/playerProfile/ActualVsExpectedBars.tsx`)
+  and **Value** (Pts/£m, PPG, Min/Goal tiles). A goalkeeper's or forward's
+  radar sat beside Actual vs Expected.
+- **Why it went:** the owner found the three cards messy and disliked the
+  sliding bars (2026-10-24); they asked for one **Summary** card giving all
+  of it as tiles (`ProfileSummary.tsx`), now shared with Understat's Views.
+  The bars' sign colouring also broke the comparative-colouring rule
+  (green/red is rank within position); the Summary's Actual vs Expected
+  tiles are ranked like every other figure. A goalkeeper's lone xGI tile
+  went (always about 0 for a keeper); his Saves and Saves/Game joined.
+- **Last commit with it:** `6fc08d6`.

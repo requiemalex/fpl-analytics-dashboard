@@ -239,6 +239,7 @@ describe("Understat's shot maps: zones", () => {
         shots,
         shotsOnTarget: goals,
         shotsComplete: true,
+        bodyParts: { RightFoot: none, LeftFoot: none, Head: none, OtherBodyPart: none },
         situations: { OpenPlay: { shots: shots - penalties, goals: goals - penalties, xG: 3 }, FromCorner: none, SetPiece: none, DirectFreekick: none, Penalty: { shots: penalties, goals: penalties, xG: 0.76 * penalties } },
       }) as unknown as UsPlayerTotals;
     const compare: UsComparisonContext = {
@@ -315,6 +316,7 @@ describe("Understat's shot maps: who gets which", () => {
         shots: 0,
         shotsOnTarget: 0,
         shotsComplete: true,
+        bodyParts: { RightFoot: none, LeftFoot: none, Head: none, OtherBodyPart: none },
         situations: { OpenPlay: none, FromCorner: none, SetPiece: none, DirectFreekick: none, Penalty: none },
         facing: { shots: facedShots, shotsOnTarget: 0, complete: true, situations: { OpenPlay: { shots: facedShots, goals: 0, xG: facedShots * 0.1 }, FromCorner: none, SetPiece: none, DirectFreekick: none, Penalty: none } },
       }) as unknown as UsPlayerTotals;
@@ -349,7 +351,8 @@ describe("Understat's shot maps: who gets which", () => {
 
   it("says loading, and never shows a 0 for a season Understat has nothing for", () => {
     const loading = profilesWith([[playerKey(500, "2025/26"), { state: "loading" }]]);
-    expect(render(<>{loading.playerCards(500, { mode: "live", seasons: ["2025/26"] }, "MID")}</>).getByText("Loading…")).toBeTruthy();
+    // The Summary (its season summaries not loaded either) and the shot map.
+    expect(render(<>{loading.playerCards(500, { mode: "live", seasons: ["2025/26"] }, "MID")}</>).getAllByText("Loading…")).toHaveLength(2);
     cleanup();
     const none = profilesWith([[playerKey(500, "2025/26"), { state: "none" }]]);
     expect(render(<>{none.playerCards(500, { mode: "live", seasons: ["2025/26"] }, "MID")}</>).getByText(/No Understat record/)).toBeTruthy();
@@ -362,5 +365,64 @@ describe("Understat's shot maps: who gets which", () => {
     expect(getByText("Shot Map · Taken")).toBeTruthy();
     expect(getByText("Shot Map · Faced")).toBeTruthy();
     expect(queryByText(/Formation/)).toBeNull();
+  });
+});
+
+describe("Understat's Summary", () => {
+  const none = { shots: 0, goals: 0, xG: 0 };
+  const row = (minutes: number, xG: number) =>
+    ({
+      appearances: 10,
+      minutes,
+      goals: 2,
+      assists: 1,
+      shots: 20,
+      shotsOnTarget: 8,
+      keyPasses: 15,
+      xG,
+      xA: 1,
+      npxG: xG,
+      npGoals: 2,
+      xGChain: 5,
+      xGBuildup: 2,
+      shotsComplete: true,
+      bodyParts: { RightFoot: none, LeftFoot: none, Head: none, OtherBodyPart: none },
+      situations: { OpenPlay: { shots: 20, goals: 2, xG }, FromCorner: none, SetPiece: none, DirectFreekick: none, Penalty: none },
+      facing: { shots: 100, shotsOnTarget: 30, complete: true, situations: { OpenPlay: { shots: 100, goals: 10, xG: 9 }, FromCorner: none, SetPiece: none, DirectFreekick: none, Penalty: none } },
+    }) as unknown as UsPlayerTotals;
+  const compare = (mine: UsPlayerTotals): UsComparisonContext => ({
+    seasons: new Map([["2025/26", { season: "2025/26", complete: true, latestMatchDate: null, players: new Map([[500, mine], [2, row(1800, 3)], [3, row(1800, 1)]]), clubs: new Map() }]]),
+    liveSeason: "2026/27",
+    positionByCode: new Map([[500, "MID"], [2, "MID"], [3, "MID"]]),
+    clubCodeByPlayerCode: new Map(),
+  });
+  const view = { mode: "lastSeason" as const, seasons: ["2025/26"] };
+  const tintOf = (label: HTMLElement) => label.closest<HTMLElement>(".stat-tile")!.style.getPropertyValue("--tile-tint");
+  /** A Summary tile's label (the shot panel has some of the same names). */
+  const tile = (container: HTMLElement, label: string) => [...container.querySelectorAll<HTMLElement>(".stat-tile-label")].find((l) => l.textContent === label)!;
+
+  it("comes first, before the shot maps, with his position's groups, coloured within his position", () => {
+    const p = createProfiles(new Map([[playerKey(500, "2025/26"), playerDetail([])]]), noop, compare(row(1800, 5)));
+    const { container } = render(<>{p.playerCards(500, view, "MID")}</>);
+    expect([...container.querySelectorAll(".card > .card-title")].map((t) => t.textContent)).toEqual(["Summary", "Shot Map · Taken"]);
+    expect([...container.querySelectorAll(".stat-group-title")].map((t) => t.textContent)).toEqual(["Offensive", "Creating", "Actual vs Expected", "Shooting"]);
+    expect(tile(container, "xG").nextSibling!.textContent).toBe("5.00");
+    // The most xG of three: (2 + ½) ÷ 3.
+    expect(tintOf(tile(container, "xG"))).toBe(percentileTint((2.5 / 3) * 100));
+  });
+
+  it("under the floor: no colours, and the stopwatch on its title says why", () => {
+    const p = createProfiles(new Map([[playerKey(500, "2025/26"), playerDetail([])]]), noop, compare(row(300, 5)));
+    const { container, getByText } = render(<>{p.playerCards(500, view, "MID")}</>);
+    expect(tintOf(tile(container, "xG"))).toBe("");
+    expect(getByText("Summary").closest(".card-title")!.querySelector(".small-sample-badge")!.getAttribute("title")).toMatch(/^Small sample/);
+  });
+
+  it("nothing from Understat for the view: one card says so, not one per card", () => {
+    const empty: UsComparisonContext = { ...compare(row(1800, 5)), seasons: new Map() };
+    const p = createProfiles(new Map([[playerKey(500, "2025/26"), { state: "none" }]]), noop, empty);
+    const { getAllByText, container } = render(<>{p.playerCards(500, view, "DEF")}</>);
+    expect(getAllByText(/No Understat record/)).toHaveLength(1);
+    expect(container.querySelectorAll(".card")).toHaveLength(1);
   });
 });
