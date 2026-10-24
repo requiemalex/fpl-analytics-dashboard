@@ -427,11 +427,12 @@ export function UserGuide() {
           </li>
         </ul>
         <p className="page-subtitle">
-          <strong>Min Minutes</strong> is set per card you build (0 unless you set it). A player under it gets an amber stopwatch on
-          that card (hover for his minutes): he isn't drawn on a radar (radars rank only players who reach it), his Outputs
-          marker is the amber stopwatch and doesn't set the scale or tint the bar, and he can't be the best. On a Trends
-          graph, a season under it still shows his figure, but as the amber stopwatch rather than a dot. Starter cards use the fixed floor
-          instead (see Minimum minutes above).
+          <strong>Min Minutes</strong> is set per card you build (0 unless you set it). A player under it, or under the fixed floor
+          (see Minimum minutes above) whatever it's set to, gets an amber stopwatch on that card (hover for his minutes): he isn't
+          drawn on a radar (radars rank only players at or above the fixed floor), his Outputs marker is the amber stopwatch and
+          doesn't set the scale or tint the bar, and he can't be the best. On a Trends graph, a season under it still shows his
+          figure, but as the amber stopwatch rather than a dot; a season he didn't play gets the stopwatch too, on his dotted line
+          or along the bottom of the chart. Starter cards use the fixed floor alone.
         </p>
         <Try>Add two players you're deciding between and switch to Starter. If one leads on totals but the other on per-game rows, the first may just have played more.</Try>
       </Section>

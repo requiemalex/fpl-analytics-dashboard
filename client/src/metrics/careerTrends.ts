@@ -166,7 +166,8 @@ export function buildSeasonTrend(
       row[trendDataKey(id)] = played ? (seasonValue ? seasonValue(id, season) : trendValue(metric, season)) : null;
       if (!season) row[trendAwayKey(id)] = true;
       else if (!played) row[trendUnplayedKey(id)] = true;
-      if (played && season.minutes < minMinutes) row[trendBelowKey(id)] = season.minutes;
+      // A season he didn't play is under any minimum too (<no_data_is_zero>): marked, with no figure.
+      if (season && season.minutes < minMinutes) row[trendBelowKey(id)] = season.minutes;
     }
     return row;
   });

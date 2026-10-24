@@ -76,12 +76,13 @@ describe("buildSeasonTrend — 0-minute seasons (<no_minutes_no_figures>)", () =
     [2, [makeSeason({ seasonName: "2023/24", totalPoints: 50, minutes: 900 }), makeSeason({ seasonName: "2024/25", totalPoints: 0, minutes: 0 }), makeSeason({ seasonName: "2025/26", totalPoints: 90, minutes: 1500 })]],
   ]);
 
-  it("plots nothing for a season of 0 minutes, marked as one he didn't play, never under the minimum", () => {
+  it("plots nothing for a season of 0 minutes, marked as one he didn't play, and under any minimum above 0 (<no_data_is_zero>, the owner's rule, 2026-10-24)", () => {
     const rows = buildSeasonTrend([1], trendMetricByKey("totalPoints")!, career, 450);
     expect(rows[2][trendDataKey(1)]).toBeNull();
     expect(rows[2][trendUnplayedKey(1)]).toBe(true);
     expect(rows[2][trendAwayKey(1)]).toBeUndefined();
-    expect(rows[2][trendBelowKey(1)]).toBeUndefined();
+    expect(rows[2][trendBelowKey(1)]).toBe(0);
+    expect(buildSeasonTrend([1], trendMetricByKey("totalPoints")!, career, 0)[2][trendBelowKey(1)]).toBeUndefined();
   });
 
   it("does the same for minutes, and bridges a 0-minute season between two with figures", () => {

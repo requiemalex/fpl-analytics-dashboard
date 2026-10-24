@@ -1608,12 +1608,14 @@ green or red, which mean better and worse, nor a source's violet or rose).
   `minMinutes` (store v2; 0 by default), in every Data View. Each card
   with a threshold — Starter's, or its own above 0 — shows the amber
   stopwatch (`<minutes_marker>`). No
-  minutes counts as 0. Either way the threshold is per card: a player under
+  minutes counts as 0. A player under the fixed floor is marked on every
+  card, whatever its own Min Minutes (the owner's rule, 2026-10-24, as in
+  Player Explorer and the Dashboard). Either way the threshold is per card: a player under
   it gets the amber badge on that card, isn't drawn on a radar, gets a
   stopwatch for its Outputs marker (pinned to the end with ▸ when past the
   leader), doesn't set the Outputs scale or tint its bar, and can't be bold.
 - Radar percentiles are within position, among everyone at or above the
-  card's threshold (`comparisonPercentiles`, the same figure as
+  fixed floor on every card, as every colour is (`comparisonPercentiles`, the same figure as
   `computePositionPercentiles`), flipped for lower-is-better metrics.
 - An Outputs row is raw figures to scale: its bar runs from 0 to the
   highest figure among the ranked compared players, each marker at
@@ -1626,9 +1628,13 @@ green or red, which mean better and worse, nor a source's violet or rose).
   apart (`placeLabels`, sized from the mono font's fixed 0.6em width).
   The colour key sits under the panel, as under a radar.
 - Trends use the full unwindowed career (`allTimeSeasonsByPlayerId`,
-  completed seasons). A season under the card's threshold (855 on Starter)
-  still plots the real figure; its minutes are kept under `trendBelowKey`,
-  so its point is the amber small-sample stopwatch and the hover text adds the minutes.
+  completed seasons). A season under the card's threshold (the fixed floor,
+  855, or the card's own Min Minutes where higher) still plots the real
+  figure; its minutes are kept under `trendBelowKey`, so its point is the
+  amber small-sample stopwatch and the hover text adds the minutes. A
+  0-minute season is under it too (`<no_data_is_zero>`) but has no figure:
+  its stopwatch sits on the dotted line bridging it, or on the chart's
+  floor when nothing bridges it.
 
 **Team Explorer / Team Profile** (`pages/Teams.tsx`, `components/TeamDetailOverlay.tsx`) — club
 figures per "Club history" above. Club pills use real two-colour kits

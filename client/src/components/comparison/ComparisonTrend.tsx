@@ -51,7 +51,7 @@ function TrendTooltip({
             <div key={player.id} className="chart-tooltip-row">
               <span className="cmp-legend-swatch" style={{ background: color }} />
               <span>{player.name}</span>
-              <span className="cmp-trend-away">Didn't play this season</span>
+              <span className="cmp-trend-away cmp-trend-below">Didn't play this season · 0 min, under {minMinutes.toLocaleString("en-GB")}</span>
             </div>
           );
         return (
@@ -87,13 +87,26 @@ function trendDot(playerId: number, color: string) {
 }
 
 /**
+ * A season he didn't play: under any minimum (<no_data_is_zero>), so it
+ * carries the amber stopwatch too, but it has no figure. The stopwatch sits
+ * on his dotted line where one bridges the season, otherwise on the chart's
+ * floor — never as a 0 on his line.
+ */
+function unplayedMark(props: { cx?: number; cy?: number; index?: number }) {
+  const { cx, cy, index } = props;
+  if (cx == null || cy == null) return <g key={index} />;
+  return <SmallSampleMark key={index} cx={cx} cy={cy} size={BELOW_MARK_PX} />;
+}
+
+/**
  * One metric season by season: completed seasons along the bottom, the
  * metric (named on the y axis) up the side, one line per player in his
  * colour. A season with no figure is a gap in his line, not a zero. A
  * spell out of FPL between two of his seasons is a dotted line in his
  * colour, and the hover box says he wasn't in FPL, so a return isn't read
  * as a missing figure; a season of 0 minutes likewise, the hover box
- * saying he didn't play (<no_minutes_no_figures>: never a 0 on the line). A
+ * saying he didn't play (<no_minutes_no_figures>: never a 0 on the line),
+ * with the amber stopwatch (unplayedMark). A
  * season under the card's minimum minutes still shows his real figure, but
  * its point is the amber small-sample stopwatch and the hover box adds his minutes, so a
  * small-sample season is never mistaken for a full one.
@@ -112,6 +125,8 @@ export function ComparisonTrend({
   entries: LegendEntry[];
   minMinutes: number;
 }) {
+  // The chart's floor, for a 0-minute season's stopwatch with no dotted line to sit on.
+  const floor = Math.min(0, ...rows.flatMap((r) => entries.map((e) => r[trendDataKey(e.player.id)]).filter((v): v is number => typeof v === "number")));
   return (
     <>
       <ResponsiveContainer width="100%" height={260}>
@@ -173,6 +188,24 @@ export function ComparisonTrend({
               dot={trendDot(player.id, color)}
               activeDot={{ r: 4.5, strokeWidth: 0 }}
               connectNulls={false}
+              isAnimationActive={false}
+            />
+          ))}
+          {entries.map(({ player }) => (
+            <Line
+              key={`unplayed-${player.id}`}
+              type="linear"
+              dataKey={(r: SeasonTrendRow) => {
+                if (r[trendUnplayedKey(player.id)] !== true) return null;
+                const bridge = r[trendBridgeKey(player.id)];
+                return typeof bridge === "number" ? bridge : floor;
+              }}
+              stroke="none"
+              dot={unplayedMark}
+              activeDot={false}
+              connectNulls={false}
+              legendType="none"
+              tooltipType="none"
               isAnimationActive={false}
             />
           ))}
