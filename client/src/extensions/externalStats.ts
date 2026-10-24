@@ -175,7 +175,12 @@ export function externalMetricHeading<C extends { key: string }>(source: Pick<Ex
   return set.groups.find((g) => g.columns.some((c) => c.key === key))?.heading ?? source.label;
 }
 
-/** A figure's name where its source has to be spelled out (a graph's axis, a tooltip): "xG (Understat)". */
+/**
+ * A figure's name with its source spelled out, "xG (Understat)" — only in a
+ * CSV export's header, which has no colour or icon. In the app a second
+ * source's figure is never named so: its colour and icon say it (owner's
+ * decision, 2026-10-24).
+ */
 export function externalLabel(source: Pick<ExternalStatsSource, "label">, label: string): string {
   return `${label} (${source.label})`;
 }

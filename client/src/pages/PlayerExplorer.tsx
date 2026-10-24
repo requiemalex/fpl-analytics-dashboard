@@ -27,7 +27,7 @@ import type { NormalizedPlayer, Position } from "../types/normalized";
 import { ColumnsPopover, MenuGroupHeading, fplHeading } from "../components/MenuControls";
 import { headerMinWidth } from "../components/headerWidth";
 import { CrossoverGroupHeading, SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
-import { FPL_SOURCE, useExternalStats, type ColumnSourceChoice } from "../extensions/externalStats";
+import { externalLabel, FPL_SOURCE, useExternalStats, type ColumnSourceChoice } from "../extensions/externalStats";
 import { explorerViewToApply, useExplorerViews, type ExplorerView, type ExplorerViewSettings } from "../state/useExplorerViews";
 import { ExplorerViewNotice, ExplorerViewsMenu, explorerViewNote } from "../components/ExplorerViewsMenu";
 
@@ -645,7 +645,7 @@ export function PlayerExplorer() {
   // surprise relative to the table it was taken from.
   function handleExportCsv() {
     const exportLabel = (c: PlayerColumn | typeof FIXTURES_COLUMN_KEY) =>
-      typeof c !== "string" && ext && c.sourceId === ext.id ? `${columnLabel(c)} (${ext.label})` : columnLabel(c);
+      typeof c !== "string" && ext && c.sourceId === ext.id ? externalLabel(ext, columnLabel(c)) : columnLabel(c);
     const headers = ["Player", ...IDENTITY_COLUMNS.map(columnLabel), ...columnsInOrder.map(exportLabel)];
     const rows = sortedRows.map(({ player, derived }) => {
       const identityCells = IDENTITY_COLUMNS.map((c) => cellValue(c, player, derived));

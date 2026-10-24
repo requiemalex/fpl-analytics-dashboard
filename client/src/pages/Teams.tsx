@@ -20,7 +20,7 @@ import { matchesTeamSearch } from "../utils/playerSearch";
 import { ColumnsPopover, MenuGroupHeading, fplHeading } from "../components/MenuControls";
 import { headerMinWidth } from "../components/headerWidth";
 import { CrossoverGroupHeading, SourceStaleMarker, SourceToggle } from "../components/SourceToggle";
-import { FPL_SOURCE, useExternalStats, type ColumnSourceChoice } from "../extensions/externalStats";
+import { externalLabel, FPL_SOURCE, useExternalStats, type ColumnSourceChoice } from "../extensions/externalStats";
 import { explorerViewToApply, useExplorerViews, type ExplorerView, type ExplorerViewSettings } from "../state/useExplorerViews";
 import { ExplorerViewNotice, ExplorerViewsMenu, explorerViewNote } from "../components/ExplorerViewsMenu";
 
@@ -287,7 +287,7 @@ export function Teams() {
   // Exactly what's on screen — same rows, same columns in the same order,
   // same formatted values (— for unavailable).
   function handleExportCsv() {
-    const headers = ["Team", ...columnsInOrder.map((c) => (ext && c.sourceId === ext.id ? `${c.label} (${ext.label})` : c.label))];
+    const headers = ["Team", ...columnsInOrder.map((c) => (ext && c.sourceId === ext.id ? externalLabel(ext, c.label) : c.label))];
     const rows = sortedRows.map((t) => [t.name, ...columnsInOrder.map((c) => c.format(c.getValue(t)))]);
     downloadCsv(`team-explorer-${analysisMode}-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
   }

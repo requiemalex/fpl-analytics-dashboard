@@ -11,7 +11,6 @@ import { columnFormatForMode, columnForMode } from "../components/playerColumns"
 import { cardSource, SourceMark, SourceToggle, type CardSource } from "../components/SourceToggle";
 import {
   externalColumnByKey,
-  externalLabel,
   externalLoadMessage,
   externalMetricHeading,
   externalMetricKey,
@@ -115,7 +114,7 @@ interface CardTrend {
 
 function externalTrend(ext: ExternalStatsSource, m: ExternalTrendMetric, label: string, playersById: Map<number, NormalizedPlayer>, crossover: boolean): CardTrend {
   return {
-    display: { label: externalLabel(ext, label), decimals: m.decimals },
+    display: { label, decimals: m.decimals },
     metric: { getValue: () => null },
     seasonValue: (playerId, season) => {
       const code = playersById.get(playerId)?.code;
@@ -196,6 +195,8 @@ type CardData =
       el: ComparisonElementConfig;
       kind: "trend";
       metric: TrendDisplay;
+      /** A second source's figure: its name on the axis and in the hover box is in that source's colour (this class). */
+      sourceClass?: string;
       sourceControls?: React.ReactNode;
       source?: CardSource;
       rows: ReturnType<typeof buildSeasonTrend>;
@@ -365,6 +366,7 @@ export function PlayerComparison() {
           el,
           kind: "trend",
           metric,
+          sourceClass: trend.source?.className,
           sourceControls: cardSourceControls(ext, [trend], { switched: switchedFor(el.id), onToggle: () => toggleSource(el.id) }),
           source: cardSource([trend]),
           rows,
@@ -410,7 +412,7 @@ export function PlayerComparison() {
             label: metric.label,
             format,
             values: new Map(compared.map((c) => [c.player.id, { percentile: percentiles.get(c.player.id) ?? null, raw: valueFor(metric, pool, c.player.id) }])),
-            ...(source ? { sourceClass: source.className, fullLabel: externalLabel(source, metric.label) } : {}),
+            ...(source ? { sourceClass: source.className } : {}),
           };
         });
         return { el, kind: "radar", axes, entries, floorNote, message: null, sourceControls, source };
@@ -584,7 +586,7 @@ export function PlayerComparison() {
         source={card.source}
         message={card.message}
       >
-        <ComparisonTrend metric={card.metric} rows={card.rows} entries={card.entries} minMinutes={card.minMinutes} />
+        <ComparisonTrend metric={card.metric} sourceClass={card.sourceClass} rows={card.rows} entries={card.entries} minMinutes={card.minMinutes} />
       </ComparisonCard>
     );
   }

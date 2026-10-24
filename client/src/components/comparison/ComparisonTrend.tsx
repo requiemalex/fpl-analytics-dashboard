@@ -14,6 +14,7 @@ function TrendTooltip({
   active,
   label,
   metric,
+  sourceClass,
   entries,
   rows,
   minMinutes,
@@ -21,6 +22,7 @@ function TrendTooltip({
   active?: boolean;
   label?: string;
   metric: TrendDisplay;
+  sourceClass?: string;
   entries: LegendEntry[];
   rows: SeasonTrendRow[];
   minMinutes: number;
@@ -31,7 +33,7 @@ function TrendTooltip({
   return (
     <div className="chart-tooltip">
       <strong>
-        {label} · {metric.label}
+        {label} · <span className={sourceClass ? `source-coloured ${sourceClass}` : undefined}>{metric.label}</span>
       </strong>
       {entries.map(({ player, color }) => {
         const v = row[trendDataKey(player.id)];
@@ -96,7 +98,20 @@ function trendDot(playerId: number, color: string) {
  * its point is the amber small-sample stopwatch and the hover box adds his minutes, so a
  * small-sample season is never mistaken for a full one.
  */
-export function ComparisonTrend({ metric, rows, entries, minMinutes }: { metric: TrendDisplay; rows: SeasonTrendRow[]; entries: LegendEntry[]; minMinutes: number }) {
+/** `sourceClass`: a second source's figure, its name on the axis and in the hover box in that source's colour (the colour index). */
+export function ComparisonTrend({
+  metric,
+  sourceClass,
+  rows,
+  entries,
+  minMinutes,
+}: {
+  metric: TrendDisplay;
+  sourceClass?: string;
+  rows: SeasonTrendRow[];
+  entries: LegendEntry[];
+  minMinutes: number;
+}) {
   return (
     <>
       <ResponsiveContainer width="100%" height={260}>
@@ -119,9 +134,17 @@ export function ComparisonTrend({ metric, rows, entries, minMinutes }: { metric:
             width={56}
             allowDecimals={metric.decimals > 0}
             tickFormatter={(v: number) => formatTrendValue(metric, v)}
-            label={{ value: metric.label, angle: -90, position: "insideLeft", offset: 0, fill: "var(--text-muted)", fontSize: 11, style: { textAnchor: "middle" } }}
+            label={{
+              value: metric.label,
+              angle: -90,
+              position: "insideLeft",
+              offset: 0,
+              fontSize: 11,
+              style: { textAnchor: "middle" },
+              ...(sourceClass ? { className: `source-coloured ${sourceClass}` } : { fill: "var(--text-muted)" }),
+            }}
           />
-          <Tooltip content={<TrendTooltip metric={metric} entries={entries} rows={rows} minMinutes={minMinutes} />} cursor={{ stroke: "var(--border-strong)" }} />
+          <Tooltip content={<TrendTooltip metric={metric} sourceClass={sourceClass} entries={entries} rows={rows} minMinutes={minMinutes} />} cursor={{ stroke: "var(--border-strong)" }} />
           {entries.map(({ player, color }) => (
             <Line
               key={`bridge-${player.id}`}

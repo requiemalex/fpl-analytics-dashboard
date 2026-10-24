@@ -39,7 +39,6 @@ import { cardSource, CrossoverGroupHeading, SourceMark } from "../components/Sou
 import { GroupedPicker, type PickerGroup } from "../components/GroupedPicker";
 import {
   externalColumnByKey,
-  externalLabel,
   externalLoadMessage,
   externalMetricKey,
   externalMetricUnavailable,
@@ -121,7 +120,7 @@ export function resolvePlayerTileMetric(key: string, mode: AnalysisMode, ext: Ex
   if (found === "off") return null;
   if (found.column && ext) {
     const shown = columnForMode(found.column, mode);
-    return { metric: playerTileMetricFromColumn(shown, key, externalLabel(ext, shown.label)), format: shown.format, source: ext, figure: shown.label, crossover: found.crossover };
+    return { metric: playerTileMetricFromColumn(shown, key, shown.label), format: shown.format, source: ext, figure: shown.label, crossover: found.crossover };
   }
   if (parseExternalMetricKey(key)) return null;
   const metric = playerTileMetricByKey(key);
@@ -133,14 +132,14 @@ export function resolveTeamTileMetric(key: string, mode: AnalysisMode, ext: Exte
   if (found === "off") return null;
   if (found.column && ext) {
     const shown = teamColumnForMode(found.column, mode);
-    return { metric: teamTileMetricFromColumn(shown, key, externalLabel(ext, shown.label)), format: shown.format, source: ext, figure: shown.label, crossover: found.crossover };
+    return { metric: teamTileMetricFromColumn(shown, key, shown.label), format: shown.format, source: ext, figure: shown.label, crossover: found.crossover };
   }
   if (parseExternalMetricKey(key)) return null;
   const metric = teamTileMetricByKey(key);
   return metric ? { metric, format: teamColumnFormatForMode(metric.key, metric.format, mode), source: null, figure: metric.label, crossover: found.crossover } : null;
 }
 
-/** A graph axis's column as its Data View shows it ("xG (Understat)" on the axis for a second source's: axisLabel). */
+/** A graph axis's column as its Data View shows it (a second source's axis name in its colour: axisClass). */
 export function resolvePlayerGraphColumn(key: string, mode: AnalysisMode, ext: ExternalStatsSource | null, switched = false): ItemMetric<PlayerColumn> | null {
   const found = externalColumnFor(key, key, ext, (e) => e.playerColumns(mode), switched);
   if (found === "off") return null;
@@ -159,9 +158,9 @@ export function resolveTeamGraphColumn(key: string, mode: AnalysisMode, ext: Ext
   return { metric: shown, format: shown.format, source: found.column ? ext : null, figure: shown.label, crossover: found.crossover };
 }
 
-/** An axis label: the figure's name, with its source when that's a second source. */
-function axisLabel(r: ItemMetric<{ label: string }>): string {
-  return r.source ? externalLabel(r.source, r.figure) : r.figure;
+/** An axis's name is the figure's alone, never "(Understat)": a second source's is drawn in that source's colour (the colour index), as its card's icon and title say. Its class, or undefined for FPL's. */
+function axisClass(r: ItemMetric<unknown> | null | undefined): string | undefined {
+  return r?.source?.className;
 }
 
 /** The Starter view as shown: the packaged FPL tiles and graphs, then the second source's own (<source_starter_items>). Any other view as saved. */
@@ -922,8 +921,10 @@ export function Dashboard() {
           return {
             graph,
             kind: "player" as const,
-            xLabel: x ? axisLabel(x) : "",
-            yLabel: axisLabel(y),
+            xLabel: x ? x.figure : "",
+            yLabel: y.figure,
+            xLabelClass: axisClass(x),
+            yLabelClass: axisClass(y),
             format: y.format,
             xFormat: x?.format,
             sourceControls: itemSourceControls(ext, [x, y], switched, () => toggleItemSource(graph.id)),
@@ -964,8 +965,10 @@ export function Dashboard() {
         return {
           graph,
           kind: "team" as const,
-          xLabel: x ? axisLabel(x) : "",
-          yLabel: axisLabel(y),
+          xLabel: x ? x.figure : "",
+          yLabel: y.figure,
+          xLabelClass: axisClass(x),
+          yLabelClass: axisClass(y),
           format: y.format,
           xFormat: x?.format,
           sourceControls: itemSourceControls(ext, [x, y], switched, () => toggleItemSource(graph.id)),
@@ -1489,7 +1492,7 @@ export function Dashboard() {
                 />
               );
             }
-            const { kind, xLabel, yLabel, format, xFormat, scatterData, barData } = row;
+            const { kind, xLabel, yLabel, xLabelClass, yLabelClass, format, xFormat, scatterData, barData } = row;
             return (
             <DashboardGraphCard
               key={graph.id}
@@ -1500,6 +1503,8 @@ export function Dashboard() {
               barData={barData}
               xLabel={xLabel}
               yLabel={yLabel}
+              xLabelClass={xLabelClass}
+              yLabelClass={yLabelClass}
               format={format}
               xFormat={xFormat}
               ascending={graph.direction === "asc"}

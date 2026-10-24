@@ -80,10 +80,19 @@ function CustomTooltip({ active, payload, xLabel, yLabel, zLabel, xFormat, yForm
   );
 }
 
+/** An axis name's look: muted, or a second source's colour from its class (an inline fill would override the class). */
+function axisLabelLook(sourceClass: string | undefined, extra: React.CSSProperties = {}): { className?: string; style: React.CSSProperties } {
+  return sourceClass
+    ? { className: `source-coloured ${sourceClass}`, style: { fontSize: 11, ...extra } }
+    : { style: { fill: "var(--text-muted)", fontSize: 11, ...extra } };
+}
+
 export function ScatterWithReference({
   data,
   xLabel,
   yLabel,
+  xLabelClass,
+  yLabelClass,
   zLabel,
   colorScale,
   showReferenceLine,
@@ -98,6 +107,9 @@ export function ScatterWithReference({
   data: ScatterPoint[];
   xLabel: string;
   yLabel: string;
+  /** A second source's axis name is drawn in its colour (`source-coloured` + this class, the colour index); undefined for FPL's. */
+  xLabelClass?: string;
+  yLabelClass?: string;
   /** Label for the optional z dimension, shown in the tooltip. Only meaningful when at least one point sets `z`. */
   zLabel?: string;
   /** When set, `z` drives each point's fill colour (low→high gradient across the z-range actually present in `data`) instead of bubble size. */
@@ -187,7 +199,7 @@ export function ScatterWithReference({
             {...(xTicks && !plan.drawReferenceLine ? { ticks: xTicks, domain: [xTicks[0], xTicks[xTicks.length - 1]] } : axisProps(plan.x))}
             tickFormatter={xTickFormatter}
           >
-            <Label value={xLabel + SCALE_SUFFIX[xTicks && !plan.drawReferenceLine ? "linear" : plan.x.kind]} position="bottom" offset={0} style={{ fill: "var(--text-muted)", fontSize: 11 }} />
+            <Label value={xLabel + SCALE_SUFFIX[xTicks && !plan.drawReferenceLine ? "linear" : plan.x.kind]} position="bottom" offset={0} {...axisLabelLook(xLabelClass)} />
           </XAxis>
           <YAxis
             type="number"
@@ -197,7 +209,7 @@ export function ScatterWithReference({
             tick={{ fontSize: 11, fill: "var(--text-secondary)" }}
             {...axisProps(plan.y)}
           >
-            <Label value={yLabel + SCALE_SUFFIX[plan.y.kind]} angle={-90} position="left" style={{ fill: "var(--text-muted)", fontSize: 11, textAnchor: "middle" }} />
+            <Label value={yLabel + SCALE_SUFFIX[plan.y.kind]} angle={-90} position="left" {...axisLabelLook(yLabelClass, { textAnchor: "middle" })} />
           </YAxis>
           {/* Fixed-size dots are kept small and semi-transparent so a dense cluster (many players on the same whole-number goals/price value) reads as a darker patch rather than one solid blob. */}
           <ZAxis dataKey={useBubbleSize ? "z" : undefined} range={useBubbleSize ? [30, 160] : [22, 22]} name={zLabel} />

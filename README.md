@@ -939,9 +939,12 @@ without it leaves that season's Shots Faced uncoloured.
     any figure shown is Understat's and its data is out of date. A
     switched Outputs row keeps its name and place, its name violet (as a
     switched Explorer header is); Understat's own rows come after FPL's
-    under violet "Understat ·" headings. A graph's axis reads "xG
-    (Understat)"; a radar names an Understat axis in violet, and its hover
-    box in full.
+    under violet "Understat ·" headings. No figure is ever labelled
+    "(Understat)" in the app (owner's decision, 2026-10-24): the card's
+    icon and title colour say where its figures come from, and an
+    Understat figure's name is violet on a graph's axis, a radar's axis,
+    a trend graph's axis and their hover boxes (`source-coloured`). Only a
+    CSV export's headers spell it out (`externalLabel`), having no colour.
   - **The same rules as FPL figures:** comparative colours rank within
     position among the item's whole pool (`<comparative_colouring>`); rows
     are chosen and floored on FPL minutes, like the Explorers' Mins filter

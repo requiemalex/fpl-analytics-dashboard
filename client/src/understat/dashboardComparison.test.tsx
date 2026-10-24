@@ -260,7 +260,7 @@ describe("Dashboard with Understat mounted", () => {
     const club: UsClubResolved = { totals, seasons: 1 };
     const ext = fakeSource({ teamColumns: () => understatTeamColumns(new Map(TEAMS.map((t) => [t.id, t])), () => club) });
     const r = resolveTeamTileMetric("understat:us.shots", "live", ext)!;
-    expect(r.metric.label).toBe("Shots (Understat)");
+    expect(r.metric.label).toBe("Shots");
     expect(r.metric.getValue({ teamId: 1 } as never)).toBe(412);
   });
 });
@@ -280,17 +280,19 @@ describe("the Dashboard's Starter view (<source_starter_items>) and its cards' s
       "Points",
       "Pts/£m",
       "DC/Game",
-      "NPxGI/Game (Understat)",
-      "Shots/Game (Understat)",
-      "Key Passes/Game (Understat)",
-      "Penalties Taken (Understat)",
-      "NP Goals − NPxG (Understat) · Lowest First",
+      "NPxGI/Game",
+      "Shots/Game",
+      "Key Passes/Game",
+      "Penalties Taken",
+      "NP Goals − NPxG · Lowest First",
       "xG vs Goals",
       "Price vs Points",
       "Shots/Game vs xG/Shot",
       "Price vs NPxGI/Game",
     ]);
     expect(container.textContent).not.toContain("no longer available");
+    // The colour and icon say a figure is Understat's: no title spells it out (owner's decision, 2026-10-24).
+    expect(container.textContent).not.toContain("(Understat)");
   });
 
   it("with Understat switched off, the Starter view is FPL's tiles and graphs alone, with nothing marked unavailable", () => {
@@ -306,7 +308,7 @@ describe("the Dashboard's Starter view (<source_starter_items>) and its cards' s
     const points = titleOf(container, "Points");
     expect(points.classList.contains("col-source-fpl")).toBe(true);
     expect(points.getAttribute("title")).toBe("FPL's figures: Points");
-    const shots = titleOf(container, "Shots/Game (Understat)");
+    const shots = titleOf(container, "Shots/Game");
     expect(shots.classList.contains("col-source-understat")).toBe(true);
     expect(shots.getAttribute("title")).toBe("Understat's figures: Shots/Game");
     expect(titleOf(container, "Shots/Game vs xG/Shot").classList.contains("col-source-understat")).toBe(true);
@@ -328,7 +330,7 @@ describe("the Dashboard's Starter view (<source_starter_items>) and its cards' s
   it("a card's header runs source mark, stopwatch, then Data View (<card_source_mark>)", () => {
     showStarter();
     const { container } = renderDashboard(fakeSource({ dashboardStarter: UNDERSTAT_DASHBOARD_STARTER }));
-    for (const text of ["Points", "Shots/Game (Understat)", "Price vs NPxGI/Game"]) {
+    for (const text of ["Points", "Shots/Game", "Price vs NPxGI/Game"]) {
       const icons = titleOf(container, text).nextElementSibling!;
       const order = [...icons.children].map((c) =>
         c.querySelector(".source-badge, .source-toggle") ? "source" : c.classList.contains("minutes-floor-badge") ? "stopwatch" : c.classList.contains("data-view-badge") ? "view" : "other",

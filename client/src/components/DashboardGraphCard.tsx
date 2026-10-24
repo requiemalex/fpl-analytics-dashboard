@@ -26,6 +26,8 @@ export function DashboardGraphCard({
   barData,
   xLabel,
   yLabel,
+  xLabelClass,
+  yLabelClass,
   format,
   xFormat,
   ascending,
@@ -54,6 +56,9 @@ export function DashboardGraphCard({
   barData: BarDatum[];
   xLabel: string;
   yLabel: string;
+  /** A second source's axis name is in its colour (its class); undefined for FPL's. */
+  xLabelClass?: string;
+  yLabelClass?: string;
   /** The Y metric's formatter (bar axis and tooltip, scatter tooltip). */
   format: (v: number | null) => string;
   /** Scatter only — the X metric's formatter, for the tooltip. */
@@ -115,6 +120,8 @@ export function DashboardGraphCard({
           data={scatterData}
           xLabel={xLabel}
           yLabel={yLabel}
+          xLabelClass={xLabelClass}
+          yLabelClass={yLabelClass}
           showReferenceLine={showReferenceLine}
           onPointClick={onSelect}
           emptyMessage={emptyMessage}

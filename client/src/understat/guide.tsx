@@ -7,9 +7,9 @@ import React from "react";
  */
 
 const PLAYER_METRICS: [string, string][] = [
-  ["xG, xA, xGI (Understat)", "Understat's own expected goals and assists model — a different model from FPL's, so the numbers differ. xGI = xG + xA."],
-  ["Assists, Mins (Understat)", "Understat's count. FPL awards assists more widely (about 2% of player-matches differ), and FPL counts stoppage time in minutes."],
-  ["Goals − xG, Assists − xA (Understat)", "Understat's goals and assists minus Understat's xG and xA: finishing (or team-mates finishing his chances) above (+) or below (−) the chances' quality."],
+  ["xG, xA, xGI (with ⇄)", "Understat's own expected goals and assists model — a different model from FPL's, so the numbers differ. xGI = xG + xA."],
+  ["Assists, Mins (with ⇄)", "Understat's count. FPL awards assists more widely (about 2% of player-matches differ), and FPL counts stoppage time in minutes."],
+  ["Goals − xG, Assists − xA (with ⇄)", "Understat's goals and assists minus Understat's xG and xA: finishing (or team-mates finishing his chances) above (+) or below (−) the chances' quality."],
   ["Shots, Shots/Game", "Every attempt, blocked ones included."],
   ["On Target, On Target %", "Shots scored or saved (a shot off the post isn't on target), and their share of all shots."],
   ["xG/Shot", "Average chance quality: xG ÷ shots."],
@@ -27,13 +27,13 @@ const PLAYER_METRICS: [string, string][] = [
   ["NPxGI, NPxGI/Game", "NPxG + xA: goal involvement without penalties."],
   ["xGChain, xGChain/Game", "The xG of every attack the player was involved in at any point, the shot and the key pass included."],
   ["xGBuildup, xGBuildup/Game", "The same without the shot and the key pass, so it credits players who start attacks."],
-  ["Apps", "Matches he played in (Understat)."],
+  ["Apps", "Matches he played in, by Understat's count."],
   ["xGC, xGC/Game (with ⇄)", "Understat's version of FPL's expected goals conceded: the xG of the shots his club faced while he was on the pitch, the same shots as his Shots Faced map. Fewer is better; the total is coloured per game, so playing more isn't held against him."],
 ];
 
 const CLUB_METRICS: [string, string][] = [
   ["xG, xGC, NPxG, NPxGA, NPxGD", "Understat's club figures, which count a shot and its rebound as one chance — so they can be lower than the club's players' xG added up."],
-  ["xA, xGI, Assists (Understat)", "The club's players' Understat xA and assists added up; xGI = club xG + xA."],
+  ["xA, xGI, Assists (with ⇄)", "The club's players' Understat xA and assists added up; xGI = club xG + xA."],
   ["Shots, Shots on Target (and Against)", "Every attempt for and against the club."],
   ["xG/Shot, xGA/Shot", "Average chance quality created and allowed, from the individual shots."],
   ["Conversion %", "The club's goals from shots as a share of its shots (own goals left out)."],
@@ -153,7 +153,8 @@ export function UnderstatGuide() {
           <span style={{ color: "var(--col-understat)" }}>violet</span> Understat icon when they're all Understat's (hover any of them
           to see which figures). Its title's colour says which source is showing right now: green for FPL, violet for Understat,
           rose for both;
-          a graph's axis says "(Understat)", and Understat's names are violet on Outputs rows and radars. Colours, Min Minutes, Hide
+          Understat's figures are never labelled "(Understat)": their names are violet on a graph's axes and hover boxes, Outputs
+          rows and radars (only a CSV export's headers spell it out, having no colour). Colours, Min Minutes, Hide
           and the stopwatch work as for FPL figures, on FPL's minutes. A player Understat has no figure for isn't listed, never
           shown as 0. Trend graphs can plot Understat's figures season by season too; a season it has nothing for is a gap. The
           Dashboard's Starter view adds Understat's own tiles and graphs after FPL's (see Dashboard).
