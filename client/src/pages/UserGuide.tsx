@@ -505,7 +505,7 @@ export function UserGuide() {
           rows): this season, unless you click another season's bar in Points History (click this season's bar to come back).
           Its heading shows the season's price (start → end; today's for this season). Result, then Points, Minutes, Starts,
           Goals, Assists, xG, xA, xGI, Clean Sheets, xGC, Defensive Contributions and BPS (Saves instead of Defensive
-          Contributions for a goalkeeper). A match he didn't play shows "—" for its figures. Totals adds up the matches
+          Contributions for a goalkeeper). A match is listed once it has kicked off. A match he didn't play shows "—" for its figures. Totals adds up the matches
           listed; Average divides by them, including ones he didn't play. If a match he played lacks a figure, it's left out of both (hover the cell to see how many matches
           it covers). If the season he's showing is under the minutes floor, an amber stopwatch by the season says why Totals
           and Average have no colour. This season's are coloured against his position using this season's figures and the Current Season

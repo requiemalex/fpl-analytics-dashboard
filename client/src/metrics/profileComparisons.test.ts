@@ -14,6 +14,13 @@ describe("teamMatchesPlayed", () => {
     expect(counts.get(2)).toBe(2);
     expect(counts.get(3)).toBe(1);
   });
+
+  it("counts a match once it has kicked off, provisional or under way, as the player's own log does", () => {
+    const underWay: NormalizedFixture = { ...fixture(4, 1, 2, false), started: true };
+    const counts = teamMatchesPlayed([fixture(1, 1, 2), underWay, fixture(5, 1, 2, false)]);
+    expect(counts.get(1)).toBe(2);
+    expect(counts.get(2)).toBe(2);
+  });
 });
 
 describe("perMatchPositionPercentile", () => {

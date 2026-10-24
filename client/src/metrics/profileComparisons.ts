@@ -2,15 +2,19 @@ import type { NormalizedFixture, NormalizedPlayer, Position } from "../types/nor
 import { percentileInPool } from "./percentiles";
 
 /**
- * Finished matches per club this season — a double gameweek is two. The
- * denominator for the rest of the pool's per-match figures in the player
- * profile's Live Data Average row, whose own figure is the total ÷ the
- * matches in his gameweek log.
+ * Matches each club has kicked off this season — a double gameweek is two.
+ * The denominator for the rest of the pool's per-match figures in the
+ * player profile's Live Data Average row, whose own figure is the total ÷
+ * the matches in his gameweek log. That log lists every match that has
+ * kicked off (<kicked_off_only>), provisional and under way included, and
+ * FPL's season totals already count those matches, so the pool's
+ * denominator counts the same ones: finished alone divided a total that
+ * included a provisional match by one match too few.
  */
 export function teamMatchesPlayed(fixtures: NormalizedFixture[]): Map<number, number> {
   const counts = new Map<number, number>();
   for (const f of fixtures) {
-    if (!f.finished) continue;
+    if (!f.finished && f.started !== true) continue;
     counts.set(f.homeTeamId, (counts.get(f.homeTeamId) ?? 0) + 1);
     counts.set(f.awayTeamId, (counts.get(f.awayTeamId) ?? 0) + 1);
   }

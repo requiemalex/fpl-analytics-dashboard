@@ -7,9 +7,17 @@ import { seasonStartYear } from "../utils/season";
  * Current-season gameweek-level history only. This is explicitly NOT
  * historical-season data — element-summary's "history" array covers the
  * live 2026/27 season the player has played in.
+ *
+ * <kicked_off_only>: once a gameweek is current, FPL lists each club's
+ * match in it before kick-off too, with both scores null and every figure
+ * 0 (Haaland's GW8 at Villa, live API checked 2026-10-24). That match
+ * hasn't happened, so it's left out here: counted, it made the profile's
+ * Match Log say 8 matches and average 77 minutes for 7 played at 88. A
+ * match under way already has its score, so it stays.
  */
 export function normalizeElementSummary(raw: RawElementSummary): PlayerGameweekHistory[] {
   return raw.history
+    .filter((h) => (h.team_h_score ?? null) !== null || (h.team_a_score ?? null) !== null)
     .map((h) => {
       const teamScore = h.was_home ? (h.team_h_score ?? null) : (h.team_a_score ?? null);
       const opponentScore = h.was_home ? (h.team_a_score ?? null) : (h.team_h_score ?? null);

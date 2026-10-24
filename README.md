@@ -1405,13 +1405,18 @@ The pool comes with his rows (`peers` in `/api/player-seasons`,
 `peersFor` in `clubHistory/playerMatches.ts`), each player's totals
 under the same Totals rule. Under the floor, or a stat FPL didn't record,
 no colour (positions here are the ledger's for that season). Playing Time follows the shown season. Rows are keyed by fixture,
-so a double gameweek is two rows. With a second source mounted its columns
+so a double gameweek is two rows. The live log lists only matches that
+have kicked off (`<kicked_off_only>`, `normalizeElementSummary`): once a
+gameweek is current FPL also lists each club's match in it before kick-off,
+scoreless and all 0, and counted it made Playing Time and the Average
+divide by a match not yet played. With a second source mounted its columns
 join the log (its colour) and the heading reads "FPL & Understat · Match
 Log" (rose). The live log's Totals row is
 tinted by live within-position percentile. Its Average row (total ÷
 matches in his log) is tinted by where that per-match figure ranks among
 his position's, each other player's being their live season total ÷
-their club's finished matches (`metrics/profileComparisons.ts`,
+the matches their club has kicked off, provisional and under way
+included, as his log and FPL's season totals do (`metrics/profileComparisons.ts`,
 `perMatchPositionPercentile`) — his own entry replaced by the figure shown,
 Current Season floor for both; no colour if no one else qualifies (e.g.
 fixtures failed to load). Only columns with a whole-pool season total are
