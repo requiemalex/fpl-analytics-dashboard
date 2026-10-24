@@ -147,11 +147,6 @@ function floorBasis(mode: AnalysisMode): string {
   return mode === "live" ? "a quarter of the minutes in the gameweeks finished so far, never under one full match" : "a quarter of a season's minutes";
 }
 
-/** Hover text for a view in Historic Average: the one Historic Average rule, everywhere. */
-export function historicSeasonsNote(): string {
-  return `${PREFIX}: Historic Average counts only seasons of ${FIXED_FLOOR_MINUTES}+ minutes. A player with none has no figures.`;
-}
-
 /** Hover text for the player profile and Player Comparison: the floor turns percentiles and colours off below it. */
 export function profileFloorNote(mode: AnalysisMode): string {
   if (mode === "historicAverage") {
@@ -183,7 +178,8 @@ export function belowMinimumNote(minutes: number | null, minMinutes: number): st
  * applies to it. `playerFloor`: the Starter view leaves players under the
  * fixed floor out; `userMinimum`: the item's own Min Minutes (when above
  * 0); `historicSeasons`: Historic Average counts only seasons that reach
- * the floor.
+ * the floor — said alongside another threshold, never one on its own (the
+ * owner's rule, 2026-10-24: the players under it carry their own stopwatch).
  */
 export function dashboardFloorNote(
   mode: AnalysisMode,
@@ -192,7 +188,7 @@ export function dashboardFloorNote(
   const parts: string[] = [];
   if (playerFloor) parts.push(`only players with ${fixedFloorMinutes(mode)}+ minutes (${floorBasis(mode)}) are included`);
   if (userMinimum > 0) parts.push(`your Min Minutes: only players with ${fmtDecimal(userMinimum, 0)}+ minutes are included (no minutes counts as 0)`);
-  if (historicSeasons) parts.push(`Historic Average counts only seasons of ${FIXED_FLOOR_MINUTES}+ minutes`);
   if (parts.length === 0) return null;
+  if (historicSeasons) parts.push(`Historic Average counts only seasons of ${FIXED_FLOOR_MINUTES}+ minutes`);
   return `Minimum minutes applied: ${parts.join("; ")}.`;
 }

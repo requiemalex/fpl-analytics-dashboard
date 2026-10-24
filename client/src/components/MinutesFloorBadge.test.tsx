@@ -2,7 +2,7 @@ import React from "react";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, cleanup, fireEvent } from "@testing-library/react";
 import { isUnderMinimum } from "../metrics/fixedMinutesFloor";
-import { HideSmallSamplesButton, isSmallSample, MinutesFloorBadge, RowSmallSampleBadge, smallSampleNote, smallSamplesShownNote, userMinimumNote } from "./MinutesFloorBadge";
+import { HideSmallSamplesButton, isSmallSample, MinutesFloorBadge, profileFloorNote, RowSmallSampleBadge, smallSampleNote, smallSamplesShownNote, userMinimumNote } from "./MinutesFloorBadge";
 import { AnalysisModeToggle } from "./AnalysisModeToggle";
 
 vi.mock("../state/AppStateContext", () => ({
@@ -41,11 +41,13 @@ describe("<no_data_is_zero>: no minutes for the mode counts as 0 against any min
 });
 
 describe("<minutes_marker>: the stopwatch on a view where a threshold is in force", () => {
-  it("a player view's Data View toggle shows it in Historic Average (its 855-minute seasons), not in the other two", () => {
+  it("a Data View toggle shows it only where a section passes a floor: Historic Average's 855-minute seasons alone don't (the owner's rule, 2026-10-24)", () => {
     const { container, rerender } = render(<AnalysisModeToggle mode="historicAverage" onChange={() => {}} />);
-    expect(container.querySelector(".minutes-floor-badge")!.getAttribute("title")).toContain("Historic Average counts only seasons of 855+ minutes");
+    expect(container.querySelector(".minutes-floor-badge")).toBeNull();
     rerender(<AnalysisModeToggle mode="lastSeason" onChange={() => {}} />);
     expect(container.querySelector(".minutes-floor-badge")).toBeNull();
+    rerender(<AnalysisModeToggle mode="historicAverage" onChange={() => {}} floorNote={profileFloorNote("historicAverage")} />);
+    expect(container.querySelector(".minutes-floor-badge")!.getAttribute("title")).toContain("Historic Average counts only seasons of 855+ minutes");
   });
 
   it("a club view's toggle never does: clubs have no minutes floor", () => {
@@ -54,11 +56,12 @@ describe("<minutes_marker>: the stopwatch on a view where a threshold is in forc
   });
 
   it("<marker_follows_data>: grey while nothing shown is under the threshold, amber once something is", () => {
-    const { container, rerender } = render(<AnalysisModeToggle mode="historicAverage" onChange={() => {}} />);
+    const note = profileFloorNote("historicAverage");
+    const { container, rerender } = render(<AnalysisModeToggle mode="historicAverage" onChange={() => {}} floorNote={note} />);
     const badge = () => container.querySelector(".minutes-floor-badge")!;
     expect(badge().classList.contains("small-sample-badge")).toBe(false);
     expect(badge().getAttribute("title")).toContain("Nothing shown here is under it.");
-    rerender(<AnalysisModeToggle mode="historicAverage" onChange={() => {}} floorActive />);
+    rerender(<AnalysisModeToggle mode="historicAverage" onChange={() => {}} floorNote={note} floorActive />);
     expect(badge().classList.contains("small-sample-badge")).toBe(true);
     expect(badge().getAttribute("title")).not.toContain("Nothing shown here");
   });

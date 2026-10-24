@@ -177,10 +177,11 @@ export function UserGuide() {
           to see which). On a view it's amber while something shown there is under the threshold and grey when nothing is; on an
           entry under one it's always amber. Player Explorer, Team Building's Add Players and the Dashboard tiles and graphs you
           build also get a <strong>Hide</strong> button (the stopwatch struck through) whenever something shown is under the
-          threshold: click it to leave those players out, and again to bring them back. The stopwatch appears on a view where one is in force (the mode toggle in Historic Average, the profile, a tile, graph or card
+          threshold: click it to leave those players out, and again to bring them back. The stopwatch appears on a view where one is in force (the profile, a tile, graph or card
           with a floor or your own minimum, Player Explorer's Mins heading when you filter it, Team Building's Min minutes and
           its Model Predicted column), and on anything under one (a player's row, a season in Points History, the Match Log's
-          season, a card on the profile, a point or marker on Player Comparison, a point or bar on a Dashboard graph). Team Building's Expected Points, Minutes
+          season, a card on the profile, a point or marker on Player Comparison, a point or bar on a Dashboard graph). Historic Average's 855-minute seasons don't put a stopwatch on a view by themselves:
+          only the players without such a season carry one. Team Building's Expected Points, Minutes
           Reliability and pitch cards look ahead rather than back, so no minutes floor touches their colours.
         </p>
         <p className="page-subtitle">

@@ -381,15 +381,17 @@ points) and a bar's stopwatch sits beside its name, each with the reason
 in its hover box; the graph's own stopwatch hover counts them. A threshold
 inside a model (Team Building's Model Predicted) marks no entry, so it's
 grey. Two uses:
-- **On a view where a threshold is in force:** the Data View toggle of a
-  player view in Historic Average (its 855-minute seasons;
-  `historicSeasonsNote`), and the profile's always (`profileFloorNote`);
-  Player Explorer's Mins header when a "≥"/"=" filter is set; Team
-  Building's Min minutes label when set, and its Historic/Raw toggle in
-  Historic Average; each Dashboard player tile or graph with a threshold —
-  the Starter floor, its own Min Minutes above 0, or Historic Average
-  (`dashboardItemFloorNote`); each Player Comparison card with one
-  (Starter's floor, a card's Min Minutes above 0, or Historic Average);
+- **On a view where a threshold is in force:** the profile's Data View
+  toggle, always (`profileFloorNote`); Player Explorer's Mins header when
+  a "≥"/"=" filter is set; Team Building's Min minutes label when set;
+  each Dashboard player tile or graph with a threshold — the Starter floor
+  or its own Min Minutes above 0 (`dashboardItemFloorNote`); each Player
+  Comparison card with one (Starter's floor or a card's Min Minutes above
+  0). Historic Average's 855-minute seasons alone never mark a view (the
+  owner's rule, 2026-10-24): Player Explorer's and Team Building's Data
+  View toggles have no stopwatch in any view, and only the players under
+  those seasons carry one; a view's note mentions them alongside its own
+  threshold;
   Team Building's Model Predicted header (its bonus rate uses only window
   seasons of 900+ minutes, `MIN_QUALIFYING_SEASON_MINUTES`); the Team
   Profile's Formations card title (only formations used for 90+ minutes
@@ -1604,8 +1606,8 @@ green or red, which mean better and worse, nor a source's violet or rose).
 - Minimum minutes follow the Dashboard's split. On **Starter** every card
   uses the fixed floor. On any other view each card has its own
   `minMinutes` (store v2; 0 by default), in every Data View. Each card
-  with a threshold — Starter's, its own above 0, or Historic Average's
-  855-minute seasons — shows the amber stopwatch (`<minutes_marker>`). No
+  with a threshold — Starter's, or its own above 0 — shows the amber
+  stopwatch (`<minutes_marker>`). No
   minutes counts as 0. Either way the threshold is per card: a player under
   it gets the amber badge on that card, isn't drawn on a radar, gets a
   stopwatch for its Outputs marker (pinned to the end with ▸ when past the

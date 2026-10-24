@@ -1,7 +1,7 @@
 import React from "react";
 import { useAppState } from "../state/AppStateContext";
 import { AnalysisModeIcon } from "./AnalysisModeIcon";
-import { historicSeasonsNote, MinutesFloorBadge } from "./MinutesFloorBadge";
+import { MinutesFloorBadge } from "./MinutesFloorBadge";
 import { clubSeasonsForMode } from "../metrics/teamStats";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 
@@ -101,7 +101,7 @@ export function AnalysisModeToggle({
 }: {
   mode: AnalysisMode;
   onChange: (mode: AnalysisMode) => void;
-  /** Set on a section where the fixed minutes floor applies (<fixed_minutes_floor>) — shows its badge inside the picker, with this as its hover text. Without it, a player view's Historic Average still shows the badge for its 855-minute seasons (<minutes_marker>). */
+  /** Set on a section where the fixed minutes floor applies (<fixed_minutes_floor>) — shows its badge inside the picker, with this as its hover text. Without it there's no badge: Historic Average's 855-minute seasons alone don't mark a view, only the players under them (<minutes_marker>). */
   floorNote?: string;
   /** <marker_follows_data>: something the page shows is under its threshold (an entry carries the amber stopwatch) — amber, not grey. */
   floorActive?: boolean;
@@ -109,13 +109,11 @@ export function AnalysisModeToggle({
   clubFigures?: boolean;
 }) {
   const { historicStatus, historicErrorMessage, historicSkippedPlayerIds, historicFetchSkippedPlayerIds, refreshHistoricData, historicRefreshing } = useAppState();
-  // Clubs have no minutes floor; a player view's Historic Average counts only 855+ minute seasons.
-  const shownFloorNote = floorNote ?? (!clubFigures && mode === "historicAverage" ? historicSeasonsNote() : undefined);
 
   return (
     <div style={{ marginBottom: 24 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-        <DataViewPicker mode={mode} onChange={onChange} floorNote={shownFloorNote} floorActive={floorActive} />
+        <DataViewPicker mode={mode} onChange={onChange} floorNote={floorNote} floorActive={floorActive} />
 
         {mode !== "live" && historicStatus === "loading" && (
           <span className="page-subtitle" style={{ margin: 0 }}>

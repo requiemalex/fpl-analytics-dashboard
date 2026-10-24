@@ -663,7 +663,7 @@ export function PlayerExplorer() {
         </div>
       </div>
 
-      <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} floorActive={shownSmallSampleCount > 0} />
+      <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
         <div className="icon-toolbar">

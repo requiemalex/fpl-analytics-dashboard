@@ -23,7 +23,7 @@ import { computeBlendedMinutesReliability } from "../metrics/minutesReliabilityB
 import { getUpcomingFixtures, firstPickableEventId, fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, cellText, columnByKey, columnForMode, isStaticColumn, rankValue, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { DataViewPicker } from "../components/AnalysisModeToggle";
-import { HideSmallSamplesButton, historicSeasonsNote, isSmallSample, MinutesFloorBadge, RowSmallSampleBadge, smallSamplesShownNote, userMinimumNote } from "../components/MinutesFloorBadge";
+import { HideSmallSamplesButton, isSmallSample, MinutesFloorBadge, RowSmallSampleBadge, smallSamplesShownNote, userMinimumNote } from "../components/MinutesFloorBadge";
 import { SquadPitch, type PitchColourRanks } from "../components/SquadPitch";
 import { headerMinWidth } from "../components/headerWidth";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass, pressable } from "../components/primitives";
@@ -1374,12 +1374,7 @@ export function TeamBuilder() {
           </div>
           <div>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Historic/raw columns show:</div>
-            <DataViewPicker
-              mode={pickerHistoricMode}
-              onChange={setPickerHistoricMode}
-              floorNote={pickerHistoricMode === "historicAverage" ? historicSeasonsNote() : undefined}
-              floorActive={pickerShownSmallSampleCount > 0}
-            />
+            <DataViewPicker mode={pickerHistoricMode} onChange={setPickerHistoricMode} />
           </div>
         </div>
         {historicStatus === "loading" && (

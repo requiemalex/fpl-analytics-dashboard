@@ -151,11 +151,16 @@ describe("dashboardItemFloorNote — the minutes-floor badge shows exactly where
     expect(dashboardItemFloorNote({ ...item, playerIds: [1] }, { defaultViewShown: true })).toBeNull();
   });
 
-  it("<minutes_marker>: a tile the user builds shows it for its own Min Minutes, and any Historic Average item for its 855-minute seasons", () => {
+  it("<minutes_marker>: a tile the user builds shows it for its own Min Minutes, saying Historic Average's 855-minute seasons too", () => {
     expect(dashboardItemFloorNote({ ...item, criteria: { ...DEFAULT_FILTERS, minMinutes: 270 } }, { defaultViewShown: false })).toContain("your Min Minutes: only players with 270+ minutes");
-    expect(dashboardItemFloorNote({ ...item, dataView: "historicAverage" }, { defaultViewShown: false })).toContain("Historic Average counts only seasons of 855+ minutes");
-    // Picked players are never floored, but their Historic Average still counts only 855+ seasons.
-    expect(dashboardItemFloorNote({ ...item, dataView: "historicAverage", playerIds: [1] }, { defaultViewShown: true })).toBe("Minimum minutes applied: Historic Average counts only seasons of 855+ minutes.");
+    expect(dashboardItemFloorNote({ ...item, dataView: "historicAverage", criteria: { ...DEFAULT_FILTERS, minMinutes: 270 } }, { defaultViewShown: false })).toContain(
+      "Historic Average counts only seasons of 855+ minutes",
+    );
+  });
+
+  it("Historic Average's 855-minute seasons alone don't mark an item (the owner's rule, 2026-10-24): Min Minutes 0, or picked players", () => {
+    expect(dashboardItemFloorNote({ ...item, dataView: "historicAverage" }, { defaultViewShown: false })).toBeNull();
+    expect(dashboardItemFloorNote({ ...item, dataView: "historicAverage", playerIds: [1] }, { defaultViewShown: true })).toBeNull();
   });
 
   it("every packaged Default player tile and graph shows it", () => {

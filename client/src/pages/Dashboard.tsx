@@ -292,10 +292,10 @@ export function playersForDashboardItem(
 /**
  * The hover text for a player-scope tile or graph's amber stopwatch
  * (<minutes_marker>), or null when no minimum-minutes threshold applies to
- * it: the Starter view's fixed floor, the item's own Min Minutes when it's
- * above 0, and Historic Average's 855-minute seasons (every Historic
- * Average item, in any view). Picked players are never floored, but a
- * Historic Average of theirs still counts only 855+ seasons.
+ * it: the Starter view's fixed floor, or the item's own Min Minutes when
+ * it's above 0. Either note also says Historic Average's 855-minute seasons
+ * in that view; those seasons alone don't mark an item (picked players,
+ * Min Minutes 0), only the players under them.
  */
 export function dashboardItemFloorNote(
   item: { dataView: AnalysisMode; playerIds: number[] | null; criteria?: GlobalScoutingFilters | null },

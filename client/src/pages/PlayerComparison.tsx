@@ -6,7 +6,7 @@ import { resolvePlayerStatsList, hasDataForMode, isAnalysisMode, type AnalysisMo
 import { FIXED_FLOOR_MINUTES, fixedFloorMinutes, isUnderMinimum } from "../metrics/fixedMinutesFloor";
 import { comparisonMetricByKey, comparisonMetricFromColumn, comparisonPercentiles, isComparableColumn, RADAR_MIN_METRICS, type ComparisonMetric } from "../metrics/comparisonMetrics";
 import { buildSeasonTrend, trendBelowKey, trendDataKey, trendMetricByKey, type TrendDisplay, type TrendMetric } from "../metrics/careerTrends";
-import { belowMinimumNote, historicSeasonsNote, profileFloorNote, smallSampleNote, trendFloorNote, userMinimumNote } from "../components/MinutesFloorBadge";
+import { belowMinimumNote, profileFloorNote, smallSampleNote, trendFloorNote, userMinimumNote } from "../components/MinutesFloorBadge";
 import { columnFormatForMode, columnForMode } from "../components/playerColumns";
 import { cardSource, SourceMark, SourceToggle, type CardSource } from "../components/SourceToggle";
 import {
@@ -393,9 +393,9 @@ export function PlayerComparison() {
       // While the second source a card uses is still loading, its figures aren't there yet: say so rather than draw them as missing.
       const message =
         noPlayers ?? (mode !== "live" && historicStatus !== "ready" ? historicMessage : null) ?? (external?.status === "loading" ? (externalLoadMessage(external) ?? null) : null);
-      // The amber stopwatch marks any minimum-minutes threshold in force on the card (<minutes_marker>): Starter's fixed floor,
-      // the card's own Min Minutes, or Historic Average's 855-minute seasons.
-      const floorNote = readOnly ? profileFloorNote(mode) : el.minMinutes > 0 ? userMinimumNote(el.minMinutes, mode) : mode === "historicAverage" ? historicSeasonsNote() : null;
+      // The amber stopwatch marks a minimum-minutes threshold in force on the card (<minutes_marker>): Starter's fixed floor or
+      // the card's own Min Minutes. Historic Average's 855-minute seasons alone don't mark it; the players under them carry their own.
+      const floorNote = readOnly ? profileFloorNote(mode) : el.minMinutes > 0 ? userMinimumNote(el.minMinutes, mode) : null;
       if (message || !pool) {
         const shown = message ?? historicMessage;
         return el.kind === "radar"

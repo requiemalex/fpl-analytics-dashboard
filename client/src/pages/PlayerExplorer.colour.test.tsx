@@ -135,17 +135,18 @@ describe("Player Explorer — <hide_small_samples>", () => {
     expect(names(container)).toContain("Nwaneri");
   });
 
-  it("<marker_follows_data>: in Historic Average the Data View stopwatch is amber while a player under the threshold is shown, grey once they're hidden", () => {
+  it("in Historic Average the Data View picker has no stopwatch (the owner's rule, 2026-10-24): each player under the 855-minute seasons carries his own, until hidden", () => {
     const { container, getByRole } = render(
       <MemoryRouter initialEntries={["/players"]}>
         <PlayerExplorer />
       </MemoryRouter>,
     );
     fireEvent.click(getByRole("button", { name: "Historic Average" }));
-    const badge = () => container.querySelector(".data-view-picker .minutes-floor-badge")!;
-    // No historic profiles in this pool: nobody has a 450+ season, so everyone is under it.
-    expect(badge().classList.contains("small-sample-badge")).toBe(true);
+    expect(container.querySelector(".data-view-picker .minutes-floor-badge")).toBeNull();
+    // No historic profiles in this pool: nobody has an 855+ season, so everyone is under it.
+    const rowMarks = () => container.querySelectorAll("tbody .small-sample-badge").length;
+    expect(rowMarks()).toBeGreaterThan(0);
     fireEvent.click(getByRole("button", { name: /^Hide the 7 players/ }));
-    expect(badge().classList.contains("small-sample-badge")).toBe(false);
+    expect(rowMarks()).toBe(0);
   });
 });
