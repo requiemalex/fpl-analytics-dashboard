@@ -1463,7 +1463,9 @@ green or red, which mean better and worse, nor a source's violet or rose).
   shared figures have the ⇄); and **trend** (one `TREND_METRICS` key, or
   one of a second source's own `playerTrends` figures, on the y axis,
   seasons on the x — every season from the earliest on record to the
-  latest, so one nobody has still takes its place; a player's spell out
+  latest, so one nobody has still takes its place, named short ("25/26"),
+  every one while 12 or fewer, else evenly spaced back from the latest,
+  which is always named (`seasonAxisTicks`); a player's spell out
   of FPL between two of his seasons is a dotted bridge in his colour,
   `buildSeasonTrend`'s `trendBridgeKey`, and the hover box says "Not in
   FPL this season"; a season of 0 minutes is no figure either

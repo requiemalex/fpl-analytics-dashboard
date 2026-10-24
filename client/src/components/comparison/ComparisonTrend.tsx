@@ -1,6 +1,7 @@
 import React from "react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
-import { trendAwayKey, trendBelowKey, trendBridgeKey, trendDataKey, trendUnplayedKey, type SeasonTrendRow, type TrendDisplay } from "../../metrics/careerTrends";
+import { seasonAxisTicks, trendAwayKey, trendBelowKey, trendBridgeKey, trendDataKey, trendUnplayedKey, type SeasonTrendRow, type TrendDisplay } from "../../metrics/careerTrends";
+import { shortSeason } from "../../utils/season";
 import { fmtDecimal, fmtPrice } from "../../utils/format";
 import { ComparisonLegend, type LegendEntry } from "./ComparisonLegend";
 import { SmallSampleMark } from "../MinutesFloorBadge";
@@ -101,7 +102,16 @@ export function ComparisonTrend({ metric, rows, entries, minMinutes }: { metric:
       <ResponsiveContainer width="100%" height={260}>
         <LineChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: 8 }}>
           <CartesianGrid stroke="var(--border)" vertical={false} />
-          <XAxis dataKey="seasonName" stroke="var(--text-muted)" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} tickLine={false} />
+          <XAxis
+            dataKey="seasonName"
+            stroke="var(--text-muted)"
+            tick={{ fontSize: 11, fill: "var(--text-secondary)" }}
+            tickLine={false}
+            ticks={seasonAxisTicks(rows.map((r) => r.seasonName))}
+            interval={0}
+            tickFormatter={shortSeason}
+            padding={{ left: 16, right: 16 }}
+          />
           <YAxis
             stroke="var(--text-muted)"
             tick={{ fontSize: 11, fill: "var(--text-secondary)" }}

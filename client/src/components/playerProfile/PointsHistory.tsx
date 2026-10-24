@@ -2,6 +2,7 @@ import React from "react";
 import type { SeasonTrend } from "../../metrics/careerMetrics";
 import { fmtDecimal, fmtSigned } from "../../utils/format";
 import { MinutesFloorIcon } from "../MinutesFloorBadge";
+import { shortSeason } from "../../utils/season";
 
 /**
  * Deliberately narrower than PlayerSeasonHistory — the chart only ever
@@ -24,11 +25,6 @@ export function hasSeasonFigure(s: Pick<SeasonPointsEntry, "minutes">): boolean 
 
 /** Height (px) of the tallest bar; the plot adds room above it for the value label. */
 const BAR_AREA_PX = 128;
-
-/** "2025/26" → "25/26" — the axis only has room for the short form; hover shows the full name. */
-function shortSeason(seasonName: string): string {
-  return /^\d{4}\//.test(seasonName) ? seasonName.slice(2) : seasonName;
-}
 
 function TrendUpIcon() {
   return (

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { makeSeason } from "../test/fixtures";
-import { buildSeasonTrend, trendAwayKey, trendBelowKey, trendBridgeKey, trendDataKey, trendMetricByKey, trendUnplayedKey, trendValue } from "./careerTrends";
+import { buildSeasonTrend, seasonAxisTicks, trendAwayKey, trendBelowKey, trendBridgeKey, trendDataKey, trendMetricByKey, trendUnplayedKey, trendValue } from "./careerTrends";
 
 const seasons = new Map([
   [
@@ -44,6 +44,21 @@ describe("buildSeasonTrend", () => {
     const rows = buildSeasonTrend([1], trendMetricByKey("totalPoints")!, seasons, 450);
     expect(rows[1][trendDataKey(1)]).toBe(40);
     expect(rows[1][trendBelowKey(1)]).toBe(300);
+  });
+});
+
+describe("seasonAxisTicks", () => {
+  const names = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => `${from + i}/${String((from + i + 1) % 100).padStart(2, "0")}`);
+
+  it("names every season when they fit, 2024/25 included (it went unnamed beside 2025/26)", () => {
+    expect(seasonAxisTicks(names(2014, 2025))).toEqual(names(2014, 2025));
+  });
+
+  it("past the limit, names every other season counted back from the latest, so the latest is always named", () => {
+    const ticks = seasonAxisTicks(names(2006, 2025));
+    expect(ticks).toHaveLength(10);
+    expect(ticks[ticks.length - 1]).toBe("2025/26");
+    expect(ticks[ticks.length - 2]).toBe("2023/24");
   });
 });
 

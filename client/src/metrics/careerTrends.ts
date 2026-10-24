@@ -102,6 +102,21 @@ function nextSeasonName(seasonName: string): string | null {
   return `${start}/${String((start + 1) % 100).padStart(2, "0")}`;
 }
 
+/** The most season labels (short form, "25/26") a trend card's axis fits at laptop width. */
+const MAX_SEASON_TICKS = 12;
+
+/**
+ * The seasons a trend's x axis names: all of them when they fit, otherwise
+ * every k-th counted back from the latest, so the labels are evenly spaced
+ * and the latest season is always named. Left to Recharts, it dropped
+ * whichever label crowded the last one: 2024/25 went unnamed beside
+ * 2025/26 while empty seasons kept theirs (audit 2026-10-24).
+ */
+export function seasonAxisTicks(seasonNames: string[], max = MAX_SEASON_TICKS): string[] {
+  const step = Math.max(1, Math.ceil(seasonNames.length / max));
+  return seasonNames.filter((_, i) => (seasonNames.length - 1 - i) % step === 0);
+}
+
 /** Every season from the first name to the last, so a season nobody has still takes its place on the axis. */
 function seasonRange(names: string[]): string[] {
   const sorted = [...names].sort();

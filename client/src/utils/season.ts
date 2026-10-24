@@ -7,3 +7,8 @@ export function seasonStartYear(seasonName: string): number {
 export function seasonNameFromStartYear(year: number): string {
   return `${year}/${String((year + 1) % 100).padStart(2, "0")}`;
 }
+
+/** "2025/26" -> "25/26": the form a season axis has room for; hover shows the full name. */
+export function shortSeason(seasonName: string): string {
+  return /^\d{4}\//.test(seasonName) ? seasonName.slice(2) : seasonName;
+}
