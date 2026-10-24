@@ -5,6 +5,15 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.105.0 · 24 Oct 2026
+
+- Player profile: a past season's Match Log says so when its matches don't add up to FPL's season total, giving both (Evan Ferguson's 2024/25 is missing a Brighton appearance in the archive)
+- README and User Guide: a club's Historic Average is said to cover whichever of the last 4 completed seasons it was in the Premier League, as it does, not its last 4 Premier League seasons
+- Player Comparison trends: the season axis names every season (short form, "24/25") instead of dropping whichever label crowded the latest one, and its end labels are no longer clipped
+- Player profile's Points History and Player Comparison's trends: a season a player played no minutes in shows "—" (no bar, a gap in the line) instead of 0, and the change badge compares the last two seasons he played in
+- Player profile: the Match Log no longer counts a match that hasn't kicked off in Matches, Average Minutes or the Average row, and its Average is coloured against clubs' matches played so far, provisional ones included
+- Dashboard and Player Comparison: every card's first icon says where its figures come from (FPL's football, ⇄ for both, Understat's icon), then the stopwatch, then the Data View
+
 ## v1.104.0 · 24 Oct 2026
 
 - Dashboard Starter: duplicates out, Understat's own tiles and graphs in; every tile, graph and comparison card's title coloured by where its figures come from (green FPL, violet Understat, rose both)
