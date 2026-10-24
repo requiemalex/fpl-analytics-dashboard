@@ -439,8 +439,8 @@ export function UserGuide() {
           Team figures are always <em>what the club did</em> that season, whoever was playing for it, built from a match-by-match
           record of which club each player played for. A summer signing's previous season stays with his previous club; a player
           who leaves mid-season keeps what he did counted for the club. To judge what a signing would bring, look at the player
-          instead. The Data View picks the season: Current Season, Last Completed Season, or a Historic Average of the last four
-          completed seasons the club was in the Premier League (a season in the Championship shows "—", never zero, and so does a club that hasn't played yet this season). Club figures
+          instead. The Data View picks the season: Current Season, Last Completed Season, or a Historic Average over whichever of the last four
+          completed seasons the club was in the Premier League, never reaching further back (a club promoted last season averages that one season; a season in the Championship shows "—", never zero, and so does a club that hasn't played yet this season). Club figures
           have no minimum-minutes floor. This season's club figures count a match once FPL confirms it, a few hours after full
           time, so during a gameweek the league table can be a round behind players' totals. If a player's data couldn't be
           loaded, this season's figures added up from players show "—" (the Data View note says so); results are unaffected.

@@ -481,8 +481,10 @@ too.
   opponent's players' xG summed (`<club_xgc_per_match>`) — so one side's xG
   and the other's xGC are always equal.
 - **Data View mapping** (`clubSeasonsForMode()`): Historic Average means the
-  last 4 completed seasons **the club was in the Premier League**, never
-  padded with zeros. A season with no record shows "—". Its wins, draws and
+  same 4-season window a player's uses — the last 4 completed seasons,
+  never reaching further back — averaged over **the ones the club was in
+  the Premier League**, never padded with zeros (in 2026/27 Leeds averages
+  2025/26 and 2022/23, Sunderland 2025/26 alone). A season with no record shows "—". Its wins, draws and
   losses are whole numbers that add up to the games played
   (`resultsWithinPlayed`, `<results_within_played>`, the owner's rule):
   rounding each mean alone could show "38 played · 14W 11D 14L". League
