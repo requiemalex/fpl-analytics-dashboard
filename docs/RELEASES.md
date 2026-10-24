@@ -5,6 +5,11 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.108.3 · 24 Oct 2026
+
+- Player Comparison trends: a season a player didn't play now carries the amber stopwatch, on his dotted line or along the bottom of the chart
+- Player Comparison: cards you build now mark a player under the fixed floor with the amber stopwatch whatever their own Min Minutes, as Player Explorer and the Dashboard do, and their radars rank against players at or above the fixed floor
+
 ## v1.108.2 · 24 Oct 2026
 
 - Player profile: a player with no figures in the chosen Data View now gets the amber stopwatch on the Data View toggle and on each card, as no minutes counts as 0 everywhere else; the "No data" message stays
