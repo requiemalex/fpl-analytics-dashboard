@@ -136,10 +136,13 @@ describe("Dashboard with Understat mounted", () => {
     expect(shots.querySelector(".stat-row-value")!.textContent).toBe("25");
     expect(shots.querySelector(".source-badge.col-source-understat")!.getAttribute("title")).toBe("Understat's figures: Shots");
 
-    // An FPL-only figure has neither a toggle nor a badge.
+    // <card_source_mark>: an FPL-only figure has FPL's mark, first in the header, and no toggle.
     const fpl = tileCard(container, "Goals");
-    expect(fpl.querySelector(".source-badge")).toBeNull();
+    expect(fpl.querySelector(".source-badge.col-source-fpl")!.getAttribute("title")).toBe("FPL's figures: Goals");
     expect(fpl.querySelector(".source-toggle")).toBeNull();
+    const firstIcon = (card: HTMLElement) => card.querySelector(".card-title")!.nextElementSibling!.firstElementChild!;
+    expect(firstIcon(fpl).querySelector(".source-badge")).toBeTruthy();
+    expect(firstIcon(shots).querySelector(".source-badge.col-source-understat")).toBeTruthy();
     // Nor does Understat's own figure have a toggle: there's no FPL version to switch to.
     expect(shots.querySelector(".source-toggle")).toBeNull();
   });
@@ -158,7 +161,8 @@ describe("Dashboard with Understat mounted", () => {
     // Understat's figures only: Saka's 4.56, Rice (no Understat figure) left out, never FPL's 3.21.
     expect(values()).toEqual(["4.56"]);
     expect(within(card).getByRole("button", { name: "Showing Understat's xG · Click to show FPL's" }).getAttribute("aria-pressed")).toBe("true");
-    expect(card.querySelector(".source-badge")!.getAttribute("title")).toBe("Understat's figures: xG");
+    // The ⇄ toggle is its source mark: no separate icon beside it.
+    expect(card.querySelector(".source-badge")).toBeNull();
     // Nothing about the choice is saved: the tile is stored as FPL's xG.
     expect(localStorage.getItem("fpl-dashboard:dashboard:saved-views:v1")).not.toContain("understat:");
 
@@ -321,10 +325,24 @@ describe("the Dashboard's Starter view (<source_starter_items>) and its cards' s
     expect(titleOf(container, "xG").getAttribute("title")).toBe("Understat's figures: xG");
   });
 
+  it("a card's header runs source mark, stopwatch, then Data View (<card_source_mark>)", () => {
+    showStarter();
+    const { container } = renderDashboard(fakeSource({ dashboardStarter: UNDERSTAT_DASHBOARD_STARTER }));
+    for (const text of ["Points", "Shots/Game (Understat)", "Price vs NPxGI/Game"]) {
+      const icons = titleOf(container, text).nextElementSibling!;
+      const order = [...icons.children].map((c) =>
+        c.querySelector(".source-badge, .source-toggle") ? "source" : c.classList.contains("minutes-floor-badge") ? "stopwatch" : c.classList.contains("data-view-badge") ? "view" : "other",
+      );
+      expect(order, text).toEqual(["source", "stopwatch", "view"]);
+    }
+    expect(titleOf(container, "Price vs NPxGI/Game").nextElementSibling!.querySelector(".source-badge.col-source-crossover")).toBeTruthy();
+  });
+
   it("FPL tiles are marked green with no second source mounted too", () => {
     storeDashboard([tile("t-fpl", "Goals", "goals")]);
     const { container } = renderDashboard(null);
     expect(titleOf(container, "Goals").classList.contains("col-source-fpl")).toBe(true);
+    expect(tileCard(container, "Goals").querySelector(".source-badge.col-source-fpl svg")).toBeTruthy();
   });
 });
 
@@ -362,8 +380,10 @@ describe("Player Comparison with Understat mounted", () => {
     expect(rows()[0].querySelector(".source-toggle")).toBeNull();
     expect(valuesOf(rows()[1])).toEqual(["3.21", "1.11"]); // FPL's xG first
     expect(valuesOf(rows()[2])).toEqual(["25"]);
-    expect(panel().closest(".card")!.querySelector(".source-badge")!.getAttribute("title")).toBe("Understat's figures: Shots");
-    // <card_source_mark>: FPL and Understat figures together, so its title is the crossover colour.
+    // <card_source_mark>: FPL and Understat figures together, so its mark is the ⇄ (not a button: its rows have their own) and its title the crossover colour.
+    const mark = () => panel().closest(".card")!.querySelector(".source-badge.col-source-crossover")!;
+    expect(mark().getAttribute("title")).toBe("FPL's figures: Goals, xG · Understat's figures: Shots · In both sources: xG");
+    expect(mark().closest("button")).toBeNull();
     const title = () => panel().closest(".card")!.querySelector(".card-title")!;
     expect(title().classList.contains("col-source-crossover")).toBe(true);
     expect(title().getAttribute("title")).toBe("FPL's figures: Goals, xG · Understat's figures: Shots");
@@ -372,7 +392,7 @@ describe("Player Comparison with Understat mounted", () => {
     // The row keeps its name and place; its figures are Understat's (Rice has none: no marker, never a 0), its name violet.
     expect(valuesOf(rows()[1])).toEqual(["4.56"]);
     expect(rows()[1].querySelector(".cmp-outputs-label")!.classList.contains("col-source-understat")).toBe(true);
-    expect(panel().closest(".card")!.querySelector(".source-badge")!.getAttribute("title")).toBe("Understat's figures: xG, Shots");
+    expect(mark().getAttribute("title")).toBe("FPL's figures: Goals · Understat's figures: xG, Shots · In both sources: xG");
     expect(title().getAttribute("title")).toBe("FPL's figures: Goals · Understat's figures: xG, Shots");
   });
 
@@ -385,6 +405,9 @@ describe("Player Comparison with Understat mounted", () => {
     const titleOf = (text: string) => [...container.querySelectorAll(".card .card-title")].find((t) => t.textContent === text)!;
     expect(titleOf("FPL").classList.contains("col-source-fpl")).toBe(true);
     expect(titleOf("Understat").classList.contains("col-source-understat")).toBe(true);
+    // Its mark: xG is in both sources, so the ⇄; Understat's own figures only, Understat's icon.
+    expect(titleOf("FPL").closest(".card")!.querySelector(".source-badge.col-source-crossover")).toBeTruthy();
+    expect(titleOf("Understat").closest(".card")!.querySelector(".source-badge.col-source-understat")).toBeTruthy();
   });
 
   it("the card dialog offers Understat's comparable figures under its own headings, and saves them by source", () => {
@@ -422,8 +445,10 @@ describe("Player Comparison with Understat mounted", () => {
     const { container } = renderComparison(fakeSource());
     expect(container.textContent).not.toContain("no longer available");
     const card = container.querySelector(".card .source-toggle")!.closest(".card") as HTMLElement;
-    expect(card.querySelector(".source-badge")!.getAttribute("title")).toBe("Understat's figures: Shots");
+    // Its ⇄ toggle is its source mark (<card_source_mark>): no separate icon beside it.
+    expect(card.querySelector(".source-badge")).toBeNull();
     fireEvent.click(within(card).getByRole("button", { name: "Showing FPL's xG and xA · Click to show Understat's" }));
-    expect(card.querySelector(".source-badge")!.getAttribute("title")).toBe("Understat's figures: xG, xA, Shots");
+    expect(within(card).getByRole("button", { name: "Showing Understat's xG and xA · Click to show FPL's" }).getAttribute("aria-pressed")).toBe("true");
+    expect(card.querySelector(".source-badge")).toBeNull();
   });
 });

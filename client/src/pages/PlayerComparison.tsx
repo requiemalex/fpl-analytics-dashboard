@@ -8,7 +8,7 @@ import { comparisonMetricByKey, comparisonMetricFromColumn, comparisonPercentile
 import { buildSeasonTrend, trendBelowKey, trendDataKey, trendMetricByKey, type TrendDisplay, type TrendMetric } from "../metrics/careerTrends";
 import { belowMinimumNote, historicSeasonsNote, profileFloorNote, smallSampleNote, trendFloorNote, userMinimumNote } from "../components/MinutesFloorBadge";
 import { columnFormatForMode, columnForMode } from "../components/playerColumns";
-import { cardSource, SourceBadge, SourceToggle, type CardSource } from "../components/SourceToggle";
+import { cardSource, SourceMark, SourceToggle, type CardSource } from "../components/SourceToggle";
 import {
   externalColumnByKey,
   externalLabel,
@@ -148,28 +148,18 @@ function sourceOff(key: string, ext: ExternalStatsSource | null): boolean {
 }
 
 /**
- * A card's source controls, in its header: the ⇄ toggle when `toggle` is
- * given (a radar's or trend graph's figures both sources have — its axis
- * names are drawn inside the chart, so one toggle switches them together;
- * an Outputs row has its own), and the second source's badge while any
- * figure shown is that source's.
+ * A card's source mark, first in its header (<card_source_mark>,
+ * SourceMark): FPL's icon, Understat's, or the ⇄. Its ⇄ is a toggle when
+ * `toggle` is given (a radar's or trend graph's figures both sources have —
+ * its axis names are drawn inside the chart, so one toggle switches them
+ * together); an Outputs row has its own, so there the ⇄ only marks it.
  */
 function cardSourceControls(
   ext: ExternalStatsSource | null,
   items: { source: ExternalStatsSource | null; figure: string; crossover: boolean }[],
   toggle: { switched: boolean; onToggle: () => void } | null,
 ): React.ReactNode {
-  const crossover = items.filter((i) => i.crossover);
-  const external = items.filter((i): i is { source: ExternalStatsSource; figure: string; crossover: boolean } => i.source !== null);
-  if (!ext || ((!toggle || crossover.length === 0) && external.length === 0)) return undefined;
-  return (
-    <>
-      {toggle && crossover.length > 0 && (
-        <SourceToggle showingExternal={toggle.switched} externalLabel={ext.label} figure={crossover.map((i) => i.figure).join(" and ")} onToggle={toggle.onToggle} />
-      )}
-      {external.length > 0 && <SourceBadge source={external[0].source} figures={external.map((i) => i.figure)} />}
-    </>
-  );
+  return <SourceMark items={items} toggle={ext && toggle ? { ...toggle, externalLabel: ext.label } : null} />;
 }
 
 function useComparisonIds(): [number[], (ids: number[]) => void] {

@@ -140,11 +140,13 @@ export function UnderstatGuide() {
           card, the pickers have the same groups as Columns: FPL, the rose "FPL &amp; Understat" figures, then Understat's own.
           A figure both sources have gets the <span style={{ color: "var(--col-crossover)" }}>⇄</span> icon: in a tile's header, beside
           an Outputs row's name, or in the header of a graph, radar or trend graph (where it switches all of that chart's shared
-          figures together). It starts on FPL each visit. Every tile, graph and card's title says where its figures come from, in
-          the same colours: green when they're all FPL's, violet when they're all Understat's, and{" "}
-          <span style={{ color: "var(--col-crossover)" }}>rose</span> when it shows both (hover the title to see which are which); a
-          figure with ⇄ counts as whichever source it's showing. One showing any Understat figure also has the{" "}
-          <span style={{ color: "var(--col-understat)" }}>violet</span> Understat icon in its header (hover it to see which figures);
+          figures together). It starts on FPL each visit. The first icon in every tile, graph and card's header says where its
+          figures come from: <span style={{ color: "var(--accent-positive)" }}>FPL's football</span> when they're all FPL's, the{" "}
+          <span style={{ color: "var(--col-crossover)" }}>⇄</span> when it has figures both sources have or figures from both (on a
+          tile, graph, radar or trend graph that's the switch itself), and the{" "}
+          <span style={{ color: "var(--col-understat)" }}>violet</span> Understat icon when they're all Understat's (hover any of them
+          to see which figures). Its title's colour says which source is showing right now: green for FPL, violet for Understat,
+          rose for both;
           a graph's axis says "(Understat)", and Understat's names are violet on Outputs rows and radars. Colours, Min Minutes, Hide
           and the stopwatch work as for FPL figures, on FPL's minutes. A player Understat has no figure for isn't listed, never
           shown as 0. Trend graphs can plot Understat's figures season by season too; a season it has nothing for is a gap. The

@@ -62,7 +62,7 @@ export function TopList({
   floorNote?: string | null;
   /** Dashboard-only: the tile's Hide button (<hide_small_samples>): whether it's on, how many players shown are under the threshold, and its toggle. */
   smallSamples?: { hidden: boolean; count: number; onToggle: () => void };
-  /** Dashboard-only: its ⇄ source toggle (figures both sources have) and second-source badge (SourceBadge); none for FPL-only figures. */
+  /** Dashboard-only: its source mark (<card_source_mark>, SourceMark: FPL's icon, Understat's or the ⇄), first in the header. */
   sourceControls?: React.ReactNode;
   /** Where its figures come from: the title's colour (<card_source_mark>). */
   source?: CardSource;
@@ -88,9 +88,9 @@ export function TopList({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
         <CardTitle title={title} source={source} />
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          {sourceControls}
           {smallSamples && dataView && <HideSmallSamplesButton hidden={smallSamples.hidden} count={smallSamples.count} mode={dataView} onToggle={smallSamples.onToggle} />}
           {floorNote && dataView && <MinutesFloorBadge note={smallSamplesShownNote(floorNote, shownSmallSamples, dataView)} active={shownSmallSamples > 0} />}
-          {sourceControls}
           {dataView && <DataViewBadge mode={dataView} />}
           <CardEditRemoveButtons noun="tile" name={title} onEdit={onEdit} onRemove={onRemove} />
         </div>

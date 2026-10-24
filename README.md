@@ -904,9 +904,9 @@ without it leaves that season's Shots Faced uncoloured.
     visit (per page, by item id; never saved) and switches the whole figure
     — values, ranking, colour, scale, bold — so no figure mixes sources
     (`<one_source_per_figure>`); with Understat gone it falls back to FPL.
-  - **On screen:** a card showing any Understat figure has the violet
-    Understat icon in its header (`SourceBadge`), hover naming the figures,
-    with the amber stale dot beside it when its data is out of date. A
+  - **On screen:** every card's header starts with its source mark
+    (<card_source_mark>, below), with the amber stale dot beside it while
+    any figure shown is Understat's and its data is out of date. A
     switched Outputs row keeps its name and place, its name violet (as a
     switched Explorer header is); Understat's own rows come after FPL's
     under violet "Understat ·" headings. A graph's axis reads "xG
@@ -932,15 +932,26 @@ without it leaves that season's Shots Faced uncoloured.
     first (finishing below the chances); graphs Shots/Game vs xG/Shot and
     Price vs NPxGI/Game (FPL & Understat). Clubs: xGD, Pts − xPts, Shots
     Against (fewest first), Set-Piece xG; graph NPxG vs NPxGA.
-  - **Card titles** (<card_source_mark>, `cardSource`/`CardTitle` in
-    `components/SourceToggle.tsx`): every Dashboard tile and graph and
-    Player Comparison card has its title in the colour index, by where its
-    figures come from: green (`col-source-fpl`) all FPL, the source's
-    colour all its own, rose (`col-source-crossover`) both. A ⇄ figure
-    counts as the source it's showing. The title's hover names each
-    source's figures ("FPL's figures: Price · Understat's figures:
-    NPxGI/Game"). Source only, as on the profiles' section headings: a
-    card doesn't use the Explorers' muted red for always-live figures.
+  - **Source mark and title** (<card_source_mark>, `SourceMark`,
+    `cardSource`/`CardTitle` in `components/SourceToggle.tsx`): every
+    Dashboard tile and graph and Player Comparison card says where its
+    figures come from, twice:
+    - **The mark**, the first icon in its header (then the stopwatch, if
+      any, then the Data View), one of three, as the pickers group the
+      figures: FPL's football (green, `FplSourceIcon`) when every figure is
+      FPL's own; the ⇄ (rose) when it has a figure both sources have, or
+      figures from both; Understat's goal frame (violet) when every figure
+      is Understat's own. Where the card has its own ⇄ toggle (tile,
+      graph, radar, trend graph) the toggle is the mark; an Outputs panel's
+      rows have their own toggles, so its ⇄ mark isn't a button. Hover
+      names each source's figures and those in both.
+    - **The title's colour** says which source is showing now: green (`col-source-fpl`) all
+      FPL, the source's colour all its own, rose (`col-source-crossover`)
+      both; a ⇄ figure counts as the source it's showing, as a switched
+      Explorer header turns violet. Its hover names each source's figures
+      ("FPL's figures: Price · Understat's figures: NPxGI/Game"). Source
+      only, as on the profiles' section headings: a card doesn't use the
+      Explorers' muted red for always-live figures.
   - **Trend graphs** (`playerTrends`, `understat/trends.ts`): Understat's
     versions of xG, xA, xGI, their per-game rates, Assists and Minutes (the
     graph's ⇄), and its own Shots, NPxG, xG/Shot, Key Passes, NPxGI,

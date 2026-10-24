@@ -35,7 +35,7 @@ import {
   type SummaryTileScope,
   type TeamTileMetric,
 } from "../components/summaryTileMetrics";
-import { cardSource, CrossoverGroupHeading, SourceBadge, SourceToggle } from "../components/SourceToggle";
+import { cardSource, CrossoverGroupHeading, SourceMark } from "../components/SourceToggle";
 import { GroupedPicker, type PickerGroup } from "../components/GroupedPicker";
 import {
   externalColumnByKey,
@@ -182,23 +182,15 @@ function usesExternalMetric(item: { metricKey: string } | { chartType: Dashboard
 }
 
 /**
- * A tile's or graph's source controls, in its header: the ⇄ toggle, when
- * a figure on it is one both sources have (one toggle per card: a tile has
- * one figure, and a graph's axis names are drawn inside the chart, so its
- * toggle switches every such figure on it together), and the second
- * source's badge while any figure shown is that source's.
+ * A tile's or graph's source mark, first in its header (<card_source_mark>,
+ * SourceMark): FPL's icon, Understat's, or the ⇄. Its ⇄ is a toggle where
+ * a figure on it is one both sources have (one per card: a tile has one
+ * figure, and a graph's axis names are drawn inside the chart, so it
+ * switches every such figure on it together).
  */
 function itemSourceControls(ext: ExternalStatsSource | null, metrics: (ItemMetric<unknown> | null | undefined)[], switched: boolean, onToggle: () => void): React.ReactNode {
   const shown = metrics.filter((m): m is ItemMetric<unknown> => !!m);
-  const crossover = shown.filter((m) => m.crossover);
-  const external = shown.filter((m): m is ItemMetric<unknown> & { source: ExternalStatsSource } => !!m.source);
-  if (!ext || (crossover.length === 0 && external.length === 0)) return undefined;
-  return (
-    <>
-      {crossover.length > 0 && <SourceToggle showingExternal={switched} externalLabel={ext.label} figure={crossover.map((m) => m.figure).join(" and ")} onToggle={onToggle} />}
-      {external.length > 0 && <SourceBadge source={external[0].source} figures={external.map((m) => m.figure)} />}
-    </>
-  );
+  return <SourceMark items={shown} toggle={ext ? { switched, onToggle, externalLabel: ext.label } : null} />;
 }
 
 /** A second source's part of the pickers (pickerGroups, in the page). */

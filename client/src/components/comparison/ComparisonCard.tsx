@@ -46,7 +46,7 @@ export function ComparisonCard({
   floorNote?: string | null;
   /** <marker_follows_data>: a player on the card is under its threshold (marked in its legend or plot), so the stopwatch is amber, not grey. */
   floorActive?: boolean;
-  /** Its ⇄ source toggle (figures both sources have) and second-source badge (SourceBadge); none for FPL-only figures. */
+  /** Its source mark (<card_source_mark>, SourceMark: FPL's icon, Understat's or the ⇄), first in the header. */
   sourceControls?: React.ReactNode;
   /** Where its figures come from: the title's colour (<card_source_mark>). */
   source?: CardSource;
@@ -72,8 +72,8 @@ export function ComparisonCard({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
         <CardTitle title={title} source={source} style={{ marginBottom: 0 }} />
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          {floorNote && <MinutesFloorBadge note={floorNote} active={floorActive} />}
           {sourceControls}
+          {floorNote && <MinutesFloorBadge note={floorNote} active={floorActive} />}
           {dataView && <DataViewBadge mode={dataView} />}
           <CardEditRemoveButtons noun={noun} name={title} onEdit={onEdit} onRemove={onRemove} />
         </div>

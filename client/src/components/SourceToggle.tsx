@@ -69,20 +69,61 @@ export function SourceStaleMarker({ note }: { note: string }) {
   return <span className="source-stale-marker" title={note} aria-label={note} role="img" />;
 }
 
+/** FPL's mark: a football, pairing with a second source's own icon (Understat's goal frame). */
+export function FplSourceIcon({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="8" cy="8" r="6.2" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M8 5.7 10.2 7.3 9.4 9.9H6.6L5.8 7.3Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+type MarkItem = { source: Pick<ExternalStatsSource, "label" | "className" | "icon" | "staleNote"> | null; figure: string; crossover: boolean };
+
 /**
- * A Dashboard or Player Comparison card's mark that some or all of its
- * figures are a second source's: the source's icon in its colour, its hover
- * naming the figures ("Understat's figures: xG, Key Passes"), and the stale
- * marker beside it when they're out of date or couldn't be loaded.
+ * <card_source_mark>: the first icon in a Dashboard or Player Comparison
+ * card's header, one of three, as the pickers group the figures: FPL's
+ * football (green) when every figure on it is FPL's own; the ⇄ (rose) when
+ * it has a figure both sources have, or figures from both; the second
+ * source's icon (its colour) when every figure is that source's own. A card
+ * with its own ⇄ toggle (a tile, a graph, a radar, a trend graph) uses the
+ * toggle as its ⇄ mark; elsewhere (an Outputs panel, whose rows have their
+ * own) it's the same icon, not a button. Its hover names each source's
+ * figures, and the stale dot follows it while any figure shown is the
+ * second source's.
  */
-export function SourceBadge({ source, figures }: { source: Pick<ExternalStatsSource, "label" | "className" | "icon" | "staleNote">; figures: string[] }) {
-  const note = `${source.label}'s figures: ${figures.join(", ")}`;
+export function SourceMark({ items, toggle }: { items: MarkItem[]; toggle?: { switched: boolean; onToggle: () => void; externalLabel: string } | null }) {
+  const source = cardSource(items);
+  if (!source) return null;
+  const names = (list: MarkItem[]) => [...new Set(list.map((i) => i.figure))].join(", ");
+  const external = items.filter((i) => i.source);
+  const crossover = items.filter((i) => i.crossover);
+  const both = crossover.length > 0 || (external.length > 0 && external.length < items.length);
+  const note = crossover.length > 0 ? `${source.note} · In both sources: ${names(crossover)}` : source.note;
+  const badge = (className: string, icon: React.ReactNode) => (
+    <span className={`source-badge source-coloured ${className}`} title={note} aria-label={note} role="img">
+      {icon}
+    </span>
+  );
+  let mark: React.ReactNode;
+  if (both && toggle && crossover.length > 0) {
+    mark = (
+      <SourceToggle
+        showingExternal={toggle.switched}
+        externalLabel={toggle.externalLabel}
+        figure={crossover.map((i) => i.figure).join(" and ")}
+        onToggle={toggle.onToggle}
+      />
+    );
+  } else if (both) mark = badge("col-source-crossover", <SourceSwapIcon />);
+  else if (external.length > 0) mark = badge(external[0].source!.className, external[0].source!.icon);
+  else mark = badge("col-source-fpl", <FplSourceIcon />);
+  const staleNote = external[0]?.source?.staleNote;
   return (
     <span style={{ display: "inline-flex", alignItems: "center" }}>
-      <span className={`source-badge source-coloured ${source.className}`} title={note} aria-label={note} role="img">
-        {source.icon}
-      </span>
-      {source.staleNote && <SourceStaleMarker note={source.staleNote} />}
+      {mark}
+      {staleNote && <SourceStaleMarker note={staleNote} />}
     </span>
   );
 }

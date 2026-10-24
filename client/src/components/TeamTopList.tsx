@@ -53,7 +53,7 @@ export function TeamTopList({
   onDrop?: (e: React.DragEvent) => void;
   /** Dashboard-only: which analysis mode this tile was built from — shown as a small badge in the header. */
   dataView?: AnalysisMode;
-  /** Dashboard-only: its ⇄ source toggle (figures both sources have) and second-source badge (SourceBadge); none for FPL-only figures. */
+  /** Dashboard-only: its source mark (<card_source_mark>, SourceMark: FPL's icon, Understat's or the ⇄), first in the header. */
   sourceControls?: React.ReactNode;
   /** Where its figures come from: the title's colour (<card_source_mark>). */
   source?: CardSource;
