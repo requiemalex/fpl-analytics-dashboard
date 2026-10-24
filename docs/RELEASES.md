@@ -5,6 +5,10 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.104.0 · 24 Oct 2026
+
+- Dashboard Starter: duplicates out, Understat's own tiles and graphs in; every tile, graph and comparison card's title coloured by where its figures come from (green FPL, violet Understat, rose both)
+
 ## v1.103.0 · 23 Oct 2026
 
 - Player Comparison trends: a spell out of FPL between two of a player's seasons is a dotted line (hover says he wasn't in FPL), and every season takes its place on the axis
