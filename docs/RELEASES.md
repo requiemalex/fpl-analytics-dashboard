@@ -5,6 +5,11 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.109.0 · 24 Oct 2026
+
+- Team Building's Projected points total, with a menu to pick FPL or Model and 1-5 matches ahead; Formations pitch now matches Team Building's
+- Team Building's pitch redesigned: club-colour kits, one figure at a time, + places to fill
+
 ## v1.108.3 · 24 Oct 2026
 
 - Player Comparison trends: a season a player didn't play now carries the amber stopwatch, on his dotted line or along the bottom of the chart
