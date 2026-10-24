@@ -5,6 +5,11 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.107.0 · 24 Oct 2026
+
+- Team Profile: a Summary of tiles (attacking, defensive, balance, actual vs expected, FPL) replaces Season Totals, and a Fixture Forecast (each upcoming match's expected goals for and against, clean-sheet, scoring and result chances, from a model fitted to every match since 2016/17) replaces Upcoming Fixtures
+- Understat figures are no longer labelled "(Understat)" on Dashboard tiles and graphs or Player Comparison trends and radars: their colour and icon say it (axis names in violet); only CSV export headers keep it
+
 ## v1.106.0 · 24 Oct 2026
 
 - Player profile: one Summary card of tiles replaces Underlying Numbers, Actual vs Expected and Value; Understat's Views open with their own Summary, chosen by position
