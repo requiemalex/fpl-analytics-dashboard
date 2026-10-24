@@ -5,6 +5,10 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.108.1 · 24 Oct 2026
+
+- Historic Average no longer puts a stopwatch on Player Explorer's or Team Building's Data View toggle, or on Dashboard tiles and Player Comparison cards with no minimum of their own; only the players under its 855-minute seasons are marked, as in the other Data Views
+
 ## v1.108.0 · 24 Oct 2026
 
 - Minimum minutes: the fixed floor is now a quarter of the minutes available — 855 for a completed season (was 450), and in Current Season a quarter of the gameweeks finished so far, never under 90 (was always 90), so it rises as the season goes on
