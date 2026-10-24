@@ -7,6 +7,7 @@ import { withCoverage } from "../components/primitives";
 import { SmallSampleBadge } from "../components/MinutesFloorBadge";
 import { ProfileSummary, type SummaryGroup } from "../components/playerProfile/ProfileSummary";
 import { countDecimals } from "../components/playerColumns";
+import { playerRankHint } from "../components/hoverText";
 import type { Position } from "../types/normalized";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import {
@@ -345,7 +346,7 @@ export function createProfiles(
       }),
     }));
     return {
-      card: <ProfileSummary groups={summaryGroups} position={position} badge={smallSampleNote ? <SmallSampleBadge note={smallSampleNote} /> : null} />,
+      card: <ProfileSummary groups={summaryGroups} rankHint={(p) => playerRankHint(p, position)} badge={smallSampleNote ? <SmallSampleBadge note={smallSampleNote} /> : null} />,
       state: "ready",
     };
   };

@@ -342,7 +342,8 @@ Three rules hold everywhere:
   show (see "Comparative colouring"). Clubs have no floor, and nor do
   forward-looking figures (Team Building's two Exp. Pts, Minutes
   Reliability, and every colour on its pitch cards — price and ownership
-  there are ranked among every player in the position).
+  there are ranked among every player in the position — and the Team
+  Profile's Fixture Forecast).
 
 In the fixed-floor sections the floor applies to **every percentile**,
 totals as well as per-game rates: the pool is everyone at or above it, and
@@ -1082,6 +1083,65 @@ there is no bulk per-gameweek data for the whole pool. The one true per-90
 rate is internal to Expected Points Tier 2 (`per90()`), which scales a rate
 by a fraction of one upcoming match.
 
+### Fixture Forecast
+
+`<fixture_forecast>`, `metrics/fixtureForecast.ts`: the Team Profile's
+forecast of each upcoming fixture, from FPL's own club match records only
+(club history: every Premier League match since 2016/17, and this season's
+so far, `clubSeasonsAsShown`, so a partial live season's xG is left out).
+A fitted model — unlike Team Building's disclosed heuristics — whose three
+settings were chosen by backtesting.
+
+1. **Ratings.** Every club has an attack rating (chances created) and a
+   defence rating (chances allowed), relative to the league average (1.0).
+   A match's chances are 0.8 × its xG + 0.2 × its goals where FPL has xG
+   (from part-way through 2022/23), its goals before that. Recent matches
+   count most: a match's weight halves every 19 gameweeks back, across
+   seasons (matches weighted under 1% are left out).
+2. **Opposition.** Each club's chances are divided by what an average side
+   would have managed against the same opponents at the same venue (home
+   and away league averages), repeated until the ratings settle (25
+   rounds), the average kept at 1.0 over the matches.
+3. **Starting point.** Every rating begins from 4 matches' worth of the
+   league average — or, for a club not in the Premier League the season
+   before, of where promoted clubs have typically finished their first
+   season (their goals for and against per match against the league
+   average, every promotion in a completed season on record:
+   `promotedStart`). A club with few recent matches isn't judged on a
+   handful.
+4. **A fixture.** Home goals expected = league average home goals × home
+   attack × away defence; away goals the same the other way round (the
+   averages over the same weighted matches). Goals are taken as Poisson:
+   Clean Sheet = e^−(goals expected against), To Score = 1 − e^−(goals
+   expected for), and Win/Draw/Loss sum the scorelines up to 10 goals each.
+
+```
+chances   = 0.8 × xG + 0.2 × goals   (goals alone before xG)
+weight    = 0.5 ^ (gameweeks ago / 19)
+attack_c  = (Σ weight × chances for     + 4 × avg × start_c) / (Σ weight × venue avg × opponent defence + 4 × avg)
+defence_c = (Σ weight × chances against + 4 × avg × start_c) / (Σ weight × venue avg × opponent attack  + 4 × avg)
+λ_home    = home goals avg × attack_home × defence_away;   λ_away = away goals avg × attack_away × defence_home
+```
+
+**Backtest** (2026-10-24): every match of 2023/24, 2024/25 and 2025/26
+(2,280 club-matches) forecast from only the matches before its gameweek.
+Clean Sheet Brier score 0.168 (lower is better) against 0.180 for the
+league's home and away clean-sheet rates over the three seasons before
+(To Score the same, as one side's clean sheet is the other not scoring);
+Win/Draw/Loss 0.579 against 0.650; goals forecast 1.494 a side against
+1.494 scored. Clean sheets are well calibrated: forecasts of 20–30% came
+true 24.9% of the time (25% forecast), 30–40% 32.9% (34%), 10–20% 13.0%
+(16%). Settings: xG weight 0.7–0.85, half-life 16–19 gameweeks and a 4-match
+start did best and about equally (0, 0.5 and 1 xG weight, half-lives 8–76
+and 2–12 matches were tried); goals alone (no xG) and a season-long
+half-life were clearly worse. **Known limit:** goals are modelled as
+independent, so draws come out a little low (22.6% forecast, 24.5%
+happened) and wins a little high (38.7%, 37.8%). Nothing knows about
+injuries, suspensions or rotation, only the matches.
+
+Team Building's Exp. Pts clean-sheet estimate is still its own (FPL's
+team strength ratings, `expectedPointsV2.ts`).
+
 ### Other methodology
 
 - **xGI validation** (`metrics/validation.ts`) recomputes xG + xA against
@@ -1130,7 +1190,8 @@ by a fraction of one upcoming match.
     minutes for the rows themselves (see "Minimum minutes"). Understat
     figures check Understat's own minutes. Clubs have no floor, and nor
     do forward-looking figures: Team Building's two Exp. Pts, Minutes
-    Reliability and every colour on its pitch cards (M20, 2026-10-19);
+    Reliability and every colour on its pitch cards (M20, 2026-10-19),
+    and the Team Profile's Fixture Forecast;
   - the rank is a percentile (half of ties below) flipped for
     lower-is-better figures; `percentileTint` (`utils/colorScale.ts`)
     turns it into the one scale: no colour at the 50th, stronger green
@@ -1198,8 +1259,8 @@ by a fraction of one upcoming match.
   against — unless no match he played has the figure (a stat FPL didn't
   record that season), which is "—". A cell with no total by design (Understat's
   Win/Draw/Loss Chance Totals, Position) is blank: "—" always means
-  missing data. (A club's *season* figures — Team Explorer, Season Totals
-  — follow their own rule, `<season_figures_mostly_complete>` in "Club
+  missing data. (A club's *season* figures — Team Explorer, the Team
+  Profile's Summary — follow their own rule, `<season_figures_mostly_complete>` in "Club
   history": totalled unless more than a quarter of matches lack the stat.)
 - **Figures a position can't have** (`<position_only_figures>`,
   `PlayerColumn.positions`, `columnApplies`, `cellText`): FPL never
@@ -1583,10 +1644,11 @@ longest word (`<header_floor>`, as in every customisable table).
   match, with links to their profiles (below). The rule's other direction
   has one exception too: a defender's or goalkeeper's Shots Faced map on
   the player profile.
-- Same layout as the player profile (the radars, then Season Totals beside
-  Upcoming Fixtures): "FPL · Views", a second source's
-  Views, a second source's Formations (Understat: this season, whatever
-  the Data View), "FPL · Points History", then the **Match Log**
+- Same layout as the player profile: "FPL · Views" (a **Summary** across
+  the width on the player profile's card, `ProfileSummary`, then the two
+  radars), a second source's Views, then — whatever the Data View — "FPL ·
+  Fixture Forecast", a second source's Formations (Understat: this
+  season), "FPL · Points History", then the **Match Log**
   (`<club_match_log>`): the live season (`clubLiveMatches`) unless a season
   is picked on Points History, then that season's `ClubSeason.matches`,
   opponents named as they were that season. Never the Data View. One row
@@ -1596,6 +1658,28 @@ longest word (`<header_floor>`, as in every customisable table).
   (per match) rows are coloured against every other club's log for the
   same season ("Comparative colouring"); a column some matches lack follows
   "Totals rows".
+- **Summary** (`SUMMARY_GROUPS`): every tile is a Team Explorer column
+  (`TEAM_COLUMNS`), so the two always agree, coloured by the club's rank
+  among every club for the Data View (`clubRanks`, its hover "4th of 20
+  clubs"): **Attacking** (Goals excl. OGs, xG, xA and each per match),
+  **Defensive** (Clean Sheets, Goals Against, xGC; Clean Sheet %,
+  Conceded/Game, xGC/Game), **Balance** (Goal Difference, xGD, xGD/Game)
+  beside **Actual vs Expected** (Goals − xG, Assists − xA, Conceded − xGC,
+  fewer conceded better), and **FPL** (FPL Points, Bonus, Def.
+  Contributions and each per match). Per match is ÷ the matches played in
+  the view. The per-match figures, Clean Sheet %, xGD and the three Actual
+  vs Expected figures were added to Team Explorer's columns for it (off by
+  default; in the Dashboard's team tiles and graphs too).
+- **Fixture Forecast** (`components/teamProfile/FixtureForecast.tsx`,
+  "Fixture Forecast" in "Metric methodology"): the club's next five
+  fixtures (`getUpcomingFixtures`), each with its expected goals for and
+  against, Clean Sheet, To Score, Win, Draw and Loss chances; Totals (goals
+  added up, a chance as the matches it's expected in) and Average (per
+  fixture). A fixture's figure is coloured among every club's upcoming
+  fixtures in the table, Totals and Average among every club's; fewer
+  conceded and defeats better, a draw never coloured. It replaced the
+  Upcoming Fixtures card (FPL's difficulty chips); the difficulty is still
+  on a row's opponent hover and in the Explorers' Next 5 column.
 - The team Defense radar ranks more Defensive Contributions as better
   (`TEAM_DEFENSE_AXES`), as for a player — they're FPL points. A dominant
   side that rarely has to defend can sit low on that one axis while topping
@@ -1628,10 +1712,12 @@ included.
   characters) have longer names cut to 20 on load; more than 5 tabs from
   then are kept, but no more can be added until enough are deleted.
 
-### Team Building — the one predictive section
+### Team Building — predictions
 
-Everything else in the app describes what happened. Team Building predicts,
-at the user's request, using **disclosed heuristics, not a fitted model**:
+Everything else in the app describes what happened, but for the Team
+Profile's Fixture Forecast (a fitted model, "Fixture Forecast" above).
+Team Building predicts, at the user's request, using **disclosed
+heuristics, not a fitted model**:
 every weight is a named constant with its reasoning. It has no analysis-mode
 toggle; its Historic/Raw columns have their own. Squads (`useSavedSquads`,
 max 5) are created blank or imported by FPL team ID (positions 1–11 are the

@@ -1,5 +1,5 @@
 import type { TeamAggregate } from "../metrics/teamStats";
-import { fmtDecimal, fmtSigned } from "../utils/format";
+import { fmtDecimal, fmtPercent, fmtSigned } from "../utils/format";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 
 export type TeamColumnGroup = "RESULTS" | "OUTPUT" | "UNDERLYING PERFORMANCE";
@@ -21,6 +21,14 @@ export interface TeamColumn {
 }
 
 const num = (decimals = 0) => ({ format: (v: number | null) => fmtDecimal(v, decimals), decimals });
+const signed = (decimals: number) => ({ format: (v: number | null) => fmtSigned(v, decimals), decimals });
+
+/** Per match played: a figure ÷ the club's matches in the view (a Historic Average's per-season means divide the same way). */
+const perGame = (pick: (t: TeamAggregate) => number | null) => (t: TeamAggregate) => {
+  const v = pick(t);
+  return v === null || !t.played ? null : v / t.played;
+};
+const minus = (a: number | null, b: number | null) => (a === null || b === null ? null : a - b);
 
 /**
  * The full set of team-level metrics a Dashboard tile/graph, the Team Explorer
@@ -49,12 +57,24 @@ export const TEAM_COLUMNS: TeamColumn[] = [
     decimals: 0,
   },
   { key: "cleanSheets", label: "Clean Sheets", group: "RESULTS", getValue: (t) => t.cleanSheets, ...num(0) },
+  {
+    key: "cleanSheetRate",
+    label: "Clean Sheet %",
+    group: "RESULTS",
+    getValue: (t) => (t.cleanSheets === null || !t.played ? null : (t.cleanSheets / t.played) * 100),
+    format: (v) => fmtPercent(v, 1),
+    decimals: 1,
+  },
+  { key: "goalsAgainstPerGame", label: "Conceded/Game", group: "RESULTS", getValue: perGame((t) => t.goalsAgainst), ...num(2), higherIsBetter: false },
 
   // OUTPUT
   { key: "points", label: "FPL Points", group: "OUTPUT", getValue: (t) => t.points, ...num(0) },
   { key: "goals", label: "Goals (excl. OGs)", group: "OUTPUT", getValue: (t) => t.goals, ...num(0) },
   { key: "assists", label: "Assists", group: "OUTPUT", getValue: (t) => t.assists, ...num(0) },
   { key: "bonus", label: "Bonus Points", group: "OUTPUT", getValue: (t) => t.bonus, ...num(0) },
+  { key: "pointsPerGame", label: "FPL Pts/Game", group: "OUTPUT", getValue: perGame((t) => t.points), ...num(1) },
+  { key: "goalsPerGame", label: "Goals/Game", group: "OUTPUT", getValue: perGame((t) => t.goals), ...num(2) },
+  { key: "bonusPerGame", label: "Bonus/Game", group: "OUTPUT", getValue: perGame((t) => t.bonus), ...num(2) },
 
   // UNDERLYING PERFORMANCE
   { key: "xG", label: "xG", group: "UNDERLYING PERFORMANCE", getValue: (t) => t.xG, ...num(2) },
@@ -68,6 +88,16 @@ export const TEAM_COLUMNS: TeamColumn[] = [
     getValue: (t) => t.defensiveContributions,
     ...num(0),
   },
+  { key: "xGPerGame", label: "xG/Game", group: "UNDERLYING PERFORMANCE", getValue: perGame((t) => t.xG), ...num(2) },
+  { key: "xAPerGame", label: "xA/Game", group: "UNDERLYING PERFORMANCE", getValue: perGame((t) => t.xA), ...num(2) },
+  { key: "xGCPerGame", label: "xGC/Game", group: "UNDERLYING PERFORMANCE", getValue: perGame((t) => t.xGC), ...num(2), higherIsBetter: false },
+  { key: "defensiveContributionsPerGame", label: "DC/Game", group: "UNDERLYING PERFORMANCE", getValue: perGame((t) => t.defensiveContributions), ...num(1) },
+  { key: "xGD", label: "xGD", group: "UNDERLYING PERFORMANCE", getValue: (t) => minus(t.xG, t.xGC), ...signed(2) },
+  { key: "xGDPerGame", label: "xGD/Game", group: "UNDERLYING PERFORMANCE", getValue: perGame((t) => minus(t.xG, t.xGC)), ...signed(2) },
+  // Over-performance is better (<comparative_colouring>): more goals than xG, fewer conceded than xGC.
+  { key: "goalsMinusXG", label: "Goals − xG", group: "UNDERLYING PERFORMANCE", getValue: (t) => minus(t.goals, t.xG), ...signed(2) },
+  { key: "assistsMinusXA", label: "Assists − xA", group: "UNDERLYING PERFORMANCE", getValue: (t) => minus(t.assists, t.xA), ...signed(2) },
+  { key: "goalsAgainstMinusXGC", label: "Conceded − xGC", group: "UNDERLYING PERFORMANCE", getValue: (t) => minus(t.goalsAgainst, t.xGC), ...signed(2), higherIsBetter: false },
 ];
 
 /**

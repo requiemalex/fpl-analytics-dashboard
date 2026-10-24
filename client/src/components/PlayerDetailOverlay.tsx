@@ -31,6 +31,7 @@ import { usePlayerPastSeasons } from "../state/usePlayerPastSeasons";
 import { useExternalStats, type ProfileView } from "../extensions/externalStats";
 import { SourceToggle } from "./SourceToggle";
 import type { NormalizedPlayer, PlayerSeasonHistory, PlayerGameweekHistory, PlayerPastMatch } from "../types/normalized";
+import { playerRankHint } from "./hoverText";
 import { matchRecordShortfall } from "../metrics/matchRecordCheck";
 
 
@@ -913,7 +914,7 @@ export function PlayerDetailOverlay() {
               chart keeps its size, centred). The same order as the second
               source's Views: Summary, then its graphs. */}
           <div className="profile-grid">
-            <ProfileSummary groups={summaryGroups} position={player.position} badge={smallSampleBadge} />
+            <ProfileSummary groups={summaryGroups} rankHint={(p) => playerRankHint(p, player.position)} badge={smallSampleBadge} />
             {radarGroups.map((group) => (
               <div className={radarGroups.length > 1 ? "card" : "card profile-span-2"} key={group.label || "combined"}>
                 <div className="card-title">

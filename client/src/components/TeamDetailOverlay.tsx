@@ -4,15 +4,15 @@ import { useAppState } from "../state/AppStateContext";
 import { useEscapeLayer } from "../state/useEscapeLayer";
 import { useDialogFocus } from "../state/useDialogFocus";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
-import { getUpcomingFixtures } from "../metrics/fixtureTicker";
+import { forecastUpcomingFixtures } from "../metrics/fixtureForecast";
 import { teamColumnByKey, teamColumnForMode } from "./teamColumns";
-import { countDecimals } from "./playerColumns";
 import {
   computeTeamAggregates,
   computeTeamRadarData,
   clubLiveMatches,
   clubRecordsForMode,
   clubSeasonHistory,
+  clubSeasonsAsShown,
   clubSeasonsForMode,
   TEAM_DEFENSE_AXES,
   TEAM_OFFENSE_AXES,
@@ -22,9 +22,9 @@ import { computeClubSeasonWindow } from "../metrics/teamSeasonHistory";
 import { computeSeasonTrend } from "../metrics/careerMetrics";
 import { percentileTint } from "../utils/colorScale";
 import { clubRankHint } from "./hoverText";
-import { clubRanks, fixtureDifficultyRanks, rankAmong } from "../metrics/comparativeColour";
+import { clubRanks, colourDirection, rankAmong } from "../metrics/comparativeColour";
 import { ANALYSIS_MODE_OPTIONS, AnalysisModeToggle } from "./AnalysisModeToggle";
-import { FixtureChips, withCoverage } from "./primitives";
+import { withCoverage } from "./primitives";
 import { partialAverage, partialTotal, sumKnown, type PartialSum } from "../metrics/partialTotals";
 import { PercentileRadarChart } from "./PlayerRadarChart";
 import { AverageLineIcon, PointsHistoryChart, PointsHistoryHeader, PointsHistoryStats } from "./playerProfile/PointsHistory";
@@ -32,7 +32,8 @@ import { fmtDecimal, fmtOrdinal, DASH } from "../utils/format";
 import { useExternalStats, type ProfileView } from "../extensions/externalStats";
 import { SourceToggle } from "./SourceToggle";
 import { CloseIcon } from "./IconToolbar";
-import { tileTint } from "./playerProfile/ProfileSummary";
+import { ProfileSummary, type SummaryGroup } from "./playerProfile/ProfileSummary";
+import { FixtureForecastTable } from "./teamProfile/FixtureForecast";
 import type { ClubMatch, NormalizedTeam } from "../types/normalized";
 
 /**
@@ -101,15 +102,18 @@ export function matchLogSum(matches: ClubMatch[], value: (m: ClubMatch) => numbe
   return sumKnown(matches.map(value));
 }
 
-/** Label-above-value tile — same visual language as the player profile's StatTile. `tint` is its comparative colour: the club ranked among every club (<comparative_colouring>). */
-function StatTile({ label, value, tint, title }: { label: string; value: React.ReactNode; tint?: string; title?: string }) {
-  return (
-    <div className="stat-tile" style={tileTint(tint)} title={title}>
-      <span className="stat-tile-label">{label}</span>
-      <span className="stat-tile-value num">{value}</span>
-    </div>
-  );
-}
+/**
+ * The Summary's groups (ProfileSummary, the player profile's card), each
+ * tile a Team Explorer column so both always show the same figure: three
+ * totals over the same three per match where a group has six.
+ */
+const SUMMARY_GROUPS: { title: string; keys: string[] }[] = [
+  { title: "Attacking", keys: ["goals", "xG", "xA", "goalsPerGame", "xGPerGame", "xAPerGame"] },
+  { title: "Defensive", keys: ["cleanSheets", "goalsAgainst", "xGC", "cleanSheetRate", "goalsAgainstPerGame", "xGCPerGame"] },
+  { title: "Balance", keys: ["goalDifference", "xGD", "xGDPerGame"] },
+  { title: "Actual vs Expected", keys: ["goalsMinusXG", "assistsMinusXA", "goalsAgainstMinusXGC"] },
+  { title: "FPL", keys: ["points", "bonus", "defensiveContributions", "pointsPerGame", "bonusPerGame", "defensiveContributionsPerGame"] },
+];
 
 export function TeamDetailOverlay() {
   const { teams, teamsById, fixtures, clubSeasons, currentSeasonHasStarted, historicReferenceSeason, historicStatus, historicFetchSkippedPlayerIds, requestHistoricData } = useAppState();
@@ -223,21 +227,29 @@ export function TeamDetailOverlay() {
   );
   const seasonTrend = useMemo(() => computeSeasonTrend(completedSeasonHistory), [completedSeasonHistory]);
 
-  // Season Totals' colours: the club ranked among every club for this Data View.
-  // Its hover says the place: "4th of 20 clubs" (<hover_text>).
-  function totalsShade(key: keyof TeamAggregate, higherIsBetter = true): { tint?: string; title?: string } {
-    if (!clubTotals) return {};
-    const value = (t: TeamAggregate) => (typeof t[key] === "number" ? (t[key] as number) : null);
-    const ranks = clubRanks(allTeamAggregates, { id: (t) => t.teamId, value, higherIsBetter });
-    const rank = ranks.get(clubTotals.teamId);
-    return { tint: percentileTint(rank), title: clubRankHint(rank, ranks.size) };
-  }
+  // The Summary's tiles: each its Team Explorer column as the Data View shows it, coloured by the club's rank among
+  // every club for the view, its hover the place: "4th of 20 clubs" (<hover_text>).
+  const summaryGroups: SummaryGroup[] = useMemo(() => {
+    if (!clubTotals) return [];
+    return SUMMARY_GROUPS.map((g) => ({
+      title: g.title,
+      figures: g.keys.map((key) => {
+        const c = teamColumnForMode(teamColumnByKey(key)!, analysisMode);
+        const direction = colourDirection(c);
+        const ranks = direction === null ? null : clubRanks(allTeamAggregates, { id: (t) => t.teamId, value: c.getValue, higherIsBetter: direction });
+        const rank = ranks?.get(clubTotals.teamId) ?? null;
+        return { label: c.label, value: c.format(c.getValue(clubTotals)), percentile: rank, title: ranks ? clubRankHint(rank, ranks.size) : undefined };
+      }),
+    }));
+  }, [clubTotals, allTeamAggregates, analysisMode]);
 
-  const upcomingFixtures = useMemo(() => (team ? getUpcomingFixtures(team.id, fixtures, teamsById) : []), [team, fixtures, teamsById]);
-
-  // Average upcoming-fixture difficulty ranked among every club's — easier is better.
-  const fixtureRanks = useMemo(() => fixtureDifficultyRanks(new Map(teams.map((t) => [t.id, getUpcomingFixtures(t.id, fixtures, teamsById)]))), [teams, fixtures, teamsById]);
-  const avgFdrTint = team ? percentileTint(fixtureRanks.get(team.id)) : undefined;
+  // The Fixture Forecast (<fixture_forecast>): every club's next fixtures, so a club's figures are coloured among all of
+  // them. From the club records as shown (a partial live season's xG left out). Only while a profile is open: this
+  // overlay is mounted on every page.
+  const forecasts = useMemo(
+    () => (isOpen ? forecastUpcomingFixtures(teams, fixtures, teamsById, clubSeasonsAsShown(clubCtx)) : new Map()),
+    [isOpen, teams, fixtures, teamsById, clubCtx],
+  );
 
   // A second source's cards follow the Data View over the seasons the
   // club's own figures use: those it was in the league (clubRecordsForMode).
@@ -333,43 +345,15 @@ export function TeamDetailOverlay() {
           <div className="profile-section-heading col-source-fpl">
             <h3>FPL · Views</h3>
           </div>
-          {/* Two rows: the radars, then Season Totals beside Upcoming Fixtures. */}
+          {/* The Summary across the width, then the two radars: the player profile's order. */}
           <div className="profile-grid">
+            <ProfileSummary groups={summaryGroups} />
             {teamRadarGroups.map((group) => (
               <div className="card" key={group.label}>
                 <div className="card-title">Team Radar · {group.label}</div>
                 <PercentileRadarChart data={group.data} />
               </div>
             ))}
-
-            <div className="card">
-              <div className="card-title">Season Totals</div>
-              <div className="stat-tile-grid">
-                <StatTile label="FPL Points" value={fmtDecimal(clubTotals.points, countDecimals(analysisMode))} {...totalsShade("points")} />
-                <StatTile label="Goals (excl. OGs)" value={fmtDecimal(clubTotals.goals, countDecimals(analysisMode))} {...totalsShade("goals")} />
-                <StatTile label="Assists" value={fmtDecimal(clubTotals.assists, countDecimals(analysisMode))} {...totalsShade("assists")} />
-              </div>
-              <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                <StatTile label="xG" value={fmtDecimal(clubTotals.xG, 2)} {...totalsShade("xG")} />
-                <StatTile label="xA" value={fmtDecimal(clubTotals.xA, 2)} {...totalsShade("xA")} />
-                <StatTile label="xGI" value={fmtDecimal(clubTotals.xGI, 2)} {...totalsShade("xGI")} />
-              </div>
-              <div className="stat-tile-grid" style={{ marginTop: 10 }}>
-                <StatTile label="xGC" value={fmtDecimal(clubTotals.xGC, 2)} {...totalsShade("xGC", false)} />
-                <StatTile label="Clean Sheets" value={fmtDecimal(clubTotals.cleanSheets, countDecimals(analysisMode))} {...totalsShade("cleanSheets")} />
-              </div>
-            </div>
-
-            <div className="card">
-              <div className="card-title">Upcoming Fixtures</div>
-              {upcomingFixtures.length === 0 ? (
-                <p className="page-subtitle" style={{ margin: 0 }}>
-                  No fixtures scheduled.
-                </p>
-              ) : (
-                <FixtureChips fixtures={upcomingFixtures} avgTint={avgFdrTint} />
-              )}
-            </div>
           </div>
         </div>
 
@@ -383,6 +367,23 @@ export function TeamDetailOverlay() {
         )}
 
         <hr className="profile-divider" />
+
+        {/* What's ahead, whatever the Data View: forward-looking, so no floor (<fixture_forecast>). */}
+        <div className="profile-section">
+          <div className="profile-section-heading match-log-head col-source-fpl">
+            <h3>FPL · Fixture Forecast</h3>
+            <span className="match-log-season">Next {forecasts.get(team.id)?.length || 5} fixtures</span>
+          </div>
+          <div className="card">
+            {clubSeasons.length === 0 && historicStatus !== "error" ? (
+              <p className="page-subtitle" style={{ margin: 0 }}>
+                Loading club history…
+              </p>
+            ) : (
+              <FixtureForecastTable teamId={team.id} teamName={team.name} all={forecasts} />
+            )}
+          </div>
+        </div>
 
         {/* This season's formations, whatever the Data View — the club's set-up now, not its past ones (owner's decision, 2026-10-21). */}
         {external && team.code !== null && liveSeasonName && (

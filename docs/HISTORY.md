@@ -3892,3 +3892,22 @@ tiles/graphs only:
   tiles are ranked like every other figure. A goalkeeper's lone xGI tile
   went (always about 0 for a keeper); his Saves and Saves/Game joined.
 - **Last commit with it:** `6fc08d6`.
+
+### Team Profile's Season Totals and Upcoming Fixtures cards (replaced 2026-10-24)
+- **What it did:** the Team Profile's "FPL · Views" had, under the two
+  radars, **Season Totals** (eight stat tiles: FPL Points, Goals excl.
+  OGs, Assists, xG, xA, xGI, xGC, Clean Sheets, coloured among every club
+  through `totalsShade`) beside **Upcoming Fixtures** (the club's next five
+  opponents as FPL difficulty chips with their average, `FixtureChips`,
+  the average coloured by `fixtureDifficultyRanks`).
+- **Why it went:** the owner asked for the player profile's Summary
+  concept on the Team Profile with more quality figures (2026-10-24): the
+  Summary (`ProfileSummary`) now has attacking, defensive, balance, actual
+  vs expected and FPL groups, every tile a Team Explorer column. And for
+  something better than FPL's difficulty ratings for what's ahead: the
+  Fixture Forecast (`<fixture_forecast>`) gives each fixture's expected
+  goals for and against, clean-sheet, scoring and result chances from the
+  club match records. xGI and Assists as tiles went (xGI repeated xG + xA;
+  Assists is in Actual vs Expected as Assists − xA and in Team Explorer).
+  FPL's difficulty stays on each opponent's hover and in the Explorers.
+- **Last commit with it:** `427f7d7`.

@@ -17,6 +17,10 @@ function def(d: MetricDefinition): MetricDefinition {
   return d;
 }
 
+/** The Team Profile's Fixture Forecast figures share these (README "Fixture Forecast"). */
+const FORECAST_CAVEATS =
+  "A forecast from the matches alone: nothing about injuries, suspensions or rotation. Goals are modelled as independent, so draws come out a little low. Backtested on 2023/24–2025/26 (README).";
+
 /**
  * Central, machine- and human-readable metric dictionary. Every metric
  * shown anywhere in the UI must have an entry here — see
@@ -740,6 +744,43 @@ export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
     caveats:
       "FPL's own official Price Change Predictor, new for 2026/27, not this app's estimate. FPL describes over 100% as \"expected to cross the threshold at the next 00:00 UK update\", but explicitly not a guarantee: late transfer activity can still pull a player back before the deadline. The per-day \"likelihood\" figure inside the projections (observed roughly -5..5) has no official published meaning beyond sign = direction, magnitude = FPL's own confidence.",
     availabilityNote: "Displayed as \u2014 if the live API omits this field (a brand-new field for 2026/27); presence is checked at load time.",
+  }),
+  forecastGoals: def({
+    displayName: "Exp. Goals / Exp. Conceded (Fixture Forecast)",
+    internalName: "forecastGoals",
+    source: "Derived",
+    apiFields: ["fixtures", "club history (every club's matches: goals, xG, xGC)"],
+    suppliedByFPL: false,
+    derived: true,
+    formula:
+      "League average goals at that venue × the club's attack rating × the opponent's defence rating (and the other way round for conceded). Ratings: each club's chances (0.8 × xG + 0.2 × goals where FPL has xG, goals before) relative to what an average side managed against the same opponents at the same venue, recent matches weighted most (halving every 19 gameweeks), starting from 4 matches' worth of the league average (a promoted club: where promoted clubs typically finish).",
+    units: "goals",
+    caveats: FORECAST_CAVEATS,
+    availabilityNote: "— for a club with no rating; the card says so while the club history loads.",
+  }),
+  forecastCleanSheet: def({
+    displayName: "Clean Sheet / To Score (Fixture Forecast)",
+    internalName: "forecastCleanSheet",
+    source: "Derived",
+    apiFields: ["fixtures", "club history (every club's matches: goals, xG, xGC)"],
+    suppliedByFPL: false,
+    derived: true,
+    formula: "Clean Sheet = e^−(Exp. Conceded); To Score = 1 − e^−(Exp. Goals): goals taken as Poisson. Totals: the chances added up, the matches each is expected in.",
+    units: "% chance",
+    caveats: FORECAST_CAVEATS,
+    availabilityNote: "— for a club with no rating; the card says so while the club history loads.",
+  }),
+  forecastResult: def({
+    displayName: "Win / Draw / Loss (Fixture Forecast)",
+    internalName: "forecastResult",
+    source: "Derived",
+    apiFields: ["fixtures", "club history (every club's matches: goals, xG, xGC)"],
+    suppliedByFPL: false,
+    derived: true,
+    formula: "Each side's goals Poisson with its expected goals, independent; every scoreline up to 10–10 summed by result, scaled to add up to 100%.",
+    units: "% chance",
+    caveats: FORECAST_CAVEATS,
+    availabilityNote: "— for a club with no rating; the card says so while the club history loads.",
   }),
 };
 

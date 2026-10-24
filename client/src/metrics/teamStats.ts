@@ -215,6 +215,13 @@ export function clubLiveMatches(clubCode: number | null, ctx: ClubHistoryContext
   return [...matches].sort((a, b) => (b.event ?? 0) - (a.event ?? 0) || b.fixture - a.fixture);
 }
 
+/** Every club's seasons on record as the app shows them: the live season's player-summed figures (the xG family included) blanked while they're partial (livePlayerSumsPartial). */
+export function clubSeasonsAsShown(ctx: ClubHistoryContext): ClubSeason[] {
+  if (!ctx.livePlayerSumsPartial) return ctx.clubSeasons;
+  const [live] = clubSeasonsForMode("live", ctx.referenceSeason);
+  return ctx.clubSeasons.map((c) => (c.season === live ? { ...c, matches: c.matches.map(withoutPlayerSums) } : c));
+}
+
 export interface ClubSeasonPoints {
   seasonName: string;
   /** FPL points scored by the club's players while playing for it that season. */

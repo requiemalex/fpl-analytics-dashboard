@@ -890,3 +890,61 @@ describe("The Team Profile shows club figures only", () => {
     expect([...totals.querySelectorAll("td")].at(-1)!.textContent).toBe("—");
   });
 });
+
+describe("Team Profile: the Summary and the Fixture Forecast", () => {
+  const upcoming = (id: number, eventId: number, home: number, away: number) => ({
+    id, eventId, homeTeamId: home, awayTeamId: away, homeScore: null, awayScore: null, kickoffTime: null, finished: false, started: false, homeDifficulty: 3, awayDifficulty: 4,
+  });
+  function openArsenal() {
+    setApp([], {
+      clubSeasons: [
+        clubSeason(101, "2025/26", { matches: [clubMatch(1, 1, { opponentCode: 102 }), clubMatch(2, 2, { opponentCode: 102, home: false, goalsFor: 1, goalsAgainst: 1, xG: 1.1, xGC: 1.3 })] }),
+        clubSeason(102, "2025/26", { matches: [clubMatch(1, 1, { opponentCode: 101, home: false, goalsFor: 0, goalsAgainst: 2, xG: 0.7, xGC: 1.8 }), clubMatch(2, 2, { opponentCode: 101, goalsFor: 1, goalsAgainst: 1, xG: 1.3, xGC: 1.1 })] }),
+      ],
+      fixtures: [upcoming(10, 1, 1, 2), upcoming(11, 2, 2, 1)],
+    });
+    return render(
+      <MemoryRouter initialEntries={["/teams?teamProfile=1"]}>
+        <TeamDetailOverlay />
+      </MemoryRouter>,
+    );
+  }
+
+  it("a Summary of every figure as tiles, in the player profile's grid — no Season Totals or Upcoming Fixtures cards", () => {
+    const { container, queryByText, getByText } = openArsenal();
+    expect([...container.querySelectorAll(".summary-group")].map((g) => [g.querySelector(".stat-group-title")!.textContent, g.querySelectorAll(".stat-tile").length])).toEqual([
+      ["Attacking", 6],
+      ["Defensive", 6],
+      ["Balance", 3],
+      ["Actual vs Expected", 3],
+      ["FPL", 6],
+    ]);
+    expect(queryByText("Season Totals")).toBeNull();
+    expect(queryByText("Upcoming Fixtures")).toBeNull();
+    // Each tile is its Team Explorer column: 60 for and 40 against in 38 matches.
+    expect(getByText("Goal Difference").nextSibling!.textContent).toBe("+20");
+    expect(getByText("Conceded/Game").nextSibling!.textContent).toBe("1.05");
+    // Ranked among every club, its place on hover: Arsenal's 40 conceded is level with Chelsea's.
+    expect(getByText("Goals Against").closest(".stat-tile")!.getAttribute("title")).toMatch(/of 2 clubs$/);
+  });
+
+  it("the Fixture Forecast: each upcoming fixture's goals expected, clean sheet, scoring and result chances, with Totals and Average", () => {
+    const { getByRole } = openArsenal();
+    const table = getByRole("table", { name: "Arsenal fixture forecast" });
+    const rows = [...table.querySelectorAll("tbody tr")].map((r) => [...r.querySelectorAll("td")].map((c) => c.textContent));
+    expect(rows.map((r) => r.slice(0, 2))).toEqual([
+      ["1", "CHE (H)"],
+      ["2", "CHE (A)"],
+    ]);
+    for (const r of rows) {
+      expect(r.slice(2, 4).every((v) => /^\d+\.\d\d$/.test(v!))).toBe(true);
+      expect(r.slice(4).every((v) => /^\d+%$/.test(v!))).toBe(true);
+    }
+    // Arsenal had the better of the matches, so at home they're forecast to win more often than lose.
+    const [win, , loss] = rows[0].slice(6).map((v) => Number(v!.replace("%", "")));
+    expect(win).toBeGreaterThan(loss);
+    expect([...table.querySelectorAll("tfoot tr")].map((r) => r.querySelector("td")!.textContent)).toEqual(["Totals", "Average"]);
+    // FPL's own difficulty is still on the opponent's hover.
+    expect(table.querySelector("tbody td[title]")!.getAttribute("title")).toBe("CHE at home · FPL difficulty 3/5");
+  });
+});

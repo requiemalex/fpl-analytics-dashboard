@@ -130,8 +130,8 @@ export function UserGuide() {
           <code>history_past</code>), which feeds the historic modes below.
         </p>
         <p className="page-subtitle">
-          Every section is <strong>descriptive</strong> (it shows what has happened, never what will) except Team Building, which
-          is built to predict. Its guide below explains what it predicts and how.
+          Every section is <strong>descriptive</strong> (it shows what has happened, never what will) except two built to predict:
+          Team Building, and the Team Profile's Fixture Forecast. Their guides below explain what they predict and how.
         </p>
       </Section>
 
@@ -334,7 +334,7 @@ export function UserGuide() {
         </Try>
       </Section>
 
-      <Section id="team-building" title="Team Building: the one predictive section">
+      <Section id="team-building" title="Team Building">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
           Picking a squad for the season ahead. Start with <strong>New Squad</strong>: a blank one (just give it a name), or import
           a real squad by its FPL team ID, the number in your team's FPL web address (Pick Team → Gameweek History shows it).
@@ -455,13 +455,31 @@ export function UserGuide() {
           {ext ? ` ${ext.label}'s club figures are in Columns too, in their own colour; see "${ext.guideSection.navLabel}" below.` : ""}
         </p>
         <p className="page-subtitle">
-          <strong>Team Profile</strong> shows season totals, the team radars, upcoming fixtures, Points History and the Match Log:
+          <strong>Team Profile</strong> shows a Summary, the team radars, a Fixture Forecast, Points History and the Match Log:
           club figures only, no players (for a club's players, use Player Explorer's Team column). The one exception is this season's
           Formations (an Understat section), which name who has started where. If the club has no matches in the chosen Data View (it wasn't in the Premier League then), the profile says so and suggests one
           it did play in, as the player profile does. The header's position, points and results
           follow the Data View; in Historic Average, position is rounded (two clubs can both be "2nd"), points show one decimal,
           and wins, draws and losses are whole numbers that always add up to the games played. On the Defense radar, more Defensive Contributions counts as better, so a
           dominant side that rarely defends can sit low on that axis.
+        </p>
+        <p className="page-subtitle">
+          The <strong>Summary</strong> gives the club's figures for the Data View as tiles: attacking (goals, xG and xA, in total and
+          per match), defensive (clean sheets, goals conceded and xGC, with the clean-sheet rate and each per match), balance (goal
+          difference and xGD, xG minus xGC), actual against expected (goals against xG, assists against xA, goals conceded against
+          xGC, where fewer is better) and FPL (points, bonus and defensive contributions). Each tile is coloured against every club
+          and says its place on hover ("4th of 20 clubs"). Every figure is also a Team Explorer column.
+        </p>
+        <p className="page-subtitle">
+          The <strong>Fixture Forecast</strong> looks at the club's next five fixtures, whatever the Data View: the goals it can
+          expect to score and concede in each, its chance of a clean sheet, of scoring at least once, and of a win, a draw or a
+          defeat, with the Totals (goals added up, and each chance as the number of matches it's expected in) and the Average per
+          fixture. It's the app's own forecast, worked out from every Premier League match since 2016/17: each club gets an attack
+          and a defence rating from its recent matches (xG where FPL has it, mostly; the most recent count most, the opposition
+          taken into account), a promoted club starting from where promoted clubs usually finish. Tested on the last three
+          completed seasons, forecasting each match from only the matches before it, its clean-sheet chances came true about as
+          often as they said; it knows nothing about injuries or rotation. Colours compare with every club's upcoming fixtures;
+          a draw isn't coloured. FPL's own fixture difficulty is on each opponent's hover.
         </p>
         <p className="page-subtitle">
           <strong>Points History</strong> charts the club's FPL points per season back to 2016/17 (this season as an outlined bar),

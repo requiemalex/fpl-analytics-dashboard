@@ -185,6 +185,20 @@ export const CLUB_STAT_HINTS: Record<string, string> = {
   xGI: "xG + xA across the club's players.",
   xGC: "Expected goals conceded: how many goals the opponents' chances would usually bring.",
   defensiveContributions: "Defensive contributions by the club's players.",
+  cleanSheetRate: "Share of matches without conceding.",
+  goalsAgainstPerGame: "Goals conceded per match.",
+  pointsPerGame: "FPL points scored by the club's players per match.",
+  goalsPerGame: "Goals by the club's players per match, own goals in their favour left out.",
+  bonusPerGame: "Bonus points won by the club's players per match.",
+  xGPerGame: "xG per match.",
+  xAPerGame: "xA per match.",
+  xGCPerGame: "xGC per match.",
+  defensiveContributionsPerGame: "Defensive contributions by the club's players per match.",
+  xGD: "xG minus xGC: whether the club's chances outweigh its opponents'.",
+  xGDPerGame: "xG minus xGC per match.",
+  goalsMinusXG: "Goals (own goals in their favour left out) minus xG: finishing above (+) or below (−) the chances' quality.",
+  assistsMinusXA: "Assists minus xA across the club's players.",
+  goalsAgainstMinusXGC: "Goals conceded minus xGC: fewer (−) means conceding less than the opponents' chances would usually bring.",
 };
 
 /**
