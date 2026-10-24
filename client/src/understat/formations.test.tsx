@@ -15,6 +15,8 @@ vi.mock("../state/AppStateContext", () => ({
       { id: 10, code: 1001, name: "Saka" },
       { id: 30, code: 1003, name: "Rice" },
     ],
+    // The club on show (code 3): Arsenal.
+    teams: [{ id: 1, code: 3, shortName: "ARS" }],
   }),
 }));
 
@@ -103,12 +105,21 @@ describe("The Team Profile's Formations section", () => {
   it("draws each slot as Team Building's pitch card, its badge in the FPL position's colour", () => {
     const { container } = renderSection(ready(formations, lineups));
     expect(container.querySelector(".formation-pitch.pitch .pitch-markings")).toBeTruthy();
-    const badges = [...container.querySelectorAll(".formation-slot .pitch-card-jersey .badge")].map((b) => `${b.textContent} ${b.className}`);
+    const badges = [...container.querySelectorAll(".formation-slot .formation-slot-code .badge")].map((b) => `${b.textContent} ${b.className}`);
     expect(badges).toContain("GK badge pos-GKP");
     expect(badges).toContain("DC badge pos-DEF");
     expect(badges).toContain("DMC badge pos-MID");
     expect(badges).toContain("AMR badge pos-MID");
     expect(badges).toContain("FW badge pos-FWD");
+  });
+
+  it("dresses every slot in the club's kit, the goalkeeper's colours swapped, as Team Building does (<club_kit>)", () => {
+    const { container } = renderSection(ready(formations, lineups));
+    const slots = [...container.querySelectorAll(".formation-slot")];
+    const body = (slot: Element) => slot.querySelector<SVGPathElement>(".kit-svg path")!.style.fill;
+    const goalkeeper = slots.find((s) => s.querySelector(".formation-slot-code")!.textContent === "GK")!;
+    expect(body(goalkeeper)).toBe("#F5F5F5");
+    expect(slots.filter((s) => s !== goalkeeper).every((s) => body(s) === "#EF0107")).toBe(true);
   });
 
   it("a player no longer in FPL is greyed out, not a link", () => {

@@ -36,8 +36,8 @@ import type { UsClubTotals } from "./schema";
 export const FORMATION_MIN_MINUTES = 90;
 /** Formations the arrows step through: the club's most-used. */
 export const FORMATIONS_SHOWN = 3;
-/** The slots' shirts are Understat's violet, as these are Understat's line-ups. */
-const UNDERSTAT_KIT = { body: "var(--col-understat)", trim: "color-mix(in srgb, var(--col-understat) 45%, #fff)" };
+/** A club FPL no longer lists has no colours to wear: a plain neutral shirt. */
+const NEUTRAL_KIT = { body: "var(--text-secondary)", trim: "var(--border-strong)" };
 /** Names shown in a slot before the rest go into "+n more". */
 const NAMES_PER_SLOT = 3;
 
@@ -95,18 +95,21 @@ function PlayerName({ player, idByCode }: { player: SlotPlayer; idByCode: Readon
   );
 }
 
-function Slot({ slot, idByCode }: { slot: FormationSlot; idByCode: ReadonlyMap<number, { id: number; name: string }> }) {
+function Slot({ slot, club, idByCode }: { slot: FormationSlot; club: { id: number; shortName: string } | null; idByCode: ReadonlyMap<number, { id: number; name: string }> }) {
   const shown = slot.players.slice(0, NAMES_PER_SLOT);
   const rest = slot.players.slice(NAMES_PER_SLOT);
   const nameOf = (p: SlotPlayer) => (p.code !== null ? (idByCode.get(p.code)?.name ?? p.name) : p.name);
-  // Team Building's pitch card: a shirt carrying the slot (in its FPL position's colour), a nameplate under it.
+  const group = positionGroupOf(slot.position);
+  // Team Building's pitch card: the club's kit (a goalkeeper's colours swapped), the slot's code in its FPL
+  // position's colour at the shirt's top left (where Team Building's armband sits), a nameplate under it.
   return (
     <div className="formation-slot">
-      <Kit colours={UNDERSTAT_KIT}>
-        <span className={`badge pos-${positionGroupOf(slot.position)}`} title={POSITION_NAMES[slot.position] ?? slot.position}>
+      <span className="formation-slot-code">
+        <span className={`badge pos-${group}`} title={POSITION_NAMES[slot.position] ?? slot.position}>
           {slot.position}
         </span>
-      </Kit>
+      </span>
+      <Kit club={club ?? undefined} colours={club ? undefined : NEUTRAL_KIT} goalkeeper={group === "GKP"} />
       <div className="pitch-card-plate formation-slot-plate">
         {shown.map((p) => (
           <PlayerName key={p.code ?? p.name} player={p} idByCode={idByCode} />
@@ -125,10 +128,12 @@ function Slot({ slot, idByCode }: { slot: FormationSlot; idByCode: ReadonlyMap<n
 const RANK_HINT = "coloured against every club's per-90 figure for the season";
 
 function FormationCard({ code, formations, lineups, season, compare }: { code: number; formations: UsFormation[]; lineups: UsLineup[] | null; season: string; compare: UsComparisonContext | null }) {
-  const { players } = useAppState();
+  const { players, teams } = useAppState();
   const [index, setIndex] = useState(0);
   const total = formations.reduce((s, f) => s + f.minutes, 0);
   const shown = useMemo(() => shownFormations(formations), [formations]);
+  const team = teams.find((t) => t.code === code);
+  const club = team ? { id: team.id, shortName: team.shortName } : null;
   const idByCode = useMemo(() => new Map(players.flatMap((p) => (p.code === null ? [] : [[p.code, { id: p.id, name: p.name }] as const]))), [players]);
   const at = Math.min(index, shown.length - 1);
   const f = shown[at];
@@ -189,7 +194,7 @@ function FormationCard({ code, formations, lineups, season, compare }: { code: n
             xi.lines.map((line, i) => (
               <div className="pitch-row formation-line" key={i}>
                 {line.map((slot, j) => (
-                  <Slot key={`${slot.position}-${j}`} slot={slot} idByCode={idByCode} />
+                  <Slot key={`${slot.position}-${j}`} slot={slot} club={club} idByCode={idByCode} />
                 ))}
               </div>
             ))

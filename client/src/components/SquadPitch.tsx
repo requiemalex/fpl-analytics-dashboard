@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { useEscapeLayer } from "../state/useEscapeLayer";
+import { horizonLabel, projectSquadPoints, projectionCoverageNote, type ProjectionHorizon, type ProjectionSource } from "../metrics/squadProjection";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass, pressable } from "./primitives";
 import { PitchMarkings } from "./PitchMarkings";
 import { Kit } from "./Kit";
@@ -88,17 +90,89 @@ export function budgetLeftText(remaining: number): string {
   return tenths < 0 ? `${fmtPrice(-tenths / 10)} over` : `${fmtPrice(Math.max(0, tenths) / 10)} left`;
 }
 
-/** The pitch header: the squad's name, its starting shape and size on the left; value and money left as tiles on the right. */
+/** Each squad player's Exp. Pts for his next five matches, by source (index 0 = GW+1). */
+export type ProjectionByPlayerId = Map<number, Record<ProjectionSource, (number | null)[]>>;
+
+const SOURCE_OPTIONS: SegmentOption<ProjectionSource>[] = [
+  { value: "fpl", label: "FPL", title: "Exp. Pts (FPL Official)" },
+  { value: "model", label: "Model", title: "Exp. Pts (Model Predicted): Scoutline's own estimate" },
+];
+const HORIZON_OPTIONS: SegmentOption<`${ProjectionHorizon}`>[] = ([1, 2, 3, 4, 5] as const).map((n) => ({
+  value: `${n}`,
+  label: `${n}`,
+  title: n === 1 ? "Each player's next match (GW+1)" : `Each player's next ${n} matches (${horizonLabel(n)})`,
+}));
+
+/**
+ * <squad_projection>: the Projected tile — the starting XI's Exp. Pts
+ * added up. Clicking it opens a small menu picking the source (FPL or
+ * Model) and how many matches ahead (1–5); the tile's label says which.
+ * Per page, like the other switches.
+ */
+function ProjectedTile({ starters, captainId, projectionByPlayerId }: { starters: NormalizedPlayer[]; captainId: number | null; projectionByPlayerId: ProjectionByPlayerId }) {
+  const [source, setSource] = useState<ProjectionSource>("fpl");
+  const [horizon, setHorizon] = useState<ProjectionHorizon>(1);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  // Closes on Escape or a click anywhere outside it, as the Columns picker does.
+  useEscapeLayer(open, () => setOpen(false));
+  useEffect(() => {
+    if (!open) return;
+    function onMouseDown(e: MouseEvent) {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, [open]);
+
+  const sum = projectSquadPoints(
+    starters.map((p) => ({ perMatch: projectionByPlayerId.get(p.id)?.[source] ?? [], isCaptain: p.id === captainId })),
+    horizon,
+  );
+  const sourceName = source === "fpl" ? "FPL" : "Model";
+  const hint = [
+    `The starting XI's Exp. Pts (${source === "fpl" ? "FPL Official" : "Model Predicted"}) added up over each player's next ${horizon === 1 ? "match" : `${horizon} matches`} (${horizonLabel(horizon)}), the captain's doubled. The bench isn't counted.`,
+    projectionCoverageNote(sum),
+    "Click to change the source or how many matches.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  return (
+    <div className="pitch-projected" ref={ref}>
+      <button type="button" className="stat-tile pitch-projected-tile" aria-expanded={open} title={hint} onClick={() => setOpen((o) => !o)}>
+        <span className="stat-tile-label">
+          Projected · {sourceName} · {horizonLabel(horizon)}
+        </span>
+        <span className="stat-tile-value num">
+          {sum ? fmtDecimal(sum.sum, 1) : DASH}
+          <span className="pitch-projected-unit"> pts</span>
+        </span>
+      </button>
+      {open && (
+        <div className="popover pitch-projected-menu" role="group" aria-label="Projected points: source and matches">
+          <SegmentedControl label="Source" options={SOURCE_OPTIONS} value={source} onChange={setSource} />
+          <SegmentedControl label="Matches" options={HORIZON_OPTIONS} value={`${horizon}`} onChange={(v) => setHorizon(Number(v) as ProjectionHorizon)} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The pitch header: the squad's name, its starting shape and size on the left; value, money left and Projected as tiles on the right. */
 function SquadHeader({
   squadName,
   validation,
   positionGroups,
   budgetHint,
+  captainId,
+  projectionByPlayerId,
 }: {
   squadName: string;
   validation: SquadValidation;
   positionGroups: Record<Position, NormalizedPlayer[]>;
   budgetHint: string;
+  captainId: number | null;
+  projectionByPlayerId: ProjectionByPlayerId;
 }) {
   const xiSize = COMPOSITION_ORDER.reduce((n, pos) => n + positionGroups[pos].length, 0);
   const shape = [positionGroups.DEF.length, positionGroups.MID.length, positionGroups.FWD.length].join("-");
@@ -127,6 +201,7 @@ function SquadHeader({
           <span className="stat-tile-label">In the bank</span>
           <span className={`stat-tile-value num${tenths < 0 ? " value-negative" : ""}`}>{tenths < 0 ? `−${fmtPrice(-tenths / 10)}` : fmtPrice(Math.max(0, tenths) / 10)}</span>
         </div>
+        <ProjectedTile starters={COMPOSITION_ORDER.flatMap((pos) => positionGroups[pos])} captainId={captainId} projectionByPlayerId={projectionByPlayerId} />
       </div>
     </div>
   );
@@ -316,6 +391,7 @@ export function SquadPitch({
   viceCaptainId,
   expectedPointsByPlayerId,
   modelBreakdownByPlayerId,
+  projectionByPlayerId,
   reliabilityByPlayerId,
   colourRanks,
   fixturesByTeamId,
@@ -345,6 +421,8 @@ export function SquadPitch({
   viceCaptainId: number | null;
   expectedPointsByPlayerId: Map<number, number | null>;
   modelBreakdownByPlayerId: Map<number, ExpectedPointsV2Breakdown | null>;
+  /** Both Exp. Pts for each player's next five matches, for the Projected total (<squad_projection>). */
+  projectionByPlayerId: ProjectionByPlayerId;
   reliabilityByPlayerId: Map<number, number | null>;
   /** Every player's ranks for the cards' figures, from the Add Players table's pool (<comparative_colouring>). */
   colourRanks: PitchColourRanks;
@@ -404,7 +482,14 @@ export function SquadPitch({
 
   return (
     <div>
-      <SquadHeader squadName={squadName} validation={squadValidation} positionGroups={positionGroups} budgetHint={budgetHint} />
+      <SquadHeader
+        squadName={squadName}
+        validation={squadValidation}
+        positionGroups={positionGroups}
+        budgetHint={budgetHint}
+        captainId={captainId}
+        projectionByPlayerId={projectionByPlayerId}
+      />
       {squadValidation.clubViolations.length > 0 && (
         <div className="banner error">
           Over {SQUAD_RULES.maxPerClub} from one club: {squadValidation.clubViolations.map((v) => `${v.teamName} ${v.count}/${SQUAD_RULES.maxPerClub}`).join(", ")}

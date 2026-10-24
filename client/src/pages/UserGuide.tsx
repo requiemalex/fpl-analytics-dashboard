@@ -382,8 +382,11 @@ export function UserGuide() {
             for. It's a second opinion, rougher for goalkeepers and nailed-on popular picks (see the README's backtest).
           </li>
           <li>
-            Above the pitch: the starting shape, squad size (hover for its composition), Squad value and In the bank; a club-limit
-            breach shows as a banner. A squad built from
+            Above the pitch: the starting shape, squad size (hover for its composition), Squad value, In the bank and{" "}
+            <strong>Projected</strong>. Projected adds up the starting XI's Expected Points (the captain's doubled; the bench isn't
+            counted). Click it to pick the source (FPL or Model) and how many of each player's next matches to cover (1 to 5).
+            A match with no figure is left out rather than counted as 0; the hover says so. A club-limit breach shows as a
+            banner. A squad built from
             scratch has FPL's £100m; an imported one has its own: its players at today's prices when you imported it, plus its money
             in the bank, so an unchanged import shows exactly that bank left (FPL's own selling prices need your login, so a player
             who has risen counts at today's price; hover the budget for its make-up). Going over turns the budget red and says how

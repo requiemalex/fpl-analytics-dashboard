@@ -10,7 +10,7 @@ afterEach(cleanup);
 
 const fixture = (id: number, opponent: string, isHome: boolean, difficulty = 2): UpcomingFixture => ({ fixtureId: id, opponentTeamId: 99, opponentShortName: opponent, isHome, difficulty });
 
-function renderPitch(xi: NormalizedPlayer[], bench: NormalizedPlayer[] = [], onAddSlot = vi.fn()) {
+function renderPitch(xi: NormalizedPlayer[], bench: NormalizedPlayer[] = [], onAddSlot = vi.fn(), captainId: number | null = null) {
   const squad = [...xi, ...bench];
   const groups = Object.fromEntries((["GKP", "DEF", "MID", "FWD"] as Position[]).map((pos) => [pos, xi.filter((p) => p.position === pos)])) as Record<Position, NormalizedPlayer[]>;
   const utils = render(
@@ -20,10 +20,12 @@ function renderPitch(xi: NormalizedPlayer[], bench: NormalizedPlayer[] = [], onA
       positionGroups={groups}
       benchPlayers={bench}
       openSlots={openSquadSlots(squad, xi)}
-      captainId={null}
+      captainId={captainId}
       viceCaptainId={null}
       expectedPointsByPlayerId={new Map(squad.map((p) => [p.id, 4.2]))}
       modelBreakdownByPlayerId={new Map()}
+      // FPL 4.2 a match (as on the cards); the Model 3, 2, 1, then no figure.
+      projectionByPlayerId={new Map(squad.map((p) => [p.id, { fpl: [4.2, 4.2, 4.2, 4.2, 4.2], model: [3, 2, 1, null, null] }]))}
       reliabilityByPlayerId={new Map()}
       colourRanks={{}}
       fixturesByTeamId={new Map([[1, [fixture(1, "BUR", true), fixture(2, "WOL", false, 4)]]])}
@@ -89,5 +91,22 @@ describe("<club_kit> kits", () => {
     const bodies = [...container.querySelectorAll<SVGPathElement>(".pitch-card .kit-svg path:first-of-type")].map((p) => p.style.fill);
     // Rows run forwards first, so the defender comes before the goalkeeper.
     expect(bodies).toEqual(["#EF0107", "#F5F5F5"]);
+  });
+});
+
+describe("<squad_projection> the Projected tile", () => {
+  it("adds up the XI (captain doubled, bench left out), and its menu picks the source and matches", () => {
+    const xi = [makePlayer({ id: 1, position: "MID" }), makePlayer({ id: 2, position: "FWD" })];
+    const { getByRole } = renderPitch(xi, [makePlayer({ id: 3, position: "DEF" })], vi.fn(), 2);
+    const tile = () => getByRole("button", { name: /^Projected/ });
+    expect(tile().textContent).toBe("Projected · FPL · GW+112.6 pts"); // 4.2 + 4.2 × 2
+    fireEvent.click(tile());
+    fireEvent.click(getByRole("radio", { name: "Exp. Pts (Model Predicted): Scoutline's own estimate" }));
+    fireEvent.click(getByRole("radio", { name: /next 3 matches/ }));
+    expect(tile().textContent).toBe("Projected · Model · GW+1–318.0 pts"); // (3 + 2 + 1) × 3
+    fireEvent.click(getByRole("radio", { name: /next 5 matches/ }));
+    // Matches 4 and 5 have no Model figure: left out, and the hover says so.
+    expect(tile().textContent).toContain("18.0");
+    expect(tile().getAttribute("title")).toContain("6 of 10 starter-matches");
   });
 });

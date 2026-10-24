@@ -16,6 +16,7 @@ import { resolvePlayerStats, type AnalysisMode } from "../metrics/resolvePlayerS
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { computeExpectedPointsForSingleFixture } from "../metrics/expectedPoints";
 import { computeExpectedPointsV2ForFixture, type ExpectedPointsV2Breakdown } from "../metrics/expectedPointsV2";
+import type { ProjectionSource } from "../metrics/squadProjection";
 import { fetchEntryTeam, fetchEntryHistory, fetchEntryPicks, ApiRequestError } from "../api/client";
 import { normalizeEntryImport } from "../normalize/normalizeEntryImport";
 import { filterBySearch } from "../utils/playerSearch";
@@ -821,37 +822,55 @@ export function TeamBuilder() {
     return map;
   }, [squadPlayers, teamsById, historicProfiles]);
 
-  // Expected points for whichever single upcoming fixture the pitch-view
-  // navigator currently has selected (gwOffset 1 = the very next fixture)
-  // — FPL's own ep_next for that fixture, fixture-difficulty-extended if
-  // it isn't the immediate one (see metrics/expectedPoints.ts). Not yet
-  // captain-doubled; SquadPitch doubles it for display on the captain's card.
-  const expectedPointsByPlayerId = useMemo(() => {
-    const map = new Map<number, number | null>();
+  // Both Expected Points figures for each of every squad player's next five
+  // fixtures (index 0 = GW+1): the cards show the Match switch's one, the
+  // Projected total adds up a range (<squad_projection>). FPL's is its own
+  // ep_next, fixture-difficulty-extended past the immediate fixture (see
+  // metrics/expectedPoints.ts); the Model's is this app's own independent
+  // per-event estimate (Tier 2, metrics/expectedPointsV2.ts). Not yet
+  // captain-doubled: SquadPitch doubles the captain's.
+  const expectedPointsByMatch = useMemo(() => {
+    const fpl = new Map<number, (number | null)[]>();
+    const model = new Map<number, (ExpectedPointsV2Breakdown | null)[]>();
     for (const p of squadPlayers) {
-      const fixture = (fixturesByTeamId.get(p.teamId) ?? [])[gwOffset - 1];
-      map.set(p.id, fixture ? computeExpectedPointsForSingleFixture(p, fixture, gwOffset - 1) : null);
-    }
-    return map;
-  }, [squadPlayers, fixturesByTeamId, gwOffset]);
-
-  // Expected Points Tier 2 — this app's own independent per-event estimate
-  // for the same navigator-selected fixture (see metrics/expectedPointsV2.ts).
-  const modelBreakdownByPlayerId = useMemo(() => {
-    const map = new Map<number, ExpectedPointsV2Breakdown | null>();
-    for (const p of squadPlayers) {
-      const fixture = (fixturesByTeamId.get(p.teamId) ?? [])[gwOffset - 1];
+      const upcoming = fixturesByTeamId.get(p.teamId) ?? [];
       const reliability = reliabilityByPlayerId.get(p.id) ?? null;
-      if (!fixture || reliability === null) {
-        map.set(p.id, null);
-        continue;
-      }
-      const ownTeam = teamsById.get(p.teamId);
-      const opponentTeam = teamsById.get(fixture.opponentTeamId);
-      map.set(p.id, computeExpectedPointsV2ForFixture(p, fixture, ownTeam, opponentTeam, reliability, historicProfiles.get(p.id)));
+      fpl.set(
+        p.id,
+        GW_OFFSETS.map((offset) => {
+          const fixture = upcoming[offset - 1];
+          return fixture ? computeExpectedPointsForSingleFixture(p, fixture, offset - 1) : null;
+        }),
+      );
+      model.set(
+        p.id,
+        GW_OFFSETS.map((offset) => {
+          const fixture = upcoming[offset - 1];
+          if (!fixture || reliability === null) return null;
+          return computeExpectedPointsV2ForFixture(p, fixture, teamsById.get(p.teamId), teamsById.get(fixture.opponentTeamId), reliability, historicProfiles.get(p.id));
+        }),
+      );
+    }
+    return { fpl, model };
+  }, [squadPlayers, fixturesByTeamId, reliabilityByPlayerId, teamsById, historicProfiles]);
+
+  // The Match switch's fixture (gwOffset 1 = the very next one), for the cards.
+  const expectedPointsByPlayerId = useMemo(
+    () => new Map([...expectedPointsByMatch.fpl].map(([id, byMatch]) => [id, byMatch[gwOffset - 1] ?? null])),
+    [expectedPointsByMatch, gwOffset],
+  );
+  const modelBreakdownByPlayerId = useMemo(
+    () => new Map([...expectedPointsByMatch.model].map(([id, byMatch]) => [id, byMatch[gwOffset - 1] ?? null])),
+    [expectedPointsByMatch, gwOffset],
+  );
+  // Each player's figures per match for the Projected total, by source.
+  const projectionByPlayerId = useMemo(() => {
+    const map = new Map<number, Record<ProjectionSource, (number | null)[]>>();
+    for (const [id, fpl] of expectedPointsByMatch.fpl) {
+      map.set(id, { fpl, model: (expectedPointsByMatch.model.get(id) ?? []).map((b) => b?.total ?? null) });
     }
     return map;
-  }, [squadPlayers, fixturesByTeamId, gwOffset, reliabilityByPlayerId, teamsById, historicProfiles]);
+  }, [expectedPointsByMatch]);
 
   const predictiveColumnsInOrder = useMemo(
     () => predictiveCols.visibleColumns.map((key) => PREDICTIVE_COLUMNS.find((c) => c.key === key)).filter((c): c is PredictiveColumnDef => !!c),
@@ -1240,6 +1259,7 @@ export function TeamBuilder() {
           viceCaptainId={active?.viceCaptainId ?? null}
           expectedPointsByPlayerId={expectedPointsByPlayerId}
           modelBreakdownByPlayerId={modelBreakdownByPlayerId}
+          projectionByPlayerId={projectionByPlayerId}
           reliabilityByPlayerId={reliabilityByPlayerId}
           colourRanks={pitchColourRanks}
           fixturesByTeamId={fixturesByTeamId}

@@ -3925,3 +3925,15 @@ tiles/graphs only:
   for the players still to add (`<open_slots>`), and the header as tiles.
   The Match switch replaces the GW chips with the app's segmented control.
 - **Last commit with it:** `77bb939`.
+
+### Understat-violet shirts on the Team Profile's Formations pitch (replaced 2026-10-24)
+- **What it did:** every formation slot was a shirt in Understat's violet
+  (`--col-understat`), with the slot's code (GK, DC, AMR…) on its chest, a
+  cue that these are Understat's line-ups; the slots were 136px wide,
+  spread out (`space-around`) on a 520px pitch.
+- **Why it went:** the owner asked for the formation kits and pitch to be
+  as close to Team Building's as possible (2026-10-24): the club's own kit
+  (`<club_kit>`), the slot code at the shirt's top left, Team Building's
+  slot width, spacing and pitch height. The section's own heading still
+  marks it as Understat's.
+- **Last commit with it:** `615fe18`.

@@ -1035,6 +1035,13 @@ select:focus {
 .bench-slot.is-open {
   border-style: dashed;
 }
+/* On the bench the slot is the card, so the nameplate drops its own box. */
+.bench-slot .pitch-card-plate {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding-bottom: 0;
+}
 .bench-slot-position {
   position: absolute;
   top: 6px;
@@ -1070,6 +1077,33 @@ select:focus {
 }
 .pitch-view-tiles .stat-tile {
   min-width: 110px;
+}
+/* <squad_projection>: the Projected tile is a button opening its menu. */
+.pitch-projected {
+  position: relative;
+}
+.pitch-projected-tile {
+  height: 100%;
+  border: 1px solid transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pitch-projected-tile:hover,
+.pitch-projected-tile[aria-expanded="true"] {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+.pitch-projected-unit {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.pitch-projected-menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 260px;
 }
 /* What the kits show, which match, then the armbands and Clear Draft. */
 .pitch-controls {

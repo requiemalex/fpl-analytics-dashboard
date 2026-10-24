@@ -843,10 +843,11 @@ without it leaves that season's Shots Faced uncoloured.
   nothing shown is under it). Each is drawn on Team Building's pitch (the
   `.pitch` turf and the shared `PitchMarkings`), attack at the top, its
   lines from forwards to goalkeeper. Every slot is Team Building's pitch
-  card: the shared kit (`components/Kit.tsx`, here in Understat's violet)
-  carrying the slot's code in its FPL
-  position's colour (`positionGroupOf`: GK keeper, D* defence, DM*/M*/AM*
-  midfield with the wing-backs, FW* forwards), and the dark nameplate
+  card, at its sizes and spacing: the club's kit (`<club_kit>`,
+  `components/Kit.tsx`; the goalkeeper's colours swapped, a neutral shirt
+  for a club FPL no longer lists), the slot's code at the shirt's top left
+  in its FPL position's colour (`positionGroupOf`: GK keeper, D* defence,
+  DM*/M*/AM* midfield with the wing-backs, FW* forwards), and the dark nameplate
   naming who started there and how many times (3 names, then "+n more"
   with the rest on hover); beside it, as the shot maps have theirs: Time (share of the
   club's minutes), Minutes, Starts, xG/90, xGA/90, Scored, Conceded.
@@ -1757,15 +1758,30 @@ buttons appear once a squad exists.
   kit (`<club_kit>`, `components/Kit.tsx`): body in the club's colour,
   collar and cuffs in its second, the same pair as the team pill's swatch
   (`teamDisplayColors`); a goalkeeper's swaps them. The Team Profile's
-  Formations section draws the same kit, in Understat's violet. Under the
+  Formations section draws the same kit and nameplate. Under the
   kit, a dark nameplate: the name, then **one** figure, picked with **Show
   on kits** (`<kit_view>`: FPL pts, Model pts, Price, Owned, Minutes,
   coloured as before), beside the match the **Match** switch picks as an
   FDR-coloured chip; **Fixtures** shows the next five chips instead, the
   picked one outlined. The switch is per page, like every view switch.
   The header shows the starting shape, the squad size (hover for its
-  composition), Squad value and In the bank; a club-limit breach is a
-  banner.
+  composition), Squad value, In the bank and Projected; a club-limit
+  breach is a banner. The bench is a row of slots, goalkeeper first, each
+  labelled with its position (no bench order: the app has none).
+- **Projected** (`<squad_projection>`, `metrics/squadProjection.ts`,
+  dictionary `squadProjectedPoints`) — the starting XI's Exp. Pts added
+  up: Σ over the starters of each one's figure for each of his next N
+  matches (his own, as the Match switch counts them), the captain's ×2 in
+  every one. Clicking the tile opens a menu picking the source (FPL
+  Official or Model Predicted, never mixed) and N (1–5); the tile's label
+  says which ("Projected · Model · GW+1–3"). Per page, like the other
+  switches. The bench and automatic substitutions aren't counted, and the
+  captain is assumed to keep the armband for the whole range. A
+  starter-match with no figure (no match left, or the Model has no
+  playing-time estimate) is left out, never counted as 0, as Totals rows
+  do (`<partial_totals>`): the hover says how many of the starter-matches
+  had one. "—" with no starters or no figures. Not coloured: a squad
+  total has no pool to rank in.
 - **Open places** (`<open_slots>`, `openSquadSlots` in
   `metrics/squadRules.ts`) — every place the squad is still short of
   (2 GKP, 5 DEF, 5 MID, 3 FWD) is a "+": the XI's open places take them
