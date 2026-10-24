@@ -1397,7 +1397,14 @@ one is picked); its Totals and Average follow "Totals rows" (the
 matches with a figure added up, the hover saying how many when it's only
 some; a stat FPL didn't record that season, like xG before 2022/23, is
 "—", never 0); a season before 2016/17 has no match record and says
-so. A past season's Totals and Average are tinted like the live season's
+so. Where a past season's rows don't add up to FPL's own season total
+(minutes or points), a notice above them gives both
+(`<match_record_check>`, `metrics/matchRecordCheck.ts`): FPL keeps no
+per-match record of past seasons, so nothing approved can fill an archive
+gap. The one case on today's data is Evan Ferguson's 2024/25 (the archive
+gives 0 minutes for Brighton's GW24, so 368 minutes and 27 points against
+FPL's 385 and 28); every other current player's 2022/23–2025/26 record
+matches. A past season's Totals and Average are tinted like the live season's
 (`<past_season_tints>`): ranked within his position that season (his
 position then, from the ledger) among everyone at or above the fixed
 floor (450, a completed season's), xGC per game; Average as his total ÷

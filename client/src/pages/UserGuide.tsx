@@ -512,7 +512,8 @@ export function UserGuide() {
           and Average have no colour. This season's are coloured against his position using this season's figures and the Current Season
           floor, Average per match, so a late signing's strong per-match numbers show green even while his total is low. A past
           season's are coloured the same way against everyone who played in his position that season, with that season's 450-minute
-          floor. A column switched to Understat is coloured on Understat's own figures. Match-by-match records go back to 2016/17 (an older season shows FPL's season totals instead); FPL didn't record xG and the rest before 2022/23, or
+          floor. A column switched to Understat is coloured on Understat's own figures. Match-by-match records go back to 2016/17 (an older season shows FPL's season totals instead); in the rare case a past
+          season's matches don't add up to FPL's season total, a note above them says so and gives both; FPL didn't record xG and the rest before 2022/23, or
           defensive contributions before 2025/26, so those show "—". <strong>Playing Time</strong>, a minutes-per-match gauge for
           the season shown, sits at the top of the Match Log. Understat's figures (violet columns, or a column switched with its
           ⇄ toggle) usually arrive a day or so after FPL's, so the latest match can show "—" there for a while; meanwhile

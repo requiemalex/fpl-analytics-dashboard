@@ -32,6 +32,7 @@ import { useExternalStats, type ProfileView } from "../extensions/externalStats"
 import { SourceToggle } from "./SourceToggle";
 import type { NormalizedPlayer, PlayerSeasonHistory, PlayerGameweekHistory, PlayerPastMatch, Position } from "../types/normalized";
 import { playerRankHint } from "./hoverText";
+import { matchRecordShortfall } from "../metrics/matchRecordCheck";
 
 
 /**
@@ -710,6 +711,8 @@ export function PlayerDetailOverlay() {
   // season's figures when there's no match-by-match record (before
   // 2016/17) — what the old Points History table held.
   const logSeasonTotals = logSeason === null ? null : (combinedSeasonHistory.find((s) => s.seasonName === logSeason) ?? null);
+  // A past season's match record that doesn't add up to FPL's own season total (<match_record_check>).
+  const recordShortfall = pastLogSeason !== null && pastRows && logSeasonTotals ? matchRecordShortfall(pastRows, logSeasonTotals) : null;
   const logPrice =
     logSeasonTotals === null
       ? null
@@ -1101,6 +1104,14 @@ export function PlayerDetailOverlay() {
                       Retry
                     </button>
                   </p>
+                )}
+                {recordShortfall && (
+                  <div className="banner info" style={{ marginBottom: 12 }}>
+                    {pastLogSeason}'s match record adds up to {recordShortfall.recordMinutes.toLocaleString("en-GB")} minutes and{" "}
+                    {recordShortfall.recordPoints} points, but FPL's season total is {recordShortfall.fplMinutes.toLocaleString("en-GB")} minutes and{" "}
+                    {recordShortfall.fplPoints} points: the archive these matches come from is missing some of his season, so Totals and
+                    Average below fall short of it.
+                  </div>
                 )}
                 {pastRows !== null && pastRows.length === 0 && (
                   <>
