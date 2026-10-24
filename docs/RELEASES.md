@@ -5,6 +5,10 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.108.0 · 24 Oct 2026
+
+- Minimum minutes: the fixed floor is now a quarter of the minutes available — 855 for a completed season (was 450), and in Current Season a quarter of the gameweeks finished so far, never under 90 (was always 90), so it rises as the season goes on
+
 ## v1.107.0 · 24 Oct 2026
 
 - Team Profile: a Summary of tiles (attacking, defensive, balance, actual vs expected, FPL) replaces Season Totals, and a Fixture Forecast (each upcoming match's expected goals for and against, clean-sheet, scoring and result chances, from a model fitted to every match since 2016/17) replaces Upcoming Fixtures
