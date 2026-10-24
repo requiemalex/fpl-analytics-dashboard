@@ -23,7 +23,7 @@ import { computeSeasonTrend } from "../metrics/careerMetrics";
 import { buildHistoricPlayerProfile, nextSeasonName } from "../metrics/historicAnalysis";
 import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode, modeDataKnown, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { AnalysisModeToggle, ANALYSIS_MODE_OPTIONS } from "./AnalysisModeToggle";
-import { profileFloorNote, SmallSampleBadge, smallSampleNote } from "./MinutesFloorBadge";
+import { isSmallSample, profileFloorNote, SmallSampleBadge, smallSampleNote } from "./MinutesFloorBadge";
 import { PositionBadge, withCoverage } from "./primitives";
 import { countDecimals } from "./playerColumns";
 import { fmtDecimal, fmtPrice, fmtPercent, fmtSigned, DASH } from "../utils/format";
@@ -535,9 +535,15 @@ export function PlayerDetailOverlay() {
   // player who played but never reached the floor in a season has nothing
   // counted, so no figures at all: a small sample, not "no data".
   const smallSample = isFixedFloorSmallSample(resolvedPlayer.minutes, analysisMode, historicProfiles.get(player.id));
+  const modeKnown = modeDataKnown(analysisMode, historicStatus, historicSkippedPlayerIds, player.id);
+  // <minutes_marker>, <no_data_is_zero>: the stopwatches go by the same test
+  // as every list's (isSmallSample) — no minutes for the mode counts as 0,
+  // so a player with no data is under the floor too, amber on the Data View
+  // toggle and on every card, while the words still say "no data".
+  const underFloor = smallSample || (modeKnown && isSmallSample(resolvedPlayer.minutes, analysisMode));
   // The amber stopwatch on every card whose figures are left uncoloured for it (<minutes_marker>).
-  const smallSampleBadge = smallSample ? <SmallSampleBadge note={smallSampleNote(resolvedPlayer.minutes, analysisMode)} /> : null;
-  const noDataForMode = modeDataKnown(analysisMode, historicStatus, historicSkippedPlayerIds, player.id) && !hasDataForMode(resolvedPlayer) && !smallSample;
+  const smallSampleBadge = underFloor ? <SmallSampleBadge note={smallSampleNote(resolvedPlayer.minutes, analysisMode)} /> : null;
+  const noDataForMode = modeKnown && !hasDataForMode(resolvedPlayer) && !smallSample;
   // Other Data Views where he actually played, for the no-data message —
   // never the one already selected, and never one where all he has is 0
   // minutes, which would only show a 0-minute small sample (T2).
@@ -889,7 +895,7 @@ export function PlayerDetailOverlay() {
 
         {player.status !== "a" && player.news && <div className="banner stale">{player.news}</div>}
 
-        <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} floorNote={profileFloorNote(analysisMode)} floorActive={smallSample} />
+        <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} floorNote={profileFloorNote(analysisMode)} floorActive={underFloor} />
 
         {skippedByServer && (
           <div className="banner info" style={{ marginBottom: 16 }}>

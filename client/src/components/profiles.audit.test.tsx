@@ -450,6 +450,18 @@ describe("M2: when the historic dataset fails", () => {
     expect(banner.textContent).toContain("Try Historic Average or Current Season.");
     expect(banner.textContent).not.toContain("Last Completed Season");
   });
+
+  it("<no_data_is_zero>: no data for the mode counts as 0 minutes, so the Data View stopwatch is amber and every card carries one, as in every list", () => {
+    setApp(state.app.players as NormalizedPlayer[], { historicProfiles: profiles({ 1: [makeSeason({ seasonName: "2023/24", minutes: 2000, totalPoints: 90 })] }) });
+    const { container, getByText, getAllByLabelText } = render(
+      <MemoryRouter initialEntries={["/players?player=1"]}>
+        <PlayerDetailOverlay />
+      </MemoryRouter>,
+    );
+    expect(getByText(/No data for Saliba in this mode/)).toBeTruthy();
+    expect(container.querySelector(".data-view-picker .minutes-floor-badge")!.classList.contains("small-sample-badge")).toBe(true);
+    expect(getAllByLabelText(/^No minutes in this mode \(counts as 0\), under the 855-minute floor/).length).toBeGreaterThan(1);
+  });
 });
 
 describe("Player profile — Live Data details", () => {
