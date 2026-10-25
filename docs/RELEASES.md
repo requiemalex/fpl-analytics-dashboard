@@ -5,6 +5,12 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.112.0 · 25 Oct 2026
+
+- Team Building: Model Predicted allows for players back from an absence and managers selling them before the deadline
+- Record FPL's injury and availability news before every deadline, for fitting Model Predicted
+- Team Building: Model Predicted is now a fitted points model, tested on past seasons
+
 ## v1.111.1 · 25 Oct 2026
 
 - Team Building: tiles renamed Squad Value, Bank and Projected Team Points; "FPL team ID" hover says where to find it
