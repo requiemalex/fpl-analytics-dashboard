@@ -5,6 +5,11 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.110.0 · 25 Oct 2026
+
+- Team Building: Add Players gets its own GW+1 to GW+5 picker for the Exp. Pts columns
+- Team Building: tidier squad header, Highlight with Points Prediction, per-gameweek Projected, greyed out until a squad is loaded
+
 ## v1.109.0 · 24 Oct 2026
 
 - Team Building's Projected points total, with a menu to pick FPL or Model and 1-5 matches ahead; Formations pitch now matches Team Building's
