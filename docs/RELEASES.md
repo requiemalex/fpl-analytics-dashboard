@@ -5,6 +5,10 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.111.0 · 25 Oct 2026
+
+- Team Building: figures by real gameweek (GW9, GW10…) that follow the season, and no formation or player counters
+
 ## v1.110.1 · 25 Oct 2026
 
 - Team Building: drop the import badge and captain instructions, Points Prediction last and no longer spills out of its button
