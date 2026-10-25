@@ -98,9 +98,9 @@ function ProjectedTile({
   );
   const sourceName = source === "fpl" ? "FPL Official" : "Model Predicted";
   return (
-    <div className="stat-tile pitch-projected" role="group" aria-label="Projected">
+    <div className="stat-tile pitch-projected" role="group" aria-label="Projected Team Points">
       <div className="pitch-projected-head">
-        <span className="stat-tile-label">Projected</span>
+        <span className="stat-tile-label">Projected Team Points</span>
         <SegmentedControl options={SOURCE_OPTIONS} value={source} onChange={setSource} compact />
       </div>
       <div className="pitch-projected-matches">
@@ -152,11 +152,11 @@ function SquadTiles({
   return (
     <div className="pitch-view-tiles">
       <div className="stat-tile" title={budgetHint}>
-        <span className="stat-tile-label">Squad value</span>
+        <span className="stat-tile-label">Squad Value</span>
         <span className="stat-tile-value num">{fmtPrice(validation.budgetUsed)}</span>
       </div>
       <div className="stat-tile" title={`${budgetLeftText(validation.budgetRemaining)} of ${fmtPrice(validation.budget)}. ${budgetHint}`}>
-        <span className="stat-tile-label">In the bank</span>
+        <span className="stat-tile-label">Bank</span>
         <span className={`stat-tile-value num${tenths < 0 ? " value-negative" : ""}`}>{tenths < 0 ? `−${fmtPrice(-tenths / 10)}` : fmtPrice(Math.max(0, tenths) / 10)}</span>
       </div>
       <ProjectedTile starters={COMPOSITION_ORDER.flatMap((pos) => positionGroups[pos])} captainId={captainId} gameweeks={gameweeks} projectionByPlayerId={projectionByPlayerId} />

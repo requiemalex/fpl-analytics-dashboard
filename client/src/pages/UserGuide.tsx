@@ -339,7 +339,9 @@ export function UserGuide() {
       <Section id="team-building" title="Team Building">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
           Picking a squad for the season ahead. Start with <strong>New Squad</strong>: a blank one (just give it a name), or import
-          a real squad by its FPL team ID, the number in your team's FPL web address (Pick Team → Gameweek History shows it).
+          a real squad by its FPL team ID: sign in at fantasy.premierleague.com, open the <strong>Points</strong> tab, and it's
+          the number after <code>/entry/</code> in the web address (e.g. fantasy.premierleague.com/entry/1234567/event/8). Hover
+          "FPL team ID" on the page for the same tip.
           Importing reads FPL's public data for that team, chip history included; no login, nothing written back. The squad's own
           buttons (Captain, Vice-Captain, Clear Draft, Delete) work once a squad is loaded; until then the Squad tile is greyed out
           and no players can be added. Up to 5 squads can be saved; <strong>Delete</strong> asks you to confirm the name
@@ -384,8 +386,8 @@ export function UserGuide() {
             for. It's a second opinion, rougher for goalkeepers and nailed-on popular picks (see the README's backtest).
           </li>
           <li>
-            Above the pitch: the squad's name with its buttons, then Squad value, In the bank and <strong>Projected</strong>.
-            Projected shows the starting XI's Expected Points for each of the next five gameweeks separately (the captain's
+            Above the pitch: the squad's name with its buttons, then Squad Value, Bank and <strong>Projected Team Points</strong>.
+            It shows the starting XI's Expected Points for each of the next five gameweeks separately (the captain's
             doubled, the bench isn't counted), from FPL or the Model as its toggle picks. A starter with no figure for a gameweek
             is left out rather than counted as 0, and one whose club blanks has nothing to add; the hover says so. A club-limit breach shows as a
             banner. A squad built from

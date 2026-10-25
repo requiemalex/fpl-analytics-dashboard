@@ -1770,11 +1770,11 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   only while it's selected). The switches are per page, like every view
   switch. Above the pitch, three rows: the squad's name (no formation or
   player count) with the Captain, Vice-Captain and Clear Draft buttons (the app's standard
-  `.btn`, green while armed); then Squad value, In the bank and Projected
+  `.btn`, green while armed); then Squad Value, Bank and Projected Team Points
   as tiles; then Highlight. A club-limit breach is a banner. The bench is
   a row of slots, goalkeeper first, each labelled with its position (no
   bench order: the app has none).
-- **Projected** (`<squad_projection>`, `metrics/squadProjection.ts`,
+- **Projected Team Points** (`<squad_projection>`, `metrics/squadProjection.ts`,
   dictionary `squadProjectedPoints`) — the starting XI's Exp. Pts for
   each upcoming gameweek **on its own** (up to five figures, labelled
   with FPL's gameweek numbers, never summed across gameweeks): for

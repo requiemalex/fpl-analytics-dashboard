@@ -41,6 +41,9 @@ import { describeLoadError } from "../api/errors";
 
 /** How long a rejected drag's warning message stays visible before clearing itself. */
 const WARNING_DISPLAY_MS = 4000;
+/** Hover on "FPL team ID" wherever a squad can be imported: where to find it. */
+const TEAM_ID_HINT =
+  "Your FPL team ID is the number in your team's web address: sign in at fantasy.premierleague.com, open the Points tab, and it's the number after /entry/ (e.g. fantasy.premierleague.com/entry/1234567/event/8).";
 /** How many of each club's next fixtures the Fixtures chips and column show. */
 const FIXTURE_TICKER_LENGTH = 5;
 const HISTORIC_RAW_GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE", "ADVANCED"];
@@ -1167,7 +1170,12 @@ export function TeamBuilder() {
             </div>
             <div className="dialog-divider">or</div>
             <div className="field">
-              <label htmlFor="new-squad-team-id">FPL team ID (import)</label>
+              <label htmlFor="new-squad-team-id">
+                <span className="hint-term" title={TEAM_ID_HINT}>
+                  FPL team ID
+                </span>{" "}
+                (import)
+              </label>
               <input
                 id="new-squad-team-id"
                 type="text"
@@ -1249,7 +1257,13 @@ export function TeamBuilder() {
       {!active && (
         <div className="empty-state">
           <h3>No squad loaded</h3>
-          <p>Create a blank squad or import a real one from its FPL team ID using "New Squad" above to start adding players.</p>
+          <p>
+            Create a blank squad or import a real one from its{" "}
+            <span className="hint-term" title={TEAM_ID_HINT}>
+              FPL team ID
+            </span>{" "}
+            using "New Squad" above to start adding players.
+          </p>
         </div>
       )}
 

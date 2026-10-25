@@ -615,6 +615,13 @@ select:focus {
 }
 
 
+/* A term with a hover tip (title), e.g. "FPL team ID": dotted underline. */
+.hint-term {
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+  cursor: help;
+}
+
 /* ---------- Availability flag ---------- */
 .availability-flag {
   display: inline-block;

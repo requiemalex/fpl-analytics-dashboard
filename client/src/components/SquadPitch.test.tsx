@@ -175,9 +175,9 @@ describe("<squad_projection> the Projected tile", () => {
   it("totals the XI for each match on its own (captain doubled, bench left out), and its toggle picks the source", () => {
     const xi = [makePlayer({ id: 1, position: "MID" }), makePlayer({ id: 2, position: "FWD" })];
     const { getByRole } = renderPitch(xi, [makePlayer({ id: 3, position: "DEF" })], vi.fn(), 2);
-    const tile = getByRole("group", { name: "Projected" });
+    const tile = getByRole("group", { name: "Projected Team Points" });
     const figures = () => [...tile.querySelectorAll(".pitch-projected-match")].map((m) => m.textContent);
-    expect(tile.querySelector(".stat-tile-label")!.textContent).toBe("Projected");
+    expect(tile.querySelector(".stat-tile-label")!.textContent).toBe("Projected Team Points");
     // 4.2 + 4.2 × 2 in every match, never summed across them.
     // Labelled with FPL's own gameweek numbers. GW11 is the club's blank: nobody plays, so no total.
     expect(figures()).toEqual(["GW912.6", "GW1012.6", "GW11—", "GW1212.6", "GW1312.6"]);
@@ -189,7 +189,7 @@ describe("<squad_projection> the Projected tile", () => {
 
   it("shows only the gameweeks the season has left", () => {
     const { getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })], [], vi.fn(), null, true, null, [37, 38]);
-    const labels = [...getByRole("group", { name: "Projected" }).querySelectorAll(".pitch-projected-gw")].map((l) => l.textContent);
+    const labels = [...getByRole("group", { name: "Projected Team Points" }).querySelectorAll(".pitch-projected-gw")].map((l) => l.textContent);
     expect(labels).toEqual(["GW37", "GW38"]);
   });
 });
