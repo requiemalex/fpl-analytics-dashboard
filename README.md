@@ -1765,29 +1765,30 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   **Highlight** (`<kit_view>`: Fixtures, Price, Owned, Minutes, Points Prediction,
   coloured as before), with no fixture beside it; **Fixtures** shows the
   next five FDR-coloured chips instead. **Points Prediction** is the
-  player's Exp. Pts for his next match (GW+1), from the source its
-  FPL/Model toggle picks (shown only while it's selected). The switches
-  are per page, like every view switch. Above the pitch, three rows: the
-  squad's name, starting shape and size (hover for its composition) with
-  the Captain, Vice-Captain and Clear Draft buttons (the app's standard
+  player's Exp. Pts for the next gameweek (a double's two matches added
+  up, "—" for a blank), from the source its FPL/Model toggle picks (shown
+  only while it's selected). The switches are per page, like every view
+  switch. Above the pitch, three rows: the squad's name (no formation or
+  player count) with the Captain, Vice-Captain and Clear Draft buttons (the app's standard
   `.btn`, green while armed); then Squad value, In the bank and Projected
   as tiles; then Highlight. A club-limit breach is a banner. The bench is
   a row of slots, goalkeeper first, each labelled with its position (no
   bench order: the app has none).
 - **Projected** (`<squad_projection>`, `metrics/squadProjection.ts`,
   dictionary `squadProjectedPoints`) — the starting XI's Exp. Pts for
-  each of the next five matches **on its own** (GW+1 … GW+5, five
-  figures, never summed across matches): for match N, Σ over the starters
-  of each one's figure for his own Nth next match, the captain's ×2. The
-  tile's compact FPL/Model toggle picks the source (FPL Official or Model
-  Predicted, never mixed); per page, like the other switches. The bench
-  and automatic substitutions aren't counted, and the captain is assumed
-  to keep the armband in every match. A starter with no figure for a
-  match (no match left, or the Model has no playing-time estimate) is left
-  out of that match's total, never counted as 0, as Totals rows do
-  (`<partial_totals>`): its hover says how many starters had one. "—"
-  with no starters or no figures. Not coloured: a squad total has no pool
-  to rank in.
+  each upcoming gameweek **on its own** (up to five figures, labelled
+  with FPL's gameweek numbers, never summed across gameweeks): for
+  gameweek G, Σ over the starters of each one's figure for G, the
+  captain's ×2. The tile's compact FPL/Model toggle picks the source (FPL
+  Official or Model Predicted, never mixed); per page, like the other
+  switches. The bench and automatic substitutions aren't counted, and the
+  captain is assumed to keep the armband in every gameweek. A starter
+  whose club blanks has nothing to add (the hover counts them). A
+  starter who plays but has no figure (the Model has no playing-time
+  estimate) is left out of that total, never counted as 0, as Totals rows
+  do (`<partial_totals>`): its hover says how many had one. "—" with no
+  starters, nobody playing or no figures. Not coloured: a squad total has
+  no pool to rank in.
 - **Open places** (`<open_slots>`, `openSquadSlots` in
   `metrics/squadRules.ts`) — every place the squad is still short of
   (2 GKP, 5 DEF, 5 MID, 3 FWD) is a "+": the XI's open places take them
@@ -1798,20 +1799,30 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   as always (`<add_to_xi>`). A player dragged onto a "+" lands on the
   pitch or bench it's on. With no squad yet the tile is inert, so no "+"
   can be used.
-- **GW+1…GW+5** — the player's next five fixtures, as Projected counts
-  them (a blank has none; a double shows two consecutive steps). The pitch
-  cards are always for GW+1; Add Players' Exp. Pts columns are for the one
-  its own GW+1…GW+5 picker (beside the Data View picker) picks, per page,
-  GW+1 by default. The cards' colours rank GW+1's figures whatever the
-  table shows (`nextFplOfficial`/`nextModelPredicted`). They
-  start at FPL's `is_next` gameweek (`firstPickableEventId`,
-  `metrics/fixtureTicker.ts`): the one `ep_next` estimates and the first
-  still open for picks. A match that has kicked off (FPL's `started`) is
-  never upcoming, even before FPL marks it `finished` hours after full time,
-  so GW+1 is the same gameweek for every club. The Explorers' Next 5
-  Fixtures use the kick-off rule only.
+- **Upcoming gameweeks** (`<upcoming_gameweeks>`,
+  `metrics/gameweekExpectations.ts`) — real gameweeks by FPL's own
+  numbering, worked out from FPL's event list every time it loads, so
+  they follow the season with nothing to maintain: up to five, starting
+  at FPL's `is_next` gameweek (`firstPickableEventId`,
+  `metrics/fixtureTicker.ts`: the one `ep_next` estimates and the first
+  still open for picks), and only gameweeks the season has (just GW37–38
+  near the end; none after the last deadline, or while events aren't
+  loaded, when the figures are "—"). A player's figure for a gameweek
+  (`expectationForGameweek`) is his club's matches in it added up: a
+  double counts both, a blank has none ("No match in GW10"). Each match
+  is still worked out by its place in his upcoming list (below). The
+  pitch cards are always for the next gameweek; Add Players' Exp. Pts
+  columns are for the one its own gameweek picker (beside the Data View
+  picker) picks, per page, the next by default. The cards' colours rank
+  the next gameweek's figures whatever the table shows
+  (`nextFplOfficial`/`nextModelPredicted`). A match that has kicked off
+  (FPL's `started`) is never upcoming, even before FPL marks it
+  `finished` hours after full time. The Fixtures chips and column are
+  still each club's next five matches; the Explorers' Next 5 Fixtures use
+  the kick-off rule only.
 - **Exp. Pts (FPL Official)** — `metrics/expectedPoints.ts`. FPL's `ep_next`
-  for GW+1. Later fixtures are `ep_next × fixtureMultiplier(FDR, position)`.
+  for the player's first upcoming match. Later matches are `ep_next ×
+  fixtureMultiplier(FDR, position)`.
 - **Exp. Pts (Model Predicted)** — Tier 2, `metrics/expectedPointsV2.ts`.
   Never reads `ep_next`. It estimates each scoring event from the app's own
   stats and FPL's 2026/27 scoring rules:
@@ -1843,8 +1854,8 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   else a status default; with neither known, no figure).
 - **Availability's limit:** FPL publishes availability for the next round
   only, with no return date, so it can't tell a one-match ban from a long
-  injury. The same availability applies to all five steps: a one-match ban
-  zeroes GW+1…GW+5 in both models (FPL Official because every later step
+  injury. The same availability applies to every upcoming gameweek: a
+  one-match ban zeroes all five in both models (FPL Official because every later step
   scales `ep_next`, which FPL already zeroes).
 - **The named weights** (judgement calls, not fitted):
 

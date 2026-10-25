@@ -1,5 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from "react";
-import { projectSquadPointsByMatch, projectionCoverageNote, type ProjectionSource } from "../metrics/squadProjection";
+import { projectSquadPointsByGameweek, projectionBlankNote, projectionCoverageNote, type ProjectionSource } from "../metrics/squadProjection";
+import type { GameweekExpectation } from "../metrics/gameweekExpectations";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass, pressable } from "./primitives";
 import { PitchMarkings } from "./PitchMarkings";
 import { Kit } from "./Kit";
@@ -11,8 +12,7 @@ import { percentileTint } from "../utils/colorScale";
 import { SQUAD_RULES } from "../types/team";
 import type { OpenSlots, SquadValidation } from "../metrics/squadRules";
 import type { NormalizedPlayer, Position } from "../types/normalized";
-import type { ExpectedPointsV2Breakdown } from "../metrics/expectedPointsV2";
-import { fixtureHint, modelBreakdownHint, playerRankHint, versusText } from "./hoverText";
+import { fixtureHint, fplGameweekHint, modelGameweekHint, playerRankHint } from "./hoverText";
 
 const PITCH_ROW_ORDER: Position[] = ["FWD", "MID", "DEF", "GKP"];
 const COMPOSITION_ORDER: Position[] = ["GKP", "DEF", "MID", "FWD"];
@@ -26,8 +26,9 @@ const POSITION_NOUN: Record<Position, [string, string]> = {
 /**
  * <kit_view>: the one figure each kit's nameplate shows, picked with the
  * Highlight switch — rather than every figure at once. Points Prediction
- * is for each player's next match, from the source its FPL/Model toggle
- * picks. Fixtures shows the next five matches instead.
+ * is for the next gameweek (<upcoming_gameweeks>; a double's two matches
+ * added up), from the source its FPL/Model toggle picks. Fixtures shows
+ * the next five matches instead.
  */
 export type KitView = "fixtures" | "points" | "price" | "ownership" | "reliability";
 
@@ -36,7 +37,7 @@ const KIT_VIEW_OPTIONS: SegmentOption<KitView>[] = [
   { value: "price", label: "Price", title: "Today's price" },
   { value: "ownership", label: "Owned", title: "Share of FPL managers who own him" },
   { value: "reliability", label: "Minutes", title: "Minutes Reliability: the share of each match he's expected to play" },
-  { value: "points", label: "Points Prediction", title: "Expected points for each player's next match: FPL's official figure or Scoutline's model, as the toggle beside picks" },
+  { value: "points", label: "Points Prediction", title: "Expected points for the next gameweek (a double's two matches added up): FPL's official figure or Scoutline's model, as the toggle beside picks" },
 ];
 
 /** FPL Official or Model Predicted: the Points Prediction toggle and the Projected tile's. */
@@ -67,18 +68,34 @@ export function budgetLeftText(remaining: number): string {
   return tenths < 0 ? `${fmtPrice(-tenths / 10)} over` : `${fmtPrice(Math.max(0, tenths) / 10)} left`;
 }
 
-/** Each squad player's Exp. Pts for his next five matches, by source (index 0 = GW+1). */
-export type ProjectionByPlayerId = Map<number, Record<ProjectionSource, (number | null)[]>>;
+/** Each squad player's Exp. Pts for each upcoming gameweek, by source, and whether his club plays in it; aligned with `gameweeks`. */
+export type ProjectionByPlayerId = Map<number, Record<ProjectionSource, (number | null)[]> & { playing: boolean[] }>;
 
 /**
  * <squad_projection>: the Projected tile — the starting XI's Exp. Pts for
- * each of the next five matches on its own (GW+1 to GW+5), never summed
- * across them. Its FPL/Model toggle picks the source; per page, like the
- * other switches.
+ * each upcoming gameweek on its own, labelled with FPL's own gameweek
+ * numbers (<upcoming_gameweeks>), never summed across them. Its FPL/Model
+ * toggle picks the source; per page, like the other switches.
  */
-function ProjectedTile({ starters, captainId, projectionByPlayerId }: { starters: NormalizedPlayer[]; captainId: number | null; projectionByPlayerId: ProjectionByPlayerId }) {
+function ProjectedTile({
+  starters,
+  captainId,
+  gameweeks,
+  projectionByPlayerId,
+}: {
+  starters: NormalizedPlayer[];
+  captainId: number | null;
+  gameweeks: number[];
+  projectionByPlayerId: ProjectionByPlayerId;
+}) {
   const [source, setSource] = useState<ProjectionSource>("fpl");
-  const byMatch = projectSquadPointsByMatch(starters.map((p) => ({ perMatch: projectionByPlayerId.get(p.id)?.[source] ?? [], isCaptain: p.id === captainId })));
+  const byGameweek = projectSquadPointsByGameweek(
+    starters.map((p) => {
+      const projection = projectionByPlayerId.get(p.id);
+      return { perGameweek: projection?.[source] ?? [], playing: projection?.playing ?? [], isCaptain: p.id === captainId };
+    }),
+    gameweeks.length,
+  );
   const sourceName = source === "fpl" ? "FPL Official" : "Model Predicted";
   return (
     <div className="stat-tile pitch-projected" role="group" aria-label="Projected">
@@ -87,11 +104,12 @@ function ProjectedTile({ starters, captainId, projectionByPlayerId }: { starters
         <SegmentedControl options={SOURCE_OPTIONS} value={source} onChange={setSource} compact />
       </div>
       <div className="pitch-projected-matches">
-        {byMatch.map((sum, i) => {
-          const gw = `GW+${i + 1}`;
+        {byGameweek.map(({ sum, blanks }, i) => {
+          const gw = `GW${gameweeks[i]}`;
           const hint = [
-            `${gw}: the starting XI's Exp. Pts (${sourceName}) for each player's ${i === 0 ? "next match" : `match ${i + 1} from now (his own, so a blank gameweek is skipped)`}, the captain's doubled. The bench isn't counted.`,
+            `${gw}: the starting XI's Exp. Pts (${sourceName}), a double gameweek's two matches both counted, the captain's doubled. The bench isn't counted.`,
             projectionCoverageNote(sum),
+            projectionBlankNote(blanks, gameweeks[i]),
           ]
             .filter(Boolean)
             .join("\n");
@@ -102,6 +120,12 @@ function ProjectedTile({ starters, captainId, projectionByPlayerId }: { starters
             </div>
           );
         })}
+        {gameweeks.length === 0 && (
+          <div className="pitch-projected-match" title="No gameweek left to pick for this season">
+            <span className="pitch-projected-gw">{DASH}</span>
+            <span className="stat-tile-value num">{DASH}</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -113,12 +137,14 @@ function SquadTiles({
   positionGroups,
   budgetHint,
   captainId,
+  gameweeks,
   projectionByPlayerId,
 }: {
   validation: SquadValidation;
   positionGroups: Record<Position, NormalizedPlayer[]>;
   budgetHint: string;
   captainId: number | null;
+  gameweeks: number[];
   projectionByPlayerId: ProjectionByPlayerId;
 }) {
   // To the tenth, as budgetLeftText does.
@@ -133,7 +159,7 @@ function SquadTiles({
         <span className="stat-tile-label">In the bank</span>
         <span className={`stat-tile-value num${tenths < 0 ? " value-negative" : ""}`}>{tenths < 0 ? `−${fmtPrice(-tenths / 10)}` : fmtPrice(Math.max(0, tenths) / 10)}</span>
       </div>
-      <ProjectedTile starters={COMPOSITION_ORDER.flatMap((pos) => positionGroups[pos])} captainId={captainId} projectionByPlayerId={projectionByPlayerId} />
+      <ProjectedTile starters={COMPOSITION_ORDER.flatMap((pos) => positionGroups[pos])} captainId={captainId} gameweeks={gameweeks} projectionByPlayerId={projectionByPlayerId} />
     </div>
   );
 }
@@ -160,8 +186,7 @@ function PlayerCard({
   isCaptain,
   isViceCaptain,
   isPickable,
-  expectedPoints,
-  modelBreakdown,
+  nextGameweek,
   reliability,
   ranks,
   fixtures,
@@ -178,15 +203,13 @@ function PlayerCard({
   isCaptain: boolean;
   isViceCaptain: boolean;
   isPickable: boolean;
-  /** FPL's own official figure for his next match — not yet captain-doubled, this component doubles it for display when isCaptain. */
-  expectedPoints: number | null;
-  /** Expected Points Tier 2 — this app's own independent estimate for the same match, in parts; same captain-doubling treatment. */
-  modelBreakdown: ExpectedPointsV2Breakdown | null;
+  /** Both Exp. Pts for the next gameweek (a double's matches added up) — not yet captain-doubled, this component doubles them for display when isCaptain. Null with no gameweek left. */
+  nextGameweek: GameweekExpectation | null;
   /** 0-1 blended reliability share, or null with neither historic nor live data. */
   reliability: number | null;
   /** His ranks within his position for the card's figures (<comparative_colouring>) — none under the floor. */
   ranks: PitchCardRanks;
-  /** His next five; both Exp. Pts figures are for the first. */
+  /** His next five, for Fixtures. */
   fixtures: UpcomingFixture[];
   onDropOnCard: (draggedId: number, targetId: number, targetZone: "pitch" | "bench") => void;
   onRemove: (id: number) => void;
@@ -194,8 +217,8 @@ function PlayerCard({
   onViewProfile: (id: number) => void;
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
-  const modelPredicted = modelBreakdown?.total ?? null;
-  const target = fixtures[0];
+  const expectedPoints = nextGameweek?.fpl ?? null;
+  const modelPredicted = nextGameweek?.model ?? null;
   const displayPoints = expectedPoints !== null && isCaptain ? expectedPoints * 2 : expectedPoints;
   const displayModelPredicted = modelPredicted !== null && isCaptain ? modelPredicted * 2 : modelPredicted;
   /** A figure's hover, then his rank within his position for it (<hover_text>). */
@@ -203,18 +226,17 @@ function PlayerCard({
     const phrase = playerRankHint(rank, player.position);
     return phrase ? `${text}\n${phrase}` : text;
   };
-  const noMatch = "No upcoming match";
   const figure: { text: string; title: string; rank: number | undefined } | null =
     view === "points" && pointsSource === "fpl"
       ? {
           text: displayPoints !== null ? fmtDecimal(displayPoints, 1) : DASH,
-          title: target ? `FPL's expected points${versusText(target)}${isCaptain ? " (captain ×2)" : ""}` : noMatch,
+          title: fplGameweekHint(nextGameweek, isCaptain),
           rank: ranks.points,
         }
       : view === "points"
         ? {
             text: displayModelPredicted !== null ? fmtDecimal(displayModelPredicted, 1) : DASH,
-            title: modelBreakdown ? modelBreakdownHint(modelBreakdown, target, isCaptain) : target ? "Scoutline's model has no figure: there's no playing-time estimate for him" : noMatch,
+            title: modelGameweekHint(nextGameweek, isCaptain),
             rank: ranks.model,
           }
         : view === "price"
@@ -320,8 +342,8 @@ export function SquadPitch({
   openSlots,
   captainId,
   viceCaptainId,
-  expectedPointsByPlayerId,
-  modelBreakdownByPlayerId,
+  gameweeks,
+  nextGameweekByPlayerId,
   projectionByPlayerId,
   reliabilityByPlayerId,
   colourRanks,
@@ -348,9 +370,11 @@ export function SquadPitch({
   openSlots: OpenSlots;
   captainId: number | null;
   viceCaptainId: number | null;
-  expectedPointsByPlayerId: Map<number, number | null>;
-  modelBreakdownByPlayerId: Map<number, ExpectedPointsV2Breakdown | null>;
-  /** Both Exp. Pts for each player's next five matches, for the Projected total (<squad_projection>). */
+  /** The upcoming gameweeks, by FPL's numbering (<upcoming_gameweeks>); empty with none left this season. */
+  gameweeks: number[];
+  /** Each squad player's Exp. Pts for gameweeks[0], for the cards' Points Prediction. */
+  nextGameweekByPlayerId: Map<number, GameweekExpectation>;
+  /** Both Exp. Pts for each player's upcoming gameweeks, for Projected (<squad_projection>). */
   projectionByPlayerId: ProjectionByPlayerId;
   reliabilityByPlayerId: Map<number, number | null>;
   /** Every player's ranks for the cards' figures, from the Add Players table's pool (<comparative_colouring>). */
@@ -396,8 +420,7 @@ export function SquadPitch({
       isCaptain={zone === "pitch" && p.id === captainId}
       isViceCaptain={zone === "pitch" && p.id === viceCaptainId}
       isPickable={zone === "pitch" && captainPickMode !== null}
-      expectedPoints={expectedPointsByPlayerId.get(p.id) ?? null}
-      modelBreakdown={modelBreakdownByPlayerId.get(p.id) ?? null}
+      nextGameweek={nextGameweekByPlayerId.get(p.id) ?? null}
       reliability={reliabilityByPlayerId.get(p.id) ?? null}
       ranks={pitchCardRanks(colourRanks, p.id)}
       fixtures={fixturesByTeamId.get(p.teamId) ?? []}
@@ -413,25 +436,13 @@ export function SquadPitch({
     ...openSlots.bench.filter((b) => b === pos).map(() => ({ position: pos, player: null })),
   ]);
 
-  const xiSize = COMPOSITION_ORDER.reduce((n, pos) => n + positionGroups[pos].length, 0);
-  const shape = [positionGroups.DEF.length, positionGroups.MID.length, positionGroups.FWD.length].join("-");
-  const composition = COMPOSITION_ORDER.map((pos) => `${pos} ${squadValidation.composition[pos]}/${SQUAD_RULES.composition[pos]}`).join(" · ");
-
-  // Three rows above the pitch: the squad (name, shape, size) with its
-  // actions, then its figures, then what the kits highlight.
+  // Three rows above the pitch: the squad's name with its actions, then
+  // its figures, then what the kits highlight.
   return (
     <div className={`squad-pitch${hasSquad ? "" : " is-disabled"}`} ref={rootRef} aria-disabled={!hasSquad || undefined}>
       <div className="pitch-view-header">
         <div className="pitch-view-heading">
           {squadName && <span className="pitch-view-title">{squadName}</span>}
-          {xiSize > 0 && (
-            <span className="badge num" title={`Starting shape: ${xiSize} of ${SQUAD_RULES.startingXISize} starters (defenders-midfielders-forwards)`}>
-              {shape}
-            </span>
-          )}
-          <span className={`pitch-view-count num ${squadValidation.squadComplete ? "value-positive" : "value-muted"}`} title={composition}>
-            {squadValidation.squadSize}/{SQUAD_RULES.squadSize} players
-          </span>
         </div>
         <div className="pitch-view-actions">
           <button
@@ -462,6 +473,7 @@ export function SquadPitch({
         positionGroups={positionGroups}
         budgetHint={budgetHint}
         captainId={captainId}
+        gameweeks={gameweeks}
         projectionByPlayerId={projectionByPlayerId}
       />
       {squadValidation.clubViolations.length > 0 && (

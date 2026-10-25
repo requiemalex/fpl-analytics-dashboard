@@ -1,6 +1,7 @@
 import type { Position } from "../types/normalized";
 import type { UpcomingFixture } from "../metrics/fixtureTicker";
 import type { ExpectedPointsV2Breakdown } from "../metrics/expectedPointsV2";
+import type { GameweekExpectation } from "../metrics/gameweekExpectations";
 import { fmtDecimal } from "../utils/format";
 
 /**
@@ -97,6 +98,34 @@ export function modelBreakdownHint(b: ExpectedPointsV2Breakdown, fixture: Upcomi
   const sum = shown.length > 0 ? ` = ${shown.join(" + ")}${conceded}` : "";
   const gaps = b.gaps.length > 0 ? `. No data for ${b.gaps.join(", ")}, counted as 0` : "";
   return `${head}${sum}${gaps}`;
+}
+
+/** " v BUR (H) and v WOL (A)": a gameweek's matches (two in a double). */
+export function gameweekVersusText(fixtures: readonly UpcomingFixture[]): string {
+  return fixtures.map(versusText).join(" and");
+}
+
+/** Hover for a figure with no gameweek to be for: a blank, or none left this season (null). */
+function gameweekGapHint(g: GameweekExpectation | null): string | undefined {
+  if (g === null) return "No gameweek left to pick for this season";
+  if (g.fixtures.length === 0) return `No match in GW${g.eventId}`;
+  return undefined;
+}
+
+/** An FPL Official figure for one gameweek: "FPL's expected points for GW9 v BUR (H)"; a double names both matches. */
+export function fplGameweekHint(g: GameweekExpectation | null, captain = false): string {
+  const gap = gameweekGapHint(g);
+  if (gap || g === null) return gap ?? "";
+  if (g.fpl === null) return `FPL has no expected points for him in GW${g.eventId}`;
+  return `FPL's expected points for GW${g.eventId}${gameweekVersusText(g.fixtures)}${captain ? " (captain ×2)" : ""}`;
+}
+
+/** A Model Predicted figure for one gameweek: each match's breakdown (modelBreakdownHint), one line each in a double. */
+export function modelGameweekHint(g: GameweekExpectation | null, captain = false): string {
+  const gap = gameweekGapHint(g);
+  if (gap || g === null) return gap ?? "";
+  if (g.modelBreakdowns === null) return "Scoutline's model has no figure: there's no playing-time estimate for him";
+  return g.modelBreakdowns.map((b, i) => modelBreakdownHint(b, g.fixtures[i], captain)).join("\n");
 }
 
 /** A stat column's header hover: what it is, then the one thing about it worth knowing here. */

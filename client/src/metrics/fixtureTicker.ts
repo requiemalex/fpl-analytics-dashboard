@@ -3,6 +3,8 @@ import { DASH } from "../utils/format";
 
 export interface UpcomingFixture {
   fixtureId: number;
+  /** FPL's gameweek for it; null while it has none (postponed, not yet rescheduled). */
+  eventId: number | null;
   opponentTeamId: number;
   opponentShortName: string;
   isHome: boolean;
@@ -42,6 +44,7 @@ export function getUpcomingFixtures(
       const opponentId = isHome ? f.awayTeamId : f.homeTeamId;
       return {
         fixtureId: f.id,
+        eventId: f.eventId,
         opponentTeamId: opponentId,
         opponentShortName: teamsById.get(opponentId)?.shortName ?? "???",
         isHome,
@@ -54,7 +57,7 @@ export function getUpcomingFixtures(
  * The first gameweek a squad can still be picked for: FPL's `is_next`
  * event, which is also the gameweek `ep_next` estimates. Once the deadline
  * passes, the current gameweek's unplayed matches are out of reach, so
- * Team Building's GW+1 starts here. With events loaded but no next one
+ * Team Building's upcoming gameweeks start here (<upcoming_gameweeks>). With events loaded but no next one
  * (the season's last deadline has passed), nothing is pickable. Null when
  * events aren't loaded, which leaves only the "not kicked off" rule.
  */

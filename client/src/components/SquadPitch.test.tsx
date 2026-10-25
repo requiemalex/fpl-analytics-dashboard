@@ -5,12 +5,24 @@ import { openSquadSlots, validateSquad } from "../metrics/squadRules";
 import { makePlayer } from "../test/fixtures";
 import type { NormalizedPlayer, Position } from "../types/normalized";
 import type { UpcomingFixture } from "../metrics/fixtureTicker";
+import type { GameweekExpectation } from "../metrics/gameweekExpectations";
 
 afterEach(cleanup);
 
-const fixture = (id: number, opponent: string, isHome: boolean, difficulty = 2): UpcomingFixture => ({ fixtureId: id, opponentTeamId: 99, opponentShortName: opponent, isHome, difficulty });
+const fixture = (id: number, opponent: string, isHome: boolean, difficulty = 2, eventId = 9): UpcomingFixture => ({ fixtureId: id, eventId, opponentTeamId: 99, opponentShortName: opponent, isHome, difficulty });
 
-function renderPitch(xi: NormalizedPlayer[], bench: NormalizedPlayer[] = [], onAddSlot = vi.fn(), captainId: number | null = null, hasSquad = true, captainPickMode: "captain" | "viceCaptain" | null = null) {
+// The next gameweek is GW9: one match v BUR, FPL 4.2, no Model figure.
+const nextGameweek = (): GameweekExpectation => ({ eventId: 9, fixtures: [fixture(1, "BUR", true)], fpl: 4.2, modelBreakdowns: null, model: null });
+
+function renderPitch(
+  xi: NormalizedPlayer[],
+  bench: NormalizedPlayer[] = [],
+  onAddSlot = vi.fn(),
+  captainId: number | null = null,
+  hasSquad = true,
+  captainPickMode: "captain" | "viceCaptain" | null = null,
+  gameweeks = [9, 10, 11, 12, 13],
+) {
   const squad = [...xi, ...bench];
   const groups = Object.fromEntries((["GKP", "DEF", "MID", "FWD"] as Position[]).map((pos) => [pos, xi.filter((p) => p.position === pos)])) as Record<Position, NormalizedPlayer[]>;
   const utils = render(
@@ -22,10 +34,17 @@ function renderPitch(xi: NormalizedPlayer[], bench: NormalizedPlayer[] = [], onA
       openSlots={openSquadSlots(squad, xi)}
       captainId={captainId}
       viceCaptainId={null}
-      expectedPointsByPlayerId={new Map(squad.map((p) => [p.id, 4.2]))}
-      modelBreakdownByPlayerId={new Map()}
-      // FPL 4.2 a match (as on the cards); the Model 3, 2, 1, then no figure.
-      projectionByPlayerId={new Map(squad.map((p) => [p.id, { fpl: [4.2, 4.2, 4.2, 4.2, 4.2], model: [3, 2, 1, null, null] }]))}
+      gameweeks={gameweeks}
+      nextGameweekByPlayerId={new Map(squad.map((p) => [p.id, nextGameweek()]))}
+      // FPL 4.2 a gameweek (as on the cards) but a blank in GW11; the Model 3, 2, (blank), then no figure.
+      projectionByPlayerId={
+        new Map(
+          squad.map((p) => [
+            p.id,
+            { fpl: [4.2, 4.2, null, 4.2, 4.2].slice(0, gameweeks.length), model: [3, 2, null, null, null].slice(0, gameweeks.length), playing: [true, true, false, true, true].slice(0, gameweeks.length) },
+          ]),
+        )
+      }
       reliabilityByPlayerId={new Map()}
       colourRanks={{}}
       fixturesByTeamId={new Map([[1, [fixture(1, "BUR", true), fixture(2, "WOL", false, 4)]]])}
@@ -75,7 +94,7 @@ describe("<kit_view> Highlight", () => {
     // Points Prediction, FPL, by default.
     expect(figure()).toBe("4.2");
     expect(container.querySelector(".pitch-card .pitch-card-match")).toBeNull();
-    expect(container.querySelector(".pitch-card .pitch-card-figure")!.getAttribute("title")).toContain("v BUR (H)");
+    expect(container.querySelector(".pitch-card .pitch-card-figure")!.getAttribute("title")).toBe("FPL's expected points for GW9 v BUR (H)");
     // Its toggle picks the Model, which has no figure for him here.
     fireEvent.click(getByRole("radiogroup", { name: "Source" }).querySelector<HTMLElement>('[aria-label^="Exp. Pts (Model"]')!);
     expect(figure()).toBe("—");
@@ -97,7 +116,14 @@ describe("<kit_view> Highlight", () => {
   it("has no Match switch", () => {
     const { queryByText } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
     expect(queryByText("Match")).toBeNull();
-    expect(queryByText("GW+2", { selector: "button" })).toBeNull();
+    expect(queryByText("GW10", { selector: "button" })).toBeNull();
+  });
+});
+
+describe("the squad's heading", () => {
+  it("is just its name: no formation or player count", () => {
+    const { container } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
+    expect(container.querySelector(".pitch-view-heading")!.textContent).toBe("My Squad");
   });
 });
 
@@ -153,9 +179,17 @@ describe("<squad_projection> the Projected tile", () => {
     const figures = () => [...tile.querySelectorAll(".pitch-projected-match")].map((m) => m.textContent);
     expect(tile.querySelector(".stat-tile-label")!.textContent).toBe("Projected");
     // 4.2 + 4.2 × 2 in every match, never summed across them.
-    expect(figures()).toEqual(["GW+112.6", "GW+212.6", "GW+312.6", "GW+412.6", "GW+512.6"]);
+    // Labelled with FPL's own gameweek numbers. GW11 is the club's blank: nobody plays, so no total.
+    expect(figures()).toEqual(["GW912.6", "GW1012.6", "GW11—", "GW1212.6", "GW1312.6"]);
+    expect(tile.querySelectorAll<HTMLElement>(".pitch-projected-match")[2].title).toContain("2 starters have no match in GW11");
     fireEvent.click(tile.querySelector<HTMLElement>('[aria-label^="Exp. Pts (Model"]')!);
     // 3, 2, 1 a starter (× 3 with the captain's doubled); matches 4 and 5 have no Model figure.
-    expect(figures()).toEqual(["GW+19.0", "GW+26.0", "GW+33.0", "GW+4—", "GW+5—"]);
+    expect(figures()).toEqual(["GW99.0", "GW106.0", "GW11—", "GW12—", "GW13—"]);
+  });
+
+  it("shows only the gameweeks the season has left", () => {
+    const { getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })], [], vi.fn(), null, true, null, [37, 38]);
+    const labels = [...getByRole("group", { name: "Projected" }).querySelectorAll(".pitch-projected-gw")].map((l) => l.textContent);
+    expect(labels).toEqual(["GW37", "GW38"]);
   });
 });

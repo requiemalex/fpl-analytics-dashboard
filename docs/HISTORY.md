@@ -3972,3 +3972,19 @@ tiles/graphs only:
   User Guide and the buttons' hover text. The imported squad still stores
   where it came from (`importedFrom`), which the budget's hover uses.
 - **Last commit with it:** `4c69c91`.
+
+### Team Building's GW+1…GW+5 steps and squad heading counters (replaced 2026-10-25)
+- **What it did:** Projected and Add Players' picker were labelled GW+1 to
+  GW+5, meaning each player's own 1st to 5th upcoming match, not a
+  calendar gameweek: a blank gameweek was skipped and a double's two
+  matches were consecutive steps, so one column could hold different
+  gameweeks for different players. The cards and the picker's default
+  were his next match. Beside the squad's name, a badge showed the
+  starting shape ("3-4-3") and a counter the squad size ("15/15
+  players", hover for its composition).
+- **Why it went:** the owner asked (2026-10-25) for the figures to be
+  labelled by the actual gameweek and to follow the season by themselves,
+  and for the shape and size counters to go. Figures are now per real
+  gameweek (<upcoming_gameweeks>): a double's matches added up, a blank
+  shown as no match.
+- **Last commit with it:** `2771a96`.

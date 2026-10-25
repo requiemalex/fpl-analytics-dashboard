@@ -790,10 +790,10 @@ export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
     suppliedByFPL: false,
     derived: true,
     formula:
-      "One figure per match, GW+1 to GW+5, never summed across them: for match N, Σ over the starting XI of each starter's Exp. Pts (FPL Official or Model Predicted, as picked) for his own Nth next match (so a blank gameweek is skipped), the captain's ×2.",
+      "One figure per upcoming gameweek (up to five, by FPL's numbering), never summed across them: for gameweek G, Σ over the starting XI of each starter's Exp. Pts (FPL Official or Model Predicted, as picked) for his matches in G (a double's two added up, a blank's none), the captain's ×2.",
     units: "points",
-    caveats: "The bench and automatic substitutions aren't counted; the captain is assumed to keep the armband in every match.",
-    availabilityNote: "A starter with no figure for a match is left out of its total (not counted as 0) and the hover says how many had one; — with no starters or no figures.",
+    caveats: "The bench and automatic substitutions aren't counted; the captain is assumed to keep the armband in every gameweek.",
+    availabilityNote: "A playing starter with no figure is left out of the total (not counted as 0) and the hover says how many had one; one whose club blanks adds nothing; — with no starters, nobody playing or no figures.",
   }),
 };
 

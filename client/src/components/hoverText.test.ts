@@ -19,7 +19,7 @@ import { clubRanks } from "../metrics/comparativeColour";
 import { makePlayer } from "../test/fixtures";
 import type { UpcomingFixture } from "../metrics/fixtureTicker";
 
-const fixture = (o: Partial<UpcomingFixture> = {}): UpcomingFixture => ({ fixtureId: 1, opponentTeamId: 2, opponentShortName: "BOU", isHome: true, difficulty: 2, ...o });
+const fixture = (o: Partial<UpcomingFixture> = {}): UpcomingFixture => ({ fixtureId: 1, eventId: 1, opponentTeamId: 2, opponentShortName: "BOU", isHome: true, difficulty: 2, ...o });
 
 // <hover_text>: every hover is about this player, club or match, in one line.
 describe("playerRankHint — a colour's rank in words", () => {

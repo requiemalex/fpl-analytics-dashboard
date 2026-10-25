@@ -22,7 +22,7 @@ const FPL_SCORING = {
 };
 const POSITIONS: Position[] = ["GKP", "DEF", "MID", "FWD"];
 
-const fixture = (o: Partial<UpcomingFixture> = {}): UpcomingFixture => ({ fixtureId: 1, opponentTeamId: 2, opponentShortName: "OPP", isHome: true, difficulty: 3, ...o });
+const fixture = (o: Partial<UpcomingFixture> = {}): UpcomingFixture => ({ fixtureId: 1, eventId: 1, opponentTeamId: 2, opponentShortName: "OPP", isHome: true, difficulty: 3, ...o });
 
 describe("Expected Points Tier 2 — scoring rules match FPL 2026/27", () => {
   it.each(POSITIONS)("%s point values equal game_config.scoring", (pos) => {

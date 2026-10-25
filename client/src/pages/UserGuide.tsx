@@ -365,15 +365,16 @@ export function UserGuide() {
             empty squad) and then on the bench. Click one to list that position in Add Players, or drag a player onto it.
           </li>
           <li>
-            <strong>GW+1 to GW+5</strong> are each player's next five fixtures: his own Nth fixture, not a calendar gameweek, so a
-            blank gameweek is skipped and a double gameweek's two fixtures are consecutive steps. The pitch cards are for GW+1; Add Players'
-            Expected Points columns are for the gameweek picked beside its Data View picker (GW+1 to GW+5). GW+1 is always in the next gameweek you can still pick for (the one FPL's
-            own estimate is for): once a deadline passes, that gameweek's matches drop out, even before FPL confirms the results.
+            Expected Points are by real gameweek, labelled with FPL's own numbers (GW9, GW10…) and starting at the next gameweek
+            you can still pick for (the one FPL's own estimate is for): once a deadline passes, the labels move on by themselves.
+            A double gameweek's two matches are added up; a club with a blank gameweek has no match in it, shown as "—". Near
+            the end of the season only the gameweeks left are shown. The pitch cards are for the next gameweek; Add Players'
+            Expected Points columns are for the gameweek picked beside its Data View picker.
           </li>
           <li>
             <strong>Minutes reliability</strong> is how much a player is likely to play, from his minutes alone (this season and
             the last four, recent seasons counting more), times his availability. How many managers own him plays no part.
-            FPL's availability is for the next round only, so a one-match ban shows as 0 across all five steps.
+            FPL's availability is for the next round only, so a one-match ban shows as 0 across all five gameweeks.
           </li>
           <li>
             Two Expected Points figures, never blended: <strong>FPL Official</strong> is FPL's own <code>ep_next</code> prediction
@@ -383,10 +384,10 @@ export function UserGuide() {
             for. It's a second opinion, rougher for goalkeepers and nailed-on popular picks (see the README's backtest).
           </li>
           <li>
-            Above the pitch: the squad's name, starting shape and size (hover for its composition) with its buttons, then Squad
-            value, In the bank and <strong>Projected</strong>. Projected shows the starting XI's Expected Points for each of the
-            next five gameweeks separately (GW+1 to GW+5; the captain's doubled, the bench isn't counted), from FPL or the Model as
-            its toggle picks. A starter with no figure for a gameweek is left out rather than counted as 0; the hover says so. A club-limit breach shows as a
+            Above the pitch: the squad's name with its buttons, then Squad value, In the bank and <strong>Projected</strong>.
+            Projected shows the starting XI's Expected Points for each of the next five gameweeks separately (the captain's
+            doubled, the bench isn't counted), from FPL or the Model as its toggle picks. A starter with no figure for a gameweek
+            is left out rather than counted as 0, and one whose club blanks has nothing to add; the hover says so. A club-limit breach shows as a
             banner. A squad built from
             scratch has FPL's £100m; an imported one has its own: its players at today's prices when you imported it, plus its money
             in the bank, so an unchanged import shows exactly that bank left (FPL's own selling prices need your login, so a player
