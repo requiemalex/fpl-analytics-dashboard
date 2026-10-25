@@ -1796,10 +1796,14 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   4-4-2 and a bench of GKP, DEF, MID, FWD. A "+" sets Add Players'
   Position to that position and moves there; Add then places the player
   as always (`<add_to_xi>`). A player dragged onto a "+" lands on the
-  pitch or bench it's on. With no squad yet, a "+" opens New Squad.
+  pitch or bench it's on. With no squad yet the tile is inert, so no "+"
+  can be used.
 - **GW+1…GW+5** — the player's next five fixtures, as Projected counts
   them (a blank has none; a double shows two consecutive steps). The pitch
-  cards and Add Players' Exp. Pts columns are for GW+1. They
+  cards are always for GW+1; Add Players' Exp. Pts columns are for the one
+  its own GW+1…GW+5 picker (beside the Data View picker) picks, per page,
+  GW+1 by default. The cards' colours rank GW+1's figures whatever the
+  table shows (`nextFplOfficial`/`nextModelPredicted`). They
   start at FPL's `is_next` gameweek (`firstPickableEventId`,
   `metrics/fixtureTicker.ts`): the one `ep_next` estimates and the first
   still open for picks. A match that has kicked off (FPL's `started`) is

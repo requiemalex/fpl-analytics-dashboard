@@ -3954,5 +3954,6 @@ tiles/graphs only:
   with an FPL/Model toggle, the switch renamed Highlight, Projected titled
   just "Projected" with each gameweek's points shown separately, one
   button style across the app, a tidier squad header, and the tile greyed
-  out until a squad is loaded. Cards and Add Players are now for GW+1.
+  out until a squad is loaded. The cards are now for GW+1; Add Players
+  kept the choice of match as its own GW+1…GW+5 picker.
 - **Last commit with it:** `81ab0ae`.

@@ -36,13 +36,19 @@ import { isUnderMinimum } from "../metrics/fixedMinutesFloor";
 import { MIN_QUALIFYING_SEASON_MINUTES } from "../metrics/historicAnalysis";
 import { downloadCsv } from "../utils/csvExport";
 import type { NormalizedPlayer, Position } from "../types/normalized";
-import { ColumnsPopover, MenuGroupHeading, fplHeading } from "../components/MenuControls";
+import { ColumnsPopover, MenuGroupHeading, SegmentedControl, fplHeading, type SegmentOption } from "../components/MenuControls";
 import { describeLoadError } from "../api/errors";
 
 /** How long a rejected drag's warning message stays visible before clearing itself. */
 const WARNING_DISPLAY_MS = 4000;
-/** How many of each player's next fixtures the Projected tile covers (GW+1 to GW+5) — matches getUpcomingFixtures' own 5-fixture default. */
+/** Each player's next five fixtures (GW+1 to GW+5): what the Projected tile covers and Add Players' gameweek picker picks from — matches getUpcomingFixtures' own 5-fixture default. */
 export const GW_OFFSETS = [1, 2, 3, 4, 5] as const;
+type GwOffset = (typeof GW_OFFSETS)[number];
+const GW_OPTIONS: SegmentOption<`${GwOffset}`>[] = GW_OFFSETS.map((offset) => ({
+  value: `${offset}`,
+  label: `GW+${offset}`,
+  title: offset === 1 ? "Both Exp. Pts columns: each player's next match" : `Both Exp. Pts columns: each player's match ${offset} from now (his own, so a blank gameweek is skipped)`,
+}));
 const HISTORIC_RAW_GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE", "ADVANCED"];
 /** Own% is a normal Historic/Raw column now (resizable, comparative-coloured), matching Player Explorer — it used to be excluded and pinned separately. */
 const HISTORIC_RAW_COLUMNS = PLAYER_COLUMNS;
@@ -60,14 +66,17 @@ interface PickerRowData {
   /** getPlayerDerivedMetrics(historicRaw), worked out once per row rather than once per cell, sort comparison and tint. */
   historicDerived: PlayerDerivedMetrics;
   fixtures: UpcomingFixture[];
-  /** FPL's own ep_next, extended by fixture difficulty for the gameweek currently selected on the pitch-view navigator — see computeExpectedPointsForSingleFixture. */
+  /** FPL's own ep_next, extended by fixture difficulty for the match Add Players' gameweek picker picks — see computeExpectedPointsForSingleFixture. */
   fplOfficial: number | null;
-  /** Expected Points Tier 2 — this app's own independent per-event estimate for the same navigator-selected gameweek. See metrics/expectedPointsV2.ts. */
+  /** Expected Points Tier 2 — this app's own independent per-event estimate for the same match. See metrics/expectedPointsV2.ts. */
   modelPredicted: number | null;
   /** The model's figure in parts, for the cell's hover (null without one). */
   modelBreakdown: ExpectedPointsV2Breakdown | null;
-  /** The match both Exp. Pts figures are for: his navigator-selected upcoming fixture. */
+  /** The match both Exp. Pts figures are for: his upcoming fixture the gameweek picker picks. */
   targetFixture: UpcomingFixture | undefined;
+  /** Both Exp. Pts for his next match (GW+1), whatever the gameweek picker picks: the pitch cards show these, so their colours rank them. */
+  nextFplOfficial: number | null;
+  nextModelPredicted: number | null;
   reliability: number | null;
 }
 
@@ -103,7 +112,7 @@ const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
     getValue: (row) => row.fplOfficial,
     renderCell: (row) => fmtDecimal(row.fplOfficial, 1),
     decimals: 1,
-    hint: "FPL's own expected points for each player's match picked on the pitch (GW+1 to GW+5).",
+    hint: "FPL's own expected points for each player's match picked above the table (GW+1 to GW+5).",
     cellHint: (row) => (row.fplOfficial !== null ? `FPL's expected points${versusText(row.targetFixture)}` : undefined),
   },
   {
@@ -327,6 +336,9 @@ export function TeamBuilder() {
   const [pickerMinMinutes, setPickerMinMinutes] = useState<number | null>(null);
   // <hide_small_samples>: off by default, per page like the picker's other filters.
   const [pickerHideSmallSamples, setPickerHideSmallSamples] = useState(false);
+  // Which of each player's next five matches the Exp. Pts columns are for;
+  // the table's alone (the pitch cards are always for GW+1).
+  const [pickerGwOffset, setPickerGwOffset] = useState<GwOffset>(1);
   const [captainPickMode, setCaptainPickMode] = useState<"captain" | "viceCaptain" | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [showNewSquadModal, setShowNewSquadModal] = useState(false);
@@ -929,13 +941,19 @@ export function TeamBuilder() {
       const playerFixtures = fixturesByTeamId.get(p.teamId) ?? [];
       const historicProfile = historicProfiles.get(p.id);
       const reliability = computeBlendedMinutesReliability(p, teamsById.get(p.teamId), historicProfile).value;
-      // Both Exp. Pts columns are for his next match (GW+1).
-      const fixture = playerFixtures[0];
-      const fplOfficial = fixture ? computeExpectedPointsForSingleFixture(p, fixture, 0) : null;
-      const modelBreakdown =
-        fixture && reliability !== null
-          ? computeExpectedPointsV2ForFixture(p, fixture, teamsById.get(p.teamId), teamsById.get(fixture.opponentTeamId), reliability, historicProfile)
-          : null;
+      const expectedFor = (index: number) => {
+        const fixture = playerFixtures[index];
+        const fplOfficial = fixture ? computeExpectedPointsForSingleFixture(p, fixture, index) : null;
+        const modelBreakdown =
+          fixture && reliability !== null
+            ? computeExpectedPointsV2ForFixture(p, fixture, teamsById.get(p.teamId), teamsById.get(fixture.opponentTeamId), reliability, historicProfile)
+            : null;
+        return { fixture, fplOfficial, modelBreakdown };
+      };
+      // Both Exp. Pts columns are for the match the gameweek picker picks; the pitch
+      // cards' colours need GW+1's too, worked out again only when it differs.
+      const { fixture, fplOfficial, modelBreakdown } = expectedFor(pickerGwOffset - 1);
+      const next = pickerGwOffset === 1 ? { fplOfficial, modelBreakdown } : expectedFor(0);
       const historicRaw = resolvePlayerStats(p, pickerHistoricMode, historicProfile, currentSeasonHasStarted);
       return {
         live: p,
@@ -946,10 +964,12 @@ export function TeamBuilder() {
         modelPredicted: modelBreakdown?.total ?? null,
         modelBreakdown,
         targetFixture: fixture,
+        nextFplOfficial: next.fplOfficial,
+        nextModelPredicted: next.modelBreakdown?.total ?? null,
         reliability,
       };
     });
-  }, [players, fixturesByTeamId, historicProfiles, pickerHistoricMode, currentSeasonHasStarted, teamsById]);
+  }, [players, fixturesByTeamId, historicProfiles, pickerHistoricMode, currentSeasonHasStarted, teamsById, pickerGwOffset]);
 
   const pickerBuiltRows: PickerRowData[] = useMemo(() => {
     const search = pickerSearch.trim();
@@ -1022,17 +1042,19 @@ export function TeamBuilder() {
     return ranks;
   }, [pickerAllRows, pickerHistoricMode, historicRawColumnsInOrder, fixturesByTeamId]);
 
-  // The pitch cards' colours: the forward-looking figures as the Predictive
-  // columns rank them, and today's price and ownership among every player
-  // in his position — none of them a Data View's sample, so no minutes
+  // The pitch cards' colours: the forward-looking figures ranked as the
+  // Predictive columns rank them (Exp. Pts for GW+1, as the cards show,
+  // whatever match the table's gameweek picker picks), and today's price and
+  // ownership among every player in his position — none of them a Data View's sample, so no minutes
   // floor, and nothing on the pitch changes with the picker's Historic/Raw
   // toggle (M20, the owner's call 2026-10-19).
   const pitchColourRanks: PitchColourRanks = useMemo(() => {
-    const live = (value: (r: PickerRowData) => number | null) =>
-      rankWithinGroups(pickerAllRows, { id: (r) => r.live.id, group: (r) => r.live.position, eligible: () => true, value, higherIsBetter: false });
+    const rank = (value: (r: PickerRowData) => number | null, higherIsBetter: boolean) =>
+      rankWithinGroups(pickerAllRows, { id: (r) => r.live.id, group: (r) => r.live.position, eligible: () => true, value, higherIsBetter });
+    const live = (value: (r: PickerRowData) => number | null) => rank(value, false);
     return {
-      points: pickerColumnRanks.get("expFplOfficial"),
-      model: pickerColumnRanks.get("expModelPredicted"),
+      points: rank((r) => r.nextFplOfficial, true),
+      model: rank((r) => r.nextModelPredicted, true),
       reliability: pickerColumnRanks.get("reliability"),
       price: live((r) => r.live.price),
       ownership: live((r) => r.live.ownership),
@@ -1397,10 +1419,7 @@ export function TeamBuilder() {
         <div style={{ display: "flex", gap: 28, flexWrap: "wrap", marginBottom: 12 }}>
           <div>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Predictive columns show:</div>
-            {/* No inline caption (CLAUDE.md): the how-to is the hover text and the User Guide. */}
-            <span className="badge" title="Both Exp. Pts columns estimate each player's next match.">
-              GW+1
-            </span>
+            <SegmentedControl options={GW_OPTIONS} value={`${pickerGwOffset}`} onChange={(v) => setPickerGwOffset(Number(v) as GwOffset)} />
           </div>
           <div>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Historic/raw columns show:</div>

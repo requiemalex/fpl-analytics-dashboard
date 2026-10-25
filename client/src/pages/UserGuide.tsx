@@ -366,8 +366,8 @@ export function UserGuide() {
           </li>
           <li>
             <strong>GW+1 to GW+5</strong> are each player's next five fixtures: his own Nth fixture, not a calendar gameweek, so a
-            blank gameweek is skipped and a double gameweek's two fixtures are consecutive steps. The pitch cards and Add Players'
-            Expected Points columns are for GW+1. GW+1 is always in the next gameweek you can still pick for (the one FPL's
+            blank gameweek is skipped and a double gameweek's two fixtures are consecutive steps. The pitch cards are for GW+1; Add Players'
+            Expected Points columns are for the gameweek picked beside its Data View picker (GW+1 to GW+5). GW+1 is always in the next gameweek you can still pick for (the one FPL's
             own estimate is for): once a deadline passes, that gameweek's matches drop out, even before FPL confirms the results.
           </li>
           <li>
