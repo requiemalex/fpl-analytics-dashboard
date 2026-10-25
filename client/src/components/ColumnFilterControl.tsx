@@ -105,7 +105,7 @@ export function ColumnFilterControl({
             <button type="button" className="btn" onClick={onConfirm} disabled={!!problem} title={problem}>
               Enter
             </button>
-            <button type="button" className="chip" onClick={onCancel}>
+            <button type="button" className="btn" onClick={onCancel}>
               Cancel
             </button>
           </div>

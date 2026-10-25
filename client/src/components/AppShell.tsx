@@ -189,7 +189,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="banner error">
             Couldn't load FPL's fixture list, so upcoming fixtures, Team Building's Expected Points and this season's league table are
             missing until it loads.{" "}
-            <button type="button" className="chip" onClick={() => void refresh()} disabled={refreshing}>
+            <button type="button" className="btn" onClick={() => void refresh()} disabled={refreshing}>
               {refreshing ? "Trying…" : "Try again"}
             </button>
           </div>

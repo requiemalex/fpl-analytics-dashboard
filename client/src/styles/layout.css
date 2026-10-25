@@ -358,7 +358,8 @@
   opacity: 0.5;
   cursor: default;
 }
-.btn.primary {
+.btn.primary,
+.btn.active {
   background: var(--accent-positive-dim);
   border-color: var(--accent-positive);
   color: var(--text-primary);

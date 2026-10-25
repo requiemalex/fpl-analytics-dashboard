@@ -1,31 +1,31 @@
 import { describe, expect, it } from "vitest";
-import { horizonLabel, projectSquadPoints, projectionCoverageNote } from "./squadProjection";
+import { projectSquadPointsByMatch, projectionCoverageNote } from "./squadProjection";
 
-describe("<squad_projection> projectSquadPoints", () => {
+describe("<squad_projection> projectSquadPointsByMatch", () => {
   const xi = [
     { perMatch: [4, 5, 6, 3, 2], isCaptain: false },
     { perMatch: [6, 2, 1, 1, 1], isCaptain: true },
   ];
 
-  it("adds up the starters' next N matches, the captain's doubled in each", () => {
-    expect(projectSquadPoints(xi, 1)).toEqual({ sum: 4 + 12, n: 2, of: 2 });
-    expect(projectSquadPoints(xi, 3)).toEqual({ sum: 4 + 5 + 6 + (6 + 2 + 1) * 2, n: 6, of: 6 });
+  it("totals the starters for each match on its own, the captain's doubled, never summing across matches", () => {
+    expect(projectSquadPointsByMatch(xi)).toEqual([
+      { sum: 4 + 12, n: 2, of: 2 },
+      { sum: 5 + 4, n: 2, of: 2 },
+      { sum: 6 + 2, n: 2, of: 2 },
+      { sum: 3 + 2, n: 2, of: 2 },
+      { sum: 2 + 2, n: 2, of: 2 },
+    ]);
   });
 
-  it("leaves a starter-match with no figure out, never counting it as 0, and says so", () => {
-    const sum = projectSquadPoints([{ perMatch: [4, null], isCaptain: false }, { perMatch: [3], isCaptain: false }], 2);
-    expect(sum).toEqual({ sum: 7, n: 2, of: 4 });
-    expect(projectionCoverageNote(sum)).toContain("2 of 4 starter-matches");
-    expect(projectionCoverageNote(projectSquadPoints(xi, 2))).toBeUndefined();
+  it("leaves a starter with no figure for a match out, never counting it as 0, and says so", () => {
+    const byMatch = projectSquadPointsByMatch([{ perMatch: [4, null], isCaptain: false }, { perMatch: [3, 2], isCaptain: false }]);
+    expect(byMatch[1]).toEqual({ sum: 2, n: 1, of: 2 });
+    expect(projectionCoverageNote(byMatch[1])).toContain("1 of 2 starters");
+    expect(projectionCoverageNote(byMatch[0])).toBeUndefined();
   });
 
-  it("is null with no starters or no figures at all", () => {
-    expect(projectSquadPoints([], 3)).toBeNull();
-    expect(projectSquadPoints([{ perMatch: [null, null], isCaptain: true }], 2)).toBeNull();
-  });
-
-  it("labels the horizon as the Match switch does", () => {
-    expect(horizonLabel(1)).toBe("GW+1");
-    expect(horizonLabel(4)).toBe("GW+1–4");
+  it("is null for a match with no starters or no figures at all", () => {
+    expect(projectSquadPointsByMatch([])).toEqual([null, null, null, null, null]);
+    expect(projectSquadPointsByMatch([{ perMatch: [null, 3], isCaptain: true }]).slice(0, 2)).toEqual([null, { sum: 6, n: 1, of: 1 }]);
   });
 });

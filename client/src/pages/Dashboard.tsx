@@ -1371,7 +1371,7 @@ export function Dashboard() {
       {usesHistoricData && historicStatus === "error" && (
         <p className="page-subtitle" style={{ color: "var(--accent-negative)" }}>
           Couldn't load historic data: {historicErrorMessage}
-          <button type="button" className="chip" style={{ marginLeft: 8 }} onClick={refreshHistoricData} disabled={historicRefreshing}>
+          <button type="button" className="btn" style={{ marginLeft: 8 }} onClick={refreshHistoricData} disabled={historicRefreshing}>
             {historicRefreshing ? "Retrying…" : "Retry"}
           </button>
         </p>

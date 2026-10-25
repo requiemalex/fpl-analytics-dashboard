@@ -951,7 +951,7 @@ export function PlayerDetailOverlay() {
           {history.status === "error" && (
             <p className="page-subtitle">
               Couldn't load points history: {history.errorMessage}{" "}
-              <button type="button" className="chip" onClick={history.retry} style={{ marginLeft: 4 }}>
+              <button type="button" className="btn" onClick={history.retry} style={{ marginLeft: 4 }}>
                 Retry
               </button>
             </p>
@@ -1046,7 +1046,7 @@ export function PlayerDetailOverlay() {
                 {history.status === "error" && (
                   <p className="page-subtitle">
                     Couldn't load this season's matches: {history.errorMessage}{" "}
-                    <button type="button" className="chip" onClick={history.retry} style={{ marginLeft: 4 }}>
+                    <button type="button" className="btn" onClick={history.retry} style={{ marginLeft: 4 }}>
                       Retry
                     </button>
                   </p>
@@ -1059,7 +1059,7 @@ export function PlayerDetailOverlay() {
                 {pastSeasons.status === "error" && (
                   <p className="page-subtitle">
                     Couldn't load {pastLogSeason}'s matches: {pastSeasons.errorMessage}{" "}
-                    <button type="button" className="chip" onClick={pastSeasons.retry} style={{ marginLeft: 4 }}>
+                    <button type="button" className="btn" onClick={pastSeasons.retry} style={{ marginLeft: 4 }}>
                       Retry
                     </button>
                   </p>

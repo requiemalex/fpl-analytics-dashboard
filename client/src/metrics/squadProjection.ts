@@ -1,9 +1,9 @@
 import { sumKnown, type PartialSum } from "./partialTotals";
 
-/** Which Exp. Pts the total adds up: FPL Official or Scoutline's Model Predicted. */
+/** Which Exp. Pts the totals add up: FPL Official or Scoutline's Model Predicted. */
 export type ProjectionSource = "fpl" | "model";
-/** How many of each player's next matches it covers: 1 = GW+1 only, 3 = GW+1 to GW+3. */
-export type ProjectionHorizon = 1 | 2 | 3 | 4 | 5;
+/** How many of each player's next matches the Projected tile shows, one total each (GW+1 to GW+5). */
+export const PROJECTION_MATCHES = 5;
 
 export interface StarterProjection {
   /** His Exp. Pts for each of his next five matches (his own, so a blank gameweek is skipped); null with no figure or no match. Not captain-doubled. */
@@ -13,33 +13,30 @@ export interface StarterProjection {
 
 /**
  * <squad_projection>: the squad's Projected points (README "Team Building —
- * predictions"). The starting XI's Exp. Pts from one source, added up over
- * each starter's next `horizon` matches, the captain's doubled in every one
- * of them (the squad's captain is assumed to keep the armband). The bench
- * doesn't count, and no automatic substitutions are modelled.
+ * predictions"). One total per match, never summed across matches: entry i
+ * is the starting XI's Exp. Pts from one source for each starter's (i+1)th
+ * next match, the captain's doubled (the squad's captain is assumed to keep
+ * the armband). The bench doesn't count, and no automatic substitutions
+ * are modelled.
  *
- * A starter-match with no figure (no match left, or the model has no
- * playing-time estimate for him) is left out, never counted as 0, as a
+ * A starter with no figure for that match (no match left, or the model has
+ * no playing-time estimate for him) is left out, never counted as 0, as a
  * Totals row does (<partial_totals>): `n` of `of` says how many had one.
- * Null when none did, or with no starters.
+ * An entry is null when none did, or with no starters.
  */
-export function projectSquadPoints(starters: readonly StarterProjection[], horizon: ProjectionHorizon): PartialSum | null {
-  const values = starters.flatMap((s) =>
-    Array.from({ length: horizon }, (_, i) => {
-      const v = s.perMatch[i] ?? null;
-      return v === null ? null : s.isCaptain ? v * 2 : v;
-    }),
+export function projectSquadPointsByMatch(starters: readonly StarterProjection[]): (PartialSum | null)[] {
+  return Array.from({ length: PROJECTION_MATCHES }, (_, i) =>
+    sumKnown(
+      starters.map((s) => {
+        const v = s.perMatch[i] ?? null;
+        return v === null ? null : s.isCaptain ? v * 2 : v;
+      }),
+    ),
   );
-  return sumKnown(values);
 }
 
-/** Hover note when only some starter-matches had a figure; undefined when all did (or none). */
+/** Hover note when only some starters had a figure; undefined when all did (or none). */
 export function projectionCoverageNote(s: PartialSum | null): string | undefined {
   if (s === null || s.n === s.of) return undefined;
-  return `From the ${s.n} of ${s.of} starter-matches that have a figure (a match with none is left out, not counted as 0)`;
-}
-
-/** "GW+1", or "GW+1–3" for a range. */
-export function horizonLabel(horizon: ProjectionHorizon): string {
-  return horizon === 1 ? "GW+1" : `GW+1–${horizon}`;
+  return `From the ${s.n} of ${s.of} starters who have a figure (a starter with none is left out, not counted as 0)`;
 }

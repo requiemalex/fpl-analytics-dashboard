@@ -3937,3 +3937,22 @@ tiles/graphs only:
   slot width, spacing and pitch height. The section's own heading still
   marks it as Understat's.
 - **Last commit with it:** `615fe18`.
+
+### Team Building's Match switch, Projected's range and FPL/Model pts buttons (replaced 2026-10-25)
+- **What it did:** a **Match** switch (GW+1…GW+5) above the pitch picked
+  which of each player's next five fixtures the pitch cards and Add
+  Players' Exp. Pts columns were for, and every card showed that match as
+  an FDR-coloured chip beside its figure (Fixtures outlined it). **Show
+  on kits** had separate FPL pts and Model pts buttons. The Projected
+  tile, labelled e.g. "Projected · Model · GW+1–3", added the XI's points
+  up over the next 1–5 matches, picked in a click-open menu. Captain and
+  Vice-Captain were `.captain-tile` buttons (gold/grey when armed) and
+  Clear Draft a pill `.chip`; with no squad the pitch's "+" places opened
+  New Squad.
+- **Why it went:** the owner asked (2026-10-25) for no fixture on every
+  card (Fixtures already summarises them), one Points Prediction button
+  with an FPL/Model toggle, the switch renamed Highlight, Projected titled
+  just "Projected" with each gameweek's points shown separately, one
+  button style across the app, a tidier squad header, and the tile greyed
+  out until a squad is loaded. Cards and Add Players are now for GW+1.
+- **Last commit with it:** `81ab0ae`.

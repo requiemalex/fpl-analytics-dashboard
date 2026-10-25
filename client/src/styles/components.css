@@ -750,8 +750,7 @@ select:focus {
 }
 
 /* A player: his club's kit (<club_kit>, Kit.tsx) over a dark nameplate —
-   his name, then the one figure "Show on kits" picks beside the match the
-   Match switch picks (<kit_view>). */
+   his name, then the one figure Highlight picks (<kit_view>). */
 .pitch-card {
   position: relative;
   display: flex;
@@ -905,18 +904,6 @@ select:focus {
   color: var(--text-primary);
   white-space: nowrap;
 }
-.pitch-card-match {
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-size: 9.5px;
-  font-weight: 700;
-  color: rgba(10, 15, 12, 0.85);
-  white-space: nowrap;
-}
-.pitch-card-match.is-blank {
-  background: var(--surface-hover);
-  color: var(--text-muted);
-}
 .pitch-card-fixtures {
   display: flex;
   gap: 2px;
@@ -934,10 +921,6 @@ select:focus {
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
-}
-/* The match the Match switch picks. */
-.pitch-card-fixture.is-selected {
-  box-shadow: inset 0 0 0 1.5px var(--bg);
 }
 
 /* <open_slots>: an empty place — a dashed "+" and its position, on the
@@ -1048,19 +1031,31 @@ select:focus {
   left: 6px;
 }
 
+/* With no squad yet, the whole Squad tile is greyed out and inert
+   (SquadPitch sets `inert`): nothing on it can be used until New Squad. */
+.squad-pitch.is-disabled {
+  opacity: 0.4;
+  filter: grayscale(0.7);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Above the pitch, three rows at fixed gaps: the squad and its actions,
+   its figures, then what the kits highlight. */
 .pitch-view-header {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
 }
 .pitch-view-heading {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+  min-height: 32px;
 }
 .pitch-view-title {
   font-family: var(--font-display);
@@ -1071,83 +1066,49 @@ select:focus {
 .pitch-view-count {
   font-size: 11.5px;
 }
+.pitch-view-actions {
+  display: flex;
+  gap: var(--space-2);
+}
 .pitch-view-tiles {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
 }
-.pitch-view-tiles .stat-tile {
+.pitch-view-tiles > .stat-tile {
   min-width: 110px;
 }
-/* <squad_projection>: the Projected tile is a button opening its menu. */
-.pitch-projected {
-  position: relative;
+/* <squad_projection>: "Projected" and its FPL/Model toggle, over one
+   figure per match (GW+1 to GW+5), each its own total. */
+.pitch-projected-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
-.pitch-projected-tile {
-  height: 100%;
-  border: 1px solid transparent;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
+.pitch-projected-matches {
+  display: flex;
+  gap: var(--space-4);
 }
-.pitch-projected-tile:hover,
-.pitch-projected-tile[aria-expanded="true"] {
-  border-color: var(--border-strong);
-  background: var(--surface-hover);
-}
-.pitch-projected-unit {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-muted);
-}
-.pitch-projected-menu {
+.pitch-projected-match {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  min-width: 260px;
+  gap: 2px;
+  min-width: 44px;
 }
-/* What the kits show, which match, then the armbands and Clear Draft. */
+.pitch-projected-gw {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+/* What the kits highlight, and Points Prediction's source. */
 .pitch-controls {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-.pitch-controls .captain-tiles {
-  margin-left: auto;
-}
-.captain-tiles {
-  display: flex;
-  gap: 6px;
-}
-.captain-tile {
-  height: 30px;
-  padding: 0 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-strong);
-  background: var(--surface-raised);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  transition:
-    border-color 0.1s ease,
-    color 0.1s ease,
-    background 0.1s ease;
-}
-.captain-tile:hover {
-  border-color: var(--accent-focus);
-}
-.captain-tile.active {
-  background: var(--accent-value);
-  border-color: var(--accent-value);
-  color: #14140a;
-}
-.captain-tile.vc.active {
-  background: var(--text-secondary);
-  border-color: var(--text-secondary);
-  color: #0a0f0c;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
 }
 
 .pitch-card.pickable {
@@ -1628,6 +1589,15 @@ select:focus {
 }
 .segmented.icon-only {
   align-self: flex-start;
+}
+/* Inside a tile's label row (the Projected tile's FPL/Model toggle). */
+.segmented.compact {
+  gap: 2px;
+  padding: 2px;
+}
+.segmented.compact .segmented-option {
+  padding: 1px 6px;
+  font-size: 11px;
 }
 .segmented.icon-only .segmented-option {
   flex: 0 0 auto;

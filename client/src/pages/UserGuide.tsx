@@ -341,7 +341,8 @@ export function UserGuide() {
           Picking a squad for the season ahead. Start with <strong>New Squad</strong>: a blank one (just give it a name), or import
           a real squad by its FPL team ID, the number in your team's FPL web address (Pick Team → Gameweek History shows it).
           Importing reads FPL's public data for that team, chip history included; no login, nothing written back. The squad's own
-          buttons (Captain, Vice-Captain, Clear Draft, Delete) appear once a squad is loaded. Up to 5 squads can be saved; <strong>Delete</strong> asks you to confirm the name
+          buttons (Captain, Vice-Captain, Clear Draft, Delete) work once a squad is loaded; until then the Squad tile is greyed out
+          and no players can be added. Up to 5 squads can be saved; <strong>Delete</strong> asks you to confirm the name
           first (no undo).
         </p>
         <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
@@ -354,19 +355,19 @@ export function UserGuide() {
             banner above the pitch, with a bin to remove him. Hover a card for its remove button.
           </li>
           <li>
-            Each player wears his club's kit in its colours (a goalkeeper's are swapped). Under it, <strong>Show on kits</strong>{" "}
-            picks the one figure each card shows: FPL or Model Expected Points (doubled for the captain), price, ownership or
-            minutes reliability, beside the match picked in <strong>Match</strong>, coloured by FPL difficulty. <strong>Fixtures</strong>{" "}
-            shows the next five matches instead, the picked one outlined.
+            Each player wears his club's kit in its colours (a goalkeeper's are swapped). Under it, <strong>Highlight</strong>{" "}
+            picks the one figure each card shows: <strong>Points Prediction</strong> (his Expected Points for his next match,
+            doubled for the captain, with a toggle for FPL's figure or the Model's), price, ownership or minutes reliability.{" "}
+            <strong>Fixtures</strong> shows his next five matches instead, coloured by FPL difficulty.
           </li>
           <li>
             Every place the squad still has to fill is a <strong>+</strong>, on the pitch first (in a legal shape, 4-4-2 for an
             empty squad) and then on the bench. Click one to list that position in Add Players, or drag a player onto it.
           </li>
           <li>
-            <strong>Match</strong> (GW+1 to GW+5) picks which of each player's next five fixtures the Expected Points figures
-            estimate: his own Nth fixture, not a calendar gameweek, so a blank gameweek has nothing to select and a double
-            gameweek's two fixtures are consecutive steps. GW+1 is always in the next gameweek you can still pick for (the one FPL's
+            <strong>GW+1 to GW+5</strong> are each player's next five fixtures: his own Nth fixture, not a calendar gameweek, so a
+            blank gameweek is skipped and a double gameweek's two fixtures are consecutive steps. The pitch cards and Add Players'
+            Expected Points columns are for GW+1. GW+1 is always in the next gameweek you can still pick for (the one FPL's
             own estimate is for): once a deadline passes, that gameweek's matches drop out, even before FPL confirms the results.
           </li>
           <li>
@@ -382,10 +383,10 @@ export function UserGuide() {
             for. It's a second opinion, rougher for goalkeepers and nailed-on popular picks (see the README's backtest).
           </li>
           <li>
-            Above the pitch: the starting shape, squad size (hover for its composition), Squad value, In the bank and{" "}
-            <strong>Projected</strong>. Projected adds up the starting XI's Expected Points (the captain's doubled; the bench isn't
-            counted). Click it to pick the source (FPL or Model) and how many of each player's next matches to cover (1 to 5).
-            A match with no figure is left out rather than counted as 0; the hover says so. A club-limit breach shows as a
+            Above the pitch: the squad's name, starting shape and size (hover for its composition) with its buttons, then Squad
+            value, In the bank and <strong>Projected</strong>. Projected shows the starting XI's Expected Points for each of the
+            next five gameweeks separately (GW+1 to GW+5; the captain's doubled, the bench isn't counted), from FPL or the Model as
+            its toggle picks. A starter with no figure for a gameweek is left out rather than counted as 0; the hover says so. A club-limit breach shows as a
             banner. A squad built from
             scratch has FPL's £100m; an imported one has its own: its players at today's prices when you imported it, plus its money
             in the bank, so an unchanged import shows exactly that bank left (FPL's own selling prices need your login, so a player

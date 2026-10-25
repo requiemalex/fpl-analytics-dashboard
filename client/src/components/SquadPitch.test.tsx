@@ -10,7 +10,7 @@ afterEach(cleanup);
 
 const fixture = (id: number, opponent: string, isHome: boolean, difficulty = 2): UpcomingFixture => ({ fixtureId: id, opponentTeamId: 99, opponentShortName: opponent, isHome, difficulty });
 
-function renderPitch(xi: NormalizedPlayer[], bench: NormalizedPlayer[] = [], onAddSlot = vi.fn(), captainId: number | null = null) {
+function renderPitch(xi: NormalizedPlayer[], bench: NormalizedPlayer[] = [], onAddSlot = vi.fn(), captainId: number | null = null, hasSquad = true) {
   const squad = [...xi, ...bench];
   const groups = Object.fromEntries((["GKP", "DEF", "MID", "FWD"] as Position[]).map((pos) => [pos, xi.filter((p) => p.position === pos)])) as Record<Position, NormalizedPlayer[]>;
   const utils = render(
@@ -29,8 +29,6 @@ function renderPitch(xi: NormalizedPlayer[], bench: NormalizedPlayer[] = [], onA
       reliabilityByPlayerId={new Map()}
       colourRanks={{}}
       fixturesByTeamId={new Map([[1, [fixture(1, "BUR", true), fixture(2, "WOL", false, 4)]]])}
-      gwOffset={1}
-      onGwOffsetChange={() => {}}
       captainPickMode={null}
       onCaptainTileClick={() => {}}
       onPlayerCardClick={() => {}}
@@ -42,7 +40,7 @@ function renderPitch(xi: NormalizedPlayer[], bench: NormalizedPlayer[] = [], onA
       onAddSlot={onAddSlot}
       onClearSquad={() => {}}
       warning={null}
-      hasSquad
+      hasSquad={hasSquad}
       budgetHint=""
     />,
   );
@@ -70,17 +68,58 @@ describe("<open_slots> the pitch's empty places", () => {
   });
 });
 
-describe("<kit_view> Show on kits", () => {
-  it("shows one figure beside the picked match, and switches what it is", () => {
-    const { container, getByRole } = renderPitch([makePlayer({ id: 1, position: "MID", price: 7.5 })]);
+describe("<kit_view> Highlight", () => {
+  it("shows one figure for the next match, with no fixture beside it, and switches what it is", () => {
+    const { container, getByRole, queryByRole } = renderPitch([makePlayer({ id: 1, position: "MID", price: 7.5 })]);
     const figure = () => container.querySelector(".pitch-card .pitch-card-figure")?.textContent;
+    // Points Prediction, FPL, by default.
     expect(figure()).toBe("4.2");
-    expect(container.querySelector(".pitch-card .pitch-card-match")!.textContent).toBe("BUR (H)");
+    expect(container.querySelector(".pitch-card .pitch-card-match")).toBeNull();
+    expect(container.querySelector(".pitch-card .pitch-card-figure")!.getAttribute("title")).toContain("v BUR (H)");
+    // Its toggle picks the Model, which has no figure for him here.
+    fireEvent.click(getByRole("radiogroup", { name: "Source" }).querySelector<HTMLElement>('[aria-label^="Exp. Pts (Model"]')!);
+    expect(figure()).toBe("—");
     fireEvent.click(getByRole("radio", { name: "Today's price" }));
     expect(figure()).toBe("£7.5m");
+    // The toggle is Points Prediction's alone.
+    expect(queryByRole("radiogroup", { name: "Source" })).toBeNull();
     fireEvent.click(getByRole("radio", { name: /next five matches/ }));
     expect(figure()).toBeUndefined();
     expect([...container.querySelectorAll(".pitch-card .pitch-card-fixture")].map((c) => c.textContent)).toEqual(["BUR", "WOL"]);
+  });
+
+  it("has no Match switch", () => {
+    const { queryByText } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
+    expect(queryByText("Match")).toBeNull();
+    expect(queryByText("GW+2", { selector: "button" })).toBeNull();
+  });
+});
+
+describe("the squad's actions", () => {
+  it("Captain, Vice-Captain and Clear Draft are the app's standard buttons", () => {
+    const { getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
+    for (const name of ["Captain", "Vice-Captain", "Clear Draft"]) {
+      expect(getByRole("button", { name }).className).toBe("btn");
+    }
+  });
+});
+
+describe("with no squad loaded", () => {
+  it("the whole tile is greyed out and inert, so no player can be added", () => {
+    const onAddSlot = vi.fn();
+    const { container, getAllByRole } = renderPitch([], [], onAddSlot, null, false);
+    const root = container.firstElementChild!;
+    expect(root.classList.contains("is-disabled")).toBe(true);
+    expect(root.hasAttribute("inert")).toBe(true);
+    const slot = getAllByRole("button", { name: /^Add a goalkeeper/ })[0];
+    expect(slot).toHaveProperty("disabled", true);
+    fireEvent.click(slot);
+    expect(onAddSlot).not.toHaveBeenCalled();
+  });
+
+  it("and comes back to life once there is one", () => {
+    const { container } = renderPitch([]);
+    expect(container.firstElementChild!.hasAttribute("inert")).toBe(false);
   });
 });
 
@@ -95,18 +134,16 @@ describe("<club_kit> kits", () => {
 });
 
 describe("<squad_projection> the Projected tile", () => {
-  it("adds up the XI (captain doubled, bench left out), and its menu picks the source and matches", () => {
+  it("totals the XI for each match on its own (captain doubled, bench left out), and its toggle picks the source", () => {
     const xi = [makePlayer({ id: 1, position: "MID" }), makePlayer({ id: 2, position: "FWD" })];
     const { getByRole } = renderPitch(xi, [makePlayer({ id: 3, position: "DEF" })], vi.fn(), 2);
-    const tile = () => getByRole("button", { name: /^Projected/ });
-    expect(tile().textContent).toBe("Projected · FPL · GW+112.6 pts"); // 4.2 + 4.2 × 2
-    fireEvent.click(tile());
-    fireEvent.click(getByRole("radio", { name: "Exp. Pts (Model Predicted): Scoutline's own estimate" }));
-    fireEvent.click(getByRole("radio", { name: /next 3 matches/ }));
-    expect(tile().textContent).toBe("Projected · Model · GW+1–318.0 pts"); // (3 + 2 + 1) × 3
-    fireEvent.click(getByRole("radio", { name: /next 5 matches/ }));
-    // Matches 4 and 5 have no Model figure: left out, and the hover says so.
-    expect(tile().textContent).toContain("18.0");
-    expect(tile().getAttribute("title")).toContain("6 of 10 starter-matches");
+    const tile = getByRole("group", { name: "Projected" });
+    const figures = () => [...tile.querySelectorAll(".pitch-projected-match")].map((m) => m.textContent);
+    expect(tile.querySelector(".stat-tile-label")!.textContent).toBe("Projected");
+    // 4.2 + 4.2 × 2 in every match, never summed across them.
+    expect(figures()).toEqual(["GW+112.6", "GW+212.6", "GW+312.6", "GW+412.6", "GW+512.6"]);
+    fireEvent.click(tile.querySelector<HTMLElement>('[aria-label^="Exp. Pts (Model"]')!);
+    // 3, 2, 1 a starter (× 3 with the captain's doubled); matches 4 and 5 have no Model figure.
+    expect(figures()).toEqual(["GW+19.0", "GW+26.0", "GW+33.0", "GW+4—", "GW+5—"]);
   });
 });

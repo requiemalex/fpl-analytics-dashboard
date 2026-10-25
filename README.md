@@ -1751,37 +1751,43 @@ longer lists, or a squad saved before saved-squads store version 2): the
 is a warning ("£2.1m over"), never a block. **Add** starts a player while
 the XI still has a legal place for him (`<add_to_xi>`, `fitsStartingXI`),
 otherwise benches him; dragging moves anyone between pitch and bench.
-**Clear Draft** asks first (there's no undo). The armband and Clear Draft
-buttons appear once a squad exists.
+**Clear Draft** asks first (there's no undo). Before any squad exists the
+whole Squad tile is greyed out and inert (`inert`, `.squad-pitch.is-disabled`):
+nothing on it can be clicked or dropped on, so no player can be added until
+New Squad makes or imports one; the "No squad loaded" note sits above it.
 
 - **The pitch** (`components/SquadPitch.tsx`) — each player is his club's
   kit (`<club_kit>`, `components/Kit.tsx`): body in the club's colour,
   collar and cuffs in its second, the same pair as the team pill's swatch
   (`teamDisplayColors`); a goalkeeper's swaps them. The Team Profile's
   Formations section draws the same kit and nameplate. Under the
-  kit, a dark nameplate: the name, then **one** figure, picked with **Show
-  on kits** (`<kit_view>`: FPL pts, Model pts, Price, Owned, Minutes,
-  coloured as before), beside the match the **Match** switch picks as an
-  FDR-coloured chip; **Fixtures** shows the next five chips instead, the
-  picked one outlined. The switch is per page, like every view switch.
-  The header shows the starting shape, the squad size (hover for its
-  composition), Squad value, In the bank and Projected; a club-limit
-  breach is a banner. The bench is a row of slots, goalkeeper first, each
-  labelled with its position (no bench order: the app has none).
+  kit, a dark nameplate: the name, then **one** figure, picked with
+  **Highlight** (`<kit_view>`: Points Prediction, Price, Owned, Minutes,
+  coloured as before), with no fixture beside it; **Fixtures** shows the
+  next five FDR-coloured chips instead. **Points Prediction** is the
+  player's Exp. Pts for his next match (GW+1), from the source its
+  FPL/Model toggle picks (shown only while it's selected). The switches
+  are per page, like every view switch. Above the pitch, three rows: the
+  squad's name, starting shape and size (hover for its composition) with
+  the Captain, Vice-Captain and Clear Draft buttons (the app's standard
+  `.btn`, green while armed); then Squad value, In the bank and Projected
+  as tiles; then Highlight. A club-limit breach is a banner. The bench is
+  a row of slots, goalkeeper first, each labelled with its position (no
+  bench order: the app has none).
 - **Projected** (`<squad_projection>`, `metrics/squadProjection.ts`,
-  dictionary `squadProjectedPoints`) — the starting XI's Exp. Pts added
-  up: Σ over the starters of each one's figure for each of his next N
-  matches (his own, as the Match switch counts them), the captain's ×2 in
-  every one. Clicking the tile opens a menu picking the source (FPL
-  Official or Model Predicted, never mixed) and N (1–5); the tile's label
-  says which ("Projected · Model · GW+1–3"). Per page, like the other
-  switches. The bench and automatic substitutions aren't counted, and the
-  captain is assumed to keep the armband for the whole range. A
-  starter-match with no figure (no match left, or the Model has no
-  playing-time estimate) is left out, never counted as 0, as Totals rows
-  do (`<partial_totals>`): the hover says how many of the starter-matches
-  had one. "—" with no starters or no figures. Not coloured: a squad
-  total has no pool to rank in.
+  dictionary `squadProjectedPoints`) — the starting XI's Exp. Pts for
+  each of the next five matches **on its own** (GW+1 … GW+5, five
+  figures, never summed across matches): for match N, Σ over the starters
+  of each one's figure for his own Nth next match, the captain's ×2. The
+  tile's compact FPL/Model toggle picks the source (FPL Official or Model
+  Predicted, never mixed); per page, like the other switches. The bench
+  and automatic substitutions aren't counted, and the captain is assumed
+  to keep the armband in every match. A starter with no figure for a
+  match (no match left, or the Model has no playing-time estimate) is left
+  out of that match's total, never counted as 0, as Totals rows do
+  (`<partial_totals>`): its hover says how many starters had one. "—"
+  with no starters or no figures. Not coloured: a squad total has no pool
+  to rank in.
 - **Open places** (`<open_slots>`, `openSquadSlots` in
   `metrics/squadRules.ts`) — every place the squad is still short of
   (2 GKP, 5 DEF, 5 MID, 3 FWD) is a "+": the XI's open places take them
@@ -1791,8 +1797,9 @@ buttons appear once a squad exists.
   Position to that position and moves there; Add then places the player
   as always (`<add_to_xi>`). A player dragged onto a "+" lands on the
   pitch or bench it's on. With no squad yet, a "+" opens New Squad.
-- **GW+1…GW+5** — the Match switch picks one of the player's next five
-  fixtures (a blank has none; a double shows two consecutive steps). They
+- **GW+1…GW+5** — the player's next five fixtures, as Projected counts
+  them (a blank has none; a double shows two consecutive steps). The pitch
+  cards and Add Players' Exp. Pts columns are for GW+1. They
   start at FPL's `is_next` gameweek (`firstPickableEventId`,
   `metrics/fixtureTicker.ts`): the one `ep_next` estimates and the first
   still open for picks. A match that has kicked off (FPL's `started`) is

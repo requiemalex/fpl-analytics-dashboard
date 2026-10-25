@@ -23,11 +23,14 @@ export function SegmentedControl<T extends string>({
   options,
   value,
   onChange,
+  compact = false,
 }: {
   label?: string;
   options: SegmentOption<T>[];
   value: T;
   onChange: (value: T) => void;
+  /** Smaller segments, to sit inside a tile's label row (the Projected tile). */
+  compact?: boolean;
 }) {
   const labelId = useId();
   const iconOnly = options.every((o) => !o.label);
@@ -38,7 +41,7 @@ export function SegmentedControl<T extends string>({
           {label}
         </span>
       )}
-      <div className={`segmented${iconOnly ? " icon-only" : ""}`} role="radiogroup" aria-labelledby={label ? labelId : undefined}>
+      <div className={`segmented${iconOnly ? " icon-only" : ""}${compact ? " compact" : ""}`} role="radiogroup" aria-labelledby={label ? labelId : undefined}>
         {options.map((o) => {
           const on = o.value === value;
           const name = o.title ?? o.label;

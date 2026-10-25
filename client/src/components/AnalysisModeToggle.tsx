@@ -123,7 +123,7 @@ export function AnalysisModeToggle({
         {mode !== "live" && historicStatus === "error" && (
           <span className="page-subtitle" style={{ margin: 0, color: "var(--accent-negative)" }}>
             Couldn't load historic data: {historicErrorMessage}
-            <button type="button" className="chip" style={{ marginLeft: 8 }} onClick={refreshHistoricData} disabled={historicRefreshing}>
+            <button type="button" className="btn" style={{ marginLeft: 8 }} onClick={refreshHistoricData} disabled={historicRefreshing}>
               {historicRefreshing ? "Retrying…" : "Retry"}
             </button>
           </span>

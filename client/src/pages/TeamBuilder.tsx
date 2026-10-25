@@ -41,9 +41,8 @@ import { describeLoadError } from "../api/errors";
 
 /** How long a rejected drag's warning message stays visible before clearing itself. */
 const WARNING_DISPLAY_MS = 4000;
-/** How many fixtures ahead the gameweek navigator (pitch view) can step through — matches getUpcomingFixtures' own 5-fixture default. */
-export type GwOffset = 1 | 2 | 3 | 4 | 5;
-export const GW_OFFSETS: GwOffset[] = [1, 2, 3, 4, 5];
+/** How many of each player's next fixtures the Projected tile covers (GW+1 to GW+5) — matches getUpcomingFixtures' own 5-fixture default. */
+export const GW_OFFSETS = [1, 2, 3, 4, 5] as const;
 const HISTORIC_RAW_GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE", "ADVANCED"];
 /** Own% is a normal Historic/Raw column now (resizable, comparative-coloured), matching Player Explorer — it used to be excluded and pinned separately. */
 const HISTORIC_RAW_COLUMNS = PLAYER_COLUMNS;
@@ -330,7 +329,6 @@ export function TeamBuilder() {
   const [pickerHideSmallSamples, setPickerHideSmallSamples] = useState(false);
   const [captainPickMode, setCaptainPickMode] = useState<"captain" | "viceCaptain" | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
-  const [gwOffset, setGwOffset] = useState<GwOffset>(1);
   const [showNewSquadModal, setShowNewSquadModal] = useState(false);
   const [newSquadName, setNewSquadName] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -635,13 +633,9 @@ export function TeamBuilder() {
   /**
    * <open_slots>: a "+" place lists its position in Add Players and takes
    * you there, search box ready. Add then places him as it always does
-   * (<add_to_xi>). With no squad yet, it opens New Squad instead.
+   * (<add_to_xi>). With no squad yet the pitch is inert, so none can be picked.
    */
   function handleAddSlot(position: Position) {
-    if (!active) {
-      openNewSquadModal();
-      return;
-    }
     setPickerPosition(position);
     addPlayersRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     addPlayersRef.current?.querySelector<HTMLInputElement>("#picker-search")?.focus({ preventScroll: true });
@@ -823,8 +817,8 @@ export function TeamBuilder() {
   }, [squadPlayers, teamsById, historicProfiles]);
 
   // Both Expected Points figures for each of every squad player's next five
-  // fixtures (index 0 = GW+1): the cards show the Match switch's one, the
-  // Projected total adds up a range (<squad_projection>). FPL's is its own
+  // fixtures (index 0 = GW+1): the cards show the next one, the Projected
+  // tile totals each on its own (<squad_projection>). FPL's is its own
   // ep_next, fixture-difficulty-extended past the immediate fixture (see
   // metrics/expectedPoints.ts); the Model's is this app's own independent
   // per-event estimate (Tier 2, metrics/expectedPointsV2.ts). Not yet
@@ -854,14 +848,14 @@ export function TeamBuilder() {
     return { fpl, model };
   }, [squadPlayers, fixturesByTeamId, reliabilityByPlayerId, teamsById, historicProfiles]);
 
-  // The Match switch's fixture (gwOffset 1 = the very next one), for the cards.
+  // Each player's next match (GW+1), for the cards.
   const expectedPointsByPlayerId = useMemo(
-    () => new Map([...expectedPointsByMatch.fpl].map(([id, byMatch]) => [id, byMatch[gwOffset - 1] ?? null])),
-    [expectedPointsByMatch, gwOffset],
+    () => new Map([...expectedPointsByMatch.fpl].map(([id, byMatch]) => [id, byMatch[0] ?? null])),
+    [expectedPointsByMatch],
   );
   const modelBreakdownByPlayerId = useMemo(
-    () => new Map([...expectedPointsByMatch.model].map(([id, byMatch]) => [id, byMatch[gwOffset - 1] ?? null])),
-    [expectedPointsByMatch, gwOffset],
+    () => new Map([...expectedPointsByMatch.model].map(([id, byMatch]) => [id, byMatch[0] ?? null])),
+    [expectedPointsByMatch],
   );
   // Each player's figures per match for the Projected total, by source.
   const projectionByPlayerId = useMemo(() => {
@@ -935,8 +929,9 @@ export function TeamBuilder() {
       const playerFixtures = fixturesByTeamId.get(p.teamId) ?? [];
       const historicProfile = historicProfiles.get(p.id);
       const reliability = computeBlendedMinutesReliability(p, teamsById.get(p.teamId), historicProfile).value;
-      const fixture = playerFixtures[gwOffset - 1];
-      const fplOfficial = fixture ? computeExpectedPointsForSingleFixture(p, fixture, gwOffset - 1) : null;
+      // Both Exp. Pts columns are for his next match (GW+1).
+      const fixture = playerFixtures[0];
+      const fplOfficial = fixture ? computeExpectedPointsForSingleFixture(p, fixture, 0) : null;
       const modelBreakdown =
         fixture && reliability !== null
           ? computeExpectedPointsV2ForFixture(p, fixture, teamsById.get(p.teamId), teamsById.get(fixture.opponentTeamId), reliability, historicProfile)
@@ -954,7 +949,7 @@ export function TeamBuilder() {
         reliability,
       };
     });
-  }, [players, fixturesByTeamId, historicProfiles, pickerHistoricMode, currentSeasonHasStarted, gwOffset, teamsById]);
+  }, [players, fixturesByTeamId, historicProfiles, pickerHistoricMode, currentSeasonHasStarted, teamsById]);
 
   const pickerBuiltRows: PickerRowData[] = useMemo(() => {
     const search = pickerSearch.trim();
@@ -1237,6 +1232,13 @@ export function TeamBuilder() {
         </div>
       )}
 
+      {!active && (
+        <div className="empty-state">
+          <h3>No squad loaded</h3>
+          <p>Create a blank squad or import a real one from its FPL team ID using "New Squad" above to start adding players.</p>
+        </div>
+      )}
+
       <div className="card" style={{ marginBottom: 24 }}>
         <div className="card-title">Squad</div>
         {missingSavedIds.length > 0 && (
@@ -1263,8 +1265,6 @@ export function TeamBuilder() {
           reliabilityByPlayerId={reliabilityByPlayerId}
           colourRanks={pitchColourRanks}
           fixturesByTeamId={fixturesByTeamId}
-          gwOffset={gwOffset}
-          onGwOffsetChange={setGwOffset}
           captainPickMode={captainPickMode}
           onCaptainTileClick={handleCaptainTileClick}
           onPlayerCardClick={handlePlayerCardClick}
@@ -1280,13 +1280,6 @@ export function TeamBuilder() {
           warning={warning}
         />
       </div>
-
-      {!active && (
-        <div className="empty-state">
-          <h3>No squad loaded</h3>
-          <p>Create a blank squad or import a real one from its FPL team ID using "New Squad" above to start adding players.</p>
-        </div>
-      )}
 
       {active && (
       <div className="card" style={{ marginBottom: 24 }} ref={addPlayersRef}>
@@ -1405,8 +1398,8 @@ export function TeamBuilder() {
           <div>
             <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>Predictive columns show:</div>
             {/* No inline caption (CLAUDE.md): the how-to is the hover text and the User Guide. */}
-            <span className="badge" title="Both Exp. Pts columns estimate this upcoming fixture. Change it with the Match switch above the pitch.">
-              GW+{gwOffset}
+            <span className="badge" title="Both Exp. Pts columns estimate each player's next match.">
+              GW+1
             </span>
           </div>
           <div>
