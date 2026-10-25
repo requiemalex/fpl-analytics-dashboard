@@ -9,8 +9,9 @@
  *    warning when commits haven't been pushed to GitHub yet.
  *
  * The bots' own commits (the daily Understat sync, the club-history
- * archive) are counted, not listed: the app reads Understat data from
- * GitHub directly, and the archive releases itself when it needs to. A
+ * archive, the hourly FPL availability record) are counted, not listed:
+ * the app reads Understat data from GitHub directly, the archive releases
+ * itself when it needs to, and the app doesn't read the availability record. A
  * release's own "Release notes: vX.Y.Z" commit (docs/RELEASES.md,
  * notes.ts) is neither: it's the record of a release, not a change in one.
  */
@@ -140,7 +141,7 @@ export function unreleasedLines(sinceTag?: string): string[] {
     for (const c of changes) lines.push(`  ${when(c.date)}  ${c.subject}`);
   }
   if (botCount > 0) {
-    lines.push("", `Also ${botCount} automatic data commit${botCount === 1 ? ", which needs" : "s, which need"} no release (Understat sync, club-history archive).`);
+    lines.push("", `Also ${botCount} automatic data commit${botCount === 1 ? ", which needs" : "s, which need"} no release (Understat sync, club-history archive, FPL availability record).`);
   }
 
   let unpushed = 0;

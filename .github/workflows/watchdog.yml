@@ -49,7 +49,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: >
           npx --yes tsx@4 scripts/alerts/alert.ts --key alert-test --title "Test alert: please confirm this reached your email"
-          --body "This is a test of the project's alert system — nothing is wrong. Real alerts look like this, and arrive the same way, when an automatic job (Understat sync, club-history archive, app release, or this weekly watchdog) needs you. Once you've seen the email, ask Claude to close the test alert."
+          --body "This is a test of the project's alert system — nothing is wrong. Real alerts look like this, and arrive the same way, when an automatic job (Understat sync, club-history archive, FPL availability record, app release, or this weekly watchdog) needs you. Once you've seen the email, ask Claude to close the test alert."
 
       - name: Close the test alert
         if: inputs.test_alert == 'resolve'
@@ -62,4 +62,4 @@ jobs:
         if: inputs.test_alert == '' || inputs.test_alert == 'none'
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: npx --yes tsx@4 scripts/alerts/watchdog.ts --key watchdog --watch understat-sync.yml:2 --watch club-history-archive.yml:5 --release release.yml
+        run: npx --yes tsx@4 scripts/alerts/watchdog.ts --key watchdog --watch understat-sync.yml:2 --watch club-history-archive.yml:5 --watch fpl-availability.yml:1 --release release.yml

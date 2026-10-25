@@ -1,0 +1,74 @@
+name: Record FPL availability
+
+# Keeps FPL's availability news (status, chance of playing, news text) for
+# the next deadline in data/fpl-availability/ (see
+# scripts/fpl-availability/record.ts and server/src/fplAvailability/
+# reading.ts). FPL only serves today's news, so this is the only way to know
+# later what the news said before a deadline — what Team Building's Model
+# Predicted needs to be fitted and proven on (README <availability_record>).
+# Hourly, writing only when the news changed, so the file for a gameweek
+# ends up holding the last reading before its deadline. The app itself
+# doesn't read these files: nothing needs a release.
+
+on:
+  schedule:
+    - cron: "17 * * * *" # hourly
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write # re-enabling this schedule
+  issues: write # the alert issue (scripts/alerts/)
+
+concurrency:
+  group: fpl-availability
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    steps:
+      # GitHub switches off a public repository's scheduled workflows after
+      # 60 days without activity (the summer break has no news to commit).
+      # Re-enabling it on every run restarts that clock.
+      - name: Keep this schedule switched on
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/fpl-availability.yml/enable"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      # Node built-ins plus server/src and scripts/ only, so tsx is all it needs — no npm ci.
+      - name: Record the next deadline's news
+        run: npx --yes tsx@4 scripts/fpl-availability/record.ts
+
+      - name: Commit if anything changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/fpl-availability
+          if git diff --cached --quiet; then
+            echo "No news changed."
+            exit 0
+          fi
+          git commit -m "Record FPL availability ($(date -u +'%Y-%m-%d %H:%M'))"
+          git pull --rebase
+          git push
+
+      # A missed hour loses little (the next run records the news as it then
+      # stands), so the owner is alerted only on the second failure in a
+      # row; a later clean run closes the alert.
+      - name: Alert or resolve
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >
+          npx --yes tsx@4 scripts/alerts/workflow-alert.ts --key fpl-availability --workflow fpl-availability.yml
+          --outcome "${{ job.status }}" --policy repeat
+          --title "Action needed: FPL availability record failed"
+          --what "Recording FPL's injury and availability news before the next deadline failed."
+          --impact "The app works as normal. Until it's fixed, the news before each deadline isn't kept, so Model Predicted can't later be checked or refitted on those gameweeks."

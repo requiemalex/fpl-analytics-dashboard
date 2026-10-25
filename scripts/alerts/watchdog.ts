@@ -3,7 +3,7 @@
  * stops running (GitHub switched its schedule off, or it never fired).
  *
  *   npx tsx scripts/alerts/watchdog.ts --key watchdog \
- *     --watch understat-sync.yml:2 --watch club-history-archive.yml:5 --release release.yml
+ *     --watch understat-sync.yml:2 --watch club-history-archive.yml:5 \n *     --watch fpl-availability.yml:1 --release release.yml
  *
  * --watch <file>:<days>  the workflow must be switched on and have
  *                        succeeded within <days> days
