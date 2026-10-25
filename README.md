@@ -1762,7 +1762,7 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   (`teamDisplayColors`); a goalkeeper's swaps them. The Team Profile's
   Formations section draws the same kit and nameplate. Under the
   kit, a dark nameplate: the name, then **one** figure, picked with
-  **Highlight** (`<kit_view>`: Points Prediction, Price, Owned, Minutes,
+  **Highlight** (`<kit_view>`: Fixtures, Price, Owned, Minutes, Points Prediction,
   coloured as before), with no fixture beside it; **Fixtures** shows the
   next five FDR-coloured chips instead. **Points Prediction** is the
   player's Exp. Pts for his next match (GW+1), from the source its

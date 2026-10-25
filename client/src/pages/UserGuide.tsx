@@ -356,8 +356,8 @@ export function UserGuide() {
           </li>
           <li>
             Each player wears his club's kit in its colours (a goalkeeper's are swapped). Under it, <strong>Highlight</strong>{" "}
-            picks the one figure each card shows: <strong>Points Prediction</strong> (his Expected Points for his next match,
-            doubled for the captain, with a toggle for FPL's figure or the Model's), price, ownership or minutes reliability.{" "}
+            picks the one figure each card shows: price, ownership, minutes reliability or <strong>Points Prediction</strong> (his
+            Expected Points for his next match, doubled for the captain, with a toggle for FPL's figure or the Model's).{" "}
             <strong>Fixtures</strong> shows his next five matches instead, coloured by FPL difficulty.
           </li>
           <li>

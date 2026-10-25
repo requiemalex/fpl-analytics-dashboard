@@ -1136,11 +1136,6 @@ export function TeamBuilder() {
               <label htmlFor="squad-name">Name</label>
               <input id="squad-name" type="text" value={active.name} onChange={(e) => updateActive((s) => ({ ...s, name: e.target.value }))} />
             </div>
-            {active.importedFrom && (
-              <span className="badge" title={`Loaded from FPL team ${active.importedFrom.teamId}, as of Gameweek ${active.importedFrom.asOfEvent}`}>
-                {active.importedFrom.managerName || active.importedFrom.teamName} {"·"} GW{active.importedFrom.asOfEvent}
-              </span>
-            )}
           </>
         )}
         <button type="button" className="btn" onClick={openNewSquadModal}>
@@ -1157,9 +1152,6 @@ export function TeamBuilder() {
         <div className="dialog-backdrop" onClick={closeNewSquadModal}>
           <div className="dialog" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-title">New Squad</div>
-            <p className="page-subtitle" style={{ marginTop: 0 }}>
-              Create a blank squad template, or import a real squad from its FPL team ID.
-            </p>
             <div className="field">
               <label htmlFor="new-squad-name">Squad name (blank template)</label>
               <input

@@ -1356,12 +1356,15 @@ select:focus {
   border-radius: 6px;
   background: linear-gradient(var(--tile-tint, transparent), var(--tile-tint, transparent)), var(--surface-raised);
 }
+/* A label too long for its tile wraps onto a second line rather than
+   spilling into the next tile; the figures stay level along the bottom. */
 .stat-tile-label {
   font-size: 11px;
   color: var(--text-muted);
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 .stat-tile-value {
+  margin-top: auto;
   font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
@@ -1561,13 +1564,15 @@ select:focus {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
 }
+/* Equal shares of the bar, but never narrower than its own label: a long
+   label ("Points Prediction") widens its segment instead of spilling out. */
 .segmented-option {
   flex: 1 1 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-width: 0;
+  min-width: max-content;
   padding: 6px 8px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);

@@ -3957,3 +3957,18 @@ tiles/graphs only:
   out until a squad is loaded. The cards are now for GW+1; Add Players
   kept the choice of match as its own GW+1…GW+5 picker.
 - **Last commit with it:** `81ab0ae`.
+
+### Team Building's import badge and captain-pick instructions (removed 2026-10-25)
+- **What it did:** beside an imported squad's Name box, a badge showed the
+  FPL manager's name (or team name) and the gameweek it was imported as
+  of ("<manager> · GW8"), its hover giving the FPL team ID. While Captain
+  or Vice-Captain was armed, a line under the Highlight bar read "Click a
+  starting player to make them captain, or click the button again to
+  cancel. Click a player's name instead to view their profile." The New
+  Squad dialog opened with "Create a blank squad template, or import a
+  real squad from its FPL team ID."
+- **Why it went:** the owner found the badge served no purpose and the
+  instructions excessive (2026-10-25); how to pick a captain is in the
+  User Guide and the buttons' hover text. The imported squad still stores
+  where it came from (`importedFrom`), which the budget's hover uses.
+- **Last commit with it:** `4c69c91`.

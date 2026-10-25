@@ -960,7 +960,7 @@ export function PlayerDetailOverlay() {
             <p className="page-subtitle">No season data: {player.name} doesn't appear in the FPL API before this season.</p>
           )}
           {history.status === "ready" && combinedSeasonHistory.length > 0 && historicReferenceSeason === null && (historicStatus === "idle" || historicStatus === "loading") && (
-            <p className="page-subtitle">Determining the historic-average window (uses the same historic dataset as the rest of the app)…</p>
+            <p className="page-subtitle">Determining the historic-average window…</p>
           )}
           {history.status === "ready" &&
             combinedSeasonHistory.length > 0 &&

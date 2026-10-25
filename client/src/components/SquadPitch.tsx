@@ -33,10 +33,10 @@ export type KitView = "fixtures" | "points" | "price" | "ownership" | "reliabili
 
 const KIT_VIEW_OPTIONS: SegmentOption<KitView>[] = [
   { value: "fixtures", label: "Fixtures", title: "Each player's next five matches, coloured by FPL difficulty" },
-  { value: "points", label: "Points Prediction", title: "Expected points for each player's next match: FPL's official figure or Scoutline's model, as the toggle beside picks" },
   { value: "price", label: "Price", title: "Today's price" },
   { value: "ownership", label: "Owned", title: "Share of FPL managers who own him" },
   { value: "reliability", label: "Minutes", title: "Minutes Reliability: the share of each match he's expected to play" },
+  { value: "points", label: "Points Prediction", title: "Expected points for each player's next match: FPL's official figure or Scoutline's model, as the toggle beside picks" },
 ];
 
 /** FPL Official or Model Predicted: the Points Prediction toggle and the Projected tile's. */
@@ -473,12 +473,6 @@ export function SquadPitch({
         <SegmentedControl label="Highlight" options={KIT_VIEW_OPTIONS} value={view} onChange={setView} />
         {view === "points" && <SegmentedControl label="Source" options={SOURCE_OPTIONS} value={pointsSource} onChange={setPointsSource} />}
       </div>
-      {captainPickMode && (
-        <p className="page-subtitle" style={{ marginTop: 0, marginBottom: 8 }}>
-          Click a starting player to make them {captainPickMode === "captain" ? "captain" : "vice-captain"}, or click the button again to
-          cancel. Click a player's name instead to view their profile.
-        </p>
-      )}
       {warning && <div className="banner error">{warning}</div>}
 
       <div

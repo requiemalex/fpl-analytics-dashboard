@@ -10,7 +10,7 @@ afterEach(cleanup);
 
 const fixture = (id: number, opponent: string, isHome: boolean, difficulty = 2): UpcomingFixture => ({ fixtureId: id, opponentTeamId: 99, opponentShortName: opponent, isHome, difficulty });
 
-function renderPitch(xi: NormalizedPlayer[], bench: NormalizedPlayer[] = [], onAddSlot = vi.fn(), captainId: number | null = null, hasSquad = true) {
+function renderPitch(xi: NormalizedPlayer[], bench: NormalizedPlayer[] = [], onAddSlot = vi.fn(), captainId: number | null = null, hasSquad = true, captainPickMode: "captain" | "viceCaptain" | null = null) {
   const squad = [...xi, ...bench];
   const groups = Object.fromEntries((["GKP", "DEF", "MID", "FWD"] as Position[]).map((pos) => [pos, xi.filter((p) => p.position === pos)])) as Record<Position, NormalizedPlayer[]>;
   const utils = render(
@@ -29,7 +29,7 @@ function renderPitch(xi: NormalizedPlayer[], bench: NormalizedPlayer[] = [], onA
       reliabilityByPlayerId={new Map()}
       colourRanks={{}}
       fixturesByTeamId={new Map([[1, [fixture(1, "BUR", true), fixture(2, "WOL", false, 4)]]])}
-      captainPickMode={null}
+      captainPickMode={captainPickMode}
       onCaptainTileClick={() => {}}
       onPlayerCardClick={() => {}}
       onViewProfile={() => {}}
@@ -88,6 +88,12 @@ describe("<kit_view> Highlight", () => {
     expect([...container.querySelectorAll(".pitch-card .pitch-card-fixture")].map((c) => c.textContent)).toEqual(["BUR", "WOL"]);
   });
 
+  it("lists Points Prediction last", () => {
+    const { getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
+    const labels = [...getByRole("radiogroup", { name: "Highlight" }).querySelectorAll("button")].map((b) => b.textContent);
+    expect(labels).toEqual(["Fixtures", "Price", "Owned", "Minutes", "Points Prediction"]);
+  });
+
   it("has no Match switch", () => {
     const { queryByText } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
     expect(queryByText("Match")).toBeNull();
@@ -96,6 +102,12 @@ describe("<kit_view> Highlight", () => {
 });
 
 describe("the squad's actions", () => {
+  it("an armed Captain button is green, with no instructions under the pitch controls", () => {
+    const { container, getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })], [], vi.fn(), null, true, "captain");
+    expect(getByRole("button", { name: "Captain" }).className).toBe("btn active");
+    expect(container.textContent).not.toMatch(/Click a starting player/);
+  });
+
   it("Captain, Vice-Captain and Clear Draft are the app's standard buttons", () => {
     const { getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
     for (const name of ["Captain", "Vice-Captain", "Clear Draft"]) {
