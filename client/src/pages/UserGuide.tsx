@@ -381,11 +381,14 @@ export function UserGuide() {
           <li>
             Two Expected Points figures, never blended: <strong>FPL Official</strong> is FPL's own <code>ep_next</code> prediction
             (extended to later fixtures using fixture difficulty). <strong>Model Predicted</strong> is Scoutline's own model: his
-            chance of starting (from his recent starts, the last one counting most), how long he usually plays, his scoring rates
+            chance of starting (from his recent starts, the last one counting most, allowing for a player just back from an
+            absence, and, for the next deadline only, for managers selling him in numbers: they sell on team news before
+            anyone plays), how long he usually plays, his scoring rates
             from this season and past ones, and each match's Fixture Forecast (the goals each club is expected to score), through
             FPL's scoring rules — goals, assists, clean sheets, saves, defensive contributions, bonus and cards. It was fitted on
             past seasons and tested on seasons it hadn't seen. Hover it, in Add Players or on a pitch card, for how it adds up, his
-            chance of starting, and when it leans on his position and price because he has few Premier League minutes.
+            chance of starting, and when it leans on his position and price, has allowed for a return from an absence, or has
+            allowed for managers selling him.
           </li>
           <li>
             Above the pitch: the squad's name with its buttons, then Squad Value, Bank and <strong>Projected Team Points</strong>.

@@ -12,8 +12,11 @@
  *  - 2025/26 GW20–38 and 2026/27 so far: unseen by every setting.
  *
  * Neither the new nor the old model is told about injuries or suspensions
- * here (past availability isn't on record): in the app both scale by FPL's
- * chance of playing, which only helps them.
+ * here: FPL's availability news is only on record from 2026/27 GW9
+ * (<availability_record>), and history.ts reads it where it is. In the app
+ * both scale by FPL's chance of playing, which only helps them. The new
+ * model does see the team news managers act on before each deadline: their
+ * net selling of him (<transfer_signal>), as in the app.
  *
  * Run from the repo root: npx tsx client/scripts/pointsModel/backtest.ts
  */
@@ -240,7 +243,7 @@ async function main() {
   out.push("");
   out.push("Written by `client/scripts/pointsModel/backtest.ts` — don't edit by hand; re-run it after refitting (`fit.ts`). How the model works and what each setting means: README \"Team Building — Model Predicted\".");
   out.push("");
-  out.push(`Every prediction is made as of before its gameweek, from what the app would have known then, and scored against the points actually scored. Neither model is told about injuries here (past availability isn't on record). RMSE and MAE: the typical miss in points (RMSE weighs big misses more). MAE favours a figure pulled toward 0: about half of all players in a gameweek score exactly 0, so an under-predicting model (the replaced one's bias is negative) gets the smaller average absolute miss without being a better expected-points figure; RMSE and bias judge an expectation fairly. Bias: the average miss (+ over-predicts). Correlation: between predicted and actual points among players of the same position in the same gameweek, averaged (how well it orders them). Top 5 per position, Top 10 and Captain: the average actual points of the model's 5 highest predictions in each position, 10 highest overall, and single highest, each gameweek.`);
+  out.push(`Every prediction is made as of before its gameweek, from what the app would have known then, and scored against the points actually scored. Neither model is told about injuries here (FPL's availability news is only on record from 2026/27 GW9); the new model does see managers' net selling of each player before the deadline, as it does in the app. RMSE and MAE: the typical miss in points (RMSE weighs big misses more). MAE favours a figure pulled toward 0: about half of all players in a gameweek score exactly 0, so an under-predicting model (the replaced one's bias is negative) gets the smaller average absolute miss without being a better expected-points figure; RMSE and bias judge an expectation fairly. Bias: the average miss (+ over-predicts). Correlation: between predicted and actual points among players of the same position in the same gameweek, averaged (how well it orders them). Top 5 per position, Top 10 and Captain: the average actual points of the model's 5 highest predictions in each position, 10 highest overall, and single highest, each gameweek.`);
   out.push("");
   out.push(`<rank_ties>: "Rank (ties)" is the same correlation by rank. It's shown, but isn't the headline, because about half the players in a gameweek don't play and all score exactly 0: a predictor that also gives them all exactly the same figure (points per match so far gives every unused player 0) is rewarded for the tie, while one that tells a 3% starter from a 10% one is marked down for it, though no pick changes. The "Playing time and ordering" section below separates the two things it mixes.`);
 

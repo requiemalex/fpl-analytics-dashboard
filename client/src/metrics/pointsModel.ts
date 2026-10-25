@@ -119,6 +119,18 @@ export interface PlayerEvidence {
   penaltyTaker: boolean | null;
   /** Chance of being available, 0–1 (FPL's chance of playing; 1 with no news). */
   availability: number;
+  /**
+   * <transfer_signal>: FPL managers' transfers of him in the run-up to this
+   * match's deadline (in, out) and his owners now, after them. Null when
+   * unknown: the chance of starting then goes without it.
+   */
+  transfers: TransferWindow | null;
+}
+
+export interface TransferWindow {
+  in: number;
+  out: number;
+  owners: number;
 }
 
 /** One match from his club's side, from the Fixture Forecast's club ratings. */
@@ -145,6 +157,12 @@ export interface StartModel {
   /** Added when there's no last-season start share. */
   noLastSeason: number;
   price: number;
+  /** Added in his first, and second, match back after missing RETURN_AFTER_MISSED or more in a row (<return_from_absence>). */
+  returnFirst: number;
+  returnSecond: number;
+  /** × managers' net selling of him before the deadline (sellOff), and again × that × his recent start share (a regular being sold says more than a squad player). */
+  sellOff: number;
+  sellOffByRecent: number;
 }
 
 /** A per-90 prior: base + perPrice × price (never below 0). */
@@ -390,6 +408,10 @@ function assistAmount(t: SeasonTotals, xaWeight: number): { value: number; minut
 
 const RECENT_MATCHES = 6;
 const RECENT_DECAY = 0.75;
+/** Matches missed in a row (0 minutes) before he plays again for it to count as a return (<return_from_absence>). */
+const RETURN_AFTER_MISSED = 3;
+/** Owners added to both sides of sellOff's ratio, so a few transfers of a barely-owned player don't read as a stampede (<transfer_signal>). */
+export const SELL_OFF_SMOOTHING = 10000;
 
 export interface StartFeatures {
   hasMatches: boolean;
@@ -398,6 +420,55 @@ export interface StartFeatures {
   seasonShare: number;
   lastSeasonShare: number | null;
   price: number;
+  /** 1 in his first (second) match back from an absence, else 0. */
+  returnFirst: number;
+  returnSecond: number;
+  /** sellOff of his transfers; 0 when they're unknown. */
+  sellOff: number;
+}
+
+/**
+ * <return_from_absence>: whether he's just come back from missing
+ * RETURN_AFTER_MISSED or more matches in a row (injured, ill, dropped):
+ * the matches he has played since (1 or 2) and how many he missed; null
+ * otherwise. A player back from a month out has a low share of recent
+ * starts, but he starts more often than that share says — the fit adds it
+ * back.
+ */
+export function returnFromAbsence(e: PlayerEvidence): { matchesBack: 1 | 2; missed: number } | null {
+  const ms = e.matches;
+  const missedBefore = (i: number) => {
+    let k = 0;
+    for (let j = i - 1; j >= 0 && ms[j].minutes === 0; j--) k++;
+    return k;
+  };
+  const n = ms.length;
+  if (n >= 1 && ms[n - 1].minutes > 0) {
+    const missed = missedBefore(n - 1);
+    if (missed >= RETURN_AFTER_MISSED) return { matchesBack: 1, missed };
+    if (n >= 2 && ms[n - 2].minutes > 0) {
+      const missed2 = missedBefore(n - 2);
+      if (missed2 >= RETURN_AFTER_MISSED) return { matchesBack: 2, missed: missed2 };
+    }
+  }
+  return null;
+}
+
+/**
+ * <transfer_signal>: managers' net selling of him before the deadline —
+ * transfers out beyond transfers in — as a share of the managers who owned
+ * him, on a log scale (−0.1 ≈ a net tenth sold him): ln((owners now + s) ÷
+ * (owners before + s)), s = SELL_OFF_SMOOTHING, and 0 when more bought
+ * him than sold him (buying isn't read: the owner's decision, 2026-10-25,
+ * that the indicator is a lot of transfers out). Managers sell on team
+ * news (an injury, a dropped player, a press conference) before any match
+ * is played, so it carries news the model's match record can't. Owners
+ * only scale it: 10,000 sales of a player 2m own is nothing, of one 20,000
+ * own a stampede; how many own him plays no other part.
+ */
+export function sellOff(t: TransferWindow): number {
+  const before = Math.max(0, t.owners - t.in + t.out);
+  return Math.min(0, Math.log((Math.max(0, t.owners) + SELL_OFF_SMOOTHING) / (before + SELL_OFF_SMOOTHING)));
 }
 
 /** What the chance of starting is worked out from (exported for fitting). */
@@ -412,6 +483,7 @@ export function startFeatures(e: PlayerEvidence): StartFeatures {
     den += w;
   });
   const last = e.past.find((p) => p.seasonsAgo === 1);
+  const back = returnFromAbsence(e);
   return {
     hasMatches: ms.length > 0,
     lastStarted: ms.length > 0 && ms[ms.length - 1].started ? 1 : 0,
@@ -419,6 +491,9 @@ export function startFeatures(e: PlayerEvidence): StartFeatures {
     seasonShare: ms.length > 0 ? ms.filter((m) => m.started).length / ms.length : 0,
     lastSeasonShare: last && last.starts !== null ? Math.min(1, last.starts / 38) : null,
     price: e.price,
+    returnFirst: back?.matchesBack === 1 ? 1 : 0,
+    returnSecond: back?.matchesBack === 2 ? 1 : 0,
+    sellOff: e.transfers ? sellOff(e.transfers) : 0,
   };
 }
 
@@ -428,6 +503,8 @@ export function startLogit(f: StartFeatures, s: StartModel): number {
   if (f.hasMatches) z += s.lastStarted * f.lastStarted + s.recentShare * f.recentShare + s.seasonShare * f.seasonShare;
   else z += s.noMatches;
   z += f.lastSeasonShare === null ? s.noLastSeason : s.lastSeasonShare * f.lastSeasonShare;
+  z += s.returnFirst * f.returnFirst + s.returnSecond * f.returnSecond;
+  z += (s.sellOff + s.sellOffByRecent * f.recentShare) * f.sellOff;
   return z;
 }
 
@@ -472,6 +549,9 @@ function playingScenarios(e: PlayerEvidence, pp: PositionParams, params: ModelPa
 }
 
 // ---------- the model ----------
+
+/** Net selling the hover mentions (5% of his owners). */
+const NOTABLE_SELL_OFF = 0.05;
 
 /** His rates per 90, exported for the backtest's component checks. */
 export function playerRates(e: PlayerEvidence, params: ModelParams) {
@@ -538,6 +618,12 @@ export function predictMatch(e: PlayerEvidence, outlook: FixtureOutlook, params:
   if (minutesOnRecord === 0) notes.push("no Premier League minutes on record: his position and price stand in");
   else if (minutesOnRecord < evenMinutes) notes.push(`under ${evenMinutes} Premier League minutes on record: his position and price weigh in as much as his own`);
   if (e.availability < 1) notes.push(`${Math.round(e.availability * 100)}% chance of being available`);
+  const back = returnFromAbsence(e);
+  if (back) notes.push(`${back.matchesBack === 1 ? "first" : "second"} match back after missing ${back.missed}: allowed for in his chance of starting`);
+  if (e.transfers) {
+    const sold = 1 - Math.exp(sellOff(e.transfers));
+    if (sold >= NOTABLE_SELL_OFF) notes.push(`managers selling him before the deadline (net ${Math.round(sold * 100)}% of his owners): allowed for in his chance of starting`);
+  }
 
   const total = appearance + goals + assists + cleanSheet + goalsConceded + saves + defensiveContribution + bonus + cards;
   return { appearance, goals, assists, cleanSheet, goalsConceded, saves, defensiveContribution, bonus, cards, total, startChance, expectedMinutes, notes };

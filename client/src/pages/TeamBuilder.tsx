@@ -332,6 +332,7 @@ export function TeamBuilder() {
     currentSeasonHasStarted,
     gameweekState,
     requestHistoricData,
+    totalPlayers,
   } = useAppState();
   useEffect(() => {
     requestHistoricData();
@@ -848,8 +849,8 @@ export function TeamBuilder() {
   /** Model Predicted for one of a player's upcoming matches (<points_model>), from his evidence (<points_model_evidence>). */
   const modelFor = useCallback(
     (evidence: ReturnType<typeof playerEvidence>, teamId: number, fixture: UpcomingFixture) =>
-      modelForFixture(evidence, clubRatings, teamsById.get(teamId)?.code ?? null, teamsById.get(fixture.opponentTeamId)?.code ?? null, fixture),
-    [clubRatings, teamsById],
+      modelForFixture(evidence, clubRatings, teamsById.get(teamId)?.code ?? null, teamsById.get(fixture.opponentTeamId)?.code ?? null, fixture, fromEventId),
+    [clubRatings, teamsById, fromEventId],
   );
 
   // Blended (historic + live, availability-adjusted) minutes reliability,
@@ -874,7 +875,7 @@ export function TeamBuilder() {
     const map = new Map<number, GameweekExpectation[]>();
     for (const p of squadPlayers) {
       const upcoming = upcomingByTeamId.get(p.teamId) ?? [];
-      const evidence = playerEvidence(p, historicProfiles.get(p.id), seasonMatchesByPlayerId.get(p.id), historicReferenceSeason);
+      const evidence = playerEvidence(p, historicProfiles.get(p.id), seasonMatchesByPlayerId.get(p.id), historicReferenceSeason, totalPlayers);
       map.set(
         p.id,
         gameweeks.map((eventId) =>
@@ -888,7 +889,7 @@ export function TeamBuilder() {
       );
     }
     return map;
-  }, [squadPlayers, upcomingByTeamId, gameweeks, historicProfiles, seasonMatchesByPlayerId, historicReferenceSeason, modelFor]);
+  }, [squadPlayers, upcomingByTeamId, gameweeks, historicProfiles, seasonMatchesByPlayerId, historicReferenceSeason, totalPlayers, modelFor]);
 
   // The next gameweek, for the cards.
   const nextGameweekByPlayerId = useMemo(
@@ -970,7 +971,7 @@ export function TeamBuilder() {
       const playerFixtures = upcomingByTeamId.get(p.teamId) ?? [];
       const historicProfile = historicProfiles.get(p.id);
       const reliability = computeBlendedMinutesReliability(p, teamsById.get(p.teamId), historicProfile).value;
-      const evidence = playerEvidence(p, historicProfile, seasonMatchesByPlayerId.get(p.id), historicReferenceSeason);
+      const evidence = playerEvidence(p, historicProfile, seasonMatchesByPlayerId.get(p.id), historicReferenceSeason, totalPlayers);
       const expectedFor = (eventId: number | null) =>
         eventId === null
           ? null
@@ -999,7 +1000,7 @@ export function TeamBuilder() {
         reliability,
       };
     });
-  }, [players, upcomingByTeamId, historicProfiles, pickerHistoricMode, currentSeasonHasStarted, teamsById, pickerGameweek, gameweeks, seasonMatchesByPlayerId, historicReferenceSeason, modelFor]);
+  }, [players, upcomingByTeamId, historicProfiles, pickerHistoricMode, currentSeasonHasStarted, teamsById, pickerGameweek, gameweeks, seasonMatchesByPlayerId, historicReferenceSeason, totalPlayers, modelFor]);
 
   const pickerBuiltRows: PickerRowData[] = useMemo(() => {
     const search = pickerSearch.trim();

@@ -135,21 +135,27 @@ const logLoss = (p: number, y: boolean) => -Math.log(Math.min(1 - 1e-9, Math.max
 
 // ---------- start-feature design matrix ----------
 
-/** [intercept, price, last started, recent share, season share, no matches, last season share, no last season] */
+/** [intercept, price, last started, recent share, season share, no matches, last season share, no last season, first back, second back, sell-off, sell-off × recent share] */
 function startRow(f: StartFeatures): number[] {
   const has = f.hasMatches ? 1 : 0;
   const hasLs = f.lastSeasonShare === null ? 0 : 1;
-  return [1, f.price, has * f.lastStarted, has * f.recentShare, has * f.seasonShare, 1 - has, hasLs * (f.lastSeasonShare ?? 0), 1 - hasLs];
+  return [
+    1, f.price, has * f.lastStarted, has * f.recentShare, has * f.seasonShare, 1 - has, hasLs * (f.lastSeasonShare ?? 0), 1 - hasLs,
+    f.returnFirst, f.returnSecond, f.sellOff, f.sellOff * f.recentShare,
+  ];
 }
 function toStartModel(w: number[]): StartModel {
-  return { intercept: w[0], price: w[1], lastStarted: w[2], recentShare: w[3], seasonShare: w[4], noMatches: w[5], lastSeasonShare: w[6], noLastSeason: w[7] };
+  return {
+    intercept: w[0], price: w[1], lastStarted: w[2], recentShare: w[3], seasonShare: w[4], noMatches: w[5], lastSeasonShare: w[6], noLastSeason: w[7],
+    returnFirst: w[8], returnSecond: w[9], sellOff: w[10], sellOffByRecent: w[11],
+  };
 }
 
 // ---------- main ----------
 
 function defaultPosition(): PositionParams {
   return {
-    start: { intercept: 0, lastStarted: 0, recentShare: 0, seasonShare: 0, lastSeasonShare: 0, noMatches: 0, noLastSeason: 0, price: 0 },
+    start: { intercept: 0, lastStarted: 0, recentShare: 0, seasonShare: 0, lastSeasonShare: 0, noMatches: 0, noLastSeason: 0, price: 0, returnFirst: 0, returnSecond: 0, sellOff: 0, sellOffByRecent: 0 },
     sixtyGivenStart: 0.9,
     minutesLongStart: 85,
     minutesShortStart: 45,

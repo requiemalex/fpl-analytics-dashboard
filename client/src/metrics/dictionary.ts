@@ -800,14 +800,14 @@ export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
     internalName: "modelPredictedPoints",
     source: "Derived",
     apiFields: [
-      "bootstrap-static (season totals, price, chance_of_playing_next_round, status)",
+      "bootstrap-static (season totals, price, chance_of_playing_next_round, status; transfers_in_event, transfers_out_event, selected_by_percent and total_players for managers' selling)",
       "element-summary history (this season's minutes and starts per match) and history_past (last three seasons)",
       "club history (the Fixture Forecast's ratings)",
     ],
     suppliedByFPL: false,
     derived: true,
     formula:
-      "One match: Σ over the ways it can go for him (starts and plays 60+, starts and goes off early, comes on, doesn't play) of its chance × what each part pays in it, under FPL's 2026/27 rules — appearance, goals and assists (per-90 rates blending xG/goals and xA/assists, this season and past seasons, pulled toward his position and price, × the club's goals expected ÷ its usual), clean sheet and goals conceded (the Fixture Forecast's goals against), saves, defensive contribution (chance of reaching the threshold), bonus (× the club's win chance against its usual), cards and own goals. Settings fitted on 2022/23–2024/25 (pointsModelParams.generated.ts). A gameweek's figure adds up his matches in it.",
+      "One match: Σ over the ways it can go for him (starts and plays 60+, starts and goes off early, comes on, doesn't play) of its chance × what each part pays in it — the chance of starting a logistic of his recent starts, last season's, his price, a first or second match back from 3+ missed, and (next deadline only) managers' net selling of him, min(0, ln((owners now + 10,000) ÷ (owners before + 10,000))) — under FPL's 2026/27 rules — appearance, goals and assists (per-90 rates blending xG/goals and xA/assists, this season and past seasons, pulled toward his position and price, × the club's goals expected ÷ its usual), clean sheet and goals conceded (the Fixture Forecast's goals against), saves, defensive contribution (chance of reaching the threshold), bonus (× the club's win chance against its usual), cards and own goals. Settings fitted on 2022/23–2024/25 (pointsModelParams.generated.ts). A gameweek's figure adds up his matches in it.",
     units: "points",
     caveats:
       "A model's expectation, not a forecast of what he'll score: proven on 2025/26 and 2026/27 (docs/models/model-predicted-backtest.md). FPL's availability is for the next round only, so it applies to every gameweek ahead.",

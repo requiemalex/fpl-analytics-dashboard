@@ -1846,7 +1846,32 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
     starts in his last six matches this season (the latest counting most:
     ×0.75 per match back), whether he started the last one, his season's
     start share, last season's starts ÷ 38, and his price (a £1m-dearer
-    goalkeeper is far likelier to be the first choice). Then how long
+    goalkeeper is far likelier to be the first choice), plus two things a
+    share of recent starts misses:
+    - **Back from an absence** (`<return_from_absence>`,
+      `returnFromAbsence`): in his first or second match back after
+      missing 3+ in a row (injured, ill, dropped), a fitted lift (+1.0 to
+      +2.1 on the log-odds): his recent share is low only because he was
+      out, and returning players start more often than it says.
+    - **Managers selling him** (`<transfer_signal>`, `sellOff`): FPL's
+      transfers toward the next deadline, net selling only — transfers out
+      beyond transfers in, as a share of the managers who owned him, on a
+      log scale (ln((owners now + 10,000) ÷ (owners before + 10,000)),
+      0 when more bought him than sold him). Managers sell on team news (an
+      injury, a dropped player, a press conference) before anyone plays,
+      so it carries news his match record can't; a regular being sold
+      says most (it's weighted again by his recent start share). The
+      owner's decision, 2026-10-25: the indicator is a lot of transfers
+      out, so buying isn't read, and how many own him only scales it
+      (unlike Minutes Reliability, where ownership plays no part). Live,
+      the counts are `transfers_in_event` / `transfers_out_event` (which
+      run toward the next deadline) and ownership % × `total_players`;
+      they count only toward that next gameweek's matches (the fit used
+      each deadline's own), and early in the week they're partial, so the
+      signal reaches its fitted weight only by the deadline. Unknown → it
+      adds nothing.
+
+    Then how long
     starters play: his own share of starts lasting 60+ and his minutes in
     them, pulled toward his position's (92–99% of starts, 82–90 minutes),
     so a forward taken off at 65 every week gets less of every part than
@@ -1896,9 +1921,21 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
     feed the model while it helps; here it doesn't).
   - **What it leans on** goes in the hover: under 900 Premier League
     minutes on record, his position and price weigh in; with none, they
-    stand in. Head-to-head records and former clubs play no part: across
-    every match since 2016/17 a player's or club's record against one
-    opponent didn't carry into the next meeting.
+    stand in. When it has allowed for a return or for managers selling
+    him, the hover says so.
+  - **Tried and left out** (backtested on seasons not fitted on, so the
+    model stays as simple as the evidence allows): head-to-head records
+    and former clubs (across every match since 2016/17 a player's or
+    club's record against one opponent didn't carry into the next meeting;
+    re-tested 2026-10-25 against the Fixture Forecast's goals expected,
+    ~900 club-matches: correlation −0.01, a fitted weight of ~0); days
+    since his club's last Premier League match (no effect on who starts
+    once his recent starts are known); a returning player's shorter
+    minutes once he starts (93% of starts reach 60 against 94%: too
+    small to model); Understat's line-ups (its starts and minutes repeat
+    FPL's, and its roles and formations — a club switching to a back
+    three, a player's usual role — didn't improve who starts); Understat's
+    penalty evidence (below).
   - **No figure ("—")** when his availability is unknown, his matches this
     season didn't load (the historic build skipped him), or either club
     has no Fixture Forecast rating (both come with the historic load).
@@ -1911,14 +1948,20 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   season's totals from bootstrap-static, his matches this season
   (`<season_matches>`: [minutes, starts] each, oldest first, sent with the
   historic build from the element-summaries it already fetches), his last
-  three completed seasons from `history_past`, his price and FPL's
-  availability. Club ratings: the Fixture Forecast's, fitted once on the
-  club records as the Team Profile shows them (`modelClubRatings`).
+  three completed seasons from `history_past`, his price, FPL's
+  availability, and his transfers toward the next deadline
+  (`liveTransfers`). Club ratings: the Fixture Forecast's, fitted once on
+  the club records as the Team Profile shows them (`modelClubRatings`).
 - **Fitting and proving it** (`client/scripts/pointsModel/`; the owner's
   decision 2026-10-25: every approved source may be used to fit and prove
   the model). `history.ts` rebuilds what the app would have known before
   every gameweek since 2022/23 (`<as_of_evidence>`: the club records'
-  ledger, vaastav for cards and prices, Understat for penalties). `fit.ts`
+  ledger, vaastav for cards, prices and transfers to 2025/26, FPL's
+  element-summaries for 2026/27's transfers, Understat for penalties, and
+  the availability record where it exists: `<availability_record>`, from
+  2026/27 GW9, read as the app reads FPL's chance of playing; refitting
+  as it grows lets the backtest prove the model with injury news too).
+  `fit.ts`
   fits each part against its own outcome on 2022/23–2024/25 only
   (defensive contribution, recorded from 2025/26, on 2025/26 GW1–19) and
   writes `pointsModelParams.generated.ts`. `backtest.ts` proves it on
@@ -1927,17 +1970,24 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   `docs/models/model-predicted-backtest.md`. Run from the repo root:
   `npx tsx client/scripts/pointsModel/fit.ts`, then `backtest.ts`. The
   client build type-checks the scripts. Last results (no injury news given
-  to either model): on 2025/26 GW20–38, unseen by every setting, the
-  typical miss (RMSE) is 1.86 points against the old model's 1.95, the
-  average miss +0.05 against −0.16 (the old model's under-prediction
-  gives it the smaller average absolute miss, 0.96 against 1.00: half of
-  all players score 0, which a figure pulled toward 0 is nearer), and the correlation with actual points
-  within a position and gameweek 0.60 against 0.54; on 2026/27 so far 2.15
-  against 2.29, and 0.57 against 0.51. It tells who starts better (AUC
-  0.92–0.98 against 0.89–0.96), and every part is calibrated to within a
-  few hundredths of a point. Its weakest spot: among players who do start,
-  it orders midfielders and forwards about as well as the old model did,
-  not better.
+  to either model; the new one sees managers' selling): on 2025/26
+  GW20–38, unseen by every setting, the typical miss (RMSE) is 1.84
+  points against the old model's 1.95, the average miss +0.07 against
+  −0.16 (the old model's under-prediction gives it the smaller average
+  absolute miss, 0.96 against 0.99: half of all players score 0, which a
+  figure pulled toward 0 is nearer), and the correlation with actual
+  points within a position and gameweek 0.61 against 0.54; on 2026/27 so
+  far 2.14 against 2.29, and 0.57 against 0.51. It tells who starts better
+  (AUC 0.93–0.98 against 0.89–0.96), and every part is calibrated to
+  within a few hundredths of a point. The return and selling signals
+  (2026-10-25) added 0.01 to the correlation on 2025/26 and lifted the
+  top 10 picks' average from 4.84 to 4.96 points. Its weakest spot: among
+  players who do start, it orders midfielders and forwards about as well
+  as the old model did, not better. How far it can go: given perfect
+  knowledge of who starts, the same model reaches about 0.69; of every
+  player's minutes, 0.72; and of the chances each got in the match too,
+  0.75 — the rest is finishing, clean sheets and bonus falling as they
+  do.
 - **Minutes Reliability** (`metrics/minutesReliabilityBlend.ts`: the Add
   Players column and the pitch cards; Model Predicted has its own chance of
   starting, above, and shares only the availability part) blends
@@ -1945,7 +1995,9 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   `min(1, club games / 8)`. The historic side uses every season in the
   window, weights recent seasons more, and discounts inconsistency. Only
   minutes evidence goes in: ownership plays no part (the owner's decision,
-  audit 2026-10-18), and with no minutes data anywhere the figure is "—".
+  audit 2026-10-18; Model Predicted's chance of starting does read
+  managers' selling, above), and with no minutes data anywhere the figure
+  is "—".
   The result is multiplied by availability (`chance_of_playing_next_round`,
   else a status default; with neither known, no figure).
 - **Availability's limit:** FPL publishes availability for the next round
@@ -2047,14 +2099,30 @@ committed).
 
 ## Automatic jobs and alerts
 
-Four GitHub workflows run without anyone starting them:
+Five GitHub workflows run without anyone starting them:
 
 | Workflow | When | What | Alerts the owner |
 |---|---|---|---|
 | `club-history-archive.yml` | Tue & Fri 05:00 UTC | Archives the live season's club history; releases at season end | On the 2nd failure in a row (a missed run loses nothing) |
 | `understat-sync.yml` | Daily 06:00 UTC | Syncs Understat data (see "Understat"); fetches FPL's live record to check it against | At once for a changed format, a failed check, or data it couldn't commit or push; on the 2nd failure in a row for a block or blip; plus held/disputed links and Understat running late |
+| `fpl-availability.yml` | Hourly | Records FPL's availability news for the next deadline (`<availability_record>`, below) | On the 2nd failure in a row (the next run records the news as it then stands) |
 | `release.yml` | On a `v*` tag | Builds and publishes the desktop app | At once (installed apps would stop updating) |
-| `watchdog.yml` | Mondays 07:00 UTC | Checks the two scheduled jobs are switched on and succeeded recently (Understat within 2 days, archive within 5), and the latest release didn't fail | When any of that is wrong |
+| `watchdog.yml` | Mondays 07:00 UTC | Checks the three scheduled jobs are switched on and succeeded recently (Understat within 2 days, archive within 5, availability within 1), and the latest release didn't fail | When any of that is wrong |
+
+**The availability record** (`<availability_record>`,
+`server/src/fplAvailability/reading.ts`,
+`scripts/fpl-availability/record.ts`): FPL only ever serves today's
+injury and availability news, so no past deadline's news can be known
+unless it's kept. Every hour the job reads bootstrap-static and, when the
+news for the next deadline has changed, rewrites
+`data/fpl-availability/<season>/gwNN.json`: every player who isn't
+plain "available with no news" (status, chance of playing this and next
+round, news text and when it was added, by FPL code), plus how many
+players were in the game. Once the deadline passes, the file holds the
+last reading before it. Kept from 2026/27 GW9 on. The app doesn't read it
+(nothing needs a release); Model Predicted's fitting does
+(`client/scripts/pointsModel/history.ts`), as the chance of playing each
+player had at each recorded deadline.
 
 The archive also checks the watchdog itself ran within 9 days, so a
 stopped watchdog is caught too. Every scheduled workflow re-enables its own

@@ -21,8 +21,13 @@
  *    price at the time (to 2025/26).
  *  - data/understat/ — penalties (who took them, who scored), for the
  *    penalty-evidence variant (separatesPenalties).
+ *  - data/fpl-availability/<season>/ — FPL's availability news as it stood
+ *    at each deadline, recorded from 2026/27 GW10 on (<availability_record>):
+ *    a gameweek with a reading gives each player its chance of playing, as
+ *    the app reads it live; one without has none (1, as before).
  *  - The live FPL API, once, for 2026/27's prices, strengths and difficulty
- *    ratings (cached in .cache/).
+ *    ratings, and each player's transfers before every deadline (vaastav
+ *    has them to 2025/26) — cached in .cache/.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -33,14 +38,16 @@ import { aggregateClubSeason } from "../../../server/src/clubHistory/aggregate";
 import { parseCsv } from "../../../server/src/clubHistory/csv";
 import type { ClubSeason as ServerClubSeason, LedgerRow } from "../../../server/src/clubHistory/types";
 import { fitClubRatings, matchTime } from "../../src/metrics/fixtureForecast";
-import { fixtureOutlook, SCORING_RULES, type FixtureOutlook, type PastSeason, type PlayerEvidence, type RecentMatch, type ScoringRules, type SeasonTotals } from "../../src/metrics/pointsModel";
-import type { ClubSeason, Position } from "../../src/types/normalized";
+import { fixtureOutlook, SCORING_RULES, type FixtureOutlook, type PastSeason, type PlayerEvidence, type RecentMatch, type ScoringRules, type SeasonTotals, type TransferWindow } from "../../src/metrics/pointsModel";
+import { availabilityModifier } from "../../src/metrics/minutesReliabilityBlend";
+import type { ClubSeason, NormalizedPlayer, Position } from "../../src/types/normalized";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.resolve(HERE, "../../..");
 const CLUB_HISTORY = path.join(ROOT, "data/club-history");
 const VAASTAV = path.join(ROOT, "data/vaastav-snapshot");
 const UNDERSTAT = path.join(ROOT, "data/understat");
+const AVAILABILITY = path.join(ROOT, "data/fpl-availability");
 const CACHE = path.join(HERE, ".cache");
 
 export const POSITIONS: Position[] = ["GKP", "DEF", "MID", "FWD"];
@@ -87,6 +94,9 @@ export interface LegacyContext {
 export interface Sample {
   season: string;
   round: number;
+  /** That season's fixture and element ids. */
+  fixture: number;
+  element: number;
   code: number;
   position: Position;
   club: number;
@@ -177,6 +187,8 @@ interface Extra {
   penaltiesSaved: number;
   penaltiesMissed: number;
   price: number;
+  /** Transfers before this match's deadline, and his owners at it (FPL's `selected`). */
+  transfers: TransferWindow;
 }
 
 function loadExtras(season: string): Map<string, Extra> | null {
@@ -190,7 +202,74 @@ function loadExtras(season: string): Map<string, Extra> | null {
       penaltiesSaved: Number(r.penalties_saved) || 0,
       penaltiesMissed: Number(r.penalties_missed) || 0,
       price: (Number(r.value) || 0) / 10,
+      transfers: { in: Number(r.transfers_in) || 0, out: Number(r.transfers_out) || 0, owners: Number(r.selected) || 0 },
     });
+  }
+  return out;
+}
+
+/**
+ * The live season's transfers before each deadline, from FPL's
+ * element-summaries (`${element}:${fixture}` → window), fetched once per
+ * gameweek finished (cached in .cache/).
+ */
+async function liveTransfers(season: string, elements: number[], lastRound: number): Promise<Map<string, TransferWindow>> {
+  const name = `transfers-${season.replace("/", "-")}-gw${lastRound}.json`;
+  fs.mkdirSync(CACHE, { recursive: true });
+  const file = path.join(CACHE, name);
+  let byElement: Record<string, { fixture: number; transfers_in: number; transfers_out: number; selected: number }[]>;
+  if (fs.existsSync(file)) {
+    byElement = JSON.parse(fs.readFileSync(file, "utf8"));
+  } else {
+    byElement = {};
+    const queue = [...elements];
+    const worker = async () => {
+      for (let id = queue.shift(); id !== undefined; id = queue.shift()) {
+        for (let attempt = 0; ; attempt++) {
+          const res = await fetch(`https://fantasy.premierleague.com/api/element-summary/${id}/`, { headers: { "User-Agent": "Scoutline model backtest" } });
+          if (res.ok) {
+            byElement[id] = ((await res.json()) as { history: { fixture: number; transfers_in: number; transfers_out: number; selected: number }[] }).history.map((h) => ({ fixture: h.fixture, transfers_in: h.transfers_in, transfers_out: h.transfers_out, selected: h.selected }));
+            break;
+          }
+          // A player since removed from the game: no transfers on record.
+          if (res.status === 404) {
+            byElement[id] = [];
+            break;
+          }
+          if (attempt >= 3) throw new Error(`element-summary ${id} -> HTTP ${res.status}`);
+          await new Promise((r) => setTimeout(r, 2000 * 2 ** attempt));
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: 6 }, worker));
+    fs.writeFileSync(file, JSON.stringify(byElement));
+  }
+  const out = new Map<string, TransferWindow>();
+  for (const [id, rows] of Object.entries(byElement)) for (const h of rows) out.set(`${id}:${h.fixture}`, { in: h.transfers_in, out: h.transfers_out, owners: h.selected });
+  return out;
+}
+
+/**
+ * <availability_record>: each gameweek's recorded FPL availability (data/
+ * fpl-availability/, scripts/fpl-availability/record.ts) as the app would
+ * have read it before that deadline (availabilityModifier), by player code.
+ * A player missing from a reading was available with no news. Rounds with
+ * no reading aren't in the map.
+ */
+function recordedAvailability(season: string): Map<number, Map<number, number>> {
+  const dir = path.join(AVAILABILITY, season.replace("/", "-"));
+  const out = new Map<number, Map<number, number>>();
+  if (!fs.existsSync(dir)) return out;
+  for (const f of fs.readdirSync(dir)) {
+    const m = /^gw(\d+)\.json$/.exec(f);
+    if (!m) continue;
+    const reading = JSON.parse(fs.readFileSync(path.join(dir, f), "utf8")) as { players: { code: number; status: string; chanceNextRound: number | null }[] };
+    const byCode = new Map<number, number>();
+    for (const p of reading.players) {
+      const a = availabilityModifier({ status: p.status, chanceOfPlayingNextRound: p.chanceNextRound } as NormalizedPlayer);
+      if (a !== null) byCode.set(p.code, a);
+    }
+    out.set(Number(m[1]), byCode);
   }
   return out;
 }
@@ -305,6 +384,12 @@ export async function buildSamples(fromSeason = "2022/23"): Promise<{ samples: S
     const meta = sampling ? await loadFplMeta(season, season === liveSeason && !extras) : null;
     const penalties = loadPenalties(season, codeByTeamId, ledger.fixtures);
     const fixtureById = new Map(ledger.fixtures.map((f) => [f.id, f]));
+    const finishedRounds = ledger.rows.filter((r) => r.round !== null && fixtureById.get(r.fixture)?.finished).map((r) => r.round!);
+    const transfersOf =
+      sampling && !extras
+        ? await liveTransfers(season, [...new Set(ledger.rows.map((r) => r.element))], Math.max(0, ...finishedRounds))
+        : null;
+    const availabilityByRound = recordedAvailability(season);
 
     const current = new Map<number, Accum>();
     const penaltiesSoFar = new Map<number, { taken: number; goals: number }>(); // by FPL code (linked players)
@@ -348,7 +433,8 @@ export async function buildSamples(fromSeason = "2022/23"): Promise<{ samples: S
             matches: acc ? [...acc.matches] : [],
             past,
             penaltyTaker: null,
-            availability: 1,
+            availability: availabilityByRound.has(round) ? (availabilityByRound.get(round)!.get(r.code) ?? 1) : 1,
+            transfers: extra?.transfers ?? transfersOf?.get(`${r.element}:${r.fixture}`) ?? null,
           };
           const us = usByCode.get(r.code);
           let evidenceWithPenalties: PlayerEvidence | null = null;
@@ -368,6 +454,8 @@ export async function buildSamples(fromSeason = "2022/23"): Promise<{ samples: S
           samples.push({
             season,
             round,
+            fixture: r.fixture,
+            element: r.element,
             code: r.code,
             position,
             club,

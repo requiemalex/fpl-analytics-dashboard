@@ -6,14 +6,18 @@ export const MODEL_PARAMS: ModelParams = {
   "byPosition": {
     "GKP": {
       "start": {
-        "intercept": -8.403,
-        "price": 1.128,
-        "lastStarted": 2.873,
-        "recentShare": 2.383,
-        "seasonShare": 0.9864,
-        "noMatches": 2.524,
-        "lastSeasonShare": 0.2682,
-        "noLastSeason": -0.1933
+        "intercept": -8.875,
+        "price": 1.179,
+        "lastStarted": 1.237,
+        "recentShare": 4.603,
+        "seasonShare": 1.021,
+        "noMatches": 2.685,
+        "lastSeasonShare": 0.3809,
+        "noLastSeason": -0.1045,
+        "returnFirst": 2.108,
+        "returnSecond": 1.38,
+        "sellOff": 0.4429,
+        "sellOffByRecent": 20.46
       },
       "sixtyGivenStart": 0.9912,
       "minutesLongStart": 89.94,
@@ -43,14 +47,18 @@ export const MODEL_PARAMS: ModelParams = {
     },
     "DEF": {
       "start": {
-        "intercept": -4.283,
-        "price": 0.2945,
-        "lastStarted": 1.606,
-        "recentShare": 2.04,
-        "seasonShare": 1.44,
-        "noMatches": 2.065,
-        "lastSeasonShare": 0.5536,
-        "noLastSeason": 0.1343
+        "intercept": -4.753,
+        "price": 0.3669,
+        "lastStarted": 0.905,
+        "recentShare": 3.272,
+        "seasonShare": 1.666,
+        "noMatches": 2.202,
+        "lastSeasonShare": 0.5857,
+        "noLastSeason": 0.1421,
+        "returnFirst": 1.2,
+        "returnSecond": 1.012,
+        "sellOff": 1.444,
+        "sellOffByRecent": 15.79
       },
       "sixtyGivenStart": 0.9536,
       "minutesLongStart": 87.64,
@@ -80,14 +88,18 @@ export const MODEL_PARAMS: ModelParams = {
     },
     "MID": {
       "start": {
-        "intercept": -3.776,
-        "price": 0.158,
-        "lastStarted": 1.11,
-        "recentShare": 2.402,
-        "seasonShare": 1.637,
-        "noMatches": 1.935,
-        "lastSeasonShare": 0.3813,
-        "noLastSeason": 0.0425
+        "intercept": -4.184,
+        "price": 0.2069,
+        "lastStarted": 0.7594,
+        "recentShare": 3.31,
+        "seasonShare": 1.698,
+        "noMatches": 2.086,
+        "lastSeasonShare": 0.3738,
+        "noLastSeason": 0.04248,
+        "returnFirst": 1.076,
+        "returnSecond": 1.27,
+        "sellOff": -1.681,
+        "sellOffByRecent": 12.85
       },
       "sixtyGivenStart": 0.9202,
       "minutesLongStart": 83.23,
@@ -117,14 +129,18 @@ export const MODEL_PARAMS: ModelParams = {
     },
     "FWD": {
       "start": {
-        "intercept": -4.226,
-        "price": 0.1638,
-        "lastStarted": 1.681,
-        "recentShare": 1.461,
-        "seasonShare": 1.968,
-        "noMatches": 1.66,
-        "lastSeasonShare": 0.6417,
-        "noLastSeason": 0.3247
+        "intercept": -4.289,
+        "price": 0.1562,
+        "lastStarted": 1.208,
+        "recentShare": 2.709,
+        "seasonShare": 1.956,
+        "noMatches": 1.789,
+        "lastSeasonShare": 0.6776,
+        "noLastSeason": 0.2955,
+        "returnFirst": 1.157,
+        "returnSecond": 1.708,
+        "sellOff": 0.7405,
+        "sellOffByRecent": 8.604
       },
       "sixtyGivenStart": 0.9245,
       "minutesLongStart": 81.87,

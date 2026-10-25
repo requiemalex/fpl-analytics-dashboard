@@ -4,7 +4,10 @@ import {
   expectedEvery,
   fixtureOutlook,
   predictMatch,
+  returnFromAbsence,
   SCORING_RULES,
+  sellOff,
+  SELL_OFF_SMOOTHING,
   separatesPenalties,
   startFeatures,
   type FixtureOutlook,
@@ -13,7 +16,7 @@ import {
   type SeasonTotals,
 } from "./pointsModel";
 import { MODEL_PARAMS } from "./pointsModelParams.generated";
-import { modelForFixture, playerEvidence } from "./pointsModelLive";
+import { liveTransfers, modelForFixture, playerEvidence } from "./pointsModelLive";
 import type { ClubRatings } from "./fixtureForecast";
 import type { UpcomingFixture } from "./fixtureTicker";
 import { buildHistoricPlayerProfile } from "./historicAnalysis";
@@ -60,6 +63,7 @@ const evidence = (o: Partial<PlayerEvidence> = {}): PlayerEvidence => ({
   past: [],
   penaltyTaker: null,
   availability: 1,
+  transfers: null,
   ...o,
 });
 const outlook = (o: Partial<FixtureOutlook> = {}): FixtureOutlook => ({ goalsFor: 1.4, goalsAgainst: 1.3, baseFor: 1.4, baseAgainst: 1.3, win: 0.4, baseWin: 0.4, ...o });
@@ -228,7 +232,7 @@ describe("Model Predicted — from the app's data (<points_model_evidence>)", ()
     "2025/26",
   );
   it("this season's totals, his matches and his last three completed seasons with minutes", () => {
-    const e = playerEvidence(player, profile, matches, "2025/26")!;
+    const e = playerEvidence(player, profile, matches, "2025/26", null)!;
     expect(e.current?.minutes).toBe(450);
     expect(e.current?.xG).toBe(1.8);
     expect(e.matches).toBe(matches);
@@ -237,19 +241,85 @@ describe("Model Predicted — from the app's data (<points_model_evidence>)", ()
     expect(e.availability).toBe(1);
   });
   it("no figure without his matches or his availability, never a guess", () => {
-    expect(playerEvidence(player, profile, undefined, "2025/26")).toBeNull();
-    expect(playerEvidence(makePlayer({ id: 2, position: "MID", status: "", chanceOfPlayingNextRound: null }), profile, matches, "2025/26")).toBeNull();
+    expect(playerEvidence(player, profile, undefined, "2025/26", null)).toBeNull();
+    expect(playerEvidence(makePlayer({ id: 2, position: "MID", status: "", chanceOfPlayingNextRound: null }), profile, matches, "2025/26", null)).toBeNull();
   });
   it("pre-season (no matches yet): no current season", () => {
-    expect(playerEvidence(player, profile, [], "2025/26")!.current).toBeNull();
+    expect(playerEvidence(player, profile, [], "2025/26", null)!.current).toBeNull();
   });
   it("a match figure needs both clubs' ratings", () => {
-    const e = playerEvidence(player, profile, matches, "2025/26");
+    const e = playerEvidence(player, profile, matches, "2025/26", null);
     const fx: UpcomingFixture = { fixtureId: 1, eventId: 9, opponentTeamId: 2, opponentShortName: "OPP", isHome: true, difficulty: 3 };
     const ratings: ClubRatings = { attack: new Map([[10, 1]]), defence: new Map([[10, 1]]), homeGoals: 1.5, awayGoals: 1.2 };
-    expect(modelForFixture(e, null, 10, 10, fx)).toBeNull();
-    expect(modelForFixture(e, ratings, 10, null, fx)).toBeNull();
-    expect(modelForFixture(e, ratings, 10, 10, fx)?.total).toBeGreaterThan(0);
+    expect(modelForFixture(e, null, 10, 10, fx, 9)).toBeNull();
+    expect(modelForFixture(e, ratings, 10, null, fx, 9)).toBeNull();
+    expect(modelForFixture(e, ratings, 10, 10, fx, 9)?.total).toBeGreaterThan(0);
+  });
+  it("his transfers toward the next deadline: owners from ownership % × total managers; none when any part is missing", () => {
+    const p = makePlayer({ id: 3, position: "MID", ownership: 12.5, transfersInEvent: 4000, transfersOutEvent: 90000, status: "a", chanceOfPlayingNextRound: null });
+    expect(liveTransfers(p, 2_000_000)).toEqual({ in: 4000, out: 90000, owners: 250000 });
+    expect(liveTransfers(p, null)).toBeNull();
+    expect(liveTransfers({ ...p, transfersOutEvent: null }, 2_000_000)).toBeNull();
+    expect(playerEvidence(p, profile, matches, "2025/26", 2_000_000)!.transfers).toEqual({ in: 4000, out: 90000, owners: 250000 });
+  });
+  it("transfers count only toward the gameweek they're made for", () => {
+    const p = makePlayer({ id: 3, position: "MID", ownership: 12.5, transfersInEvent: 1000, transfersOutEvent: 120000, status: "a", chanceOfPlayingNextRound: null });
+    const e = playerEvidence(p, profile, matches, "2025/26", 2_000_000);
+    const ratings: ClubRatings = { attack: new Map([[10, 1]]), defence: new Map([[10, 1]]), homeGoals: 1.5, awayGoals: 1.2 };
+    const fx = (eventId: number): UpcomingFixture => ({ fixtureId: eventId, eventId, opponentTeamId: 2, opponentShortName: "OPP", isHome: true, difficulty: 3 });
+    const withNoTransfers = modelForFixture({ ...e!, transfers: null }, ratings, 10, 10, fx(9), 9)!;
+    // GW9 is the next deadline: the sell-off counts.
+    expect(modelForFixture(e, ratings, 10, 10, fx(9), 9)!.startChance).toBeLessThan(withNoTransfers.startChance);
+    // GW10 is a later one: it doesn't.
+    expect(modelForFixture(e, ratings, 10, 10, fx(10), 9)!.startChance).toBeCloseTo(withNoTransfers.startChance, 12);
+  });
+});
+
+describe("Model Predicted — back from an absence (<return_from_absence>)", () => {
+  const m = (minutes: number, started = minutes >= 60) => ({ minutes, started });
+  it("his first match back after missing 3+ in a row, then his second", () => {
+    expect(returnFromAbsence(evidence({ matches: [m(90), m(0), m(0), m(0), m(70)] }))).toEqual({ matchesBack: 1, missed: 3 });
+    expect(returnFromAbsence(evidence({ matches: [m(90), m(0), m(0), m(0), m(0), m(20, false), m(90)] }))).toEqual({ matchesBack: 2, missed: 4 });
+  });
+  it("not after missing fewer than 3, not from the third match back, not while still out", () => {
+    expect(returnFromAbsence(evidence({ matches: [m(90), m(0), m(0), m(90)] }))).toBeNull();
+    expect(returnFromAbsence(evidence({ matches: [m(0), m(0), m(0), m(90), m(90), m(90)] }))).toBeNull();
+    expect(returnFromAbsence(evidence({ matches: [m(90), m(0), m(0), m(0)] }))).toBeNull();
+    expect(returnFromAbsence(evidence({ matches: [] }))).toBeNull();
+  });
+  it("feeds the chance of starting (a fitted lift) and says so in the hover", () => {
+    const back = evidence({ matches: [m(90), m(90), m(0), m(0), m(0), m(75)] });
+    expect(startFeatures(back)).toMatchObject({ returnFirst: 1, returnSecond: 0 });
+    const b = predictMatch(back, outlook(), MODEL_PARAMS);
+    expect(b.notes).toContain("first match back after missing 3: allowed for in his chance of starting");
+    expect(MODEL_PARAMS.byPosition.MID.start.returnFirst).toBeGreaterThan(0);
+  });
+});
+
+describe("Model Predicted — managers selling him before the deadline (<transfer_signal>)", () => {
+  it("net selling as a share of the managers who owned him, on a log scale, smoothed", () => {
+    const t = { in: 5000, out: 45000, owners: 200000 };
+    expect(sellOff(t)).toBeCloseTo(Math.log((200000 + SELL_OFF_SMOOTHING) / (240000 + SELL_OFF_SMOOTHING)), 12);
+    // A few transfers of a barely-owned player barely move it.
+    expect(Math.abs(sellOff({ in: 0, out: 30, owners: 20 }))).toBeLessThan(0.01);
+  });
+  it("buying isn't read: more in than out, or none at all, is 0", () => {
+    expect(sellOff({ in: 300000, out: 1000, owners: 800000 })).toBe(0);
+    expect(sellOff({ in: 0, out: 0, owners: 50000 })).toBe(0);
+    expect(startFeatures(evidence({ transfers: { in: 300000, out: 1000, owners: 800000 } })).sellOff).toBe(0);
+  });
+  it("unknown transfers add nothing", () => {
+    expect(startFeatures(evidence({ transfers: null })).sellOff).toBe(0);
+  });
+  it("a regular being sold is less likely to start, and the hover says why", () => {
+    const sold = predictMatch(evidence({ transfers: { in: 2000, out: 300000, owners: 700000 } }), outlook(), MODEL_PARAMS);
+    const quiet = predictMatch(evidence({ transfers: { in: 10000, out: 10000, owners: 1000000 } }), outlook(), MODEL_PARAMS);
+    const bought = predictMatch(evidence({ transfers: { in: 300000, out: 2000, owners: 1000000 } }), outlook(), MODEL_PARAMS);
+    expect(sold.startChance).toBeLessThan(quiet.startChance);
+    expect(sold.total).toBeLessThan(quiet.total);
+    expect(bought.startChance).toBeCloseTo(quiet.startChance, 12);
+    expect(sold.notes.some((n) => n.startsWith("managers selling him before the deadline (net 30% of his owners)"))).toBe(true);
+    expect(quiet.notes.some((n) => n.startsWith("managers"))).toBe(false);
   });
 });
 

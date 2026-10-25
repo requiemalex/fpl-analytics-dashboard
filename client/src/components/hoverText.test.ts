@@ -82,6 +82,7 @@ describe("modelBreakdownHint — the model's figure in parts", () => {
     past: [],
     penaltyTaker: null,
     availability: 1,
+    transfers: null,
     ...o,
   });
   it("adds up his parts for the match, then his chance of starting", () => {
