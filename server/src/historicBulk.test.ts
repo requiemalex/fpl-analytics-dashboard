@@ -7,7 +7,7 @@ vi.mock("./proxy.js", async (importOriginal) => {
   return { ...actual, cachedFetch: cachedFetchMock };
 });
 
-const { buildBulkHistoricData, historicBulkRouter } = await import("./routes/historicBulk.js");
+const { buildBulkHistoricData, historicBulkRouter, seasonMatchesFrom } = await import("./routes/historicBulk.js");
 const { historicBulkCache } = await import("./cache.js");
 
 function bootstrapResult(playerIds: number[]) {
@@ -213,6 +213,33 @@ describe("buildBulkHistoricData — club seasons", () => {
       ["LIV", 0, 1, 1.3],
     ]);
     expect(result.clubSeasons.some((c) => c.season === "2025/26" && c.complete)).toBe(true);
+  });
+});
+
+describe("<season_matches> — each player's matches this season, for Model Predicted", () => {
+  it("[minutes, starts] per match, oldest first, from the same history the build already fetched", () => {
+    const history = [
+      { round: 3, kickoff_time: "2026-08-30T14:00:00Z", minutes: 0, starts: 0 },
+      { round: 1, kickoff_time: "2026-08-16T14:00:00Z", minutes: 90, starts: 1 },
+      { round: 2, kickoff_time: "2026-08-23T14:00:00Z", minutes: 23, starts: 0 },
+    ];
+    expect(seasonMatchesFrom(history)).toEqual([
+      [90, 1],
+      [23, 0],
+      [0, 0],
+    ]);
+  });
+  it("a double gameweek's two matches stay in kick-off order; unreadable rows are left out", () => {
+    const history = [
+      { round: 5, kickoff_time: "2026-09-20T14:00:00Z", minutes: 70, starts: 1 },
+      { round: 5, kickoff_time: "2026-09-17T19:00:00Z", minutes: 90, starts: 1 },
+      { round: 6, minutes: "x", starts: 1 },
+      null,
+    ];
+    expect(seasonMatchesFrom(history)).toEqual([
+      [90, 1],
+      [70, 1],
+    ]);
   });
 });
 

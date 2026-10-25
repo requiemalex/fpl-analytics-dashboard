@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { expectationForGameweek, upcomingGameweeks } from "./gameweekExpectations";
 import type { UpcomingFixture } from "./fixtureTicker";
-import type { ExpectedPointsV2Breakdown } from "./expectedPointsV2";
+import type { ModelBreakdown } from "./pointsModel";
 
 const season = (isNext: number | null, last = 38) => Array.from({ length: last }, (_, i) => ({ id: i + 1, isNext: i + 1 === isNext }));
 
@@ -23,7 +23,7 @@ describe("<upcoming_gameweeks> upcomingGameweeks", () => {
 });
 
 const fixture = (fixtureId: number, eventId: number | null): UpcomingFixture => ({ fixtureId, eventId, opponentTeamId: 2, opponentShortName: "BUR", isHome: true, difficulty: 3 });
-const breakdown = (total: number) => ({ total }) as ExpectedPointsV2Breakdown;
+const breakdown = (total: number) => ({ total }) as ModelBreakdown;
 
 describe("expectationForGameweek", () => {
   // GW9 blank, GW10 a double, GW11 single.

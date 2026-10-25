@@ -42,8 +42,10 @@ No lint script. Playwright isn't installed but works via
   one-off exception: club history 2016/17–2025/26 was backfilled from the
   vaastav community archive, frozen in `data/vaastav-snapshot/`. That same
   ledger also feeds the player profile's past-season Match Log (each player's
-  own rows; owner's decision, 2026-10-19). Don't extend that exception to
-  anything else.
+  own rows; owner's decision, 2026-10-19), and with Understat may be used to
+  fit and prove Team Building's Model Predicted (`client/scripts/pointsModel/`;
+  owner's decision, 2026-10-25), never as a figure the app shows. Don't
+  extend that exception to anything else.
 - **Understat is the one approved second source** (owner's decision,
   2026-10-18), on two rules (README "Understat (second data source)"):
   1. **Full separation.** Its figures appear only in their own violet
@@ -58,6 +60,11 @@ No lint script. Playwright isn't installed but works via
      score (scores are how fixtures are paired), or disagrees on so many
      goals (over 0.5% of player-matches) that player links must be wrong,
      and alerts me with a GitHub issue.
+  **Modelling** (owner's decision, 2026-10-25): Understat may fit and prove
+  Model Predicted, and may feed it while it's a good source and helps, but
+  only through the `externalStats` slot, so removing Understat removes it
+  from the model too (falling back to FPL data). It feeds nothing today: its
+  penalty evidence was backtested and gave no gain (README `<points_model>`).
   **A stat both sources record may differ between them, and that's fine**
   (owner's decision, 2026-10-18): each column shows its own source's
   figure, and nothing forces one source to match the other. Goals included:

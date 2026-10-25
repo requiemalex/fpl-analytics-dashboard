@@ -14,9 +14,9 @@ import {
 import { PLAYER_COLUMNS } from "./playerColumns";
 import { TEAM_COLUMNS } from "./teamColumns";
 import { understatPlayerColumns, understatTeamColumns } from "../understat/columns";
-import { computeExpectedPointsV2ForFixture } from "../metrics/expectedPointsV2";
+import { predictMatch, type FixtureOutlook, type PlayerEvidence } from "../metrics/pointsModel";
+import { MODEL_PARAMS } from "../metrics/pointsModelParams.generated";
 import { clubRanks } from "../metrics/comparativeColour";
-import { makePlayer } from "../test/fixtures";
 import type { UpcomingFixture } from "../metrics/fixtureTicker";
 
 const fixture = (o: Partial<UpcomingFixture> = {}): UpcomingFixture => ({ fixtureId: 1, eventId: 1, opponentTeamId: 2, opponentShortName: "BOU", isHome: true, difficulty: 2, ...o });
@@ -73,19 +73,34 @@ describe("fixtures", () => {
 });
 
 describe("modelBreakdownHint — the model's figure in parts", () => {
-  it("adds up his parts for the match and names what had no data", () => {
-    const p = makePlayer({ id: 1, position: "FWD", minutes: 900, xG: 5, xA: null, defensiveContributions: 40 });
-    const b = computeExpectedPointsV2ForFixture(p, fixture(), undefined, undefined, 0.9, undefined);
+  const outlook: FixtureOutlook = { goalsFor: 1.8, goalsAgainst: 1.0, baseFor: 1.4, baseAgainst: 1.3, win: 0.55, baseWin: 0.45 };
+  const evidence = (o: Partial<PlayerEvidence> = {}): PlayerEvidence => ({
+    position: "FWD",
+    price: 8,
+    current: { minutes: 900, starts: 10, goals: 6, assists: 2, xG: 5, xA: 1.5, dc: 30, saves: 0, bonus: 8, yellowCards: 2, penaltiesTaken: null, penaltyGoals: null },
+    matches: Array.from({ length: 10 }, () => ({ started: true, minutes: 88 })),
+    past: [],
+    penaltyTaker: null,
+    availability: 1,
+    ...o,
+  });
+  it("adds up his parts for the match, then his chance of starting", () => {
+    const b = predictMatch(evidence(), outlook, MODEL_PARAMS);
     const hint = modelBreakdownHint(b, fixture());
     expect(hint.startsWith(`Scoutline's model v BOU (H): ${b.total.toFixed(1)} pts = appearance`)).toBe(true);
     expect(hint).toContain("goals ");
-    expect(hint).toContain("No data for assists, bonus, counted as 0");
-    // The model's general limits stay in the README, not in every hover.
+    expect(hint).toContain(" − cards ");
+    expect(hint).toContain(`${Math.round(b.startChance * 100)}% chance of starting`);
+    // The model's workings stay in the README, not in every hover.
     expect(hint).not.toContain("Poisson");
   });
+  it("says what a figure leans on: no minutes on record, availability", () => {
+    const hint = modelBreakdownHint(predictMatch(evidence({ current: null, matches: [], availability: 0.75 }), outlook, MODEL_PARAMS), fixture());
+    expect(hint).toContain("no Premier League minutes on record: his position and price stand in");
+    expect(hint).toContain("75% chance of being available");
+  });
   it("doubles for the captain and says so", () => {
-    const p = makePlayer({ id: 1, position: "MID", minutes: 900, xG: 3, xA: 2 });
-    const b = computeExpectedPointsV2ForFixture(p, fixture(), undefined, undefined, 0.9, undefined);
+    const b = predictMatch(evidence({ position: "MID" }), outlook, MODEL_PARAMS);
     expect(modelBreakdownHint(b, fixture(), true)).toContain(`(captain ×2): ${(b.total * 2).toFixed(1)} pts`);
   });
 });

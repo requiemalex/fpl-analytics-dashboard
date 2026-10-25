@@ -326,6 +326,8 @@ export const historicBulkPlayerSchema = z
   .object({
     playerId: z.number(),
     historyPast: z.array(elementSummaryPastSeasonSchema),
+    /** <season_matches> (server routes/historicBulk.ts): [minutes, starts] per match this season, oldest first. */
+    seasonMatches: z.array(z.tuple([z.number(), z.number()])).optional(),
   })
   .passthrough();
 

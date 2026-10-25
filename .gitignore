@@ -7,9 +7,12 @@ client/dist/
 /release/
 *.tsbuildinfo
 
-# Generated, re-runnable script output — the actual results at time of
-# writing are documented in README.md; re-run client/scripts/backtestExpectedPoints.ts for a fresh snapshot.
-client/scripts/backtest-results.csv
+# Model Predicted's fitting/backtest scratch (client/scripts/pointsModel/): the
+# live-API cache and the raw JSON reports. The results that matter are
+# committed: pointsModelParams.generated.ts and docs/models/model-predicted-backtest.md.
+client/scripts/pointsModel/.cache/
+client/scripts/pointsModel/backtest-results.json
+client/scripts/pointsModel/fit-report.json
 
 # Env / secrets
 .env

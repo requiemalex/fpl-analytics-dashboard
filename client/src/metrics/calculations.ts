@@ -130,15 +130,12 @@ export function estimatedPointsPerGame(totalPoints: number | null, minutes: numb
 }
 
 /**
- * True per-90-minutes rate (total ÷ minutes × 90) — kept only for
- * Expected Points Tier 2's minute-projection model
- * (metrics/expectedPointsV2.ts), which multiplies a rate by an expected
- * FRACTION OF MINUTES for one upcoming fixture; that projection is
- * genuinely minutes-based, since it's asking "how much of the next
- * single match will this player be on the pitch for" — a per-game
- * figure has no meaningful way to be scaled by a fraction of one match.
- * Every user-facing display metric elsewhere in the app uses perGame()
- * instead — do not add a new display consumer of this function.
+ * True per-90-minutes rate (total ÷ minutes × 90) — no figure the app
+ * shows uses it: every display metric uses perGame() instead — do not add
+ * a new display consumer of this function. Kept for the replaced Model
+ * Predicted, frozen in client/scripts/pointsModel/legacyModel.ts for the
+ * backtest (the points model, metrics/pointsModel.ts, keeps its own
+ * per-90 rates internally).
  */
 export function per90(total: number | null, minutes: number | null): number | null {
   const perMinute = safeDivide(total, minutes);

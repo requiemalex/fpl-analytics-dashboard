@@ -16,6 +16,23 @@ interface BulkPlayerHistory {
   // validates element-summary's history_past shape with Zod for the
   // per-profile lazy fetch, and reuses the same schema for this payload.
   historyPast: unknown[];
+  /**
+   * <season_matches>: this season's matches he was registered for, oldest
+   * first, as [minutes, starts] — what Model Predicted's chance of starting
+   * reads (his recent starts, the last one counting most). From the same
+   * element-summary response's `history`, so it costs no extra request.
+   */
+  seasonMatches: [number, number][];
+}
+
+/** <season_matches> from an element-summary `history` (unvalidated here, like history_past: anything unreadable is left out). */
+export function seasonMatchesFrom(history: unknown[]): [number, number][] {
+  return history
+    .filter((h): h is { minutes?: unknown; starts?: unknown; kickoff_time?: unknown; round?: unknown } => typeof h === "object" && h !== null)
+    .map((h) => ({ minutes: Number(h.minutes), starts: Number(h.starts), kickoff: typeof h.kickoff_time === "string" ? h.kickoff_time : "", round: Number(h.round) || 0 }))
+    .filter((h) => Number.isFinite(h.minutes) && Number.isFinite(h.starts))
+    .sort((a, b) => a.round - b.round || a.kickoff.localeCompare(b.kickoff))
+    .map((h) => [h.minutes, h.starts]);
 }
 
 interface BulkResult {
@@ -136,7 +153,7 @@ export async function buildBulkHistoricData(bypassCache: boolean): Promise<BulkR
       skippedPlayerIds.push(r.item);
       continue;
     }
-    players.push({ playerId: r.item, historyPast: r.result.historyPast });
+    players.push({ playerId: r.item, historyPast: r.result.historyPast, seasonMatches: seasonMatchesFrom(r.result.history) });
     historyByElement.set(r.item, r.result.history);
     if (r.result.stale) staleCount += 1;
   }

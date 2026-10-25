@@ -67,8 +67,8 @@ function currentSeasonMinutesReliability(player: NormalizedPlayer, team: Normali
 /** FPL's unavailable statuses: injured, suspended, unavailable, not available (on loan). */
 const UNAVAILABLE_STATUSES = new Set(["i", "s", "u", "n"]);
 
-/** Chance-of-playing when FPL publishes one; otherwise a status-based default. Never invents a specific percentage for a real doubt FPL hasn't quantified. Null when neither is known (audit 2026-10-18 L4: a missing status isn't "available"). */
-function availabilityModifier(player: NormalizedPlayer): number | null {
+/** Chance-of-playing when FPL publishes one; otherwise a status-based default (shared with Model Predicted, pointsModelLive.ts). Never invents a specific percentage for a real doubt FPL hasn't quantified. Null when neither is known (audit 2026-10-18 L4: a missing status isn't "available"). */
+export function availabilityModifier(player: NormalizedPlayer): number | null {
   if (player.chanceOfPlayingNextRound !== null) return player.chanceOfPlayingNextRound / 100;
   if (player.status === "a") return 1;
   if (player.status === "d") return 0.5;

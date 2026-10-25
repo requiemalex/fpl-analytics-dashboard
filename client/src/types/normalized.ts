@@ -14,9 +14,10 @@ export interface NormalizedTeam {
   losses: number;
   unavailable: boolean;
   /**
-   * FPL's own overall team-strength rating (roughly 2-5), split home/away
-   * — used by Expected Points Tier 2's clean-sheet estimate (see
-   * metrics/expectedPointsV2.ts). Null if the live build ever omits it.
+   * FPL's own overall team-strength rating (roughly 2-5), split home/away.
+   * No figure uses it any more (Model Predicted's clean sheets come from the
+   * Fixture Forecast's ratings, <points_model>). Null if the live build
+   * ever omits it.
    * The more granular strength_attack_home/away and
    * strength_defence_home/away exist on the raw API too, but aren't
    * normalized here — they read 0 for every team as of gameweek 4 of the
@@ -79,7 +80,7 @@ export interface NormalizedPlayer {
   bonus: number | null;
   bps: number | null;
   ictIndex: number | null;
-  /** Season-to-date saves — genuinely 0 (not null) for an outfield player who has made none, same as bonus/bps. Null only if the live build omits the field entirely. See metrics/expectedPointsV2.ts. */
+  /** Season-to-date saves — genuinely 0 (not null) for an outfield player who has made none, same as bonus/bps. Null only if the live build omits the field entirely. Model Predicted's saves rate reads it (<points_model_evidence>). */
   saves: number | null;
   savesPerGame: number | null;
   /** Same on-pitch basis as goalsConceded, per estimated game. Set by resolvePlayerStats. */
@@ -198,6 +199,12 @@ export interface NormalizedFixture {
   /** 1 (easiest) to 5 (hardest), FPL's own rating, from each side's own perspective. */
   homeDifficulty: number;
   awayDifficulty: number;
+}
+
+/** One of this season's matches a player was registered for (<season_matches>): what Model Predicted's chance of starting reads. */
+export interface SeasonMatch {
+  minutes: number;
+  started: boolean;
 }
 
 export interface PlayerGameweekHistory {

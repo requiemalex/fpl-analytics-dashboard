@@ -1,9 +1,11 @@
-import type { NormalizedPlayer, NormalizedTeam, Position } from "../types/normalized";
-import type { UpcomingFixture } from "./fixtureTicker";
-import type { HistoricPlayerProfile } from "./historicAnalysis";
-import { fixtureMultiplier, FDR_SENSITIVITY } from "./expectedPoints";
-import { per90 } from "./calculations";
-import { computeCareerAverages } from "./careerMetrics";
+// FROZEN COPY of client/src/metrics/expectedPointsV2.ts as it stood before the points model replaced it (2026-10-25),
+// kept only so backtest.ts can keep proving the new model against the old one on the same matches. Not used by the app.
+import type { NormalizedPlayer, NormalizedTeam, Position } from "../../src/types/normalized";
+import type { UpcomingFixture } from "../../src/metrics/fixtureTicker";
+import type { HistoricPlayerProfile } from "../../src/metrics/historicAnalysis";
+import { fixtureMultiplier, FDR_SENSITIVITY } from "../../src/metrics/expectedPoints";
+import { per90 } from "../../src/metrics/calculations";
+import { computeCareerAverages } from "../../src/metrics/careerMetrics";
 
 /**
  * Expected Points — Tier 2: an independent, per-scoring-event estimate,

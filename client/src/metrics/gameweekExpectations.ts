@@ -1,5 +1,5 @@
 import { firstPickableEventId, type UpcomingFixture } from "./fixtureTicker";
-import type { ExpectedPointsV2Breakdown } from "./expectedPointsV2";
+import type { ModelBreakdown } from "./pointsModel";
 import type { NormalizedEvent } from "../types/normalized";
 
 /** How many gameweeks Team Building looks ahead: Projected's figures and Add Players' gameweek picker. */
@@ -32,7 +32,7 @@ export interface GameweekExpectation {
   /** FPL Official, summed over his matches; null for a blank or with no figure. Not captain-doubled. */
   fpl: number | null;
   /** The Model's figure for each of his matches; null for a blank or with no figure. */
-  modelBreakdowns: ExpectedPointsV2Breakdown[] | null;
+  modelBreakdowns: ModelBreakdown[] | null;
   /** The Model's figures summed; null when modelBreakdowns is. Not captain-doubled. */
   model: number | null;
 }
@@ -60,12 +60,12 @@ export function expectationForGameweek(
   upcoming: readonly UpcomingFixture[],
   eventId: number,
   fplFor: (fixture: UpcomingFixture, index: number) => number | null,
-  modelFor: (fixture: UpcomingFixture) => ExpectedPointsV2Breakdown | null,
+  modelFor: (fixture: UpcomingFixture) => ModelBreakdown | null,
 ): GameweekExpectation {
   const matches = upcoming.flatMap((fixture, index) => (fixture.eventId === eventId ? [{ fixture, index }] : []));
   const fpl = sumAll(matches, (m) => fplFor(m.fixture, m.index));
   const breakdowns = matches.map((m) => modelFor(m.fixture));
-  const modelBreakdowns = breakdowns.length > 0 && breakdowns.every((b): b is ExpectedPointsV2Breakdown => b !== null) ? breakdowns : null;
+  const modelBreakdowns = breakdowns.length > 0 && breakdowns.every((b): b is ModelBreakdown => b !== null) ? breakdowns : null;
   return {
     eventId,
     fixtures: matches.map((m) => m.fixture),

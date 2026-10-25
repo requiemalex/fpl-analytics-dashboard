@@ -380,10 +380,12 @@ export function UserGuide() {
           </li>
           <li>
             Two Expected Points figures, never blended: <strong>FPL Official</strong> is FPL's own <code>ep_next</code> prediction
-            (extended to later fixtures using fixture difficulty). <strong>Model Predicted</strong> is this app's independent
-            estimate from live per-90 stats (xG, xA, xGC, defensive contributions, saves) and FPL's scoring rules. Hover it, in Add
-            Players or on a pitch card, for how it adds up (appearance, goals, clean sheet, bonus…) and anything it has no data
-            for. It's a second opinion, rougher for goalkeepers and nailed-on popular picks (see the README's backtest).
+            (extended to later fixtures using fixture difficulty). <strong>Model Predicted</strong> is Scoutline's own model: his
+            chance of starting (from his recent starts, the last one counting most), how long he usually plays, his scoring rates
+            from this season and past ones, and each match's Fixture Forecast (the goals each club is expected to score), through
+            FPL's scoring rules — goals, assists, clean sheets, saves, defensive contributions, bonus and cards. It was fitted on
+            past seasons and tested on seasons it hadn't seen. Hover it, in Add Players or on a pitch card, for how it adds up, his
+            chance of starting, and when it leans on his position and price because he has few Premier League minutes.
           </li>
           <li>
             Above the pitch: the squad's name with its buttons, then Squad Value, Bank and <strong>Projected Team Points</strong>.

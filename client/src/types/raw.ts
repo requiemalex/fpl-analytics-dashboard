@@ -32,7 +32,8 @@ export interface RawTeam {
   unavailable: boolean;
   /**
    * FPL's own overall team-strength ratings (roughly 2-5), split by
-   * home/away — used for Expected Points Tier 2's clean-sheet estimate.
+   * home/away (no figure uses them now: Model Predicted reads the Fixture
+   * Forecast's ratings).
    * The live API also exposes strength_attack_home/away and
    * strength_defence_home/away, which would be a more granular input,
    * but as observed directly on the live 2026/27 endpoint (9 Sept 2026,
@@ -86,7 +87,7 @@ export interface RawElement {
   bonus: number;
   bps: number;
   ict_index: string;
-  /** Season-to-date total saves — goalkeepers only, 0 for outfield players. Used by Expected Points Tier 2's saves-rate estimate. */
+  /** Season-to-date total saves — goalkeepers only, 0 for outfield players. Model Predicted's saves rate reads it (<points_model_evidence>). */
   saves?: number | null;
   saves_per_90?: number | null;
   /**
@@ -332,6 +333,8 @@ export interface RawElementSummary {
 export interface RawHistoricBulkPlayer {
   playerId: number;
   historyPast: RawElementSummaryPastSeason[];
+  /** <season_matches>: [minutes, starts] for each of this season's matches he was registered for, oldest first. Absent from an older server build. */
+  seasonMatches?: [number, number][];
 }
 
 /**

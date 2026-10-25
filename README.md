@@ -275,8 +275,9 @@ Every analysis page has the same three-way toggle, resolved through
   the player has, counting only seasons of 855+ minutes, on every page
   (see "Minimum minutes"); a light season over that still counts
   (`<no_survivorship_bias>`, `metrics/historicAnalysis.ts`).
-  `MIN_QUALIFYING_SEASON_MINUTES` (900) only decides which seasons Model
-  Predicted's bonus rate comes from (Minutes Reliability uses every season).
+  `MIN_QUALIFYING_SEASON_MINUTES` (900) decides nothing the app shows any
+  more (it fed Model Predicted's bonus rate before the points model;
+  Minutes Reliability uses every season).
   Per-game rates count games from the **total** minutes across the
   seasons, rounded up once (`<games_from_total_minutes>`,
   `metrics/calculations.ts`), so each is total stat ÷ total games — never
@@ -379,8 +380,7 @@ entries too: a scatter point under the floor is drawn as the amber
 stopwatch (`SmallSampleMark`, the same mark as Player Comparison's trend
 points) and a bar's stopwatch sits beside its name, each with the reason
 in its hover box; the graph's own stopwatch hover counts them. A threshold
-inside a model (Team Building's Model Predicted) marks no entry, so it's
-grey. Two uses:
+inside a figure that marks no entry is grey. Two uses:
 - **On a view where a threshold is in force:** the profile's Data View
   toggle, always (`profileFloorNote`); Player Explorer's Mins header when
   a "≥"/"=" filter is set; Team Building's Min minutes label when set;
@@ -392,9 +392,7 @@ grey. Two uses:
   View toggles have no stopwatch in any view, and only the players under
   those seasons carry one; a view's note mentions them alongside its own
   threshold;
-  Team Building's Model Predicted header (its bonus rate uses only window
-  seasons of 900+ minutes, `MIN_QUALIFYING_SEASON_MINUTES`); the Team
-  Profile's Formations card title (only formations used for 90+ minutes
+  the Team Profile's Formations card title (only formations used for 90+ minutes
   are shown, `FORMATION_MIN_MINUTES` — too few for a formation's rates,
   not a club floor, which clubs don't have — so it's always grey).
 - **On an entry under one:** a row in Player Explorer, Team Building's Add
@@ -474,7 +472,9 @@ too.
   checked against every fixture's real score and a sample of official
   season totals. The raw archive is frozen in `data/vaastav-snapshot/`
   (commit and sha256 pinned in `manifest.json`), so the backfill never
-  touches the network.
+  touches the network. It (and Understat) may also be used to fit and
+  prove Model Predicted (the owner's decision, 2026-10-25;
+  `client/scripts/pointsModel/`), never as a figure the app shows.
 - **2026/27 on:** archived from the official API only, by
   `.github/workflows/club-history-archive.yml` (Tue/Fri 05:00 UTC). It is
   append-only and writes nothing if more than 5% of requests fail. It
@@ -548,6 +548,14 @@ on two rules, both built in:
    `client/src/extensions/externalStats.ts`.
 2. **Checked continuously.** The daily sync proves it isn't blocked, is
    fresh, and agrees with FPL, or it writes nothing and alerts the owner.
+
+Modelling (the owner's decision, 2026-10-25): Understat may be used to fit
+and prove Team Building's Model Predicted, and may feed it while it's a
+good source and helps, so long as taking Understat out takes it out of the
+model too (through the same slot, with the model falling back to FPL's
+data alone). Today it only fits and proves it: its penalty evidence was
+tested and gave no gain, so the live model reads FPL's data only
+(`<points_model>`).
 
 ### How data gets to the app
 
@@ -1090,9 +1098,9 @@ Goals − xG, Assists − xA, (Goals + Assists) − xGI
 ```
 
 Known limit: ten 1-minute cameos look like one 10-minute cameo, because
-there is no bulk per-gameweek data for the whole pool. The one true per-90
-rate is internal to Expected Points Tier 2 (`per90()`), which scales a rate
-by a fraction of one upcoming match.
+there is no bulk per-gameweek data for the whole pool. Model Predicted's
+rates are true per-90 rates, internal to it (`<points_model>`): it scales a
+rate by the minutes expected in one upcoming match.
 
 ### Fixture Forecast
 
@@ -1150,8 +1158,8 @@ independent, so draws come out a little low (22.6% forecast, 24.5%
 happened) and wins a little high (38.7%, 37.8%). Nothing knows about
 injuries, suspensions or rotation, only the matches.
 
-Team Building's Exp. Pts clean-sheet estimate is still its own (FPL's
-team strength ratings, `expectedPointsV2.ts`).
+Team Building's Model Predicted reads the same ratings for every match's
+goals expected each way (`<points_model>`).
 
 ### Other methodology
 
@@ -1732,10 +1740,12 @@ included.
 ### Team Building — predictions
 
 Everything else in the app describes what happened, but for the Team
-Profile's Fixture Forecast (a fitted model, "Fixture Forecast" above).
-Team Building predicts, at the user's request, using **disclosed
-heuristics, not a fitted model**:
-every weight is a named constant with its reasoning. It has no analysis-mode
+Profile's Fixture Forecast (a fitted model, "Fixture Forecast" above), which
+Model Predicted also reads.
+Team Building predicts, at the user's request: FPL Official extends FPL's
+own `ep_next` with **disclosed heuristics** (every weight a named constant
+with its reasoning), and Model Predicted is a **fitted model**, proven on
+seasons it wasn't fitted on (below). It has no analysis-mode
 toggle; its Historic/Raw columns have their own. Squads (`useSavedSquads`,
 max 5) are created blank or imported by FPL team ID (positions 1–11 are the
 starting XI, also in a Bench Boost week; a Free Hit week imports that week's
@@ -1823,28 +1833,114 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
 - **Exp. Pts (FPL Official)** — `metrics/expectedPoints.ts`. FPL's `ep_next`
   for the player's first upcoming match. Later matches are `ep_next ×
   fixtureMultiplier(FDR, position)`.
-- **Exp. Pts (Model Predicted)** — Tier 2, `metrics/expectedPointsV2.ts`.
-  Never reads `ep_next`. It estimates each scoring event from the app's own
-  stats and FPL's 2026/27 scoring rules:
-  - appearance split from reliability (`p60 = r^1.5`, `p0 = (1−r)^1.5`)
-  - goals and assists as rates
-  - clean sheets from overall team strengths
-  - goals conceded as E[X]/2
-  - saves
-  - defensive contribution via Poisson
-  - bonus as a rough historic rate
+- **Exp. Pts (Model Predicted)** — `<points_model>`, `metrics/pointsModel.ts`
+  (the model), `metrics/pointsModelLive.ts` (its evidence from the app's
+  data), `metrics/pointsModelParams.generated.ts` (its fitted settings).
+  Scoutline's own expected points for one match, never reading `ep_next`:
+  every way FPL scores a player, each as its own expectation under FPL's
+  2026/27 rules, added up. Its shape comes from an analysis of every
+  player-match since 2016/17 (which stats repeat season to season, how each
+  position scores, what moves with the fixture), and every setting is fitted
+  on past seasons and proven on seasons it didn't see (below).
+  - **Playing time.** A chance of starting: a logistic per position of his
+    starts in his last six matches this season (the latest counting most:
+    ×0.75 per match back), whether he started the last one, his season's
+    start share, last season's starts ÷ 38, and his price (a £1m-dearer
+    goalkeeper is far likelier to be the first choice). Then how long
+    starters play: his own share of starts lasting 60+ and his minutes in
+    them, pulled toward his position's (92–99% of starts, 82–90 minutes),
+    so a forward taken off at 65 every week gets less of every part than
+    one who plays the 90; and how often he comes off the bench when he
+    doesn't start (his own record, pulled toward 1%/11%/21%/23% for
+    GKP/DEF/MID/FWD). Everything is multiplied by FPL's availability
+    (Minutes Reliability's: `chance_of_playing_next_round`, else a status
+    default; unknown → no figure). Every other part is worked out for each
+    way the match can go for him — starts and plays 60+, starts and goes
+    off early, comes on, doesn't play — so the clean sheet, the 2-point
+    appearance and the thresholds see the minutes they need.
+  - **Goals and assists.** His rate per 90: 65% xG and 35% goals (49% xA,
+    51% assists: actual goals add to xG's prediction of next season's
+    goals), this season counting fully and each past season about half as
+    much again per season back (×0.49, up to three), plus 10 matches'
+    worth (9.6 for assists) of what a player of his position and price
+    usually manages, so a few lucky minutes can't take over. Then × (his
+    club's goals expected in this match ÷ its usual)^0.85.
+  - **Clean sheet and goals conceded.** His club's, from the Fixture
+    Forecast's goals expected against (`<fixture_forecast>`, the Team
+    Profile's own ratings): a clean sheet is e^−(goals against × his
+    minutes ÷ 90) when he plays 60+; "−1 per 2 conceded" is the exact
+    expectation of ⌊conceded ÷ 2⌋. (A defender's clean sheets are his
+    club's: r = 0.91.)
+  - **Saves** (goalkeepers): his rate per 90 (12 matches of the league
+    rate pulled in) × (goals expected against ÷ usual)^0.66, paying the
+    exact ⌊saves ÷ 3⌋; plus penalty saves at the league rate.
+  - **Defensive contribution.** His own rate per 90 (only 3 matches of his
+    position's rate pulled in: it's the most repeatable stat in the game),
+    and the chance of reaching 10 (DEF) / 12 (MID, FWD) in the minutes he
+    plays, with the spread a match's actions really have (variance 1.2–1.3×
+    the mean). Not moved by the opponent: a defender's actions barely
+    change with who he faces.
+  - **Bonus.** His bonus per 90 (25 matches of his position and price's
+    pulled in: bonus is noisy), × (1 + k × (his club's chance of winning
+    − its usual)), k ≈ 2–3 for outfield players (about 70% of bonus comes
+    in wins), 0 for goalkeepers.
+  - **Cards and own goals.** His yellow cards per 90 (20 matches of his
+    position's pulled in), and red cards and own goals at his position's
+    rate.
+  - **Penalties** are inside his xG (FPL's xG counts them). The model can
+    take them apart (non-penalty rates plus the club's 0.125 penalties a
+    match, 82.9% scored, 0.79 xG each, all measured from Understat's
+    shots) when it has penalty evidence, but the backtest found no gain
+    over leaving them in xG, so the app gives it none and Model Predicted
+    reads FPL's data only (the owner's decision, 2026-10-25: Understat may
+    feed the model while it helps; here it doesn't).
+  - **What it leans on** goes in the hover: under 900 Premier League
+    minutes on record, his position and price weigh in; with none, they
+    stand in. Head-to-head records and former clubs play no part: across
+    every match since 2016/17 a player's or club's record against one
+    opponent didn't carry into the next meeting.
+  - **No figure ("—")** when his availability is unknown, his matches this
+    season didn't load (the historic build skipped him), or either club
+    has no Fixture Forecast rating (both come with the historic load).
+    The hover says so.
 
-  Cards, own goals and penalties are not modelled. Each estimate carries
-  `caveats[]` (the model's limits, documented here) and `gaps[]` (the parts
-  with no data for that player, counted as 0). Hovering the figure, in Add
-  Players or on a pitch card, shows its parts and its `gaps`
+  Hovering the figure, in Add Players or on a pitch card, shows its parts,
+  his chance of starting and expected minutes, and what it leans on
   (`modelBreakdownHint`, `components/hoverText.ts`).
-- **Last backtest** (`client/scripts/backtestExpectedPoints.ts`, GW2–3
-  2026/27, top 20 per position): Tier 2 MAE 2.66 vs a historic-rate baseline
-  2.76 — better at FWD, worse at GKP and for ≥15%-owned players. It's an
-  early read; re-run it as the season deepens. (`ep_next` has no history, so
-  Tier 1 itself can't be backtested.)
-- **Minutes Reliability** (`metrics/minutesReliabilityBlend.ts`) blends
+- **Its evidence** (`<points_model_evidence>`, `playerEvidence`): this
+  season's totals from bootstrap-static, his matches this season
+  (`<season_matches>`: [minutes, starts] each, oldest first, sent with the
+  historic build from the element-summaries it already fetches), his last
+  three completed seasons from `history_past`, his price and FPL's
+  availability. Club ratings: the Fixture Forecast's, fitted once on the
+  club records as the Team Profile shows them (`modelClubRatings`).
+- **Fitting and proving it** (`client/scripts/pointsModel/`; the owner's
+  decision 2026-10-25: every approved source may be used to fit and prove
+  the model). `history.ts` rebuilds what the app would have known before
+  every gameweek since 2022/23 (`<as_of_evidence>`: the club records'
+  ledger, vaastav for cards and prices, Understat for penalties). `fit.ts`
+  fits each part against its own outcome on 2022/23–2024/25 only
+  (defensive contribution, recorded from 2025/26, on 2025/26 GW1–19) and
+  writes `pointsModelParams.generated.ts`. `backtest.ts` proves it on
+  2025/26 and 2026/27 so far against the model it replaced (kept frozen as
+  `legacyModel.ts`) and a points-per-match baseline, writing
+  `docs/models/model-predicted-backtest.md`. Run from the repo root:
+  `npx tsx client/scripts/pointsModel/fit.ts`, then `backtest.ts`. The
+  client build type-checks the scripts. Last results (no injury news given
+  to either model): on 2025/26 GW20–38, unseen by every setting, the
+  typical miss (RMSE) is 1.86 points against the old model's 1.95, the
+  average miss +0.05 against −0.16 (the old model's under-prediction
+  gives it the smaller average absolute miss, 0.96 against 1.00: half of
+  all players score 0, which a figure pulled toward 0 is nearer), and the correlation with actual points
+  within a position and gameweek 0.60 against 0.54; on 2026/27 so far 2.15
+  against 2.29, and 0.57 against 0.51. It tells who starts better (AUC
+  0.92–0.98 against 0.89–0.96), and every part is calibrated to within a
+  few hundredths of a point. Its weakest spot: among players who do start,
+  it orders midfielders and forwards about as well as the old model did,
+  not better.
+- **Minutes Reliability** (`metrics/minutesReliabilityBlend.ts`: the Add
+  Players column and the pitch cards; Model Predicted has its own chance of
+  starting, above, and shares only the availability part) blends
   historic minutes share with live share. The live weight is
   `min(1, club games / 8)`. The historic side uses every season in the
   window, weights recent seasons more, and discounts inconsistency. Only
@@ -1857,14 +1953,12 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   injury. The same availability applies to every upcoming gameweek: a
   one-match ban zeroes all five in both models (FPL Official because every later step
   scales `ep_next`, which FPL already zeroes).
-- **The named weights** (judgement calls, not fitted):
+- **The named weights** (judgement calls, not fitted; Model Predicted's
+  settings are fitted, above):
 
   | Constant | Value | Where |
   |---|---|---|
-  | `FDR_SENSITIVITY` | GKP 0.08, DEF 0.08, MID 0.10, FWD 0.12 per FDR step from 3 | `expectedPoints.ts` (both models) |
-  | `BASE_CLEAN_SHEET_RATE` | 0.28, ± `CLEAN_SHEET_STRENGTH_SENSITIVITY` 0.06 per strength point, clamped 0.03–0.75 | `expectedPointsV2.ts` |
-  | `MINUTES_SKEW` | 1.5 (`p60 = r^1.5`, `p0 = (1−r)^1.5`) | `expectedPointsV2.ts` |
-  | `DEFENSIVE_CONTRIBUTION_THRESHOLD` | DEF 10, MID/FWD 12 actions (not in `game_config.scoring`) | `expectedPointsV2.ts` |
+  | `FDR_SENSITIVITY` | GKP 0.08, DEF 0.08, MID 0.10, FWD 0.12 per FDR step from 3 | `expectedPoints.ts` (FPL Official) |
   | `GAMES_FOR_FULL_CURRENT_WEIGHT` | 8 club games | `minutesReliabilityBlend.ts` |
   | recency weights | oldest season 1 … newest n | `minutesReliabilityBlend.ts` |
   | `MIN_CONSISTENCY_RETENTION` | 0.65 | `minutesReliabilityBlend.ts` |
@@ -1944,8 +2038,9 @@ changes still work for the session; they just don't persist.
 `npm test` runs Vitest in both workspaces: calculations, normalize, state
 persistence and migrations, the server cache/proxy/concurrency layer, club
 history, and regression tests for past bugs. Coverage is partial —
-`expectedPoints.ts`, `expectedPointsV2.ts` and most of `TeamBuilder.tsx` are
-untested. Beyond tests, verification is `npm run build` plus running the
+`expectedPoints.ts` and most of `TeamBuilder.tsx` are untested; Model
+Predicted is tested (`pointsModel.test.ts`, `TeamBuilder.model.test.tsx`)
+and backtested (`client/scripts/pointsModel/`). Beyond tests, verification is `npm run build` plus running the
 app. Playwright isn't installed, but it works via
 `npx playwright install chromium` plus a throwaway driver script (nothing
 committed).
@@ -2121,8 +2216,8 @@ time it's opened, before the app appears; an open one finds it within about
 - No historic ownership: `history_past` has none, so it shows "—" in
   historic modes.
 - Team `strength_attack_*`/`strength_defence_*` read 0 for every team
-  (observed GW4 2026/27). Only `strength_overall_home/away` is used, by
-  Tier 2 clean sheets.
+  (observed GW4 2026/27). `strength_overall_home/away` is normalized but
+  no figure uses it any more (Model Predicted reads the Fixture Forecast).
 - Restarting the server clears its in-memory cache (cheap — the API is the
   source of truth).
 - Imported squads store chip usage (`usedChips`), but no page shows it at

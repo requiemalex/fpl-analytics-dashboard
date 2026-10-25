@@ -3988,3 +3988,28 @@ tiles/graphs only:
   gameweek (<upcoming_gameweeks>): a double's matches added up, a blank
   shown as no match.
 - **Last commit with it:** `2771a96`.
+
+### Model Predicted's per-event heuristic model, "Tier 2" (replaced 2026-10-25)
+- **What it did:** Team Building's Exp. Pts (Model Predicted),
+  `metrics/expectedPointsV2.ts`: per scoring event from this season's
+  per-90 stats and judgement-call constants. Appearance split from Minutes
+  Reliability (`p60 = r^1.5`, `p0 = (1−r)^1.5`); goals, assists and goals
+  conceded as rates × Minutes Reliability × an FDR multiplier
+  (`FDR_SENSITIVITY`); clean sheets 0.28 ± 0.06 per point of FPL's overall
+  team strength, clamped 0.03–0.75; goals conceded as E[X]/2; defensive
+  contribution as a Poisson of rate × reliability; bonus from seasons of
+  900+ minutes (its header carried the stopwatch for that). Cards and
+  penalties weren't modelled. Its backtest script,
+  `client/scripts/backtestExpectedPoints.ts`, had stopped measuring it
+  (it set per-90 fields the model no longer read, so goals, assists,
+  goals conceded, saves and DC came out as 0).
+- **Why it went:** replaced by the fitted points model (`<points_model>`,
+  README "Team Building — predictions"), the owner's request after an
+  analysis of every player-match since 2016/17. On seasons neither had
+  been fitted on it predicts better (2025/26 GW20–38: RMSE 1.86 vs 1.95,
+  average miss +0.05 vs −0.16, correlation with actual points 0.60 vs
+  0.54; 2026/27 so far: 2.15 vs 2.29), tells who starts better, and
+  gives a figure for players with no minutes yet. The old model is kept
+  frozen as `client/scripts/pointsModel/legacyModel.ts` so the backtest
+  keeps comparing against it.
+- **Last commit with it:** `d4e68d8`.

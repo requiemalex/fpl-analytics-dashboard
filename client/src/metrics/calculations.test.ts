@@ -88,7 +88,7 @@ describe("estimatedPointsPerGame (the one deliberate zero-vs-null exception)", (
   });
 });
 
-describe("per90 (true per-90 rate — internal use only, expectedPointsV2)", () => {
+describe("per90 (true per-90 rate — internal use only, the frozen replaced model)", () => {
   it("computes total/minutes*90 exactly, independent of estimated-games rounding", () => {
     // Deliberately reproduces the *documented* nonsensical case the app
     // moved away from for display metrics: 2 points in 1 minute -> 180.

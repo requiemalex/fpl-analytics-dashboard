@@ -68,7 +68,7 @@ describe("buildHistoricPlayerProfile", () => {
     expect(profile.allSeasonsInWindow).toHaveLength(3);
   });
 
-  it("qualifyingSeasons still filters by MIN_QUALIFYING_SEASON_MINUTES (used for Model Predicted's bonus rate, not the average)", () => {
+  it("qualifyingSeasons still filters by MIN_QUALIFYING_SEASON_MINUTES (expectedPoints.ts's reliability gate, not the average)", () => {
     const lightSeason = makeSeason({ seasonName: "2024/25", minutes: MIN_QUALIFYING_SEASON_MINUTES - 1 });
     const qualifyingSeason = makeSeason({ seasonName: "2025/26", minutes: MIN_QUALIFYING_SEASON_MINUTES });
     const profile = buildHistoricPlayerProfile([lightSeason, qualifyingSeason], "2025/26");

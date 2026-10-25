@@ -1,102 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { SCORING_RULES, splitMinutesProbability, computeExpectedPointsV2ForFixture } from "./expectedPointsV2";
 import { computeExpectedPointsForSingleFixture, computeExpectedPointsForWindow } from "./expectedPoints";
 import { getUpcomingFixtures, firstPickableEventId, type UpcomingFixture } from "./fixtureTicker";
-import { computeBlendedMinutesReliability } from "./minutesReliabilityBlend";
-import { buildHistoricPlayerProfile } from "./historicAnalysis";
 import { canAddPlayer, validateSquad } from "./squadRules";
 import { normalizeEntryImport } from "../normalize/normalizeEntryImport";
-import { makePlayer, makeTeam, makeSeason } from "../test/fixtures";
+import { makePlayer, makeTeam } from "../test/fixtures";
 import type { NormalizedFixture, Position } from "../types/normalized";
-
-// FPL's own 2026/27 scoring, from the live bootstrap-static game_config.scoring (fetched 2026-10-18).
-const FPL_SCORING = {
-  long_play: 2,
-  short_play: 1,
-  assists: 3,
-  saves: 1,
-  goals_scored: { GKP: 10, DEF: 6, MID: 5, FWD: 4 },
-  clean_sheets: { GKP: 4, DEF: 4, MID: 1, FWD: 0 },
-  goals_conceded: { GKP: -1, DEF: -1, MID: 0, FWD: 0 },
-  defensive_contribution: { GKP: 0, DEF: 2, MID: 2, FWD: 2 },
-};
-const POSITIONS: Position[] = ["GKP", "DEF", "MID", "FWD"];
 
 const fixture = (o: Partial<UpcomingFixture> = {}): UpcomingFixture => ({ fixtureId: 1, eventId: 1, opponentTeamId: 2, opponentShortName: "OPP", isHome: true, difficulty: 3, ...o });
 
-describe("Expected Points Tier 2 — scoring rules match FPL 2026/27", () => {
-  it.each(POSITIONS)("%s point values equal game_config.scoring", (pos) => {
-    const r = SCORING_RULES[pos];
-    expect(r.playing60plus).toBe(FPL_SCORING.long_play);
-    expect(r.playing1to59).toBe(FPL_SCORING.short_play);
-    expect(r.assist).toBe(FPL_SCORING.assists);
-    expect(r.goal).toBe(FPL_SCORING.goals_scored[pos]);
-    expect(r.cleanSheet).toBe(FPL_SCORING.clean_sheets[pos]);
-    expect(r.everyTwoConceded).toBe(FPL_SCORING.goals_conceded[pos]);
-    expect(r.defensiveContribution).toBe(FPL_SCORING.defensive_contribution[pos]);
-    expect(r.everyThreeSaves).toBe(pos === "GKP" ? FPL_SCORING.saves : 0);
-  });
-});
-
-describe("Expected Points Tier 2 — appearance split", () => {
-  it.each([0, 0.1, 0.25, 0.5, 0.75, 0.9, 1])("probabilities for r=%s are non-negative and sum to 1", (r) => {
-    const m = splitMinutesProbability(r);
-    expect(m.p60Plus).toBeGreaterThanOrEqual(0);
-    expect(m.p1to59).toBeGreaterThanOrEqual(0);
-    expect(m.p0).toBeGreaterThanOrEqual(0);
-    expect(m.p60Plus + m.p1to59 + m.p0).toBeCloseTo(1, 10);
-    expect(m.p60Plus).toBeCloseTo(Math.pow(r, 1.5), 10);
-    expect(m.p0).toBeCloseTo(Math.pow(1 - r, 1.5), 10);
-  });
-});
-
-describe("Expected Points Tier 2 — hand-computed case (Gabriel, ARS, at NFO, GW7 2026/27 live data)", () => {
-  // Raw inputs from bootstrap-static (2026-10-18) and history_past. Hand working is in the audit report.
-  const player = makePlayer({ id: 4, position: "DEF", teamId: 1, minutes: 540, xG: 0.51, xA: 0.21, xGC: 4.65, defensiveContributions: 46, ownership: 21.1, status: "a", chanceOfPlayingNextRound: null });
-  const ars = makeTeam({ id: 1, played: 6, strengthOverallHome: 4, strengthOverallAway: 5 });
-  const nfo = makeTeam({ id: 18, played: 6, strengthOverallHome: 3, strengthOverallAway: 3 });
-  const profile = buildHistoricPlayerProfile(
-    [
-      makeSeason({ seasonName: "2022/23", minutes: 3409, bonus: 15 }),
-      makeSeason({ seasonName: "2023/24", minutes: 3042, bonus: 8 }),
-      makeSeason({ seasonName: "2024/25", minutes: 2363, bonus: 9 }),
-      makeSeason({ seasonName: "2025/26", minutes: 2750, bonus: 30 }),
-    ],
-    "2025/26",
-  );
-
-  // Phase 2 (M12, owner's decision): ownership left the blend, so the hand
-  // figures below were recomputed without it, independently from the
-  // formulas (the same working with ownership reproduces Phase 1's figures).
-  it("reliability matches the hand blend (0.75 live + 0.25 historic, no ownership)", () => {
-    expect(computeBlendedMinutesReliability(player, ars, profile).value).toBeCloseTo(0.93578, 4);
-  });
-
-  it("each scoring component and the total match the hand computation", () => {
-    const r = computeBlendedMinutesReliability(player, ars, profile).value!;
-    const b = computeExpectedPointsV2ForFixture(player, fixture({ opponentTeamId: 18, isHome: false, difficulty: 3 }), ars, nfo, r, profile);
-    expect(b.appearance).toBeCloseTo(1.88895, 4);
-    expect(b.goals).toBeCloseTo(0.47725, 4);
-    expect(b.assists).toBeCloseTo(0.09826, 4);
-    expect(b.cleanSheet).toBeCloseTo(1.44837, 4);
-    expect(b.goalsConceded).toBeCloseTo(-0.36261, 4);
-    expect(b.defensiveContribution).toBeCloseTo(0.37522, 4);
-    expect(b.bonus).toBeCloseTo(0.45154, 4);
-    expect(b.saves).toBe(0);
-    expect(b.total).toBeCloseTo(4.37697, 4);
-  });
-});
-
-describe("Expected Points Tier 2 — null-safety", () => {
-  it("missing xG gives zero goals plus a caveat, never NaN", () => {
-    const p = makePlayer({ id: 1, position: "FWD", minutes: 0, xG: null, xA: null });
-    const b = computeExpectedPointsV2ForFixture(p, fixture(), undefined, undefined, 0.5, undefined);
-    expect(Number.isFinite(b.total)).toBe(true);
-    expect(b.goals).toBe(0);
-    expect(b.caveats.some((c) => c.includes("xG/90"))).toBe(true);
-  });
-});
-
+// Model Predicted's own tests (scoring rules included) are in pointsModel.test.ts.
 describe("Expected Points (FPL Official)", () => {
   const p = makePlayer({ id: 1, position: "FWD", epNext: 5 });
   it("the next fixture is ep_next unmodified; later ones scale by their own FDR", () => {

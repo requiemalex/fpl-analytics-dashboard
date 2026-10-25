@@ -61,9 +61,10 @@ export interface HistoricPlayerProfile {
   lastCompletedSeason: PlayerSeasonHistory | null;
   /**
    * Seasons within the window that meet MIN_QUALIFYING_SEASON_MINUTES,
-   * oldest first. Not used for Historic Average — only for Team Building's
-   * Model Predicted bonus rate (`expectedPointsV2.ts`) and
-   * `expectedPoints.ts`'s forward-prediction reliability gate.
+   * oldest first. Not used for Historic Average — only for
+   * `expectedPoints.ts`'s forward-prediction reliability gate
+   * (computeExpPointsBreakdown), which no figure shows today (Model
+   * Predicted's bonus rate used it before the points model).
    */
   qualifyingSeasons: PlayerSeasonHistory[];
   /**

@@ -5,7 +5,7 @@ import { normalizePlayers } from "../normalize/normalizePlayers";
 import { normalizeTeams } from "../normalize/normalizeTeams";
 import { normalizeFixtures } from "../normalize/normalizeFixtures";
 import { applyRealTeamStandings } from "../normalize/deriveTeamStandings";
-import { normalizeBulkHistoricData } from "../normalize/normalizeElementSummary";
+import { normalizeBulkHistoricData, normalizeBulkSeasonMatches } from "../normalize/normalizeElementSummary";
 import { deriveGameweekState, normalizeEvents, seasonHasStarted } from "../normalize/gameweek";
 import { normalizeChips } from "../normalize/normalizeChips";
 import { runMetricValidation, type ValidationReport } from "../metrics/validation";
@@ -13,7 +13,7 @@ import { buildAllHistoricProfiles, type HistoricPlayerProfile } from "../metrics
 import { skippedRecordCount } from "../validation/schema";
 import { liveSeasonName, rolloverSavedIds } from "./seasonIdRollover";
 import { setFinishedGameweeks } from "./seasonProgress";
-import type { NormalizedPlayer, NormalizedTeam, NormalizedFixture, NormalizedEvent, GameweekState, ChipWindow, PlayerSeasonHistory, ClubSeason } from "../types/normalized";
+import type { NormalizedPlayer, NormalizedTeam, NormalizedFixture, NormalizedEvent, GameweekState, ChipWindow, PlayerSeasonHistory, ClubSeason, SeasonMatch } from "../types/normalized";
 import type { AdvancedFieldAvailability } from "../normalize/fieldAvailability";
 
 export type DataStatus = "loading" | "ready" | "error";
@@ -66,6 +66,8 @@ interface AppState {
   historicProfiles: Map<number, HistoricPlayerProfile>;
   /** Every season in a player's history_past, unwindowed — unlike historicProfiles (capped to the last HISTORIC_WINDOW_SEASONS for recency-focused analysis elsewhere), this is the full career, oldest first, for genuine "over the years" trend charts. Empty until historic data has been loaded at least once. */
   allTimeSeasonsByPlayerId: Map<number, PlayerSeasonHistory[]>;
+  /** Each player's matches this season (<season_matches>), oldest first: Model Predicted's chance of starting reads them. Empty until historic data has loaded; a player the build skipped has none. */
+  seasonMatchesByPlayerId: Map<number, SeasonMatch[]>;
   /** Player IDs the server couldn't build historic data for (a transient upstream blip) — informational, not an error unless it's most of the pool. */
   historicSkippedPlayerIds: number[];
   /**
@@ -124,6 +126,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [historicReferenceSeason, setHistoricReferenceSeason] = useState<string | null>(null);
   const [historicProfiles, setHistoricProfiles] = useState<Map<number, HistoricPlayerProfile>>(new Map());
   const [allTimeSeasonsByPlayerId, setAllTimeSeasonsByPlayerId] = useState<Map<number, PlayerSeasonHistory[]>>(new Map());
+  const [seasonMatchesByPlayerId, setSeasonMatchesByPlayerId] = useState<Map<number, SeasonMatch[]>>(new Map());
   const [historicSkippedPlayerIds, setHistoricSkippedPlayerIds] = useState<number[]>([]);
   const [historicFetchSkippedPlayerIds, setHistoricFetchSkippedPlayerIds] = useState<number[]>([]);
   const [clubSeasons, setClubSeasons] = useState<ClubSeason[]>([]);
@@ -317,6 +320,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setHistoricProfiles(profiles);
       historicProfilesRef.current = profiles;
       setAllTimeSeasonsByPlayerId(seasonsByPlayer);
+      setSeasonMatchesByPlayerId(normalizeBulkSeasonMatches(result.data));
       setHistoricSkippedPlayerIds(result.data.skippedPlayerIds);
       const unreadable = new Set(result.data.unreadablePlayerIds ?? []);
       if (unreadable.size > 0) console.warn(`historic-bulk: ${unreadable.size} player(s) failed validation and were left out`);
@@ -446,6 +450,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       historicReferenceSeason,
       historicProfiles,
       allTimeSeasonsByPlayerId,
+      seasonMatchesByPlayerId,
       historicSkippedPlayerIds,
       historicFetchSkippedPlayerIds,
       clubSeasons,
@@ -481,6 +486,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       historicReferenceSeason,
       historicProfiles,
       allTimeSeasonsByPlayerId,
+      seasonMatchesByPlayerId,
       historicSkippedPlayerIds,
       historicFetchSkippedPlayerIds,
       clubSeasons,

@@ -1,8 +1,8 @@
 import type { Position } from "../types/normalized";
 import type { UpcomingFixture } from "../metrics/fixtureTicker";
-import type { ExpectedPointsV2Breakdown } from "../metrics/expectedPointsV2";
+import type { ModelBreakdown } from "../metrics/pointsModel";
 import type { GameweekExpectation } from "../metrics/gameweekExpectations";
-import { fmtDecimal } from "../utils/format";
+import { fmtDecimal, fmtPercent } from "../utils/format";
 
 /**
  * <hover_text>: what a hover says, app-wide (the owner's pass, 2026-10-20).
@@ -77,11 +77,12 @@ export function versusText(f: UpcomingFixture | undefined): string {
 }
 
 /**
- * The model's figure for one match, in parts: "Model 5.8 v BOU (H) =
- * appearance 1.9 + goals 1.2 + … − goals conceded 0.4", then the inputs he
- * has no data for. The model's general limits are in the README, not here.
+ * The model's figure for one match, in parts: "Scoutline's model v BOU (H):
+ * 5.8 pts = appearance 1.9 + goals 1.2 + … − goals conceded 0.4 − cards
+ * 0.1", then his chance of starting and what the figure leans on. The
+ * model's workings are in the README, not here.
  */
-export function modelBreakdownHint(b: ExpectedPointsV2Breakdown, fixture: UpcomingFixture | undefined, captain = false): string {
+export function modelBreakdownHint(b: ModelBreakdown, fixture: UpcomingFixture | undefined, captain = false): string {
   const scale = captain ? 2 : 1;
   const parts: [string, number][] = [
     ["appearance", b.appearance],
@@ -93,11 +94,19 @@ export function modelBreakdownHint(b: ExpectedPointsV2Breakdown, fixture: Upcomi
     ["bonus", b.bonus],
   ];
   const shown = parts.filter(([, v]) => v * scale >= 0.05).map(([name, v]) => `${name} ${fmtDecimal(v * scale, 1)}`);
-  const conceded = b.goalsConceded * scale <= -0.05 ? ` − goals conceded ${fmtDecimal(-b.goalsConceded * scale, 1)}` : "";
+  const losses: [string, number][] = [
+    ["goals conceded", b.goalsConceded],
+    ["cards", b.cards],
+  ];
+  const lost = losses
+    .filter(([, v]) => v * scale <= -0.05)
+    .map(([name, v]) => ` − ${name} ${fmtDecimal(-v * scale, 1)}`)
+    .join("");
   const head = `Scoutline's model${versusText(fixture)}${captain ? " (captain ×2)" : ""}: ${fmtDecimal(b.total * scale, 1)} pts`;
-  const sum = shown.length > 0 ? ` = ${shown.join(" + ")}${conceded}` : "";
-  const gaps = b.gaps.length > 0 ? `. No data for ${b.gaps.join(", ")}, counted as 0` : "";
-  return `${head}${sum}${gaps}`;
+  const sum = shown.length > 0 ? ` = ${shown.join(" + ")}${lost}` : "";
+  const playing = `. ${fmtPercent(b.startChance * 100, 0)} chance of starting, about ${Math.round(b.expectedMinutes)} minutes expected`;
+  const notes = b.notes.length > 0 ? `; ${b.notes.join("; ")}` : "";
+  return `${head}${sum}${playing}${notes}`;
 }
 
 /** " v BUR (H) and v WOL (A)": a gameweek's matches (two in a double). */
@@ -124,7 +133,7 @@ export function fplGameweekHint(g: GameweekExpectation | null, captain = false):
 export function modelGameweekHint(g: GameweekExpectation | null, captain = false): string {
   const gap = gameweekGapHint(g);
   if (gap || g === null) return gap ?? "";
-  if (g.modelBreakdowns === null) return "Scoutline's model has no figure: there's no playing-time estimate for him";
+  if (g.modelBreakdowns === null) return "Scoutline's model has no figure: it needs his availability news, his matches this season and both clubs' records, and one of them isn't there";
   return g.modelBreakdowns.map((b, i) => modelBreakdownHint(b, g.fixtures[i], captain)).join("\n");
 }
 

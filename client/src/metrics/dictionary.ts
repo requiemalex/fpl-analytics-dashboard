@@ -795,6 +795,24 @@ export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
     caveats: "The bench and automatic substitutions aren't counted; the captain is assumed to keep the armband in every gameweek.",
     availabilityNote: "A playing starter with no figure is left out of the total (not counted as 0) and the hover says how many had one; one whose club blanks adds nothing; — with no starters, nobody playing or no figures.",
   }),
+  modelPredictedPoints: def({
+    displayName: "Exp. Pts (Model Predicted)",
+    internalName: "modelPredictedPoints",
+    source: "Derived",
+    apiFields: [
+      "bootstrap-static (season totals, price, chance_of_playing_next_round, status)",
+      "element-summary history (this season's minutes and starts per match) and history_past (last three seasons)",
+      "club history (the Fixture Forecast's ratings)",
+    ],
+    suppliedByFPL: false,
+    derived: true,
+    formula:
+      "One match: Σ over the ways it can go for him (starts and plays 60+, starts and goes off early, comes on, doesn't play) of its chance × what each part pays in it, under FPL's 2026/27 rules — appearance, goals and assists (per-90 rates blending xG/goals and xA/assists, this season and past seasons, pulled toward his position and price, × the club's goals expected ÷ its usual), clean sheet and goals conceded (the Fixture Forecast's goals against), saves, defensive contribution (chance of reaching the threshold), bonus (× the club's win chance against its usual), cards and own goals. Settings fitted on 2022/23–2024/25 (pointsModelParams.generated.ts). A gameweek's figure adds up his matches in it.",
+    units: "points",
+    caveats:
+      "A model's expectation, not a forecast of what he'll score: proven on 2025/26 and 2026/27 (docs/models/model-predicted-backtest.md). FPL's availability is for the next round only, so it applies to every gameweek ahead.",
+    availabilityNote: "— when his availability is unknown, his matches this season didn't load, or either club has no Fixture Forecast rating; the hover says so.",
+  }),
 };
 
 export const METRIC_LIST = Object.values(METRIC_DICTIONARY);

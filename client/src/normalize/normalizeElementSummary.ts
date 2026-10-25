@@ -1,5 +1,5 @@
 import type { RawElementSummary, RawElementSummaryPastSeason, RawHistoricBulk } from "../types/raw";
-import type { PlayerGameweekHistory, PlayerSeasonHistory } from "../types/normalized";
+import type { PlayerGameweekHistory, PlayerSeasonHistory, SeasonMatch } from "../types/normalized";
 import { parseNumericString, parseNumberOrNull } from "./parseNumeric";
 import { seasonStartYear } from "../utils/season";
 
@@ -146,6 +146,15 @@ export function normalizeSeasonHistory(raw: RawElementSummary): PlayerSeasonHist
  * (a transient upstream failure — see RawHistoricBulk.skippedPlayerIds)
  * simply has no entry in the returned map, same as "no career history".
  */
+/** Each player's <season_matches>, oldest first; a player whose entry has none (an older server build) is left out, never given an empty season. */
+export function normalizeBulkSeasonMatches(raw: RawHistoricBulk): Map<number, SeasonMatch[]> {
+  const map = new Map<number, SeasonMatch[]>();
+  for (const p of raw.players) {
+    if (p.seasonMatches) map.set(p.playerId, p.seasonMatches.map(([minutes, starts]) => ({ minutes, started: starts > 0 })));
+  }
+  return map;
+}
+
 export function normalizeBulkHistoricData(raw: RawHistoricBulk): Map<number, PlayerSeasonHistory[]> {
   const map = new Map<number, PlayerSeasonHistory[]>();
   for (const p of raw.players) {
