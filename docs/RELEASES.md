@@ -5,6 +5,10 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.110.1 · 25 Oct 2026
+
+- Team Building: drop the import badge and captain instructions, Points Prediction last and no longer spills out of its button
+
 ## v1.110.0 · 25 Oct 2026
 
 - Team Building: Add Players gets its own GW+1 to GW+5 picker for the Exp. Pts columns
