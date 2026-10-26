@@ -4080,3 +4080,23 @@ tiles/graphs only:
   fixture and chance of playing (`<fpl_official>`, README "Exp. Pts (FPL
   Official)").
 - **Last commit with it:** `c502df5`.
+
+### Team Building's Add Players section (replaced 2026-10-26)
+- **What it did:** a card under the pitch, always shown, with its own
+  table: Search, Position, Team and **Min minutes** boxes above it; a
+  Predictive column group (Exp. Pts FPL Official and Model Predicted,
+  Exp. Mins, a sortable Next 5 Fixtures) and a Historic/Raw group, each
+  with its own Columns button; its own **gameweek arrows** for the Exp.
+  Pts and Exp. Mins columns ("Predictive columns show:") and its own Data
+  View picker ("Historic/raw columns show:"). Rows could be dragged onto
+  the pitch or bench. A "+" scrolled down to it.
+- **Why it went:** the owner asked for Add Players to open only when a
+  player is being added, for its historic columns to be Player Explorer's
+  own table (same columns, sources, headers and saved views), for each Exp.
+  Pts column to add up 1 to 5 gameweeks, and for Exp. Mins to stay on the
+  next gameweek. It's now a dialog opened from a "+" (`<add_players_dialog>`)
+  showing the shared table (`<shared_player_table>`); Min minutes is the
+  Mins column filter, Team and Position are columns, and the gameweek
+  arrows are the pitch's alone (`<points_horizon>` for the columns).
+  Dragging from it went, as the dialog covers the pitch.
+- **Last commit with it:** `abd27eb`.

@@ -313,27 +313,6 @@ table.data-table th .sort-indicator {
   color: var(--accent-positive);
 }
 
-/* Team Building picker's one pinned-left column (Player — the Add button
-   lives inside this cell). Own% used to be pinned here too, with a fixed
-   width so the two sticky columns could reliably stack; it's now a
-   normal customisable Historic/Raw column like every other metric
-   (resizable, comparative-coloured, orderable), matching how Player
-   Explorer already treats it, so only one sticky column remains. */
-table.data-table th.picker-sticky-player,
-table.data-table td.picker-sticky-player {
-  position: sticky;
-  left: 0;
-  z-index: 3;
-  width: 210px;
-  max-width: 210px;
-  background: var(--surface-raised);
-  text-align: left;
-}
-table.data-table td.picker-sticky-player {
-  background: var(--surface);
-  z-index: 1;
-}
-
 /* Divider between column groups (e.g. predictive vs. historic/raw, or
    identity vs. stat columns) — muted grey rather than the focus-accent
    blue so it reads as a neutral separator, not an interactive cue. */
@@ -1349,6 +1328,146 @@ select:focus {
   font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+/* ---------- Projected Points (<projected_points>) ----------
+   Beside the squad's figures and the pitch's controls: the starting XI's
+   Exp. Pts for the pitch's gameweek and source. Fixed width and gaps, so
+   it reads the same at every window size; on a narrow window it drops
+   below them rather than squeezing. */
+.pitch-view-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+.pitch-view-top-main {
+  flex: 1 1 520px;
+  min-width: 0;
+}
+.projected-box {
+  flex: 0 0 280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--accent-value);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+.projected-box-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.projected-box-label {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-value);
+}
+.projected-box-tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.projected-box-value {
+  font-family: var(--font-mono);
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--text-primary);
+}
+.projected-box-parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* ---------- Add Players dialog (<add_players_dialog>) ----------
+   Team Building's shared player table (<shared_player_table>) in a large
+   dialog. Under the profile takeover (z-index 40), so a name clicked in it
+   opens his profile on top, and under the small dialogs (50) a saved view
+   opens. Hidden, not removed, while closed. */
+.add-players-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  background: rgba(4, 7, 5, 0.6);
+}
+.add-players-backdrop[hidden] {
+  display: none;
+}
+.add-players-panel {
+  width: min(1600px, 100%);
+  height: min(88vh, 1100px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: var(--space-5) var(--space-6);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  outline: none;
+}
+.add-players-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.add-players-close {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.add-players-close:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+/* The table fills what's left of the dialog and scrolls inside it, as on Player Explorer's page. */
+.explorer-panel-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.explorer-panel-body .table-wrap {
+  flex: 1;
+  min-height: 0;
+}
+/* <points_horizon>: the gameweeks an Exp. Pts header adds up. */
+.horizon-picker {
+  height: 18px;
+  margin-left: 2px;
+  padding: 0 2px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
 }
 
 /* ---------- Centered confirm/prompt dialog (New Squad, Delete Squad) ---------- */

@@ -6,6 +6,7 @@ import { TeamBuilder } from "./TeamBuilder";
 import { makePlayer, makeTeam } from "../test/fixtures";
 import { saveVersioned } from "../state/persistentStorage";
 import type { NormalizedFixture } from "../types/normalized";
+import { addPlayersCell, addPlayersHeader, openAddPlayers } from "../test/addPlayers";
 
 // Add Players' and the pitch's own gameweek arrows (<gameweek_arrows>,
 // GW1, GW2… by FPL's numbering): each moves only its own figures. The
@@ -49,6 +50,11 @@ vi.mock("../state/AppStateContext", () => ({
     clubSeasons: [],
     historicReferenceSeason: null,
     historicFetchSkippedPlayerIds: [],
+    historicSkippedPlayerIds: [],
+    historicErrorMessage: null,
+    historicRefreshing: false,
+    refreshHistoricData: () => {},
+    advancedFieldAvailability: null,
     seasonMatchesByPlayerId: new Map(),
     historicStatus: "ready",
     currentSeasonHasStarted: true,
@@ -65,78 +71,80 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-function fplCell(container: HTMLElement, name: string): HTMLElement | undefined {
-  const headers = Array.from(container.querySelectorAll<HTMLElement>("table.data-table.compact thead th"));
-  const index = headers.findIndex((th) => th.childNodes[0]?.textContent?.trim() === "Exp. Pts (FPL Official)");
-  const row = Array.from(container.querySelectorAll("table.data-table.compact tbody tr")).find((tr) => tr.querySelector(".name")?.textContent?.trim() === name);
-  return row?.querySelectorAll<HTMLElement>("td")[index];
-}
+const fplCell = (container: HTMLElement, name: string) => addPlayersCell(container, "Exp. Pts (FPL Official)", name);
 
 function card(container: HTMLElement, name: string): HTMLElement {
   return Array.from(container.querySelectorAll<HTMLElement>(".pitch .pitch-card")).find((c) => c.querySelector(".pitch-card-name")?.textContent?.includes(name))!.querySelector<HTMLElement>(".pitch-card-figure")!;
 }
 
-/** The pitch's arrows, or the table's (the ones outside the pitch). */
-function arrows(container: HTMLElement, which: "pitch" | "table") {
-  const groups = Array.from(container.querySelectorAll<HTMLElement>(".gameweek-arrows"));
-  const group = groups.find((g) => (g.closest(".squad-pitch") !== null) === (which === "pitch"))!;
+/** The pitch's gameweek arrows (Add Players has none: its Exp. Pts columns pick how many gameweeks to add up). */
+function pitchArrows(container: HTMLElement) {
+  const group = container.querySelector<HTMLElement>(".squad-pitch .gameweek-arrows")!;
   return {
     shown: () => group.querySelector(".gameweek-arrows-value")!.textContent,
     next: () => fireEvent.click(group.querySelector<HTMLElement>('[aria-label="Next gameweek"]')!),
   };
 }
 
+/** <points_horizon>: picks how many gameweeks a column's Exp. Pts adds up. */
+function pickHorizon(container: HTMLElement, label: string, gameweeks: number) {
+  fireEvent.change(addPlayersHeader(container, label)!.querySelector("select.horizon-picker")!, { target: { value: String(gameweeks) } });
+}
+
 function renderBuilder() {
-  return render(
+  const utils = render(
     <MemoryRouter initialEntries={["/team-building"]}>
       <TeamBuilder />
     </MemoryRouter>,
   );
+  openAddPlayers(utils);
+  return utils;
 }
 
-describe("Team Building — the gameweek arrows", () => {
-  it("the table's move its Exp. Pts to the picked gameweek; the pitch cards, and their colours, stay where the pitch's arrows are", () => {
+const projected = (container: HTMLElement) => container.querySelector(".projected-box-value")!.textContent;
+
+describe("Team Building — gameweeks", () => {
+  it("<points_horizon> an Exp. Pts column adds up as many gameweeks as its header picks, a blank counting 0; the pitch stays where its arrows are", () => {
     const { container } = renderBuilder();
     expect(fplCell(container, "Enzo")!.textContent).toBe("4.0");
-    const sakaBefore = { text: card(container, "Saka").textContent, colour: card(container, "Saka").style.backgroundColor };
-    const palmerColour = card(container, "Palmer").style.backgroundColor;
-    expect(sakaBefore.text).toBe("5.0");
-    expect(sakaBefore.colour).not.toBe(palmerColour);
-
-    const table = arrows(container, "table");
-    expect(table.shown()).toBe("GW1");
-    table.next();
-    expect(table.shown()).toBe("GW2");
-
-    expect(fplCell(container, "Enzo")!.textContent).toBe("4.8");
-    expect(arrows(container, "pitch").shown()).toBe("GW1");
-    expect(card(container, "Saka").textContent).toBe(sakaBefore.text);
-    expect(card(container, "Saka").style.backgroundColor).toBe(sakaBefore.colour);
-    expect(card(container, "Palmer").style.backgroundColor).toBe(palmerColour);
+    expect(fplCell(container, "Odegaard")!.textContent).toBe("3.0");
+    pickHorizon(container, "Exp. Pts (FPL Official)", 3);
+    // GW1 4.0 + GW2 4.8 (FDR 1) + GW3 8.0 (a double); Odegaard 3.0 + 2.4 (FDR 5) + a blank.
+    expect(fplCell(container, "Enzo")!.textContent).toBe("16.8");
+    expect(fplCell(container, "Enzo")!.title).toContain("FPL figures, next 3 gameweeks: 16.8 pts");
+    expect(fplCell(container, "Enzo")!.title).toContain("GW3 v BUR (H) and v WOL (A): 8.0");
+    expect(fplCell(container, "Odegaard")!.textContent).toBe("5.4");
+    expect(fplCell(container, "Odegaard")!.title).toContain("GW3: no match");
+    expect(pitchArrows(container).shown()).toBe("GW1");
+    expect(card(container, "Saka").textContent).toBe("5.0");
   });
 
-  it("the pitch's move the cards and their colours; the table stays", () => {
+  it("the pitch's arrows move the cards, their colours and Projected Points; Add Players stays", () => {
     const { container } = renderBuilder();
     const sakaColour = card(container, "Saka").style.backgroundColor;
-    arrows(container, "pitch").next();
+    expect(card(container, "Saka").textContent).toBe("5.0");
+    // <projected_points>: the XI (Saka, Palmer), no captain.
+    expect(projected(container)).toBe("9.0");
+    pitchArrows(container).next();
     // GW2: Arsenal FDR 5 (5 × 0.8), Chelsea FDR 1 (4 × 1.2). Saka is no longer the top midfielder.
     expect(card(container, "Saka").textContent).toBe("4.0");
     expect(card(container, "Palmer").textContent).toBe("4.8");
     expect(card(container, "Saka").style.backgroundColor).not.toBe(sakaColour);
-    expect(arrows(container, "table").shown()).toBe("GW1");
+    expect(projected(container)).toBe("8.8");
     expect(fplCell(container, "Enzo")!.textContent).toBe("4.0");
   });
 
-  it("adds up a double gameweek's two matches, and shows a blank as no match", () => {
+  it("a double gameweek's two matches add up on the pitch, and a blank shows as no match", () => {
     const { container } = renderBuilder();
-    const table = arrows(container, "table");
-    table.next();
-    table.next();
-    expect(table.shown()).toBe("GW3");
-    expect(fplCell(container, "Enzo")!.textContent).toBe("8.0");
-    expect(fplCell(container, "Enzo")!.title).toContain("FPL figures v BUR (H): 4.0 pts");
-    expect(fplCell(container, "Enzo")!.title).toContain("\nFPL figures v WOL (A): 4.0 pts");
-    expect(fplCell(container, "Odegaard")!.textContent).toBe("—");
-    expect(fplCell(container, "Odegaard")!.title).toContain("No match in GW3");
+    pitchArrows(container).next();
+    pitchArrows(container).next();
+    expect(pitchArrows(container).shown()).toBe("GW3");
+    expect(card(container, "Palmer").textContent).toBe("8.0");
+    expect(card(container, "Palmer").title).toContain("FPL figures v BUR (H): 4.0 pts");
+    expect(card(container, "Palmer").title).toContain("\nFPL figures v WOL (A): 4.0 pts");
+    expect(card(container, "Saka").textContent).toBe("—");
+    expect(card(container, "Saka").title).toContain("No match in GW3");
+    // Saka's blank adds 0 to Projected Points.
+    expect(projected(container)).toBe("8.0");
   });
 });

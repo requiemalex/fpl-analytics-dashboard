@@ -127,7 +127,7 @@ expensive-to-fetch data: players, teams, fixtures, events, historic profiles
 **per page** — each page keeps its own in `useState` and renders the
 controlled `AnalysisModeToggle`/`FiltersBar`; nothing a page does can change
 another page. Every Data View picker (Player and Team Explorer, both
-profiles, Team Building's Historic/Raw columns) is the one `DataViewPicker`
+profiles, Team Building's Add Players) is the one `DataViewPicker`
 box: the mode icons, the season(s) the view covers (`dataViewSeasonLabel`:
 `2026/27`, or `2022/23–2025/26` for Historic Average) and any minutes
 stopwatch, all inside it. The live season (`liveSeason`, from gameweek 1's
@@ -321,7 +321,7 @@ stop tiny samples taking over. The whole of it, as of 2026-10-19:
 
 | | Where | Which rows show | Colour (green/red) |
 |---|---|---|---|
-| **You set the minimum** | Player Explorer (Mins column filter), Dashboard tiles and graphs you build (Min Minutes), Player Comparison cards in views you build (Min Minutes), Team Building's Add Players (Min minutes) | Yours, in **every** Data View, Current Season included; 0 by default | Fixed floor |
+| **You set the minimum** | Player Explorer (Mins column filter), Dashboard tiles and graphs you build (Min Minutes), Player Comparison cards in views you build (Min Minutes), Team Building's Add Players (its Mins column filter: it is Player Explorer's table) | Yours, in **every** Data View, Current Season included; 0 by default | Fixed floor |
 | **You can't** | Player profile, the packaged Starter views (Dashboard and Player Comparison) | Fixed floor: a quarter of the minutes available — 855 for a completed season; in Current Season a quarter of the gameweeks finished so far, never under 90 (`metrics/fixedMinutesFloor.ts`, `<fixed_minutes_floor>`) | Fixed floor |
 
 The floor is a quarter of the minutes available (the owner's rule,
@@ -383,7 +383,7 @@ in its hover box; the graph's own stopwatch hover counts them. A threshold
 inside a figure that marks no entry is grey. Two uses:
 - **On a view where a threshold is in force:** the profile's Data View
   toggle, always (`profileFloorNote`); Player Explorer's Mins header when
-  a "≥"/"=" filter is set; Team Building's Min minutes label when set;
+  a "≥"/"=" filter is set (Team Building's Add Players too: the same table);
   each Dashboard player tile or graph with a threshold — the Starter floor
   or its own Min Minutes above 0 (`dashboardItemFloorNote`); each Player
   Comparison card with one (Starter's floor or a card's Min Minutes above
@@ -703,10 +703,10 @@ without it leaves that season's Shots Faced uncoloured.
   group for every figure with a ⇄ toggle, then violet "Understat ·"
   groups (Understat-only figures). With Understat switched off, the
   crossover figures go back to their FPL groups and the rose heading
-  disappears. Team Building's Add Players headers follow the Explorers'
-  too: green when the figure follows the Data View, muted red when always
-  live (its Predictive Columns are the app's own model, not FPL's figures,
-  so they stay plain). A
+  disappears. Team Building's Add Players is Player Explorer's own table
+  (`<shared_player_table>`), so its headers and pickers are the same; its
+  Predictive columns (the app's own forecasts, not a Data View's figures)
+  stay plain. A
   small amber dot on an Understat header means its data is out of date or
   unavailable; its hover text says which. "Behind" is judged from FPL's own
   fixtures (`understat/staleness.ts`): a finished match 2+ days old that
@@ -1413,7 +1413,19 @@ sorts below every real value in Player Explorer, at the owner's request,
 and last in either direction everywhere else; Shift-click adds any header,
 the name column included, as a tiebreaker), and ≤/≥/= column filters
 (`state/useColumnFilters.ts`, `components/ColumnFilterControl.tsx`) are
-shared engines, reused by Team Building's Add Players table. Search is
+shared engines. The whole table is shared too (`<shared_player_table>`,
+`components/PlayerExplorerTable.tsx`, the owner's request 2026-10-26):
+Player Explorer's page and Team Building's Add Players dialog are the
+same component — Data View, columns (Understat's and the ⇄ toggles
+included), filters, sort, Hide, saved views, export, headers and look. A
+host adds only what's its own, kept apart from the Explorer's: lead
+columns straight after Player (Team Building's Predictive group, its own
+group in the Columns picker, never in a saved view), an action on each
+row (Add), and players to leave out (the squad). Saved views are one
+store (`useExplorerViews("player")`), so a view saved in Player Explorer
+loads in Add Players and the other way round; a view keeps no lead
+column's sort or filter. Next 5 Fixtures sorts and filters by the five
+matches' average FPL difficulty, easiest first. Search is
 accent- and order-insensitive with small-typo tolerance, splits the
 query at dots/apostrophes (curly ones too)/hyphens as it does names, and treats a one-letter
 word as an initial that must start a name word (`utils/playerSearch.ts`).
@@ -1767,8 +1779,8 @@ Team Building predicts, at the user's request: FPL Official builds on
 FPL's own figures (`ep_next`, his season's points, xG and xA, the chance of
 playing, fixture difficulty) with **disclosed heuristics** (every weight a
 named constant with its reasoning), and Model Predicted is a **fitted model**, proven on
-seasons it wasn't fitted on (below). It has no analysis-mode
-toggle; its Historic/Raw columns have their own. Squads (`useSavedSquads`,
+seasons it wasn't fitted on (below). The page has no analysis-mode
+toggle; Add Players (Player Explorer's table) has its own Data View. Squads (`useSavedSquads`,
 max 5) are created blank or imported by FPL team ID (positions 1–11 are the
 starting XI, also in a Bench Boost week; a Free Hit week imports that week's
 temporary squad). Squad rules
@@ -1813,24 +1825,38 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   next five FDR-coloured chips instead. **Points Prediction** is the
   player's Exp. Pts for the gameweek the pitch's arrows pick (a double's
   two matches added up, "—" for a blank), from the source its FPL/Model
-  toggle picks (shown only while it's selected). **Minutes** is his Exp.
+  toggle picks (always shown: Projected Points and Best Draft follow it
+  too, whatever the kits highlight). **Minutes** is his Exp.
   Mins for that gameweek (below). **Price** has its own toggle
   (`<price_view>`, below). The switches are per page, like every view
   switch. Above the pitch, three rows: the squad's name (no formation or
   player count) with the Captain, Vice-Captain, Clear Draft and Best Draft
   buttons (the app's standard `.btn`, green while armed); then Squad Value
-  and Bank as tiles; then the **Gameweek** arrows and Highlight. A
-  club-limit breach is a banner. The bench is a row of slots, goalkeeper
+  and Bank as tiles (Squad Value: the players at what they count against
+  the budget, an import's at their selling prices, so it's under FPL's own
+  Squad Value, which is today's prices; the gap is the half of each rise
+  FPL keeps); then the **Gameweek** arrows, Highlight and Source,
+  with **Projected Points** beside those two rows (below). A club-limit
+  breach is a banner. The bench is a row of slots, goalkeeper
   first, each labelled with its position (no bench order: the app has
   none).
 - **Gameweek arrows** (`<gameweek_arrows>`, `GameweekArrows` in
   `components/MenuControls.tsx`) — ‹ GW10 › steps one gameweek at a time
   through the upcoming gameweeks (below), greyed at either end, "—" with
-  none left. The pitch has its own (its cards' Points Prediction and
-  Minutes, their colours, and Best Draft follow it) and Add Players has
-  its own (its Exp. Pts and Exp. Mins columns); each moves only its own
-  figures, per page, starting on the next gameweek. The same control in
-  both places (the owner's rule: same thing, same way).
+  none left. Only the pitch has them (its cards' Points Prediction and
+  Minutes, their colours, Projected Points and Best Draft follow them),
+  per page, starting on the next gameweek. Add Players has none: its
+  Exp. Pts columns each add up a number of gameweeks from the next one
+  (`<points_horizon>`), and Exp. Mins and Next 5 Fixtures don't move.
+- **Projected Points** (`<projected_points>`, `projectedPoints` in
+  `components/SquadPitch.tsx`) — a box beside the squad's figures: the
+  starting XI's Exp. Pts for the pitch's gameweek from the Source toggle's
+  figure, the captain's counted twice as FPL scores him. A starter with no
+  match that gameweek adds 0; one with a match but no figure leaves "—"
+  (never a part-count, `<partial_totals>`), and the hover names him.
+  Beneath it, the captain's share and the bench's total (not in the
+  figure). Fixed width beside the two rows; on a narrow window it drops
+  below them.
 - **Best Draft** (`<best_draft>`, `metrics/bestDraft.ts`) — sets the
   starting XI, captain and vice-captain with the most Exp. Pts for the
   pitch's gameweek, from Points Prediction's source (FPL Official or
@@ -1902,9 +1928,9 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   (2 GKP, 5 DEF, 5 MID, 3 FWD) is a "+": the XI's open places take them
   first, keeping it legal (each line to its minimum, then toward 4-4-2,
   then to its maximum), the rest on the bench, so an empty squad shows a
-  4-4-2 and a bench of GKP, DEF, MID, FWD. A "+" sets Add Players'
-  Position to that position and moves there; Add then places the player
-  as always (`<add_to_xi>`). A player dragged onto a "+" lands on the
+  4-4-2 and a bench of GKP, DEF, MID, FWD. A "+" opens the Add Players
+  dialog (below) listing that position, search box ready; Add then places
+  the player as always (`<add_to_xi>`) and closes it. A player dragged onto a "+" lands on the
   pitch or bench it's on. With no squad yet the tile is inert, so no "+"
   can be used.
 - **Upcoming gameweeks** (`<upcoming_gameweeks>`,
@@ -1918,16 +1944,35 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   loaded, when the figures are "—"). A player's figure for a gameweek
   (`expectationForGameweek`) is his club's matches in it added up: a
   double counts both, a blank has none ("No match in GW10"). Each match
-  is still worked out by its place in his upcoming list (below). The
-  pitch cards are for the gameweek the pitch's arrows pick; Add Players'
-  Exp. Pts and Exp. Mins columns for the one its own arrows (beside the
-  Data View picker) pick, each the next by default. The cards' colours
-  rank the pitch's gameweek's figures among every player whatever the
-  table shows (`pitchExpectations`). A match that has kicked off
+  is still worked out by its place in his upcoming list (below). Every
+  player's figures for every upcoming gameweek are worked out once
+  (`expectationsByPlayerId`): the pitch cards read the gameweek the
+  pitch's arrows pick, and their colours rank its figures among every
+  player (`pitchExpectations`); Add Players adds them up (below). A match that has kicked off
   (FPL's `started`) is never upcoming, even before FPL marks it
   `finished` hours after full time. The Fixtures chips and column are
   still each club's next five matches; the Explorers' Next 5 Fixtures use
   the kick-off rule only.
+- **Add Players** (`<add_players_dialog>`) — a large dialog, not a section
+  of the page: hidden until a "+" opens it, closed by its ×, Escape, a
+  click outside it, or adding a player. It's hidden rather than removed
+  while closed, so it reopens as it was left (Data View, columns, sort,
+  filters, a loaded view); each opening sets Position to the "+" place's
+  and clears the search. Under the profile takeover, so clicking a name
+  opens his profile on top. Its table is Player Explorer's
+  (`<shared_player_table>`, above), starting with Next 5 Fixtures and
+  Player Explorer's default columns, the squad left out, and an **Add**
+  on each row (greyed, with the reason as its hover, when a squad rule
+  stops him). Its own Predictive columns come first: the two Exp. Pts and
+  Exp. Mins, coloured by rank within the position with no minutes floor.
+  It replaced the Add Players section (`docs/HISTORY.md`).
+- **Exp. Pts horizon** (`<points_horizon>`, `horizonTotal` in
+  `metrics/gameweekExpectations.ts`) — each Exp. Pts column's header has
+  its own picker, 1 to 5 gameweeks (`HorizonPicker`), from the next one;
+  the column adds that many up. A blank counts 0; a gameweek with a match
+  but no figure leaves "—". Near the season's end it adds up what's left.
+  The hover lists each gameweek's figure (one gameweek keeps its own
+  breakdown).
 - **Exp. Pts (FPL Official)** — `<fpl_official>`, `metrics/expectedPoints.ts`
   (`fplOfficialForFixture`). Expected points for one match from FPL's own
   figures only: `(share × ep_next + (1 − share) × season × chance of
@@ -2122,8 +2167,9 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   0.75 — the rest is finishing, clean sheets and bonus falling as they
   do.
 - **Exp. Mins** (`<expected_minutes>`, dictionary `expectedMinutes`: the
-  Add Players column and the pitch's Minutes) — Model Predicted's own
-  playing time for a gameweek, its matches added up (a double's two, up
+  Add Players column, always the next gameweek's — who starts later can't
+  be known yet, the owner's call 2026-10-26 — and the pitch's Minutes, for
+  the pitch's gameweek) — Model Predicted's own playing time for a gameweek, its matches added up (a double's two, up
   to 180): for each match, Σ over the ways it can go for him (starts and
   plays 60+, starts and goes off early, comes on, doesn't play) of its
   chance × its minutes (`expectedMinutes` in `predictMatch`, "Playing

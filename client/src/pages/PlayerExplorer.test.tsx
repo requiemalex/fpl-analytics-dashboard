@@ -19,6 +19,9 @@ const PLAYERS = [
   makePlayer({ id: 4, name: "Bob", position: "FWD", teamId: 2, teamShortName: "CHE", totalPoints: 10, price: 6 }),
 ];
 
+// One upcoming match: Arsenal at home to Chelsea, FPL difficulty 5 for Arsenal, 2 for Chelsea.
+const FIXTURES = [{ id: 1, eventId: 9, homeTeamId: 1, awayTeamId: 2, homeScore: null, awayScore: null, kickoffTime: "2026-11-01T15:00:00Z", finished: false, started: false, homeDifficulty: 5, awayDifficulty: 2 }];
+
 /** What the mocked app state reports for the historic build — a test can set "loading" to see the page mid-build. */
 const historic = vi.hoisted(() => ({ status: "ready" as "idle" | "loading" | "ready" | "error" }));
 
@@ -27,7 +30,7 @@ vi.mock("../state/AppStateContext", () => ({
     players: PLAYERS,
     teams: TEAMS,
     teamsById: new Map(TEAMS.map((t) => [t.id, t])),
-    fixtures: [],
+    fixtures: FIXTURES,
     advancedFieldAvailability: null,
     historicProfiles: new Map(),
     historicStatus: historic.status,
@@ -323,5 +326,16 @@ describe("Player Explorer — saved views (<explorer_views>)", () => {
     // Reset clears the notice along with everything else.
     fireEvent.click(getByRole("button", { name: /^Restore the default columns/ }));
     expect(container.querySelector(".banner.stale")).toBeNull();
+  });
+});
+
+describe("Next 5 Fixtures", () => {
+  it("sorts by the matches' average FPL difficulty, easiest first on the first click", () => {
+    const { container, getByRole } = renderExplorer();
+    fireEvent.click(getByRole("button", { name: /^Columns/ }));
+    fireEvent.click(within(container.querySelector<HTMLElement>(".popover")!).getByLabelText("Next 5 Fixtures"));
+    fireEvent.click(header(container, "Next 5 Fixtures"));
+    expect(rowNames(container).slice(0, 2).sort()).toEqual(["Bob", "Ángel"]);
+    expect(rowNames(container).slice(2).sort()).toEqual(["Zubimendi", "Ødegaard"]);
   });
 });

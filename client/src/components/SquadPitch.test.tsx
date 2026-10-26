@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/react";
-import { SquadPitch, type PitchColourRanks } from "./SquadPitch";
+import { SquadPitch, projectedPoints, type PitchColourRanks } from "./SquadPitch";
 import { percentileTint } from "../utils/colorScale";
 import { openSquadSlots, validateSquad } from "../metrics/squadRules";
 import { makePlayer } from "../test/fixtures";
@@ -112,9 +112,11 @@ describe("<kit_view> Highlight", () => {
     expect(figure()).toBe("—");
     fireEvent.click(getByRole("radio", { name: /^Price:/ }));
     expect(figure()).toBe("£7.5m");
-    // The Source toggle is Points Prediction's alone; Price has its own.
-    expect(queryByRole("radiogroup", { name: "Source" })).toBeNull();
+    // The Source toggle stays (Projected Points and Best Draft follow it in every view); Price adds its own.
+    expect(getByRole("radiogroup", { name: "Source" })).toBeTruthy();
     expect(getByRole("radiogroup", { name: "Price" })).toBeTruthy();
+    fireEvent.click(getByRole("radio", { name: /^Expected minutes/ }));
+    expect(queryByRole("radiogroup", { name: "Price" })).toBeNull();
     fireEvent.click(getByRole("radio", { name: /next five matches/ }));
     expect(figure()).toBeUndefined();
     expect([...container.querySelectorAll(".pitch-card .pitch-card-fixture")].map((c) => c.textContent)).toEqual(["BUR", "WOL"]);
@@ -377,5 +379,37 @@ describe("<best_draft> Best Draft", () => {
     const button = getByRole("button", { name: "Best Draft" });
     expect(button).toHaveProperty("disabled", true);
     expect(button.getAttribute("title")).toMatch(/^Needs players for a legal starting XI/);
+  });
+});
+
+describe("<projected_points> projectedPoints", () => {
+  const mid = (id: number, name: string) => makePlayer({ id, name, position: "MID" });
+  const gw = (fpl: number | null, matches = 1): GameweekExpectation => ({ ...nextGameweek(), fixtures: matches ? [fixture(1, "BUR", true)] : [], fplBreakdowns: null, fpl });
+  const xi = [mid(1, "A"), mid(2, "B"), mid(3, "C")];
+
+  it("adds up the starting XI, the captain's counted twice, a blank counting 0; the bench apart", () => {
+    const figures = new Map([
+      [1, gw(4)],
+      [2, gw(null, 0)],
+      [3, gw(2.5)],
+      [4, gw(1.5)],
+    ]);
+    const p = projectedPoints(xi, [mid(4, "D")], 1, figures, "fpl");
+    expect(p.total).toBe(10.5);
+    expect(p.captain).toEqual({ name: "A", points: 8 });
+    expect(p.bench).toBe(1.5);
+  });
+  it("has no total while a starter with a match has no figure, and names him", () => {
+    const p = projectedPoints(xi, [], null, new Map([[1, gw(4)], [2, gw(null)], [3, gw(1)]]), "fpl");
+    expect(p.total).toBeNull();
+    expect(p.missing).toEqual(["B"]);
+    expect(projectedPoints([], [], null, new Map(), "fpl").total).toBeNull();
+  });
+  it("shows on the pitch beside the squad's figures, following the Source toggle", () => {
+    const { container, getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })], [], vi.fn(), 1);
+    expect(container.querySelector(".projected-box-value")!.textContent).toBe("8.4");
+    expect(container.querySelector(".projected-box-tag")!.textContent).toBe("GW9 · FPL");
+    fireEvent.click(getByRole("radiogroup", { name: "Source" }).querySelector<HTMLElement>('[aria-label^="Exp. Pts (Model"]')!);
+    expect(container.querySelector(".projected-box-value")!.textContent).toBe("—");
   });
 });

@@ -45,8 +45,8 @@ const KIT_VIEW_OPTIONS: SegmentOption<KitView>[] = [
 
 /** FPL Official or Model Predicted: Points Prediction's source, and Best Draft's. */
 const SOURCE_OPTIONS: SegmentOption<PointsSource>[] = [
-  { value: "fpl", label: "FPL", title: "Exp. Pts (FPL Official)" },
-  { value: "model", label: "Model", title: "Exp. Pts (Model Predicted): Scoutline's own estimate" },
+  { value: "fpl", label: "FPL", title: "Exp. Pts (FPL Official), for Points Prediction, Projected Points and Best Draft" },
+  { value: "model", label: "Model", title: "Exp. Pts (Model Predicted): Scoutline's own estimate, for Points Prediction, Projected Points and Best Draft" },
 ];
 const SOURCE_NAME: Record<PointsSource, string> = { fpl: "FPL Official", model: "Model Predicted" };
 
@@ -96,6 +96,101 @@ function SquadTiles({ validation, budgetHint }: { validation: SquadValidation; b
       <div className="stat-tile" title={`${budgetLeftText(validation.budgetRemaining)} of ${fmtPrice(validation.budget)}. ${budgetHint}`}>
         <span className="stat-tile-label">Bank</span>
         <span className={`stat-tile-value num${tenths < 0 ? " value-negative" : ""}`}>{tenths < 0 ? `−${fmtPrice(-tenths / 10)}` : fmtPrice(Math.max(0, tenths) / 10)}</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * <projected_points>: the starting XI's Exp. Pts for the pitch's gameweek
+ * from its source, the captain's counted twice, as FPL scores them. A
+ * starter with no match that gameweek adds 0; one with a match but no
+ * figure leaves the total unknown, never part-counted. Null with no
+ * starter, or no gameweek left.
+ */
+export function projectedPoints(
+  starters: readonly NormalizedPlayer[],
+  bench: readonly NormalizedPlayer[],
+  captainId: number | null,
+  expectationByPlayerId: Map<number, GameweekExpectation | null>,
+  source: PointsSource,
+): { total: number | null; missing: string[]; captain: { name: string; points: number } | null; bench: number | null } {
+  const figure = (p: NormalizedPlayer): number | null | undefined => {
+    const g = expectationByPlayerId.get(p.id) ?? null;
+    if (g === null) return undefined;
+    return g.fixtures.length === 0 ? 0 : g[source];
+  };
+  const missing: string[] = [];
+  let total = 0;
+  let captain: { name: string; points: number } | null = null;
+  for (const p of starters) {
+    const value = figure(p);
+    if (value === null || value === undefined) {
+      missing.push(p.name);
+      continue;
+    }
+    const counted = p.id === captainId ? value * 2 : value;
+    if (p.id === captainId) captain = { name: p.name, points: counted };
+    total += counted;
+  }
+  let benchTotal: number | null = 0;
+  for (const p of bench) {
+    const value = figure(p);
+    if (value === null || value === undefined) benchTotal = null;
+    else if (benchTotal !== null) benchTotal += value;
+  }
+  return { total: starters.length > 0 && missing.length === 0 ? total : null, missing, captain, bench: bench.length > 0 ? benchTotal : null };
+}
+
+/** <projected_points>: the summary box beside the squad's figures. */
+function ProjectedPointsBox({
+  starters,
+  bench,
+  captainId,
+  expectationByPlayerId,
+  source,
+  gameweek,
+}: {
+  starters: NormalizedPlayer[];
+  bench: NormalizedPlayer[];
+  captainId: number | null;
+  expectationByPlayerId: Map<number, GameweekExpectation | null>;
+  source: PointsSource;
+  gameweek: number | null;
+}) {
+  const p = projectedPoints(starters, bench, captainId, expectationByPlayerId, source);
+  const sourceName = SOURCE_NAME[source];
+  const hint =
+    gameweek === null
+      ? "No gameweek left to pick for this season"
+      : starters.length === 0
+        ? "No starting XI yet: start players to see their projected points"
+        : p.total === null
+          ? `No total yet: ${p.missing.length > 0 ? `${p.missing.join(", ")} ${p.missing.length === 1 ? "has" : "have"} no ${sourceName} figure for GW${gameweek}` : "the figures are still loading"}`
+          : `The starting XI's Exp. Pts (${sourceName}) for GW${gameweek}, the captain's counted twice. Changes with the gameweek arrows and the Source toggle.`;
+  return (
+    <div className="projected-box" title={hint}>
+      <div className="projected-box-head">
+        <span className="projected-box-label">Projected Points</span>
+        <span className="projected-box-tag">
+          {gameweek !== null ? `GW${gameweek}` : DASH} · {source === "fpl" ? "FPL" : "Model"}
+        </span>
+      </div>
+      <div className="projected-box-value num">{p.total !== null ? fmtDecimal(p.total, 1) : DASH}</div>
+      <div className="projected-box-parts">
+        <span>
+          Starting XI{starters.length > 0 && starters.length < SQUAD_RULES.startingXISize ? ` (${starters.length})` : ""}
+        </span>
+        {p.captain && (
+          <span>
+            Captain {p.captain.name} <span className="num">{fmtDecimal(p.captain.points, 1)}</span>
+          </span>
+        )}
+        {p.bench !== null && (
+          <span>
+            Bench <span className="num">{fmtDecimal(p.bench, 1)}</span>
+          </span>
+        )}
       </div>
     </div>
   );
@@ -324,9 +419,9 @@ function PlayerCard({
   );
 }
 
-/** <open_slots>: an empty place, on the pitch or the bench. Picking it lists that position in Add Players; a player dragged onto it lands there. */
+/** <open_slots>: an empty place, on the pitch or the bench. Picking it opens Add Players listing that position (<add_players_dialog>); a player dragged onto it lands there. */
 function OpenSlot({ position, disabled, onAdd }: { position: Position; disabled: boolean; onAdd: (position: Position) => void }) {
-  const label = `Add a ${POSITION_NOUN[position][0]}: lists ${POSITION_NOUN[position][1]} in Add Players`;
+  const label = `Add a ${POSITION_NOUN[position][0]}: opens Add Players listing ${POSITION_NOUN[position][1]}`;
   return (
     <button type="button" className="pitch-slot-open" disabled={disabled} onClick={() => onAdd(position)} title={label} aria-label={label}>
       <span className="pitch-slot-plus" aria-hidden="true">
@@ -504,23 +599,37 @@ export function SquadPitch({
           </button>
         </div>
       </div>
-      <SquadTiles validation={squadValidation} budgetHint={budgetHint} />
-      {squadValidation.clubViolations.length > 0 && (
-        <div className="banner error">
-          Over {SQUAD_RULES.maxPerClub} from one club: {squadValidation.clubViolations.map((v) => `${v.teamName} ${v.count}/${SQUAD_RULES.maxPerClub}`).join(", ")}
+      {/* The squad's figures and the pitch's controls, with Projected Points beside them (<projected_points>). */}
+      <div className="pitch-view-top">
+        <div className="pitch-view-top-main">
+          <SquadTiles validation={squadValidation} budgetHint={budgetHint} />
+          {squadValidation.clubViolations.length > 0 && (
+            <div className="banner error">
+              Over {SQUAD_RULES.maxPerClub} from one club: {squadValidation.clubViolations.map((v) => `${v.teamName} ${v.count}/${SQUAD_RULES.maxPerClub}`).join(", ")}
+            </div>
+          )}
+          <div className="pitch-controls">
+            <GameweekArrows
+              label="Gameweek"
+              gameweeks={gameweeks}
+              value={gameweek}
+              onChange={onGameweekChange}
+              describe={(eventId) => `Points Prediction, Minutes, Projected Points and Best Draft are for GW${eventId}`}
+            />
+            <SegmentedControl label="Highlight" options={KIT_VIEW_OPTIONS} value={view} onChange={setView} />
+            {/* Always shown: Projected Points and Best Draft follow it whatever the kits highlight. */}
+            <SegmentedControl label="Source" options={SOURCE_OPTIONS} value={pointsSource} onChange={setPointsSource} />
+            {view === "price" && <SegmentedControl label="Price" options={PRICE_VIEW_OPTIONS} value={priceView} onChange={setPriceView} />}
+          </div>
         </div>
-      )}
-      <div className="pitch-controls">
-        <GameweekArrows
-          label="Gameweek"
-          gameweeks={gameweeks}
-          value={gameweek}
-          onChange={onGameweekChange}
-          describe={(eventId) => `Points Prediction, Minutes and Best Draft are for GW${eventId}`}
+        <ProjectedPointsBox
+          starters={starters}
+          bench={benchPlayers}
+          captainId={captainId}
+          expectationByPlayerId={expectationByPlayerId}
+          source={pointsSource}
+          gameweek={gameweek}
         />
-        <SegmentedControl label="Highlight" options={KIT_VIEW_OPTIONS} value={view} onChange={setView} />
-        {view === "points" && <SegmentedControl label="Source" options={SOURCE_OPTIONS} value={pointsSource} onChange={setPointsSource} />}
-        {view === "price" && <SegmentedControl label="Price" options={PRICE_VIEW_OPTIONS} value={priceView} onChange={setPriceView} />}
       </div>
       {warning && <div className="banner error">{warning}</div>}
 

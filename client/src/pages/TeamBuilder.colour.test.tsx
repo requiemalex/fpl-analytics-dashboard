@@ -6,6 +6,7 @@ import { TeamBuilder } from "./TeamBuilder";
 import { makePlayer, makeTeam } from "../test/fixtures";
 import { saveVersioned } from "../state/persistentStorage";
 import { percentileTint } from "../utils/colorScale";
+import { addButton, addPlayersCell, addPlayersHeader, addPlayersRow, openAddPlayers } from "../test/addPlayers";
 
 // <comparative_colouring> on Team Building's Add Players table: each player
 // ranked within his position among every player — never only the rows the
@@ -32,6 +33,11 @@ vi.mock("../state/AppStateContext", () => ({
     clubSeasons: [],
     historicReferenceSeason: null,
     historicFetchSkippedPlayerIds: [],
+    historicSkippedPlayerIds: [],
+    historicErrorMessage: null,
+    historicRefreshing: false,
+    refreshHistoricData: () => {},
+    advancedFieldAvailability: null,
     seasonMatchesByPlayerId: new Map(),
     historicStatus: "ready",
     currentSeasonHasStarted: true,
@@ -54,6 +60,7 @@ function renderBuilder() {
       <TeamBuilder />
     </MemoryRouter>,
   );
+  openAddPlayers(utils);
   fireEvent.click(utils.getAllByRole("button", { name: "Current Season" }).at(-1)!);
   return utils;
 }
@@ -64,23 +71,16 @@ function asRendered(css: string | undefined): string {
   return el.style.backgroundColor;
 }
 
-function goalsCell(container: HTMLElement, name: string): HTMLElement | undefined {
-  const headers = Array.from(container.querySelectorAll<HTMLElement>("table.data-table.compact thead th"));
-  const index = headers.findIndex((th) => th.childNodes[0]?.textContent?.trim() === "Goals");
-  const row = Array.from(container.querySelectorAll("table.data-table.compact tbody tr")).find((tr) => tr.querySelector(".name")?.textContent?.trim() === name);
-  return row?.querySelectorAll<HTMLElement>("td")[index];
-}
+const goalsCell = (container: HTMLElement, name: string) => addPlayersCell(container, "Goals", name);
 
 describe("Team Building — Add Players comparative colouring", () => {
   it("uses the Explorers' colour index on its FPL headers and Columns headings: green when following the Data View, muted red when always live", () => {
     const { container, getByRole } = renderBuilder();
-    const header = (label: string) => Array.from(container.querySelectorAll<HTMLElement>("table.data-table.compact thead th")).find((th) => th.childNodes[0]?.textContent?.trim() === label)!;
-    expect(header("Goals").classList.contains("col-source-fpl")).toBe(true);
-    expect(header("Own%").classList.contains("col-static")).toBe(true);
-    expect(header("Own%").classList.contains("col-source-fpl")).toBe(false);
-    fireEvent.click(getByRole("button", { name: /^Historic\/Raw Columns/ }));
-    const heading = container.querySelector(".popover .menu-group-heading")!;
-    expect(heading.textContent).toBe("FPL · Actual Output");
+    expect(addPlayersHeader(container, "Goals")!.classList.contains("col-source-fpl")).toBe(true);
+    expect(addPlayersHeader(container, "Own%")!.classList.contains("col-static")).toBe(true);
+    expect(addPlayersHeader(container, "Own%")!.classList.contains("col-source-fpl")).toBe(false);
+    fireEvent.click(getByRole("button", { name: /^Columns/ }));
+    const heading = Array.from(container.querySelectorAll(".popover .menu-group-heading")).find((h) => h.textContent === "FPL · Actual Output")!;
     expect(heading.classList.contains("col-source-fpl")).toBe(true);
   });
 
@@ -92,36 +92,20 @@ describe("Team Building — Add Players comparative colouring", () => {
 
   it("M20: a forward-looking column has no minutes floor — the cameo's Exp. Pts is coloured though his Goals aren't; his row carries the amber stopwatch", () => {
     const { container } = renderBuilder();
-    const headers = Array.from(container.querySelectorAll<HTMLElement>("table.data-table.compact thead th"));
-    const index = headers.findIndex((th) => th.childNodes[0]?.textContent?.trim() === "Exp. Pts (FPL Official)");
-    const row = Array.from(container.querySelectorAll("table.data-table.compact tbody tr")).find((tr) => tr.querySelector(".name")?.textContent?.trim() === "Nwaneri")!;
-    expect(index).toBeGreaterThan(0);
-    expect(row.querySelectorAll<HTMLElement>("td")[index].style.backgroundColor).not.toBe("");
+    expect(addPlayersCell(container, "Exp. Pts (FPL Official)", "Nwaneri")!.style.backgroundColor).not.toBe("");
     expect(goalsCell(container, "Nwaneri")!.style.backgroundColor).toBe("");
-    expect(row.querySelector(".small-sample-badge")!.getAttribute("title")).toContain("60 min in this mode, under the 90-minute floor");
-  });
-
-  it("Min minutes works in Current Season, marks itself with the stopwatch, and counts no minutes as 0", () => {
-    const { container } = renderBuilder();
-    const box = container.querySelector<HTMLInputElement>("#picker-min-minutes")!;
-    expect(box.disabled).toBe(false);
-    fireEvent.change(box, { target: { value: "90" } });
-    expect(goalsCell(container, "Nwaneri")).toBeUndefined();
-    expect(goalsCell(container, "Saka")).toBeDefined();
-    const badge = container.querySelector('label[for="picker-min-minutes"] .minutes-floor-badge')!;
-    expect(badge.getAttribute("title")).toContain("Your minimum minutes: 90");
-    // <marker_follows_data>: everyone left has 90+ minutes, at or above the Current Season floor, so it's grey.
-    expect(badge.classList.contains("small-sample-badge")).toBe(false);
+    expect(addPlayersRow(container, "Nwaneri")!.querySelector(".small-sample-badge")!.getAttribute("title")).toContain("60 min in this mode, under the 90-minute floor");
   });
 
   it("a search, or adding a player to the squad, doesn't change anyone's colour", () => {
-    const { container } = renderBuilder();
+    const utils = renderBuilder();
+    const { container } = utils;
     const before = goalsCell(container, "Odegaard")!.style.backgroundColor;
     expect(before).not.toBe("");
-    const addSaka = Array.from(container.querySelectorAll("table.data-table.compact tbody tr"))
-      .find((tr) => tr.querySelector(".name")?.textContent?.trim() === "Saka")!
-      .querySelector<HTMLButtonElement>("button.inline-add-btn")!;
-    fireEvent.click(addSaka);
+    fireEvent.click(addButton(container, "Saka"));
+    // Adding closes Add Players; it opens again as it was left.
+    expect(container.querySelector<HTMLElement>(".add-players-backdrop")!.hidden).toBe(true);
+    openAddPlayers(utils);
     expect(goalsCell(container, "Saka")).toBeUndefined();
     expect(goalsCell(container, "Odegaard")!.style.backgroundColor).toBe(before);
     fireEvent.change(container.querySelector("#picker-search")!, { target: { value: "odegaard" } });

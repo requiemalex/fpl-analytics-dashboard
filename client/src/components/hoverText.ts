@@ -1,7 +1,7 @@
 import type { Position } from "../types/normalized";
 import type { UpcomingFixture } from "../metrics/fixtureTicker";
 import type { ModelBreakdown } from "../metrics/pointsModel";
-import type { GameweekExpectation } from "../metrics/gameweekExpectations";
+import type { GameweekExpectation, PointsSource } from "../metrics/gameweekExpectations";
 import type { FplBreakdown } from "../metrics/expectedPoints";
 import { fmtDecimal, fmtPercent } from "../utils/format";
 
@@ -368,3 +368,23 @@ export const CLUB_UNDERSTAT_HINTS: Record<string, string> = {
   "us.xPts": "Expected league points from the chances both sides had in each match.",
   "us.ptsMinusXPts": "League points minus expected points. Above 0: results better than the chances suggest.",
 };
+
+/**
+ * <points_horizon>: an Exp. Pts figure added up over several gameweeks,
+ * one line each: "Next 3 gameweeks: 11.9 pts\nGW9 v BRE (A): 3.9\nGW10 …".
+ * A single gameweek keeps its own breakdown (fplGameweekHint /
+ * modelGameweekHint).
+ */
+export function horizonHint(expectations: readonly GameweekExpectation[], horizon: number, source: PointsSource, total: number | null): string {
+  const window = expectations.slice(0, horizon);
+  if (window.length === 0) return "No gameweek left to pick for this season";
+  if (window.length === 1) return source === "fpl" ? fplGameweekHint(window[0]) : modelGameweekHint(window[0]);
+  const name = source === "fpl" ? "FPL figures" : "Scoutline's model";
+  const head = total === null ? `${name}: no total, as a gameweek below has no figure` : `${name}, next ${window.length} gameweeks: ${fmtDecimal(total, 1)} pts`;
+  const lines = window.map((g) => {
+    if (g.fixtures.length === 0) return `GW${g.eventId}: no match`;
+    const value = g[source];
+    return `GW${g.eventId}${gameweekVersusText(g.fixtures)}: ${value === null ? "no figure" : fmtDecimal(value, 1)}`;
+  });
+  return [head, ...lines].join("\n");
+}

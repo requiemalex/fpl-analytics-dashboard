@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, fireEvent, cleanup, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { TeamBuilder } from "./TeamBuilder";
+import { addButton, addPlayersHeader, addPlayersRows, openAddPlayers } from "../test/addPlayers";
 import { makePlayer, makeTeam } from "../test/fixtures";
 import { saveVersioned } from "../state/persistentStorage";
 import { INITIAL_ROW_COUNT } from "../state/useProgressiveRowCount";
@@ -40,6 +41,11 @@ vi.mock("../state/AppStateContext", () => ({
     clubSeasons: [],
     historicReferenceSeason: null,
     historicFetchSkippedPlayerIds: [],
+    historicSkippedPlayerIds: [],
+    historicErrorMessage: null,
+    historicRefreshing: false,
+    refreshHistoricData: () => {},
+    advancedFieldAvailability: null,
     seasonMatchesByPlayerId: new Map(),
     historicStatus: "ready",
     currentSeasonHasStarted: true,
@@ -66,9 +72,16 @@ function renderBuilder() {
       <TeamBuilder />
     </MemoryRouter>,
   );
-  // The picker's own Historic/Raw toggle → the fixture players' live figures.
+  openEveryone(utils);
+  // Add Players' own Data View → the fixture players' live figures.
   fireEvent.click(utils.getAllByRole("button", { name: "Current Season" }).at(-1)!);
   return utils;
+}
+
+/** Opens Add Players from an open "+" place, then clears its filters, Position included, so every candidate is listed. */
+function openEveryone(utils: ReturnType<typeof render>) {
+  openAddPlayers(utils, "");
+  fireEvent.click(utils.getByRole("button", { name: /^Clear every filter/ }));
 }
 
 function drawAllFrames() {
@@ -79,24 +92,16 @@ function drawAllFrames() {
   }
 }
 
-function pickerRows(container: HTMLElement): HTMLElement[] {
-  return Array.from(container.querySelectorAll<HTMLElement>("table.data-table.compact tbody tr")).filter((tr) => tr.querySelector("td.picker-sticky-player"));
-}
+const pickerRows = (container: HTMLElement) => addPlayersRows(container);
 
 function pickerNames(container: HTMLElement): string[] {
   return pickerRows(container).map((tr) => tr.querySelector(".name")?.textContent?.trim() ?? "");
 }
 
 function header(container: HTMLElement, label: string): HTMLElement {
-  const th = Array.from(container.querySelectorAll<HTMLElement>("table.data-table.compact thead th")).find((el) => el.childNodes[0]?.textContent?.trim() === label);
+  const th = addPlayersHeader(container, label);
   if (!th) throw new Error(`No "${label}" column`);
   return th;
-}
-
-function addButton(container: HTMLElement, name: string): HTMLButtonElement {
-  const row = pickerRows(container).find((tr) => tr.querySelector(".name")?.textContent?.trim() === name);
-  if (!row) throw new Error(`${name} isn't drawn`);
-  return row.querySelector<HTMLButtonElement>("button.inline-add-btn")!;
 }
 
 describe("Team Building — staged drawing of the Add Players table", () => {
@@ -114,20 +119,27 @@ describe("Team Building — staged drawing of the Add Players table", () => {
   });
 
   it("Add moves the player into the squad and out of the table, with every other row still there", () => {
-    const { container } = renderBuilder();
+    const utils = renderBuilder();
+    const { container } = utils;
     drawAllFrames();
     fireEvent.click(addButton(container, "P1"));
+    // Adding closes Add Players; open it again, listing everyone (staged back in, as after any filter is cleared).
+    openEveryone(utils);
+    drawAllFrames();
     expect(pickerNames(container)).not.toContain("P1");
     expect(pickerRows(container)).toHaveLength(129);
   });
 
   it("rows already drawn pick up a new reason their Add button is disabled", () => {
-    const { container } = renderBuilder();
+    const utils = renderBuilder();
+    const { container } = utils;
     drawAllFrames();
     // Two goalkeepers fill the GKP slots (P4, P8 are GKP: id % 4 === 0).
     fireEvent.click(addButton(container, "P4"));
+    openEveryone(utils);
     expect(addButton(container, "P12").disabled).toBe(false);
     fireEvent.click(addButton(container, "P8"));
+    openEveryone(utils);
     const blocked = addButton(container, "P12");
     expect(blocked.disabled).toBe(true);
     expect(blocked.title).toBe("GKP slots full (2/2)");

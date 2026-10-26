@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { expectationForGameweek, upcomingGameweeks } from "./gameweekExpectations";
+import { expectationForGameweek, horizonTotal, upcomingGameweeks, type GameweekExpectation } from "./gameweekExpectations";
 import type { UpcomingFixture } from "./fixtureTicker";
 import type { ModelBreakdown } from "./pointsModel";
 import type { FplBreakdown } from "./expectedPoints";
@@ -60,5 +60,31 @@ describe("expectationForGameweek", () => {
     expect(gw.model).toBeNull();
     expect(gw.expectedMinutes).toBeNull();
     expect(gw.fixtures).toHaveLength(2);
+  });
+});
+
+describe("<points_horizon> horizonTotal", () => {
+  const gw = (eventId: number, fpl: number | null, matches = 1): GameweekExpectation => ({
+    eventId,
+    fixtures: Array.from({ length: matches }, (_, i) => fixture(eventId * 10 + i, eventId)),
+    fplBreakdowns: null,
+    fpl,
+    modelBreakdowns: null,
+    model: null,
+    expectedMinutes: null,
+  });
+  const list = [gw(9, 4), gw(10, null, 0), gw(11, 3.5), gw(12, null)];
+
+  it("adds up the first gameweeks, a blank counting 0", () => {
+    expect(horizonTotal(list, 1, "fpl")).toBe(4);
+    expect(horizonTotal(list, 3, "fpl")).toBe(7.5);
+  });
+  it("has no total when a gameweek with a match has no figure, or with no gameweek left", () => {
+    expect(horizonTotal(list, 4, "fpl")).toBeNull();
+    expect(horizonTotal(list, 1, "model")).toBeNull();
+    expect(horizonTotal([], 3, "fpl")).toBeNull();
+  });
+  it("stops at the season's end: fewer gameweeks left than asked adds up those left", () => {
+    expect(horizonTotal(list.slice(0, 1), 5, "fpl")).toBe(4);
   });
 });

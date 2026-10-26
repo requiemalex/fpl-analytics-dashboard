@@ -6,6 +6,7 @@ import { TeamBuilder } from "./TeamBuilder";
 import { makePlayer, makeTeam } from "../test/fixtures";
 import { saveVersioned } from "../state/persistentStorage";
 import type { Position } from "../types/normalized";
+import { addButton, addPlayersRows, openAddPlayers } from "../test/addPlayers";
 
 // <purchase_prices> as a squad changes, and <best_draft> saving what it
 // picks, on the real page with the saved-squads store.
@@ -32,6 +33,11 @@ vi.mock("../state/AppStateContext", () => ({
     clubSeasons: [],
     historicReferenceSeason: null,
     historicFetchSkippedPlayerIds: [],
+    historicSkippedPlayerIds: [],
+    historicErrorMessage: null,
+    historicRefreshing: false,
+    refreshHistoricData: () => {},
+    advancedFieldAvailability: null,
     seasonMatchesByPlayerId: new Map(),
     historicStatus: "ready",
     currentSeasonHasStarted: true,
@@ -61,9 +67,10 @@ function renderBuilder() {
 describe("Team Building — purchase prices", () => {
   it("a player added is bought at today's price; one removed takes his price with him", () => {
     save([1, 2], [2], { 1: 4.5, 2: 5 });
-    const { container, getByRole } = renderBuilder();
-    const row = Array.from(container.querySelectorAll("table.data-table.compact tbody tr")).find((tr) => tr.querySelector(".name")?.textContent?.trim() === "Newcomer")!;
-    fireEvent.click(row.querySelector<HTMLButtonElement>("button.inline-add-btn")!);
+    const utils = renderBuilder();
+    const { container, getByRole } = utils;
+    openAddPlayers(utils, "midfielder");
+    fireEvent.click(addButton(container, "Newcomer"));
     expect(stored().purchasePrices).toEqual({ 1: 4.5, 2: 5, 16: 6.3 });
     fireEvent.click(getByRole("button", { name: "Remove P1 from the squad" }));
     expect(stored().purchasePrices).toEqual({ 2: 5, 16: 6.3 });
@@ -125,5 +132,31 @@ describe("Team Building — purchase price colours (<price_view>)", () => {
     expect(figure("P1").textContent).toBe("£4.5m");
     expect(figure("P1").style.backgroundColor).not.toBe("");
     expect(figure("P1").style.backgroundColor).not.toBe(figure("P2").style.backgroundColor);
+  });
+});
+
+describe("Team Building — the Add Players dialog (<add_players_dialog>)", () => {
+  it("is hidden until a + place opens it listing that place's position, and closes on ×, Escape or a click outside it", () => {
+    save([3], [3]);
+    const utils = renderBuilder();
+    const { container, getByRole } = utils;
+    const backdrop = () => container.querySelector<HTMLElement>(".add-players-backdrop")!;
+    expect(backdrop().hidden).toBe(true);
+
+    openAddPlayers(utils, "goalkeeper");
+    expect(backdrop().hidden).toBe(false);
+    expect(addPlayersRows(container).map((r) => r.querySelector(".name")!.childNodes[0].textContent)).toEqual(["P1", "P2"]);
+    fireEvent.click(getByRole("button", { name: "Close Add Players" }));
+    expect(backdrop().hidden).toBe(true);
+
+    // A forward's place lists forwards instead.
+    openAddPlayers(utils, "forward");
+    expect(addPlayersRows(container).map((r) => r.querySelector(".name")!.childNodes[0].textContent).sort()).toEqual(["P13", "P14", "P15"]);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(backdrop().hidden).toBe(true);
+
+    openAddPlayers(utils, "forward");
+    fireEvent.click(backdrop());
+    expect(backdrop().hidden).toBe(true);
   });
 });

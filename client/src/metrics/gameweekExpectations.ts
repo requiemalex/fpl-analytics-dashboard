@@ -85,3 +85,27 @@ export function expectationForGameweek(
     expectedMinutes: modelBreakdowns ? sumAll(modelBreakdowns, (b) => b.expectedMinutes) : null,
   };
 }
+
+/** <points_horizon>: how many upcoming gameweeks an Exp. Pts column adds up (1 = the next one alone). */
+export const HORIZONS = [1, 2, 3, 4, 5] as const;
+export type Horizon = (typeof HORIZONS)[number];
+
+/**
+ * <points_horizon>: one source's Exp. Pts over his first `horizon`
+ * gameweeks (`expectations`, in gameweek order, from the next one): a
+ * blank counts 0 (he has no match, so no points), a gameweek with a match
+ * but no figure leaves the whole sum unknown (null), never part-counted.
+ * Null with no gameweek left.
+ */
+export function horizonTotal(expectations: readonly GameweekExpectation[], horizon: number, source: PointsSource): number | null {
+  const window = expectations.slice(0, horizon);
+  if (window.length === 0) return null;
+  let total = 0;
+  for (const g of window) {
+    if (g.fixtures.length === 0) continue;
+    const value = g[source];
+    if (value === null) return null;
+    total += value;
+  }
+  return total;
+}

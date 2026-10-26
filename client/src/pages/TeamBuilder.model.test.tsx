@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, cleanup } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { TeamBuilder } from "./TeamBuilder";
+import { addPlayersCell, openAddPlayers } from "../test/addPlayers";
 import { makePlayer, makeTeam } from "../test/fixtures";
 import { saveVersioned } from "../state/persistentStorage";
 import type { ClubSeason, NormalizedFixture } from "../types/normalized";
@@ -43,6 +44,11 @@ vi.mock("../state/AppStateContext", () => ({
     clubSeasons: CLUB_SEASONS,
     historicReferenceSeason: "2025/26",
     historicFetchSkippedPlayerIds: [],
+    historicSkippedPlayerIds: [],
+    historicErrorMessage: null,
+    historicRefreshing: false,
+    refreshHistoricData: () => {},
+    advancedFieldAvailability: null,
     // Palmer's matches didn't load (the historic build skipped him).
     seasonMatchesByPlayerId: new Map([[1, [1, 2, 3, 4].map(() => ({ started: true, minutes: 90 }))]]),
     historicStatus: "ready",
@@ -60,33 +66,37 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-function modelCell(container: HTMLElement, name: string): HTMLElement | undefined {
-  const headers = Array.from(container.querySelectorAll<HTMLElement>("table.data-table.compact thead th"));
-  const index = headers.findIndex((th) => th.childNodes[0]?.textContent?.trim() === "Exp. Pts (Model Predicted)");
-  const row = Array.from(container.querySelectorAll("table.data-table.compact tbody tr")).find((tr) => tr.querySelector(".name")?.textContent?.trim() === name);
-  return row?.querySelectorAll<HTMLElement>("td")[index];
+const modelCell = (container: HTMLElement, name: string) => addPlayersCell(container, "Exp. Pts (Model Predicted)", name);
+
+function renderBuilder() {
+  const utils = render(
+    <MemoryRouter initialEntries={["/team-building"]}>
+      <TeamBuilder />
+    </MemoryRouter>,
+  );
+  openAddPlayers(utils);
+  return utils;
 }
 
 describe("Team Building — Model Predicted", () => {
   it("shows the model's figure, its parts and his chance of starting in the hover", () => {
-    const { container } = render(
-      <MemoryRouter initialEntries={["/team-building"]}>
-        <TeamBuilder />
-      </MemoryRouter>,
-    );
+    const { container } = renderBuilder();
     const saka = modelCell(container, "Saka")!;
     expect(Number(saka.textContent)).toBeGreaterThan(1);
     expect(saka.title).toMatch(/^Scoutline's model v CHE \(H\): \d+\.\d pts = appearance/);
     expect(saka.title).toContain("chance of starting");
   });
   it("a player whose matches didn't load has no figure, and the hover says why", () => {
-    const { container } = render(
-      <MemoryRouter initialEntries={["/team-building"]}>
-        <TeamBuilder />
-      </MemoryRouter>,
-    );
+    const { container } = renderBuilder();
     const palmer = modelCell(container, "Palmer")!;
     expect(palmer.textContent).toBe("—");
     expect(palmer.title).toContain("Scoutline's model has no figure");
+  });
+  it("<expected_minutes> Exp. Mins is always the next gameweek's, whatever Exp. Pts adds up", () => {
+    const { container } = renderBuilder();
+    const minutes = addPlayersCell(container, "Exp. Mins", "Saka")!;
+    expect(Number(minutes.textContent)).toBeGreaterThan(0);
+    expect(minutes.title).toMatch(/^About \d+ minutes expected in GW\d+/);
+    expect(addPlayersCell(container, "Exp. Mins", "Palmer")!.textContent).toBe("—");
   });
 });

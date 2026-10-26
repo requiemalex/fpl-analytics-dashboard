@@ -163,7 +163,7 @@ export function UserGuide() {
         </ul>
         <p className="page-subtitle">
           <strong>Minimum minutes.</strong> Where you set a minimum yourself (Player Explorer's Mins column, the tiles and graphs
-          you build on the Dashboard, the cards you build on Player Comparison, Team Building's Min minutes) it's the only one that
+          you build on the Dashboard, the cards you build on Player Comparison, Team Building's Add Players, which is the same table as Player Explorer) it's the only one that
           decides which players show, in every mode, Current Season included: raise it if one short appearance is topping a
           per-game list. Where you can't (the player profile and the Starter views on the Dashboard and Player Comparison) a fixed
           floor applies: a quarter of the minutes available. That's 855 minutes for a completed season; in Current Season it's a quarter of
@@ -179,8 +179,7 @@ export function UserGuide() {
           entry under one it's always amber. Player Explorer, Team Building's Add Players and the Dashboard tiles and graphs you
           build also get a <strong>Hide</strong> button (the stopwatch struck through) whenever something shown is under the
           threshold: click it to leave those players out, and again to bring them back. The stopwatch appears on a view where one is in force (the profile, a tile, graph or card
-          with a floor or your own minimum, Player Explorer's Mins heading when you filter it, Team Building's Min minutes and
-          its Model Predicted column), and on anything under one (a player's row, a season in Points History, the Match Log's
+          with a floor or your own minimum, Player Explorer's and Add Players' Mins heading when you filter it), and on anything under one (a player's row, a season in Points History, the Match Log's
           season, a card on the profile, a point or marker on Player Comparison, a point or bar on a Dashboard graph). Historic Average's 855-minute seasons don't put a stopwatch on a view by themselves:
           only the players without such a season carry one. Team Building's Expected Points, Minutes
           Reliability and pitch cards look ahead rather than back, so no minutes floor touches their colours.
@@ -320,8 +319,8 @@ export function UserGuide() {
           <li>
             <strong>Header colours</strong> say where a figure comes from and whether it follows the Data View: green is an FPL
             figure for the selected season(s); muted red is always today's live figure (Own%, Price, Team, Position, Form, and the
-            set-piece orders: Pen, FK and Corner Order, where 1 is the club's first choice). Team Building's Add Players headers
-            use the same colours, and every list of statistics grouped under headings (Columns here and in Team Building, the
+            set-piece orders: Pen, FK and Corner Order, where 1 is the club's first choice). Team Building's Add Players is this
+            same table, so its headers use the same colours, and every list of statistics grouped under headings (Columns here and in Team Building, the
             Dashboard's Statistic and axis pickers, Player Comparison's cards and Outputs panels) has the same coloured, iconed
             headings.
             {ext ? ` ${ext.label}'s figures have their own colour; see "${ext.guideSection.navLabel}" below.` : ""}
@@ -351,8 +350,8 @@ export function UserGuide() {
         <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
           <li>
             <strong>Add</strong> (in Add Players) puts a player in the starting XI while there's a legal place for him, otherwise on
-            the bench. The <strong>pitch</strong> is drag-and-drop: drag a player from Add Players onto the pitch or bench, or one
-            card onto another to swap. Click a name for the profile; click <strong>Captain</strong>/<strong>Vice-Captain</strong>,
+            the bench. On the <strong>pitch</strong>, drag a player between the pitch and the bench, or one card onto another to
+            swap. Click a name for the profile; click <strong>Captain</strong>/<strong>Vice-Captain</strong>,
             then a starter, to assign it (the C or V badge sits at the shirt's top left); <strong>Clear Draft</strong> empties the
             squad after you confirm (no undo). <strong>Best Draft</strong> picks the starting XI, captain and vice-captain with
             the most Expected Points for the gameweek shown above the pitch, in a formation FPL allows, from FPL's figure or the
@@ -380,15 +379,18 @@ export function UserGuide() {
           </li>
           <li>
             Every place the squad still has to fill is a <strong>+</strong>, on the pitch first (in a legal shape, 4-4-2 for an
-            empty squad) and then on the bench. Click one to list that position in Add Players, or drag a player onto it.
+            empty squad) and then on the bench. Click one to open <strong>Add Players</strong> listing that position, search box
+            ready. It closes when you add someone, or with its ×, Escape or a click outside it, and opens again just as you left it.
           </li>
           <li>
             Expected Points and expected minutes are by real gameweek, labelled with FPL's own numbers (GW9, GW10…) and
             starting at the next gameweek you can still pick for (the one FPL's own estimate is for): once a deadline passes, the
-            labels move on by themselves. Step through the next five with the <strong>‹ ›</strong> arrows: the pitch has its own,
-            and so does Add Players (beside its Data View picker); each moves only its own figures. A double gameweek's two
-            matches are added up; a club with a blank gameweek has no match in it, shown as "—". Near the end of the season only
-            the gameweeks left are shown.
+            labels move on by themselves. Step the pitch through the next five with the <strong>‹ ›</strong> arrows above it. In
+            Add Players, each Expected Points column has its own picker on its heading, 1 to 5 gameweeks: it adds up that many
+            from the next one (hover a figure for each gameweek's). Expected minutes and Next 5 Fixtures there are always for
+            what's next, as who starts weeks from now can't be known yet. A double gameweek's two matches are added up; a club
+            with a blank gameweek has no match in it, shown as "—" on the pitch and counted as 0 in a total. Near the end of the
+            season only the gameweeks left are shown.
           </li>
           <li>
             <strong>Expected minutes</strong> come from the Model: how often he's been starting this season (his recent matches
@@ -412,16 +414,23 @@ export function UserGuide() {
             allowed for managers selling him.
           </li>
           <li>
-            Above the pitch: the squad's name with its buttons, then Squad Value and Bank. A club-limit breach shows as a banner.
+            Above the pitch: the squad's name with its buttons, then Squad Value and Bank, with <strong>Projected Points</strong>{" "}
+            beside them: your starting XI's Expected Points for the gameweek above the pitch, the captain's counted twice, from FPL's
+            figure or the Model's (the <strong>Source</strong> toggle, which Best Draft follows too). It shows "—" while a starter
+            who has a match has no figure yet. Squad Value is your players at their <em>selling</em> prices, what you could raise
+            by selling them, so it's lower than FPL's own Squad Value, which counts today's prices: the difference is the half of
+            each rise FPL keeps. A club-limit breach shows as a banner.
             A squad built from scratch has FPL's £100m; an imported one has what FPL would let you spend: its money in the bank
             plus its players at their selling prices, so an unchanged import shows exactly that bank left. Sell one and his
             selling price goes back in; a player you add costs today's price. Hover the budget for its make-up. Going over turns the budget red and says how
             far over, but never stops you adding a player.
           </li>
           <li>
-            The <strong>Add Players</strong> table has Player Explorer's toolkit, in two groups either side of a divider:{" "}
-            <strong>Predictive</strong> (the Expected Points columns, Exp. Mins, a fixture ticker) and{" "}
-            <strong>Historic/Raw</strong> (with its own mode toggle). Price and club limits always use today's price and club.
+            <strong>Add Players</strong> is Player Explorer's own table: the same Data View, columns (Understat's included),
+            filters, Hide, export and saved views. A view you saved in Player Explorer loads here from the views menu, so players
+            you've already found are a click away (and a view saved here shows in Player Explorer). It adds the{" "}
+            <strong>Predictive</strong> columns first (both Expected Points and expected minutes), an <strong>Add</strong> on each
+            row, and leaves out your squad. Price and club limits always use today's price and club.
           </li>
         </ul>
         <Try>Sort Add Players by "Exp. Pts (Model Predicted)" and compare it with "FPL Official". Where they disagree most is worth a second look.</Try>
