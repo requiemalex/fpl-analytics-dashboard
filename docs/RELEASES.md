@@ -5,6 +5,11 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.116.0 · 26 Oct 2026
+
+- Team Building: Squad Value shows FPL's figure (players at today's prices); its hover gives what they'd sell for
+- Team Building: Add Players opens as a dialog using Player Explorer's table and saved views, Exp. Pts adds up 1–5 gameweeks, and a Projected Points box
+
 ## v1.115.0 · 26 Oct 2026
 
 - FPL Official expected points: mostly the season's points a match, not just recent form
