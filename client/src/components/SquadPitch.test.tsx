@@ -409,6 +409,9 @@ describe("<projected_points> projectedPoints", () => {
     const { container, getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })], [], vi.fn(), 1);
     expect(container.querySelector(".projected-box-value")!.textContent).toBe("8.4");
     expect(container.querySelector(".projected-box-tag")!.textContent).toBe("GW9 · FPL");
+    // Its parts, one aligned row each: starters, the captain's doubled figure, the bench (none here).
+    const parts = [...container.querySelectorAll(".projected-box-parts dt")].map((dt) => `${dt.textContent}: ${dt.nextElementSibling!.textContent}`);
+    expect(parts).toEqual(["Starters: 1/11", "Captain: Player 1 8.4", "Bench: —"]);
     fireEvent.click(getByRole("radiogroup", { name: "Source" }).querySelector<HTMLElement>('[aria-label^="Exp. Pts (Model"]')!);
     expect(container.querySelector(".projected-box-value")!.textContent).toBe("—");
   });

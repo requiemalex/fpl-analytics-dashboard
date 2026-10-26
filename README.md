@@ -1837,8 +1837,9 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   2026-10-26. What they count against the budget can be less — an
   import's players still held count at their selling prices, FPL keeping
   half of each rise — and its hover gives that figure where it differs;
-  Bank is the budget left, as FPL's is); then the **Gameweek** arrows, Highlight and Source,
-  with **Projected Points** beside those two rows (below). A club-limit
+  Bank is the budget left, as FPL's is); then the **Gameweek** arrows, Highlight and Source;
+  the buttons and **Projected Points** (below) form a column beside those
+  rows. A club-limit
   breach is a banner. The bench is a row of slots, goalkeeper
   first, each labelled with its position (no bench order: the app has
   none).
@@ -1856,9 +1857,12 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   figure, the captain's counted twice as FPL scores him. A starter with no
   match that gameweek adds 0; one with a match but no figure leaves "—"
   (never a part-count, `<partial_totals>`), and the hover names him.
-  Beneath it, the captain's share and the bench's total (not in the
-  figure). Fixed width beside the two rows; on a narrow window it drops
-  below them.
+  Beside the total, one aligned row each: starters (of 11), the captain
+  and his doubled figure, and the bench's total (not in the figure). It
+  sits under the Captain … Best Draft buttons at exactly their width
+  (they share the right-hand column); on a narrow window that column
+  drops below the rest. Its heading and side stripe are green, the
+  owner's choice (2026-10-26).
 - **Best Draft** (`<best_draft>`, `metrics/bestDraft.ts`) — sets the
   starting XI, captain and vice-captain with the most Exp. Pts for the
   pitch's gameweek, from Points Prediction's source (FPL Official or

@@ -191,21 +191,27 @@ function ProjectedPointsBox({
           {gameweek !== null ? `GW${gameweek}` : DASH} · {source === "fpl" ? "FPL" : "Model"}
         </span>
       </div>
-      <div className="projected-box-value num">{p.total !== null ? fmtDecimal(p.total, 1) : DASH}</div>
-      <div className="projected-box-parts">
-        <span>
-          Starting XI{starters.length > 0 && starters.length < SQUAD_RULES.startingXISize ? ` (${starters.length})` : ""}
-        </span>
-        {p.captain && (
-          <span>
-            Captain {p.captain.name} <span className="num">{fmtDecimal(p.captain.points, 1)}</span>
-          </span>
-        )}
-        {p.bench !== null && (
-          <span>
-            Bench <span className="num">{fmtDecimal(p.bench, 1)}</span>
-          </span>
-        )}
+      {/* The total on the left; what makes it up, one aligned row each, on the right. */}
+      <div className="projected-box-body">
+        <div className="projected-box-value num">{p.total !== null ? fmtDecimal(p.total, 1) : DASH}</div>
+        <dl className="projected-box-parts">
+          <dt>Starters</dt>
+          <dd className="num">
+            {starters.length}/{SQUAD_RULES.startingXISize}
+          </dd>
+          <dt>Captain</dt>
+          <dd>
+            {p.captain ? (
+              <>
+                <span className="projected-box-name">{p.captain.name}</span> <span className="num">{fmtDecimal(p.captain.points, 1)}</span>
+              </>
+            ) : (
+              DASH
+            )}
+          </dd>
+          <dt>Bench</dt>
+          <dd className="num">{p.bench !== null ? fmtDecimal(p.bench, 1) : DASH}</dd>
+        </dl>
       </div>
     </div>
   );
@@ -573,50 +579,16 @@ export function SquadPitch({
     ...openSlots.bench.filter((b) => b === pos).map(() => ({ position: pos, player: null })),
   ]);
 
-  // Three rows above the pitch: the squad's name with its actions, then
-  // its figures, then the gameweek and what the kits highlight.
+  // Above the pitch, two columns: the squad's name, its figures, then the
+  // gameweek and what the kits highlight; beside them its buttons, with
+  // Projected Points underneath at the buttons' width.
   return (
     <div className={`squad-pitch${hasSquad ? "" : " is-disabled"}`} ref={rootRef} aria-disabled={!hasSquad || undefined}>
-      <div className="pitch-view-header">
-        <div className="pitch-view-heading">
-          {squadName && <span className="pitch-view-title">{squadName}</span>}
-        </div>
-        <div className="pitch-view-actions">
-          <button
-            type="button"
-            className={`btn${captainPickMode === "captain" ? " active" : ""}`}
-            aria-pressed={captainPickMode === "captain"}
-            onClick={() => onCaptainTileClick("captain")}
-            title="Click, then click a starting player to make them captain"
-          >
-            Captain
-          </button>
-          <button
-            type="button"
-            className={`btn${captainPickMode === "viceCaptain" ? " active" : ""}`}
-            aria-pressed={captainPickMode === "viceCaptain"}
-            onClick={() => onCaptainTileClick("viceCaptain")}
-            title="Click, then click a starting player to make them vice-captain"
-          >
-            Vice-Captain
-          </button>
-          <button type="button" className="btn" onClick={onClearSquad} title={`Remove every player from ${squadName || "this squad"}`}>
-            Clear Draft
-          </button>
-          <button
-            type="button"
-            className="btn"
-            onClick={handleBestDraft}
-            disabled={draftBlocker !== null}
-            title={draftBlocker ?? `Pick the starting XI, captain and vice-captain with the most Exp. Pts (${SOURCE_NAME[pointsSource]}) in GW${gameweek}, in a formation FPL allows`}
-          >
-            Best Draft
-          </button>
-        </div>
-      </div>
-      {/* The squad's figures and the pitch's controls, with Projected Points beside them (<projected_points>). */}
+      {/* Left: the squad's name, figures and the pitch's controls. Right: its buttons with Projected Points under them, the
+          same width (<projected_points>). */}
       <div className="pitch-view-top">
         <div className="pitch-view-top-main">
+          <div className="pitch-view-heading">{squadName && <span className="pitch-view-title">{squadName}</span>}</div>
           <SquadTiles validation={squadValidation} budgetHint={budgetHint} marketValue={squadMarketValue([...starters, ...benchPlayers])} />
           {squadValidation.clubViolations.length > 0 && (
             <div className="banner error">
@@ -637,14 +609,48 @@ export function SquadPitch({
             {view === "price" && <SegmentedControl label="Price" options={PRICE_VIEW_OPTIONS} value={priceView} onChange={setPriceView} />}
           </div>
         </div>
-        <ProjectedPointsBox
-          starters={starters}
-          bench={benchPlayers}
-          captainId={captainId}
-          expectationByPlayerId={expectationByPlayerId}
-          source={pointsSource}
-          gameweek={gameweek}
-        />
+        <div className="pitch-view-side">
+          <div className="pitch-view-actions">
+            <button
+              type="button"
+              className={`btn${captainPickMode === "captain" ? " active" : ""}`}
+              aria-pressed={captainPickMode === "captain"}
+              onClick={() => onCaptainTileClick("captain")}
+              title="Click, then click a starting player to make them captain"
+            >
+              Captain
+            </button>
+            <button
+              type="button"
+              className={`btn${captainPickMode === "viceCaptain" ? " active" : ""}`}
+              aria-pressed={captainPickMode === "viceCaptain"}
+              onClick={() => onCaptainTileClick("viceCaptain")}
+              title="Click, then click a starting player to make them vice-captain"
+            >
+              Vice-Captain
+            </button>
+            <button type="button" className="btn" onClick={onClearSquad} title={`Remove every player from ${squadName || "this squad"}`}>
+              Clear Draft
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={handleBestDraft}
+              disabled={draftBlocker !== null}
+              title={draftBlocker ?? `Pick the starting XI, captain and vice-captain with the most Exp. Pts (${SOURCE_NAME[pointsSource]}) in GW${gameweek}, in a formation FPL allows`}
+            >
+              Best Draft
+            </button>
+          </div>
+          <ProjectedPointsBox
+            starters={starters}
+            bench={benchPlayers}
+            captainId={captainId}
+            expectationByPlayerId={expectationByPlayerId}
+            source={pointsSource}
+            gameweek={gameweek}
+          />
+        </div>
       </div>
       {warning && <div className="banner error">{warning}</div>}
 
