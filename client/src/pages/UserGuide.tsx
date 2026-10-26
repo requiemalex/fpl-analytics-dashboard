@@ -193,8 +193,10 @@ export function UserGuide() {
           More goals, assists, wins and points are better, scoring above expected included; a lower price and lower
           ownership are better. Games played, draws and style figures (set-piece share, assisted-shot share, PPDA) have no
           colour. Charts that tell players apart by colour never use green or red, so no one reads as better or worse by his
-          colour alone. Hover a coloured figure to see where it ranks: "Top 8% of midfielders" for a player, "3rd of 20 clubs"
-          for a club. Hover a column header for what its statistic means. The palette button in the top bar, right of the
+          colour alone. Hover any figure, anywhere in the app, for two things: what the statistic is and measures, then where
+          it ranks: "92nd percentile of midfielders: top 8%" for a player (against his own position), "3rd of 20 clubs" for a
+          club. Figures with no colour still give their percentile; a player under the minutes floor's hover says why there's
+          none. Hover a column header for what its statistic means. The palette button in the top bar, right of the
           notepad's, turns green and red off on every page at once (struck through while off); press it again to bring them
           back. Hovering a figure still tells you where it ranks, and the app remembers your choice next time.
         </p>
@@ -327,7 +329,8 @@ export function UserGuide() {
           </li>
           <li>
             <strong>Next 5 Fixtures</strong> (off by default; turn it on in Columns) is always the player's actual upcoming
-            fixtures, whatever the mode: matches not yet kicked off.
+            fixtures, whatever the mode: matches not yet kicked off. Like Own%, Price, Team and Position it doesn't change with
+            the Data View, so it sits with them, and the grey line after it marks where the Data View's columns start.
           </li>
           <li>The page starts fresh each visit: columns, widths, sort and filters return to the defaults when you leave. Load a saved view to get yours back.</li>
         </ul>
@@ -430,7 +433,8 @@ export function UserGuide() {
             filters, Hide, export and saved views. A view you saved in Player Explorer loads here from the views menu, so players
             you've already found are a click away (and a view saved here shows in Player Explorer). It adds the{" "}
             <strong>Predictive</strong> columns first (both Expected Points and expected minutes), an <strong>Add</strong> on each
-            row, and leaves out your squad. Price and club limits always use today's price and club.
+            row, and leaves out your squad. Its Data View picker sits just above the first column it changes. Price and club
+            limits always use today's price and club.
           </li>
         </ul>
         <Try>Sort Add Players by "Exp. Pts (Model Predicted)" and compare it with "FPL Official". Where they disagree most is worth a second look.</Try>

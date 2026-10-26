@@ -65,7 +65,9 @@ describe("Understat's Match Log columns", () => {
     const [partial] = p.clubMatchColumns(3, "2025/26", [1, 2, 3]);
     const { container } = render(<div>{partial.average}</div>);
     expect(container.textContent).toBe("45%");
-    expect(container.querySelector("span")!.getAttribute("title")).toBe("From the 2 of 3 matches Understat has a figure for");
+    // The note is the profile's to add to the cell's hover, after what the column is and its rank (<stat_hover>).
+    expect(partial.averageNote).toBe("From the 2 of 3 matches Understat has a figure for");
+    expect(partial.averageRank).toBe(62.5);
     expect(partial.averageTint).toBe(percentileTint(62.5));
     const [none] = p.clubMatchColumns(3, "2025/26", [3]);
     expect(none.average).toBe("—");
@@ -110,8 +112,8 @@ describe("Understat's version of figures both sources have (the ⇄ toggles)", (
     expect(total.textContent).toBe("0.30");
     // 0.30 over the 2 matches with a figure (one a provable 0), not over 3.
     expect(average.textContent).toBe("0.15");
-    expect(total.querySelector("span")!.getAttribute("title")).toBe("From the 2 of 3 matches Understat has a figure for");
-    expect(average.querySelector("span")!.getAttribute("title")).toBe("From the 2 of 3 matches Understat has a figure for");
+    expect(alt.xg.totalNote).toBe("From the 2 of 3 matches Understat has a figure for");
+    expect(alt.xg.averageNote).toBe("From the 2 of 3 matches Understat has a figure for");
   });
 
   it("before Understat's figures have loaded, every match is —, never 0", () => {
@@ -136,7 +138,7 @@ describe("Understat's version of figures both sources have (the ⇄ toggles)", (
     expect(alt.xgc.total).toBe("1.70");
     const { container } = render(<div>{alt.a.total}</div>);
     expect(container.textContent).toBe("2");
-    expect(container.querySelector("span")!.getAttribute("title")).toBe("From the 1 of 2 matches Understat has a figure for");
+    expect(alt.a.totalNote).toBe("From the 1 of 2 matches Understat has a figure for");
   });
 });
 
@@ -236,7 +238,7 @@ describe("Understat's shot maps: zones", () => {
     const { container, getByText } = render(<>{p.playerCards(500, { mode: "lastSeason", seasons: ["2025/26"] }, "MID")}</>);
     expect(zoneTitle(container, "Further than 35 m")).toBe("Further than 35 m: 1 shot (50% of them) · 0 goals · 0.02 xG per shot");
     expect(zoneText(container, "Further than 35 m")).toBe("Further than 35 m · 50% · 1 shot · 0.02 xG/shot");
-    expect(getByText("Shots").parentElement!.getAttribute("title")).toBe("1 of them from further than 35 m");
+    expect(getByText("Shots").parentElement!.getAttribute("title")).toBe("Understat · Shots: Shots taken, 1 of them from further than 35 m.");
   });
 
   it("colours the new rates as rates, and penalties taken, within his position (<comparative_colouring>)", () => {
@@ -316,7 +318,7 @@ describe("Understat's shot maps: who gets which", () => {
     const inCard = (label: string) => [...card.querySelectorAll(".shot-stats-label")].find((l) => l.textContent === label)!;
     expect(inCard("Shots").nextSibling!.textContent).toBe("3");
     expect(inCard("Conversion %").nextSibling!.textContent).toBe("33%");
-    expect(inCard("Conversion %").parentElement!.getAttribute("title")).toBe("Share of the shots conceded");
+    expect(inCard("Conversion %").parentElement!.getAttribute("title")!.split("\n")[0]).toBe("Understat · Conversion %: Share of the shots conceded.");
   });
 
   it("a defender's shots faced are coloured within his position, per 90 minutes on the pitch, fewer better", () => {

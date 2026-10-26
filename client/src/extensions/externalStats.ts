@@ -39,7 +39,7 @@ export interface ExternalColumnSet<C> {
 export interface ExternalMatchColumn {
   key: string;
   header: string;
-  /** Hover text on the header. */
+  /** Hover text on the header: what the figure is, and the first line of every cell's hover (<stat_hover>). */
   title?: string;
   /** The cell for one FPL fixture ("—" when the source has nothing for it). */
   cell: (fixtureId: number) => ReactNode;
@@ -49,6 +49,18 @@ export interface ExternalMatchColumn {
   /** The Totals and Average cells' comparative colours (CSS backgrounds, <comparative_colouring>), when the source ranks them. */
   totalTint?: string;
   averageTint?: string;
+  /**
+   * The ranks behind the hovers (<stat_hover>), as percentiles (higher
+   * better) for the profile to put in words: Totals' and Average's (the
+   * ones behind their tints), and one match's against the pool the Average
+   * is ranked in. Null or omitted: no rank.
+   */
+  totalRank?: number | null;
+  averageRank?: number | null;
+  cellRank?: (fixtureId: number) => number | null;
+  /** Totals' and Average's note when they're from only some of the listed matches (<partial_totals>), for their hover. */
+  totalNote?: string;
+  averageNote?: string;
 }
 
 /**

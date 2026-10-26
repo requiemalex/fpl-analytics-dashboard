@@ -15,6 +15,8 @@ export interface TopListRow {
   value: number | null;
   /** His rank within his position for this figure (<comparative_colouring>) — none under the floor or for an uncoloured figure. */
   rank?: number;
+  /** The figure's hover (<stat_hover>): what it is, then his rank in words. */
+  hover?: string;
 }
 
 
@@ -101,7 +103,7 @@ export function TopList({
         </p>
       ) : (
         <div className="stat-list">
-          {rows.map(({ player, value, rank }, i) => (
+          {rows.map(({ player, value, rank, hover }, i) => (
             <div className="stat-row" key={player.id} onClick={() => onSelect?.(player.id)} style={{ cursor: onSelect ? "pointer" : "default" }}>
               <span className="stat-row-name">
                 <TeamBadge teamId={player.teamId} shortName={player.teamShortName} />
@@ -121,7 +123,7 @@ export function TopList({
                   }}
                 />
               </span>
-              <span className="stat-row-value" style={{ background: percentileTint(rank) }}>
+              <span className="stat-row-value" style={{ background: percentileTint(rank) }} title={hover}>
                 {format(value)}
               </span>
             </div>

@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { noRowsMessage } from "../emptyMessages";
 import { ResponsiveContainer, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ZAxis, Cell, Label, Symbols } from "recharts";
 import { SmallSampleMark } from "../MinutesFloorBadge";
+import { ChartStatLines } from "./ChartStatLines";
 import { planScatterAxes, type AxisScale } from "./axisScaling";
 
 export interface ScatterPoint {
@@ -13,6 +14,8 @@ export interface ScatterPoint {
   z?: number;
   /** Set for an entry under a minutes threshold: drawn as the amber stopwatch, with this in its hover box (<minutes_marker>). */
   smallSample?: string;
+  /** Its rank on each axis in words, for its hover box (<stat_hover>). */
+  ranks?: string[];
 }
 
 /** A point: the usual dot, or the amber stopwatch for a small sample (<minutes_marker>). */
@@ -55,7 +58,7 @@ function axisProps(scale: AxisScale) {
  * plain scatter and, with the reference line drawn, named whichever player
  * matched the cursor's x-position rather than the hovered one.)
  */
-function CustomTooltip({ active, payload, xLabel, yLabel, zLabel, xFormat, yFormat }: any) {
+function CustomTooltip({ active, payload, xLabel, yLabel, zLabel, xFormat, yFormat, definitions }: any) {
   if (!active || !payload || payload.length === 0) return null;
   const p = payload[0].payload as ScatterPoint;
   const fx = (v: number) => (xFormat ? xFormat(v) : v.toFixed(2));
@@ -75,6 +78,7 @@ function CustomTooltip({ active, payload, xLabel, yLabel, zLabel, xFormat, yForm
         {xLabel}: {fx(p.x)} · {yLabel}: {fy(p.y)}
         {p.z !== undefined && zLabel ? ` · ${zLabel}: ${p.z.toFixed(2)}` : ""}
       </div>
+      <ChartStatLines definitions={definitions} ranks={p.ranks} />
       {p.smallSample && <div className="chart-tooltip-small-sample">{p.smallSample}</div>}
     </div>
   );
@@ -103,6 +107,7 @@ export function ScatterWithReference({
   emptyMessage = noRowsMessage("player"),
   xFormat,
   yFormat,
+  definitions,
 }: {
   data: ScatterPoint[];
   xLabel: string;
@@ -126,6 +131,8 @@ export function ScatterWithReference({
   /** How the tooltip shows each axis's value (e.g. £15.6m, 45.2%) — two decimals when omitted. */
   xFormat?: (v: number) => string;
   yFormat?: (v: number) => string;
+  /** What each axis's figure is, for the hover box (<stat_hover>). */
+  definitions?: string[];
 }) {
   const hasZ = useMemo(() => data.some((d) => d.z !== undefined && d.z !== null), [data]);
   const useBubbleSize = hasZ && !colorScale;
@@ -214,7 +221,7 @@ export function ScatterWithReference({
           {/* Fixed-size dots are kept small and semi-transparent so a dense cluster (many players on the same whole-number goals/price value) reads as a darker patch rather than one solid blob. */}
           <ZAxis dataKey={useBubbleSize ? "z" : undefined} range={useBubbleSize ? [30, 160] : [22, 22]} name={zLabel} />
           <Tooltip
-            content={<CustomTooltip xLabel={xLabel} yLabel={yLabel} zLabel={zLabel} xFormat={xFormat} yFormat={yFormat} />}
+            content={<CustomTooltip xLabel={xLabel} yLabel={yLabel} zLabel={zLabel} xFormat={xFormat} yFormat={yFormat} definitions={definitions} />}
             cursor={{ stroke: "var(--border-strong)", strokeDasharray: "3 3" }}
           />
           {referenceSegment && <ReferenceLine segment={referenceSegment} stroke="var(--text-muted)" strokeDasharray="4 4" ifOverflow="hidden" />}

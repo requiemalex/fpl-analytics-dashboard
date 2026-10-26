@@ -15,6 +15,8 @@ export interface TeamTopListRow {
   value: number | null;
   /** The club's rank among every club for this figure (<comparative_colouring>). */
   rank?: number;
+  /** The figure's hover (<stat_hover>): what it is, then the club's place. */
+  hover?: string;
 }
 
 
@@ -97,7 +99,7 @@ export function TeamTopList({
               <span className="stat-row-bar-track">
                 <span className="stat-row-bar-fill" style={{ width: `${widths[i]}%`, background: "var(--accent-focus)" }} />
               </span>
-              <span className="stat-row-value" style={{ background: percentileTint(row.rank) }}>
+              <span className="stat-row-value" style={{ background: percentileTint(row.rank) }} title={row.hover}>
                 {format(row.value)}
               </span>
             </div>

@@ -83,7 +83,10 @@ describe("Team Building — Model Predicted", () => {
     const { container } = renderBuilder();
     const saka = modelCell(container, "Saka")!;
     expect(Number(saka.textContent)).toBeGreaterThan(1);
-    expect(saka.title).toMatch(/^Scoutline's model v CHE \(H\): \d+\.\d pts = appearance/);
+    // <stat_hover>: what the column is, then his figure in parts (his percentile follows when others in his position have a figure).
+    const lines = saka.title.split("\n");
+    expect(lines[0]).toMatch(/^Exp\. Pts \(Model Predicted\): /);
+    expect(lines[1]).toMatch(/^Scoutline's model v CHE \(H\): \d+\.\d pts = appearance/);
     expect(saka.title).toContain("chance of starting");
   });
   it("a player whose matches didn't load has no figure, and the hover says why", () => {
@@ -96,7 +99,8 @@ describe("Team Building — Model Predicted", () => {
     const { container } = renderBuilder();
     const minutes = addPlayersCell(container, "Exp. Mins", "Saka")!;
     expect(Number(minutes.textContent)).toBeGreaterThan(0);
-    expect(minutes.title).toMatch(/^About \d+ minutes expected in GW\d+/);
+    expect(minutes.title.split("\n")[0]).toMatch(/^Exp\. Mins: /);
+    expect(minutes.title.split("\n")[1]).toMatch(/^About \d+ minutes expected in GW\d+/);
     expect(addPlayersCell(container, "Exp. Mins", "Palmer")!.textContent).toBe("—");
   });
 });

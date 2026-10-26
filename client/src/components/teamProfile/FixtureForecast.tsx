@@ -2,7 +2,7 @@ import React from "react";
 import type { FixtureForecast, UpcomingForecast } from "../../metrics/fixtureForecast";
 import { rankAmong } from "../../metrics/comparativeColour";
 import { percentileTint } from "../../utils/colorScale";
-import { fixtureHint } from "../hoverText";
+import { clubRankHint, fixtureHint, percentileHint, statHover } from "../hoverText";
 import { DASH, fmtDecimal, fmtPercent } from "../../utils/format";
 
 /**
@@ -16,6 +16,9 @@ import { DASH, fmtDecimal, fmtPercent } from "../../utils/format";
  * Colours (<comparative_colouring>): a fixture's figure ranked among every
  * club's upcoming fixtures in the table, a club's Totals and Average among
  * every club's; fewer goals conceded and defeats better, a draw neither.
+ * Each figure's hover says what it is, then that rank in words
+ * (<stat_hover>): a fixture's percentile among every club's upcoming
+ * fixtures, Totals' and Average's place among the clubs.
  */
 
 type Key = keyof FixtureForecast;
@@ -51,8 +54,12 @@ export function FixtureForecastTable({ teamId, teamName, all }: { teamId: number
     );
   }
   const others = [...all].filter(([id]) => id !== teamId).map(([, r]) => r);
+  // A draw is neither better nor worse: ranked by how likely, for its hover, but never tinted.
+  const rank = (higherIsBetter: boolean | null, value: number | null, pool: (number | null)[]) =>
+    rankAmong(value, pool.filter((v): v is number => v !== null), higherIsBetter ?? true);
   const tint = (key: Key, higherIsBetter: boolean | null, value: number | null, pool: (number | null)[]) =>
-    higherIsBetter === null ? undefined : percentileTint(rankAmong(value, pool.filter((v): v is number => v !== null), higherIsBetter));
+    higherIsBetter === null ? undefined : percentileTint(rank(higherIsBetter, value, pool));
+  const definition = (c: (typeof COLUMNS)[number]) => `${c.header}: ${c.title}.${c.higherIsBetter === false ? "\nLower is better." : ""}`;
   // A fixture's figure among every other upcoming fixture in the table, every club's.
   const fixturePool = (key: Key, fixtureId: number) => [
     ...others.flatMap((rs) => rs.map((r) => r.forecast?.[key] ?? null)),
@@ -68,7 +75,7 @@ export function FixtureForecastTable({ teamId, teamName, all }: { teamId: number
             <th style={{ textAlign: "left" }}>GW</th>
             <th style={{ textAlign: "left" }}>Opponent</th>
             {COLUMNS.map((c, i) => (
-              <th key={c.key} className={i === 0 ? "column-group-divider" : undefined} title={c.title}>
+              <th key={c.key} className={i === 0 ? "column-group-divider" : undefined} title={definition(c)}>
                 {c.header}
               </th>
             ))}
@@ -84,7 +91,12 @@ export function FixtureForecastTable({ teamId, teamName, all }: { teamId: number
               {COLUMNS.map((c, i) => {
                 const v = r.forecast?.[c.key] ?? null;
                 return (
-                  <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} style={{ background: tint(c.key, c.higherIsBetter, v, fixturePool(c.key, r.fixture.fixtureId)) }}>
+                  <td
+                    key={c.key}
+                    className={i === 0 ? "column-group-divider" : undefined}
+                    style={{ background: tint(c.key, c.higherIsBetter, v, fixturePool(c.key, r.fixture.fixtureId)) }}
+                    title={statHover(definition(c), percentileHint(rank(c.higherIsBetter, v, fixturePool(c.key, r.fixture.fixtureId)), "every club's upcoming fixtures", c.higherIsBetter === null))}
+                  >
                     {cell(c.key, v)}
                   </td>
                 );
@@ -107,7 +119,12 @@ export function FixtureForecastTable({ teamId, teamName, all }: { teamId: number
                 const v = of(rows, c.key);
                 const shown = v === null ? DASH : row === "total" ? fmtDecimal(v, 1) : cell(c.key, v);
                 return (
-                  <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} style={{ background: tint(c.key, c.higherIsBetter, v, others.map((rs) => of(rs, c.key))) }}>
+                  <td
+                    key={c.key}
+                    className={i === 0 ? "column-group-divider" : undefined}
+                    style={{ background: tint(c.key, c.higherIsBetter, v, others.map((rs) => of(rs, c.key))) }}
+                    title={statHover(definition(c), clubRankHint(rank(c.higherIsBetter, v, others.map((rs) => of(rs, c.key))), others.length + 1, { neutral: c.higherIsBetter === null }))}
+                  >
                     {shown}
                   </td>
                 );

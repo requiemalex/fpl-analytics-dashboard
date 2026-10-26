@@ -5,7 +5,7 @@ import { fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../met
 import { teamDisplayColors, teamIdentityColor } from "../utils/teamColors";
 import type { Position } from "../types/normalized";
 import { coverageNote, type PartialSum } from "../metrics/partialTotals";
-import { averageFixtureHint, fixtureHint } from "./hoverText";
+import { averageFixtureHint, fixtureHint, statHover } from "./hoverText";
 
 /**
  * A Match Log Totals or Average cell (<partial_totals>): its text, with a
@@ -157,7 +157,8 @@ export function AvailabilityFlag({
 }
 
 /** A team's upcoming fixtures as coloured FDR chips plus the average difficulty — shared by every table that offers a fixtures column (Team Building's picker, Player Explorer), so the visual reads identically wherever it appears. `avgTint` is an optional pre-computed background colour (relativeCellTint, lower-is-better) for the average-difficulty figure — comparative colouring against every other team, used by the team profile's Upcoming Fixtures card; every other caller omits it and gets the plain untinted figure unchanged. */
-export function FixtureChips({ fixtures, avgTint }: { fixtures: UpcomingFixture[]; avgTint?: string }) {
+/** `avgRank`: his club's place among the clubs for the average (<stat_hover>), after what the average is. */
+export function FixtureChips({ fixtures, avgTint, avgRank }: { fixtures: UpcomingFixture[]; avgTint?: string; avgRank?: string }) {
   const avgFdr = averageFixtureDifficulty(fixtures);
   if (fixtures.length === 0 || avgFdr === null) return <span className="value-muted">{DASH}</span>;
   return (
@@ -176,7 +177,7 @@ export function FixtureChips({ fixtures, avgTint }: { fixtures: UpcomingFixture[
       </div>
       <span
         style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)", background: avgTint, borderRadius: 3, padding: avgTint ? "1px 4px" : 0 }}
-        title={averageFixtureHint(avgFdr, fixtures.length)}
+        title={statHover(averageFixtureHint(avgFdr, fixtures.length), avgRank)}
       >
         {fmtDecimal(avgFdr, 1)}
       </span>

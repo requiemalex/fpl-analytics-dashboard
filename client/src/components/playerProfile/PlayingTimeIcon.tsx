@@ -1,4 +1,5 @@
 import { fmtDecimal, DASH } from "../../utils/format";
+import { statHover } from "../hoverText";
 
 /**
  * A glanceable gauge for how heavily a player has actually been used this
@@ -7,8 +8,9 @@ import { fmtDecimal, DASH } from "../../utils/format";
  * rotation risk / fringe) — plus the two figures behind it spelled out as
  * text next to the icon, so the card doesn't read as near-empty once the
  * gauge itself (a small fixed-size circle) is all there is to look at.
+ * `rank`: the average's rank in words (<stat_hover>), after what it is.
  */
-export function PlayingTimeIcon({ averageMinutes, matches, seasonName }: { averageMinutes: number | null; matches: number; seasonName?: string }) {
+export function PlayingTimeIcon({ averageMinutes, matches, seasonName, rank }: { averageMinutes: number | null; matches: number; seasonName?: string; rank?: string }) {
   const when = seasonName ? `in ${seasonName}` : "this season";
   if (averageMinutes === null) {
     return (
@@ -31,12 +33,13 @@ export function PlayingTimeIcon({ averageMinutes, matches, seasonName }: { avera
   const tierLabel = tier === "high" ? "Regular starter" : tier === "medium" ? "Rotation risk" : "Fringe player";
   const radius = 22;
   const circumference = 2 * Math.PI * radius;
+  const hover = statHover(`${tierLabel}: ${fmtDecimal(averageMinutes, 0)} min average across ${matches} match${matches === 1 ? "" : "es"} ${when}`, rank);
 
   return (
     <div className="playing-time-row">
       <div
         className={`playing-time-icon tier-${tier}`}
-        title={`${tierLabel}: ${fmtDecimal(averageMinutes, 0)} min average across ${matches} match${matches === 1 ? "" : "es"} ${when}`}
+        title={hover}
         aria-label={`${tierLabel}, averaging ${fmtDecimal(averageMinutes, 0)} minutes per match ${when}`}
       >
         <svg width="56" height="56" viewBox="0 0 56 56">
@@ -54,7 +57,7 @@ export function PlayingTimeIcon({ averageMinutes, matches, seasonName }: { avera
           />
         </svg>
       </div>
-      <div className="playing-time-summary">
+      <div className="playing-time-summary" title={hover}>
         <div>Matches: {matches}</div>
         <div>Average Minutes Per Match: {fmtDecimal(averageMinutes, 0)}</div>
       </div>

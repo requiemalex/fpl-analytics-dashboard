@@ -2571,6 +2571,15 @@ button.points-history-col.is-selectable:focus-visible {
   max-width: 260px;
   color: var(--accent-value);
 }
+/* <stat_hover> in a chart's hover box: what each figure is (muted), then its rank. */
+.chart-tooltip-stat {
+  margin-top: 4px;
+  max-width: 280px;
+  white-space: pre-line;
+}
+.chart-tooltip-definition {
+  color: var(--text-secondary);
+}
 .chart-tooltip-row .cmp-trend-below {
   color: var(--accent-value);
 }

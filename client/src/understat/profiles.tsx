@@ -2,12 +2,12 @@ import React from "react";
 import type { ExternalMatchColumn, ExternalProfiles, ProfileView } from "../extensions/externalStats";
 import { DASH, fmtDecimal, fmtPercent, fmtSigned } from "../utils/format";
 import { percentileTint } from "../utils/colorScale";
-import { sumKnown, type PartialSum } from "../metrics/partialTotals";
-import { withCoverage } from "../components/primitives";
+import { coverageNote, sumKnown, type PartialSum } from "../metrics/partialTotals";
 import { SmallSampleBadge } from "../components/MinutesFloorBadge";
 import { ProfileSummary, type SummaryGroup } from "../components/playerProfile/ProfileSummary";
 import { countDecimals } from "../components/playerColumns";
-import { playerRankHint } from "../components/hoverText";
+import { clubRankHint, columnHint, noPercentileHint, playerRankHint, statHover, UNDERSTAT_STAT_HINTS } from "../components/hoverText";
+import { rankAmong } from "../metrics/comparativeColour";
 import type { Position } from "../types/normalized";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import {
@@ -171,6 +171,7 @@ function ShotCard({
   wide,
   faced,
   ranks,
+  rankText,
   smallSampleNote,
 }: {
   title: string;
@@ -187,6 +188,8 @@ function ShotCard({
   faced?: boolean;
   /** Each figure's comparative rank (<comparative_colouring>), when it has one. */
   ranks?: Partial<Record<ShotFigureKey, number | null>>;
+  /** A rank in words for each figure's hover (<stat_hover>): a player's percentile within his position, a club's place; or why there's none. */
+  rankText?: (percentile: number | null | undefined) => string | undefined;
   /** Set when the figures are left uncoloured for being under the minutes floor: the title's amber stopwatch says so (<minutes_marker>). */
   smallSampleNote?: string | null;
 }) {
@@ -195,16 +198,23 @@ function ShotCard({
   const f = shotFigures(shots, seasons);
   const beyond = shots.filter(isBeyondMap).length;
   const scored = faced ? "conceded" : "scored";
-  const rows: { key: ShotFigureKey; label: string; value: string; title?: string }[] = [
-    { key: "shots", label: "Shots", value: fmtDecimal(f.shots, 0), title: beyond > 0 ? `${fmtDecimal(beyond / seasons, dp)} of them from further than ${SHOT_MAP_DEPTH} m` : undefined },
-    { key: "onTarget", label: "On Target", value: fmtDecimal(f.onTarget, 0), title: "Scored or saved" },
+  const taken = faced ? "faced" : "taken";
+  // What each figure is (<stat_hover>): the first line of its hover, its rank the second.
+  const rows: { key: ShotFigureKey; label: string; value: string; title: string }[] = [
+    {
+      key: "shots",
+      label: "Shots",
+      value: fmtDecimal(f.shots, 0),
+      title: `Shots ${taken}${beyond > 0 ? `, ${fmtDecimal(beyond / seasons, dp)} of them from further than ${SHOT_MAP_DEPTH} m` : ""}`,
+    },
+    { key: "onTarget", label: "On Target", value: fmtDecimal(f.onTarget, 0), title: `Shots ${taken} on target: scored or saved` },
     { key: "onTargetShare", label: "On Target %", value: pct(f.onTargetShare), title: "Share of the shots that were on target (scored or saved)" },
-    { key: "goals", label: "Goals", value: fmtDecimal(f.goals, dp), title: faced ? "Goals conceded from these shots" : undefined },
+    { key: "goals", label: "Goals", value: fmtDecimal(f.goals, dp), title: faced ? "Goals conceded from these shots" : "Goals from these shots" },
     { key: "conversion", label: "Conversion %", value: pct(f.conversion), title: `Share of the shots ${scored}` },
-    { key: "xG", label: "xG", value: fmtDecimal(f.xG, 2) },
-    { key: "npxG", label: "NPxG", value: fmtDecimal(f.npxG, 2), title: "Non-penalty xG" },
-    { key: "xGPerShot", label: "xG/Shot", value: fmtDecimal(f.xGPerShot, 2) },
-    { key: "penalties", label: faced ? "Penalties Conceded" : "Penalties Taken", value: fmtDecimal(f.penalties, penaltyDp), title: faced ? "Penalties taken against" : undefined },
+    { key: "xG", label: "xG", value: fmtDecimal(f.xG, 2), title: "Expected goals: how many goals these shots would usually bring" },
+    { key: "npxG", label: "NPxG", value: fmtDecimal(f.npxG, 2), title: "Non-penalty xG: the same, penalties left out" },
+    { key: "xGPerShot", label: "xG/Shot", value: fmtDecimal(f.xGPerShot, 2), title: "Average xG a shot: how good the chances are" },
+    { key: "penalties", label: faced ? "Penalties Conceded" : "Penalties Taken", value: fmtDecimal(f.penalties, penaltyDp), title: faced ? "Penalties taken against" : "Penalties taken" },
     { key: "penaltyGoals", label: "Penalty Goals", value: fmtDecimal(f.penaltyGoals, penaltyDp), title: faced ? "Penalties scored against" : "Penalties scored" },
   ];
   return (
@@ -219,7 +229,7 @@ function ShotCard({
           <div className="shot-stats-heading">{heading}</div>
           <div className="shot-stats-rows">
             {rows.map((r) => (
-              <div className="shot-stats-row" key={r.label} title={r.title}>
+              <div className="shot-stats-row" key={r.label} title={statHover(`Understat · ${r.label}: ${r.title}.`, rankText?.(ranks?.[r.key]))}>
                 <span className="shot-stats-label">{r.label}</span>
                 <span className="shot-stats-value num" style={{ background: percentileTint(ranks?.[r.key]) }}>
                   {r.value}
@@ -254,9 +264,9 @@ const pct = (v: number | null) => (v === null ? DASH : fmtPercent(v * 100, 0));
  */
 const counted = sumKnown;
 
-/** A Totals or Average cell from only some of the listed matches says so on hover. */
-function coverage(text: string, c: PartialSum | null): React.ReactNode {
-  return withCoverage(text, c, "Understat");
+/** A Totals or Average cell from only some of the listed matches says so on hover (the profile adds it to the cell's). */
+function coverage(c: PartialSum | null): string | undefined {
+  return coverageNote(c, "Understat");
 }
 
 /** A switched Match Log column: each match's figure, and its Totals and Average over the matches Understat has a figure for. */
@@ -275,14 +285,26 @@ function alternate(
     key,
     header: key,
     cell: (fixture) => fmtDecimal(values.get(fixture) ?? null, totalDp),
-    total: coverage(fmtDecimal(shown.total, totalDp), c),
-    average: coverage(fmtDecimal(shown.average, averageDp), c),
+    total: fmtDecimal(shown.total, totalDp),
+    average: fmtDecimal(shown.average, averageDp),
     totalTint: percentileTint(ranks?.total),
     averageTint: percentileTint(ranks?.average),
+    totalRank: ranks?.total,
+    averageRank: ranks?.average,
+    // One match against the pool the Average is ranked in (<stat_hover>).
+    cellRank: (fixture) => rank?.({ total: null, average: values.get(fixture) ?? null }).average ?? null,
+    totalNote: coverage(c),
+    averageNote: coverage(c),
   };
 }
 
 const sumOrNull = (a: number | null, b: number | null) => (a === null || b === null ? null : a + b);
+
+/** A player's figure ranked in words for its hover (<stat_hover>): his percentile within his position, or — under Understat's minutes floor — why there's none. */
+function playerRankText(compare: UsComparisonContext, seasons: string[], position: Position, smallSampleNote: string | null) {
+  return (p: number | null | undefined) =>
+    playerRankHint(p, position) ?? (smallSampleNote ? noPercentileHint(floorFor(compare, seasons[seasons.length - 1])) : undefined);
+}
 
 /** The Match Log figures both sources have, from a season summary row (for the comparison pools). */
 const PLAYER_LOG_FIGURES: Record<string, { value: (t: UsPlayerTotals) => number | null; higherIsBetter: boolean }> = {
@@ -353,11 +375,13 @@ export function createProfiles(
       title: g.title,
       figures: g.keys.map((key) => {
         const f = figure(key);
-        return { label: f.label, value: format(f, f.value(own)), percentile: ranks[key], title: f.title };
+        // What it is (<stat_hover>): its Explorer column's meaning where there is one, its own otherwise.
+        const title = columnHint(f.label, { hint: UNDERSTAT_STAT_HINTS[key] ?? f.title, source: "Understat", lowerIsBetter: !f.higherIsBetter });
+        return { label: f.label, value: format(f, f.value(own)), percentile: ranks[key], title };
       }),
     }));
     return {
-      card: <ProfileSummary groups={summaryGroups} rankHint={(p) => playerRankHint(p, position)} badge={smallSampleNote ? <SmallSampleBadge note={smallSampleNote} /> : null} />,
+      card: <ProfileSummary groups={summaryGroups} rankHint={playerRankText(compare, seasons, position, smallSampleNote)} badge={smallSampleNote ? <SmallSampleBadge note={smallSampleNote} /> : null} />,
       state: "ready",
     };
   };
@@ -420,15 +444,19 @@ export function createProfiles(
         const c = counted(fixtureIds.map((f) => byFixture.get(f)?.[key] ?? null));
         const average = c === null ? null : c.sum / c.n;
         const league = (detail?.league ?? []).map((c) => c[key]);
-        const averageTint = higherIsBetter === null ? undefined : percentileTint(leagueChanceRank(average, league, higherIsBetter));
+        const averageRank = higherIsBetter === null ? null : leagueChanceRank(average, league, higherIsBetter);
         return {
           key: `us-${key}`,
           header,
-          title: `Understat: the chance of ${what} given the shots both sides took, worked out after the match`,
+          title: `Understat · ${header}: the chance of ${what} given the shots both sides took, worked out after the match.`,
           cell: (fixture) => pct(byFixture.get(fixture)?.[key] ?? null),
           total: "",
-          average: coverage(pct(average), c),
-          averageTint,
+          average: pct(average),
+          averageTint: percentileTint(averageRank),
+          averageRank,
+          // A draw is neither better nor worse, so it has no rank; a match's chance is ranked against every club's average.
+          cellRank: (fixture) => (higherIsBetter === null ? null : rankAmong(byFixture.get(fixture)?.[key] ?? null, league, higherIsBetter)),
+          averageNote: coverage(c),
         };
       };
       return [column("win", "Win Chance", "a win", true), column("draw", "Draw Chance", "a draw", null), column("loss", "Loss Chance", "a defeat", false)];
@@ -506,6 +534,7 @@ export function createProfiles(
             heading={statsHeading(view, n)}
             wide
             ranks={ranks}
+            rankText={compare ? playerRankText(compare, view.seasons, position, smallSampleNote) : undefined}
             smallSampleNote={smallSampleNote}
           />
         );
@@ -531,6 +560,7 @@ export function createProfiles(
               wide
               faced
               ranks={compare ? playerFacedRanks(compare, code, view.seasons, FACED_PARTS) : undefined}
+              rankText={compare ? playerRankText(compare, view.seasons, position, smallSampleNote) : undefined}
               smallSampleNote={smallSampleNote}
             />
           );
@@ -575,10 +605,13 @@ export function createProfiles(
           })),
         );
       };
+      // A club's place among the clubs of the view's latest season (<stat_hover>).
+      const clubs = compare?.seasons.get(view.seasons[view.seasons.length - 1])?.clubs.size ?? 0;
+      const clubRankText = (p: number | null | undefined) => clubRankHint(p, clubs);
       return (
         <>
-          <ShotCard title="Shot Map · Taken" shots={taken} seasons={n} mode={view.mode} club label={`Shots taken, ${label}`} heading={statsHeading(view, n)} wide ranks={clubRanksFor(taken, true)} />
-          <ShotCard title="Shot Map · Faced" shots={faced} seasons={n} mode={view.mode} club label={`Shots faced, ${label}`} heading={statsHeading(view, n)} wide faced ranks={clubRanksFor(faced, false)} />
+          <ShotCard title="Shot Map · Taken" shots={taken} seasons={n} mode={view.mode} club label={`Shots taken, ${label}`} heading={statsHeading(view, n)} wide ranks={clubRanksFor(taken, true)} rankText={clubRankText} />
+          <ShotCard title="Shot Map · Faced" shots={faced} seasons={n} mode={view.mode} club label={`Shots faced, ${label}`} heading={statsHeading(view, n)} wide faced ranks={clubRanksFor(faced, false)} rankText={clubRankText} />
         </>
       );
     },

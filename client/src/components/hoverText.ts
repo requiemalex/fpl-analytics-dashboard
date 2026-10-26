@@ -18,31 +18,31 @@ import { fmtDecimal, fmtPercent } from "../utils/format";
  * so a table's thousands of cells share a few hundred strings.
  */
 
-const POSITION_PLURAL: Record<Position, string> = { GKP: "goalkeepers", DEF: "defenders", MID: "midfielders", FWD: "forwards" };
-
-const rankPhraseCache = new Map<string, string>();
+export const POSITION_PLURAL: Record<Position, string> = { GKP: "goalkeepers", DEF: "defenders", MID: "midfielders", FWD: "forwards" };
 
 /**
- * A player's colour in words: his rank within his position (the
- * percentile behind every tint, higher = better, <comparative_colouring>).
- * "Top 8% of midfielders", "Bottom 15% of forwards", or around the middle
- * where the cell has no tint. Undefined without a rank (under the floor,
- * or a figure that's never coloured).
+ * <stat_hover>: every figure the app shows says two things on hover (the
+ * owner's rule, 2026-10-26): what the statistic is and measures (its
+ * column's plain-words hint, the same line its header shows), then where
+ * this figure ranks — a player's percentile within his position, a club's
+ * place among the clubs. Where there's no rank, the second line says why
+ * (under the minutes floor) or is left out (nothing to compare with).
+ * One line each, joined here, so every surface reads the same way.
  */
-export function playerRankHint(percentile: number | null | undefined, position: Position, label?: string): string | undefined {
-  if (percentile === null || percentile === undefined || !Number.isFinite(percentile)) return undefined;
-  const p = Math.round(percentile);
-  const key = `${label ?? ""}|${position}|${p}`;
-  let hint = rankPhraseCache.get(key);
+export function statHover(definition: string | undefined, rank: string | undefined): string | undefined {
+  if (!definition) return rank;
+  if (!rank) return definition;
+  const key = `${definition}\u0000${rank}`;
+  let hint = statHoverCache.get(key);
   if (hint === undefined) {
-    const group = POSITION_PLURAL[position];
-    const phrase =
-      p >= 60 ? `Top ${Math.max(1, 100 - p)}% of ${group}` : p <= 40 ? `Bottom ${Math.max(1, p)}% of ${group}` : `Around the middle for ${group}`;
-    hint = label ? `${label}: ${phrase.charAt(0).toLowerCase()}${phrase.slice(1)}` : phrase;
-    rankPhraseCache.set(key, hint);
+    hint = `${definition}\n${rank}`;
+    statHoverCache.set(key, hint);
   }
   return hint;
 }
+const statHoverCache = new Map<string, string>();
+
+const rankPhraseCache = new Map<string, string>();
 
 function ordinal(n: number): string {
   const tens = n % 100;
@@ -51,15 +51,53 @@ function ordinal(n: number): string {
 }
 
 /**
- * A club's colour in words: "3rd of 20 clubs" (best first). `poolSize` is
- * how many clubs have a figure. The percentile counts half of any tie, so
- * this is the tie's middle place, rounded.
+ * A player's rank in words: his percentile within his position (the one
+ * behind every tint, higher = better, <comparative_colouring>), then what
+ * that means — "92nd percentile of midfielders: top 8%", "15th percentile
+ * of forwards: bottom 15%", or around the middle where a cell has no tint.
+ * `neutral`: a figure that's neither better nor worse (never coloured), so
+ * the percentile is simply how high it is, with no top or bottom.
+ * `among`: what he's ranked against, when that isn't his position's
+ * figures of the same kind ("midfielders' per-match averages").
+ * Undefined without a rank (under the floor, nobody to compare with).
  */
-export function clubRankHint(percentile: number | null | undefined, poolSize: number, label?: string): string | undefined {
+export function playerRankHint(
+  percentile: number | null | undefined,
+  position: Position,
+  opts: { neutral?: boolean; among?: string } = {},
+): string | undefined {
+  return percentileHint(percentile, opts.among ?? POSITION_PLURAL[position], opts.neutral);
+}
+
+/** A percentile in words against any pool (`among`: "every club's upcoming fixtures"), as playerRankHint words a player's. */
+export function percentileHint(percentile: number | null | undefined, among: string, neutral = false): string | undefined {
+  if (percentile === null || percentile === undefined || !Number.isFinite(percentile)) return undefined;
+  const p = Math.min(99, Math.max(1, Math.round(percentile)));
+  const key = `${among}|${p}|${neutral ? 1 : 0}`;
+  let hint = rankPhraseCache.get(key);
+  if (hint === undefined) {
+    const head = `${ordinal(p)} percentile of ${among}`;
+    hint = neutral ? head : `${head}: ${p >= 60 ? `top ${100 - p}%` : p <= 40 ? `bottom ${p}%` : "around the middle"}`;
+    rankPhraseCache.set(key, hint);
+  }
+  return hint;
+}
+
+/** Why a player's figure has no percentile: he's under the fixed floor for the view (<minutes_marker>). */
+export function noPercentileHint(floorMinutes: number): string {
+  return `No percentile: under the ${floorMinutes}-minute floor, a small sample`;
+}
+
+/**
+ * A club's rank in words: "3rd of 20 clubs" (best first). `poolSize` is
+ * how many clubs have a figure. The percentile counts half of any tie, so
+ * this is the tie's middle place, rounded. `neutral`: a figure that's
+ * neither better nor worse, so "3rd highest of 20 clubs".
+ */
+export function clubRankHint(percentile: number | null | undefined, poolSize: number, opts: { neutral?: boolean } = {}): string | undefined {
   if (percentile === null || percentile === undefined || !Number.isFinite(percentile) || poolSize < 2) return undefined;
   const place = Math.min(poolSize, Math.max(1, Math.round(poolSize + 0.5 - (percentile * poolSize) / 100)));
-  const phrase = `${ordinal(place)} of ${poolSize} clubs`;
-  return label ? `${label}: ${phrase}` : phrase;
+  return `${ordinal(place)}${opts.neutral ? " highest" : ""} of ${poolSize} clubs`;
 }
 
 /** One upcoming match: "BOU at home · FPL difficulty 2/5". */
@@ -183,6 +221,33 @@ export function columnHint(
   return lines.join("\n");
 }
 
+type ColumnLike = { key: string; label: string; higherIsBetter?: boolean; varies?: boolean };
+
+/**
+ * A player column's header hover, and the first line of each of its
+ * figures' (<stat_hover>): FPL's meaning, or a second source's when
+ * `sourceLabel` names it. `label` overrides the column's own (a profile
+ * tile spelled out longer).
+ */
+export function playerColumnHint(c: ColumnLike, opts: { sourceLabel?: string; label?: string } = {}): string {
+  return columnHint(opts.label ?? c.label, {
+    hint: opts.sourceLabel ? UNDERSTAT_STAT_HINTS[c.key] : PLAYER_STAT_HINTS[c.key],
+    source: opts.sourceLabel,
+    lowerIsBetter: c.higherIsBetter === false,
+    liveFigure: c.varies === false,
+  });
+}
+
+/** A club column's header hover, and the first line of each of its figures' (<stat_hover>). */
+export function clubColumnHint(c: ColumnLike, opts: { sourceLabel?: string; label?: string } = {}): string {
+  return columnHint(opts.label ?? c.label, {
+    hint: opts.sourceLabel ? (CLUB_UNDERSTAT_HINTS[c.key] ?? UNDERSTAT_STAT_HINTS[c.key]) : CLUB_STAT_HINTS[c.key],
+    source: opts.sourceLabel,
+    // "Lower is better" says nothing a league position doesn't.
+    lowerIsBetter: c.higherIsBetter === false && c.key !== "leaguePosition",
+  });
+}
+
 /**
  * Plain-words meaning of each player stat column (FPL's figures), by
  * column key. Short on purpose: one idea each, in FPL terms.
@@ -234,6 +299,9 @@ export const PLAYER_STAT_HINTS: Record<string, string> = {
   directFreekicksOrder: "His place on his club's direct free-kick list (1 = first choice).",
   cornersOrder: "His place on his club's corner and indirect free-kick list (1 = first choice).",
   ownership: "Share of FPL managers who own him.",
+  // Profile-only figures (no Explorer column).
+  goalInvolvementsMinusXGI: "Goals plus assists minus xGI. Above 0: more goal involvements than his chances suggest.",
+  minutesPerGoal: "Minutes played per goal scored.",
 };
 
 /** Plain-words meaning of each club stat column (FPL's figures), by column key. */

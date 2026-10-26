@@ -10,6 +10,7 @@ import { PitchMarkings } from "../components/PitchMarkings";
 import { Kit } from "../components/Kit";
 import { percentileTint } from "../utils/colorScale";
 import { formationRank, type UsComparisonContext } from "./comparisons";
+import { clubRankHint, statHover } from "../components/hoverText";
 import type { UsClubTotals } from "./schema";
 
 /**
@@ -125,7 +126,7 @@ function Slot({ slot, club, idByCode }: { slot: FormationSlot; club: { id: numbe
 }
 
 /** Hover on a coloured formation figure. */
-const RANK_HINT = "coloured against every club's per-90 figure for the season";
+const RANK_HINT = "ranked against every club's per-90 figure for the season";
 
 function FormationCard({ code, formations, lineups, season, compare }: { code: number; formations: UsFormation[]; lineups: UsLineup[] | null; season: string; compare: UsComparisonContext | null }) {
   const { players, teams } = useAppState();
@@ -157,9 +158,11 @@ function FormationCard({ code, formations, lineups, season, compare }: { code: n
   const prev = shown[(at - 1 + shown.length) % shown.length];
   const next = shown[(at + 1) % shown.length];
   const rank = (shown: number, value: (t: UsClubTotals) => number, higherIsBetter: boolean) => (compare ? formationRank(compare, code, season, shown, value, higherIsBetter) : null);
-  const rows: { label: string; value: React.ReactNode; title?: string; rank?: number | null }[] = [
+  // What each figure is, then — where it's ranked — the club's place among the clubs (<stat_hover>).
+  const clubs = compare?.seasons.get(season)?.clubs.size ?? 0;
+  const rows: { label: string; value: React.ReactNode; title: string; rank?: number | null }[] = [
     { label: "Time", value: fmtPercent(share, 0), title: "Share of the club's minutes this season" },
-    { label: "Minutes", value: fmtDecimal(f.minutes, 0) },
+    { label: "Minutes", value: fmtDecimal(f.minutes, 0), title: "Minutes the club played in this formation" },
     { label: "Starts", value: xi ? fmtDecimal(xi.starts, 0) : lineups ? "0" : DASH, title: "Matches the club started in this formation" },
     { label: "xG/90", value: fmtDecimal(per90(f.xG), 2), title: `xG per 90 minutes in this formation, ${RANK_HINT}`, rank: rank(per90(f.xG), (t) => t.xG, true) },
     { label: "xGA/90", value: fmtDecimal(per90(f.xGA), 2), title: `xG conceded per 90 minutes in this formation, ${RANK_HINT}`, rank: rank(per90(f.xGA), (t) => t.xGA, false) },
@@ -208,7 +211,7 @@ function FormationCard({ code, formations, lineups, season, compare }: { code: n
           <div className="shot-stats-heading">{season}</div>
           <div className="shot-stats-rows">
             {rows.map((r) => (
-              <div className="shot-stats-row" key={r.label} title={r.title}>
+              <div className="shot-stats-row" key={r.label} title={statHover(`Understat · ${r.label}: ${r.title}.`, clubRankHint(r.rank, clubs))}>
                 <span className="shot-stats-label">{r.label}</span>
                 <span className="shot-stats-value num" style={{ background: percentileTint(r.rank) }}>
                   {r.value}

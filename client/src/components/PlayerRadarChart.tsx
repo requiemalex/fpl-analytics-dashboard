@@ -3,9 +3,11 @@ import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Responsi
 import type { RadarDataPoint } from "../metrics/radarStats";
 import { fmtOrdinal } from "../utils/format";
 
-function RadarTooltip({ active, payload, smallSample, format }: any) {
+function RadarTooltip({ active, payload, smallSample, format, hint, rankText }: any) {
   if (!active || !payload || payload.length === 0) return null;
   const point = payload[0].payload as RadarDataPoint;
+  const definition: string | undefined = hint?.(point.key, point.label);
+  const rank: string | undefined = point.percentile !== null ? (rankText?.(point.percentile) ?? `${fmtOrdinal(point.percentile)} percentile`) : undefined;
   return (
     <div
       style={{
@@ -17,8 +19,9 @@ function RadarTooltip({ active, payload, smallSample, format }: any) {
       }}
     >
       <strong>{point.label}</strong>
+      {definition && <div style={{ maxWidth: 260, whiteSpace: "pre-line", color: "var(--text-secondary)" }}>{definition}</div>}
       <div className="mono">
-        {point.percentile !== null ? `${fmtOrdinal(point.percentile)} percentile` : smallSample ? "Small sample" : "No data"}
+        {rank ?? (smallSample ? (smallSample === true ? "Small sample" : smallSample) : "No data")}
         {point.rawValue !== null && ` · ${format(point.key, point.rawValue)}`}
       </div>
     </div>
@@ -37,8 +40,24 @@ function RadarTooltip({ active, payload, smallSample, format }: any) {
  *
  * `format`: an axis's figure as its column shows it in the Data View
  * (<whole_numbers>), so the hover and the tables always agree.
+ * The hover follows <stat_hover>: what the axis's statistic is (`hint`),
+ * then its rank in words (`rankText`: a player's percentile within his
+ * position, a club's place among the clubs). `smallSample` may carry the
+ * words for why there's none.
  */
-export function PercentileRadarChart({ data, format, smallSample = false }: { data: RadarDataPoint[]; format: (key: string, v: number) => string; smallSample?: boolean }) {
+export function PercentileRadarChart({
+  data,
+  format,
+  smallSample = false,
+  hint,
+  rankText,
+}: {
+  data: RadarDataPoint[];
+  format: (key: string, v: number) => string;
+  smallSample?: boolean | string;
+  hint?: (key: string, label: string) => string | undefined;
+  rankText?: (percentile: number) => string | undefined;
+}) {
   const chartData = data.map((d) => ({ ...d, percentileValue: d.percentile ?? 0 }));
   return (
     <ResponsiveContainer width="100%" height={300}>
@@ -47,7 +66,7 @@ export function PercentileRadarChart({ data, format, smallSample = false }: { da
         <PolarAngleAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} />
         <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
         <Radar name="Percentile" dataKey="percentileValue" stroke="var(--accent-positive)" fill="var(--accent-positive)" fillOpacity={0.32} />
-        <Tooltip content={<RadarTooltip smallSample={smallSample} format={format} />} />
+        <Tooltip content={<RadarTooltip smallSample={smallSample} format={format} hint={hint} rankText={rankText} />} />
       </RadarChart>
     </ResponsiveContainer>
   );

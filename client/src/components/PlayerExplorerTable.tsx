@@ -6,21 +6,22 @@ import { useSortSpec, compareSortValues, sortWithinColumns, sortWithoutHiddenCol
 import { EMPTY_COLUMN_FILTER, useColumnFilters } from "../state/useColumnFilters";
 import { useComparativeColour } from "../state/comparativeColour";
 import { ColumnHeader } from "./ColumnHeader";
-import { columnHint, playerRankHint, PLAYER_STAT_HINTS, UNDERSTAT_STAT_HINTS } from "./hoverText";
+import { clubRankHint, columnHint, noPercentileHint, playerColumnHint, playerRankHint, statHover } from "./hoverText";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { getUpcomingFixtures, formatFixturesForCsv, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { AnalysisModeToggle } from "./AnalysisModeToggle";
 import { PositionBadge, TeamBadge, AvailabilityFlag, availabilityTextClass, FixtureChips, pressable } from "./primitives";
-import { PLAYER_COLUMNS, cellText, columnByKey, columnForMode, isStaticColumn, rankValue, type ColumnGroup, type PlayerColumn } from "./playerColumns";
+import { PLAYER_COLUMNS, cellText, columnApplies, columnByKey, columnForMode, isStaticColumn, rankValue, type ColumnGroup, type PlayerColumn } from "./playerColumns";
 import { IconChipButton, ResetIcon, ColumnsIcon, FilterIcon, DownloadIcon, ForecastIcon } from "./IconToolbar";
 import { fmtDecimal, fmtPercent, fmtPrice } from "../utils/format";
 import { percentileTint } from "../utils/colorScale";
-import { colourDirection, fixtureDifficultyRanks, positionRanks, rankWithinGroups } from "../metrics/comparativeColour";
+import { colourDirection, fixtureDifficultyRanks, positionRanks, rankDirection, rankWithinGroups } from "../metrics/comparativeColour";
 import { downloadCsv } from "../utils/csvExport";
 import { filterBySearch } from "../utils/playerSearch";
 import { useEscapeLayer } from "../state/useEscapeLayer";
 import { HideSmallSamplesButton, isSmallSample, MinutesFloorBadge, RowSmallSampleBadge, smallSamplesShownNote, userMinimumNote } from "./MinutesFloorBadge";
+import { fixedFloorMinutes } from "../metrics/fixedMinutesFloor";
 import type { ColumnFilterSpec } from "../state/useColumnFilters";
 import { useProgressiveRowCount, INITIAL_ROW_COUNT } from "../state/useProgressiveRowCount";
 import type { NormalizedPlayer, Position } from "../types/normalized";
@@ -45,7 +46,13 @@ import { ExplorerViewNotice, ExplorerViewsMenu, explorerViewNote } from "./Explo
  */
 
 const GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE", "ADVANCED"];
-/** Not a PLAYER_COLUMNS entry (renders fixture chips, not a number), so it shares the reorder/resize/Fit-to-Box engine as a special key. Always the player's live team's upcoming fixtures, regardless of analysis mode — moving between seasons' fixtures wouldn't mean anything, same reasoning as price/ownership staying live. Sorts and filters by the five matches' average FPL difficulty (lower is easier, so first). */
+/**
+ * Not a PLAYER_COLUMNS entry (renders fixture chips, not a number), so it shares the resize/Fit-to-Box engine as a special key. Always the
+ * player's live team's upcoming fixtures, regardless of analysis mode — moving between seasons' fixtures wouldn't mean anything, same
+ * reasoning as price/ownership staying live. So when shown it ends the always-live block, straight after Position and before the divider
+ * where the Data View's figures start (the owner's call, 2026-10-26), never dragged in among them; the Columns picker still switches it
+ * off. Sorts and filters by the five matches' average FPL difficulty (lower is easier, so first).
+ */
 export const FIXTURES_COLUMN_KEY = "fixtures";
 /**
  * Team and Position used to be dropdown criteria in the bar above the table
@@ -130,17 +137,33 @@ export interface LeadColumn {
 
 /** Per column key, each player's rank within his position (<comparative_colouring>). */
 type ColumnRanks = Map<string, Map<number, number>>;
+/** Per column key, what the column is: its header's hover and the first line of each cell's (<stat_hover>). */
+type ColumnHints = Map<string, string>;
+const FIXTURES_HINT = "Next 5 Fixtures: his club's next 5 matches, coloured by FPL difficulty, with their average. Sorts by the average, easiest first.";
+/** His club's place among the clubs for its fixtures' average difficulty (<stat_hover>): "3rd of 20 clubs, easiest first". */
+function fixturesRankHint(ranks: Map<number, number>, teamId: number): string | undefined {
+  const place = clubRankHint(ranks.get(teamId), ranks.size);
+  return place && `${place}, easiest first`;
+}
 /** Shared empty list, so a team with no fixtures doesn't hand its rows a new array (and a re-render) every time. */
 const NO_FIXTURES: UpcomingFixture[] = [];
 const NO_LEAD_COLUMNS: LeadColumn[] = [];
 
+/** A neutral figure (never coloured) still has a rank, for its hover, but no tint. */
 function columnTint(ranks: ColumnRanks, player: NormalizedPlayer, c: PlayerColumn): string | undefined {
-  return percentileTint(ranks.get(c.key)?.get(player.id));
+  return colourDirection(c) === null ? undefined : percentileTint(ranks.get(c.key)?.get(player.id));
 }
 
-/** What a cell's colour means for him: "xG: top 8% of midfielders" (<hover_text>). */
-function columnRankHint(ranks: ColumnRanks, player: NormalizedPlayer, c: PlayerColumn): string | undefined {
-  return playerRankHint(ranks.get(c.key)?.get(player.id), player.position, c.label);
+/**
+ * A cell's hover (<stat_hover>): what the column is, then his percentile
+ * within his position, or why there's none (`floor`: he's under the fixed
+ * floor for the Data View). A blank cell (a figure his position can't
+ * have) has none.
+ */
+function cellHover(hints: ColumnHints, ranks: ColumnRanks, player: NormalizedPlayer, c: PlayerColumn, floor: number | null): string | undefined {
+  if (!columnApplies(c, player.position)) return undefined;
+  const rank = playerRankHint(ranks.get(c.key)?.get(player.id), player.position, { neutral: colourDirection(c) === null });
+  return statHover(hints.get(c.key), rank ?? (floor !== null ? noPercentileHint(floor) : undefined));
 }
 
 const widthStyle = (width: number | undefined) =>
@@ -148,7 +171,20 @@ const widthStyle = (width: number | undefined) =>
 
 /** The sticky Player cell — shared by real rows and the width-sizer rows, so both measure exactly the same. */
 /** `onOpen` makes the name a keyboard-reachable button (<keyboard_reachable>); the hidden width-sizer rows leave it out, so they're never a Tab stop. */
-function PlayerCell({ player, mode, onOpen, action }: { player: NormalizedPlayer; mode: AnalysisMode; onOpen?: (id: number) => void; action?: React.ReactNode }) {
+function PlayerCell({
+  player,
+  mode,
+  onOpen,
+  action,
+  metaHints,
+}: {
+  player: NormalizedPlayer;
+  mode: AnalysisMode;
+  onOpen?: (id: number) => void;
+  action?: React.ReactNode;
+  /** His ownership's and price's hovers, as their own columns give them (<stat_hover>). */
+  metaHints?: { ownership?: string; price?: string };
+}) {
   return (
     <td className="sticky-col">
       <div className="player-name-cell">
@@ -158,7 +194,7 @@ function PlayerCell({ player, mode, onOpen, action }: { player: NormalizedPlayer
           <RowSmallSampleBadge minutes={player.minutes} mode={mode} />
         </span>
         <span className="meta">
-          {fmtPercent(player.ownership)} · {fmtPrice(player.price)}
+          <span title={metaHints?.ownership}>{fmtPercent(player.ownership)}</span> · <span title={metaHints?.price}>{fmtPrice(player.price)}</span>
           <TeamBadge teamId={player.teamId} shortName={player.teamShortName} />
           <PositionBadge position={player.position} />
           {action}
@@ -174,13 +210,18 @@ interface ExplorerRowProps {
   /** The Data View, for the row's small-sample marker. */
   mode: AnalysisMode;
   leadColumns: LeadColumn[];
-  columnsInOrder: (PlayerColumn | typeof FIXTURES_COLUMN_KEY)[];
+  /** Whether Next 5 Fixtures is shown (at the end of the always-live block). */
+  showFixtures: boolean;
+  /** The Data View's columns, after the divider. */
+  columnsInOrder: PlayerColumn[];
   columnWidths: Record<string, number>;
   leadWidths: Record<string, number>;
   columnRanks: ColumnRanks;
+  columnHints: ColumnHints;
   fixtures: UpcomingFixture[];
-  /** His club's next-fixtures difficulty colour (a club figure, ranked among clubs). */
+  /** His club's next-fixtures difficulty colour and place among the clubs (a club figure, ranked among clubs). */
   fixturesTint: string | undefined;
+  fixturesRank: string | undefined;
   onOpenPlayer: (playerId: number) => void;
   playerAction?: (player: NormalizedPlayer) => React.ReactNode;
 }
@@ -191,23 +232,39 @@ const ExplorerRow = React.memo(function ExplorerRow({
   derived,
   mode,
   leadColumns,
+  showFixtures,
   columnsInOrder,
   columnWidths,
   leadWidths,
   columnRanks,
+  columnHints,
   fixtures,
   fixturesTint,
+  fixturesRank,
   onOpenPlayer,
   playerAction,
 }: ExplorerRowProps) {
   // Memoized, so it subscribes itself to repaint when comparative colouring is switched (<comparative_colour_switch>).
   useComparativeColour();
+  // Under the fixed floor for the Data View: no percentile, and his hovers say why.
+  const floor = isSmallSample(player.minutes, mode) ? fixedFloorMinutes(mode) : null;
+  const identityHover = (key: string) => {
+    const c = columnByKey(key)!;
+    return cellHover(columnHints, columnRanks, player, c, floor);
+  };
   return (
     <tr onClick={() => onOpenPlayer(player.id)}>
-      <PlayerCell player={player} mode={mode} onOpen={onOpenPlayer} action={playerAction?.(player)} />
+      <PlayerCell
+        player={player}
+        mode={mode}
+        onOpen={onOpenPlayer}
+        action={playerAction?.(player)}
+        metaHints={{ ownership: identityHover("ownership"), price: identityHover("price") }}
+      />
       {leadColumns.map((c) => {
+        // Forward-looking, so ranked with no floor: his figure explained, then his percentile.
         const rank = playerRankHint(columnRanks.get(c.key)?.get(player.id), player.position);
-        const hint = [c.cellHint?.(player.id), rank].filter(Boolean).join("\n");
+        const hint = [columnHints.get(c.key), c.cellHint?.(player.id), rank].filter(Boolean).join("\n");
         return (
           <td key={c.key} style={{ ...widthStyle(leadWidths[c.key]), backgroundColor: percentileTint(columnRanks.get(c.key)?.get(player.id)) }} title={hint || undefined}>
             {c.render ? c.render(player.id) : fmtDecimal(c.value(player.id), c.decimals)}
@@ -227,34 +284,29 @@ const ExplorerRow = React.memo(function ExplorerRow({
           );
         }
         return (
-          <td key={c.key} className={className} style={{ ...style, backgroundColor: columnTint(columnRanks, player, c) }} title={columnRankHint(columnRanks, player, c)}>
+          <td key={c.key} className={className} style={{ ...style, backgroundColor: columnTint(columnRanks, player, c) }} title={cellHover(columnHints, columnRanks, player, c, floor)}>
             {cellText(c, player, derived)}
           </td>
         );
       })}
+      {showFixtures && (
+        <td
+          key={FIXTURES_COLUMN_KEY}
+          style={{
+            textAlign: "left",
+            ...(columnWidths[FIXTURES_COLUMN_KEY] ? { width: `${columnWidths[FIXTURES_COLUMN_KEY]}px`, maxWidth: `${columnWidths[FIXTURES_COLUMN_KEY]}px`, overflow: "hidden" } : {}),
+          }}
+        >
+          <FixtureChips fixtures={fixtures} avgTint={fixturesTint} avgRank={fixturesRank} />
+        </td>
+      )}
       {columnsInOrder.map((c, idx) => {
-        const dividerClass = idx === 0 ? "column-group-divider" : undefined;
-        if (c === FIXTURES_COLUMN_KEY) {
-          const width = columnWidths[FIXTURES_COLUMN_KEY];
-          return (
-            <td
-              key={FIXTURES_COLUMN_KEY}
-              className={dividerClass}
-              style={{
-                textAlign: "left",
-                ...(width ? { width: `${width}px`, maxWidth: `${width}px`, overflow: "hidden" } : {}),
-              }}
-            >
-              <FixtureChips fixtures={fixtures} avgTint={fixturesTint} />
-            </td>
-          );
-        }
         return (
           <td
             key={c.key}
-            className={dividerClass}
+            className={idx === 0 ? "column-group-divider" : undefined}
             style={{ ...widthStyle(columnWidths[c.key]), backgroundColor: columnTint(columnRanks, player, c) }}
-            title={columnRankHint(columnRanks, player, c)}
+            title={cellHover(columnHints, columnRanks, player, c, floor)}
           >
             {cellText(c, player, derived)}
           </td>
@@ -608,6 +660,26 @@ export function PlayerExplorerTable({
     const leadShare = leadCount > 0 ? Math.floor((available * leadCount) / (leadCount + visibleColumns.length)) : 0;
     if (leadCount > 0) leadCols.fitToBox(leadShare);
     fitToBox(available - leadShare);
+    measureViewStart();
+  }
+
+  // <view_picker_over_columns>: in a dialog (Team Building's Add Players)
+  // the Data View picker sits straight above the first column it changes —
+  // the one after the always-live block's divider (the owner's call,
+  // 2026-10-26) — so it reads as the control for those columns. Measured
+  // from the header, kept in step on resize, re-fit and sideways scroll,
+  // and held inside the table's width.
+  const viewPickerRef = useRef<HTMLDivElement>(null);
+  const [viewStart, setViewStart] = useState(0);
+  function measureViewStart() {
+    if (variant !== "panel") return;
+    const container = tableWrapRef.current;
+    const start = container?.querySelector<HTMLElement>("th[data-view-start]");
+    if (!container) return;
+    const picker = viewPickerRef.current?.querySelector<HTMLElement>(".data-view-picker");
+    const room = container.clientWidth - (picker?.offsetWidth ?? 0);
+    const left = start ? start.getBoundingClientRect().left - container.getBoundingClientRect().left : 0;
+    setViewStart(Math.round(Math.max(0, Math.min(left, room))));
   }
 
   // Saved views (<explorer_views>): snapshots of the Explorer's own
@@ -694,14 +766,22 @@ export function PlayerExplorerTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // The user-configurable columns — a real PLAYER_COLUMNS entry, or the
-  // special Fixtures key (renders fixture chips, not a number). Team/Position
-  // never appear here — they're part of the fixed IDENTITY_COLUMNS block.
+  // The Data View picker follows its column when the table scrolls sideways (<view_picker_over_columns>).
+  useEffect(() => {
+    const wrap = tableWrapRef.current;
+    if (variant !== "panel" || !wrap) return;
+    wrap.addEventListener("scroll", measureViewStart, { passive: true });
+    return () => wrap.removeEventListener("scroll", measureViewStart);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variant]);
+
+  // The user-configurable columns the Data View drives, after the divider.
+  // Team/Position never appear here — they're part of the fixed
+  // IDENTITY_COLUMNS block — and Next 5 Fixtures, when shown, ends that
+  // block (FIXTURES_COLUMN_KEY).
+  const showFixtures = visibleColumns.includes(FIXTURES_COLUMN_KEY);
   const columnsInOrder = useMemo(
-    () =>
-      visibleColumns
-        .map((key) => (key === FIXTURES_COLUMN_KEY ? key : lookupColumn(key)))
-        .filter((c): c is PlayerColumn | typeof FIXTURES_COLUMN_KEY => !!c),
+    () => visibleColumns.map((key) => (key === FIXTURES_COLUMN_KEY ? undefined : lookupColumn(key))).filter((c): c is PlayerColumn => !!c),
     [visibleColumns, lookupColumn],
   );
   const leadColumnsInOrder = useMemo(
@@ -724,12 +804,14 @@ export function PlayerExplorerTable({
   // Covers the fixed columns too (Ownership, Price: less is better); Team
   // and Position are categories, and Fixtures has its own club-ranked
   // colour. A lead column is forward-looking: every player is ranked, with
-  // no minutes floor (the owner's call, 2026-10-19).
+  // no minutes floor (the owner's call, 2026-10-19). A neutral column
+  // (never coloured) is ranked too, higher first, for its hover's
+  // percentile (<stat_hover>); columnTint leaves it uncoloured.
   const columnRanks = useMemo(() => {
     const ranks: ColumnRanks = new Map();
     for (const c of [...IDENTITY_COLUMNS, ...columnsInOrder]) {
       if (typeof c === "string") continue;
-      const higherIsBetter = colourDirection(c);
+      const higherIsBetter = rankDirection(c);
       if (higherIsBetter === null) continue;
       ranks.set(
         c.key,
@@ -749,6 +831,14 @@ export function PlayerExplorerTable({
     return ranks;
   }, [columnsInOrder, leadColumnsInOrder, allRows, analysisMode]);
   const fixtureRanks = useMemo(() => fixtureDifficultyRanks(new Map([...fixturesByTeamId].map(([id, list]) => [id, list.slice(0, 5)]))), [fixturesByTeamId]);
+  // What each shown column is, once per column: its header's hover and the first line of its cells' (<stat_hover>).
+  const columnHints = useMemo(() => {
+    const hints: ColumnHints = new Map();
+    for (const c of IDENTITY_COLUMNS) if (typeof c !== "string") hints.set(c.key, playerColumnHint(c));
+    for (const c of columnsInOrder) hints.set(c.key, playerColumnHint(c, { sourceLabel: ext && c.sourceId === ext.id ? ext.label : undefined }));
+    for (const c of leadColumnsInOrder) hints.set(c.key, columnHint(c.label, { hint: c.hint }));
+    return hints;
+  }, [columnsInOrder, leadColumnsInOrder, ext]);
 
   const nameSort = sort.find((s) => s.key === "name");
 
@@ -783,18 +873,18 @@ export function PlayerExplorerTable({
 
   // Matches exactly what's on screen — same rows (filtered/sorted), same
   // columns in the same order (Player's name, the lead columns, then the
-  // fixed Ownership/Price/Team/Position block, then the user-configurable
-  // columns), same formatted values (— for unavailable) — so the export is
-  // never a surprise relative to the table it was taken from.
+  // fixed Ownership/Price/Team/Position block and Next 5 Fixtures, then the
+  // user-configurable columns), same formatted values (— for unavailable) —
+  // so the export is never a surprise relative to the table it was taken from.
   function handleExportCsv() {
-    const exportLabel = (c: PlayerColumn | typeof FIXTURES_COLUMN_KEY) =>
-      typeof c !== "string" && ext && c.sourceId === ext.id ? externalLabel(ext, columnLabel(c)) : columnLabel(c);
-    const headers = ["Player", ...leadColumnsInOrder.map((c) => c.label), ...IDENTITY_COLUMNS.map(columnLabel), ...columnsInOrder.map(exportLabel)];
+    const exportLabel = (c: PlayerColumn) => (ext && c.sourceId === ext.id ? externalLabel(ext, columnLabel(c)) : columnLabel(c));
+    const liveBlock: (PlayerColumn | SpecialColumnKey)[] = [...IDENTITY_COLUMNS, ...(showFixtures ? [FIXTURES_COLUMN_KEY as SpecialColumnKey] : [])];
+    const headers = ["Player", ...leadColumnsInOrder.map((c) => c.label), ...liveBlock.map(columnLabel), ...columnsInOrder.map(exportLabel)];
     const csvRows = sortedRows.map(({ player, derived }) => {
       const leadCells = leadColumnsInOrder.map((c) => fmtDecimal(c.value(player.id), c.decimals));
-      const identityCells = IDENTITY_COLUMNS.map((c) => cellValue(c, player, derived));
+      const liveCells = liveBlock.map((c) => cellValue(c, player, derived));
       const cells = columnsInOrder.map((c) => cellValue(c, player, derived));
-      return [player.name, ...leadCells, ...identityCells, ...cells];
+      return [player.name, ...leadCells, ...liveCells, ...cells];
     });
     downloadCsv(`${csvName}-${analysisMode}-${new Date().toISOString().slice(0, 10)}.csv`, headers, csvRows);
   }
@@ -819,7 +909,7 @@ export function PlayerExplorerTable({
                 key={c.key}
                 columnKey={c.key}
                 label={c.label}
-                title={columnHint(c.label, { hint: c.hint })}
+                title={columnHints.get(c.key) ?? c.label}
                 layout={leadCols}
                 width={leadCols.columnWidths[c.key]}
                 sortDirection={sort.find((s) => s.key === c.key)?.direction}
@@ -849,7 +939,7 @@ export function PlayerExplorerTable({
                       ? c === TEAM_COLUMN_KEY
                         ? "Team: his club. Click a badge for the club's profile."
                         : "Position: his FPL position."
-                      : columnHint(c.label, { hint: PLAYER_STAT_HINTS[c.key], lowerIsBetter: c.higherIsBetter === false, liveFigure: true })
+                      : (columnHints.get(c.key) ?? c.label)
                   }
                   layout={headerLayout}
                   width={width}
@@ -867,38 +957,44 @@ export function PlayerExplorerTable({
                 />
               );
             })}
+            {showFixtures && (
+              // Always the player's live figure, so it ends the always-live block (FIXTURES_COLUMN_KEY): never dragged among the Data View's columns.
+              <ColumnHeader
+                key={FIXTURES_COLUMN_KEY}
+                columnKey={FIXTURES_COLUMN_KEY}
+                label={columnLabel(FIXTURES_COLUMN_KEY)}
+                className="col-static"
+                title={FIXTURES_HINT}
+                layout={headerLayout}
+                width={columnWidths[FIXTURES_COLUMN_KEY]}
+                draggable={false}
+                sortDirection={sort.find((s) => s.key === FIXTURES_COLUMN_KEY)?.direction}
+                onSort={(shiftKey) => handleHeaderClick(FIXTURES_COLUMN_KEY, shiftKey)}
+                filters={columnFiltersState}
+                style={{ textAlign: "left" }}
+              />
+            )}
             {columnsInOrder.map((c, idx) => {
-              const isSpecial = typeof c === "string";
-              const key = isSpecial ? c : c.key;
-              const label = columnLabel(c);
-              const isFixtures = c === FIXTURES_COLUMN_KEY;
+              const key = c.key;
               const sortEntry = sort.find((s) => s.key === key);
               const width = columnWidths[key];
-              // Fixtures is always the player's live figure, regardless of analysis mode.
-              const isStatic = isFixtures || isStaticColumn(c as PlayerColumn);
+              const isStatic = isStaticColumn(c);
               // The colour index: FPL figures that follow the Data View are green, always-live ones muted red,
               // a second source's figures its own colour (violet for Understat).
-              const fromExt = !isSpecial && !!ext && c.sourceId === ext.id;
-              const canSwitchSource = !isSpecial && !!ext && !!extColumns?.alternates[key];
-              // Grey divider between the fixed Ownership/Price/Team/Position block and these user-configurable columns — only the first one carries it.
+              const fromExt = !!ext && c.sourceId === ext.id;
+              const canSwitchSource = !!ext && !!extColumns?.alternates[key];
+              // Grey divider between the always-live block (Ownership/Price/Team/Position, then Next 5 Fixtures) and the
+              // columns the Data View drives — only the first one carries it, and the Data View picker sits over it in a dialog.
               const className =
                 [isStatic && "col-static", !isStatic && !fromExt && "col-source-fpl", fromExt && ext.className, idx === 0 && "column-group-divider"].filter(Boolean).join(" ") || undefined;
               return (
                 <ColumnHeader
                   key={key}
                   columnKey={key}
-                  label={label}
+                  label={columnLabel(c)}
                   className={className}
-                  title={
-                    isFixtures
-                      ? "Next 5 Fixtures: his club's next 5 matches, coloured by FPL difficulty, with their average. Sorts by the average, easiest first."
-                      : columnHint((c as PlayerColumn).label, {
-                          hint: fromExt ? UNDERSTAT_STAT_HINTS[key] : PLAYER_STAT_HINTS[key],
-                          source: fromExt ? ext.label : undefined,
-                          lowerIsBetter: (c as PlayerColumn).higherIsBetter === false,
-                          liveFigure: isStatic,
-                        })
-                  }
+                  dataViewStart={idx === 0}
+                  title={columnHints.get(key) ?? c.label}
                   layout={headerLayout}
                   width={width}
                   sortDirection={sortEntry?.direction}
@@ -919,7 +1015,6 @@ export function PlayerExplorerTable({
                       {fromExt && ext.staleNote && <SourceStaleMarker note={ext.staleNote} />}
                     </>
                   }
-                  style={{ textAlign: isFixtures ? "left" : undefined }}
                 />
               );
             })}
@@ -929,7 +1024,7 @@ export function PlayerExplorerTable({
           {/* The header stays when nothing matches, so every column's ▾ is still there to change or clear its filter. */}
           {sortedRows.length === 0 && (
             <tr className="empty-row">
-              <td colSpan={1 + leadColumnsInOrder.length + IDENTITY_COLUMNS.length + columnsInOrder.length}>
+              <td colSpan={1 + leadColumnsInOrder.length + IDENTITY_COLUMNS.length + (showFixtures ? 1 : 0) + columnsInOrder.length}>
                 {analysisMode !== "live" && historicStatus === "loading" ? (
                   // A number filter fails every "—", and every historic figure is "—" until the build finishes.
                   <div className="empty-state">
@@ -952,12 +1047,15 @@ export function PlayerExplorerTable({
               derived={derived}
               mode={analysisMode}
               leadColumns={leadColumnsInOrder}
+              showFixtures={showFixtures}
               columnsInOrder={columnsInOrder}
               columnWidths={columnWidths}
               leadWidths={leadCols.columnWidths}
               columnRanks={columnRanks}
+              columnHints={columnHints}
               fixtures={(fixturesByTeamId.get(player.teamId) ?? NO_FIXTURES).slice(0, 5)}
               fixturesTint={percentileTint(fixtureRanks.get(player.teamId))}
+              fixturesRank={fixturesRankHint(fixtureRanks, player.teamId)}
               onOpenPlayer={openPlayer}
               playerAction={playerAction}
             />
@@ -974,7 +1072,7 @@ export function PlayerExplorerTable({
 
   return (
     <>
-      <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
+      {variant === "page" && <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />}
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
         <div className="icon-toolbar">
@@ -1105,6 +1203,12 @@ export function PlayerExplorerTable({
         </div>
       )}
       {notice}
+
+      {variant === "panel" && (
+        <div ref={viewPickerRef} style={{ marginLeft: viewStart }}>
+          <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} marginBottom={8} />
+        </div>
+      )}
 
       <div className={variant === "page" ? "page-fill-body" : "explorer-panel-body"}>{table}</div>
       <div className="count-pill" style={{ marginTop: 10 }}>

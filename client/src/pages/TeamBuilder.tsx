@@ -682,6 +682,9 @@ export function TeamBuilder() {
       purchase: rank((p) => (squadPurchase.has(p.id) ? squadPurchase.get(p.id)! : squadPlayerIdSet.has(p.id) ? null : p.price), false),
       sell: rank((p) => (squadPurchase.has(p.id) ? sellingPrice(squadPurchase.get(p.id), p.price) : squadPlayerIdSet.has(p.id) ? null : p.price), false),
       ownership: rank((p) => p.ownership, false),
+      // Ranked for their hovers only (<stat_hover>): nearer a rise ranks higher.
+      progress: rank((p) => p.priceChange?.percent ?? null, true),
+      predicted: rank((p) => p.priceChange?.projections.find((x) => x.offsetDays === 0)?.projectedPercent ?? null, true),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [players, pitchExpectations, active?.purchasePrices, active?.playerIds]);

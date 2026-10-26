@@ -2,6 +2,7 @@ import React from "react";
 import { noRowsMessage } from "../emptyMessages";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from "recharts";
 import { MinutesFloorIcon } from "../MinutesFloorBadge";
+import { ChartStatLines } from "./ChartStatLines";
 
 export interface BarDatum {
   id: number;
@@ -9,6 +10,8 @@ export interface BarDatum {
   value: number;
   /** Set for an entry under a minutes threshold: the amber stopwatch by its name, and this in its hover box (<minutes_marker>). */
   smallSample?: string;
+  /** Its rank in words, for its hover box (<stat_hover>). */
+  ranks?: string[];
 }
 
 /** Size of the small-sample stopwatch beside a name. */
@@ -37,7 +40,7 @@ function NameTick({ x, y, index, rows }: { x?: number; y?: number; index?: numbe
 
 const TOP_N = 15;
 
-function CustomTooltip({ active, payload, valueLabel, format }: any) {
+function CustomTooltip({ active, payload, valueLabel, format, definitions }: any) {
   if (!active || !payload || payload.length === 0) return null;
   const d = payload[0].payload as BarDatum;
   return (
@@ -54,6 +57,7 @@ function CustomTooltip({ active, payload, valueLabel, format }: any) {
       <div className="mono">
         {valueLabel}: {format ? format(d.value) : d.value.toFixed(2)}
       </div>
+      <ChartStatLines definitions={definitions} ranks={d.ranks} />
       {d.smallSample && <div className="chart-tooltip-small-sample">{d.smallSample}</div>}
     </div>
   );
@@ -76,6 +80,7 @@ export function BarTopN({
   height = 420,
   emptyMessage = noRowsMessage("player"),
   ascending = false,
+  definitions,
 }: {
   data: BarDatum[];
   valueLabel: string;
@@ -86,6 +91,8 @@ export function BarTopN({
   emptyMessage?: string;
   /** Rank lowest first — the graph's Order, e.g. League Position 1, 2, 3… */
   ascending?: boolean;
+  /** What the figure is, for the hover box (<stat_hover>). */
+  definitions?: string[];
 }) {
   const top = rankBars(data, ascending);
   // Whole-number data (goals, clean sheets, draws…) gets whole-number ticks —
@@ -114,7 +121,7 @@ export function BarTopN({
           interval={0}
           tick={<NameTick rows={top} />}
         />
-        <Tooltip content={<CustomTooltip valueLabel={valueLabel} format={format} />} cursor={{ fill: "var(--surface-hover)" }} />
+        <Tooltip content={<CustomTooltip valueLabel={valueLabel} format={format} definitions={definitions} />} cursor={{ fill: "var(--surface-hover)" }} />
         <Bar dataKey="value" onClick={(point: any) => onBarClick?.(point.id)} cursor={onBarClick ? "pointer" : "default"}>
           {top.map((d) => (
             <Cell key={d.id} fill="var(--accent-focus)" />

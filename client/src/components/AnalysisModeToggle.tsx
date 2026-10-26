@@ -98,6 +98,7 @@ export function AnalysisModeToggle({
   floorNote,
   floorActive,
   clubFigures,
+  marginBottom = 24,
 }: {
   mode: AnalysisMode;
   onChange: (mode: AnalysisMode) => void;
@@ -107,11 +108,13 @@ export function AnalysisModeToggle({
   floorActive?: boolean;
   /** Set on team views: Current Season club figures are summed from every player's matches, so a skipped player matters there too (audit 2026-10-18 M4). */
   clubFigures?: boolean;
+  /** Space below it: less where it sits straight over the columns it drives (<view_picker_over_columns>). */
+  marginBottom?: number;
 }) {
   const { historicStatus, historicErrorMessage, historicSkippedPlayerIds, historicFetchSkippedPlayerIds, refreshHistoricData, historicRefreshing } = useAppState();
 
   return (
-    <div style={{ marginBottom: 24 }}>
+    <div style={{ marginBottom }}>
       <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
         <DataViewPicker mode={mode} onChange={onChange} floorNote={floorNote} floorActive={floorActive} />
 

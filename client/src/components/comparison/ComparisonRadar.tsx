@@ -3,13 +3,16 @@ import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Responsi
 import { fmtOrdinal } from "../../utils/format";
 import { ComparisonLegend, type LegendEntry } from "./ComparisonLegend";
 import { seriesKey } from "./seriesColors";
+import { ChartStatLines } from "../charts/ChartStatLines";
 
 export interface RadarAxisValues {
   key: string;
   label: string;
   format: (v: number | null) => string;
-  /** Per player id: his percentile within his position (flipped for a lower-is-better metric — outward is always better) and his raw figure. */
-  values: Map<number, { percentile: number | null; raw: number | null }>;
+  /** Per player id: his percentile within his position (flipped for a lower-is-better metric — outward is always better), his raw figure, and that percentile in words for the hover (<stat_hover>). */
+  values: Map<number, { percentile: number | null; raw: number | null; rankText?: string }>;
+  /** What the axis's figure is, for the hover box (<stat_hover>). */
+  hint?: string;
   /** A second source's figure: its axis name, and its name in the hover box, are in that source's colour (this class). */
   sourceClass?: string;
 }
@@ -32,9 +35,10 @@ function RadarTooltip({ active, payload, axes, entries }: { active?: boolean; pa
   return (
     <div className="chart-tooltip">
       <strong className={axis.sourceClass ? `source-coloured ${axis.sourceClass}` : undefined}>{axis.label}</strong>
+      <ChartStatLines definitions={axis.hint ? [axis.hint] : undefined} />
       {entries.map(({ player, color, smallSampleNote }) => {
         const v = axis.values.get(player.id);
-        const pct = smallSampleNote ? "Small sample" : v?.percentile != null ? `${fmtOrdinal(v.percentile)} pct` : "No data";
+        const pct = smallSampleNote ? "Small sample" : v?.percentile != null ? (v.rankText ?? `${fmtOrdinal(v.percentile)} pct`) : "No data";
         return (
           <div key={player.id} className="chart-tooltip-row">
             <span className="cmp-legend-swatch" style={{ background: color }} />

@@ -24,14 +24,16 @@ import { buildHistoricPlayerProfile, nextSeasonName } from "../metrics/historicA
 import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode, modeDataKnown, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { AnalysisModeToggle, ANALYSIS_MODE_OPTIONS } from "./AnalysisModeToggle";
 import { isSmallSample, profileFloorNote, SmallSampleBadge, smallSampleNote } from "./MinutesFloorBadge";
-import { PositionBadge, withCoverage } from "./primitives";
+import { PositionBadge } from "./primitives";
 import { columnByKey, columnForMode } from "./playerColumns";
+import { coverageNote } from "../metrics/partialTotals";
+import { rankAmong } from "../metrics/comparativeColour";
 import { fmtDecimal, fmtPrice, fmtPercent, fmtSigned, DASH } from "../utils/format";
 import { usePlayerPastSeasons } from "../state/usePlayerPastSeasons";
-import { useExternalStats, type ProfileView } from "../extensions/externalStats";
+import { useExternalStats, type ExternalMatchColumn, type ProfileView } from "../extensions/externalStats";
 import { SourceToggle } from "./SourceToggle";
 import type { NormalizedPlayer, PlayerSeasonHistory, PlayerGameweekHistory, PlayerPastMatch } from "../types/normalized";
-import { playerRankHint } from "./hoverText";
+import { columnHint, noPercentileHint, playerColumnHint, playerRankHint, POSITION_PLURAL, PLAYER_STAT_HINTS, statHover } from "./hoverText";
 import { matchRecordShortfall } from "../metrics/matchRecordCheck";
 
 
@@ -157,22 +159,28 @@ function liveMatchRow(g: PlayerGameweekHistory, opponentShortName: string): Matc
   };
 }
 
-/** Each Match Log column's figure, how its Totals and Average rows are written, and its total in a past season's comparison pool (PlayerSeasonPeer.totals). */
-const LOG_VALUES: Record<string, { value: (r: MatchLogRow) => number | null; totalDp: number; averageDp: number; peerTotal: string }> = {
-  pts: { value: (r) => r.totalPoints, totalDp: 0, averageDp: 1, peerTotal: "totalPoints" },
-  min: { value: (r) => r.minutes, totalDp: 0, averageDp: 0, peerTotal: "minutes" },
-  starts: { value: (r) => r.starts, totalDp: 0, averageDp: 2, peerTotal: "starts" },
-  g: { value: (r) => r.goals, totalDp: 0, averageDp: 2, peerTotal: "goals" },
-  a: { value: (r) => r.assists, totalDp: 0, averageDp: 2, peerTotal: "assists" },
-  xg: { value: (r) => r.xG, totalDp: 2, averageDp: 2, peerTotal: "xG" },
-  xa: { value: (r) => r.xA, totalDp: 2, averageDp: 2, peerTotal: "xA" },
-  xgi: { value: (r) => r.xGI, totalDp: 2, averageDp: 2, peerTotal: "xGI" },
-  cs: { value: (r) => r.cleanSheets, totalDp: 0, averageDp: 2, peerTotal: "cleanSheets" },
-  xgc: { value: (r) => r.xGC, totalDp: 2, averageDp: 2, peerTotal: "xGC" },
-  dc: { value: (r) => r.dc, totalDp: 0, averageDp: 2, peerTotal: "dc" },
-  saves: { value: (r) => r.saves, totalDp: 0, averageDp: 2, peerTotal: "saves" },
-  bps: { value: (r) => r.bps, totalDp: 0, averageDp: 0, peerTotal: "bps" },
+/** Each Match Log column's figure, how its Totals and Average rows are written, its total in a past season's comparison pool (PlayerSeasonPeer.totals), and the Explorer column that says what it is (<stat_hover>). */
+const LOG_VALUES: Record<string, { value: (r: MatchLogRow) => number | null; totalDp: number; averageDp: number; peerTotal: string; column: string }> = {
+  pts: { value: (r) => r.totalPoints, totalDp: 0, averageDp: 1, peerTotal: "totalPoints", column: "totalPoints" },
+  min: { value: (r) => r.minutes, totalDp: 0, averageDp: 0, peerTotal: "minutes", column: "minutes" },
+  starts: { value: (r) => r.starts, totalDp: 0, averageDp: 2, peerTotal: "starts", column: "starts" },
+  g: { value: (r) => r.goals, totalDp: 0, averageDp: 2, peerTotal: "goals", column: "goals" },
+  a: { value: (r) => r.assists, totalDp: 0, averageDp: 2, peerTotal: "assists", column: "assists" },
+  xg: { value: (r) => r.xG, totalDp: 2, averageDp: 2, peerTotal: "xG", column: "xG" },
+  xa: { value: (r) => r.xA, totalDp: 2, averageDp: 2, peerTotal: "xA", column: "xA" },
+  xgi: { value: (r) => r.xGI, totalDp: 2, averageDp: 2, peerTotal: "xGI", column: "xGI" },
+  cs: { value: (r) => r.cleanSheets, totalDp: 0, averageDp: 2, peerTotal: "cleanSheets", column: "cleanSheets" },
+  xgc: { value: (r) => r.xGC, totalDp: 2, averageDp: 2, peerTotal: "xGC", column: "xGC" },
+  dc: { value: (r) => r.dc, totalDp: 0, averageDp: 2, peerTotal: "dc", column: "defensiveContributions" },
+  saves: { value: (r) => r.saves, totalDp: 0, averageDp: 2, peerTotal: "saves", column: "saves" },
+  bps: { value: (r) => r.bps, totalDp: 0, averageDp: 0, peerTotal: "bps", column: "bps" },
 };
+
+/** What a Match Log column is, under its own header (<stat_hover>): its Explorer column's meaning. */
+function logColumnHint(key: string, header: string): string | undefined {
+  const c = LOG_VALUES[key] && columnByKey(LOG_VALUES[key].column);
+  return c ? playerColumnHint(c, { label: header }) : undefined;
+}
 
 /**
  * Each column's Totals and Average over a log's matches, whichever season
@@ -202,16 +210,22 @@ function logSums(rows: MatchLogRow[]): Record<string, PartialSum | null> {
   return out;
 }
 
-/** A log's Totals and Average rows as written, each saying on hover when it's from only some of the matches. */
-function logFooter(sums: Record<string, PartialSum | null>): { totalsByKey: Record<string, React.ReactNode>; averagesByKey: Record<string, React.ReactNode> } {
+/** A log's Totals and Average rows as written, and each column's note for its hover when they're from only some of the matches (<partial_totals>). */
+function logFooter(sums: Record<string, PartialSum | null>): {
+  totalsByKey: Record<string, React.ReactNode>;
+  averagesByKey: Record<string, React.ReactNode>;
+  coverageByKey: Record<string, string | undefined>;
+} {
   const totalsByKey: Record<string, React.ReactNode> = {};
   const averagesByKey: Record<string, React.ReactNode> = {};
+  const coverageByKey: Record<string, string | undefined> = {};
   for (const [key, { totalDp, averageDp }] of Object.entries(LOG_VALUES)) {
     const s = sums[key];
-    totalsByKey[key] = withCoverage(fmtDecimal(partialTotal(s), totalDp), s);
-    averagesByKey[key] = withCoverage(fmtDecimal(partialAverage(s), averageDp), s);
+    totalsByKey[key] = fmtDecimal(partialTotal(s), totalDp);
+    averagesByKey[key] = fmtDecimal(partialAverage(s), averageDp);
+    coverageByKey[key] = coverageNote(s);
   }
-  return { totalsByKey, averagesByKey };
+  return { totalsByKey, averagesByKey, coverageByKey };
 }
 
 /** Win/draw/loss from this player's own team's perspective, plus the score written as their-goals–opponent-goals — never assumed from the raw home/away score pair directly, since that already got resolved to teamScore/opponentScore during normalization. */
@@ -223,27 +237,30 @@ function gameweekResult(g: Pick<MatchLogRow, "teamScore" | "opponentScore">): { 
   return { label, outcomeClass: "value-muted" };
 }
 
-/** A season with no match-by-match record (before 2016/17): FPL's season totals, in the Match Log's column order. */
+/**
+ * A season with no match-by-match record (before 2016/17): FPL's season totals, in the Match Log's column order. Each says what it
+ * is on hover; there's no pool of that season's other players to rank them in (<stat_hover>).
+ */
 function SeasonTotalsTable({ season }: { season: PlayerSeasonHistory }) {
-  const cells: [string, string][] = [
-    ["Points", fmtDecimal(season.totalPoints, 0)],
-    ["Minutes", fmtDecimal(season.minutes, 0)],
-    ["Starts", fmtDecimal(season.starts, 0)],
-    ["Goals", fmtDecimal(season.goals, 0)],
-    ["Assists", fmtDecimal(season.assists, 0)],
-    ["xG", fmtDecimal(season.xG, 2)],
-    ["xA", fmtDecimal(season.xA, 2)],
-    ["xGI", fmtDecimal(season.xGI, 2)],
-    ["Clean Sheets", fmtDecimal(season.cleanSheets, 0)],
-    ["BPS", fmtDecimal(season.bps, 0)],
+  const cells: [string, string, string][] = [
+    ["Points", "pts", fmtDecimal(season.totalPoints, 0)],
+    ["Minutes", "min", fmtDecimal(season.minutes, 0)],
+    ["Starts", "starts", fmtDecimal(season.starts, 0)],
+    ["Goals", "g", fmtDecimal(season.goals, 0)],
+    ["Assists", "a", fmtDecimal(season.assists, 0)],
+    ["xG", "xg", fmtDecimal(season.xG, 2)],
+    ["xA", "xa", fmtDecimal(season.xA, 2)],
+    ["xGI", "xgi", fmtDecimal(season.xGI, 2)],
+    ["Clean Sheets", "cs", fmtDecimal(season.cleanSheets, 0)],
+    ["BPS", "bps", fmtDecimal(season.bps, 0)],
   ];
   return (
     <div className="table-wrap">
       <table className="data-table compact" aria-label={`${season.seasonName} season totals`}>
         <thead>
           <tr>
-            {cells.map(([label]) => (
-              <th key={label} className="col-source-fpl">
+            {cells.map(([label, key]) => (
+              <th key={label} className="col-source-fpl" title={logColumnHint(key, label)}>
                 {label}
               </th>
             ))}
@@ -251,8 +268,10 @@ function SeasonTotalsTable({ season }: { season: PlayerSeasonHistory }) {
         </thead>
         <tbody>
           <tr>
-            {cells.map(([label, value]) => (
-              <td key={label}>{value}</td>
+            {cells.map(([label, key, value]) => (
+              <td key={label} title={logColumnHint(key, label)}>
+                {value}
+              </td>
             ))}
           </tr>
         </tbody>
@@ -436,6 +455,9 @@ export function PlayerDetailOverlay() {
       goalsMinusXG: { fn: (p) => getPlayerDerivedMetrics(p).goalsMinusXG, higherIsBetter: true },
       assistsMinusXA: { fn: (p) => getPlayerDerivedMetrics(p).assistsMinusXA, higherIsBetter: true },
       goalInvolvementsMinusXGI: { fn: (p) => getPlayerDerivedMetrics(p).goalInvolvementsMinusXGI, higherIsBetter: true },
+      // The header's price and ownership, ranked as their Explorer columns are (less is better).
+      price: { fn: (p) => p.price, higherIsBetter: false },
+      ownership: { fn: (p) => p.ownership, higherIsBetter: false },
     };
     const result: Record<string, number | null> = {};
     for (const [key, { fn, higherIsBetter }] of Object.entries(metrics)) {
@@ -453,6 +475,39 @@ export function PlayerDetailOverlay() {
   // the rest of the profile, at its Current Season value.
   const liveResolvedPlayers = useMemo(
     () => resolvePlayerStatsList(players, "live", historicProfiles, currentSeasonHasStarted).resolved,
+    [players, historicProfiles, currentSeasonHasStarted],
+  );
+
+  // Points History's season averages (<stat_hover>): his Historic Average
+  // figures — the same 855+ minute seasons over the same window — ranked
+  // within his position among everyone's, as the Historic Average Data
+  // View ranks them, under the same floor.
+  const historicAverageRanks = useMemo(() => {
+    if (!player) return {} as Record<string, number | null>;
+    const pool = resolvePlayerStatsList(players, "historicAverage", historicProfiles, currentSeasonHasStarted).resolved;
+    const metrics: Record<string, (p: NormalizedPlayer) => number | null> = {
+      totalPoints: (p) => p.totalPoints,
+      minutes: (p) => p.minutes,
+      goals: (p) => p.goals,
+      assists: (p) => p.assists,
+    };
+    const result: Record<string, number | null> = {};
+    for (const [key, fn] of Object.entries(metrics)) {
+      result[key] = positionRanks(pool, { id: (p) => p.id, position: (p) => p.position, minutes: (p) => p.minutes, mode: "historicAverage", value: fn, higherIsBetter: true }).get(player.id) ?? null;
+    }
+    return result;
+  }, [player, players, historicProfiles, currentSeasonHasStarted]);
+  // The last completed season's points, for its Points History bar: ranked as the Last Completed Season Data View ranks them.
+  const lastSeasonPointsRanks = useMemo(
+    () =>
+      positionRanks(resolvePlayerStatsList(players, "lastSeason", historicProfiles, currentSeasonHasStarted).resolved, {
+        id: (p) => p.id,
+        position: (p) => p.position,
+        minutes: (p) => p.minutes,
+        mode: "lastSeason",
+        value: (p) => p.totalPoints,
+        higherIsBetter: true,
+      }),
     [players, historicProfiles, currentSeasonHasStarted],
   );
 
@@ -494,6 +549,26 @@ export function PlayerDetailOverlay() {
     }
     return result;
   }, [player, liveLogRows, liveLogSums, liveResolvedPlayers, matchesByTeam]);
+
+  // One match's figure, ranked on its hover (<stat_hover>) against the
+  // pool the Average row uses: the rest of his position's per-match
+  // averages this season (season total ÷ their club's matches), everyone
+  // at or above the floor. A single match against averages, and said so.
+  const liveMatchPools = useMemo(() => {
+    const pools: Record<string, number[]> = {};
+    if (!player) return pools;
+    const floor = fixedFloorMinutes("live");
+    for (const [key, { total }] of Object.entries(LIVE_LOG_METRICS)) {
+      pools[key] = [];
+      for (const p of liveResolvedPlayers) {
+        if (p.id === player.id || p.position !== player.position || p.minutes === null || p.minutes < floor) continue;
+        const matches = matchesByTeam.get(p.teamId);
+        const value = total(p);
+        if (matches && value !== null) pools[key].push(value / matches);
+      }
+    }
+    return pools;
+  }, [player, liveResolvedPlayers, matchesByTeam]);
 
   // Escape closes the profile, like its × button (the current setter, so it
   // never restores an out-of-date address) — and only the profile, when
@@ -574,11 +649,44 @@ export function PlayerDetailOverlay() {
   // Each tile is its Player Explorer column as the Data View shows it
   // (<whole_numbers>), so the two always agree — as the team profile's tiles
   // are Team Explorer's. Goal Inv. − xGI and Min/Goal have no column.
+  // Each tile's hover (<stat_hover>): what it is (its Explorer column's
+  // meaning), then his percentile within his position, or why there's none.
   const tile = (label: string, key: string, value?: string) => {
     const c = columnByKey(key);
     const shown = value ?? (c ? columnForMode(c, analysisMode).format(c.getValue(resolvedPlayer, derived)) : DASH);
-    return { label, value: shown, percentile: statPercentiles[key] };
+    const title = c ? playerColumnHint(c, { label }) : columnHint(label, { hint: PLAYER_STAT_HINTS[key], lowerIsBetter: key === "minutesPerGoal" });
+    return { label, value: shown, percentile: statPercentiles[key], title };
   };
+  /** A radar axis's hover (<stat_hover>): its Explorer column's meaning, under the axis's own name. */
+  const radarHint = (key: string, label: string) => {
+    const c = columnByKey(key);
+    return c ? playerColumnHint(c, { label }) : undefined;
+  };
+  /**
+   * A season's points on Points History in words (<stat_hover>), where
+   * that season has a pool to rank them in: the current season against
+   * everyone's this season (its Match Log Totals' rank), the last completed
+   * one as its Data View ranks it, an earlier one against the match
+   * ledger's players that season once loaded (picking a season loads
+   * them). Under the floor for that season, why there's none.
+   */
+  const seasonPointsRank = (seasonName: string): string | undefined => {
+    if (seasonName === liveSeasonName) {
+      return isSmallSample(liveSeasonMinutes, "live") ? noPercentileHint(fixedFloorMinutes("live")) : playerRankHint(seasonLogPercentiles.pts, player.position);
+    }
+    const season = combinedSeasonHistory.find((s) => s.seasonName === seasonName);
+    if (!season) return undefined;
+    const peers = pastSeasons.status === "ready" ? pastSeasons.peers[seasonName] : undefined;
+    if (!peers && seasonName !== historicReferenceSeason) return undefined;
+    if (season.minutes < FIXED_FLOOR_MINUTES) return noPercentileHint(FIXED_FLOOR_MINUTES);
+    if (!peers) return playerRankHint(lastSeasonPointsRanks.get(player.id), player.position);
+    const pool = peers.filter((p) => p.minutes >= FIXED_FLOOR_MINUTES && p.totals.totalPoints !== null).map((p) => p.totals.totalPoints!);
+    return playerRankHint(rankAmong(season.totalPoints, pool, true), player.position);
+  };
+  /** A rank in words for this profile's Data View, or why there's none (under the fixed floor). */
+  const profileRankHint = (p: number | null | undefined) => playerRankHint(p, player.position) ?? (underFloor ? noPercentileHint(minutesFloor) : undefined);
+  // The header's price and ownership: today's, ranked as in the Explorers for this Data View.
+  const headerHint = (key: "price" | "ownership") => statHover(playerColumnHint(columnByKey(key)!), profileRankHint(statPercentiles[key]));
   const defensiveGroup: SummaryGroup =
     player.position === "GKP"
       ? {
@@ -672,7 +780,7 @@ export function PlayerDetailOverlay() {
   // established short form elsewhere — expanding those here alone would
   // make this table LESS consistent with the rest of the app, not more
   // readable.
-  const primeColumns: GwColumn[] = [
+  const primeColumns: GwColumn[] = ([
     { key: "pts", header: "Points", cell: (g) => fmtDecimal(g.totalPoints, 0) },
     { key: "min", header: "Minutes", cell: (g) => fmtDecimal(g.minutes, 0) },
     { key: "starts", header: "Starts", cell: (g) => fmtDecimal(g.starts, 0) },
@@ -686,21 +794,37 @@ export function PlayerDetailOverlay() {
     ...(isGoalkeeper ? [] : [{ key: "dc", header: "Defensive Contributions", cell: (g: MatchLogRow) => fmtDecimal(g.dc, 0) }]),
     ...(isGoalkeeper ? [{ key: "saves", header: "Saves", cell: (g: MatchLogRow) => fmtDecimal(g.saves, 0) }] : []),
     { key: "bps", header: "BPS", cell: (g) => fmtDecimal(g.bps, 0) },
-  ];
+  ] satisfies GwColumn[]).map((c) => ({ ...c, title: logColumnHint(c.key, c.header) }));
 
-  /** A log, with its Totals and Average rows' percentiles (higher already better) for their tints — none when it can't be compared. */
+  /**
+   * A log, with its Totals and Average rows' percentiles (higher already better) for their tints — none when it can't be compared —
+   * and, for each match's hover, the per-match pool it's ranked in (`matchPools`) and the floor he's under, when he is (`floor`).
+   */
   type MatchLog = {
     rows: MatchLogRow[];
     totalsByKey: Record<string, React.ReactNode>;
     averagesByKey: Record<string, React.ReactNode>;
+    coverageByKey: Record<string, string | undefined>;
     totalPercentiles: Record<string, number | null>;
     averagePercentiles: Record<string, number | null>;
+    matchPools: Record<string, number[]>;
+    floor: number | null;
   };
 
   // The live season: its gameweek history, with Totals and Average tinted
   // against the live population (seasonLogPercentiles above).
+  const liveSeasonMinutes = liveResolvedPlayers.find((p) => p.id === player.id)?.minutes ?? null;
   const liveLog: MatchLog | null =
-    liveLogRows.length > 0 ? { rows: liveLogRows, ...logFooter(liveLogSums), totalPercentiles: seasonLogPercentiles, averagePercentiles: seasonLogAveragePercentiles } : null;
+    liveLogRows.length > 0
+      ? {
+          rows: liveLogRows,
+          ...logFooter(liveLogSums),
+          totalPercentiles: seasonLogPercentiles,
+          averagePercentiles: seasonLogAveragePercentiles,
+          matchPools: liveMatchPools,
+          floor: isSmallSample(liveSeasonMinutes, "live") ? fixedFloorMinutes("live") : null,
+        }
+      : null;
 
   // A completed season: its match rows, its Totals and Average tinted as
   // the live season's are (<past_season_tints>) — ranked within his
@@ -718,6 +842,7 @@ export function PlayerDetailOverlay() {
           const sums = logSums(rows);
           const totalPercentiles: Record<string, number | null> = {};
           const averagePercentiles: Record<string, number | null> = {};
+          const matchPools: Record<string, number[]> = {};
           const minutes = rows.reduce((sum, r) => sum + r.minutes, 0);
           const pool = (pastSeasons.status === "ready" ? (pastSeasons.peers[pastLogSeason!] ?? []) : []).filter((p) => p.minutes >= FIXED_FLOOR_MINUTES);
           for (const [key, { peerTotal }] of Object.entries(LOG_VALUES)) {
@@ -725,16 +850,18 @@ export function PlayerDetailOverlay() {
             const average = partialAverage(sums[key]);
             totalPercentiles[key] = null;
             averagePercentiles[key] = null;
+            const peers = pool.filter((p) => p.totals[peerTotal] !== null && p.matches > 0);
+            // Each match's hover ranks it against the others' per-match averages, as the Average row is (<stat_hover>).
+            matchPools[key] = peers.map((p) => p.totals[peerTotal]! / p.matches);
             if (total === null || average === null || minutes < FIXED_FLOOR_MINUTES) continue;
             const higherIsBetter = LIVE_LOG_METRICS[key]?.higherIsBetter ?? true;
             const flip = (p: number | null) => (p === null ? null : higherIsBetter ? p : 100 - p);
             // A lower-is-better total grows with minutes, so it ranks per game (as live: xGC on xGC/Game).
             const rank = (t: number, mins: number) => (higherIsBetter ? t : t / Math.max(1, estimatedGamesFromMinutes(mins)));
-            const peers = pool.filter((p) => p.totals[peerTotal] !== null && p.matches > 0);
             totalPercentiles[key] = flip(percentileInPool(rank(total, minutes), [rank(total, minutes), ...peers.map((p) => rank(p.totals[peerTotal]!, p.minutes))]));
             averagePercentiles[key] = flip(percentileInPool(average, [average, ...peers.map((p) => p.totals[peerTotal]! / p.matches)]));
           }
-          return { rows, ...logFooter(sums), totalPercentiles, averagePercentiles };
+          return { rows, ...logFooter(sums), totalPercentiles, averagePercentiles, matchPools, floor: minutes < FIXED_FLOOR_MINUTES ? FIXED_FLOOR_MINUTES : null };
         })()
       : null;
 
@@ -780,7 +907,17 @@ export function PlayerDetailOverlay() {
   }
 
   function renderGwLogTable(statColumns: GwColumn[], log: MatchLog) {
-    type Column = GwColumn & { total?: React.ReactNode; average?: React.ReactNode; totalTint?: string; averageTint?: string; external?: boolean; switchable?: boolean; switched?: boolean };
+    type Column = GwColumn & {
+      total?: React.ReactNode;
+      average?: React.ReactNode;
+      totalTint?: string;
+      averageTint?: string;
+      external?: boolean;
+      switchable?: boolean;
+      switched?: boolean;
+      /** A second source's ranks and coverage notes, for the hovers (ExternalMatchColumn). */
+      ext?: Pick<ExternalMatchColumn, "cellRank" | "totalRank" | "averageRank" | "totalNote" | "averageNote">;
+    };
     const alternates =
       external && player!.code !== null && logSeason !== null
         ? external.profiles.playerMatchAlternates(player!.code, logSeason, log.rows.map((r) => ({ fixtureId: r.fixtureId, minutes: r.minutes })))
@@ -791,6 +928,11 @@ export function PlayerDetailOverlay() {
       if (!switchedKeys.has(c.key)) return { ...c, className: "col-source-fpl", switchable: true };
       return {
         ...c,
+        // The second source's meaning, as its Explorer column says it.
+        title: (() => {
+          const col = LOG_VALUES[c.key] && columnByKey(LOG_VALUES[c.key].column);
+          return col ? playerColumnHint(col, { label: c.header, sourceLabel: external!.label }) : c.title;
+        })(),
         className: external!.className,
         cell: (g) => alt.cell(g.fixtureId),
         total: alt.total,
@@ -800,6 +942,7 @@ export function PlayerDetailOverlay() {
         external: true,
         switchable: true,
         switched: true,
+        ext: alt,
       };
     };
     const columns: Column[] = [
@@ -817,9 +960,34 @@ export function PlayerDetailOverlay() {
           totalTint: c.totalTint,
           averageTint: c.averageTint,
           external: true,
+          ext: c,
         }),
       ),
     ];
+    // <stat_hover>: each figure says what it is (its header's hover), then
+    // where it ranks within his position — a match against the others'
+    // per-match averages this season, Totals against their season totals,
+    // Average against their per-match averages — or why there's no rank.
+    const position = player!.position;
+    const perMatch = { among: `${POSITION_PLURAL[position]}' per-match averages` };
+    const words = (rank: number | null | undefined, opts: { among?: string } = {}) =>
+      log.floor !== null ? noPercentileHint(log.floor) : playerRankHint(rank, position, opts);
+    const matchHover = (c: Column, g: MatchLogRow): string | undefined => {
+      if (g.minutes === 0) return undefined;
+      if (c.ext) return statHover(c.title, words(c.ext.cellRank?.(g.fixtureId), perMatch));
+      const value = LOG_VALUES[c.key]?.value(g) ?? null;
+      if (value === null) return c.title;
+      return statHover(c.title, words(rankAmong(value, log.matchPools[c.key] ?? [], LIVE_LOG_METRICS[c.key]?.higherIsBetter ?? true), perMatch));
+    };
+    const footerHover = (c: Column, row: "total" | "average"): string | undefined => {
+      const rank = c.ext
+        ? row === "total"
+          ? c.ext.totalRank
+          : c.ext.averageRank
+        : (row === "total" ? log.totalPercentiles : log.averagePercentiles)[c.key];
+      const note = c.ext ? (row === "total" ? c.ext.totalNote : c.ext.averageNote) : log.coverageByKey[c.key];
+      return [statHover(c.title, words(rank, row === "average" ? perMatch : {})), note].filter(Boolean).join("\n") || undefined;
+    };
     const statStart = identityColumns.length;
     const externalStart = identityColumns.length + statColumns.length;
     const cls = (...names: (string | false | undefined)[]) => names.filter(Boolean).join(" ") || undefined;
@@ -841,7 +1009,12 @@ export function PlayerDetailOverlay() {
             {log.rows.map((g) => (
               <tr key={g.fixtureId}>
                 {columns.map((c, i) => (
-                  <td key={c.key} className={cls(divider(i))} style={c.align === "left" ? { textAlign: "left", fontFamily: "var(--font-body)" } : undefined}>
+                  <td
+                    key={c.key}
+                    className={cls(divider(i))}
+                    style={c.align === "left" ? { textAlign: "left", fontFamily: "var(--font-body)" } : undefined}
+                    title={i >= statStart ? matchHover(c, g) : undefined}
+                  >
                     {/* <no_minutes_no_figures>: a match FPL says he didn't play in has nothing to show — every figure "—", FPL's and the second source's, never 0. The opponent, score and result stay. */}
                     {i >= statStart && g.minutes === 0 ? DASH : c.cell(g)}
                   </td>
@@ -862,6 +1035,7 @@ export function PlayerDetailOverlay() {
                       key={c.key}
                       className={cls(divider(i))}
                       style={{ background: c.external ? (row === "total" ? c.totalTint : c.averageTint) : percentileTint((row === "total" ? log.totalPercentiles : log.averagePercentiles)[c.key] ?? null) }}
+                      title={footerHover(c, row)}
                     >
                       {c.external ? ((row === "total" ? c.total : c.average) ?? "") : ((row === "total" ? log.totalsByKey : log.averagesByKey)[c.key] ?? "")}
                     </td>
@@ -886,8 +1060,8 @@ export function PlayerDetailOverlay() {
           <div>
             <h2 id={headingId} style={{ marginBottom: 2 }}>{player.name}</h2>
             <p className="page-subtitle" style={{ marginTop: 0 }}>
-              <PositionBadge position={player.position} /> &nbsp;{player.teamName} · {fmtPrice(player.price)} ·{" "}
-              {fmtPercent(player.ownership)} owned
+              <PositionBadge position={player.position} /> &nbsp;{player.teamName} · <span title={headerHint("price")}>{fmtPrice(player.price)}</span> ·{" "}
+              <span title={headerHint("ownership")}>{fmtPercent(player.ownership)} owned</span>
             </p>
           </div>
         </div>
@@ -919,14 +1093,20 @@ export function PlayerDetailOverlay() {
               chart keeps its size, centred). The same order as the second
               source's Views: Summary, then its graphs. */}
           <div className="profile-grid">
-            <ProfileSummary groups={summaryGroups} rankHint={(p) => playerRankHint(p, player.position)} badge={smallSampleBadge} />
+            <ProfileSummary groups={summaryGroups} rankHint={profileRankHint} badge={smallSampleBadge} />
             {radarGroups.map((group) => (
               <div className={radarGroups.length > 1 ? "card" : "card profile-span-2"} key={group.label || "combined"}>
                 <div className="card-title">
                   Percentile Radar{group.label ? ` · ${group.label}` : ` · ${player.position}`}
                   {smallSampleBadge}
                 </div>
-                <PercentileRadarChart data={group.data} format={radarFormat} smallSample={smallSample} />
+                <PercentileRadarChart
+                  data={group.data}
+                  format={radarFormat}
+                  smallSample={smallSample && noPercentileHint(minutesFloor)}
+                  hint={radarHint}
+                  rankText={(p) => playerRankHint(p, player.position)}
+                />
               </div>
             ))}
           </div>
@@ -1005,16 +1185,23 @@ export function PlayerDetailOverlay() {
                     averagePoints={windowAverage?.avgPointsPerSeason ?? null}
                     selectedSeasonName={logSeason}
                     onSelectSeason={(season) => setPickedSeason({ playerId: player.id, season })}
+                    seasonRank={seasonPointsRank}
                   />
 
                   <PointsHistoryStats
                     items={[
-                      { icon: <AverageLineIcon />, value: fmtDecimal(windowAverage?.avgPointsPerSeason ?? null, 0), label: averageLabel },
+                      // Ranked as the Historic Average Data View ranks these figures (<stat_hover>).
+                      {
+                        icon: <AverageLineIcon />,
+                        value: fmtDecimal(windowAverage?.avgPointsPerSeason ?? null, 0),
+                        label: averageLabel,
+                        rank: windowAverage ? playerRankHint(historicAverageRanks.totalPoints, player.position) : undefined,
+                      },
                       ...(windowAverage
                         ? [
-                            { icon: <ClockIcon />, value: fmtDecimal(windowAverage.avgMinutesPerSeason, 0), label: "Average minutes per season" },
-                            { icon: <GoalsIcon />, value: fmtDecimal(windowAverage.avgGoalsPerSeason, 1), label: "Average goals per season" },
-                            { icon: <AssistsIcon />, value: fmtDecimal(windowAverage.avgAssistsPerSeason, 1), label: "Average assists per season" },
+                            { icon: <ClockIcon />, value: fmtDecimal(windowAverage.avgMinutesPerSeason, 0), label: "Average minutes per season", rank: playerRankHint(historicAverageRanks.minutes, player.position) },
+                            { icon: <GoalsIcon />, value: fmtDecimal(windowAverage.avgGoalsPerSeason, 1), label: "Average goals per season", rank: playerRankHint(historicAverageRanks.goals, player.position) },
+                            { icon: <AssistsIcon />, value: fmtDecimal(windowAverage.avgAssistsPerSeason, 1), label: "Average assists per season", rank: playerRankHint(historicAverageRanks.assists, player.position) },
                           ]
                         : []),
                     ]}
@@ -1084,7 +1271,16 @@ export function PlayerDetailOverlay() {
                 {/* Playing Time for the season shown: minutes a match over its matches. */}
                 <div className="match-log-summary">
                   <div className="card-title">Playing Time</div>
-                  <PlayingTimeIcon {...computeSeasonAverageMinutes(matchLog.rows)} seasonName={pastLogSeason ?? undefined} />
+                  <PlayingTimeIcon
+                    {...computeSeasonAverageMinutes(matchLog.rows)}
+                    seasonName={pastLogSeason ?? undefined}
+                    // The Average row's Minutes: the same figure, ranked against his position's per-match averages.
+                    rank={
+                      matchLog.floor !== null
+                        ? noPercentileHint(matchLog.floor)
+                        : playerRankHint(matchLog.averagePercentiles.min, player.position, { among: `${POSITION_PLURAL[player.position]}' per-match averages` })
+                    }
+                  />
                 </div>
                 {renderGwLogTable(primeColumns, matchLog)}
               </>

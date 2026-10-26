@@ -30,6 +30,7 @@ export function ColumnHeader({
   badges,
   trailing,
   style,
+  dataViewStart = false,
 }: {
   columnKey: string;
   label: React.ReactNode;
@@ -52,6 +53,8 @@ export function ColumnHeader({
   badges?: React.ReactNode;
   trailing?: React.ReactNode;
   style?: React.CSSProperties;
+  /** The first column the Data View drives: what a dialog's Data View picker lines up over (<view_picker_over_columns>). */
+  dataViewStart?: boolean;
 }) {
   const { dragOverKey, setDragOverKey, reorderColumn, resizingKey, startResize } = layout;
   const dragOver = draggable && dragOverKey === columnKey;
@@ -81,6 +84,7 @@ export function ColumnHeader({
       }
       onClick={onSort ? (e) => onSort(e.shiftKey) : undefined}
       title={title}
+      data-view-start={dataViewStart || undefined}
       style={{
         position: "relative",
         width: width ? `${width}px` : narrowUnlessSet ? 1 : undefined,

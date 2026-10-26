@@ -30,6 +30,7 @@ export function DashboardGraphCard({
   yLabelClass,
   format,
   xFormat,
+  hints,
   ascending,
   showReferenceLine,
   dataView,
@@ -63,6 +64,8 @@ export function DashboardGraphCard({
   format: (v: number | null) => string;
   /** Scatter only — the X metric's formatter, for the tooltip. */
   xFormat?: (v: number | null) => string;
+  /** What each axis's figure is (x first on a scatter), for the hover box (<stat_hover>). */
+  hints?: string[];
   /** Bar only — rank lowest first (the graph's Order). */
   ascending?: boolean;
   showReferenceLine: boolean;
@@ -127,9 +130,10 @@ export function DashboardGraphCard({
           emptyMessage={emptyMessage}
           xFormat={xFormat}
           yFormat={format}
+          definitions={hints}
         />
       ) : (
-        <BarTopN data={barData} valueLabel={yLabel} format={format} onBarClick={onSelect} emptyMessage={emptyMessage} ascending={ascending} />
+        <BarTopN data={barData} valueLabel={yLabel} format={format} onBarClick={onSelect} emptyMessage={emptyMessage} ascending={ascending} definitions={hints} />
       )}
     </div>
   );

@@ -5,6 +5,7 @@ import { shortSeason } from "../../utils/season";
 import { fmtDecimal, fmtPrice } from "../../utils/format";
 import { ComparisonLegend, type LegendEntry } from "./ComparisonLegend";
 import { SmallSampleMark } from "../MinutesFloorBadge";
+import { ChartStatLines } from "../charts/ChartStatLines";
 
 export function formatTrendValue(metric: TrendDisplay, v: number | null): string {
   return metric.price ? fmtPrice(v) : fmtDecimal(v, metric.decimals);
@@ -18,6 +19,8 @@ function TrendTooltip({
   entries,
   rows,
   minMinutes,
+  hint,
+  rankText,
 }: {
   active?: boolean;
   label?: string;
@@ -26,6 +29,8 @@ function TrendTooltip({
   entries: LegendEntry[];
   rows: SeasonTrendRow[];
   minMinutes: number;
+  hint?: string;
+  rankText?: (playerId: number, seasonName: string) => string | undefined;
 }) {
   if (!active || !label) return null;
   const row = rows.find((r) => r.seasonName === label);
@@ -35,6 +40,7 @@ function TrendTooltip({
       <strong>
         {label} · <span className={sourceClass ? `source-coloured ${sourceClass}` : undefined}>{metric.label}</span>
       </strong>
+      <ChartStatLines definitions={hint ? [hint] : undefined} />
       {entries.map(({ player, color }) => {
         const v = row[trendDataKey(player.id)];
         const below = row[trendBelowKey(player.id)];
@@ -61,6 +67,7 @@ function TrendTooltip({
             <span className={`mono${typeof below === "number" ? " cmp-trend-below" : ""}`}>
               {formatTrendValue(metric, typeof v === "number" ? v : null)}
               {typeof below === "number" && ` · ${below.toLocaleString("en-GB")} min, under ${minMinutes.toLocaleString("en-GB")}`}
+              {typeof v === "number" && rankText?.(player.id, label) && ` · ${rankText(player.id, label)}`}
             </span>
           </div>
         );
@@ -118,12 +125,17 @@ export function ComparisonTrend({
   rows,
   entries,
   minMinutes,
+  hint,
+  rankText,
 }: {
   metric: TrendDisplay;
   sourceClass?: string;
   rows: SeasonTrendRow[];
   entries: LegendEntry[];
   minMinutes: number;
+  /** What the figure is, and a season's figure ranked in words, for the hover box (<stat_hover>). */
+  hint?: string;
+  rankText?: (playerId: number, seasonName: string) => string | undefined;
 }) {
   // The chart's floor, for a 0-minute season's stopwatch with no dotted line to sit on.
   const floor = Math.min(0, ...rows.flatMap((r) => entries.map((e) => r[trendDataKey(e.player.id)]).filter((v): v is number => typeof v === "number")));
@@ -159,7 +171,7 @@ export function ComparisonTrend({
               ...(sourceClass ? { className: `source-coloured ${sourceClass}` } : { fill: "var(--text-muted)" }),
             }}
           />
-          <Tooltip content={<TrendTooltip metric={metric} sourceClass={sourceClass} entries={entries} rows={rows} minMinutes={minMinutes} />} cursor={{ stroke: "var(--border-strong)" }} />
+          <Tooltip content={<TrendTooltip metric={metric} sourceClass={sourceClass} entries={entries} rows={rows} minMinutes={minMinutes} hint={hint} rankText={rankText} />} cursor={{ stroke: "var(--border-strong)" }} />
           {entries.map(({ player, color }) => (
             <Line
               key={`bridge-${player.id}`}

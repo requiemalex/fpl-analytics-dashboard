@@ -13,7 +13,7 @@ import { percentileTint } from "../utils/colorScale";
 import { SQUAD_RULES } from "../types/team";
 import type { OpenSlots, SquadValidation } from "../metrics/squadRules";
 import type { NormalizedPlayer, Position } from "../types/normalized";
-import { fixtureHint, fplGameweekHint, minutesGameweekHint, modelGameweekHint, playerRankHint } from "./hoverText";
+import { fixtureHint, fplGameweekHint, minutesGameweekHint, modelGameweekHint, playerRankHint, statHover } from "./hoverText";
 
 const PITCH_ROW_ORDER: Position[] = ["FWD", "MID", "DEF", "GKP"];
 const COMPOSITION_ORDER: Position[] = ["GKP", "DEF", "MID", "FWD"];
@@ -60,6 +60,15 @@ const PRICE_VIEW_OPTIONS: SegmentOption<PriceView>[] = [
   { value: "progress", label: "Progress", title: "Progress: FPL's own figure for how far he is toward his next price change, + toward a rise, − toward a drop (100% is the threshold)" },
   { value: "predicted", label: "Predicted Progress", title: "Predicted Progress: where FPL expects his progress to be at the next price update" },
 ];
+
+/** What each price figure is: the first line of its hover on a card (<stat_hover>). */
+const PRICE_DEFINITION: Record<PriceView, string> = {
+  current: "Price: his FPL price today.",
+  purchase: "Purchase price: what he cost when he joined this squad.",
+  sell: "Selling price: what FPL would pay for him, his purchase price plus half of any rise since (rounded down to £0.1m), or today's price after a fall.",
+  progress: "Progress: FPL's own figure for how far he is toward his next price change, + toward a rise, − toward a drop (100% is the threshold).",
+  predicted: "Predicted Progress: where FPL expects his progress to be at the next price update.",
+};
 
 /** The next five matches as FPL-difficulty chips. */
 function FixtureTicker({ fixtures }: { fixtures: UpcomingFixture[] }) {
@@ -234,7 +243,7 @@ function fmtProgress(value: number): string {
  * shared scale so the palette switch turns it off with the rest. A locked
  * or calibrating price says so instead.
  */
-function progressFigure(player: NormalizedPlayer, predicted: boolean): { text: string; title: string; rank: undefined; tint: number | undefined } {
+function progressFigure(player: NormalizedPlayer, predicted: boolean, hoverRank: number | undefined): CardFigure {
   const pc = player.priceChange;
   const plain = (text: string, title: string) => ({ text, title, rank: undefined, tint: undefined });
   if (!pc) return plain(DASH, "FPL hasn't sent his price change progress");
@@ -248,7 +257,8 @@ function progressFigure(player: NormalizedPlayer, predicted: boolean): { text: s
   const title = predicted
     ? `Predicted Progress ${fmtProgress(value)}: where FPL expects him to be toward ${towards} at the next price update${status ? `, ${status}` : ""}. Now ${fmtProgress(pc.percent)}.`
     : `Progress ${fmtProgress(value)}: FPL's figure for how far he is toward ${towards} (100% is the threshold)${next ? `. Predicted at the next update: ${fmtProgress(next.projectedPercent)}, ${status}` : ""}.`;
-  return { text: fmtProgress(value), title, rank: undefined, tint: Math.max(0, Math.min(100, 50 + value / 2)) };
+  // Its hover still ranks it within his position, as a neutral figure: nearer a rise ranks higher (<stat_hover>).
+  return { text: fmtProgress(value), title, rank: undefined, tint: Math.max(0, Math.min(100, 50 + value / 2)), hoverRank, neutral: true };
 }
 
 /** Every player's ranks for the pitch cards' figures (<comparative_colouring>). Purchase and selling prices rank a squad player's against everyone else's in his position at today's price. */
@@ -260,6 +270,9 @@ export interface PitchColourRanks {
   purchase?: Map<number, number>;
   sell?: Map<number, number>;
   ownership?: Map<number, number>;
+  /** Progress and Predicted Progress: ranked for the hover only (neutral, never a tint: they're coloured by the figure itself). */
+  progress?: Map<number, number>;
+  predicted?: Map<number, number>;
 }
 type PitchCardRanks = { [K in keyof PitchColourRanks]?: number };
 
@@ -267,18 +280,23 @@ function pitchCardRanks(ranks: PitchColourRanks, id: number): PitchCardRanks {
   return Object.fromEntries((Object.keys(ranks) as (keyof PitchColourRanks)[]).map((k) => [k, ranks[k]?.get(id)])) as PitchCardRanks;
 }
 
-/** A card's one figure: its text and hover; `rank` (his rank within his position) colours it and is named in the hover, `tint` colours it on its own scale. */
+/**
+ * A card's one figure: its text and hover; `rank` (his rank within his position) colours it and is named in the hover, `tint`
+ * colours it on its own scale. `hoverRank`: a rank for the hover alone (`neutral`: neither better nor worse).
+ */
 interface CardFigure {
   text: string;
   title: string;
   rank: number | undefined;
   tint?: number;
+  hoverRank?: number;
+  neutral?: boolean;
 }
 
 /** The nameplate's figure for the Price highlight's choice (<price_view>). */
 function priceFigure(player: NormalizedPlayer, priceView: PriceView, purchase: number | null, purchaseUnknownHint: string, ranks: PitchCardRanks): CardFigure {
   if (priceView === "current") return { text: fmtPrice(player.price), title: `${fmtPrice(player.price)} today`, rank: ranks.price };
-  if (priceView === "progress" || priceView === "predicted") return progressFigure(player, priceView === "predicted");
+  if (priceView === "progress" || priceView === "predicted") return progressFigure(player, priceView === "predicted", ranks[priceView]);
   if (purchase === null) return { text: DASH, title: purchaseUnknownHint, rank: undefined };
   if (priceView === "purchase") return { text: fmtPrice(purchase), title: `Bought for ${fmtPrice(purchase)}, ${fmtPrice(player.price)} today`, rank: ranks.purchase };
   const sell = sellingPrice(purchase, player.price);
@@ -339,11 +357,19 @@ function PlayerCard({
   const displayPoints = expectedPoints !== null && isCaptain ? expectedPoints * 2 : expectedPoints;
   const displayModelPredicted = modelPredicted !== null && isCaptain ? modelPredicted * 2 : modelPredicted;
   const expectedMinutes = gameweek?.expectedMinutes ?? null;
-  /** A figure's hover, then his rank within his position for it (<hover_text>). */
-  const withRank = (text: string, rank: number | undefined) => {
-    const phrase = playerRankHint(rank, player.position);
-    return phrase ? `${text}\n${phrase}` : text;
-  };
+  /** A figure's hover (<stat_hover>): what it is, his figure explained, then his percentile within his position. */
+  const definition =
+    view === "points"
+      ? `Points Prediction (${SOURCE_NAME[pointsSource]}): expected points for the gameweek picked, a double's two matches added up.`
+      : view === "price"
+        ? PRICE_DEFINITION[priceView]
+        : view === "ownership"
+          ? "Owned: share of FPL managers who own him."
+          : view === "minutes"
+            ? "Minutes: how long Scoutline's model expects him to play in the gameweek picked."
+            : undefined;
+  const withRank = (f: CardFigure) =>
+    statHover([definition, f.title].filter(Boolean).join("\n"), playerRankHint(f.rank ?? f.hoverRank, player.position, { neutral: f.neutral }));
   const figure: CardFigure | null =
     view === "points" && pointsSource === "fpl"
       ? {
@@ -428,7 +454,7 @@ function PlayerCard({
         </div>
         {figure ? (
           <div className="pitch-card-info">
-            <span className="pitch-card-figure num" style={{ background: percentileTint(figure.tint ?? figure.rank) }} title={withRank(figure.title, figure.rank)}>
+            <span className="pitch-card-figure num" style={{ background: percentileTint(figure.tint ?? figure.rank) }} title={withRank(figure)}>
               {figure.text}
             </span>
           </div>

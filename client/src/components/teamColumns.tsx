@@ -16,6 +16,8 @@ export interface TeamColumn {
   higherIsBetter?: boolean;
   /** A figure that's neither better nor worse (games played, draws, a style statistic): never coloured (colourDirection). */
   noColour?: boolean;
+  /** Not ranked even on hover (rankDirection): matches played, the same for nearly every club. */
+  unranked?: boolean;
   /** Set only on a column from a second data source (extensions/externalStats.ts) — its id. Unset means FPL. */
   sourceId?: string;
   /** A count a club records only a handful of times a season (penalties): its Historic Average keeps 1 decimal (PlayerColumn.smallCount, <whole_numbers>). */
@@ -44,7 +46,7 @@ export const TEAM_COLUMNS: TeamColumn[] = [
   // RESULTS
   { key: "leaguePosition", label: "League Position", group: "RESULTS", getValue: (t) => t.leaguePosition, ...num(0), higherIsBetter: false },
   { key: "leaguePoints", label: "League Points", group: "RESULTS", getValue: (t) => t.leaguePoints, ...num(0) },
-  { key: "played", label: "Played", group: "RESULTS", getValue: (t) => t.played, ...num(0), noColour: true },
+  { key: "played", label: "Played", group: "RESULTS", getValue: (t) => t.played, ...num(0), noColour: true, unranked: true },
   { key: "wins", label: "Wins", group: "RESULTS", getValue: (t) => t.wins, ...num(0) },
   { key: "draws", label: "Draws", group: "RESULTS", getValue: (t) => t.draws, ...num(0), noColour: true },
   { key: "losses", label: "Losses", group: "RESULTS", getValue: (t) => t.losses, ...num(0), higherIsBetter: false },

@@ -179,12 +179,15 @@ describe("Player profile — Match Log", () => {
     expect(totalXg.textContent).toBe("0.50");
     // Over the 2 matches with a figure, never all 3 (0.17) and never "—".
     expect(averageXg.textContent).toBe("0.25");
-    expect(totalXg.querySelector("span")!.getAttribute("title")).toBe("From the 2 of 3 matches that have a figure");
-    expect(averageXg.querySelector("span")!.getAttribute("title")).toBe("From the 2 of 3 matches that have a figure");
+    // The cell's hover says what it is (<stat_hover>), then that it's from only some of the matches.
+    expect(totalXg.getAttribute("title")).toMatch(/^xG: Expected goals/);
+    expect(totalXg.getAttribute("title")!.split("\n").at(-1)).toBe("From the 2 of 3 matches that have a figure");
+    expect(averageXg.getAttribute("title")!.split("\n").at(-1)).toBe("From the 2 of 3 matches that have a figure");
     // Points: every match has one, so no hover note.
     const totalPts = totalsRow.querySelectorAll("td")[headers.indexOf("Points") - 2];
     expect(totalPts.textContent).toBe("16");
-    expect(totalPts.querySelector("span")).toBeNull();
+    expect(totalPts.getAttribute("title")).toMatch(/^Points: FPL points scored\./);
+    expect(totalPts.getAttribute("title")).not.toContain("matches that have a figure");
   });
 
   it("colours a past season's Totals and Average against his position that season, at the fixed floor", async () => {

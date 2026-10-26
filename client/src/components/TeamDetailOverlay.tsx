@@ -21,11 +21,10 @@ import {
 import { computeClubSeasonWindow } from "../metrics/teamSeasonHistory";
 import { computeSeasonTrend } from "../metrics/careerMetrics";
 import { percentileTint } from "../utils/colorScale";
-import { clubRankHint } from "./hoverText";
-import { clubRanks, colourDirection, rankAmong } from "../metrics/comparativeColour";
+import { clubColumnHint, clubRankHint, statHover } from "./hoverText";
+import { clubRanks, colourDirection, rankAmong, rankDirection } from "../metrics/comparativeColour";
 import { ANALYSIS_MODE_OPTIONS, AnalysisModeToggle } from "./AnalysisModeToggle";
-import { withCoverage } from "./primitives";
-import { partialAverage, partialTotal, sumKnown, type PartialSum } from "../metrics/partialTotals";
+import { coverageNote, partialAverage, partialTotal, sumKnown, type PartialSum } from "../metrics/partialTotals";
 import { PercentileRadarChart } from "./PlayerRadarChart";
 import { AverageLineIcon, PointsHistoryChart, PointsHistoryHeader, PointsHistoryStats } from "./playerProfile/PointsHistory";
 import { fmtDecimal, fmtOrdinal, DASH } from "../utils/format";
@@ -44,13 +43,39 @@ import type { ClubMatch, NormalizedTeam } from "../types/normalized";
  * every Data View (audit 2026-09-25 player-team-profiles M1).
  */
 export function teamHeaderLine(t: TeamAggregate, mode: AnalysisMode): string {
-  if (t.leaguePosition === null && t.leaguePoints === null && t.played === null) return DASH;
+  const parts = teamHeaderParts(t, mode);
+  return parts === null ? DASH : parts.map((p) => `${p.before}${p.text}`).join("");
+}
+
+/** The header line's figures, each with its Team Explorer column key (for its hover) and what goes before it; null with no record for the view. */
+function teamHeaderParts(t: TeamAggregate, mode: AnalysisMode): { key: string; before: string; text: string }[] | null {
+  if (t.leaguePosition === null && t.leaguePoints === null && t.played === null) return null;
   const show = (key: string, v: number | null) => {
     const c = teamColumnByKey(key);
     return c ? teamColumnForMode(c, mode).format(v) : DASH;
   };
   const position = t.leaguePosition === null ? DASH : fmtOrdinal(Number(show("leaguePosition", t.leaguePosition)));
-  return `${position} in table · ${show("leaguePoints", t.leaguePoints)} pts · ${show("played", t.played)} played · ${show("wins", t.wins)}W ${show("draws", t.draws)}D ${show("losses", t.losses)}L`;
+  return [
+    { key: "leaguePosition", before: "", text: `${position} in table` },
+    { key: "leaguePoints", before: " · ", text: `${show("leaguePoints", t.leaguePoints)} pts` },
+    { key: "played", before: " · ", text: `${show("played", t.played)} played` },
+    { key: "wins", before: " · ", text: `${show("wins", t.wins)}W` },
+    { key: "draws", before: " ", text: `${show("draws", t.draws)}D` },
+    { key: "losses", before: " ", text: `${show("losses", t.losses)}L` },
+  ];
+}
+
+/**
+ * A club figure's hover (<stat_hover>): what its Team Explorer column is, then the club's place among every club for the
+ * view (a neutral figure's by how high it is; none for one that isn't ranked, or a league position, which is its own).
+ */
+function clubFigureHint(key: string, club: TeamAggregate, all: TeamAggregate[], mode: AnalysisMode): string | undefined {
+  const c = teamColumnByKey(key);
+  if (!c) return undefined;
+  const shown = teamColumnForMode(c, mode);
+  const direction = key === "leaguePosition" ? null : rankDirection(shown);
+  const ranks = direction === null ? null : clubRanks(all, { id: (t) => t.teamId, value: shown.getValue, higherIsBetter: direction });
+  return statHover(clubColumnHint(shown), clubRankHint(ranks?.get(club.teamId), ranks?.size ?? 0, { neutral: colourDirection(shown) === null }));
 }
 
 /** The club `?teamProfile=` names, and whether it names one that doesn't exist (an old link, or not a number) — shown as a message rather than silently ignored. */
@@ -85,16 +110,17 @@ function matchResult(m: ClubMatch): { label: string; outcomeClass: string } {
  * partner for xG); the Result column has the score.
  */
 /** `averageDecimals`: the Average row's, as the player Match Log's — whole for a count that runs to dozens a match (FPL points, DC: <whole_numbers>), two otherwise. */
-const MATCH_LOG_COLUMNS: { key: string; header: string; decimals: number; averageDecimals: number; higherIsBetter: boolean; value: (m: ClubMatch) => number | null }[] = [
-  { key: "pts", header: "FPL Points", decimals: 0, averageDecimals: 0, higherIsBetter: true, value: (m) => m.fantasyPoints },
-  { key: "g", header: "Goals (excl. OGs)", decimals: 0, averageDecimals: 2, higherIsBetter: true, value: (m) => m.goals },
-  { key: "a", header: "Assists", decimals: 0, averageDecimals: 2, higherIsBetter: true, value: (m) => m.assists },
-  { key: "xg", header: "xG", decimals: 2, averageDecimals: 2, higherIsBetter: true, value: (m) => m.xG },
-  { key: "xa", header: "xA", decimals: 2, averageDecimals: 2, higherIsBetter: true, value: (m) => m.xA },
-  { key: "xgi", header: "xGI", decimals: 2, averageDecimals: 2, higherIsBetter: true, value: (m) => m.xGI },
-  { key: "cs", header: "Clean Sheets", decimals: 0, averageDecimals: 2, higherIsBetter: true, value: (m) => (m.goalsAgainst === 0 ? 1 : 0) },
-  { key: "xgc", header: "xGC", decimals: 2, averageDecimals: 2, higherIsBetter: false, value: (m) => m.xGC },
-  { key: "dc", header: "Defensive Contributions", decimals: 0, averageDecimals: 0, higherIsBetter: true, value: (m) => m.dc },
+/** `column`: the Team Explorer column that says what it is (<stat_hover>). */
+const MATCH_LOG_COLUMNS: { key: string; header: string; decimals: number; averageDecimals: number; higherIsBetter: boolean; value: (m: ClubMatch) => number | null; column: string }[] = [
+  { key: "pts", header: "FPL Points", decimals: 0, averageDecimals: 0, higherIsBetter: true, value: (m) => m.fantasyPoints, column: "points" },
+  { key: "g", header: "Goals (excl. OGs)", decimals: 0, averageDecimals: 2, higherIsBetter: true, value: (m) => m.goals, column: "goals" },
+  { key: "a", header: "Assists", decimals: 0, averageDecimals: 2, higherIsBetter: true, value: (m) => m.assists, column: "assists" },
+  { key: "xg", header: "xG", decimals: 2, averageDecimals: 2, higherIsBetter: true, value: (m) => m.xG, column: "xG" },
+  { key: "xa", header: "xA", decimals: 2, averageDecimals: 2, higherIsBetter: true, value: (m) => m.xA, column: "xA" },
+  { key: "xgi", header: "xGI", decimals: 2, averageDecimals: 2, higherIsBetter: true, value: (m) => m.xGI, column: "xGI" },
+  { key: "cs", header: "Clean Sheets", decimals: 0, averageDecimals: 2, higherIsBetter: true, value: (m) => (m.goalsAgainst === 0 ? 1 : 0), column: "cleanSheets" },
+  { key: "xgc", header: "xGC", decimals: 2, averageDecimals: 2, higherIsBetter: false, value: (m) => m.xGC, column: "xGC" },
+  { key: "dc", header: "Defensive Contributions", decimals: 0, averageDecimals: 0, higherIsBetter: true, value: (m) => m.dc, column: "defensiveContributions" },
 ];
 
 /** A column's Totals and Average over the matches (<partial_totals>): those with a figure added up, a match without one left out; null if none has one. */
@@ -211,6 +237,12 @@ export function TeamDetailOverlay() {
   function matchLogTint(key: string, kind: "total" | "average", v: number | null, higherIsBetter: boolean): string | undefined {
     return percentileTint(rankAmong(v, matchLogPools.get(key)?.[kind] ?? [], higherIsBetter));
   }
+  /** A Match Log figure's place among the clubs that season (<stat_hover>): Average's, and a single match's, among their per-match averages. */
+  function matchLogPlace(key: string, kind: "total" | "average", v: number | null, higherIsBetter: boolean): string | undefined {
+    const pool = matchLogPools.get(key)?.[kind] ?? [];
+    const place = clubRankHint(rankAmong(v, pool, higherIsBetter), pool.length + 1);
+    return place && (kind === "average" ? `${place}' per-match averages` : place);
+  }
 
   // FPL points per season for this club, every season on record (live
   // included) — each bar is what the club's players scored FOR IT that
@@ -226,6 +258,24 @@ export function TeamDetailOverlay() {
     [completedSeasonHistory, historicReferenceSeason],
   );
   const seasonTrend = useMemo(() => computeSeasonTrend(completedSeasonHistory), [completedSeasonHistory]);
+  // Points History in words (<stat_hover>): a season's points among every club's that season, and the season average
+  // among every club's over the same window.
+  const seasonPlace = (seasonName: string): string | undefined => {
+    const own = seasonHistory.find((s) => s.seasonName === seasonName);
+    if (!own || team?.code == null) return undefined;
+    const others = clubSeasons.filter((c) => c.season === seasonName && c.code !== team.code).map((c) => c.fantasyPoints);
+    return clubRankHint(rankAmong(own.totalPoints, others, true), others.length + 1);
+  };
+  const seasonAveragePlace = useMemo(() => {
+    if (seasonAverage === null || team?.code == null) return undefined;
+    const codes = new Set(clubSeasons.map((c) => c.code));
+    codes.delete(team.code);
+    const others = [...codes].flatMap((code) => {
+      const avg = computeClubSeasonWindow(clubSeasonHistory(code, clubSeasons, clubCtx.livePlayerSumsPartial).filter((s) => s.complete), historicReferenceSeason).windowAverage;
+      return avg === null ? [] : [avg];
+    });
+    return clubRankHint(rankAmong(seasonAverage, others, true), others.length + 1);
+  }, [seasonAverage, team?.code, clubSeasons, clubCtx, historicReferenceSeason]);
 
   // The Summary's tiles: each its Team Explorer column as the Data View shows it, coloured by the club's rank among
   // every club for the view, its hover the place: "4th of 20 clubs" (<hover_text>).
@@ -235,10 +285,18 @@ export function TeamDetailOverlay() {
       title: g.title,
       figures: g.keys.map((key) => {
         const c = teamColumnForMode(teamColumnByKey(key)!, analysisMode);
-        const direction = colourDirection(c);
+        // Ranked for the hover even when neutral (<stat_hover>); tinted only when coloured.
+        const direction = rankDirection(c);
         const ranks = direction === null ? null : clubRanks(allTeamAggregates, { id: (t) => t.teamId, value: c.getValue, higherIsBetter: direction });
         const rank = ranks?.get(clubTotals.teamId) ?? null;
-        return { label: c.label, value: c.format(c.getValue(clubTotals)), percentile: rank, title: ranks ? clubRankHint(rank, ranks.size) : undefined };
+        const neutral = colourDirection(c) === null;
+        return {
+          label: c.label,
+          value: c.format(c.getValue(clubTotals)),
+          percentile: neutral ? null : rank,
+          title: clubColumnHint(c),
+          rank: ranks ? clubRankHint(rank, ranks.size, { neutral }) : undefined,
+        };
       }),
     }));
   }, [clubTotals, allTeamAggregates, analysisMode]);
@@ -310,6 +368,14 @@ export function TeamDetailOverlay() {
   const alternates = external && team.code !== null && logSeason !== null ? external.profiles.clubMatchAlternates(team.code, logSeason, logFixtures) : {};
   const switchedKeys = new Set(switchedLog && switchedLog.teamId === team.id ? switchedLog.keys : []);
   const switchedAlternate = (key: string) => (switchedKeys.has(key) ? (alternates[key] ?? null) : null);
+  // <stat_hover> for the Match Log: what each column is (its Team Explorer column's meaning, FPL's or the second
+  // source's), then the club's place among the clubs that season, and a Totals or Average cell's coverage note.
+  const clubsInSeason = matchesByCode.size;
+  const logColumnHint = (c: (typeof MATCH_LOG_COLUMNS)[number], switched: boolean) => {
+    const col = teamColumnByKey(c.column);
+    return col ? clubColumnHint(col, { label: c.header, sourceLabel: switched ? external?.label : undefined }) : undefined;
+  };
+  const footerHint = (definition: string | undefined, place: string | undefined, note: string | undefined) => [statHover(definition, place), note].filter(Boolean).join("\n") || undefined;
   function toggleLogSource(key: string) {
     const next = new Set(switchedKeys);
     if (next.has(key)) next.delete(key);
@@ -328,7 +394,12 @@ export function TeamDetailOverlay() {
           <div>
             <h2 id={headingId} style={{ marginBottom: 2 }}>{team.name}</h2>
             <p className="page-subtitle" style={{ marginTop: 0 }}>
-              {teamHeaderLine(clubTotals, analysisMode)}
+              {teamHeaderParts(clubTotals, analysisMode)?.map((p) => (
+                <React.Fragment key={p.key}>
+                  {p.before}
+                  <span title={clubFigureHint(p.key, clubTotals, allTeamAggregates, analysisMode)}>{p.text}</span>
+                </React.Fragment>
+              )) ?? DASH}
             </p>
           </div>
         </div>
@@ -351,7 +422,15 @@ export function TeamDetailOverlay() {
             {teamRadarGroups.map((group) => (
               <div className="card" key={group.label}>
                 <div className="card-title">Team Radar · {group.label}</div>
-                <PercentileRadarChart data={group.data} format={(key, v) => teamColumnForMode(teamColumnByKey(key)!, analysisMode).format(v)} />
+                <PercentileRadarChart
+                  data={group.data}
+                  format={(key, v) => teamColumnForMode(teamColumnByKey(key)!, analysisMode).format(v)}
+                  hint={(key, label) => {
+                    const c = teamColumnByKey(key);
+                    return c ? clubColumnHint(c, { label }) : undefined;
+                  }}
+                  rankText={(p) => clubRankHint(p, allTeamAggregates.filter((t) => t.played).length)}
+                />
               </div>
             ))}
           </div>
@@ -417,6 +496,7 @@ export function TeamDetailOverlay() {
                   averagePoints={seasonAverage}
                   selectedSeasonName={logSeason}
                   onSelectSeason={(season) => setPickedSeason({ teamId: team.id, season })}
+                  seasonRank={seasonPlace}
                 />
                 <PointsHistoryStats
                   items={[
@@ -424,6 +504,7 @@ export function TeamDetailOverlay() {
                       icon: <AverageLineIcon />,
                       value: fmtDecimal(seasonAverage, 0),
                       label: `Season average over ${windowSeasonNames.size} season${windowSeasonNames.size === 1 ? "" : "s"}: ${fmtDecimal(seasonAverage, 0)} pts`,
+                      rank: seasonAveragePlace,
                     },
                   ]}
                 />
@@ -459,7 +540,7 @@ export function TeamDetailOverlay() {
                       {MATCH_LOG_COLUMNS.map((c, i) => {
                         const switched = switchedAlternate(c.key) !== null;
                         return (
-                          <th key={c.key} className={[i === 0 ? "column-group-divider" : "", switched ? (external?.className ?? "") : "col-source-fpl"].join(" ").trim()}>
+                          <th key={c.key} className={[i === 0 ? "column-group-divider" : "", switched ? (external?.className ?? "") : "col-source-fpl"].join(" ").trim()} title={logColumnHint(c, switched)}>
                             {c.header}
                             {alternates[c.key] && external && <SourceToggle showingExternal={switched} externalLabel={external.label} onToggle={() => toggleLogSource(c.key)} />}
                           </th>
@@ -484,16 +565,24 @@ export function TeamDetailOverlay() {
                           <td style={{ textAlign: "left", fontFamily: "var(--font-body)" }}>
                             <span className={result.outcomeClass}>{result.label}</span>
                           </td>
-                          {MATCH_LOG_COLUMNS.map((c, i) => (
-                            <td key={c.key} className={i === 0 ? "column-group-divider" : undefined}>
-                              {switchedAlternate(c.key)?.cell(m.fixture) ?? fmtDecimal(c.value(m), c.decimals)}
-                            </td>
-                          ))}
-                          {externalColumns.map((c, i) => (
-                            <td key={c.key} className={i === 0 ? "column-group-divider" : undefined}>
-                              {c.cell(m.fixture)}
-                            </td>
-                          ))}
+                          {MATCH_LOG_COLUMNS.map((c, i) => {
+                            const alt = switchedAlternate(c.key);
+                            const altPlace = alt ? clubRankHint(alt.cellRank?.(m.fixture), clubsInSeason) : undefined;
+                            const place = alt ? altPlace && `${altPlace}' per-match averages` : matchLogPlace(c.key, "average", c.value(m), c.higherIsBetter);
+                            return (
+                              <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} title={statHover(logColumnHint(c, !!alt), place)}>
+                                {alt?.cell(m.fixture) ?? fmtDecimal(c.value(m), c.decimals)}
+                              </td>
+                            );
+                          })}
+                          {externalColumns.map((c, i) => {
+                            const place = clubRankHint(c.cellRank?.(m.fixture), clubsInSeason);
+                            return (
+                              <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} title={statHover(c.title, place && `${place}' average chances`)}>
+                                {c.cell(m.fixture)}
+                              </td>
+                            );
+                          })}
                         </tr>
                       );
                     })}
@@ -508,13 +597,23 @@ export function TeamDetailOverlay() {
                         const sum = matchLogSum(logMatches, c.value);
                         const total = partialTotal(sum);
                         return (
-                          <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} style={{ background: alt ? alt.totalTint : matchLogTint(c.key, "total", total, c.higherIsBetter) }}>
-                            {alt ? alt.total : withCoverage(fmtDecimal(total, c.decimals), sum)}
+                          <td
+                            key={c.key}
+                            className={i === 0 ? "column-group-divider" : undefined}
+                            style={{ background: alt ? alt.totalTint : matchLogTint(c.key, "total", total, c.higherIsBetter) }}
+                            title={footerHint(logColumnHint(c, !!alt), alt ? clubRankHint(alt.totalRank, clubsInSeason) : matchLogPlace(c.key, "total", total, c.higherIsBetter), alt ? alt.totalNote : coverageNote(sum))}
+                          >
+                            {alt ? alt.total : fmtDecimal(total, c.decimals)}
                           </td>
                         );
                       })}
                       {externalColumns.map((c, i) => (
-                        <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} style={c.totalTint ? { background: c.totalTint } : undefined}>
+                        <td
+                          key={c.key}
+                          className={i === 0 ? "column-group-divider" : undefined}
+                          style={c.totalTint ? { background: c.totalTint } : undefined}
+                          title={c.total ? footerHint(c.title, clubRankHint(c.totalRank, clubsInSeason), c.totalNote) : undefined}
+                        >
                           {c.total ?? ""}
                         </td>
                       ))}
@@ -528,13 +627,27 @@ export function TeamDetailOverlay() {
                         const sum = matchLogSum(logMatches, c.value);
                         const average = partialAverage(sum);
                         return (
-                          <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} style={{ background: alt ? alt.averageTint : matchLogTint(c.key, "average", average, c.higherIsBetter) }}>
-                            {alt ? alt.average : withCoverage(fmtDecimal(average, c.averageDecimals), sum)}
+                          <td
+                            key={c.key}
+                            className={i === 0 ? "column-group-divider" : undefined}
+                            style={{ background: alt ? alt.averageTint : matchLogTint(c.key, "average", average, c.higherIsBetter) }}
+                            title={footerHint(
+                              logColumnHint(c, !!alt),
+                              alt ? clubRankHint(alt.averageRank, clubsInSeason) : matchLogPlace(c.key, "average", average, c.higherIsBetter),
+                              alt ? alt.averageNote : coverageNote(sum),
+                            )}
+                          >
+                            {alt ? alt.average : fmtDecimal(average, c.averageDecimals)}
                           </td>
                         );
                       })}
                       {externalColumns.map((c, i) => (
-                        <td key={c.key} className={i === 0 ? "column-group-divider" : undefined} style={c.averageTint ? { background: c.averageTint } : undefined}>
+                        <td
+                          key={c.key}
+                          className={i === 0 ? "column-group-divider" : undefined}
+                          style={c.averageTint ? { background: c.averageTint } : undefined}
+                          title={c.average ? footerHint(c.title, clubRankHint(c.averageRank, clubsInSeason), c.averageNote) : undefined}
+                        >
                           {c.average ?? ""}
                         </td>
                       ))}

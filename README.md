@@ -1250,13 +1250,38 @@ goals expected each way (`<points_model>`).
   or match, in one line. A column header gives its statistic in plain words
   (`PLAYER_STAT_HINTS`, `CLUB_STAT_HINTS`, the Understat maps), plus "Lower
   is better" or "Today's figure" where true; how to sort, drag and resize is
-  in the User Guide only. A coloured cell, profile tile or pitch-card figure
-  says its colour's rank in words: "Top 8% of midfielders" (40th–60th
-  percentile: "Around the middle"), or for a club "3rd of 20 clubs" (a
-  tie's middle place; not on League Position, which already is one). A
-  fixture chip names the opponent, home or away, and FPL's difficulty. All
-  are short strings from figures the page already has; the rank phrases
-  are cached, so a table's cells share a few hundred strings.
+  in the User Guide only. A fixture chip names the opponent, home or away,
+  and FPL's difficulty. All are short strings from figures the page already
+  has; the phrases are cached, so a table's cells share a few hundred strings.
+- **Every figure's hover: what it is, then where it ranks** (the owner's
+  rule, 2026-10-26; `statHover`, `<stat_hover>`). Every statistic shown —
+  table cells, profile tiles and radars, Match Log rows and their Totals and
+  Average, Points History, Team Building's pitch cards and Add Players,
+  Dashboard tiles and graph hovers, Player Comparison's Outputs, radars and
+  trends, Understat's shot figures and formations, the Fixture Forecast —
+  says two things on hover: first what the statistic is and measures (its
+  column's header line, `playerColumnHint` / `clubColumnHint`, a second
+  source's meaning when it's that source's figure), then its rank: a
+  player's percentile within his position in words ("92nd percentile of
+  midfielders: top 8%"; 41st–59th "around the middle"; a neutral figure,
+  never coloured, just "73rd percentile of forwards"), a club's place
+  among the clubs ("3rd of 20 clubs", "3rd highest" for a neutral one).
+  The rank is the one behind the colour (`<comparative_colouring>`: same
+  pool, same floor), so neutral figures are ranked for the hover only
+  (`rankDirection`; Played isn't ranked at all, `unranked`). Under the
+  fixed floor the second line says so ("No percentile: under the
+  855-minute floor, a small sample"). Where a figure isn't a row of its
+  own pool, the hover names what it's ranked against: a single Match Log
+  match against his position's per-match averages that season (the
+  Average row's pool), a fixture's forecast against every club's upcoming
+  fixtures. A season's Points History bar is ranked where that season has
+  a pool (the current season, the last completed, an earlier one once its
+  match ledger has loaded); a trend graph's season among everyone's that
+  season in his current position (FPL's season records keep no past
+  position). Nothing ranks a squad's own totals (Squad Value, Bank,
+  Projected Points) or a season before the match ledger: there's no pool.
+  A Totals or Average cell's partial-matches note follows on the line
+  after.
 - **Historic data caveats:** `history_past` carries FPL's placeholder 0 /
   `"0.00"` for starts and the xG family (xG, xA, xGI, xGC) before 2022/23
   (Pickford 2021/22: 3,150 minutes, 0 starts), so those are `null` ("—")
@@ -1425,7 +1450,11 @@ row (Add), and players to leave out (the squad). Saved views are one
 store (`useExplorerViews("player")`), so a view saved in Player Explorer
 loads in Add Players and the other way round; a view keeps no lead
 column's sort or filter. Next 5 Fixtures sorts and filters by the five
-matches' average FPL difficulty, easiest first. Search is
+matches' average FPL difficulty, easiest first. It's always today's
+fixtures, so when shown it ends the always-live block — Own%, Price,
+Team, Position, Next 5 Fixtures — and the grey divider after it marks
+where the Data View's columns start (the owner's call, 2026-10-26); it's
+never dragged among them, and a saved view's order for it is ignored. Search is
 accent- and order-insensitive with small-typo tolerance, splits the
 query at dots/apostrophes (curly ones too)/hyphens as it does names, and treats a one-letter
 word as an initial that must start a name word (`utils/playerSearch.ts`).
@@ -1969,7 +1998,11 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   (`<shared_player_table>`, above), starting with Next 5 Fixtures and
   Player Explorer's default columns, the squad left out, and an **Add**
   on each row (greyed, with the reason as its hover, when a squad rule
-  stops him). Its own Predictive columns come first: the two Exp. Pts and
+  stops him). Its Data View picker sits under the toolbar, straight over
+  the first column it changes (`<view_picker_over_columns>`, the owner's
+  call, 2026-10-26): measured from that header (`data-view-start`), kept
+  in step on resize, re-fit and sideways scroll, held inside the table.
+  Player Explorer's page keeps the picker top left, as every other page. Its own Predictive columns come first: the two Exp. Pts and
   Exp. Mins, coloured by rank within the position with no minutes floor.
   It replaced the Add Players section (`docs/HISTORY.md`).
 - **Exp. Pts horizon** (`<points_horizon>`, `horizonTotal` in

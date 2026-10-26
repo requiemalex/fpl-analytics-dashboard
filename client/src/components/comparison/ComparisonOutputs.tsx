@@ -4,6 +4,7 @@ import { MenuGroupHeading } from "../MenuControls";
 import { COMPARISON_GROUP_LABELS, COMPARISON_GROUP_ORDER } from "../../metrics/comparisonMetrics";
 import type { ColumnGroup } from "../playerColumns";
 import { ComparisonLegend, type LegendEntry } from "./ComparisonLegend";
+import { statHover } from "../hoverText";
 
 export interface OutputsRow {
   key: string;
@@ -21,6 +22,9 @@ export interface OutputsRow {
   labelClassName?: string;
   /** The row's ⇄ toggle, for a figure both sources have (SourceToggle). */
   toggle?: React.ReactNode;
+  /** What the figure is, and per player id his rank in words: every figure's hover (<stat_hover>). */
+  hint?: string;
+  rankWords?: Map<number, string | undefined>;
 }
 
 /** The player to bold in a row: the best among the ranked players (those at or above the card's minimum minutes), when at least two have a figure and they differ. */
@@ -192,12 +196,15 @@ function OutputsTrackRow({ row, entries, ranked, trackWidth }: { row: OutputsRow
         )
       : null;
 
+  // <stat_hover>: a figure's hover names it, then says what the statistic is and where he ranks within his position.
+  const figureHover = (id: number, head: string) => [head, statHover(row.hint, row.rankWords?.get(id))].filter(Boolean).join("\n");
+
   // Small samples drawn first, so a ranked marker sitting on the same spot stays on top.
   const drawOrder = [...marks].sort((a, b) => Number(!a.entry.smallSampleNote) - Number(!b.entry.smallSampleNote));
 
   return (
     <div className="cmp-outputs-row">
-      <span className={row.labelClassName ? `cmp-outputs-label source-coloured ${row.labelClassName}` : "cmp-outputs-label"}>
+      <span className={row.labelClassName ? `cmp-outputs-label source-coloured ${row.labelClassName}` : "cmp-outputs-label"} title={row.hint}>
         {row.label}
         {row.toggle}
       </span>
@@ -227,7 +234,7 @@ function OutputsTrackRow({ row, entries, ranked, trackWidth }: { row: OutputsRow
                 color: muted ? "var(--text-muted)" : color,
                 fontWeight: !muted && best.has(player.id) ? 700 : undefined,
               }}
-              title={player.name}
+              title={figureHover(player.id, `${player.name}: ${row.format(m.value)}`)}
             >
               {labelTexts[i]}
             </span>
@@ -241,7 +248,7 @@ function OutputsTrackRow({ row, entries, ranked, trackWidth }: { row: OutputsRow
               key={player.id}
               className="cmp-outputs-marker small-sample"
               style={{ left: `${m.pct}%` }}
-              title={`${name} (below this card's minimum minutes, so not ranked${m.beyond ? "; past the end of this scale" : ""})`}
+              title={figureHover(player.id, `${name} (below this card's minimum minutes, so not ranked${m.beyond ? "; past the end of this scale" : ""})`)}
             >
               {/* The one small-sample marker (<minutes_marker>): the amber stopwatch. */}
               <MinutesFloorIcon size={12} />
@@ -251,7 +258,7 @@ function OutputsTrackRow({ row, entries, ranked, trackWidth }: { row: OutputsRow
               key={player.id}
               className="cmp-outputs-marker"
               style={{ left: `${m.pct}%`, background: color }}
-              title={`${name} (${Math.round(m.pct)}% of the leader)`}
+              title={figureHover(player.id, `${name} (${Math.round(m.pct)}% of the leader)`)}
             />
           );
         })}

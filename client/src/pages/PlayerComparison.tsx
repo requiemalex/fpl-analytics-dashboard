@@ -5,7 +5,9 @@ import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/p
 import { resolvePlayerStatsList, hasDataForMode, isAnalysisMode, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { FIXED_FLOOR_MINUTES, fixedFloorMinutes, isUnderMinimum } from "../metrics/fixedMinutesFloor";
 import { comparisonMetricByKey, comparisonMetricFromColumn, comparisonPercentiles, isComparableColumn, RADAR_MIN_METRICS, type ComparisonMetric } from "../metrics/comparisonMetrics";
-import { buildSeasonTrend, trendBelowKey, trendDataKey, trendMetricByKey, type TrendDisplay, type TrendMetric } from "../metrics/careerTrends";
+import { buildSeasonTrend, trendBelowKey, trendDataKey, trendMetricByKey, trendValue, type TrendDisplay, type TrendMetric } from "../metrics/careerTrends";
+import { rankAmong } from "../metrics/comparativeColour";
+import { columnHint, noPercentileHint, playerColumnHint, playerRankHint } from "../components/hoverText";
 import { belowMinimumNote, profileFloorNote, smallSampleNote, trendFloorNote, userMinimumNote } from "../components/MinutesFloorBadge";
 import { columnFormatForMode, columnForMode } from "../components/playerColumns";
 import { cardSource, SourceMark, SourceToggle, type CardSource } from "../components/SourceToggle";
@@ -112,6 +114,21 @@ interface CardTrend {
   crossover: boolean;
 }
 
+/**
+ * <stat_hover>: what a card's figure is — its Explorer column's meaning, FPL's or the second source's (one of its own, or
+ * its version of an FPL figure). A trend figure's key is the Explorer column's where they differ in name.
+ */
+function cardMetricHint(key: string, label: string, higherIsBetter: boolean, source: ExternalStatsSource | null): string {
+  const own = parseExternalMetricKey(key)?.key ?? key;
+  return playerColumnHint({ key: own, label, higherIsBetter }, { sourceLabel: source?.label });
+}
+const TREND_HINT_KEYS: Record<string, string> = { defensiveContribution: "defensiveContributions", defensiveContributionPerGame: "defensiveContributionsPerGame" };
+function trendMetricHint(key: string, label: string, source: ExternalStatsSource | null): string {
+  if (key === "endCost") return columnHint(label, { hint: "His FPL price at the end of the season." });
+  const own = parseExternalMetricKey(key)?.key ?? key;
+  return playerColumnHint({ key: TREND_HINT_KEYS[own] ?? own, label }, { sourceLabel: source?.label });
+}
+
 function externalTrend(ext: ExternalStatsSource, m: ExternalTrendMetric, label: string, playersById: Map<number, NormalizedPlayer>, crossover: boolean): CardTrend {
   return {
     display: { label, decimals: m.decimals },
@@ -204,6 +221,9 @@ type CardData =
       entries: LegendEntry[];
       floorNote: string | null;
       message: string | null;
+      /** What the figure is, and a season's figure ranked in words (<stat_hover>). */
+      hint: string;
+      rankText: (playerId: number, seasonName: string) => string | undefined;
     };
 
 export function PlayerComparison() {
@@ -368,9 +388,43 @@ export function PlayerComparison() {
         const minMinutes = readOnly ? FIXED_FLOOR_MINUTES : Math.max(el.minMinutes, FIXED_FLOOR_MINUTES);
         const rows = message ? [] : buildSeasonTrend(compared.map((c) => c.player.id), trend.metric, allTimeSeasonsByPlayerId, minMinutes, trend.seasonValue);
         const entries: LegendEntry[] = compared.map((c) => ({ ...c, absent: !rows.some((r) => typeof r[trendDataKey(c.player.id)] === "number") }));
+        // <stat_hover>: each season's figure ranked within his position (today's: FPL's season records don't keep a past one)
+        // among every player's that season at or above the fixed floor; pools built as the hover asks for them.
+        const seasonPools = new Map<string, number[]>();
+        const seasonFigure = (id: number, s: PlayerSeasonHistory) => (trend.seasonValue ? trend.seasonValue(id, s) : trendValue(trend.metric, s));
+        const rankText = (playerId: number, seasonName: string): string | undefined => {
+          const player = playersById.get(playerId);
+          const own = allTimeSeasonsByPlayerId.get(playerId)?.find((s) => s.seasonName === seasonName);
+          if (!player || !own || own.minutes === 0) return undefined;
+          if (own.minutes < FIXED_FLOOR_MINUTES) return noPercentileHint(FIXED_FLOOR_MINUTES);
+          const value = seasonFigure(playerId, own);
+          if (value === null) return undefined;
+          const key = `${seasonName}|${player.position}`;
+          let pool = seasonPools.get(key);
+          if (!pool) {
+            pool = [];
+            for (const [id, seasons] of allTimeSeasonsByPlayerId) {
+              if (playersById.get(id)?.position !== player.position) continue;
+              const s = seasons.find((x) => x.seasonName === seasonName);
+              if (!s || s.minutes < FIXED_FLOOR_MINUTES) continue;
+              const v = seasonFigure(id, s);
+              if (v !== null) pool.push(v);
+            }
+            seasonPools.set(key, pool);
+          }
+          // His own figure is in the pool once: ranked against the others.
+          const others = [...pool];
+          const at = others.indexOf(value);
+          if (at >= 0) others.splice(at, 1);
+          // A season-end price is neither better nor worse: ranked by how high.
+          const neutral = trend.display.price === true;
+          return playerRankHint(rankAmong(value, others, true), player.position, { neutral });
+        };
         return {
           el,
           kind: "trend",
+          hint: trendMetricHint(el.metricKeys[0] ?? "", metric.label, trend.source),
+          rankText,
           metric,
           sourceClass: trend.source?.className,
           sourceControls: cardSourceControls(ext, [trend], { switched: switchedFor(el.id), onToggle: () => toggleSource(el.id) }),
@@ -417,7 +471,17 @@ export function PlayerComparison() {
             key: metric.key,
             label: metric.label,
             format,
-            values: new Map(compared.map((c) => [c.player.id, { percentile: percentiles.get(c.player.id) ?? null, raw: valueFor(metric, pool, c.player.id) }])),
+            hint: cardMetricHint(metric.key, metric.label, metric.higherIsBetter, source),
+            values: new Map(
+              compared.map((c) => [
+                c.player.id,
+                {
+                  percentile: percentiles.get(c.player.id) ?? null,
+                  raw: valueFor(metric, pool, c.player.id),
+                  rankText: playerRankHint(percentiles.get(c.player.id), c.player.position),
+                },
+              ]),
+            ),
             ...(source ? { sourceClass: source.className } : {}),
           };
         });
@@ -425,12 +489,22 @@ export function PlayerComparison() {
       }
 
       const rows: OutputsRow[] = resolved.map(({ metric, format, source, heading, crossover }) => {
+        // <stat_hover>: each player's figure ranked within his position, as the radars rank it, or why there's none.
+        const percentiles = percentilesFor(metric, mode, pool);
+        const floor = fixedFloorMinutes(mode);
         return {
           key: metric.key,
           label: metric.label,
           group: metric.group,
           higherIsBetter: metric.higherIsBetter,
           format,
+          hint: cardMetricHint(metric.key, metric.label, metric.higherIsBetter, source),
+          rankWords: new Map(
+            compared.map((c) => {
+              const p = pool.byId.get(c.player.id);
+              return [c.player.id, playerRankHint(percentiles.get(c.player.id), c.player.position) ?? (p && isUnderMinimum(p.minutes, floor) ? noPercentileHint(floor) : undefined)];
+            }),
+          ),
           cells: new Map(compared.map((c) => [c.player.id, valueFor(metric, pool, c.player.id)])),
           rankCells: metric.rankValue === metric.getValue ? undefined : new Map(compared.map((c) => [c.player.id, rankFor(metric, pool, c.player.id)])),
           ...(source && heading ? { sourceHeading: { label: heading, className: source.className, icon: source.icon } } : {}),
@@ -592,7 +666,7 @@ export function PlayerComparison() {
         source={card.source}
         message={card.message}
       >
-        <ComparisonTrend metric={card.metric} sourceClass={card.sourceClass} rows={card.rows} entries={card.entries} minMinutes={card.minMinutes} />
+        <ComparisonTrend metric={card.metric} sourceClass={card.sourceClass} rows={card.rows} entries={card.entries} minMinutes={card.minMinutes} hint={card.hint} rankText={card.rankText} />
       </ComparisonCard>
     );
   }

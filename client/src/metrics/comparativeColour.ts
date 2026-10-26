@@ -122,6 +122,17 @@ export function colourDirection(c: { higherIsBetter?: boolean; noColour?: boolea
 }
 
 /**
+ * The direction a figure is ranked in for its hover's percentile
+ * (<stat_hover>): its colour direction, or higher first for a neutral
+ * figure (ranked, never coloured); null for one that isn't ranked at all
+ * (`unranked`: matches played, the same for nearly every club).
+ */
+export function rankDirection(c: { higherIsBetter?: boolean; noColour?: boolean; unranked?: boolean }): boolean | null {
+  if (c.unranked) return null;
+  return colourDirection(c) ?? true;
+}
+
+/**
  * Each club's average upcoming fixture difficulty ranked among every
  * club's — easier is better. A club figure, so it follows the club rule
  * wherever it's shown (a player's row shows his club's).

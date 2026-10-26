@@ -7,14 +7,14 @@ import { AnalysisModeToggle } from "../components/AnalysisModeToggle";
 import { TeamBadge } from "../components/primitives";
 import { TEAM_COLUMNS, teamColumnByKey, teamColumnForMode, type TeamColumn, type TeamColumnGroup } from "../components/teamColumns";
 import { ColumnHeader } from "../components/ColumnHeader";
-import { CLUB_STAT_HINTS, CLUB_UNDERSTAT_HINTS, clubRankHint, columnHint, UNDERSTAT_STAT_HINTS } from "../components/hoverText";
+import { clubColumnHint, clubRankHint, statHover } from "../components/hoverText";
 import { IconChipButton, ResetIcon, ColumnsIcon, FilterIcon, DownloadIcon } from "../components/IconToolbar";
 import { useColumnCustomization } from "../state/useColumnCustomization";
 import { useColumnFilters } from "../state/useColumnFilters";
 import { useSortSpec, compareSortValues, sortWithinColumns, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
 import { useEscapeLayer } from "../state/useEscapeLayer";
 import { percentileTint } from "../utils/colorScale";
-import { clubRanks, colourDirection } from "../metrics/comparativeColour";
+import { clubRanks, colourDirection, rankDirection } from "../metrics/comparativeColour";
 import { downloadCsv } from "../utils/csvExport";
 import { matchesTeamSearch } from "../utils/playerSearch";
 import { ColumnsPopover, MenuGroupHeading, fplHeading } from "../components/MenuControls";
@@ -183,26 +183,31 @@ export function Teams() {
 
   // Each column's colour (<comparative_colouring>): every club ranked
   // among all clubs for this Data View (aggregates — never only the clubs a
-  // search or filter leaves on screen).
+  // search or filter leaves on screen). A neutral column (never coloured)
+  // is ranked too, for its hover's place (<stat_hover>), but not tinted.
   const columnRanks = useMemo(() => {
     const ranks = new Map<string, Map<number, number>>();
     for (const c of columnsInOrder) {
-      const higherIsBetter = colourDirection(c);
+      const higherIsBetter = rankDirection(c);
       if (higherIsBetter !== null) ranks.set(c.key, clubRanks(aggregates, { id: (t) => t.teamId, value: c.getValue, higherIsBetter }));
     }
     return ranks;
   }, [columnsInOrder, aggregates]);
+  // What each shown column is: its header's hover and the first line of its cells' (<stat_hover>).
+  const columnHints = useMemo(
+    () => new Map(columnsInOrder.map((c) => [c.key, clubColumnHint(c, { sourceLabel: ext !== null && c.sourceId === ext.id ? ext.label : undefined })])),
+    [columnsInOrder, ext],
+  );
 
   function teamCellTint(team: TeamAggregate, column: TeamColumn): string | undefined {
-    return percentileTint(columnRanks.get(column.key)?.get(team.teamId));
+    return colourDirection(column) === null ? undefined : percentileTint(columnRanks.get(column.key)?.get(team.teamId));
   }
 
-  /** What a cell's colour means for the club: "Goals For: 3rd of 20 clubs" (<hover_text>). */
+  /** A cell's hover (<stat_hover>): what the column is, then the club's place among the clubs ("3rd of 20 clubs"). */
   function teamCellHint(team: TeamAggregate, column: TeamColumn): string | undefined {
     // A league position already is its rank.
-    if (column.key === "leaguePosition") return undefined;
-    const ranks = columnRanks.get(column.key);
-    return clubRankHint(ranks?.get(team.teamId), ranks?.size ?? 0, column.label);
+    const ranks = column.key === "leaguePosition" ? undefined : columnRanks.get(column.key);
+    return statHover(columnHints.get(column.key), clubRankHint(ranks?.get(team.teamId), ranks?.size ?? 0, { neutral: colourDirection(column) === null }));
   }
 
   /** Measures the sticky Team column, then shares what's left among the metric columns — so the Team column sits at its own width, not stretched by the table's leftover space. */
@@ -421,12 +426,7 @@ export function Teams() {
                       columnKey={c.key}
                       label={c.label}
                       className={className}
-                      title={columnHint(c.label, {
-                        hint: fromExt ? (CLUB_UNDERSTAT_HINTS[c.key] ?? UNDERSTAT_STAT_HINTS[c.key]) : CLUB_STAT_HINTS[c.key],
-                        source: fromExt ? ext?.label : undefined,
-                        // "Lower is better" says nothing a league position doesn't.
-                        lowerIsBetter: c.higherIsBetter === false && c.key !== "leaguePosition",
-                      })}
+                      title={columnHints.get(c.key) ?? c.label}
                       layout={headerLayout}
                       width={width}
                       sortDirection={sortEntry?.direction}

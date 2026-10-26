@@ -3,7 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
-import { clubRanks, colourDirection, positionRanks } from "../metrics/comparativeColour";
+import { clubRanks, colourDirection, positionRanks, rankDirection } from "../metrics/comparativeColour";
+import { clubColumnHint, clubRankHint, noPercentileHint, playerColumnHint, playerRankHint, statHover } from "../components/hoverText";
 import { fixedFloorMinutes } from "../metrics/fixedMinutesFloor";
 import { dashboardFloorNote, isSmallSample, smallSampleNote } from "../components/MinutesFloorBadge";
 import { useHiddenSmallSamples } from "../state/useHiddenSmallSamples";
@@ -315,8 +316,9 @@ export function dashboardItemFloorNote(
  * only the rows its criteria or picked players leave — anyone under the
  * fixed floor uncoloured.
  */
-export function playerTileRanks(metric: PlayerTileMetric, pool: NormalizedPlayer[], dataView: AnalysisMode): Map<number, number> {
-  const higherIsBetter = colourDirection(metric);
+export function playerTileRanks(metric: PlayerTileMetric, pool: NormalizedPlayer[], dataView: AnalysisMode, includeNeutral = false): Map<number, number> {
+  // `includeNeutral`: a neutral figure ranked too, higher first, for its hovers (<stat_hover>) — never for its colour.
+  const higherIsBetter = includeNeutral ? rankDirection(metric) : colourDirection(metric);
   if (higherIsBetter === null) return new Map();
   const value = metric.rankBy ?? metric.getValue;
   return positionRanks(pool, {
@@ -327,6 +329,31 @@ export function playerTileRanks(metric: PlayerTileMetric, pool: NormalizedPlayer
     value: (p) => value(p, getPlayerDerivedMetrics(p)),
     higherIsBetter,
   });
+}
+
+/**
+ * <stat_hover>: what a tile's or graph axis's figure is — its column's meaning, FPL's or a second source's (one of its own,
+ * or its version of an FPL figure, switched) — the first line of every figure's hover there.
+ */
+function playerItemHint(key: string, r: ItemMetric<{ higherIsBetter?: boolean }>): string {
+  const own = parseExternalMetricKey(key)?.key ?? key;
+  return playerColumnHint(
+    { key: own, label: r.figure, higherIsBetter: r.metric.higherIsBetter, varies: playerColumnByKey(own)?.varies },
+    { sourceLabel: r.source?.label },
+  );
+}
+function teamItemHint(key: string, r: ItemMetric<{ higherIsBetter?: boolean }>): string {
+  const own = parseExternalMetricKey(key)?.key ?? currentTeamMetricKey(key);
+  return clubColumnHint({ key: own, label: r.figure, higherIsBetter: r.metric.higherIsBetter }, { sourceLabel: r.source?.label });
+}
+/** A player's rank in words for an item's hover, or why there's none (under the fixed floor for its Data View). */
+function playerItemRank(p: NormalizedPlayer, ranks: Map<number, number>, dataView: AnalysisMode, neutral: boolean): string | undefined {
+  return playerRankHint(ranks.get(p.id), p.position, { neutral }) ?? (isSmallSample(p.minutes, dataView) ? noPercentileHint(fixedFloorMinutes(dataView)) : undefined);
+}
+/** Every club's rank for a team item's figure, neutral ones included, for its hovers. */
+function teamHoverRanks(metric: { higherIsBetter?: boolean; noColour?: boolean; unranked?: boolean; getValue: (t: TeamAggregate) => number | null }, pool: TeamAggregate[]): Map<number, number> {
+  const direction = rankDirection(metric);
+  return direction === null ? new Map() : clubRanks(pool, { id: (t) => t.teamId, value: metric.getValue, higherIsBetter: direction });
 }
 
 export function topN<T extends { value: number | null }>(rowsIn: T[], n: number, ascending = false): T[] {
@@ -835,8 +862,17 @@ export function Dashboard() {
           const pool = resolvedByMode[tile.dataView];
           const sourcePlayers = playersForDashboardItem(tile, pool, floorOptions);
           const ranks = playerTileRanks(metric, pool, tile.dataView);
+          // <stat_hover>: each figure says what it is, then his percentile within his position.
+          const neutral = colourDirection(metric) === null;
+          const hoverRanks = neutral ? playerTileRanks(metric, pool, tile.dataView, true) : ranks;
+          const hint = playerItemHint(tile.metricKey, resolved);
           const rows = sourcePlayers.map((p) => ({ player: p, derived: getPlayerDerivedMetrics(p) }));
-          const valueRows: TopListRow[] = rows.map((r) => ({ player: r.player, value: metric.getValue(r.player, r.derived), rank: ranks.get(r.player.id) }));
+          const valueRows: TopListRow[] = rows.map((r) => ({
+            player: r.player,
+            value: metric.getValue(r.player, r.derived),
+            rank: ranks.get(r.player.id),
+            hover: statHover(hint, playerItemRank(r.player, hoverRanks, tile.dataView, neutral)),
+          }));
           // <hide_small_samples>: with the tile's Hide button on, players under the minutes threshold are left out and the next ones fill in.
           const hideSmallSamples = hiddenSmallSamples.hidden.has(tile.id);
           const candidates = hideSmallSamples ? valueRows.filter((r) => !isSmallSample(r.player.minutes, tile.dataView)) : valueRows;
@@ -851,6 +887,9 @@ export function Dashboard() {
         let teamPool = teamAggregatesByMode[tile.dataView];
         const direction = colourDirection(metric);
         const ranks = direction === null ? new Map<number, number>() : clubRanks(teamPool, { id: (t) => t.teamId, value: metric.getValue, higherIsBetter: direction });
+        // <stat_hover>: what it is, then the club's place among every club (a neutral figure's too).
+        const hoverRanks = direction === null ? teamHoverRanks(metric, teamPool) : ranks;
+        const hint = teamItemHint(tile.metricKey, resolved);
         if (tile.teamIds !== null) {
           const idSet = new Set(tile.teamIds);
           teamPool = teamPool.filter((t) => idSet.has(t.teamId));
@@ -861,6 +900,7 @@ export function Dashboard() {
           shortName: t.shortName,
           value: metric.getValue(t),
           rank: ranks.get(t.teamId),
+          hover: statHover(hint, clubRankHint(hoverRanks.get(t.teamId), hoverRanks.size, { neutral: direction === null })),
         }));
         const sourceControls = itemSourceControls(ext, [resolved], switchedItem(tile.id), () => toggleItemSource(tile.id));
         return { tile, metric, resolved, sourceControls, kind: "team" as const, topRows: topN(valueRows, 5, tile.direction === "asc") };
@@ -891,6 +931,18 @@ export function Dashboard() {
           const xColumn = x?.metric;
           const floorOptions = { defaultViewShown: playerDefaultViewShown };
           const sourcePlayers = playersForDashboardItem(graph, resolvedByMode[graph.dataView], floorOptions);
+          // <stat_hover>: each point's figures ranked within his position among the whole pool, as a tile's are.
+          const pool = resolvedByMode[graph.dataView];
+          const axes = [...(x ? [{ column: xColumn!, resolved: x }] : []), { column: yColumn, resolved: y }].map(({ column, resolved }) => ({
+            label: resolved.figure,
+            neutral: colourDirection(column) === null,
+            ranks: playerTileRanks(playerTileMetricFromColumn(column), pool, graph.dataView, true),
+          }));
+          const pointRanks = (p: NormalizedPlayer) =>
+            axes.map((a) => {
+              const words = playerItemRank(p, a.ranks, graph.dataView, a.neutral);
+              return words ? `${a.label}: ${words}` : "";
+            }).filter(Boolean);
           const scatterData: ScatterPoint[] = [];
           const barData: BarDatum[] = [];
           // <hide_small_samples>: with the graph's Hide button on, players under the minutes threshold aren't plotted.
@@ -909,15 +961,16 @@ export function Dashboard() {
             if (graph.chartType === "scatter") {
               const x = xColumn!.getValue(p, derived);
               if (x === null || y === null) continue;
-              scatterData.push({ id: p.id, label: p.name, x, y, smallSample });
+              scatterData.push({ id: p.id, label: p.name, x, y, smallSample, ranks: pointRanks(p) });
             } else {
               if (y === null) continue;
-              barData.push({ id: p.id, label: p.name, value: y, smallSample });
+              barData.push({ id: p.id, label: p.name, value: y, smallSample, ranks: pointRanks(p) });
             }
           }
           return {
             graph,
             kind: "player" as const,
+            hints: [...(x ? [playerItemHint(graph.xMetricKey, x)] : []), playerItemHint(graph.yMetricKey, y)],
             xLabel: x ? x.figure : "",
             yLabel: y.figure,
             xLabelClass: axisClass(x),
@@ -946,6 +999,18 @@ export function Dashboard() {
           const idSet = new Set(graph.teamIds);
           teamPool = teamPool.filter((t) => idSet.has(t.teamId));
         }
+        // <stat_hover>: each club's place among every club for the view, whichever clubs the graph shows.
+        const allClubs = teamAggregatesByMode[graph.dataView];
+        const teamAxes = [...(x ? [{ column: xColumn!, resolved: x }] : []), { column: yColumn, resolved: y }].map(({ column, resolved }) => ({
+          label: resolved.figure,
+          neutral: colourDirection(column) === null,
+          ranks: teamHoverRanks(column, allClubs),
+        }));
+        const clubPointRanks = (t: TeamAggregate) =>
+          teamAxes.map((a) => {
+            const words = clubRankHint(a.ranks.get(t.teamId), a.ranks.size, { neutral: a.neutral });
+            return words ? `${a.label}: ${words}` : "";
+          }).filter(Boolean);
         const scatterData: ScatterPoint[] = [];
         const barData: BarDatum[] = [];
         for (const t of teamPool) {
@@ -953,15 +1018,16 @@ export function Dashboard() {
           if (graph.chartType === "scatter") {
             const x = xColumn!.getValue(t);
             if (x === null || y === null) continue;
-            scatterData.push({ id: t.teamId, label: t.name, x, y });
+            scatterData.push({ id: t.teamId, label: t.name, x, y, ranks: clubPointRanks(t) });
           } else {
             if (y === null) continue;
-            barData.push({ id: t.teamId, label: t.name, value: y });
+            barData.push({ id: t.teamId, label: t.name, value: y, ranks: clubPointRanks(t) });
           }
         }
         return {
           graph,
           kind: "team" as const,
+          hints: [...(x ? [teamItemHint(graph.xMetricKey, x)] : []), teamItemHint(graph.yMetricKey, y)],
           xLabel: x ? x.figure : "",
           yLabel: y.figure,
           xLabelClass: axisClass(x),
@@ -1489,7 +1555,7 @@ export function Dashboard() {
                 />
               );
             }
-            const { kind, xLabel, yLabel, xLabelClass, yLabelClass, format, xFormat, scatterData, barData } = row;
+            const { kind, xLabel, yLabel, xLabelClass, yLabelClass, format, xFormat, scatterData, barData, hints } = row;
             return (
             <DashboardGraphCard
               key={graph.id}
@@ -1504,6 +1570,7 @@ export function Dashboard() {
               yLabelClass={yLabelClass}
               format={format}
               xFormat={xFormat}
+              hints={hints}
               ascending={graph.direction === "asc"}
               emptyMessage={emptyMessageFor(graph, row.source)}
               sourceControls={row.sourceControls}

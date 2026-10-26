@@ -3,12 +3,17 @@ import {
   averageFixtureHint,
   CLUB_STAT_HINTS,
   CLUB_UNDERSTAT_HINTS,
+  clubColumnHint,
   clubRankHint,
   columnHint,
   fixtureHint,
   modelBreakdownHint,
+  noPercentileHint,
+  percentileHint,
+  playerColumnHint,
   playerRankHint,
   PLAYER_STAT_HINTS,
+  statHover,
   UNDERSTAT_STAT_HINTS,
 } from "./hoverText";
 import { PLAYER_COLUMNS } from "./playerColumns";
@@ -22,25 +27,53 @@ import type { UpcomingFixture } from "../metrics/fixtureTicker";
 const fixture = (o: Partial<UpcomingFixture> = {}): UpcomingFixture => ({ fixtureId: 1, eventId: 1, opponentTeamId: 2, opponentShortName: "BOU", isHome: true, difficulty: 2, ...o });
 
 // <hover_text>: every hover is about this player, club or match, in one line.
-describe("playerRankHint — a colour's rank in words", () => {
-  it("says the top or bottom share of his position", () => {
-    expect(playerRankHint(92.3, "MID")).toBe("Top 8% of midfielders");
-    expect(playerRankHint(15, "FWD")).toBe("Bottom 15% of forwards");
-    expect(playerRankHint(99.9, "GKP")).toBe("Top 1% of goalkeepers");
-    expect(playerRankHint(0, "DEF")).toBe("Bottom 1% of defenders");
+describe("playerRankHint — a rank in words: his percentile within his position (<stat_hover>)", () => {
+  it("names the percentile, then the top or bottom share of his position", () => {
+    expect(playerRankHint(92.3, "MID")).toBe("92nd percentile of midfielders: top 8%");
+    expect(playerRankHint(15, "FWD")).toBe("15th percentile of forwards: bottom 15%");
+    expect(playerRankHint(99.9, "GKP")).toBe("99th percentile of goalkeepers: top 1%");
+    expect(playerRankHint(0, "DEF")).toBe("1st percentile of defenders: bottom 1%");
   });
   it("says 'around the middle' where the cell has no tint", () => {
-    expect(playerRankHint(50, "MID")).toBe("Around the middle for midfielders");
+    expect(playerRankHint(50, "MID")).toBe("50th percentile of midfielders: around the middle");
   });
-  it("leads with the statistic when given one", () => {
-    expect(playerRankHint(92.3, "MID", "xG")).toBe("xG: top 8% of midfielders");
+  it("gives a neutral figure's percentile with no top or bottom: it's neither better nor worse", () => {
+    expect(playerRankHint(73, "FWD", { neutral: true })).toBe("73rd percentile of forwards");
   });
-  it("has nothing without a rank (under the floor, or never coloured)", () => {
+  it("names another pool when the rank isn't against his position's same figure", () => {
+    expect(playerRankHint(81, "MID", { among: "midfielders' per-match averages" })).toBe("81st percentile of midfielders' per-match averages: top 19%");
+    expect(percentileHint(12, "every club's upcoming fixtures")).toBe("12th percentile of every club's upcoming fixtures: bottom 12%");
+  });
+  it("has nothing without a rank (under the floor, nobody to compare with)", () => {
     expect(playerRankHint(undefined, "MID")).toBeUndefined();
     expect(playerRankHint(null, "MID")).toBeUndefined();
   });
   it("hands every cell with the same rank the same string (cached)", () => {
-    expect(playerRankHint(80.2, "DEF", "xGI")).toBe(playerRankHint(79.8, "DEF", "xGI"));
+    expect(playerRankHint(80.2, "DEF")).toBe(playerRankHint(79.8, "DEF"));
+  });
+  it("says why there's none under the floor", () => {
+    expect(noPercentileHint(855)).toBe("No percentile: under the 855-minute floor, a small sample");
+  });
+});
+
+describe("statHover — every figure says what it is, then where it ranks (<stat_hover>)", () => {
+  it("puts the statistic's meaning first and the rank on the line under it", () => {
+    const definition = playerColumnHint({ key: "xG", label: "xG" });
+    expect(statHover(definition, playerRankHint(92.3, "MID"))).toBe("xG: Expected goals: how many goals his chances would usually bring.\n92nd percentile of midfielders: top 8%");
+  });
+  it("keeps whichever half there is", () => {
+    expect(statHover("xG: Expected goals.", undefined)).toBe("xG: Expected goals.");
+    expect(statHover(undefined, "3rd of 20 clubs")).toBe("3rd of 20 clubs");
+    expect(statHover(undefined, undefined)).toBeUndefined();
+  });
+  it("words a column's meaning the way its header does, FPL's or the second source's", () => {
+    expect(playerColumnHint({ key: "price", label: "Price", higherIsBetter: false, varies: false })).toBe(
+      "Price: FPL price today.\nLower is better. Today's figure, whatever the Data View.",
+    );
+    expect(playerColumnHint({ key: "xG", label: "xG" }, { sourceLabel: "Understat" })).toBe("Understat · xG: Expected goals: how many goals the chances would usually bring.");
+    expect(clubColumnHint({ key: "goalsAgainst", label: "Goals Against", higherIsBetter: false })).toBe("Goals Against: Goals conceded.\nLower is better.");
+    // A league position is its own rank: no "lower is better".
+    expect(clubColumnHint({ key: "leaguePosition", label: "League Position", higherIsBetter: false })).toBe("League Position: Place in the league table.");
   });
 });
 
@@ -55,7 +88,10 @@ describe("clubRankHint — a club's place among clubs", () => {
   });
   it("puts lower-is-better figures best first too", () => {
     const flipped = clubRanks(values, { id: (r) => r.id, value: (r) => r.v, higherIsBetter: false });
-    expect(clubRankHint(flipped.get(1), flipped.size, "Goals Against")).toBe("Goals Against: 1st of 20 clubs");
+    expect(clubRankHint(flipped.get(1), flipped.size)).toBe("1st of 20 clubs");
+  });
+  it("gives a neutral figure's place by how high it is", () => {
+    expect(clubRankHint(ranks.get(18), ranks.size, { neutral: true })).toBe("3rd highest of 20 clubs");
   });
   it("has nothing without a pool to compare with", () => {
     expect(clubRankHint(50, 1)).toBeUndefined();

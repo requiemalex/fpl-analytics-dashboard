@@ -418,7 +418,9 @@ describe("M1: the Team Profile header follows the Data View", () => {
         <TeamDetailOverlay />
       </MemoryRouter>,
     );
-    expect(getByText("4th in table · 70 pts · 38 played · 20W 10D 8L")).toBeTruthy();
+    // Each figure in the line is its own hover (<stat_hover>), so the line is matched whole.
+    const headerLine = (text: string) => getByText((_, el) => el?.tagName === "P" && el.textContent === text);
+    expect(headerLine("4th in table · 70 pts · 38 played · 20W 10D 8L")).toBeTruthy();
     expect(queryByText(/1st in table/)).toBeNull();
   });
 });
@@ -647,7 +649,8 @@ describe("R1: the Team Profile header's Historic Average results add up to the g
     );
     fireEvent.click(getByRole("button", { name: "Historic Average" }));
     // W/D/L stay whole and add up to 38; league points are whole (<whole_numbers>) and follow them: 15 × 3 + 10 = 55 (<league_points_follow_results>).
-    expect(getByText("4th in table · 55 pts · 38 played · 15W 10D 13L")).toBeTruthy();
+    // Each figure in the line is its own hover (<stat_hover>), so the line is matched whole.
+    expect(getByText((_, el) => el?.tagName === "P" && el.textContent === "4th in table · 55 pts · 38 played · 15W 10D 13L")).toBeTruthy();
   });
 });
 
@@ -884,10 +887,12 @@ describe("The Team Profile shows club figures only", () => {
     // The one match with a figure (80), never "—" for the whole column and never the missing match as 0 (which would average 40).
     expect(totalDc.textContent).toBe("80");
     expect(averageDc.textContent).toBe("80");
-    expect(totalDc.querySelector("span")!.getAttribute("title")).toBe("From the 1 of 2 matches that have a figure");
-    expect(averageDc.querySelector("span")!.getAttribute("title")).toBe("From the 1 of 2 matches that have a figure");
+    // The cell's hover says what it is (<stat_hover>), then that it's from only some of the matches.
+    expect(totalDc.getAttribute("title")).toMatch(/^Defensive Contributions: Defensive contributions by the club's players\./);
+    expect(totalDc.getAttribute("title")!.split("\n").at(-1)).toBe("From the 1 of 2 matches that have a figure");
+    expect(averageDc.getAttribute("title")!.split("\n").at(-1)).toBe("From the 1 of 2 matches that have a figure");
     // A column every match has: no hover note.
-    expect([...totals.querySelectorAll("td")][1].querySelector("span")).toBeNull();
+    expect([...totals.querySelectorAll("td")][1].getAttribute("title")).not.toContain("matches that have a figure");
   });
 
   it("shows — for a column none of the matches has a figure for", () => {

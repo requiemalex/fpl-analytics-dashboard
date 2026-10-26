@@ -99,6 +99,13 @@ describe("<open_slots> the pitch's empty places", () => {
   });
 });
 
+/** What each card figure is: the first line of its hover (<stat_hover>). */
+const POINTS_FPL = "Points Prediction (FPL Official): expected points for the gameweek picked, a double's two matches added up.";
+const MINUTES = "Minutes: how long Scoutline's model expects him to play in the gameweek picked.";
+const SELL = "Selling price: what FPL would pay for him, his purchase price plus half of any rise since (rounded down to £0.1m), or today's price after a fall.";
+const PROGRESS = "Progress: FPL's own figure for how far he is toward his next price change, + toward a rise, − toward a drop (100% is the threshold).";
+const PREDICTED = "Predicted Progress: where FPL expects his progress to be at the next price update.";
+
 describe("<kit_view> Highlight", () => {
   it("shows one figure for the next match, with no fixture beside it, and switches what it is", () => {
     const { container, getByRole, queryByRole } = renderPitch([makePlayer({ id: 1, position: "MID", price: 7.5 })]);
@@ -106,7 +113,7 @@ describe("<kit_view> Highlight", () => {
     // Points Prediction, FPL, by default.
     expect(figure()).toBe("4.2");
     expect(container.querySelector(".pitch-card .pitch-card-match")).toBeNull();
-    expect(container.querySelector(".pitch-card .pitch-card-figure")!.getAttribute("title")).toBe("FPL figures v BUR (H): 4.2 pts. FPL's own expected points (his form) alone: no season record of his to go on yet");
+    expect(container.querySelector(".pitch-card .pitch-card-figure")!.getAttribute("title")).toBe(`${POINTS_FPL}\nFPL figures v BUR (H): 4.2 pts. FPL's own expected points (his form) alone: no season record of his to go on yet`);
     // Its toggle picks the Model, which has no figure for him here.
     fireEvent.click(getByRole("radiogroup", { name: "Source" }).querySelector<HTMLElement>('[aria-label^="Exp. Pts (Model"]')!);
     expect(figure()).toBe("—");
@@ -225,12 +232,12 @@ describe("<gameweek_arrows> the pitch's gameweek", () => {
     const figure = () => container.querySelector(".pitch-card .pitch-card-figure")!;
     expect(figure().textContent).toBe("6.1");
     expect(figure().getAttribute("title")).toBe(
-      "FPL figures v WOL (A): 6.1 pts. Season 7.2 a match (goals and assists partly as xG and xA), counting 80%; form 5.0 (FPL's own expected points), counting 20%; −10% for FPL difficulty 4; 75% chance of playing",
+      POINTS_FPL + "\nFPL figures v WOL (A): 6.1 pts. Season 7.2 a match (goals and assists partly as xG and xA), counting 80%; form 5.0 (FPL's own expected points), counting 20%; −10% for FPL difficulty 4; 75% chance of playing",
     );
     fireEvent.click(getByRole("radio", { name: /^Expected minutes/ }));
     // <whole_numbers>: minutes are whole.
     expect(figure().textContent).toBe("78");
-    expect(figure().getAttribute("title")).toBe("About 78 minutes expected in GW10 v WOL (A): 88% chance of starting");
+    expect(figure().getAttribute("title")).toBe(`${MINUTES}\nAbout 78 minutes expected in GW10 v WOL (A): 88% chance of starting`);
   });
 });
 
@@ -256,9 +263,9 @@ describe("<expected_minutes> Minutes", () => {
     // Forwards are drawn first.
     const [fwd, mid] = [...container.querySelectorAll(".pitch-card .pitch-card-figure")];
     expect(mid.textContent).toBe("142");
-    expect(mid.getAttribute("title")).toBe("About 142 minutes expected in GW9\nv BUR (H): about 80, 90% chance of starting\nv WOL (A): about 62, 70% chance of starting");
+    expect(mid.getAttribute("title")).toBe(`${MINUTES}\nAbout 142 minutes expected in GW9\nv BUR (H): about 80, 90% chance of starting\nv WOL (A): about 62, 70% chance of starting`);
     expect(fwd.textContent).toBe("—");
-    expect(fwd.getAttribute("title")).toBe("No match in GW9");
+    expect(fwd.getAttribute("title")).toBe(`${MINUTES}\nNo match in GW9`);
   });
 });
 
@@ -290,9 +297,9 @@ describe("<price_view> Price", () => {
     // Bought for £7.4m, now £7.9m: FPL keeps half the £0.5m rise, rounded down. The forward's purchase price isn't known.
     // Bought at today's price, the defender sells for it too.
     expect(figures(container)).toEqual([
-      { text: "—", title: "Purchase price not known" },
-      { text: "£7.6m", title: "Sells for £7.6m: bought for £7.4m, £7.9m today (FPL keeps half of a rise, rounded down to £0.1m)" },
-      { text: "£4.5m", title: "Sells for £4.5m: bought for £4.5m, £4.5m today (FPL keeps half of a rise, rounded down to £0.1m)" },
+      { text: "—", title: `${SELL}\nPurchase price not known` },
+      { text: "£7.6m", title: `${SELL}\nSells for £7.6m: bought for £7.4m, £7.9m today (FPL keeps half of a rise, rounded down to £0.1m)` },
+      { text: "£4.5m", title: `${SELL}\nSells for £4.5m: bought for £4.5m, £4.5m today (FPL keeps half of a rise, rounded down to £0.1m)` },
     ]);
     fireEvent.click(getByRole("radio", { name: /^Purchase price/ }));
     expect(figures(container).map((f) => f.text)).toEqual(["—", "£7.4m", "£4.5m"]);
@@ -306,6 +313,8 @@ describe("<price_view> Price", () => {
     expect(mid().style.background).toBe(asRendered(percentileTint(90)));
     fireEvent.click(getByRole("radio", { name: /^Selling price/ }));
     expect(mid().style.background).toBe(asRendered(percentileTint(20)));
+    // <stat_hover>: and its hover ends with that rank in words.
+    expect(mid().getAttribute("title")!.split("\n").at(-1)).toBe("20th percentile of midfielders: bottom 20%");
   });
 
   it("<price_progress> shows FPL's Progress and Predicted Progress, coloured grey to full green or red by the figure, and says when a price is locked", () => {
@@ -315,11 +324,11 @@ describe("<price_view> Price", () => {
     const [fwd, mid, def] = figures(container);
     expect(mid).toEqual({
       text: "+100.2%",
-      title: "Progress +100.2%: FPL's figure for how far he is toward a rise (100% is the threshold). Predicted at the next update: +102.7%, very likely to rise.",
+      title: `${PROGRESS}\nProgress +100.2%: FPL's figure for how far he is toward a rise (100% is the threshold). Predicted at the next update: +102.7%, very likely to rise.`,
     });
     expect(fwd.text).toBe("−96.1%");
     expect(def.text).toBe("Locked");
-    expect(def.title).toMatch(/^FPL has locked his price until /);
+    expect(def.title).toMatch(/\nFPL has locked his price until /);
     const cards = () => container.querySelectorAll<HTMLElement>(".pitch-card .pitch-card-figure");
     // +100.2% is full green; −96.1% nearly full red.
     expect(cards()[1].style.background).toBe(asRendered(percentileTint(100)));
@@ -327,7 +336,7 @@ describe("<price_view> Price", () => {
     fireEvent.click(getByRole("radio", { name: /^Predicted Progress:/ }));
     expect(figures(container)[0]).toEqual({
       text: "−97.0%",
-      title: "Predicted Progress −97.0%: where FPL expects him to be toward a drop at the next price update, likely to drop. Now −96.1%.",
+      title: `${PREDICTED}\nPredicted Progress −97.0%: where FPL expects him to be toward a drop at the next price update, likely to drop. Now −96.1%.`,
     });
   });
 });

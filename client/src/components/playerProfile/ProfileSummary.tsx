@@ -1,5 +1,6 @@
 import React from "react";
 import { percentileTint } from "../../utils/colorScale";
+import { statHover } from "../hoverText";
 
 /**
  * The profiles' Summary card — one per source's Views on the player profile
@@ -15,8 +16,10 @@ export interface SummaryFigure {
   label: string;
   value: React.ReactNode;
   percentile?: number | null;
-  /** What the figure is, on hover, when its label doesn't say. */
+  /** What the statistic is and measures: the first line of its hover (<stat_hover>). */
   title?: string;
+  /** Its rank in words, when the card's `rankHint` doesn't give it (a club's, whose pool can differ by figure). */
+  rank?: string;
 }
 
 /** A titled group of 3 or 6 tiles. */
@@ -30,11 +33,11 @@ export function tileTint(tint: string | undefined): React.CSSProperties | undefi
   return tint ? ({ "--tile-tint": tint } as React.CSSProperties) : undefined;
 }
 
-/** Words a tile's rank on hover (<hover_text>): "Top 8% of midfielders", "4th of 20 clubs". */
+/** Words a tile's rank on hover (<stat_hover>): "92nd percentile of midfielders: top 8%", or why there's none. */
 export type RankHint = (percentile: number | null | undefined) => string | undefined;
 
-export function StatTile({ label, value, percentile, rankHint, title }: SummaryFigure & { rankHint?: RankHint }) {
-  const hint = [title, rankHint?.(percentile)].filter(Boolean).join(". ") || undefined;
+export function StatTile({ label, value, percentile, rankHint, title, rank }: SummaryFigure & { rankHint?: RankHint }) {
+  const hint = statHover(title, rank ?? rankHint?.(percentile));
   return (
     <div className="stat-tile" style={tileTint(percentileTint(percentile ?? null))} title={hint}>
       <span className="stat-tile-label">{label}</span>
@@ -44,7 +47,7 @@ export function StatTile({ label, value, percentile, rankHint, title }: SummaryF
 }
 
 /**
- * `rankHint`: words every tile's rank the same way (a player's); without it, a tile's `title` carries its own (a club's,
+ * `rankHint`: words every tile's rank the same way (a player's); without it, a tile's `rank` carries its own (a club's,
  * whose pool can differ by figure). `badge`: the amber stopwatch when the figures are left uncoloured for being under the
  * minutes floor (<minutes_marker>).
  */

@@ -3,6 +3,7 @@ import type { SeasonTrend } from "../../metrics/careerMetrics";
 import { fmtDecimal, fmtSigned } from "../../utils/format";
 import { MinutesFloorIcon } from "../MinutesFloorBadge";
 import { shortSeason } from "../../utils/season";
+import { statHover } from "../hoverText";
 
 /**
  * Deliberately narrower than PlayerSeasonHistory — the chart only ever
@@ -140,6 +141,7 @@ export function PointsHistoryChart({
   onSelectSeason,
   smallSampleSeasonNames,
   smallSampleNote,
+  seasonRank,
 }: {
   seasons: SeasonPointsEntry[];
   countedSeasonNames: Set<string> | null;
@@ -151,6 +153,8 @@ export function PointsHistoryChart({
   smallSampleSeasonNames?: Set<string>;
   /** The hover text for that marker. */
   smallSampleNote?: string;
+  /** A season's points ranked in words (<stat_hover>), where there's a pool for that season to rank it in. */
+  seasonRank?: (seasonName: string) => string | undefined;
 }) {
   const max = Math.max(0, ...seasons.filter(hasSeasonFigure).map((s) => s.totalPoints));
   const heightFor = (points: number) => (max > 0 ? (Math.max(0, points) / max) * BAR_AREA_PX : 0);
@@ -180,13 +184,15 @@ export function PointsHistoryChart({
     const figure = hasSeasonFigure(s) ? s.totalPoints : null;
     const noFigure = isLive ? "no minutes yet" : "didn't play";
     const hover = `${s.seasonName}${mark}: ${figure === null ? noFigure : `${fmtDecimal(figure, 0)} pts`}`;
-    return { s, figure, state, hover, smallSample, isLatest: s.seasonName === latestCompleted };
+    // <stat_hover>: the season's FPL points ranked, under the hover's own line (its accessible name stays the line itself).
+    const rank = figure === null ? undefined : seasonRank?.(s.seasonName);
+    return { s, figure, state, hover, rank, smallSample, isLatest: s.seasonName === latestCompleted };
   });
 
   return (
     <div className="points-history">
       <div className="points-history-plot" style={{ height: BAR_AREA_PX + 24 }}>
-        {columns.map(({ s, figure, state, hover, isLatest }) => {
+        {columns.map(({ s, figure, state, hover, rank, isLatest }) => {
           const selected = onSelectSeason !== undefined && s.seasonName === selectedSeasonName;
           const content = (
             <>
@@ -198,7 +204,7 @@ export function PointsHistoryChart({
           );
           if (!onSelectSeason) {
             return (
-              <div key={s.seasonName} className="points-history-col" title={hover} aria-label={hover}>
+              <div key={s.seasonName} className="points-history-col" title={statHover(hover, rank)} aria-label={hover}>
                 {content}
               </div>
             );
@@ -209,7 +215,7 @@ export function PointsHistoryChart({
               key={s.seasonName}
               type="button"
               className={`points-history-col is-selectable${selected ? " is-selected" : ""}`}
-              title={label}
+              title={statHover(label, rank)}
               aria-label={label}
               aria-pressed={selected}
               onClick={() => onSelectSeason(s.seasonName)}
@@ -239,12 +245,12 @@ export function PointsHistoryChart({
   );
 }
 
-/** The summary row under the chart: icon + figure pairs, each explained on hover. `children` (e.g. a toggle) sits at the far right. */
-export function PointsHistoryStats({ items, children }: { items: { icon: React.ReactNode; value: string; label: string }[]; children?: React.ReactNode }) {
+/** The summary row under the chart: icon + figure pairs, each explained on hover, then ranked (`rank`, <stat_hover>). `children` (e.g. a toggle) sits at the far right. */
+export function PointsHistoryStats({ items, children }: { items: { icon: React.ReactNode; value: string; label: string; rank?: string }[]; children?: React.ReactNode }) {
   return (
     <div className="points-history-stats">
       {items.map((item) => (
-        <span key={item.label} className="points-history-stat" title={item.label} aria-label={item.label}>
+        <span key={item.label} className="points-history-stat" title={statHover(item.label, item.rank)} aria-label={item.label}>
           {item.icon}
           <span>{item.value}</span>
         </span>
