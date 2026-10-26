@@ -5,6 +5,10 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.117.0 · 26 Oct 2026
+
+- Every figure's hover says what it measures and its percentile in position; Next 5 Fixtures joins the always-live columns and Add Players' Data View picker sits over the columns it changes
+
 ## v1.116.1 · 26 Oct 2026
 
 - Team Building: Projected Points sits under the Captain to Best Draft buttons at their width, its parts in aligned rows, with a green heading and stripe
