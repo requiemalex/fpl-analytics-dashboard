@@ -45,16 +45,31 @@ describe("<position_only_figures>: a figure a position can't have is blank, neve
   });
 });
 
-describe("<averaged_counts>: a Historic Average count shows 1 decimal", () => {
-  it("a whole-number count gets 1 decimal in Historic Average only", () => {
+describe("<whole_numbers>: whole wherever a whole number still tells players apart", () => {
+  it("a small count (goals, assists, clean sheets, bonus, cards, pens saved) gets 1 decimal in Historic Average only", () => {
     expect(columnForMode(col("goals"), "historicAverage").format(0.4)).toBe("0.4");
     expect(columnForMode(col("goals"), "historicAverage").decimals).toBe(1);
     expect(columnForMode(col("goals"), "lastSeason").format(4)).toBe("4");
     expect(columnForMode(col("goals"), "live")).toBe(col("goals"));
+    for (const key of ["assists", "cleanSheets", "bonus", "yellowCards", "redCards", "penaltiesSaved"]) {
+      expect(columnForMode(col(key), "historicAverage").decimals, key).toBe(1);
+    }
   });
 
-  it("leaves minutes, rates and always-live columns alone", () => {
-    expect(columnForMode(col("minutes"), "historicAverage")).toBe(col("minutes"));
+  it("every other count stays whole when averaged: 141.8 points a season is 142", () => {
+    expect(columnForMode(col("totalPoints"), "historicAverage").format(141.8)).toBe("142");
+    for (const key of ["totalPoints", "minutes", "starts", "bps", "saves", "goalsConceded", "defensiveContributions", "tackles", "recoveries"]) {
+      expect(columnForMode(col(key), "historicAverage"), key).toBe(col(key));
+    }
+  });
+
+  it("scores that run to hundreds are whole in every Data View; small rates keep their decimals", () => {
+    for (const key of ["ictIndex", "influence", "creativity", "threat"]) expect(col(key).format(123.4), key).toBe("123");
+    expect(col("pointsPerGame").format(5.34)).toBe("5.3");
+    expect(col("xG").format(5.341)).toBe("5.34");
+  });
+
+  it("leaves rates and always-live columns alone", () => {
     expect(columnForMode(col("xG"), "historicAverage")).toBe(col("xG"));
     expect(columnForMode(col("penaltiesOrder"), "historicAverage")).toBe(col("penaltiesOrder"));
   });
@@ -67,15 +82,23 @@ describe("<averaged_counts>: a Historic Average count shows 1 decimal", () => {
     expect(columnFormatForMode("goals", col("goals").format, "historicAverage")(0.4)).toBe("0.4");
     const own = (v: number | null) => `x${v}`;
     expect(columnFormatForMode("goals", own, "historicAverage")).toBe(own);
-    expect(countDecimals("historicAverage")).toBe(1);
-    expect(countDecimals("lastSeason")).toBe(0);
+    expect(countDecimals("historicAverage", true)).toBe(1);
+    expect(countDecimals("historicAverage", false)).toBe(0);
+    expect(countDecimals("lastSeason", true)).toBe(0);
   });
 
-  it("club columns: counts get 1 decimal; league position, played and the shared-out W/D/L stay whole", () => {
-    expect(teamColumnForMode(teamColumnByKey("goalsFor")!, "historicAverage").format(61.75)).toBe("61.8");
-    expect(teamColumnForMode(teamColumnByKey("goalDifference")!, "historicAverage").format(12.25)).toBe("+12.3");
-    for (const key of ["leaguePosition", "played", "wins", "draws", "losses"]) {
-      expect(teamColumnForMode(teamColumnByKey(key)!, "historicAverage")).toBe(teamColumnByKey(key));
+  it("club columns: every count stays whole when averaged (a club's run to dozens a season)", () => {
+    expect(teamColumnForMode(teamColumnByKey("goalsFor")!, "historicAverage").format(61.75)).toBe("62");
+    expect(teamColumnForMode(teamColumnByKey("leaguePoints")!, "historicAverage").format(82.75)).toBe("83");
+    expect(teamColumnForMode(teamColumnByKey("goalDifference")!, "historicAverage").format(12.25)).toBe("+12");
+    for (const key of ["leaguePosition", "leaguePoints", "played", "wins", "draws", "losses", "points", "goals", "cleanSheets"]) {
+      expect(teamColumnForMode(teamColumnByKey(key)!, "historicAverage"), key).toBe(teamColumnByKey(key));
     }
+  });
+
+  it("club figures that run to dozens are whole in every Data View", () => {
+    expect(teamColumnByKey("cleanSheetRate")!.format(31.58)).toBe("32%");
+    expect(teamColumnByKey("pointsPerGame")!.format(48.6)).toBe("49");
+    expect(teamColumnByKey("defensiveContributionsPerGame")!.format(55.4)).toBe("55");
   });
 });

@@ -139,14 +139,14 @@ function PitchLines() {
   );
 }
 
-export function ShotMap({ shots, seasons, label }: { shots: UsShot[]; seasons: number; label: string }) {
+/** `dp`: decimals for a zone's shots and goals, as its card's (ShotCard, <whole_numbers>). */
+export function ShotMap({ shots, seasons, label, dp }: { shots: UsShot[]; seasons: number; label: string; dp: number }) {
   const zones = shotZones(shots, seasons);
   const beyond = zones.some((z) => z.key === "beyond");
   const top = -PAD - GOAL_DEPTH;
   const height = SHOT_MAP_DEPTH + (beyond ? BEYOND_BAND : 0) + PAD * 2 + GOAL_DEPTH;
   const viewBox = `${-PAD} ${top} ${WIDTH + PAD * 2} ${height}`;
   const maxShare = Math.max(0, ...zones.map((z) => z.share));
-  const dp = seasons > 1 ? 1 : 0;
   const perSeason = seasons > 1 ? " a season" : "";
   const shotsText = (n: number) => `${fmtDecimal(n, dp)} shot${n === 1 ? "" : "s"}`;
   return (

@@ -153,12 +153,19 @@ const FACED_PARTS = Object.fromEntries(
  * `wide` puts the figures in a panel beside the map, one row each, for a
  * card the full width of the profile; otherwise they sit under it, three
  * to a row.
+ *
+ * Whole numbers but small counts (<whole_numbers>), as the Explorers'
+ * columns: penalties, and a player's own goals and the map's zones (split
+ * into pieces), keep 1 decimal as a Historic Average; a club's figures and
+ * the shots a player faced are dozens a season, so whole.
  */
 function ShotCard({
   title,
   titleHint,
   shots,
   seasons,
+  mode,
+  club,
   label,
   heading,
   wide,
@@ -171,6 +178,9 @@ function ShotCard({
   titleHint?: string;
   shots: UsShot[];
   seasons: number;
+  mode: AnalysisMode;
+  /** A club's shots, not a player's. */
+  club?: boolean;
   label: string;
   heading: string;
   wide?: boolean;
@@ -180,21 +190,22 @@ function ShotCard({
   /** Set when the figures are left uncoloured for being under the minutes floor: the title's amber stopwatch says so (<minutes_marker>). */
   smallSampleNote?: string | null;
 }) {
-  const dp = seasons > 1 ? 1 : 0;
+  const penaltyDp = countDecimals(mode, true);
+  const dp = club || faced ? 0 : penaltyDp;
   const f = shotFigures(shots, seasons);
   const beyond = shots.filter(isBeyondMap).length;
   const scored = faced ? "conceded" : "scored";
   const rows: { key: ShotFigureKey; label: string; value: string; title?: string }[] = [
-    { key: "shots", label: "Shots", value: fmtDecimal(f.shots, dp), title: beyond > 0 ? `${fmtDecimal(beyond / seasons, dp)} of them from further than ${SHOT_MAP_DEPTH} m` : undefined },
-    { key: "onTarget", label: "On Target", value: fmtDecimal(f.onTarget, dp), title: "Scored or saved" },
+    { key: "shots", label: "Shots", value: fmtDecimal(f.shots, 0), title: beyond > 0 ? `${fmtDecimal(beyond / seasons, dp)} of them from further than ${SHOT_MAP_DEPTH} m` : undefined },
+    { key: "onTarget", label: "On Target", value: fmtDecimal(f.onTarget, 0), title: "Scored or saved" },
     { key: "onTargetShare", label: "On Target %", value: pct(f.onTargetShare), title: "Share of the shots that were on target (scored or saved)" },
     { key: "goals", label: "Goals", value: fmtDecimal(f.goals, dp), title: faced ? "Goals conceded from these shots" : undefined },
     { key: "conversion", label: "Conversion %", value: pct(f.conversion), title: `Share of the shots ${scored}` },
     { key: "xG", label: "xG", value: fmtDecimal(f.xG, 2) },
     { key: "npxG", label: "NPxG", value: fmtDecimal(f.npxG, 2), title: "Non-penalty xG" },
     { key: "xGPerShot", label: "xG/Shot", value: fmtDecimal(f.xGPerShot, 2) },
-    { key: "penalties", label: faced ? "Penalties Conceded" : "Penalties Taken", value: fmtDecimal(f.penalties, dp), title: faced ? "Penalties taken against" : undefined },
-    { key: "penaltyGoals", label: "Penalty Goals", value: fmtDecimal(f.penaltyGoals, dp), title: faced ? "Penalties scored against" : "Penalties scored" },
+    { key: "penalties", label: faced ? "Penalties Conceded" : "Penalties Taken", value: fmtDecimal(f.penalties, penaltyDp), title: faced ? "Penalties taken against" : undefined },
+    { key: "penaltyGoals", label: "Penalty Goals", value: fmtDecimal(f.penaltyGoals, penaltyDp), title: faced ? "Penalties scored against" : "Penalties scored" },
   ];
   return (
     <div className={wide ? "card profile-span-2" : "card"}>
@@ -203,7 +214,7 @@ function ShotCard({
         {smallSampleNote && <SmallSampleBadge note={smallSampleNote} />}
       </div>
       <div className={wide ? "shot-card-body is-wide" : "shot-card-body"}>
-        <ShotMap shots={shots} seasons={seasons} label={label} />
+        <ShotMap shots={shots} seasons={seasons} label={label} dp={dp} />
         <div className="shot-stats">
           <div className="shot-stats-heading">{heading}</div>
           <div className="shot-stats-rows">
@@ -337,7 +348,7 @@ export function createProfiles(
       own,
       groups.flatMap((g) => g.keys).map((key) => ({ key, higherIsBetter: figure(key).higherIsBetter, rank: figure(key).rankBy ?? figure(key).value })),
     );
-    const format = (f: UsSummaryFigure, v: number | null) => (f.kind === "signed" ? fmtSigned(v, 2) : fmtDecimal(v, f.kind === "count" ? countDecimals(mode) : 2));
+    const format = (f: UsSummaryFigure, v: number | null) => (f.kind === "signed" ? fmtSigned(v, 2) : fmtDecimal(v, f.kind === "count" ? countDecimals(mode, !!f.smallCount) : 2));
     const summaryGroups: SummaryGroup[] = groups.map((g) => ({
       title: g.title,
       figures: g.keys.map((key) => {
@@ -490,6 +501,7 @@ export function createProfiles(
             title="Shot Map · Taken"
             shots={shots}
             seasons={n}
+            mode={view.mode}
             label={`Shots taken, ${label}`}
             heading={statsHeading(view, n)}
             wide
@@ -513,6 +525,7 @@ export function createProfiles(
               titleHint={SHOTS_FACED_HINT}
               shots={faced}
               seasons={n}
+              mode={view.mode}
               label={`Shots faced while he was on the pitch, ${label}`}
               heading={statsHeading(view, n)}
               wide
@@ -564,8 +577,8 @@ export function createProfiles(
       };
       return (
         <>
-          <ShotCard title="Shot Map · Taken" shots={taken} seasons={n} label={`Shots taken, ${label}`} heading={statsHeading(view, n)} wide ranks={clubRanksFor(taken, true)} />
-          <ShotCard title="Shot Map · Faced" shots={faced} seasons={n} label={`Shots faced, ${label}`} heading={statsHeading(view, n)} wide faced ranks={clubRanksFor(faced, false)} />
+          <ShotCard title="Shot Map · Taken" shots={taken} seasons={n} mode={view.mode} club label={`Shots taken, ${label}`} heading={statsHeading(view, n)} wide ranks={clubRanksFor(taken, true)} />
+          <ShotCard title="Shot Map · Faced" shots={faced} seasons={n} mode={view.mode} club label={`Shots faced, ${label}`} heading={statsHeading(view, n)} wide faced ranks={clubRanksFor(faced, false)} />
         </>
       );
     },

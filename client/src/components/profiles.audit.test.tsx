@@ -646,8 +646,8 @@ describe("R1: the Team Profile header's Historic Average results add up to the g
       </MemoryRouter>,
     );
     fireEvent.click(getByRole("button", { name: "Historic Average" }));
-    // League points are a count, so a Historic Average shows 1 decimal (<averaged_counts>); W/D/L stay whole and add up to 38.
-    expect(getByText("4th in table · 54.0 pts · 38 played · 15W 10D 13L")).toBeTruthy();
+    // W/D/L stay whole and add up to 38; league points are whole (<whole_numbers>) and follow them: 15 × 3 + 10 = 55 (<league_points_follow_results>).
+    expect(getByText("4th in table · 55 pts · 38 played · 15W 10D 13L")).toBeTruthy();
   });
 });
 
@@ -859,7 +859,8 @@ describe("The Team Profile shows club figures only", () => {
     ]);
     const [totals, average] = [...table.querySelectorAll("tfoot tr")].map((r) => [...r.querySelectorAll("td")].map((td) => td.textContent));
     expect(totals).toEqual(["Totals", "80", "3", "4", "2.70", "2.40", "6.00", "1", "3.10", "160"]);
-    expect(average).toEqual(["Average", "40.0", "1.50", "2.00", "1.35", "1.20", "3.00", "0.50", "1.55", "80.0"]);
+    // FPL points and DC run to dozens a match, so their Average is whole (<whole_numbers>).
+    expect(average).toEqual(["Average", "40", "1.50", "2.00", "1.35", "1.20", "3.00", "0.50", "1.55", "80"]);
   });
 
   it("the match log is always the live season, whatever the Data View", () => {
@@ -882,7 +883,7 @@ describe("The Team Profile shows club figures only", () => {
     const averageDc = [...average.querySelectorAll("td")].at(-1)!;
     // The one match with a figure (80), never "—" for the whole column and never the missing match as 0 (which would average 40).
     expect(totalDc.textContent).toBe("80");
-    expect(averageDc.textContent).toBe("80.0");
+    expect(averageDc.textContent).toBe("80");
     expect(totalDc.querySelector("span")!.getAttribute("title")).toBe("From the 1 of 2 matches that have a figure");
     expect(averageDc.querySelector("span")!.getAttribute("title")).toBe("From the 1 of 2 matches that have a figure");
     // A column every match has: no hover note.

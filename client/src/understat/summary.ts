@@ -34,8 +34,10 @@ type Facing = NonNullable<UsPlayerTotals["facing"]>;
 
 export interface UsSummaryFigure {
   label: string;
-  /** count: whole for one season, 1 dp averaged (countDecimals); rate: 2 dp; signed: 2 dp with its sign. */
+  /** count: whole (countDecimals: 1 dp for a small count's Historic Average); rate: 2 dp; signed: 2 dp with its sign. */
   kind: "count" | "rate" | "signed";
+  /** A count recorded only a handful of times a season (PlayerColumn.smallCount, <whole_numbers>). */
+  smallCount?: boolean;
   value: (r: R) => number | null;
   higherIsBetter: boolean;
   /** What its colour ranks on when that isn't its own figure: a lower-is-better total grows with minutes, so it ranks per game (as xGC does everywhere). */
@@ -69,7 +71,7 @@ export const US_SUMMARY_FIGURES = {
   xGIPerGame: { label: "xGI/Game", kind: "rate", value: perGameOf(xGI), higherIsBetter: true },
   "us.shots": { label: "Shots", kind: "count", value: fromShots(total((t) => t.shots)), higherIsBetter: true },
   "us.npxG": { label: "NPxG", kind: "rate", value: fromShots(total((t) => t.npxG)), higherIsBetter: true, title: "Non-penalty xG" },
-  "us.npGoals": { label: "NP Goals", kind: "count", value: fromShots(total((t) => t.npGoals)), higherIsBetter: true, title: "Non-penalty goals" },
+  "us.npGoals": { label: "NP Goals", kind: "count", smallCount: true, value: fromShots(total((t) => t.npGoals)), higherIsBetter: true, title: "Non-penalty goals" },
   "us.shotsPerGame": { label: "Shots/Game", kind: "rate", value: fromShots(perGameOf((t) => t.shots)), higherIsBetter: true },
   "us.npxGPerGame": { label: "NPxG/Game", kind: "rate", value: fromShots(perGameOf((t) => t.npxG)), higherIsBetter: true, title: "Non-penalty xG per game" },
   "us.npxGPerShot": {

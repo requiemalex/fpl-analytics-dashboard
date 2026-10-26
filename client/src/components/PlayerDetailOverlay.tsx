@@ -25,7 +25,7 @@ import { resolvePlayerStats, resolvePlayerStatsList, hasDataForMode, modeDataKno
 import { AnalysisModeToggle, ANALYSIS_MODE_OPTIONS } from "./AnalysisModeToggle";
 import { isSmallSample, profileFloorNote, SmallSampleBadge, smallSampleNote } from "./MinutesFloorBadge";
 import { PositionBadge, withCoverage } from "./primitives";
-import { countDecimals } from "./playerColumns";
+import { columnByKey, columnForMode } from "./playerColumns";
 import { fmtDecimal, fmtPrice, fmtPercent, fmtSigned, DASH } from "../utils/format";
 import { usePlayerPastSeasons } from "../state/usePlayerPastSeasons";
 import { useExternalStats, type ProfileView } from "../extensions/externalStats";
@@ -171,7 +171,7 @@ const LOG_VALUES: Record<string, { value: (r: MatchLogRow) => number | null; tot
   xgc: { value: (r) => r.xGC, totalDp: 2, averageDp: 2, peerTotal: "xGC" },
   dc: { value: (r) => r.dc, totalDp: 0, averageDp: 2, peerTotal: "dc" },
   saves: { value: (r) => r.saves, totalDp: 0, averageDp: 2, peerTotal: "saves" },
-  bps: { value: (r) => r.bps, totalDp: 0, averageDp: 1, peerTotal: "bps" },
+  bps: { value: (r) => r.bps, totalDp: 0, averageDp: 0, peerTotal: "bps" },
 };
 
 /**
@@ -389,6 +389,10 @@ export function PlayerDetailOverlay() {
   // above the fixed minutes floor, so a cameo can't top a per-game axis or
   // a 0-minute player pad the bottom (audit 2026-09-25 player-team-profiles
   // H1); a player under it gets no percentile.
+  const radarFormat = (key: string, v: number) => {
+    const c = columnByKey(key);
+    return c ? columnForMode(c, analysisMode).format(v) : fmtDecimal(v, 2);
+  };
   const radarGroups = useMemo(() => {
     if (!player) return [];
     const resolved = resolvePlayerStats(player, analysisMode, historicProfiles.get(player.id), currentSeasonHasStarted);
@@ -567,42 +571,41 @@ export function PlayerDetailOverlay() {
   // would be: FPL's DC points exclude goalkeepers, so DC only ever reads 0
   // for them (audit 2026-09-25 player-team-profiles L4). Then everyone's
   // Actual vs Expected beside Value.
-  const tile = (label: string, value: string, key: string) => ({ label, value, percentile: statPercentiles[key] });
-  const countDp = countDecimals(analysisMode);
+  // Each tile is its Player Explorer column as the Data View shows it
+  // (<whole_numbers>), so the two always agree — as the team profile's tiles
+  // are Team Explorer's. Goal Inv. − xGI and Min/Goal have no column.
+  const tile = (label: string, key: string, value?: string) => {
+    const c = columnByKey(key);
+    const shown = value ?? (c ? columnForMode(c, analysisMode).format(c.getValue(resolvedPlayer, derived)) : DASH);
+    return { label, value: shown, percentile: statPercentiles[key] };
+  };
   const defensiveGroup: SummaryGroup =
     player.position === "GKP"
       ? {
           title: "Defensive",
           figures: [
-            tile("Clean Sheets", fmtDecimal(resolvedPlayer.cleanSheets, countDp), "cleanSheets"),
-            tile("xGC", fmtDecimal(resolvedPlayer.xGC, 2), "xGC"),
-            tile("Saves", fmtDecimal(resolvedPlayer.saves, countDp), "saves"),
-            tile("xGC/Game", fmtDecimal(resolvedPlayer.xGCPerGame, 2), "xGCPerGame"),
-            tile("Saves/Game", fmtDecimal(resolvedPlayer.savesPerGame, 2), "savesPerGame"),
-            tile("BPS", fmtDecimal(resolvedPlayer.bps, countDp), "bps"),
+            tile("Clean Sheets", "cleanSheets"),
+            tile("xGC", "xGC"),
+            tile("Saves", "saves"),
+            tile("xGC/Game", "xGCPerGame"),
+            tile("Saves/Game", "savesPerGame"),
+            tile("BPS", "bps"),
           ],
         }
       : {
           title: "Defensive",
           figures: [
-            tile("Clean Sheets", fmtDecimal(resolvedPlayer.cleanSheets, countDp), "cleanSheets"),
-            tile("xGC", fmtDecimal(resolvedPlayer.xGC, 2), "xGC"),
-            tile("Def. Contrib.", fmtDecimal(resolvedPlayer.defensiveContributions, countDp), "defensiveContributions"),
-            tile("xGC/Game", fmtDecimal(resolvedPlayer.xGCPerGame, 2), "xGCPerGame"),
-            tile("DC/Game", fmtDecimal(resolvedPlayer.defensiveContributionsPerGame, 2), "defensiveContributionsPerGame"),
-            tile("BPS", fmtDecimal(resolvedPlayer.bps, countDp), "bps"),
+            tile("Clean Sheets", "cleanSheets"),
+            tile("xGC", "xGC"),
+            tile("Def. Contrib.", "defensiveContributions"),
+            tile("xGC/Game", "xGCPerGame"),
+            tile("DC/Game", "defensiveContributionsPerGame"),
+            tile("BPS", "bps"),
           ],
         };
   const offensiveGroup: SummaryGroup = {
     title: "Offensive",
-    figures: [
-      tile("xG", fmtDecimal(resolvedPlayer.xG, 2), "xG"),
-      tile("xA", fmtDecimal(resolvedPlayer.xA, 2), "xA"),
-      tile("xGI", fmtDecimal(resolvedPlayer.xGI, 2), "xGI"),
-      tile("xG/Game", fmtDecimal(resolvedPlayer.xGPerGame, 2), "xGPerGame"),
-      tile("xA/Game", fmtDecimal(resolvedPlayer.xAPerGame, 2), "xAPerGame"),
-      tile("xGI/Game", fmtDecimal(resolvedPlayer.xGIPerGame, 2), "xGIPerGame"),
-    ],
+    figures: [tile("xG", "xG"), tile("xA", "xA"), tile("xGI", "xGI"), tile("xG/Game", "xGPerGame"), tile("xA/Game", "xAPerGame"), tile("xGI/Game", "xGIPerGame")],
   };
   const summaryGroups: SummaryGroup[] = [
     ...(player.position === "FWD" ? [] : [defensiveGroup]),
@@ -610,18 +613,14 @@ export function PlayerDetailOverlay() {
     {
       title: "Actual vs Expected",
       figures: [
-        tile("Goals − xG", fmtSigned(derived.goalsMinusXG, 2), "goalsMinusXG"),
-        tile("Assists − xA", fmtSigned(derived.assistsMinusXA, 2), "assistsMinusXA"),
-        tile("Goal Inv. − xGI", fmtSigned(derived.goalInvolvementsMinusXGI, 2), "goalInvolvementsMinusXGI"),
+        tile("Goals − xG", "goalsMinusXG"),
+        tile("Assists − xA", "assistsMinusXA"),
+        tile("Goal Inv. − xGI", "goalInvolvementsMinusXGI", fmtSigned(derived.goalInvolvementsMinusXGI, 2)),
       ],
     },
     {
       title: "Value",
-      figures: [
-        tile("Pts/£m", fmtDecimal(derived.pointsPerMillion, 1), "pointsPerMillion"),
-        tile("PPG", fmtDecimal(resolvedPlayer.pointsPerGame, 1), "pointsPerGame"),
-        tile("Min/Goal", fmtDecimal(derived.minutesPerGoal, 0), "minutesPerGoal"),
-      ],
+      figures: [tile("Pts/£m", "pointsPerMillion"), tile("PPG", "pointsPerGame"), tile("Min/Goal", "minutesPerGoal", fmtDecimal(derived.minutesPerGoal, 0))],
     },
   ];
 
@@ -927,7 +926,7 @@ export function PlayerDetailOverlay() {
                   Percentile Radar{group.label ? ` · ${group.label}` : ` · ${player.position}`}
                   {smallSampleBadge}
                 </div>
-                <PercentileRadarChart data={group.data} smallSample={smallSample} />
+                <PercentileRadarChart data={group.data} format={radarFormat} smallSample={smallSample} />
               </div>
             ))}
           </div>

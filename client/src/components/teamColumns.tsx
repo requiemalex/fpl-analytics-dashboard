@@ -18,6 +18,8 @@ export interface TeamColumn {
   noColour?: boolean;
   /** Set only on a column from a second data source (extensions/externalStats.ts) — its id. Unset means FPL. */
   sourceId?: string;
+  /** A count a club records only a handful of times a season (penalties): its Historic Average keeps 1 decimal (PlayerColumn.smallCount, <whole_numbers>). */
+  smallCount?: boolean;
 }
 
 const num = (decimals = 0) => ({ format: (v: number | null) => fmtDecimal(v, decimals), decimals });
@@ -62,8 +64,8 @@ export const TEAM_COLUMNS: TeamColumn[] = [
     label: "Clean Sheet %",
     group: "RESULTS",
     getValue: (t) => (t.cleanSheets === null || !t.played ? null : (t.cleanSheets / t.played) * 100),
-    format: (v) => fmtPercent(v, 1),
-    decimals: 1,
+    format: (v) => fmtPercent(v, 0),
+    decimals: 0,
   },
   { key: "goalsAgainstPerGame", label: "Conceded/Game", group: "RESULTS", getValue: perGame((t) => t.goalsAgainst), ...num(2), higherIsBetter: false },
 
@@ -72,7 +74,7 @@ export const TEAM_COLUMNS: TeamColumn[] = [
   { key: "goals", label: "Goals (excl. OGs)", group: "OUTPUT", getValue: (t) => t.goals, ...num(0) },
   { key: "assists", label: "Assists", group: "OUTPUT", getValue: (t) => t.assists, ...num(0) },
   { key: "bonus", label: "Bonus Points", group: "OUTPUT", getValue: (t) => t.bonus, ...num(0) },
-  { key: "pointsPerGame", label: "FPL Pts/Game", group: "OUTPUT", getValue: perGame((t) => t.points), ...num(1) },
+  { key: "pointsPerGame", label: "FPL Pts/Game", group: "OUTPUT", getValue: perGame((t) => t.points), ...num(0) },
   { key: "goalsPerGame", label: "Goals/Game", group: "OUTPUT", getValue: perGame((t) => t.goals), ...num(2) },
   { key: "bonusPerGame", label: "Bonus/Game", group: "OUTPUT", getValue: perGame((t) => t.bonus), ...num(2) },
 
@@ -91,7 +93,7 @@ export const TEAM_COLUMNS: TeamColumn[] = [
   { key: "xGPerGame", label: "xG/Game", group: "UNDERLYING PERFORMANCE", getValue: perGame((t) => t.xG), ...num(2) },
   { key: "xAPerGame", label: "xA/Game", group: "UNDERLYING PERFORMANCE", getValue: perGame((t) => t.xA), ...num(2) },
   { key: "xGCPerGame", label: "xGC/Game", group: "UNDERLYING PERFORMANCE", getValue: perGame((t) => t.xGC), ...num(2), higherIsBetter: false },
-  { key: "defensiveContributionsPerGame", label: "DC/Game", group: "UNDERLYING PERFORMANCE", getValue: perGame((t) => t.defensiveContributions), ...num(1) },
+  { key: "defensiveContributionsPerGame", label: "DC/Game", group: "UNDERLYING PERFORMANCE", getValue: perGame((t) => t.defensiveContributions), ...num(0) },
   { key: "xGD", label: "xGD", group: "UNDERLYING PERFORMANCE", getValue: (t) => minus(t.xG, t.xGC), ...signed(2) },
   { key: "xGDPerGame", label: "xGD/Game", group: "UNDERLYING PERFORMANCE", getValue: perGame((t) => minus(t.xG, t.xGC)), ...signed(2) },
   // Over-performance is better (<comparative_colouring>): more goals than xG, fewer conceded than xGC.
@@ -118,13 +120,6 @@ export function teamColumnByKey(key: string): TeamColumn | undefined {
   return TEAM_COLUMNS.find((c) => c.key === current);
 }
 
-/**
- * Whole-number club columns kept whole even as a Historic Average: a league
- * position is a place, not a count; every completed season is 38 played;
- * and wins, draws and losses are shared out as whole numbers that add up
- * to the games played (<results_within_played>, the owner's rule).
- */
-const WHOLE_WHEN_AVERAGED = new Set(["leaguePosition", "played", "wins", "draws", "losses"]);
 const historicAverageColumns = new WeakMap<TeamColumn, TeamColumn>();
 
 /** The format a figure built from a club column (a Dashboard team tile) has in a Data View: the column's own (playerColumns.tsx columnFormatForMode). */
@@ -133,12 +128,18 @@ export function teamColumnFormatForMode(key: string, format: (v: number | null) 
   return c && c.format === format ? teamColumnForMode(c, mode).format : format;
 }
 
-/** <averaged_counts> for a club column (the player rule, playerColumns.tsx columnForMode): a Historic Average count shows 1 decimal. */
+/**
+ * <whole_numbers> for a club column (the player rule, playerColumns.tsx
+ * columnForMode): every count stays whole as a Historic Average — a club's
+ * run to dozens a season — but a small count, which shows 1 decimal. Wins,
+ * draws and losses are shared out as whole numbers that add up to the
+ * games played (<results_within_played>).
+ */
 export function teamColumnForMode(c: TeamColumn, mode: AnalysisMode): TeamColumn {
-  if (mode !== "historicAverage" || c.decimals !== 0 || WHOLE_WHEN_AVERAGED.has(c.key)) return c;
+  if (mode !== "historicAverage" || c.decimals !== 0 || !c.smallCount) return c;
   let shown = historicAverageColumns.get(c);
   if (!shown) {
-    shown = { ...c, decimals: 1, format: (v) => (c.key === "goalDifference" ? fmtSigned(v, 1) : fmtDecimal(v, 1)) };
+    shown = { ...c, decimals: 1, format: (v) => fmtDecimal(v, 1) };
     historicAverageColumns.set(c, shown);
   }
   return shown;

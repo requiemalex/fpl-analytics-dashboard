@@ -60,6 +60,13 @@ export interface PlayerColumn {
    * and never 0. Read it through columnApplies().
    */
   positions?: readonly Position[];
+  /**
+   * A count a player records only a handful of times a season (goals,
+   * assists, clean sheets, bonus, cards, penalties): its Historic Average
+   * keeps 1 decimal, so 0.4 a season reads "0.4", not a "0" that looks
+   * real (<whole_numbers>). Every other count stays whole when averaged.
+   */
+  smallCount?: boolean;
 }
 
 const OUTFIELD: readonly Position[] = ["DEF", "MID", "FWD"];
@@ -80,26 +87,26 @@ export function cellText(c: PlayerColumn, p: NormalizedPlayer, d: PlayerDerivedM
   return columnApplies(c, p.position) ? c.format(c.getValue(p, d)) : "";
 }
 
-/** Whole-number columns kept whole even as a Historic Average: minutes run to hundreds a season, so a fraction hides nothing. */
-const WHOLE_WHEN_AVERAGED = new Set(["minutes"]);
 const historicAverageColumns = new WeakMap<PlayerColumn, PlayerColumn>();
 
-/**
- * <averaged_counts>: a column as a Data View shows it. A Historic Average
- * is a mean of seasons, so a whole-number count (goals, assists, cards,
- * saves…) shows 1 decimal there — 0.4 goals a season is "0.4", never a
- * "0" that reads as a real zero. Every other view, and every column that
- * isn't a count (rates, price, ownership, the always-live set-piece
- * orders), is unchanged. Column filters compare the figure as shown, so
- * `decimals` moves with it.
- */
-/** Decimal places for a whole-number count outside a table (a profile tile): 1 in a Historic Average (<averaged_counts>), none otherwise. */
-export function countDecimals(mode: AnalysisMode): number {
-  return mode === "historicAverage" ? 1 : 0;
+/** Decimal places for a count outside a table (a profile tile, a shot card): 1 for a small count's Historic Average (<whole_numbers>), none otherwise. */
+export function countDecimals(mode: AnalysisMode, smallCount: boolean): number {
+  return mode === "historicAverage" && smallCount ? 1 : 0;
 }
 
+/**
+ * <whole_numbers> (the owner's rule, 2026-10-26): figures are whole
+ * wherever a whole number still tells players apart — every count in
+ * every Data View, its Historic Average included (a mean of seasons, so
+ * 141.8 points shows "142"). Decimals stay only on figures that usually
+ * sit under 10, where rounding would blur real differences or show a
+ * misleading 0: xG figures, per-game rates, price, ownership, form — and a
+ * small count's Historic Average (PlayerColumn.smallCount), which shows 1
+ * decimal. Column filters compare the figure as shown, so `decimals`
+ * moves with it.
+ */
 export function columnForMode(c: PlayerColumn, mode: AnalysisMode): PlayerColumn {
-  if (mode !== "historicAverage" || c.decimals !== 0 || c.varies === false || WHOLE_WHEN_AVERAGED.has(c.key)) return c;
+  if (mode !== "historicAverage" || c.decimals !== 0 || !c.smallCount) return c;
   let shown = historicAverageColumns.get(c);
   if (!shown) {
     shown = { ...c, decimals: 1, format: (v) => (c.signed ? fmtSigned(v, 1) : fmtDecimal(v, 1)) };
@@ -119,13 +126,13 @@ export const PLAYER_COLUMNS: PlayerColumn[] = [
   // ACTUAL OUTPUT
   { key: "totalPoints", label: "Points", group: "ACTUAL OUTPUT", metricKey: "totalPoints", getValue: (p) => p.totalPoints, ...num(0) },
   { key: "pointsPerGame", label: "PPG", group: "ACTUAL OUTPUT", metricKey: "pointsPerGame", getValue: (p) => p.pointsPerGame, ...num(1) },
-  { key: "goals", label: "Goals", group: "ACTUAL OUTPUT", metricKey: "goals", getValue: (p) => p.goals, ...num(0) },
-  { key: "assists", label: "Assists", group: "ACTUAL OUTPUT", metricKey: "assists", getValue: (p) => p.assists, ...num(0) },
-  { key: "cleanSheets", label: "CS", group: "ACTUAL OUTPUT", metricKey: "cleanSheets", getValue: (p) => p.cleanSheets, ...num(0) },
-  { key: "bonus", label: "Bonus", group: "ACTUAL OUTPUT", metricKey: "bonus", getValue: (p) => p.bonus, ...num(0) },
+  { key: "goals", label: "Goals", group: "ACTUAL OUTPUT", metricKey: "goals", getValue: (p) => p.goals, ...num(0), smallCount: true },
+  { key: "assists", label: "Assists", group: "ACTUAL OUTPUT", metricKey: "assists", getValue: (p) => p.assists, ...num(0), smallCount: true },
+  { key: "cleanSheets", label: "CS", group: "ACTUAL OUTPUT", metricKey: "cleanSheets", getValue: (p) => p.cleanSheets, ...num(0), smallCount: true },
+  { key: "bonus", label: "Bonus", group: "ACTUAL OUTPUT", metricKey: "bonus", getValue: (p) => p.bonus, ...num(0), smallCount: true },
   onlyFor(GOALKEEPER, { key: "saves", label: "Saves", group: "ACTUAL OUTPUT", metricKey: "saves", getValue: (p) => p.saves, ...num(0) }),
   onlyFor(GOALKEEPER, { key: "savesPerGame", label: "Saves/Game", group: "ACTUAL OUTPUT", metricKey: "savesPerGame", getValue: (p) => p.savesPerGame, ...num(2) }),
-  onlyFor(GOALKEEPER, { key: "penaltiesSaved", label: "Pens Saved", group: "ACTUAL OUTPUT", metricKey: "penaltiesSaved", getValue: (p) => p.penaltiesSaved, ...num(0) }),
+  onlyFor(GOALKEEPER, { key: "penaltiesSaved", label: "Pens Saved", group: "ACTUAL OUTPUT", metricKey: "penaltiesSaved", getValue: (p) => p.penaltiesSaved, ...num(0), smallCount: true }),
   // Lower-is-better totals rank per game (see rankBy), like xGC.
   {
     key: "goalsConceded",
@@ -145,6 +152,7 @@ export const PLAYER_COLUMNS: PlayerColumn[] = [
     metricKey: "yellowCards",
     getValue: (p) => p.yellowCards,
     ...num(0),
+    smallCount: true,
     higherIsBetter: false,
     rankBy: (p) => perEstimatedGame(p.yellowCards, p.estimatedGames),
   },
@@ -155,6 +163,7 @@ export const PLAYER_COLUMNS: PlayerColumn[] = [
     metricKey: "redCards",
     getValue: (p) => p.redCards,
     ...num(0),
+    smallCount: true,
     higherIsBetter: false,
     rankBy: (p) => perEstimatedGame(p.redCards, p.estimatedGames),
   },
@@ -184,10 +193,10 @@ export const PLAYER_COLUMNS: PlayerColumn[] = [
   { key: "minutes", label: "Mins", group: "ADVANCED", metricKey: "minutes", getValue: (p) => p.minutes, ...num(0) },
   { key: "starts", label: "Starts", group: "ADVANCED", metricKey: "starts", getValue: (p) => p.starts, ...num(0) },
   { key: "bps", label: "BPS", group: "ADVANCED", metricKey: "bps", getValue: (p) => p.bps, ...num(0) },
-  { key: "ictIndex", label: "ICT", group: "ADVANCED", metricKey: "ictIndex", getValue: (p) => p.ictIndex, ...num(1) },
-  { key: "influence", label: "Influence", group: "ADVANCED", metricKey: "influence", getValue: (p) => p.influence, ...num(1) },
-  { key: "creativity", label: "Creativity", group: "ADVANCED", metricKey: "creativity", getValue: (p) => p.creativity, ...num(1) },
-  { key: "threat", label: "Threat", group: "ADVANCED", metricKey: "threat", getValue: (p) => p.threat, ...num(1) },
+  { key: "ictIndex", label: "ICT", group: "ADVANCED", metricKey: "ictIndex", getValue: (p) => p.ictIndex, ...num(0) },
+  { key: "influence", label: "Influence", group: "ADVANCED", metricKey: "influence", getValue: (p) => p.influence, ...num(0) },
+  { key: "creativity", label: "Creativity", group: "ADVANCED", metricKey: "creativity", getValue: (p) => p.creativity, ...num(0) },
+  { key: "threat", label: "Threat", group: "ADVANCED", metricKey: "threat", getValue: (p) => p.threat, ...num(0) },
   onlyFor(OUTFIELD, {
     key: "defensiveContributions",
     label: "DC",
@@ -253,7 +262,7 @@ export function columnByKey(key: string): PlayerColumn | undefined {
 /**
  * The format a figure built from a column (a Dashboard tile, a Player
  * Comparison card) has in a Data View — the column's own, so it and the
- * tables agree (<averaged_counts>). A figure with a format of its own
+ * tables agree (<whole_numbers>). A figure with a format of its own
  * (a tile-only metric) keeps it.
  */
 export function columnFormatForMode(key: string, format: (v: number | null) => string, mode: AnalysisMode): (v: number | null) => string {

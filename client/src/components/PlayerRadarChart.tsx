@@ -1,9 +1,9 @@
 import React from "react";
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Tooltip } from "recharts";
 import type { RadarDataPoint } from "../metrics/radarStats";
-import { fmtDecimal, fmtOrdinal } from "../utils/format";
+import { fmtOrdinal } from "../utils/format";
 
-function RadarTooltip({ active, payload, smallSample }: any) {
+function RadarTooltip({ active, payload, smallSample, format }: any) {
   if (!active || !payload || payload.length === 0) return null;
   const point = payload[0].payload as RadarDataPoint;
   return (
@@ -19,7 +19,7 @@ function RadarTooltip({ active, payload, smallSample }: any) {
       <strong>{point.label}</strong>
       <div className="mono">
         {point.percentile !== null ? `${fmtOrdinal(point.percentile)} percentile` : smallSample ? "Small sample" : "No data"}
-        {point.rawValue !== null && ` · ${fmtDecimal(point.rawValue, point.decimals)}`}
+        {point.rawValue !== null && ` · ${format(point.key, point.rawValue)}`}
       </div>
     </div>
   );
@@ -34,8 +34,11 @@ function RadarTooltip({ active, payload, smallSample }: any) {
  * explicitly rather than implying an actual bottom-percentile value — or
  * "Small sample" when `smallSample` is set: the player is under the fixed
  * minutes floor (<fixed_minutes_floor>), so has no percentile to show.
+ *
+ * `format`: an axis's figure as its column shows it in the Data View
+ * (<whole_numbers>), so the hover and the tables always agree.
  */
-export function PercentileRadarChart({ data, smallSample = false }: { data: RadarDataPoint[]; smallSample?: boolean }) {
+export function PercentileRadarChart({ data, format, smallSample = false }: { data: RadarDataPoint[]; format: (key: string, v: number) => string; smallSample?: boolean }) {
   const chartData = data.map((d) => ({ ...d, percentileValue: d.percentile ?? 0 }));
   return (
     <ResponsiveContainer width="100%" height={300}>
@@ -44,7 +47,7 @@ export function PercentileRadarChart({ data, smallSample = false }: { data: Rada
         <PolarAngleAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} />
         <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
         <Radar name="Percentile" dataKey="percentileValue" stroke="var(--accent-positive)" fill="var(--accent-positive)" fillOpacity={0.32} />
-        <Tooltip content={<RadarTooltip smallSample={smallSample} />} />
+        <Tooltip content={<RadarTooltip smallSample={smallSample} format={format} />} />
       </RadarChart>
     </ResponsiveContainer>
   );

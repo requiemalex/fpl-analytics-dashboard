@@ -71,7 +71,7 @@ const SECTIONS: { kind: ComparisonElementKind; title: string; icon: SectionIcon;
  */
 interface CardMetric {
   metric: ComparisonMetric;
-  /** As the card's Data View shows it (<averaged_counts>). */
+  /** As the card's Data View shows it (<whole_numbers>). */
   format: (v: number | null) => string;
   /** The second source it comes from (null for FPL), and — one of its own figures — the heading it's listed under there. */
   source: ExternalStatsSource | null;

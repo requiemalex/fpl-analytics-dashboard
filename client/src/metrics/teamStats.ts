@@ -144,7 +144,7 @@ export function computeTeamAggregates(teams: NormalizedTeam[], mode: AnalysisMod
     const records = clubRecordsForMode(team.code, mode, ctx).filter((c) => c.played !== 0);
     if (records.length === 0) return emptyAggregate(team);
     const pick = (fn: (c: ClubSeason) => number | null) => mean(records.map(fn));
-    const results = resultsWithinPlayed(pick((c) => c.played), pick((c) => c.wins), pick((c) => c.draws), pick((c) => c.losses));
+    const results = resultsWithinPlayed(pick((c) => c.played), pick((c) => c.wins), pick((c) => c.draws), pick((c) => c.losses), pick((c) => c.leaguePoints));
     const aggregate: TeamAggregate = {
       teamId: team.id,
       name: team.name,
@@ -162,7 +162,6 @@ export function computeTeamAggregates(teams: NormalizedTeam[], mode: AnalysisMod
       goalsFor: pick((c) => c.goalsFor),
       goalsAgainst: pick((c) => c.goalsAgainst),
       leaguePosition: pick((c) => c.leaguePosition),
-      leaguePoints: pick((c) => c.leaguePoints),
       ...results,
     };
     if (mode === "live" && ctx.livePlayerSumsPartial) for (const field of PLAYER_SUMMED_FIELDS) aggregate[field] = null;
@@ -180,25 +179,35 @@ export function computeTeamAggregates(teams: NormalizedTeam[], mode: AnalysisMod
  * they come back unchanged. If the means don't add up to the games played
  * (never true of a real record), each is just rounded, rather than forcing
  * a total the data doesn't support.
+ *
+ * <league_points_follow_results>: league points move with the results as
+ * shared out (3 for each win and 1 for each draw the rounding added or took
+ * away), so the line never reads "71 pts · 21W 9D 8L" (that's 72).
+ * Anything else in the mean, such as a points deduction, is kept.
  */
 export function resultsWithinPlayed(
   played: number | null,
   wins: number | null,
   draws: number | null,
   losses: number | null,
-): Pick<TeamAggregate, "played" | "wins" | "draws" | "losses"> {
-  if (played === null || wins === null || draws === null || losses === null) return { played, wins, draws, losses };
+  leaguePoints: number | null,
+): Pick<TeamAggregate, "played" | "wins" | "draws" | "losses" | "leaguePoints"> {
+  if (played === null || wins === null || draws === null || losses === null) return { played, wins, draws, losses, leaguePoints };
   const target = Math.round(played);
   const means = [wins, draws, losses];
   const floors = means.map(Math.floor);
   const shortfall = target - floors.reduce((a, b) => a + b, 0);
-  if (Math.abs(wins + draws + losses - played) > 1e-6 || shortfall < 0 || shortfall > means.length) {
-    const [w, d, l] = means.map(Math.round);
-    return { played: target, wins: w, draws: d, losses: l };
-  }
+  const shown = ([w, d, l]: number[]) => ({
+    played: target,
+    wins: w,
+    draws: d,
+    losses: l,
+    leaguePoints: leaguePoints === null ? null : leaguePoints + 3 * (w - wins) + (d - draws),
+  });
+  if (Math.abs(wins + draws + losses - played) > 1e-6 || shortfall < 0 || shortfall > means.length) return shown(means.map(Math.round));
   const byFraction = [0, 1, 2].sort((a, b) => means[b] - floors[b] - (means[a] - floors[a]) || a - b);
   for (const i of byFraction.slice(0, shortfall)) floors[i] += 1;
-  return { played: target, wins: floors[0], draws: floors[1], losses: floors[2] };
+  return shown(floors);
 }
 
 /**
@@ -274,7 +283,6 @@ export interface TeamRadarAxis {
   key: string;
   label: string;
   metricFn: (t: TeamAggregate) => number | null;
-  decimals: number;
   higherIsBetter: boolean;
 }
 
@@ -286,24 +294,24 @@ export interface TeamRadarAxis {
  * (audit 2026-09-25 player-team-profiles V1).
  */
 export const TEAM_DEFENSE_AXES: TeamRadarAxis[] = [
-  { key: "cleanSheets", label: "Clean Sheets", metricFn: (t) => t.cleanSheets, decimals: 0, higherIsBetter: true },
-  { key: "goalsAgainst", label: "Goals Conceded", metricFn: (t) => t.goalsAgainst, decimals: 0, higherIsBetter: false },
-  { key: "xGC", label: "xGC", metricFn: (t) => t.xGC, decimals: 2, higherIsBetter: false },
-  { key: "defensiveContributions", label: "Def. Contributions", metricFn: (t) => t.defensiveContributions, decimals: 0, higherIsBetter: true },
+  { key: "cleanSheets", label: "Clean Sheets", metricFn: (t) => t.cleanSheets, higherIsBetter: true },
+  { key: "goalsAgainst", label: "Goals Conceded", metricFn: (t) => t.goalsAgainst, higherIsBetter: false },
+  { key: "xGC", label: "xGC", metricFn: (t) => t.xGC, higherIsBetter: false },
+  { key: "defensiveContributions", label: "Def. Contributions", metricFn: (t) => t.defensiveContributions, higherIsBetter: true },
 ];
 
 export const TEAM_OFFENSE_AXES: TeamRadarAxis[] = [
-  { key: "goals", label: "Goals", metricFn: (t) => t.goals, decimals: 0, higherIsBetter: true },
-  { key: "xG", label: "xG", metricFn: (t) => t.xG, decimals: 2, higherIsBetter: true },
-  { key: "assists", label: "Assists", metricFn: (t) => t.assists, decimals: 0, higherIsBetter: true },
-  { key: "xA", label: "xA", metricFn: (t) => t.xA, decimals: 2, higherIsBetter: true },
-  { key: "xGI", label: "xGI", metricFn: (t) => t.xGI, decimals: 2, higherIsBetter: true },
+  { key: "goals", label: "Goals", metricFn: (t) => t.goals, higherIsBetter: true },
+  { key: "xG", label: "xG", metricFn: (t) => t.xG, higherIsBetter: true },
+  { key: "assists", label: "Assists", metricFn: (t) => t.assists, higherIsBetter: true },
+  { key: "xA", label: "xA", metricFn: (t) => t.xA, higherIsBetter: true },
+  { key: "xGI", label: "xGI", metricFn: (t) => t.xGI, higherIsBetter: true },
 ];
 
 /** One league-wide-rank percentile per axis, for one team — the team-level counterpart to computeRadarDataForAxes (metrics/radarStats.ts). */
 export function computeTeamRadarData(axes: TeamRadarAxis[], team: TeamAggregate, allTeams: TeamAggregate[]): RadarDataPoint[] {
   return axes.map((axis) => {
     const percentile = computeTeamPercentiles(allTeams, axis.metricFn, axis.higherIsBetter).get(team.teamId) ?? null;
-    return { key: axis.key, label: axis.label, percentile, rawValue: axis.metricFn(team), decimals: axis.decimals };
+    return { key: axis.key, label: axis.label, percentile, rawValue: axis.metricFn(team) };
   });
 }

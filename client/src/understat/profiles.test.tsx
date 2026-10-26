@@ -216,8 +216,19 @@ describe("Understat's shot maps: zones", () => {
     const { container, getByText } = render(<>{p.playerCards(500, { mode: "historicAverage", seasons: ["2024/25", "2023/24", "2022/23"] }, "MID")}</>);
     expect(zoneTitle(container, "Centre of the box")).toBe("Centre of the box: 1.5 shots a season (100% of them) · 1.0 goal · 0.40 xG per shot");
     expect(getByText("Per season · 2 seasons")).toBeTruthy();
-    expect(panel(getByText, "Shots")).toBe("1.5");
+    // Shots are whole, as the Shots column (<whole_numbers>); his goals are a small count, so 1 decimal averaged.
+    expect(panel(getByText, "Shots")).toBe("2");
+    expect(panel(getByText, "Goals")).toBe("1.0");
     expect(panel(getByText, "Conversion %")).toBe("67%");
+  });
+
+  it("a Historic Average over one season follows the Data View, not the season count (<whole_numbers>)", () => {
+    const p = profilesWith([[playerKey(500, "2024/25"), playerDetail([shot(1, "Goal", 0.5), shot(2, "Goal", 0.5)])]]);
+    const averaged = render(<>{p.playerCards(500, { mode: "historicAverage", seasons: ["2024/25"] }, "MID")}</>);
+    expect(panel(averaged.getByText, "Goals")).toBe("2.0");
+    averaged.unmount();
+    const single = render(<>{p.playerCards(500, { mode: "lastSeason", seasons: ["2024/25"] }, "MID")}</>);
+    expect(panel(single.getByText, "Goals")).toBe("2");
   });
 
   it("shots from further than the map draws are a band of their own, so every shot is in one zone", () => {

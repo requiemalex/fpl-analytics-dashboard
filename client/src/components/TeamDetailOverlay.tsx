@@ -84,9 +84,9 @@ function matchResult(m: ClubMatch): { label: string; outcomeClass: string } {
  * of the player gameweek log's. Goals are the club's own players' (the
  * partner for xG); the Result column has the score.
  */
-/** `averageDecimals`: the Average row's, as the player Match Log's — one for a count that runs to dozens a match (FPL points, DC), two otherwise. */
+/** `averageDecimals`: the Average row's, as the player Match Log's — whole for a count that runs to dozens a match (FPL points, DC: <whole_numbers>), two otherwise. */
 const MATCH_LOG_COLUMNS: { key: string; header: string; decimals: number; averageDecimals: number; higherIsBetter: boolean; value: (m: ClubMatch) => number | null }[] = [
-  { key: "pts", header: "FPL Points", decimals: 0, averageDecimals: 1, higherIsBetter: true, value: (m) => m.fantasyPoints },
+  { key: "pts", header: "FPL Points", decimals: 0, averageDecimals: 0, higherIsBetter: true, value: (m) => m.fantasyPoints },
   { key: "g", header: "Goals (excl. OGs)", decimals: 0, averageDecimals: 2, higherIsBetter: true, value: (m) => m.goals },
   { key: "a", header: "Assists", decimals: 0, averageDecimals: 2, higherIsBetter: true, value: (m) => m.assists },
   { key: "xg", header: "xG", decimals: 2, averageDecimals: 2, higherIsBetter: true, value: (m) => m.xG },
@@ -94,7 +94,7 @@ const MATCH_LOG_COLUMNS: { key: string; header: string; decimals: number; averag
   { key: "xgi", header: "xGI", decimals: 2, averageDecimals: 2, higherIsBetter: true, value: (m) => m.xGI },
   { key: "cs", header: "Clean Sheets", decimals: 0, averageDecimals: 2, higherIsBetter: true, value: (m) => (m.goalsAgainst === 0 ? 1 : 0) },
   { key: "xgc", header: "xGC", decimals: 2, averageDecimals: 2, higherIsBetter: false, value: (m) => m.xGC },
-  { key: "dc", header: "Defensive Contributions", decimals: 0, averageDecimals: 1, higherIsBetter: true, value: (m) => m.dc },
+  { key: "dc", header: "Defensive Contributions", decimals: 0, averageDecimals: 0, higherIsBetter: true, value: (m) => m.dc },
 ];
 
 /** A column's Totals and Average over the matches (<partial_totals>): those with a figure added up, a match without one left out; null if none has one. */
@@ -351,7 +351,7 @@ export function TeamDetailOverlay() {
             {teamRadarGroups.map((group) => (
               <div className="card" key={group.label}>
                 <div className="card-title">Team Radar · {group.label}</div>
-                <PercentileRadarChart data={group.data} />
+                <PercentileRadarChart data={group.data} format={(key, v) => teamColumnForMode(teamColumnByKey(key)!, analysisMode).format(v)} />
               </div>
             ))}
           </div>

@@ -74,7 +74,7 @@ import type { NormalizedPlayer } from "../types/normalized";
  */
 interface ItemMetric<M> {
   metric: M;
-  /** As the item's Data View shows it (<averaged_counts>). */
+  /** As the item's Data View shows it (<whole_numbers>). */
   format: (v: number | null) => string;
   /** The second source it comes from; null for FPL. */
   source: ExternalStatsSource | null;
@@ -1437,7 +1437,7 @@ export function Dashboard() {
             };
             const common = {
               title: displayTileTitle(tile, row.metric.label, row.metric.higherIsBetter),
-              // As the tile's Data View shows it (<averaged_counts>), the same as the tables.
+              // As the tile's Data View shows it (<whole_numbers>), the same as the tables.
               format: row.resolved.format,
               dataView: tile.dataView,
               emptyMessage: emptyMessageFor(tile, row.resolved.source),

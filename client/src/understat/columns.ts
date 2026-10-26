@@ -60,7 +60,9 @@ const perSeason = (r: UsPlayerResolved | UsClubResolved, value: number) => value
 const ratio = (num: number, den: number, scale = 1) => (den > 0 ? (num / den) * scale : null);
 
 const fmt = (decimals: number) => ({ format: (v: number | null) => fmtDecimal(v, decimals), decimals });
-const pct = { format: (v: number | null) => fmtPercent(v, 1), decimals: 1 };
+const pct = { format: (v: number | null) => fmtPercent(v, 0), decimals: 0 };
+/** A count a player or club records only a handful of times a season: 1 decimal as a Historic Average (PlayerColumn.smallCount, <whole_numbers>). */
+const few = { smallCount: true };
 const signed = (decimals: number) => ({ format: (v: number | null) => fmtSigned(v, decimals), decimals });
 
 export function understatPlayerColumns(lookup: (p: NormalizedPlayer) => UsPlayerResolved | null): ExternalColumnSet<PlayerColumn> {
@@ -114,7 +116,7 @@ export function understatPlayerColumns(lookup: (p: NormalizedPlayer) => UsPlayer
     xGPerMillion: col("xGPerMillion", "xG/£m", perMillion((t) => t.xG), fmt(2)),
     xAPerMillion: col("xAPerMillion", "xA/£m", perMillion((t) => t.xA), fmt(2)),
     xGIPerMillion: col("xGIPerMillion", "xGI/£m", perMillion(xGI), fmt(2)),
-    assists: col("assists", "Assists", total((t) => t.assists), fmt(0)),
+    assists: col("assists", "Assists", total((t) => t.assists), fmt(0), few),
     minutes: col("minutes", "Mins", total((t) => t.minutes), fmt(0)),
     // Understat's goals and assists against Understat's own xG and xA.
     goalsMinusXG: col("goalsMinusXG", "Goals − xG", (r) => perSeason(r, r.totals.goals - r.totals.xG), signed(2), { signed: true }),
@@ -137,16 +139,16 @@ export function understatPlayerColumns(lookup: (p: NormalizedPlayer) => UsPlayer
           col("us.onTargetPct", "On Target %", fromShots((r) => ratio(r.totals.shotsOnTarget, r.totals.shots, 100)), pct),
           col("us.xGPerShot", "xG/Shot", fromShots((r) => ratio(r.totals.xG, r.totals.shots)), fmt(2)),
           col("us.conversionPct", "Conversion %", fromShots((r) => ratio(shotGoalsOf(r.totals.situations), r.totals.shots, 100)), pct),
-          col("us.npGoals", "NP Goals", fromShots(total((t) => t.npGoals)), fmt(0)),
+          col("us.npGoals", "NP Goals", fromShots(total((t) => t.npGoals)), fmt(0), few),
           col("us.npxG", "NPxG", fromShots(total((t) => t.npxG)), fmt(2)),
           col("us.npxGPerGame", "NPxG/Game", fromShots(perGameOf((t) => t.npxG)), fmt(2)),
           col("us.npxGPerShot", "NPxG/Shot", fromShots((r) => ratio(r.totals.npxG, r.totals.shots - r.totals.situations.Penalty.shots)), fmt(2)),
           col("us.npGoalsMinusNpxG", "NP Goals − NPxG", fromShots((r) => perSeason(r, r.totals.npGoals - r.totals.npxG)), signed(2), { signed: true }),
-          col("us.woodwork", "Woodwork", detailTotal((d) => d.woodwork), fmt(0)),
+          col("us.woodwork", "Woodwork", detailTotal((d) => d.woodwork), fmt(0), few),
           col("us.blockedShots", "Blocked Shots", detailTotal((d) => d.blocked), fmt(0), { higherIsBetter: false }),
           col("us.blockedPct", "Blocked %", fromDetail((d, r) => ratio(d.blocked, r.totals.shots, 100)), pct, { higherIsBetter: false }),
           col("us.headedShots", "Headed Shots", fromShots(total((t) => t.bodyParts.Head.shots)), fmt(0)),
-          col("us.headedGoals", "Headed Goals", fromShots(total((t) => t.bodyParts.Head.goals)), fmt(0)),
+          col("us.headedGoals", "Headed Goals", fromShots(total((t) => t.bodyParts.Head.goals)), fmt(0), few),
           col("us.headedXG", "Headed xG", fromShots(total((t) => t.bodyParts.Head.xG)), fmt(2)),
         ],
       },
@@ -155,15 +157,15 @@ export function understatPlayerColumns(lookup: (p: NormalizedPlayer) => UsPlayer
         columns: [
           col("us.openPlayShots", "Open-Play Shots", fromShots(total((t) => t.situations.OpenPlay.shots)), fmt(0)),
           col("us.openPlayXG", "Open-Play xG", fromShots(total((t) => t.situations.OpenPlay.xG)), fmt(2)),
-          col("us.openPlayGoals", "Open-Play Goals", fromShots(total((t) => t.situations.OpenPlay.goals)), fmt(0)),
+          col("us.openPlayGoals", "Open-Play Goals", fromShots(total((t) => t.situations.OpenPlay.goals)), fmt(0), few),
           col("us.setPieceShots", "Set-Piece Shots", fromShots(total((t) => setPieceOf(t.situations).shots)), fmt(0)),
           col("us.setPieceXG", "Set-Piece xG", fromShots(total((t) => setPieceOf(t.situations).xG)), fmt(2)),
-          col("us.setPieceGoals", "Set-Piece Goals", fromShots(total((t) => setPieceOf(t.situations).goals)), fmt(0)),
+          col("us.setPieceGoals", "Set-Piece Goals", fromShots(total((t) => setPieceOf(t.situations).goals)), fmt(0), few),
           col("us.cornerXG", "Corner xG", fromShots(total((t) => t.situations.FromCorner.xG)), fmt(2)),
           col("us.freeKickXG", "Free-Kick xG", fromShots(total((t) => t.situations.DirectFreekick.xG)), fmt(2)),
-          col("us.penaltiesTaken", "Penalties Taken", fromShots(total((t) => t.situations.Penalty.shots)), fmt(0)),
+          col("us.penaltiesTaken", "Penalties Taken", fromShots(total((t) => t.situations.Penalty.shots)), fmt(0), few),
           col("us.penaltyXG", "Penalty xG", fromShots(total((t) => t.situations.Penalty.xG)), fmt(2)),
-          col("us.penaltyGoals", "Penalty Goals", fromShots(total((t) => t.situations.Penalty.goals)), fmt(0)),
+          col("us.penaltyGoals", "Penalty Goals", fromShots(total((t) => t.situations.Penalty.goals)), fmt(0), few),
           col(
             "us.setPieceShare",
             "Set-Piece xG %",
@@ -269,7 +271,7 @@ export function understatTeamColumns(teamsById: Map<number, NormalizedTeam>, loo
           col("us.setPieceXG", "Set-Piece xG", forShots(total((t) => setPiece(t.situationsFor))), fmt(2)),
           col("us.setPieceGoals", "Set-Piece Goals", forShots(total((t) => setPieceGoals(t.situationsFor))), whole),
           col("us.penaltyXG", "Penalty xG", forShots(total((t) => t.situationsFor.Penalty.xG)), fmt(2)),
-          col("us.penaltiesTaken", "Penalties Taken", forShots(total((t) => t.situationsFor.Penalty.shots)), whole),
+          col("us.penaltiesTaken", "Penalties Taken", forShots(total((t) => t.situationsFor.Penalty.shots)), whole, few),
           col("us.woodwork", "Woodwork", forDetail((d) => d.woodwork), whole),
           col("us.blockedShots", "Shots Blocked", forDetail((d) => d.blocked), whole, { higherIsBetter: false }),
           col("us.crossShots", "Shots from Crosses", forDetail((d) => d.lastActions.Cross.shots), whole),
@@ -291,7 +293,7 @@ export function understatTeamColumns(teamsById: Map<number, NormalizedTeam>, loo
           col("us.blocksMade", "Blocks Made", againstDetail((d) => d.blocked), whole),
           col("us.woodworkAgainst", "Woodwork Against", againstDetail((d) => d.woodwork), whole, { higherIsBetter: false }),
           col("us.crossShotsAgainst", "Cross Shots Against", againstDetail((d) => d.lastActions.Cross.shots), whole, { higherIsBetter: false }),
-          col("us.penaltiesConceded", "Penalties Conceded", againstShots(total((t) => t.situationsAgainst.Penalty.shots)), whole, { higherIsBetter: false }),
+          col("us.penaltiesConceded", "Penalties Conceded", againstShots(total((t) => t.situationsAgainst.Penalty.shots)), whole, { ...few, higherIsBetter: false }),
         ],
       },
       {
@@ -301,8 +303,8 @@ export function understatTeamColumns(teamsById: Map<number, NormalizedTeam>, loo
           col("us.oppPpda", "Opp. PPDA", (r) => ratio(r.totals.ppdaAllowedAtt, r.totals.ppdaAllowedDef), fmt(2), { noColour: true }),
           col("us.xGD", "xGD", total((t) => t.xG - t.xGA), signed(2)),
           col("us.npxGD", "NPxGD", total((t) => t.npxG - t.npxGA), signed(2)),
-          col("us.xPts", "xPts", total((t) => t.xPts), fmt(1)),
-          col("us.ptsMinusXPts", "Pts − xPts", total((t) => t.pts - t.xPts), signed(1)),
+          col("us.xPts", "xPts", total((t) => t.xPts), fmt(0)),
+          col("us.ptsMinusXPts", "Pts − xPts", total((t) => t.pts - t.xPts), signed(0)),
         ],
       },
     ],

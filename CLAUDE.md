@@ -130,6 +130,14 @@ No lint script. Playwright isn't installed but works via
   Hide button — the stopwatch struck through — leaves out the entries
   under the threshold (`<hide_small_samples>`, off by default). Check
   which side a section is on before adding or removing any floor.
+- **Whole numbers — one rule** (owner's decision, 2026-10-26; README
+  "Whole numbers", `<whole_numbers>`). Round to whole numbers as much as
+  possible: every count in every Data View, Historic Average included, and
+  any figure that runs to dozens. Decimals only where a figure usually sits
+  under 10 (xG figures, per-game rates, price, ownership, form, FDR,
+  expected points) and for a small count's Historic Average (`smallCount`,
+  1 decimal, so 0.4 never reads as a real 0). Show a figure through its
+  column (`columnForMode`/`teamColumnForMode`), never hard-coded decimals.
 - **Comparative colouring — one rule** (owner's decision, 2026-10-19;
   README "Comparative colouring", `metrics/comparativeColour.ts`). Green /
   red on any figure is its rank: a player's within his position among the

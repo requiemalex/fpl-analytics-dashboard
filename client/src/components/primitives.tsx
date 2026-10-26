@@ -1,6 +1,6 @@
 import React from "react";
 import { useSearchParams } from "react-router-dom";
-import { DASH } from "../utils/format";
+import { DASH, fmtDecimal } from "../utils/format";
 import { fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { teamDisplayColors, teamIdentityColor } from "../utils/teamColors";
 import type { Position } from "../types/normalized";
@@ -178,7 +178,7 @@ export function FixtureChips({ fixtures, avgTint }: { fixtures: UpcomingFixture[
         style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)", background: avgTint, borderRadius: 3, padding: avgTint ? "1px 4px" : 0 }}
         title={averageFixtureHint(avgFdr, fixtures.length)}
       >
-        {avgFdr.toFixed(1)}
+        {fmtDecimal(avgFdr, 1)}
       </span>
     </div>
   );

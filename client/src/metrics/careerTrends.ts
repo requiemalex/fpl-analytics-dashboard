@@ -38,7 +38,7 @@ export const TREND_METRICS: TrendMetric[] = [
   { key: "minutes", label: "Minutes", group: "Playing Time", decimals: 0, getValue: (s) => s.minutes },
   { key: "starts", label: "Starts", group: "Playing Time", decimals: 0, getValue: (s) => s.starts },
   { key: "bps", label: "BPS", group: "Advanced", decimals: 0, getValue: (s) => s.bps },
-  { key: "ictIndex", label: "ICT Index", group: "Advanced", decimals: 1, getValue: (s) => s.ictIndex },
+  { key: "ictIndex", label: "ICT Index", group: "Advanced", decimals: 0, getValue: (s) => s.ictIndex },
   { key: "defensiveContribution", label: "Defensive Contributions", group: "Advanced", decimals: 0, getValue: (s) => s.defensiveContribution },
   {
     key: "defensiveContributionPerGame",

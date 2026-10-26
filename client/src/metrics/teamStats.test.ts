@@ -155,15 +155,16 @@ describe("clubSeasonHistory", () => {
 
 describe("teamHeaderLine — the Team Profile header follows the Data View (audit 2026-09-25 player-team-profiles M1)", () => {
   it("shows a season's league line, and a Historic Average shown the way Team Explorer shows it", () => {
-    // 2024/25 is a real 38-game record (21W 9D 8L). This fixture used to be
-    // 21W 10D 8L — 39 results in 38 games — which hid R1 (3-regression.md).
-    const history = { ...ctx, clubSeasons: [clubSeason(101, "2025/26", { leaguePosition: 3, leaguePoints: 71 }), clubSeason(101, "2024/25", { leaguePosition: 4, leaguePoints: 70, wins: 21, draws: 9 })] };
+    // Real 38-game records: 20W 10D 8L = 70 pts, 21W 9D 8L = 72 pts. The
+    // 2024/25 fixture used to be 21W 10D 8L — 39 results in 38 games — which
+    // hid R1 (3-regression.md).
+    const history = { ...ctx, clubSeasons: [clubSeason(101, "2025/26", { leaguePosition: 3, leaguePoints: 70 }), clubSeason(101, "2024/25", { leaguePosition: 4, leaguePoints: 72, wins: 21, draws: 9 })] };
     const [last] = computeTeamAggregates([teams[0]], "lastSeason", history);
-    expect(teamHeaderLine(last, "lastSeason")).toBe("3rd in table · 71 pts · 38 played · 20W 10D 8L");
+    expect(teamHeaderLine(last, "lastSeason")).toBe("3rd in table · 70 pts · 38 played · 20W 10D 8L");
     const [avg] = computeTeamAggregates([teams[0]], "historicAverage", history);
-    // 3.5 → 4th (a place, kept whole); 70.5 league points shown as Team Explorer shows a Historic Average count (<averaged_counts>);
-    // results 20.5W 9.5D 8L share out as 21W 9D 8L = 38, never 21W 10D 8L = 39.
-    expect(teamHeaderLine(avg, "historicAverage")).toBe("4th in table · 70.5 pts · 38 played · 21W 9D 8L");
+    // 3.5 → 4th (a place, kept whole); results 20.5W 9.5D 8L share out as 21W 9D 8L = 38, never 21W 10D 8L = 39;
+    // league points follow them (<league_points_follow_results>), whole (<whole_numbers>): 21 × 3 + 9 = 72, not the mean's 71.
+    expect(teamHeaderLine(avg, "historicAverage")).toBe("4th in table · 72 pts · 38 played · 21W 9D 8L");
   });
 
   it("is — for a season the club has no record of", () => {
@@ -174,18 +175,25 @@ describe("teamHeaderLine — the Team Profile header follows the Data View (audi
 
 describe("resultsWithinPlayed — Historic Average W/D/L never add up to more than the games played (audit 2026-09-25 player-team-profiles R1)", () => {
   it("shares out the rounding so W + D + L = played (rounding each alone gave 15W 11D 13L = 39)", () => {
-    expect(resultsWithinPlayed(38, 14.5, 10.5, 13)).toEqual({ played: 38, wins: 15, draws: 10, losses: 13 });
+    expect(resultsWithinPlayed(38, 14.5, 10.5, 13, 54)).toEqual({ played: 38, wins: 15, draws: 10, losses: 13, leaguePoints: 55 });
   });
 
   it("gives the leftover games to the largest fractions", () => {
     // 13.75 / 10.5 / 13.75 rounds to 14 + 11 + 14 = 39; 14.25 / 10.75 / 13 already rounds to 38.
-    expect(resultsWithinPlayed(38, 13.75, 10.5, 13.75)).toEqual({ played: 38, wins: 14, draws: 10, losses: 14 });
-    expect(resultsWithinPlayed(38, 14.25, 10.75, 13)).toEqual({ played: 38, wins: 14, draws: 11, losses: 13 });
+    expect(resultsWithinPlayed(38, 13.75, 10.5, 13.75, 51.75)).toEqual({ played: 38, wins: 14, draws: 10, losses: 14, leaguePoints: 52 });
+    expect(resultsWithinPlayed(38, 14.25, 10.75, 13, 53.5)).toEqual({ played: 38, wins: 14, draws: 11, losses: 13, leaguePoints: 53 });
   });
 
   it("leaves a single season's whole numbers alone, and nulls as nulls", () => {
-    expect(resultsWithinPlayed(5, 5, 0, 0)).toEqual({ played: 5, wins: 5, draws: 0, losses: 0 });
-    expect(resultsWithinPlayed(null, null, null, null)).toEqual({ played: null, wins: null, draws: null, losses: null });
+    expect(resultsWithinPlayed(5, 5, 0, 0, 15)).toEqual({ played: 5, wins: 5, draws: 0, losses: 0, leaguePoints: 15 });
+    expect(resultsWithinPlayed(null, null, null, null, null)).toEqual({ played: null, wins: null, draws: null, losses: null, leaguePoints: null });
+  });
+
+  it("league points follow the shared-out results, and keep a points deduction (<league_points_follow_results>)", () => {
+    // 22W 5D 11L = 71 and 19W 14D 5L = 71: the mean's 71 beside 21W 9D 8L read a point short.
+    expect(resultsWithinPlayed(38, 20.5, 9.5, 8, 71).leaguePoints).toBe(21 * 3 + 9);
+    // The same two seasons with 8 points deducted from one (71 and 63): the average deduction, 4, stays off.
+    expect(resultsWithinPlayed(38, 20.5, 9.5, 8, 67).leaguePoints).toBe(21 * 3 + 9 - 4);
   });
 
   it("every club's Historic Average from computeTeamAggregates adds up", () => {

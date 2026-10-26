@@ -1,5 +1,5 @@
 import type { NormalizedEvent, NormalizedFixture, NormalizedTeam } from "../types/normalized";
-import { DASH } from "../utils/format";
+import { DASH, fmtDecimal } from "../utils/format";
 
 export interface UpcomingFixture {
   fixtureId: number;
@@ -78,7 +78,7 @@ export function formatFixturesForCsv(fixtures: UpcomingFixture[]): string {
   if (fixtures.length === 0) return DASH;
   const codes = fixtures.map((f) => `${f.opponentShortName}(${f.isHome ? "H" : "A"})`).join(" ");
   const avg = averageFixtureDifficulty(fixtures);
-  return avg !== null ? `${codes} avg FDR ${avg.toFixed(1)}` : codes;
+  return avg !== null ? `${codes} avg FDR ${fmtDecimal(avg, 1)}` : codes;
 }
 
 /** FPL's own 1 (easiest, green) to 5 (hardest, red) difficulty colours. */

@@ -307,7 +307,7 @@ export function PlayerExplorer() {
   const lookupColumn = useCallback(
     (key: string): PlayerColumn | undefined => {
       const c = ext && extColumns && sourceChoice[key] === ext.id && extColumns.alternates[key] ? extColumns.alternates[key] : (columnByKey(key) ?? extOnlyByKey.get(key));
-      // As this Data View shows it (<averaged_counts>): a Historic Average count has 1 decimal, its filter included.
+      // As this Data View shows it (<whole_numbers>): a small count's Historic Average has 1 decimal, its filter included.
       return c && columnForMode(c, analysisMode);
     },
     [ext, extColumns, sourceChoice, extOnlyByKey, analysisMode],

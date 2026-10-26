@@ -152,7 +152,8 @@ export function UserGuide() {
             included, so a bad season isn't quietly dropped. Per-game figures (PPG, xG/Game and the rest) are the seasons' totals
             divided by their total games, with games counted from total minutes. Only seasons of 855+ minutes (a quarter of a season) count, on every
             page: a cameo year, one lost to injury or a year out of the Premier League is too small a sample. The window is always the last 4 completed seasons; an older season never takes a skipped one's place.
-            Counts (goals, assists, points, cards and the like) show one decimal here, so 0.4 goals a season reads 0.4, not 0.
+            Figures are whole numbers wherever that still tells players apart: points, minutes, BPS and the like stay whole here too.
+            Counts a player records only a handful of times a season (goals, assists, clean sheets, bonus, cards) show one decimal, so 0.4 goals a season reads 0.4, not 0.
           </li>
           <li>
             <strong>Current Season:</strong> this season's live figures. Player figures update every 10 minutes by themselves, and so does an open profile's
@@ -484,8 +485,8 @@ export function UserGuide() {
           club figures only, no players (for a club's players, use Player Explorer's Team column). The one exception is this season's
           Formations (an Understat section), which name who has started where. If the club has no matches in the chosen Data View (it wasn't in the Premier League then), the profile says so and suggests one
           it did play in, as the player profile does. The header's position, points and results
-          follow the Data View; in Historic Average, position is rounded (two clubs can both be "2nd"), points show one decimal,
-          and wins, draws and losses are whole numbers that always add up to the games played. On the Defense radar, more Defensive Contributions counts as better, so a
+          follow the Data View; in Historic Average, position is rounded (two clubs can both be "2nd"), wins, draws and losses are whole numbers
+          that always add up to the games played, and points are whole and match them (3 for a win, 1 for a draw, any points deduction kept). On the Defense radar, more Defensive Contributions counts as better, so a
           dominant side that rarely defends can sit low on that axis.
         </p>
         <p className="page-subtitle">

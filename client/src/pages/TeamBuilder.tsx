@@ -6,7 +6,7 @@ import { useColumnCustomization, MIN_COLUMN_WIDTH, type UseColumnCustomization }
 import { useColumnFilters } from "../state/useColumnFilters";
 import { useComparativeColour } from "../state/comparativeColour";
 import { ColumnHeader } from "../components/ColumnHeader";
-import { averageFixtureHint, columnHint, fixtureHint, fplGameweekHint, modelGameweekHint, playerRankHint, PLAYER_STAT_HINTS } from "../components/hoverText";
+import { columnHint, fplGameweekHint, modelGameweekHint, playerRankHint, PLAYER_STAT_HINTS } from "../components/hoverText";
 import { useSortSpec, compareSortValues, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
 import { useEscapeLayer } from "../state/useEscapeLayer";
 import { useProgressiveRowCount } from "../state/useProgressiveRowCount";
@@ -22,13 +22,13 @@ import { fetchEntryTeam, fetchEntryHistory, fetchEntryPicks, ApiRequestError } f
 import { normalizeEntryImport } from "../normalize/normalizeEntryImport";
 import { filterBySearch } from "../utils/playerSearch";
 import { computeBlendedMinutesReliability } from "../metrics/minutesReliabilityBlend";
-import { getUpcomingFixtures, firstPickableEventId, fdrColor, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
+import { getUpcomingFixtures, firstPickableEventId, averageFixtureDifficulty, formatFixturesForCsv, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { PLAYER_COLUMNS, DEFAULT_VISIBLE_COLUMNS, cellText, columnByKey, columnForMode, isStaticColumn, rankValue, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { DataViewPicker } from "../components/AnalysisModeToggle";
 import { HideSmallSamplesButton, isSmallSample, MinutesFloorBadge, RowSmallSampleBadge, smallSamplesShownNote, userMinimumNote } from "../components/MinutesFloorBadge";
 import { SquadPitch, type PitchColourRanks, type ProjectionByPlayerId } from "../components/SquadPitch";
 import { headerMinWidth } from "../components/headerWidth";
-import { PositionBadge, AvailabilityFlag, availabilityTextClass, pressable } from "../components/primitives";
+import { PositionBadge, AvailabilityFlag, availabilityTextClass, FixtureChips, pressable } from "../components/primitives";
 import { IconChipButton, ResetIcon, ForecastIcon, ClockIcon, FilterIcon, DownloadIcon, TrashIcon } from "../components/IconToolbar";
 import { fmtPrice, fmtDecimal, fmtPercent, fmtSigned, DASH } from "../utils/format";
 import { percentileTint } from "../utils/colorScale";
@@ -137,29 +137,7 @@ const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
     higherIsBetter: false,
     varies: false,
     hint: "His club's next 5 matches, coloured by FPL difficulty. Sorts by their average.",
-    renderCell: (row) => {
-      const avgFdr = averageFixtureDifficulty(row.fixtures);
-      if (row.fixtures.length === 0 || avgFdr === null) return <span className="value-muted">{DASH}</span>;
-      return (
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div className="table-fixtures">
-            {row.fixtures.map((f) => (
-              <span
-                key={f.fixtureId}
-                className="table-fixture-chip"
-                style={{ background: fdrColor(f.difficulty) }}
-                title={fixtureHint(f)}
-              >
-                {f.opponentShortName.slice(0, 3)}
-              </span>
-            ))}
-          </div>
-          <span style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-mono)" }} title={averageFixtureHint(avgFdr, row.fixtures.length)}>
-            {avgFdr.toFixed(1)}
-          </span>
-        </div>
-      );
-    },
+    renderCell: (row) => <FixtureChips fixtures={row.fixtures} />,
   },
 ];
 const DEFAULT_PREDICTIVE_COLUMN_KEYS = PREDICTIVE_COLUMNS.map((c) => c.key);
@@ -913,7 +891,7 @@ export function TeamBuilder() {
     [predictiveCols.visibleColumns],
   );
   const historicRawColumnsInOrder = useMemo(
-    // As the selected Data View shows them (<averaged_counts>).
+    // As the selected Data View shows them (<whole_numbers>).
     () => historicRawCols.visibleColumns.map((key) => columnByKey(key)).filter((c): c is PlayerColumn => !!c).map((c) => columnForMode(c, pickerHistoricMode)),
     [historicRawCols.visibleColumns, pickerHistoricMode],
   );
@@ -1107,12 +1085,7 @@ export function TeamBuilder() {
 
   function formatPredictiveCellForCsv(row: PickerRowData, c: PredictiveColumnDef): string {
     if (c.key === "reliability") return row.reliability !== null ? fmtPercent(row.reliability * 100, 0) : DASH;
-    if (c.key === "fixtures") {
-      if (row.fixtures.length === 0) return DASH;
-      const codes = row.fixtures.map((f) => `${f.opponentShortName}(${f.isHome ? "H" : "A"})`).join(" ");
-      const avg = averageFixtureDifficulty(row.fixtures);
-      return avg !== null ? `${codes} avg FDR ${avg.toFixed(1)}` : codes;
-    }
+    if (c.key === "fixtures") return formatFixturesForCsv(row.fixtures);
     return fmtDecimal(c.getValue(row), 1);
   }
 

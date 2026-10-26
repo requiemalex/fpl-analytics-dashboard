@@ -498,8 +498,11 @@ too.
   losses are whole numbers that add up to the games played
   (`resultsWithinPlayed`, `<results_within_played>`, the owner's rule):
   rounding each mean alone could show "38 played · 14W 11D 14L". League
+  points follow the shared-out results — 3 for each win and 1 for each draw
+  the rounding added or took away, any points deduction in the mean kept
+  (`<league_points_follow_results>`) — so the line always adds up. League
   position stays a rounded mean, so two clubs can share a position; every
-  other count (league points, goals…) shows 1 decimal (`<averaged_counts>`).
+  count is whole (`<whole_numbers>`).
 - **Gaps:** club xG/xA/xGI/xGC (and per-player starts) exist from 2023/24;
   club DC from 2025/26. FPL only started tracking starts and expected stats
   at 2022/23 GW16, and the archive carries 0 for earlier gameweeks, so the
@@ -1181,8 +1184,8 @@ goals expected each way (`<points_model>`).
   the better he looked. They drive the
   profile's radars (`metrics/radarStats.ts`, position-specific axes; DEF/MID
   get separate Defence and Offence radars) and stat-tile tints. A radar's
-  hover box shows the raw value at the axis's own decimals (whole numbers
-  for counts).
+  hover box shows the figure as its Explorer column does in the Data View
+  (`<whole_numbers>`), as do the profile's Summary tiles.
 - **Defensive Reward/Game** (`metrics/defensiveReward.ts`) = clean-sheet
   points/game (GKP/DEF 4, MID 1, FWD 0) + **total** bonus/game. The API has
   no breakdown of bonus by defensive action, so it's a proxy, and the
@@ -1291,16 +1294,26 @@ goals expected each way (`<points_model>`).
   sorts, filters, colours, tiles, graphs and Player Comparison) and the
   cell is **blank** — not "—" (missing data) and never 0. The profile
   leaves those columns and tiles out altogether for the one player shown.
-- **Historic Average counts** (`<averaged_counts>`, `columnForMode`,
-  `teamColumnForMode`, `countDecimals`): a Historic Average is a mean of
-  seasons, so a whole-number count (goals, assists, points, cards, saves,
-  clean sheets…) shows **1 decimal** there — 0.4 goals a season reads
-  "0.4", never a "0" that looks like a real zero — in tables and their
-  filters (which compare the figure as shown), CSV exports, Dashboard
-  tiles and graphs, Player Comparison cards and profile tiles. Kept whole:
-  minutes (hundreds a season), a club's league position (a place), games
-  played, and W/D/L (`<results_within_played>`). Every other Data View is
-  unchanged.
+- **Whole numbers** (`<whole_numbers>`, the owner's rule, 2026-10-26;
+  `columnForMode`, `teamColumnForMode`, `countDecimals`): figures are
+  whole wherever a whole number still tells players or clubs apart. Every
+  count is whole in every Data View, its Historic Average (a mean of
+  seasons) included — 141.8 points a season shows "142" — and so are
+  figures that run to dozens or hundreds: ICT, Influence, Creativity and
+  Threat, a club's FPL Pts/Game and DC/Game, every percentage but
+  ownership, Understat's xPts and Pts − xPts, and a Match Log Average of
+  FPL points (a club's), DC (a club's) and BPS. Decimals stay only where
+  a figure usually sits under 10, so rounding would blur real differences
+  or show a misleading 0: xG figures (2), per-game and per-shot rates, PPG,
+  Pts/£m, form, price, ownership, fixture difficulty and expected points —
+  and the Historic Average of a **small count**, one recorded only a
+  handful of times a season (`smallCount`: goals, assists, clean sheets,
+  bonus, cards, penalties saved; Understat's goal types, woodwork and
+  penalties; a club's penalties), which shows **1 decimal** so 0.4 a
+  season reads "0.4", never a "0" that looks real. The same figure is
+  shown the same way in tables and their filters (which compare it as
+  shown), CSV exports, Dashboard tiles and graphs, Player Comparison cards,
+  profile tiles, radars and Understat's cards and shot maps.
 - **Signed figures** (`fmtSigned`): signed by the value as shown, so a
   tiny negative reads "0.00", not "-0.00". In tables and tiles their
   colour is the comparative one like any figure; the profile's Actual vs
@@ -1660,7 +1673,8 @@ longest word (`<header_floor>`, as in every customisable table).
   follows its Data View like every other club figure, formatted as Team
   Explorer's columns show it (`teamHeaderLine`): in a Historic Average the
   league position is the rounded mean, W/D/L the shared-out whole numbers
-  and league points 1 decimal; a season the club has no record of reads "—".
+  and league points whole, following them (`<league_points_follow_results>`);
+  a season the club has no record of reads "—".
 - **Club figures only — no players** (the owner's rule, 2026-09-26): no
   squad list, no player names, no link to player pages, and no minutes
   floor or badge. **One exception** (the owner's, 2026-10-21): a second
