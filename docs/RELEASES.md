@@ -5,6 +5,10 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.113.0 · 26 Oct 2026
+
+- Show whole numbers wherever they still tell players apart
+
 ## v1.112.0 · 25 Oct 2026
 
 - Team Building: Model Predicted allows for players back from an absence and managers selling them before the deadline
