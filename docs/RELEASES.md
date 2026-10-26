@@ -5,6 +5,11 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.114.0 · 26 Oct 2026
+
+- Team Building: FPL's price Progress and Predicted Progress on the pitch, coloured purchase and selling prices, and an imported squad's budget at selling prices
+- Team Building: gameweek arrows, Best Draft, a price toggle and expected minutes on the pitch
+
 ## v1.113.0 · 26 Oct 2026
 
 - Show whole numbers wherever they still tell players apart
