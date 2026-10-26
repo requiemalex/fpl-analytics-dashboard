@@ -118,8 +118,8 @@ No lint script. Playwright isn't installed but works via
   counts as 0 minutes (`isUnderMinimum`); **one Historic Average**, counting
   only seasons of 855+ minutes (a shorter season's figures don't count at
   all), over the last 4 completed seasons, never reaching further back.
-  Clubs and forward-looking figures (Team Building's Exp. Pts, Minutes
-  Reliability, pitch cards) have no floor. **Every** threshold shows the
+  Clubs and forward-looking figures (Team Building's Exp. Pts, Exp.
+  Mins, pitch cards) have no floor. **Every** threshold shows the
   stopwatch — on the view where it applies and on each entry under it,
   and no other symbol (`<minutes_marker>`,
   `components/MinutesFloorBadge.tsx`). An entry's is always amber; a

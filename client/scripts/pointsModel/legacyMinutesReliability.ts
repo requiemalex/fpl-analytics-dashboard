@@ -1,5 +1,14 @@
-import type { NormalizedPlayer, NormalizedTeam, PlayerSeasonHistory } from "../types/normalized";
-import type { HistoricPlayerProfile } from "./historicAnalysis";
+import type { NormalizedPlayer, NormalizedTeam, PlayerSeasonHistory } from "../../src/types/normalized";
+import type { HistoricPlayerProfile } from "../../src/metrics/historicAnalysis";
+import { availabilityModifier } from "../../src/metrics/availability";
+
+/**
+ * Frozen with legacyModel.ts: the Minutes Reliability blend the old
+ * expected-points model scaled every part by. The app showed it as Team
+ * Building's Minutes Reliability until 2026-10-26, when Exp. Mins (Model
+ * Predicted's own playing time) replaced it; it stays here only so the
+ * backtest can still reproduce the old model as its baseline.
+ */
 
 /** A full top-flight season's worth of possible minutes — every historic season a player has data for was a full 38-game PL season. */
 const FULL_SEASON_MINUTES = 38 * 90;
@@ -62,18 +71,6 @@ function currentSeasonMinutesReliability(player: NormalizedPlayer, team: Normali
   const possible = (team?.played ?? 0) * 90;
   if (possible <= 0 || player.minutes === null) return null;
   return Math.min(1, Math.max(0, player.minutes / possible));
-}
-
-/** FPL's unavailable statuses: injured, suspended, unavailable, not available (on loan). */
-const UNAVAILABLE_STATUSES = new Set(["i", "s", "u", "n"]);
-
-/** Chance-of-playing when FPL publishes one; otherwise a status-based default (shared with Model Predicted, pointsModelLive.ts). Never invents a specific percentage for a real doubt FPL hasn't quantified. Null when neither is known (audit 2026-10-18 L4: a missing status isn't "available"). */
-export function availabilityModifier(player: NormalizedPlayer): number | null {
-  if (player.chanceOfPlayingNextRound !== null) return player.chanceOfPlayingNextRound / 100;
-  if (player.status === "a") return 1;
-  if (player.status === "d") return 0.5;
-  if (UNAVAILABLE_STATUSES.has(player.status)) return 0;
-  return null;
 }
 
 export interface BlendedReliability {

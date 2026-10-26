@@ -4013,3 +4013,44 @@ tiles/graphs only:
   frozen as `client/scripts/pointsModel/legacyModel.ts` so the backtest
   keeps comparing against it.
 - **Last commit with it:** `d4e68d8`.
+
+### Projected Team Points tile (removed 2026-10-26)
+- **What it did:** a tile above Team Building's pitch, beside Squad Value
+  and Bank (`ProjectedTile` in `components/SquadPitch.tsx`,
+  `metrics/squadProjection.ts`, dictionary `squadProjectedPoints`): the
+  starting XI's Exp. Pts for each of the next five gameweeks on its own,
+  the captain's doubled, the bench not counted, with its own compact
+  FPL/Model toggle. A starter with no figure was left out of the total,
+  and the hover said how many.
+- **Why it went:** the owner's request. The pitch's new gameweek arrows
+  show each player's Exp. Pts for any of those gameweeks, from either
+  source, so the tile repeated them; Best Draft now uses them to set the
+  XI.
+- **Last commit with it:** `451aee1`.
+
+### Minutes Reliability (replaced 2026-10-26)
+- **What it did:** Team Building's Add Players column and the pitch's
+  Minutes highlight: the share of a match a player was expected to play,
+  as a percentage (`computeBlendedMinutesReliability`,
+  `metrics/minutesReliabilityBlend.ts`): his live minutes share
+  (minutes ÷ club games × 90) blended with a recency-weighted,
+  consistency-discounted share over every past season in the window, the
+  live weight `min(1, club games ÷ 8)`, × FPL's availability.
+- **Why it went:** the owner didn't find a percentage useful and asked
+  for expected minutes, from how much he's been playing, competition for
+  his place and injury or other problems. Exp. Mins (`<expected_minutes>`)
+  is Model Predicted's own fitted playing time for the gameweek, which
+  reads all of those but squad depth (only through his own starts). The
+  blend is kept frozen as
+  `client/scripts/pointsModel/legacyMinutesReliability.ts`, because the
+  backtest's frozen old model scales by it; its availability part moved
+  to `metrics/availability.ts`.
+- **Last commit with it:** `451aee1`.
+
+### Add Players' gameweek buttons (replaced 2026-10-26)
+- **What it did:** a row of buttons, GW9 GW10 … GW13, picked the
+  gameweek for Add Players' Exp. Pts columns (a `SegmentedControl`).
+- **Why it went:** the owner asked for arrows to step through the
+  gameweeks on the pitch; the same control (`GameweekArrows`) now does
+  the job in Add Players too, so the two read the same way.
+- **Last commit with it:** `451aee1`.

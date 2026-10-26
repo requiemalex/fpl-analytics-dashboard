@@ -35,7 +35,7 @@ export function percentileTint(percentile: number | null | undefined, maxAlpha =
 
 /**
  * The same scale as a solid colour, for a mark too small to carry a tint
- * (the pitch cards' reliability dot): neutral grey at the 50th percentile,
+ * (a dot): neutral grey at the 50th percentile,
  * full green at the 100th, full red at the 0th. Undefined without a rank
  * or with comparative colouring switched off.
  */

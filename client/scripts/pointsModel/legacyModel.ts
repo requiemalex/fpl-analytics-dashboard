@@ -100,7 +100,7 @@ export interface ExpectedPointsV2Breakdown {
 }
 
 export interface MinutesModel {
-  /** Expected share of a full 90-minute match, 0-1 — the same blended, availability-adjusted reliability figure already shown elsewhere (see minutesReliabilityBlend.ts), reused here as the one shared input scaling every rate-based component below. */
+  /** Expected share of a full 90-minute match, 0-1 — the same blended, availability-adjusted reliability figure already shown elsewhere (see legacyMinutesReliability.ts), reused here as the one shared input scaling every rate-based component below. */
   expectedMinutesFraction: number;
   /** Probability of playing 60+ minutes — gates clean sheets and the 2-point appearance bonus. */
   p60Plus: number;

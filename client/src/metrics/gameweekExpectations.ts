@@ -2,7 +2,7 @@ import { firstPickableEventId, type UpcomingFixture } from "./fixtureTicker";
 import type { ModelBreakdown } from "./pointsModel";
 import type { NormalizedEvent } from "../types/normalized";
 
-/** How many gameweeks Team Building looks ahead: Projected's figures and Add Players' gameweek picker. */
+/** How many gameweeks Team Building looks ahead: the pitch's and Add Players' gameweek arrows. */
 export const LOOKAHEAD_GAMEWEEKS = 5;
 
 /**
@@ -24,6 +24,9 @@ export function upcomingGameweeks(events: Pick<NormalizedEvent, "id" | "isNext">
     .slice(0, count);
 }
 
+/** Which Exp. Pts: FPL Official or Model Predicted, never mixed. */
+export type PointsSource = "fpl" | "model";
+
 /** One player's Exp. Pts for one gameweek: his matches in it, added up. */
 export interface GameweekExpectation {
   eventId: number;
@@ -35,6 +38,8 @@ export interface GameweekExpectation {
   modelBreakdowns: ModelBreakdown[] | null;
   /** The Model's figures summed; null when modelBreakdowns is. Not captain-doubled. */
   model: number | null;
+  /** <expected_minutes>: the minutes the Model expects him to play in his matches that gameweek, added up (a double's two); null when modelBreakdowns is. */
+  expectedMinutes: number | null;
 }
 
 /** Every figure added up; null with none, or when any is missing (a part of a double can't be left out of a gameweek's figure). */
@@ -72,5 +77,6 @@ export function expectationForGameweek(
     fpl,
     modelBreakdowns,
     model: modelBreakdowns ? sumAll(modelBreakdowns, (b) => b.total) : null,
+    expectedMinutes: modelBreakdowns ? sumAll(modelBreakdowns, (b) => b.expectedMinutes) : null,
   };
 }

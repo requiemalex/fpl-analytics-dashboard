@@ -69,9 +69,10 @@ export interface HistoricPlayerProfile {
   qualifyingSeasons: PlayerSeasonHistory[];
   /**
    * EVERY season within the window, oldest first, regardless of minutes
-   * played. What RELIABILITY uses (see minutesReliabilityBlend.ts): a
-   * low-minutes season is exactly the signal that matters there too, so
-   * it was never filtered for that purpose either.
+   * played. What Model Predicted's evidence reads (pointsModelLive.ts),
+   * and the backtest's frozen Minutes Reliability
+   * (scripts/pointsModel/legacyMinutesReliability.ts): a low-minutes
+   * season is exactly the signal that matters there, so it isn't filtered.
    */
   allSeasonsInWindow: PlayerSeasonHistory[];
   /**

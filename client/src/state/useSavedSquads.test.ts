@@ -22,3 +22,14 @@ describe("saved squads: an import's budget (<imported_budget>, store version 2)"
     expect(normalizeSavedSquad({ ...base, importedFrom: { teamId: 7, budget: "lots", bank: Infinity } })?.importedFrom).toMatchObject({ budget: null, bank: null });
   });
 });
+
+describe("saved squads: purchase prices (<purchase_prices>, store version 3)", () => {
+  it("a squad saved before they were kept has none, so its purchase and selling prices show —", () => {
+    expect(normalizeSavedSquad({ ...base, importedFrom: null })?.purchasePrices).toEqual({});
+  });
+
+  it("keeps a real price for each squad player, and drops one for a player not in the squad or a damaged one", () => {
+    const squad = normalizeSavedSquad({ ...base, importedFrom: null, purchasePrices: { 1: 7.4, 2: "lots", 3: 5.5, 4: -1 } });
+    expect(squad?.purchasePrices).toEqual({ 1: 7.4 });
+  });
+});

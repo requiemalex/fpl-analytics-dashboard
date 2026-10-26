@@ -23,7 +23,7 @@ describe("<upcoming_gameweeks> upcomingGameweeks", () => {
 });
 
 const fixture = (fixtureId: number, eventId: number | null): UpcomingFixture => ({ fixtureId, eventId, opponentTeamId: 2, opponentShortName: "BUR", isHome: true, difficulty: 3 });
-const breakdown = (total: number) => ({ total }) as ModelBreakdown;
+const breakdown = (total: number, expectedMinutes = 80) => ({ total, expectedMinutes }) as ModelBreakdown;
 
 describe("expectationForGameweek", () => {
   // GW9 blank, GW10 a double, GW11 single.
@@ -40,14 +40,21 @@ describe("expectationForGameweek", () => {
     expect(expectationForGameweek(upcoming, 11, fplFor, modelFor).fpl).toBe(3);
   });
 
+  it("<expected_minutes>: adds up the Model's expected minutes for a double gameweek's matches", () => {
+    const gw = expectationForGameweek(upcoming, 10, fplFor, (f) => breakdown(1, f.fixtureId === 1 ? 85 : 70));
+    expect(gw.expectedMinutes).toBe(155);
+    expect(expectationForGameweek(upcoming, 11, fplFor, (f) => breakdown(1, 64)).expectedMinutes).toBe(64);
+  });
+
   it("gives a blank gameweek no matches and no figure", () => {
-    expect(expectationForGameweek(upcoming, 9, fplFor, modelFor)).toEqual({ eventId: 9, fixtures: [], fpl: null, modelBreakdowns: null, model: null });
+    expect(expectationForGameweek(upcoming, 9, fplFor, modelFor)).toEqual({ eventId: 9, fixtures: [], fpl: null, modelBreakdowns: null, model: null, expectedMinutes: null });
   });
 
   it("has no figure when any of his matches lacks one", () => {
     const gw = expectationForGameweek(upcoming, 10, (_f, i) => (i === 1 ? null : 1), (f) => (f.fixtureId === 2 ? null : breakdown(1)));
     expect(gw.fpl).toBeNull();
     expect(gw.model).toBeNull();
+    expect(gw.expectedMinutes).toBeNull();
     expect(gw.fixtures).toHaveLength(2);
   });
 });

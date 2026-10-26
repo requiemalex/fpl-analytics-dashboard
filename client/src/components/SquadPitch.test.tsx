@@ -6,13 +6,17 @@ import { makePlayer } from "../test/fixtures";
 import type { NormalizedPlayer, Position } from "../types/normalized";
 import type { UpcomingFixture } from "../metrics/fixtureTicker";
 import type { GameweekExpectation } from "../metrics/gameweekExpectations";
+import type { ModelBreakdown } from "../metrics/pointsModel";
 
 afterEach(cleanup);
 
 const fixture = (id: number, opponent: string, isHome: boolean, difficulty = 2, eventId = 9): UpcomingFixture => ({ fixtureId: id, eventId, opponentTeamId: 99, opponentShortName: opponent, isHome, difficulty });
 
 // The next gameweek is GW9: one match v BUR, FPL 4.2, no Model figure.
-const nextGameweek = (): GameweekExpectation => ({ eventId: 9, fixtures: [fixture(1, "BUR", true)], fpl: 4.2, modelBreakdowns: null, model: null });
+const nextGameweek = (): GameweekExpectation => ({ eventId: 9, fixtures: [fixture(1, "BUR", true)], fpl: 4.2, modelBreakdowns: null, model: null, expectedMinutes: null });
+
+/** A Model figure for one match: `total` points, `minutes` expected. */
+const modelMatch = (total: number, minutes: number, startChance = 0.9) => ({ total, expectedMinutes: minutes, startChance, notes: [] }) as unknown as ModelBreakdown;
 
 function renderPitch(
   xi: NormalizedPlayer[],
@@ -22,6 +26,13 @@ function renderPitch(
   hasSquad = true,
   captainPickMode: "captain" | "viceCaptain" | null = null,
   gameweeks = [9, 10, 11, 12, 13],
+  extra: {
+    expectations?: Map<number, GameweekExpectation | null>;
+    gameweek?: number | null;
+    onGameweekChange?: (eventId: number) => void;
+    onBestDraft?: (picks: unknown) => void;
+    purchasePrices?: Record<number, number>;
+  } = {},
 ) {
   const squad = [...xi, ...bench];
   const groups = Object.fromEntries((["GKP", "DEF", "MID", "FWD"] as Position[]).map((pos) => [pos, xi.filter((p) => p.position === pos)])) as Record<Position, NormalizedPlayer[]>;
@@ -35,17 +46,11 @@ function renderPitch(
       captainId={captainId}
       viceCaptainId={null}
       gameweeks={gameweeks}
-      nextGameweekByPlayerId={new Map(squad.map((p) => [p.id, nextGameweek()]))}
-      // FPL 4.2 a gameweek (as on the cards) but a blank in GW11; the Model 3, 2, (blank), then no figure.
-      projectionByPlayerId={
-        new Map(
-          squad.map((p) => [
-            p.id,
-            { fpl: [4.2, 4.2, null, 4.2, 4.2].slice(0, gameweeks.length), model: [3, 2, null, null, null].slice(0, gameweeks.length), playing: [true, true, false, true, true].slice(0, gameweeks.length) },
-          ]),
-        )
-      }
-      reliabilityByPlayerId={new Map()}
+      gameweek={extra.gameweek === undefined ? (gameweeks[0] ?? null) : extra.gameweek}
+      onGameweekChange={extra.onGameweekChange ?? (() => {})}
+      expectationByPlayerId={extra.expectations ?? new Map(squad.map((p) => [p.id, nextGameweek()]))}
+      purchasePrices={extra.purchasePrices ?? {}}
+      purchaseUnknownHint="Purchase price not known"
       colourRanks={{}}
       fixturesByTeamId={new Map([[1, [fixture(1, "BUR", true), fixture(2, "WOL", false, 4)]]])}
       captainPickMode={captainPickMode}
@@ -58,6 +63,7 @@ function renderPitch(
       onRemove={() => {}}
       onAddSlot={onAddSlot}
       onClearSquad={() => {}}
+      onBestDraft={extra.onBestDraft ?? (() => {})}
       warning={null}
       hasSquad={hasSquad}
       budgetHint=""
@@ -98,10 +104,11 @@ describe("<kit_view> Highlight", () => {
     // Its toggle picks the Model, which has no figure for him here.
     fireEvent.click(getByRole("radiogroup", { name: "Source" }).querySelector<HTMLElement>('[aria-label^="Exp. Pts (Model"]')!);
     expect(figure()).toBe("—");
-    fireEvent.click(getByRole("radio", { name: "Today's price" }));
+    fireEvent.click(getByRole("radio", { name: /^Price:/ }));
     expect(figure()).toBe("£7.5m");
-    // The toggle is Points Prediction's alone.
+    // The Source toggle is Points Prediction's alone; Price has its own.
     expect(queryByRole("radiogroup", { name: "Source" })).toBeNull();
+    expect(getByRole("radiogroup", { name: "Price" })).toBeTruthy();
     fireEvent.click(getByRole("radio", { name: /next five matches/ }));
     expect(figure()).toBeUndefined();
     expect([...container.querySelectorAll(".pitch-card .pitch-card-fixture")].map((c) => c.textContent)).toEqual(["BUR", "WOL"]);
@@ -134,9 +141,9 @@ describe("the squad's actions", () => {
     expect(container.textContent).not.toMatch(/Click a starting player/);
   });
 
-  it("Captain, Vice-Captain and Clear Draft are the app's standard buttons", () => {
+  it("Captain, Vice-Captain, Clear Draft and Best Draft are the app's standard buttons", () => {
     const { getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
-    for (const name of ["Captain", "Vice-Captain", "Clear Draft"]) {
+    for (const name of ["Captain", "Vice-Captain", "Clear Draft", "Best Draft"]) {
       expect(getByRole("button", { name }).className).toBe("btn");
     }
   });
@@ -171,25 +178,152 @@ describe("<club_kit> kits", () => {
   });
 });
 
-describe("<squad_projection> the Projected tile", () => {
-  it("totals the XI for each match on its own (captain doubled, bench left out), and its toggle picks the source", () => {
-    const xi = [makePlayer({ id: 1, position: "MID" }), makePlayer({ id: 2, position: "FWD" })];
-    const { getByRole } = renderPitch(xi, [makePlayer({ id: 3, position: "DEF" })], vi.fn(), 2);
-    const tile = getByRole("group", { name: "Projected Team Points" });
-    const figures = () => [...tile.querySelectorAll(".pitch-projected-match")].map((m) => m.textContent);
-    expect(tile.querySelector(".stat-tile-label")!.textContent).toBe("Projected Team Points");
-    // 4.2 + 4.2 × 2 in every match, never summed across them.
-    // Labelled with FPL's own gameweek numbers. GW11 is the club's blank: nobody plays, so no total.
-    expect(figures()).toEqual(["GW912.6", "GW1012.6", "GW11—", "GW1212.6", "GW1312.6"]);
-    expect(tile.querySelectorAll<HTMLElement>(".pitch-projected-match")[2].title).toContain("2 starters have no match in GW11");
-    fireEvent.click(tile.querySelector<HTMLElement>('[aria-label^="Exp. Pts (Model"]')!);
-    // 3, 2, 1 a starter (× 3 with the captain's doubled); matches 4 and 5 have no Model figure.
-    expect(figures()).toEqual(["GW99.0", "GW106.0", "GW11—", "GW12—", "GW13—"]);
+describe("Projected Team Points", () => {
+  it("is gone: the squad's tiles are Squad Value and Bank", () => {
+    const { container, queryByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
+    expect(queryByRole("group", { name: "Projected Team Points" })).toBeNull();
+    expect([...container.querySelectorAll(".pitch-view-tiles .stat-tile-label")].map((l) => l.textContent)).toEqual(["Squad Value", "Bank"]);
+  });
+});
+
+describe("<gameweek_arrows> the pitch's gameweek", () => {
+  it("steps through the upcoming gameweeks, by FPL's numbering, and stops at either end", () => {
+    const onGameweekChange = vi.fn();
+    const { getByRole, container } = renderPitch([makePlayer({ id: 1, position: "MID" })], [], vi.fn(), null, true, null, [9, 10, 11], { onGameweekChange });
+    expect(container.querySelector(".gameweek-arrows-value")!.textContent).toBe("GW9");
+    expect(getByRole("button", { name: "Previous gameweek" })).toHaveProperty("disabled", true);
+    fireEvent.click(getByRole("button", { name: "Next gameweek" }));
+    expect(onGameweekChange).toHaveBeenCalledWith(10);
+    cleanup();
+    const last = renderPitch([makePlayer({ id: 1, position: "MID" })], [], vi.fn(), null, true, null, [9, 10, 11], { gameweek: 11, onGameweekChange });
+    expect(last.getByRole("button", { name: "Next gameweek" })).toHaveProperty("disabled", true);
+    fireEvent.click(last.getByRole("button", { name: "Previous gameweek" }));
+    expect(onGameweekChange).toHaveBeenLastCalledWith(10);
   });
 
-  it("shows only the gameweeks the season has left", () => {
-    const { getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })], [], vi.fn(), null, true, null, [37, 38]);
-    const labels = [...getByRole("group", { name: "Projected Team Points" }).querySelectorAll(".pitch-projected-gw")].map((l) => l.textContent);
-    expect(labels).toEqual(["GW37", "GW38"]);
+  it("shows — with no gameweek left this season", () => {
+    const { container, getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })], [], vi.fn(), null, true, null, [], { gameweek: null });
+    expect(container.querySelector(".gameweek-arrows-value")!.textContent).toBe("—");
+    expect(getByRole("button", { name: "Next gameweek" })).toHaveProperty("disabled", true);
+  });
+
+  it("the cards show the gameweek given: its points and its expected minutes", () => {
+    const gw10: GameweekExpectation = { eventId: 10, fixtures: [fixture(3, "WOL", false, 4, 10)], fpl: 6.1, modelBreakdowns: [modelMatch(5.2, 77.6, 0.88)], model: 5.2, expectedMinutes: 77.6 };
+    const { container, getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })], [], vi.fn(), null, true, null, [9, 10], { gameweek: 10, expectations: new Map([[1, gw10]]) });
+    const figure = () => container.querySelector(".pitch-card .pitch-card-figure")!;
+    expect(figure().textContent).toBe("6.1");
+    expect(figure().getAttribute("title")).toBe("FPL's expected points for GW10 v WOL (A)");
+    fireEvent.click(getByRole("radio", { name: /^Expected minutes/ }));
+    // <whole_numbers>: minutes are whole.
+    expect(figure().textContent).toBe("78");
+    expect(figure().getAttribute("title")).toBe("About 78 minutes expected in GW10 v WOL (A): 88% chance of starting");
+  });
+});
+
+describe("<expected_minutes> Minutes", () => {
+  it("adds up a double gameweek's matches, and a blank has no figure", () => {
+    const double: GameweekExpectation = {
+      eventId: 9,
+      fixtures: [fixture(1, "BUR", true), fixture(2, "WOL", false)],
+      fpl: 8,
+      modelBreakdowns: [modelMatch(4, 80), modelMatch(3, 62, 0.7)],
+      model: 7,
+      expectedMinutes: 142,
+    };
+    const blank: GameweekExpectation = { eventId: 9, fixtures: [], fpl: null, modelBreakdowns: null, model: null, expectedMinutes: null };
+    const { container, getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" }), makePlayer({ id: 2, position: "FWD" })], [], vi.fn(), null, true, null, [9], {
+      expectations: new Map([
+        [1, double],
+        [2, blank],
+      ]),
+    });
+    fireEvent.click(getByRole("radio", { name: /^Expected minutes/ }));
+    // Forwards are drawn first.
+    const [fwd, mid] = [...container.querySelectorAll(".pitch-card .pitch-card-figure")];
+    expect(mid.textContent).toBe("142");
+    expect(mid.getAttribute("title")).toBe("About 142 minutes expected in GW9\nv BUR (H): about 80, 90% chance of starting\nv WOL (A): about 62, 70% chance of starting");
+    expect(fwd.textContent).toBe("—");
+    expect(fwd.getAttribute("title")).toBe("No match in GW9");
+  });
+});
+
+describe("<price_view> Price", () => {
+  const priced = () =>
+    renderPitch(
+      [
+        makePlayer({ id: 1, position: "MID", price: 7.9, costChangeEvent: 0.1, costChangeStart: 0.4 }),
+        makePlayer({ id: 2, position: "FWD", price: 7.1, costChangeEvent: -0.1, costChangeStart: -0.3 }),
+      ],
+      [],
+      vi.fn(),
+      null,
+      true,
+      null,
+      [9],
+      { purchasePrices: { 1: 7.4 } },
+    );
+  const figures = (container: HTMLElement) => [...container.querySelectorAll(".pitch-card .pitch-card-figure")].map((f) => ({ text: f.textContent, title: f.getAttribute("title") }));
+
+  it("toggles between today's price, the selling price, the purchase price and the price change", () => {
+    const { container, getByRole } = priced();
+    fireEvent.click(getByRole("radio", { name: /^Price:/ }));
+    // Forward (id 2) first, then the midfielder (id 1).
+    expect(figures(container).map((f) => f.text)).toEqual(["£7.1m", "£7.9m"]);
+    fireEvent.click(getByRole("radio", { name: /^Selling price/ }));
+    // Bought for £7.4m, now £7.9m: FPL keeps half the £0.5m rise, rounded down. The forward's purchase price isn't known.
+    expect(figures(container)).toEqual([
+      { text: "—", title: "Purchase price not known" },
+      { text: "£7.6m", title: "Sells for £7.6m: bought for £7.4m, £7.9m today (FPL keeps half of a rise, rounded down to £0.1m)" },
+    ]);
+    fireEvent.click(getByRole("radio", { name: /^Purchase price/ }));
+    expect(figures(container).map((f) => f.text)).toEqual(["—", "£7.4m"]);
+    fireEvent.click(getByRole("radio", { name: /^Price change/ }));
+    expect(figures(container)).toEqual([
+      { text: "▼£0.1m", title: "Down £0.1m since the last gameweek deadline, to £7.1m; −£0.3m this season" },
+      { text: "▲£0.1m", title: "Up £0.1m since the last gameweek deadline, to £7.9m; +£0.4m this season" },
+    ]);
+  });
+});
+
+describe("<best_draft> Best Draft", () => {
+  /** A full 15 (2 GKP, 5 DEF, 5 MID, 3 FWD), ids 1–15, with GW9 figures; the first 11 start. */
+  function fullSquad(points: number[]) {
+    const positions: Position[] = ["GKP", "GKP", "DEF", "DEF", "DEF", "DEF", "DEF", "MID", "MID", "MID", "MID", "MID", "FWD", "FWD", "FWD"];
+    const all = positions.map((position, i) => makePlayer({ id: i + 1, position }));
+    const expectations = new Map(all.map((p, i) => [p.id, { ...nextGameweek(), fpl: points[i], model: points[i] / 2 } as GameweekExpectation]));
+    // Starting: 1 GKP, 4 DEF, 4 MID, 2 FWD.
+    const xi = [all[0], all[2], all[3], all[4], all[5], all[7], all[8], all[9], all[10], all[12], all[13]];
+    const bench = all.filter((p) => !xi.includes(p));
+    return { xi, bench, expectations };
+  }
+
+  it("sits to the right of Clear Draft and puts the XI and armbands with the most points in place", () => {
+    const onBestDraft = vi.fn();
+    // The bench goalkeeper (2) and third forward (15) are better than their starters.
+    const { xi, bench, expectations } = fullSquad([2, 5, 3, 3, 3, 3, 1, 4, 4, 4, 4, 1, 6, 2, 7]);
+    const { container, getByRole } = renderPitch(xi, bench, vi.fn(), null, true, null, [9], { expectations, onBestDraft });
+    expect([...container.querySelectorAll(".pitch-view-actions button")].map((b) => b.textContent)).toEqual(["Captain", "Vice-Captain", "Clear Draft", "Best Draft"]);
+    const button = getByRole("button", { name: "Best Draft" });
+    expect(button.getAttribute("title")).toBe("Pick the starting XI, captain and vice-captain with the most Exp. Pts (FPL Official) in GW9, in a formation FPL allows");
+    fireEvent.click(button);
+    const picks = onBestDraft.mock.calls[0][0] as { startingXI: number[]; captainId: number; viceCaptainId: number };
+    expect([...picks.startingXI].sort((a, b) => a - b)).toEqual([2, 3, 4, 5, 6, 8, 9, 10, 11, 13, 15]);
+    expect(picks.captainId).toBe(15);
+    expect(picks.viceCaptainId).toBe(13);
+  });
+
+  it("uses Points Prediction's source", () => {
+    const onBestDraft = vi.fn();
+    const { xi, bench, expectations } = fullSquad([2, 5, 3, 3, 3, 3, 1, 4, 4, 4, 4, 1, 6, 2, 7]);
+    const { getByRole } = renderPitch(xi, bench, vi.fn(), null, true, null, [9], { expectations, onBestDraft });
+    fireEvent.click(getByRole("radiogroup", { name: "Source" }).querySelector<HTMLElement>('[aria-label^="Exp. Pts (Model"]')!);
+    expect(getByRole("button", { name: "Best Draft" }).getAttribute("title")).toContain("Exp. Pts (Model Predicted) in GW9");
+  });
+
+  it("is greyed out, saying why, until the squad can make a legal XI", () => {
+    const { getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
+    const button = getByRole("button", { name: "Best Draft" });
+    expect(button).toHaveProperty("disabled", true);
+    expect(button.getAttribute("title")).toMatch(/^Needs players for a legal starting XI/);
   });
 });

@@ -39,7 +39,7 @@ import { parseCsv } from "../../../server/src/clubHistory/csv";
 import type { ClubSeason as ServerClubSeason, LedgerRow } from "../../../server/src/clubHistory/types";
 import { fitClubRatings, matchTime } from "../../src/metrics/fixtureForecast";
 import { fixtureOutlook, SCORING_RULES, type FixtureOutlook, type PastSeason, type PlayerEvidence, type RecentMatch, type ScoringRules, type SeasonTotals, type TransferWindow } from "../../src/metrics/pointsModel";
-import { availabilityModifier } from "../../src/metrics/minutesReliabilityBlend";
+import { availabilityModifier } from "../../src/metrics/availability";
 import type { ClubSeason, NormalizedPlayer, Position } from "../../src/types/normalized";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));

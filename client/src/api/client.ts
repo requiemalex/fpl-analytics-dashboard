@@ -1,6 +1,6 @@
 import type { PlayerPastMatch, PlayerSeasonPeer } from "../types/normalized";
-import type { ApiEnvelope, RawBootstrapStatic, RawElementSummary, RawFixture, RawHistoricBulk, RawEntryTeam, RawEntryHistory, RawEntryPicks } from "../types/raw";
-import { elementSummarySchema, fixturesSchema, historicBulkSchema, playerSeasonsSchema, entryTeamSchema, entryHistorySchema, entryPicksSchema, validate, parseBootstrapStatic } from "../validation/schema";
+import type { ApiEnvelope, RawBootstrapStatic, RawElementSummary, RawFixture, RawHistoricBulk, RawEntryTeam, RawEntryHistory, RawEntryPicks, RawEntryTransfer } from "../types/raw";
+import { elementSummarySchema, fixturesSchema, historicBulkSchema, playerSeasonsSchema, entryTeamSchema, entryHistorySchema, entryPicksSchema, entryTransfersSchema, validate, parseBootstrapStatic } from "../validation/schema";
 
 export class ApiRequestError extends Error {
   status: number;
@@ -116,5 +116,12 @@ export async function fetchEntryHistory(teamId: number): Promise<FetchResult<Raw
 export async function fetchEntryPicks(teamId: number, eventId: number): Promise<FetchResult<RawEntryPicks>> {
   const envelope = await getEnvelope<unknown>(`/api/entry/${teamId}/event/${eventId}/picks`);
   const data = validate(entryPicksSchema, envelope.data, "entry picks") as unknown as RawEntryPicks;
+  return { data, source: envelope.meta.source, fetchedAt: envelope.meta.fetchedAt };
+}
+
+/** Every transfer the team has made, Free Hit weeks included: what it paid for each player (<purchase_prices>). */
+export async function fetchEntryTransfers(teamId: number): Promise<FetchResult<RawEntryTransfer[]>> {
+  const envelope = await getEnvelope<unknown>(`/api/entry/${teamId}/transfers`);
+  const data = validate(entryTransfersSchema, envelope.data, "entry transfers") as unknown as RawEntryTransfer[];
   return { data, source: envelope.meta.source, fetchedAt: envelope.meta.fetchedAt };
 }

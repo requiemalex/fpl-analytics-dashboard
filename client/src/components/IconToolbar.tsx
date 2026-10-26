@@ -163,6 +163,15 @@ export function ComparativeColourIcon({ off = false, size = 15 }: { off?: boolea
   );
 }
 
+/** A chevron pointing left (back) or right (on): the gameweek arrows. */
+export function ChevronIcon({ direction, size = 14 }: { direction: "left" | "right"; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d={direction === "left" ? "M10 3L5 8l5 5" : "M6 3l5 5-5 5"} stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 /** A plus — the Add card at the end of a Dashboard or Player Comparison grid. */
 export function PlusIcon({ size = 14 }: { size?: number }) {
   return (

@@ -1,18 +1,19 @@
 import React, { useLayoutEffect, useRef, useState } from "react";
-import { projectSquadPointsByGameweek, projectionBlankNote, projectionCoverageNote, type ProjectionSource } from "../metrics/squadProjection";
-import type { GameweekExpectation } from "../metrics/gameweekExpectations";
+import type { GameweekExpectation, PointsSource } from "../metrics/gameweekExpectations";
+import { bestDraft, bestDraftBlocker, type DraftPicks } from "../metrics/bestDraft";
+import { sellingPrice } from "../metrics/squadPrices";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass, pressable } from "./primitives";
 import { PitchMarkings } from "./PitchMarkings";
 import { Kit } from "./Kit";
 import { CloseIcon, PlusIcon } from "./IconToolbar";
-import { SegmentedControl, type SegmentOption } from "./MenuControls";
+import { GameweekArrows, SegmentedControl, type SegmentOption } from "./MenuControls";
 import { fmtPrice, fmtPercent, fmtDecimal, DASH } from "../utils/format";
 import { fdrColor, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { percentileTint } from "../utils/colorScale";
 import { SQUAD_RULES } from "../types/team";
 import type { OpenSlots, SquadValidation } from "../metrics/squadRules";
 import type { NormalizedPlayer, Position } from "../types/normalized";
-import { fixtureHint, fplGameweekHint, modelGameweekHint, playerRankHint } from "./hoverText";
+import { fixtureHint, fplGameweekHint, minutesGameweekHint, modelGameweekHint, playerRankHint } from "./hoverText";
 
 const PITCH_ROW_ORDER: Position[] = ["FWD", "MID", "DEF", "GKP"];
 const COMPOSITION_ORDER: Position[] = ["GKP", "DEF", "MID", "FWD"];
@@ -26,24 +27,37 @@ const POSITION_NOUN: Record<Position, [string, string]> = {
 /**
  * <kit_view>: the one figure each kit's nameplate shows, picked with the
  * Highlight switch — rather than every figure at once. Points Prediction
- * is for the next gameweek (<upcoming_gameweeks>; a double's two matches
- * added up), from the source its FPL/Model toggle picks. Fixtures shows
- * the next five matches instead.
+ * and Minutes are for the gameweek the pitch's arrows pick
+ * (<gameweek_arrows>; a double's two matches added up): Points from the
+ * source its FPL/Model toggle picks, Minutes the Model's expected minutes
+ * (<expected_minutes>). Price shows the figure its own toggle picks
+ * (<price_view>). Fixtures shows the next five matches instead.
  */
-export type KitView = "fixtures" | "points" | "price" | "ownership" | "reliability";
+export type KitView = "fixtures" | "points" | "price" | "ownership" | "minutes";
 
 const KIT_VIEW_OPTIONS: SegmentOption<KitView>[] = [
   { value: "fixtures", label: "Fixtures", title: "Each player's next five matches, coloured by FPL difficulty" },
-  { value: "price", label: "Price", title: "Today's price" },
+  { value: "price", label: "Price", title: "Price: today's, his selling price, his purchase price or its change, as the toggle beside picks" },
   { value: "ownership", label: "Owned", title: "Share of FPL managers who own him" },
-  { value: "reliability", label: "Minutes", title: "Minutes Reliability: the share of each match he's expected to play" },
-  { value: "points", label: "Points Prediction", title: "Expected points for the next gameweek (a double's two matches added up): FPL's official figure or Scoutline's model, as the toggle beside picks" },
+  { value: "minutes", label: "Minutes", title: "Expected minutes: how long Scoutline's model expects him to play in the gameweek picked" },
+  { value: "points", label: "Points Prediction", title: "Expected points for the gameweek picked (a double's two matches added up): FPL's official figure or Scoutline's model, as the toggle beside picks" },
 ];
 
-/** FPL Official or Model Predicted: the Points Prediction toggle and the Projected tile's. */
-const SOURCE_OPTIONS: SegmentOption<ProjectionSource>[] = [
+/** FPL Official or Model Predicted: Points Prediction's source, and Best Draft's. */
+const SOURCE_OPTIONS: SegmentOption<PointsSource>[] = [
   { value: "fpl", label: "FPL", title: "Exp. Pts (FPL Official)" },
   { value: "model", label: "Model", title: "Exp. Pts (Model Predicted): Scoutline's own estimate" },
+];
+const SOURCE_NAME: Record<PointsSource, string> = { fpl: "FPL Official", model: "Model Predicted" };
+
+/** <price_view>: which price the Price highlight shows. */
+export type PriceView = "current" | "sell" | "purchase" | "change";
+
+const PRICE_VIEW_OPTIONS: SegmentOption<PriceView>[] = [
+  { value: "current", label: "Current", title: "Today's price" },
+  { value: "sell", label: "Sell", title: "Selling price: what FPL would pay for him, his purchase price plus half of any rise since (rounded down to £0.1m), or today's price after a fall" },
+  { value: "purchase", label: "Purchase", title: "Purchase price: what he cost when he joined this squad" },
+  { value: "change", label: "Change", title: "Price change since the last gameweek deadline: ▲ rising, ▼ falling" },
 ];
 
 /** The next five matches as FPL-difficulty chips. */
@@ -68,85 +82,8 @@ export function budgetLeftText(remaining: number): string {
   return tenths < 0 ? `${fmtPrice(-tenths / 10)} over` : `${fmtPrice(Math.max(0, tenths) / 10)} left`;
 }
 
-/** Each squad player's Exp. Pts for each upcoming gameweek, by source, and whether his club plays in it; aligned with `gameweeks`. */
-export type ProjectionByPlayerId = Map<number, Record<ProjectionSource, (number | null)[]> & { playing: boolean[] }>;
-
-/**
- * <squad_projection>: the Projected tile — the starting XI's Exp. Pts for
- * each upcoming gameweek on its own, labelled with FPL's own gameweek
- * numbers (<upcoming_gameweeks>), never summed across them. Its FPL/Model
- * toggle picks the source; per page, like the other switches.
- */
-function ProjectedTile({
-  starters,
-  captainId,
-  gameweeks,
-  projectionByPlayerId,
-}: {
-  starters: NormalizedPlayer[];
-  captainId: number | null;
-  gameweeks: number[];
-  projectionByPlayerId: ProjectionByPlayerId;
-}) {
-  const [source, setSource] = useState<ProjectionSource>("fpl");
-  const byGameweek = projectSquadPointsByGameweek(
-    starters.map((p) => {
-      const projection = projectionByPlayerId.get(p.id);
-      return { perGameweek: projection?.[source] ?? [], playing: projection?.playing ?? [], isCaptain: p.id === captainId };
-    }),
-    gameweeks.length,
-  );
-  const sourceName = source === "fpl" ? "FPL Official" : "Model Predicted";
-  return (
-    <div className="stat-tile pitch-projected" role="group" aria-label="Projected Team Points">
-      <div className="pitch-projected-head">
-        <span className="stat-tile-label">Projected Team Points</span>
-        <SegmentedControl options={SOURCE_OPTIONS} value={source} onChange={setSource} compact />
-      </div>
-      <div className="pitch-projected-matches">
-        {byGameweek.map(({ sum, blanks }, i) => {
-          const gw = `GW${gameweeks[i]}`;
-          const hint = [
-            `${gw}: the starting XI's Exp. Pts (${sourceName}), a double gameweek's two matches both counted, the captain's doubled. The bench isn't counted.`,
-            projectionCoverageNote(sum),
-            projectionBlankNote(blanks, gameweeks[i]),
-          ]
-            .filter(Boolean)
-            .join("\n");
-          return (
-            <div className="pitch-projected-match" key={gw} title={hint}>
-              <span className="pitch-projected-gw">{gw}</span>
-              <span className="stat-tile-value num">{sum ? fmtDecimal(sum.sum, 1) : DASH}</span>
-            </div>
-          );
-        })}
-        {gameweeks.length === 0 && (
-          <div className="pitch-projected-match" title="No gameweek left to pick for this season">
-            <span className="pitch-projected-gw">{DASH}</span>
-            <span className="stat-tile-value num">{DASH}</span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/** The squad's figures: value, money left and Projected, one strip under its name. */
-function SquadTiles({
-  validation,
-  positionGroups,
-  budgetHint,
-  captainId,
-  gameweeks,
-  projectionByPlayerId,
-}: {
-  validation: SquadValidation;
-  positionGroups: Record<Position, NormalizedPlayer[]>;
-  budgetHint: string;
-  captainId: number | null;
-  gameweeks: number[];
-  projectionByPlayerId: ProjectionByPlayerId;
-}) {
+/** The squad's figures: value and money left, one strip under its name. */
+function SquadTiles({ validation, budgetHint }: { validation: SquadValidation; budgetHint: string }) {
   // To the tenth, as budgetLeftText does.
   const tenths = Math.round(validation.budgetRemaining * 10);
   return (
@@ -159,23 +96,49 @@ function SquadTiles({
         <span className="stat-tile-label">Bank</span>
         <span className={`stat-tile-value num${tenths < 0 ? " value-negative" : ""}`}>{tenths < 0 ? `−${fmtPrice(-tenths / 10)}` : fmtPrice(Math.max(0, tenths) / 10)}</span>
       </div>
-      <ProjectedTile starters={COMPOSITION_ORDER.flatMap((pos) => positionGroups[pos])} captainId={captainId} gameweeks={gameweeks} projectionByPlayerId={projectionByPlayerId} />
     </div>
   );
 }
 
-/** Every player's ranks for the pitch cards' figures, by player id (<comparative_colouring>). */
+/** <price_view> "Change": ▲£0.1m rising, ▼£0.1m falling, since the last deadline; and its hover. */
+function priceChangeFigure(player: NormalizedPlayer): { text: string; title: string } {
+  const change = player.costChangeEvent;
+  if (change === null) return { text: DASH, title: "FPL hasn't sent his price change" };
+  const season = player.costChangeStart === null ? "" : `; ${player.costChangeStart < 0 ? "−" : "+"}${fmtPrice(Math.abs(player.costChangeStart))} this season`;
+  if (change === 0) return { text: fmtPrice(0), title: `Unchanged since the last gameweek deadline, ${fmtPrice(player.price)}${season}` };
+  const rising = change > 0;
+  return {
+    text: `${rising ? "▲" : "▼"}${fmtPrice(Math.abs(change))}`,
+    title: `${rising ? "Up" : "Down"} ${fmtPrice(Math.abs(change))} since the last gameweek deadline, to ${fmtPrice(player.price)}${season}`,
+  };
+}
+
+/** Every player's ranks for the pitch cards' figures (<comparative_colouring>). The price ranks are today's price; selling, purchase and change aren't coloured. */
 export interface PitchColourRanks {
   points?: Map<number, number>;
   model?: Map<number, number>;
-  reliability?: Map<number, number>;
+  minutes?: Map<number, number>;
   price?: Map<number, number>;
   ownership?: Map<number, number>;
 }
 type PitchCardRanks = { [K in keyof PitchColourRanks]?: number };
 
 function pitchCardRanks(ranks: PitchColourRanks, id: number): PitchCardRanks {
-  return { points: ranks.points?.get(id), model: ranks.model?.get(id), reliability: ranks.reliability?.get(id), price: ranks.price?.get(id), ownership: ranks.ownership?.get(id) };
+  return { points: ranks.points?.get(id), model: ranks.model?.get(id), minutes: ranks.minutes?.get(id), price: ranks.price?.get(id), ownership: ranks.ownership?.get(id) };
+}
+
+/** The nameplate's figure for the Price highlight's choice (<price_view>). */
+function priceFigure(player: NormalizedPlayer, priceView: PriceView, purchase: number | null, purchaseUnknownHint: string, rank: number | undefined): { text: string; title: string; rank: number | undefined } {
+  if (priceView === "current") return { text: fmtPrice(player.price), title: `${fmtPrice(player.price)} today`, rank };
+  if (priceView === "change") return { ...priceChangeFigure(player), rank: undefined };
+  if (purchase === null) return { text: DASH, title: purchaseUnknownHint, rank: undefined };
+  if (priceView === "purchase") return { text: fmtPrice(purchase), title: `Bought for ${fmtPrice(purchase)}, ${fmtPrice(player.price)} today`, rank: undefined };
+  const sell = sellingPrice(purchase, player.price);
+  return {
+    text: fmtPrice(sell),
+    title: `Sells for ${fmtPrice(sell)}: bought for ${fmtPrice(purchase)}, ${fmtPrice(player.price)} today (FPL keeps half of a rise, rounded down to £0.1m)`,
+    rank: undefined,
+  };
 }
 
 function PlayerCard({
@@ -183,11 +146,13 @@ function PlayerCard({
   zone,
   view,
   pointsSource,
+  priceView,
   isCaptain,
   isViceCaptain,
   isPickable,
-  nextGameweek,
-  reliability,
+  gameweek,
+  purchasePrice,
+  purchaseUnknownHint,
   ranks,
   fixtures,
   onDropOnCard,
@@ -199,14 +164,18 @@ function PlayerCard({
   zone: "pitch" | "bench";
   view: KitView;
   /** Which Exp. Pts Points Prediction shows. */
-  pointsSource: ProjectionSource;
+  pointsSource: PointsSource;
+  /** Which price Price shows. */
+  priceView: PriceView;
   isCaptain: boolean;
   isViceCaptain: boolean;
   isPickable: boolean;
-  /** Both Exp. Pts for the next gameweek (a double's matches added up) — not yet captain-doubled, this component doubles them for display when isCaptain. Null with no gameweek left. */
-  nextGameweek: GameweekExpectation | null;
-  /** 0-1 blended reliability share, or null with neither historic nor live data. */
-  reliability: number | null;
+  /** His figures for the gameweek the arrows pick (a double's matches added up) — Exp. Pts not yet captain-doubled, this component doubles them for display when isCaptain. Null with no gameweek left. */
+  gameweek: GameweekExpectation | null;
+  /** £m paid for him (<purchase_prices>); null when not known. */
+  purchasePrice: number | null;
+  /** Why his purchase price isn't known, for the hover. */
+  purchaseUnknownHint: string;
   /** His ranks within his position for the card's figures (<comparative_colouring>) — none under the floor. */
   ranks: PitchCardRanks;
   /** His next five, for Fixtures. */
@@ -217,10 +186,11 @@ function PlayerCard({
   onViewProfile: (id: number) => void;
 }) {
   const [isDragOver, setIsDragOver] = useState(false);
-  const expectedPoints = nextGameweek?.fpl ?? null;
-  const modelPredicted = nextGameweek?.model ?? null;
+  const expectedPoints = gameweek?.fpl ?? null;
+  const modelPredicted = gameweek?.model ?? null;
   const displayPoints = expectedPoints !== null && isCaptain ? expectedPoints * 2 : expectedPoints;
   const displayModelPredicted = modelPredicted !== null && isCaptain ? modelPredicted * 2 : modelPredicted;
+  const expectedMinutes = gameweek?.expectedMinutes ?? null;
   /** A figure's hover, then his rank within his position for it (<hover_text>). */
   const withRank = (text: string, rank: number | undefined) => {
     const phrase = playerRankHint(rank, player.position);
@@ -230,24 +200,25 @@ function PlayerCard({
     view === "points" && pointsSource === "fpl"
       ? {
           text: displayPoints !== null ? fmtDecimal(displayPoints, 1) : DASH,
-          title: fplGameweekHint(nextGameweek, isCaptain),
+          title: fplGameweekHint(gameweek, isCaptain),
           rank: ranks.points,
         }
       : view === "points"
         ? {
             text: displayModelPredicted !== null ? fmtDecimal(displayModelPredicted, 1) : DASH,
-            title: modelGameweekHint(nextGameweek, isCaptain),
+            title: modelGameweekHint(gameweek, isCaptain),
             rank: ranks.model,
           }
         : view === "price"
-          ? { text: fmtPrice(player.price), title: `${fmtPrice(player.price)} today`, rank: ranks.price }
+          ? priceFigure(player, priceView, purchasePrice, purchaseUnknownHint, ranks.price)
           : view === "ownership"
             ? { text: fmtPercent(player.ownership, 1), title: `Owned by ${fmtPercent(player.ownership, 1)} of FPL managers`, rank: ranks.ownership }
-            : view === "reliability"
+            : view === "minutes"
               ? {
-                  text: reliability !== null ? fmtPercent(reliability * 100, 0) : DASH,
-                  title: reliability !== null ? `Expected to play about ${fmtPercent(reliability * 100, 0)} of each match` : "No playing-time estimate for him",
-                  rank: ranks.reliability,
+                  // <whole_numbers>: minutes run to dozens.
+                  text: expectedMinutes !== null ? String(Math.round(expectedMinutes)) : DASH,
+                  title: minutesGameweekHint(gameweek),
+                  rank: ranks.minutes,
                 }
               : null;
 
@@ -343,9 +314,11 @@ export function SquadPitch({
   captainId,
   viceCaptainId,
   gameweeks,
-  nextGameweekByPlayerId,
-  projectionByPlayerId,
-  reliabilityByPlayerId,
+  gameweek,
+  onGameweekChange,
+  expectationByPlayerId,
+  purchasePrices,
+  purchaseUnknownHint,
   colourRanks,
   fixturesByTeamId,
   captainPickMode,
@@ -358,6 +331,7 @@ export function SquadPitch({
   onRemove,
   onAddSlot,
   onClearSquad,
+  onBestDraft,
   warning,
   hasSquad,
   budgetHint,
@@ -370,14 +344,18 @@ export function SquadPitch({
   openSlots: OpenSlots;
   captainId: number | null;
   viceCaptainId: number | null;
-  /** The upcoming gameweeks, by FPL's numbering (<upcoming_gameweeks>); empty with none left this season. */
+  /** The upcoming gameweeks the arrows step through, by FPL's numbering (<upcoming_gameweeks>); empty with none left this season. */
   gameweeks: number[];
-  /** Each squad player's Exp. Pts for gameweeks[0], for the cards' Points Prediction. */
-  nextGameweekByPlayerId: Map<number, GameweekExpectation>;
-  /** Both Exp. Pts for each player's upcoming gameweeks, for Projected (<squad_projection>). */
-  projectionByPlayerId: ProjectionByPlayerId;
-  reliabilityByPlayerId: Map<number, number | null>;
-  /** Every player's ranks for the cards' figures, from the Add Players table's pool (<comparative_colouring>). */
+  /** The gameweek the arrows show (<gameweek_arrows>); null with none left. */
+  gameweek: number | null;
+  onGameweekChange: (eventId: number) => void;
+  /** Each squad player's figures for `gameweek`: Points Prediction, Minutes and Best Draft read them. */
+  expectationByPlayerId: Map<number, GameweekExpectation | null>;
+  /** £m paid for each player, by id (<purchase_prices>): Price's Sell and Purchase. */
+  purchasePrices: Record<number, number>;
+  /** Why a player's purchase price isn't known, for the hover. */
+  purchaseUnknownHint: string;
+  /** Every player's ranks for the cards' figures, from the whole player pool (<comparative_colouring>). */
   colourRanks: PitchColourRanks;
   fixturesByTeamId: Map<number, UpcomingFixture[]>;
   captainPickMode: "captain" | "viceCaptain" | null;
@@ -391,6 +369,8 @@ export function SquadPitch({
   /** An open slot was picked: list that position in Add Players. */
   onAddSlot: (position: Position) => void;
   onClearSquad: () => void;
+  /** <best_draft>: the starting XI and armbands to put in place. */
+  onBestDraft: (picks: DraftPicks) => void;
   /** A rejected drag/drop shows its reason here briefly (e.g. a club-limit breach). */
   warning: string | null;
   /** False before any squad exists: the whole tile is greyed out and nothing on it can be used, so no player can be added until New Squad makes one. */
@@ -402,13 +382,26 @@ export function SquadPitch({
   const [benchDragOver, setBenchDragOver] = useState(false);
   // Per page, like every other view switch (<kit_view>).
   const [view, setView] = useState<KitView>("points");
-  const [pointsSource, setPointsSource] = useState<ProjectionSource>("fpl");
+  const [pointsSource, setPointsSource] = useState<PointsSource>("fpl");
+  const [priceView, setPriceView] = useState<PriceView>("current");
   // With no squad the tile is inert: greyed out, and nothing on it can be
   // clicked, focused or dropped on. React 18 has no `inert` prop.
   const rootRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     rootRef.current?.toggleAttribute("inert", !hasSquad);
   }, [hasSquad]);
+
+  // <best_draft>: every squad player's figure for the gameweek shown, from Points Prediction's source.
+  const starters = COMPOSITION_ORDER.flatMap((pos) => positionGroups[pos]);
+  const candidates = [...starters, ...benchPlayers].map((p) => {
+    const g = expectationByPlayerId.get(p.id) ?? null;
+    return { id: p.id, position: p.position, points: g?.[pointsSource] ?? null, playing: (g?.fixtures.length ?? 0) > 0 };
+  });
+  const draftBlocker = gameweek === null ? "No gameweek left to pick for this season" : bestDraftBlocker(candidates);
+  const handleBestDraft = () => {
+    const picks = bestDraft(candidates, { startingXI: starters.map((p) => p.id), captainId, viceCaptainId });
+    if (picks) onBestDraft(picks);
+  };
 
   const card = (p: NormalizedPlayer, zone: "pitch" | "bench") => (
     <PlayerCard
@@ -417,11 +410,13 @@ export function SquadPitch({
       zone={zone}
       view={view}
       pointsSource={pointsSource}
+      priceView={priceView}
       isCaptain={zone === "pitch" && p.id === captainId}
       isViceCaptain={zone === "pitch" && p.id === viceCaptainId}
       isPickable={zone === "pitch" && captainPickMode !== null}
-      nextGameweek={nextGameweekByPlayerId.get(p.id) ?? null}
-      reliability={reliabilityByPlayerId.get(p.id) ?? null}
+      gameweek={expectationByPlayerId.get(p.id) ?? null}
+      purchasePrice={purchasePrices[p.id] ?? null}
+      purchaseUnknownHint={purchaseUnknownHint}
       ranks={pitchCardRanks(colourRanks, p.id)}
       fixtures={fixturesByTeamId.get(p.teamId) ?? []}
       onDropOnCard={onSwap}
@@ -437,7 +432,7 @@ export function SquadPitch({
   ]);
 
   // Three rows above the pitch: the squad's name with its actions, then
-  // its figures, then what the kits highlight.
+  // its figures, then the gameweek and what the kits highlight.
   return (
     <div className={`squad-pitch${hasSquad ? "" : " is-disabled"}`} ref={rootRef} aria-disabled={!hasSquad || undefined}>
       <div className="pitch-view-header">
@@ -466,24 +461,34 @@ export function SquadPitch({
           <button type="button" className="btn" onClick={onClearSquad} title={`Remove every player from ${squadName || "this squad"}`}>
             Clear Draft
           </button>
+          <button
+            type="button"
+            className="btn"
+            onClick={handleBestDraft}
+            disabled={draftBlocker !== null}
+            title={draftBlocker ?? `Pick the starting XI, captain and vice-captain with the most Exp. Pts (${SOURCE_NAME[pointsSource]}) in GW${gameweek}, in a formation FPL allows`}
+          >
+            Best Draft
+          </button>
         </div>
       </div>
-      <SquadTiles
-        validation={squadValidation}
-        positionGroups={positionGroups}
-        budgetHint={budgetHint}
-        captainId={captainId}
-        gameweeks={gameweeks}
-        projectionByPlayerId={projectionByPlayerId}
-      />
+      <SquadTiles validation={squadValidation} budgetHint={budgetHint} />
       {squadValidation.clubViolations.length > 0 && (
         <div className="banner error">
           Over {SQUAD_RULES.maxPerClub} from one club: {squadValidation.clubViolations.map((v) => `${v.teamName} ${v.count}/${SQUAD_RULES.maxPerClub}`).join(", ")}
         </div>
       )}
       <div className="pitch-controls">
+        <GameweekArrows
+          label="Gameweek"
+          gameweeks={gameweeks}
+          value={gameweek}
+          onChange={onGameweekChange}
+          describe={(eventId) => `Points Prediction, Minutes and Best Draft are for GW${eventId}`}
+        />
         <SegmentedControl label="Highlight" options={KIT_VIEW_OPTIONS} value={view} onChange={setView} />
         {view === "points" && <SegmentedControl label="Source" options={SOURCE_OPTIONS} value={pointsSource} onChange={setPointsSource} />}
+        {view === "price" && <SegmentedControl label="Price" options={PRICE_VIEW_OPTIONS} value={priceView} onChange={setPriceView} />}
       </div>
       {warning && <div className="banner error">{warning}</div>}
 

@@ -1083,30 +1083,7 @@ select:focus {
 .pitch-view-tiles > .stat-tile {
   min-width: 110px;
 }
-/* <squad_projection>: "Projected" and its FPL/Model toggle, over one
-   figure per match (GW+1 to GW+5), each its own total. */
-.pitch-projected-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-.pitch-projected-matches {
-  display: flex;
-  gap: var(--space-4);
-}
-.pitch-projected-match {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 44px;
-}
-.pitch-projected-gw {
-  font-size: 10px;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-/* What the kits highlight, and Points Prediction's source. */
+/* The gameweek, what the kits highlight, and Points Prediction's source or Price's choice. */
 .pitch-controls {
   display: flex;
   flex-wrap: wrap;
@@ -1599,19 +1576,34 @@ select:focus {
 .segmented.icon-only {
   align-self: flex-start;
 }
-/* Inside a tile's label row (the Projected tile's FPL/Model toggle). */
-.segmented.compact {
-  gap: 2px;
-  padding: 2px;
-}
-.segmented.compact .segmented-option {
-  padding: 1px 6px;
-  font-size: 11px;
-}
 .segmented.icon-only .segmented-option {
   flex: 0 0 auto;
   width: 36px;
   padding: 5px 0;
+}
+
+/* <gameweek_arrows>: ‹ GW10 › — the segmented bar's look, with the
+   gameweek between two arrow segments. */
+.segmented.gameweek-arrows {
+  align-items: center;
+  align-self: flex-start;
+}
+.segmented.gameweek-arrows .gameweek-arrow {
+  flex: 0 0 auto;
+  width: 30px;
+  padding: 5px 0;
+}
+.segmented.gameweek-arrows .gameweek-arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+  background: transparent;
+}
+.gameweek-arrows-value {
+  min-width: 48px;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 /* Group heading over a list of options: icon, name, hairline to the edge —

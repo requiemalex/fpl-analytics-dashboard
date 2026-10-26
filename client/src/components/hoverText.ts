@@ -137,6 +137,17 @@ export function modelGameweekHint(g: GameweekExpectation | null, captain = false
   return g.modelBreakdowns.map((b, i) => modelBreakdownHint(b, g.fixtures[i], captain)).join("\n");
 }
 
+/** <expected_minutes> for one gameweek: "About 78 minutes expected in GW9 v BUR (H): 88% chance of starting"; a double gives each match's on its own line. */
+export function minutesGameweekHint(g: GameweekExpectation | null): string {
+  const gap = gameweekGapHint(g);
+  if (gap || g === null) return gap ?? "";
+  if (g.modelBreakdowns === null || g.expectedMinutes === null) return "Scoutline's model has no figure: it needs his availability news, his matches this season and both clubs' records, and one of them isn't there";
+  const head = `About ${Math.round(g.expectedMinutes)} minutes expected in GW${g.eventId}`;
+  const [only] = g.modelBreakdowns;
+  if (g.modelBreakdowns.length === 1) return `${head}${versusText(g.fixtures[0])}: ${fmtPercent(only.startChance * 100, 0)} chance of starting`;
+  return [head, ...g.modelBreakdowns.map((b, i) => `${versusText(g.fixtures[i]).trim()}: about ${Math.round(b.expectedMinutes)}, ${fmtPercent(b.startChance * 100, 0)} chance of starting`)].join("\n");
+}
+
 /** A stat column's header hover: what it is, then the one thing about it worth knowing here. */
 export function columnHint(
   label: string,

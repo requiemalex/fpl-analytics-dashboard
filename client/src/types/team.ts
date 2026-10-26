@@ -42,6 +42,14 @@ export interface SavedSquad {
   startingXI: number[];
   captainId: number | null;
   viceCaptainId: number | null;
+  /**
+   * <purchase_prices>: £m paid for each player, by id — for an import,
+   * what the team really paid (importedPurchasePrices,
+   * metrics/squadPrices.ts); for a player added in Scoutline, his price
+   * the day he was added. A player with none (FPL's public data doesn't
+   * have it, or the squad was saved before these were kept) shows "—".
+   */
+  purchasePrices: Record<number, number>;
   /** Chips already spent, from an FPL import. Empty for a squad built from scratch. Stored, but no page shows it at the moment. */
   usedChips: UsedChip[];
   /** Set when this squad was loaded from a real FPL team ID rather than built from scratch — its own bank/value at the time of import, and which team ID/gameweek it came from, purely for display ("Loaded from Team 1234567, GW3") and re-sync. Null for a from-scratch squad. */
@@ -79,6 +87,7 @@ export function createBlankSquad(name: string): SavedSquad {
     startingXI: [],
     captainId: null,
     viceCaptainId: null,
+    purchasePrices: {},
     usedChips: [],
     importedFrom: null,
   };

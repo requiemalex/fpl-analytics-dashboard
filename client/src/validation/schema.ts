@@ -468,6 +468,19 @@ export const entryPicksSchema = z
   })
   .passthrough();
 
+export const entryTransfersSchema = z.array(
+  z
+    .object({
+      element_in: z.number(),
+      element_in_cost: z.number(),
+      element_out: z.number(),
+      element_out_cost: z.number(),
+      event: z.number(),
+      time: z.string().optional(),
+    })
+    .passthrough(),
+);
+
 export class SchemaValidationError extends Error {
   context: string;
   issues: z.ZodIssue[];

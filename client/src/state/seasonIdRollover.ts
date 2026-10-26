@@ -12,6 +12,8 @@
  * in every store at once:
  *  - a player or club no longer in FPL is dropped from lists; a squad's
  *    armband on such a player is cleared;
+ *  - a squad's purchase prices (<purchase_prices>) are dropped: they were
+ *    paid at last season's prices, which FPL resets for the new one;
  *  - a tile or graph filtered to a club no longer in FPL falls back to all
  *    clubs, and its name says so, so the change is visible, not silent;
  *  - a tile or graph whose tracked players (or clubs) have all left keeps
@@ -130,6 +132,7 @@ function remapSquad(raw: unknown, player: Translate, counts: { players: { n: num
   for (const key of ["captainId", "viceCaptainId"] as const) {
     if (typeof squad[key] === "number") squad[key] = player(squad[key] as number);
   }
+  if ("purchasePrices" in squad) squad.purchasePrices = {};
   return squad;
 }
 

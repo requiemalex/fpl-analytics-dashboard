@@ -344,7 +344,7 @@ export function UserGuide() {
           the number after <code>/entry/</code> in the web address (e.g. fantasy.premierleague.com/entry/1234567/event/8). Hover
           "FPL team ID" on the page for the same tip.
           Importing reads FPL's public data for that team, chip history included; no login, nothing written back. The squad's own
-          buttons (Captain, Vice-Captain, Clear Draft, Delete) work once a squad is loaded; until then the Squad tile is greyed out
+          buttons (Captain, Vice-Captain, Clear Draft, Best Draft, Delete) work once a squad is loaded; until then the Squad tile is greyed out
           and no players can be added. Up to 5 squads can be saved; <strong>Delete</strong> asks you to confirm the name
           first (no undo).
         </p>
@@ -354,30 +354,43 @@ export function UserGuide() {
             the bench. The <strong>pitch</strong> is drag-and-drop: drag a player from Add Players onto the pitch or bench, or one
             card onto another to swap. Click a name for the profile; click <strong>Captain</strong>/<strong>Vice-Captain</strong>,
             then a starter, to assign it (the C or V badge sits at the shirt's top left); <strong>Clear Draft</strong> empties the
-            squad after you confirm (no undo). A saved player FPL no longer lists is named in a
+            squad after you confirm (no undo). <strong>Best Draft</strong> picks the starting XI, captain and vice-captain with
+            the most Expected Points for the gameweek shown above the pitch, in a formation FPL allows, from FPL's figure or the
+            Model's (whichever Points Prediction's toggle is on; hover the button to check). It needs enough players for a legal XI,
+            and saves one XI for the squad, not one per gameweek. A saved player FPL no longer lists is named in a
             banner above the pitch, with a bin to remove him. Hover a card for its remove button.
           </li>
           <li>
             Each player wears his club's kit in its colours (a goalkeeper's are swapped). Under it, <strong>Highlight</strong>{" "}
-            picks the one figure each card shows: price, ownership, minutes reliability or <strong>Points Prediction</strong> (his
-            Expected Points for his next match, doubled for the captain, with a toggle for FPL's figure or the Model's).{" "}
-            <strong>Fixtures</strong> shows his next five matches instead, coloured by FPL difficulty.
+            picks the one figure each card shows: <strong>Price</strong>, ownership, <strong>Minutes</strong> (his expected
+            minutes) or <strong>Points Prediction</strong> (his Expected Points, doubled for the captain, with a toggle for FPL's
+            figure or the Model's). Minutes and Points Prediction are for the gameweek the <strong>‹ ›</strong> arrows beside
+            Highlight pick. <strong>Fixtures</strong> shows his next five matches instead, coloured by FPL difficulty.
+          </li>
+          <li>
+            Price has its own toggle: <strong>Current</strong> (today's price), <strong>Sell</strong> (what FPL would pay you
+            for him: what you paid plus half of any rise, rounded down to £0.1m, or today's price if he's fallen),{" "}
+            <strong>Purchase</strong> (what he cost) and <strong>Change</strong> (▲ rising or ▼ falling since the last gameweek
+            deadline). A player you add here is bought at that day's price. An imported team's prices come from its transfers on
+            FPL; for a team that joined after GW1, what it paid for the players it started with isn't public, so those show "—".
           </li>
           <li>
             Every place the squad still has to fill is a <strong>+</strong>, on the pitch first (in a legal shape, 4-4-2 for an
             empty squad) and then on the bench. Click one to list that position in Add Players, or drag a player onto it.
           </li>
           <li>
-            Expected Points are by real gameweek, labelled with FPL's own numbers (GW9, GW10…) and starting at the next gameweek
-            you can still pick for (the one FPL's own estimate is for): once a deadline passes, the labels move on by themselves.
-            A double gameweek's two matches are added up; a club with a blank gameweek has no match in it, shown as "—". Near
-            the end of the season only the gameweeks left are shown. The pitch cards are for the next gameweek; Add Players'
-            Expected Points columns are for the gameweek picked beside its Data View picker.
+            Expected Points and expected minutes are by real gameweek, labelled with FPL's own numbers (GW9, GW10…) and
+            starting at the next gameweek you can still pick for (the one FPL's own estimate is for): once a deadline passes, the
+            labels move on by themselves. Step through the next five with the <strong>‹ ›</strong> arrows: the pitch has its own,
+            and so does Add Players (beside its Data View picker); each moves only its own figures. A double gameweek's two
+            matches are added up; a club with a blank gameweek has no match in it, shown as "—". Near the end of the season only
+            the gameweeks left are shown.
           </li>
           <li>
-            <strong>Minutes reliability</strong> is how much a player is likely to play, from his minutes alone (this season and
-            the last four, recent seasons counting more), times his availability. How many managers own him plays no part.
-            FPL's availability is for the next round only, so a one-match ban shows as 0 across all five gameweeks.
+            <strong>Expected minutes</strong> come from the Model: how often he's been starting this season (his recent matches
+            counting most), last season, whether he's just back from an absence, managers selling him on team news, FPL's
+            injury and suspension news, and how long he usually stays on. A rival for his place shows up only through his own
+            starts. FPL's availability is for the next round only, so a one-match ban shows as 0 across all five gameweeks.
           </li>
           <li>
             Two Expected Points figures, never blended: <strong>FPL Official</strong> is FPL's own <code>ep_next</code> prediction
@@ -392,19 +405,15 @@ export function UserGuide() {
             allowed for managers selling him.
           </li>
           <li>
-            Above the pitch: the squad's name with its buttons, then Squad Value, Bank and <strong>Projected Team Points</strong>.
-            It shows the starting XI's Expected Points for each of the next five gameweeks separately (the captain's
-            doubled, the bench isn't counted), from FPL or the Model as its toggle picks. A starter with no figure for a gameweek
-            is left out rather than counted as 0, and one whose club blanks has nothing to add; the hover says so. A club-limit breach shows as a
-            banner. A squad built from
-            scratch has FPL's £100m; an imported one has its own: its players at today's prices when you imported it, plus its money
-            in the bank, so an unchanged import shows exactly that bank left (FPL's own selling prices need your login, so a player
-            who has risen counts at today's price; hover the budget for its make-up). Going over turns the budget red and says how
+            Above the pitch: the squad's name with its buttons, then Squad Value and Bank. A club-limit breach shows as a banner.
+            A squad built from scratch has FPL's £100m; an imported one has its own: its players at today's prices when you
+            imported it, plus its money in the bank, so an unchanged import shows exactly that bank left (a player who has risen
+            counts at today's price, not his selling price; hover the budget for its make-up). Going over turns the budget red and says how
             far over, but never stops you adding a player.
           </li>
           <li>
             The <strong>Add Players</strong> table has Player Explorer's toolkit, in two groups either side of a divider:{" "}
-            <strong>Predictive</strong> (the Expected Points columns, Minutes Reliability, a fixture ticker) and{" "}
+            <strong>Predictive</strong> (the Expected Points columns, Exp. Mins, a fixture ticker) and{" "}
             <strong>Historic/Raw</strong> (with its own mode toggle). Price and club limits always use today's price and club.
           </li>
         </ul>

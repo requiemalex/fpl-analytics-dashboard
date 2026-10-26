@@ -11,22 +11,23 @@ import { percentileTint } from "../utils/colorScale";
 // ranked within his position among every player — never only the rows the
 // filters, search or squad leave — and no colour under the fixed floor.
 
-// 10 played, so Minutes Reliability (live minutes over the club's games) has a figure.
-const TEAMS = [makeTeam({ id: 1, shortName: "ARS", played: 10 })];
+// One upcoming match (GW1 v CHE), so the forward-looking Exp. Pts has a figure.
+const TEAMS = [makeTeam({ id: 1, shortName: "ARS", played: 10 }), makeTeam({ id: 2, shortName: "CHE", played: 10 })];
 const PLAYERS = [
-  makePlayer({ id: 1, name: "Saka", position: "MID", teamId: 1, teamShortName: "ARS", minutes: 900, goals: 6 }),
-  makePlayer({ id: 2, name: "Rice", position: "MID", teamId: 1, teamShortName: "ARS", minutes: 900, goals: 2 }),
-  makePlayer({ id: 3, name: "Odegaard", position: "MID", teamId: 1, teamShortName: "ARS", minutes: 900, goals: 1 }),
-  makePlayer({ id: 4, name: "Nwaneri", position: "MID", teamId: 1, teamShortName: "ARS", minutes: 60, goals: 3 }),
+  makePlayer({ id: 1, name: "Saka", position: "MID", teamId: 1, teamShortName: "ARS", minutes: 900, goals: 6, epNext: 5 }),
+  makePlayer({ id: 2, name: "Rice", position: "MID", teamId: 1, teamShortName: "ARS", minutes: 900, goals: 2, epNext: 4 }),
+  makePlayer({ id: 3, name: "Odegaard", position: "MID", teamId: 1, teamShortName: "ARS", minutes: 900, goals: 1, epNext: 3 }),
+  makePlayer({ id: 4, name: "Nwaneri", position: "MID", teamId: 1, teamShortName: "ARS", minutes: 60, goals: 3, epNext: 2 }),
 ];
+const FIXTURES = [{ id: 1, eventId: 1, homeTeamId: 1, awayTeamId: 2, homeScore: null, awayScore: null, kickoffTime: null, finished: false, started: false, homeDifficulty: 3, awayDifficulty: 3 }];
 
 vi.mock("../state/AppStateContext", () => ({
   useAppState: () => ({
     players: PLAYERS,
     teams: TEAMS,
     teamsById: new Map(TEAMS.map((t) => [t.id, t])),
-    fixtures: [],
-    events: [],
+    fixtures: FIXTURES,
+    events: [{ id: 1, isNext: true }],
     historicProfiles: new Map(),
     clubSeasons: [],
     historicReferenceSeason: null,
@@ -89,10 +90,10 @@ describe("Team Building — Add Players comparative colouring", () => {
     expect(goalsCell(container, "Nwaneri")!.style.backgroundColor).toBe("");
   });
 
-  it("M20: a forward-looking column has no minutes floor — the cameo's Minutes Reliability is coloured though his Goals aren't; his row carries the amber stopwatch", () => {
+  it("M20: a forward-looking column has no minutes floor — the cameo's Exp. Pts is coloured though his Goals aren't; his row carries the amber stopwatch", () => {
     const { container } = renderBuilder();
     const headers = Array.from(container.querySelectorAll<HTMLElement>("table.data-table.compact thead th"));
-    const index = headers.findIndex((th) => th.childNodes[0]?.textContent?.trim() === "Minutes Reliability");
+    const index = headers.findIndex((th) => th.childNodes[0]?.textContent?.trim() === "Exp. Pts (FPL Official)");
     const row = Array.from(container.querySelectorAll("table.data-table.compact tbody tr")).find((tr) => tr.querySelector(".name")?.textContent?.trim() === "Nwaneri")!;
     expect(index).toBeGreaterThan(0);
     expect(row.querySelectorAll<HTMLElement>("td")[index].style.backgroundColor).not.toBe("");

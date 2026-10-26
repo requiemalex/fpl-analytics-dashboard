@@ -27,7 +27,7 @@ import { buildSamples, POSITIONS, ROOT, rulesForSeason, type Sample } from "./hi
 import { computeExpectedPointsV2ForFixture } from "./legacyModel";
 import { predictMatch, type ModelBreakdown, type ModelParams } from "../../src/metrics/pointsModel";
 import { MODEL_PARAMS } from "../../src/metrics/pointsModelParams.generated";
-import { computeBlendedMinutesReliability } from "../../src/metrics/minutesReliabilityBlend";
+import { computeBlendedMinutesReliability } from "./legacyMinutesReliability";
 import { buildHistoricPlayerProfile } from "../../src/metrics/historicAnalysis";
 import type { NormalizedPlayer, NormalizedTeam, PlayerSeasonHistory, Position } from "../../src/types/normalized";
 import type { UpcomingFixture } from "../../src/metrics/fixtureTicker";

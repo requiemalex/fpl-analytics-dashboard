@@ -7,9 +7,10 @@ import { makePlayer, makeTeam } from "../test/fixtures";
 import { saveVersioned } from "../state/persistentStorage";
 import type { NormalizedFixture } from "../types/normalized";
 
-// Add Players' own gameweek picker (<upcoming_gameweeks>, labelled GW1,
-// GW2… by FPL's numbering): it moves the table's Exp. Pts columns only.
-// The pitch cards stay on the next gameweek, and so do their colours.
+// Add Players' and the pitch's own gameweek arrows (<gameweek_arrows>,
+// GW1, GW2… by FPL's numbering): each moves only its own figures. The
+// table's move its Exp. Pts columns; the pitch's move the cards, and
+// their colours, which rank the pitch's gameweek among every player.
 
 const TEAMS = [1, 2, 3, 4].map((id) => makeTeam({ id, shortName: ["ARS", "CHE", "BUR", "WOL"][id - 1], played: 10 }));
 // FPL's ep_next 5 for Saka, 4 for the Chelsea pair: Saka is top at GW+1.
@@ -74,35 +75,63 @@ function card(container: HTMLElement, name: string): HTMLElement {
   return Array.from(container.querySelectorAll<HTMLElement>(".pitch .pitch-card")).find((c) => c.querySelector(".pitch-card-name")?.textContent?.includes(name))!.querySelector<HTMLElement>(".pitch-card-figure")!;
 }
 
-describe("Team Building — Add Players' gameweek picker", () => {
-  it("moves the table's Exp. Pts to the picked gameweek; the pitch cards, and their colours, stay on the next one", () => {
-    const { container, getByRole } = render(
-      <MemoryRouter initialEntries={["/team-building"]}>
-        <TeamBuilder />
-      </MemoryRouter>,
-    );
+/** The pitch's arrows, or the table's (the ones outside the pitch). */
+function arrows(container: HTMLElement, which: "pitch" | "table") {
+  const groups = Array.from(container.querySelectorAll<HTMLElement>(".gameweek-arrows"));
+  const group = groups.find((g) => (g.closest(".squad-pitch") !== null) === (which === "pitch"))!;
+  return {
+    shown: () => group.querySelector(".gameweek-arrows-value")!.textContent,
+    next: () => fireEvent.click(group.querySelector<HTMLElement>('[aria-label="Next gameweek"]')!),
+  };
+}
+
+function renderBuilder() {
+  return render(
+    <MemoryRouter initialEntries={["/team-building"]}>
+      <TeamBuilder />
+    </MemoryRouter>,
+  );
+}
+
+describe("Team Building — the gameweek arrows", () => {
+  it("the table's move its Exp. Pts to the picked gameweek; the pitch cards, and their colours, stay where the pitch's arrows are", () => {
+    const { container } = renderBuilder();
     expect(fplCell(container, "Enzo")!.textContent).toBe("4.0");
     const sakaBefore = { text: card(container, "Saka").textContent, colour: card(container, "Saka").style.backgroundColor };
     const palmerColour = card(container, "Palmer").style.backgroundColor;
     expect(sakaBefore.text).toBe("5.0");
     expect(sakaBefore.colour).not.toBe(palmerColour);
 
-    expect([...getByRole("radio", { name: /Gameweek 1/ }).parentElement!.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["GW1", "GW2", "GW3"]);
-    fireEvent.click(getByRole("radio", { name: /Gameweek 2/ }));
+    const table = arrows(container, "table");
+    expect(table.shown()).toBe("GW1");
+    table.next();
+    expect(table.shown()).toBe("GW2");
 
     expect(fplCell(container, "Enzo")!.textContent).toBe("4.8");
+    expect(arrows(container, "pitch").shown()).toBe("GW1");
     expect(card(container, "Saka").textContent).toBe(sakaBefore.text);
     expect(card(container, "Saka").style.backgroundColor).toBe(sakaBefore.colour);
     expect(card(container, "Palmer").style.backgroundColor).toBe(palmerColour);
   });
 
+  it("the pitch's move the cards and their colours; the table stays", () => {
+    const { container } = renderBuilder();
+    const sakaColour = card(container, "Saka").style.backgroundColor;
+    arrows(container, "pitch").next();
+    // GW2: Arsenal FDR 5 (5 × 0.8), Chelsea FDR 1 (4 × 1.2). Saka is no longer the top midfielder.
+    expect(card(container, "Saka").textContent).toBe("4.0");
+    expect(card(container, "Palmer").textContent).toBe("4.8");
+    expect(card(container, "Saka").style.backgroundColor).not.toBe(sakaColour);
+    expect(arrows(container, "table").shown()).toBe("GW1");
+    expect(fplCell(container, "Enzo")!.textContent).toBe("4.0");
+  });
+
   it("adds up a double gameweek's two matches, and shows a blank as no match", () => {
-    const { container, getByRole } = render(
-      <MemoryRouter initialEntries={["/team-building"]}>
-        <TeamBuilder />
-      </MemoryRouter>,
-    );
-    fireEvent.click(getByRole("radio", { name: /Gameweek 3/ }));
+    const { container } = renderBuilder();
+    const table = arrows(container, "table");
+    table.next();
+    table.next();
+    expect(table.shown()).toBe("GW3");
     expect(fplCell(container, "Enzo")!.textContent).toBe("8.0");
     expect(fplCell(container, "Enzo")!.title).toContain("FPL's expected points for GW3 v BUR (H) and v WOL (A)");
     expect(fplCell(container, "Odegaard")!.textContent).toBe("—");

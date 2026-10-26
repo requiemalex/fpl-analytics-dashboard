@@ -457,6 +457,19 @@ export interface RawEntryPicks {
   picks?: RawEntryPick[];
 }
 
+/** One transfer from entry/{id}/transfers/ (checked live 2026-10-26). Free Hit transfers are listed too. */
+export interface RawEntryTransfer {
+  element_in: number;
+  /** £0.1m units: what the team paid. */
+  element_in_cost: number;
+  element_out: number;
+  /** £0.1m units: what FPL paid the team for the player sold (his selling price). */
+  element_out_cost: number;
+  event: number;
+  /** ISO time it was made; orders transfers within a gameweek. */
+  time?: string;
+}
+
 export interface ApiEnvelope<T> {
   data: T;
   meta: {

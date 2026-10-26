@@ -1,8 +1,9 @@
-import type { RawEntryTeam, RawEntryHistory, RawEntryPicks } from "../types/raw";
+import type { RawEntryTeam, RawEntryHistory, RawEntryPicks, RawEntryTransfer } from "../types/raw";
 import type { NormalizedPlayer, ChipWindow } from "../types/normalized";
 import type { SavedSquad, UsedChip } from "../types/team";
 import { createBlankSquad } from "../types/team";
 import { KNOWN_CHIPS } from "./normalizeChips";
+import { importedPurchasePrices } from "../metrics/squadPrices";
 
 export interface EntryImportResult {
   squad: SavedSquad;
@@ -12,10 +13,9 @@ export interface EntryImportResult {
 
 /**
  * <imported_budget>: the squad's players at today's prices plus the bank,
- * in £m, rounded to £0.1m as FPL prices are. FPL's own selling prices
- * (which keep only half of a rise) need the manager's login, so today's
- * prices are the nearest public figure, and the same prices Team Building
- * costs every other player at. Null unless every pick matched a current
+ * in £m, rounded to £0.1m as FPL prices are: the same prices Team Building
+ * costs every other player at, not the selling prices (which keep only
+ * half of a rise; <selling_price>) the Price highlight can show. Null unless every pick matched a current
  * player and FPL sent the bank: a partial total would understate it.
  */
 function importedBudget(playerIds: number[], pickCount: number, bankTenths: number | null, livePlayersById: Map<number, NormalizedPlayer>): number | null {
@@ -29,7 +29,9 @@ function importedBudget(playerIds: number[], pickCount: number, bankTenths: numb
  * chip-usage history, and their real team identity — all three already
  * fetched and schema-validated by the caller (see api/client.ts). Never
  * throws on a single bad pick or an unrecognised chip name; those become
- * warnings so the rest of a mostly-good import still lands.
+ * warnings so the rest of a mostly-good import still lands. With its
+ * transfers (and its picks in the gameweek it started), each player's
+ * purchase price too (<purchase_prices>); without, none.
  */
 export function normalizeEntryImport(
   team: RawEntryTeam,
@@ -37,6 +39,7 @@ export function normalizeEntryImport(
   picks: RawEntryPicks,
   eventId: number,
   livePlayersById: Map<number, NormalizedPlayer>,
+  purchases?: { transfers: RawEntryTransfer[]; startPicks: RawEntryPicks | null },
 ): EntryImportResult {
   const warnings: string[] = [];
   const squad = createBlankSquad(team.name?.trim() || `Imported Team ${team.id}`);
@@ -92,6 +95,20 @@ export function normalizeEntryImport(
     bank: bankTenths === null ? null : bankTenths / 10,
     budget: importedBudget(squad.playerIds, rawPicks.length, bankTenths, livePlayersById),
   };
+
+  if (purchases) {
+    const startedEvent = team.started_event ?? null;
+    squad.purchasePrices = importedPurchasePrices({
+      squadIds: squad.playerIds,
+      eventId,
+      startedEvent,
+      startIds: purchases.startPicks?.picks?.map((p) => p.element) ?? null,
+      startBankTenths: (history.current ?? []).find((gw) => gw.event === startedEvent)?.bank ?? null,
+      transfers: purchases.transfers,
+      freeHitEvents: (history.chips ?? []).filter((c) => c.name.toLowerCase() === "freehit").map((c) => c.event),
+      livePlayersById,
+    });
+  }
 
   return { squad, warnings };
 }

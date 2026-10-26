@@ -2,7 +2,7 @@ import type { ClubSeason, NormalizedPlayer, PlayerSeasonHistory, SeasonMatch } f
 import type { HistoricPlayerProfile } from "./historicAnalysis";
 import type { UpcomingFixture } from "./fixtureTicker";
 import { fitClubRatings, forecastNow, type ClubRatings } from "./fixtureForecast";
-import { availabilityModifier } from "./minutesReliabilityBlend";
+import { availabilityModifier } from "./availability";
 import { fixtureOutlook, predictMatch, type ModelBreakdown, type PastSeason, type PlayerEvidence, type SeasonTotals, type TransferWindow } from "./pointsModel";
 import { MODEL_PARAMS } from "./pointsModelParams.generated";
 import { seasonStartYear } from "../utils/season";

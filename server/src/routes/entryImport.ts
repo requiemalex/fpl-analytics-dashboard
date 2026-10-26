@@ -8,7 +8,8 @@ import { CACHE_TTL_MS, FPL_BASE_URL } from "../config.js";
  * the actual 2026/27 API (see README): entry/{id}/ for team identity plus
  * bank/squad value, entry/{id}/history/ for the chips-used record and
  * per-gameweek bank/value/transfers, entry/{id}/event/{event}/picks/ for
- * one gameweek's actual 15 picks. Unlike bootstrap-static and fixtures,
+ * one gameweek's actual 15 picks, entry/{id}/transfers/ for what each
+ * player was bought for (purchase and selling prices). Unlike bootstrap-static and fixtures,
  * the picks shape specifically was cross-checked against several
  * independent community write-ups rather than fetched directly inside
  * this build environment — see the client-side parsing in
@@ -50,6 +51,12 @@ entryImportRouter.get("/entry/:teamId/history", async (req, res) => {
   const { teamId } = req.params;
   if (!isValidId(teamId)) return res.status(400).json({ error: "Invalid team ID" });
   respond(res, await handle(`/entry/${teamId}/history/`, `entry-history:${teamId}`, false));
+});
+
+entryImportRouter.get("/entry/:teamId/transfers", async (req, res) => {
+  const { teamId } = req.params;
+  if (!isValidId(teamId)) return res.status(400).json({ error: "Invalid team ID" });
+  respond(res, await handle(`/entry/${teamId}/transfers/`, `entry-transfers:${teamId}`, false));
 });
 
 entryImportRouter.get("/entry/:teamId/event/:eventId/picks", async (req, res) => {

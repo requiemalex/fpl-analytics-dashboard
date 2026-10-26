@@ -1,11 +1,13 @@
 import React, { useId, useLayoutEffect, useRef, useState } from "react";
+import { ChevronIcon } from "./IconToolbar";
+import { DASH } from "../utils/format";
 
 /**
  * The building blocks every dialog and column menu is made from, so they
  * all read as one set: a segmented picker for a short list of choices, a
  * group heading (icon, name, hairline — a smaller SectionHeading) over a
- * list of options, a selection meter for a capped multi-pick, and a Min
- * Minutes slider. Selected states use the same green as `.chip.active`.
+ * list of options, a selection meter for a capped multi-pick, gameweek
+ * arrows, and a Min Minutes slider. Selected states use the same green as `.chip.active`.
  */
 
 export interface SegmentOption<T extends string> {
@@ -23,14 +25,11 @@ export function SegmentedControl<T extends string>({
   options,
   value,
   onChange,
-  compact = false,
 }: {
   label?: string;
   options: SegmentOption<T>[];
   value: T;
   onChange: (value: T) => void;
-  /** Smaller segments, to sit inside a tile's label row (the Projected tile). */
-  compact?: boolean;
 }) {
   const labelId = useId();
   const iconOnly = options.every((o) => !o.label);
@@ -41,7 +40,7 @@ export function SegmentedControl<T extends string>({
           {label}
         </span>
       )}
-      <div className={`segmented${iconOnly ? " icon-only" : ""}${compact ? " compact" : ""}`} role="radiogroup" aria-labelledby={label ? labelId : undefined}>
+      <div className={`segmented${iconOnly ? " icon-only" : ""}`} role="radiogroup" aria-labelledby={label ? labelId : undefined}>
         {options.map((o) => {
           const on = o.value === value;
           const name = o.title ?? o.label;
@@ -61,6 +60,68 @@ export function SegmentedControl<T extends string>({
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * <gameweek_arrows>: one gameweek at a time, stepped through with ‹ and ›
+ * (Team Building's pitch and its Add Players table), over the gameweeks
+ * given, by FPL's own numbering. "—" with none left this season.
+ */
+export function GameweekArrows({
+  label,
+  gameweeks,
+  value,
+  onChange,
+  describe,
+}: {
+  /** Shown above the arrows; without one, "Gameweek" is still their accessible name. */
+  label?: string;
+  gameweeks: number[];
+  value: number | null;
+  onChange: (eventId: number) => void;
+  /** Hover text for the gameweek shown: what it's for. */
+  describe: (eventId: number) => string;
+}) {
+  const labelId = useId();
+  const index = value === null ? -1 : gameweeks.indexOf(value);
+  const step = (by: number) => {
+    const next = gameweeks[index + by];
+    if (next !== undefined) onChange(next);
+  };
+  return (
+    <div className="field">
+      {label && (
+        <span className="field-label" id={labelId}>
+          {label}
+        </span>
+      )}
+      <div className="segmented gameweek-arrows" role="group" aria-labelledby={label ? labelId : undefined} aria-label={label ? undefined : "Gameweek"}>
+        <button
+          type="button"
+          className="segmented-option gameweek-arrow"
+          disabled={index <= 0}
+          onClick={() => step(-1)}
+          title={index > 0 ? `Back to GW${gameweeks[index - 1]}` : "No earlier gameweek to pick"}
+          aria-label="Previous gameweek"
+        >
+          <ChevronIcon direction="left" />
+        </button>
+        <span className="gameweek-arrows-value num" title={value === null ? "No gameweek left to pick for this season" : describe(value)} aria-live="polite">
+          {value === null ? DASH : `GW${value}`}
+        </span>
+        <button
+          type="button"
+          className="segmented-option gameweek-arrow"
+          disabled={index === -1 || index >= gameweeks.length - 1}
+          onClick={() => step(1)}
+          title={index !== -1 && index < gameweeks.length - 1 ? `On to GW${gameweeks[index + 1]}` : "No later gameweek to pick"}
+          aria-label="Next gameweek"
+        >
+          <ChevronIcon direction="right" />
+        </button>
       </div>
     </div>
   );

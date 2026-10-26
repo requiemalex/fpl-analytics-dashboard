@@ -107,7 +107,7 @@ Dropped fixtures and club-seasons are counted (`skippedRecordCounts`, in the
 User Guide's data health) and logged; a broken top-level shape is still
 fatal. Validation adds no defaults that would invent a figure: a missing
 `ep_next` is unknown, not 0 points; a missing `status` is unknown, not
-available (Minutes Reliability is then `null`); an imported squad with no
+available (Model Predicted then has no figure); an imported squad with no
 bank has bank `null`, not £0.0m.
 
 **Display errors** (`<crash_screen>`, `components/ErrorBoundary.tsx`). A
@@ -161,7 +161,7 @@ User Guide (`/guide`), plus the player and team profile overlays.
 | `fixtures/` | Fixtures and FDR | 10 min |
 | `element-summary/{id}/` | One player's gameweek history — fetched lazily when a profile opens | 30 min |
 | `historic-bulk` (app's own) | Every player's `history_past` plus this season's club data, built server-side from hundreds of `element-summary` calls | 30 min |
-| `entry/{id}/`, `entry/{id}/history/`, `entry/{id}/event/{gw}/picks/` | Team Building's FPL team import (read-only, unauthenticated) | 2 min |
+| `entry/{id}/`, `entry/{id}/history/`, `entry/{id}/event/{gw}/picks/`, `entry/{id}/transfers/` | Team Building's FPL team import (read-only, unauthenticated; transfers for purchase prices) | 2 min |
 | `understat` (app's own) | Understat season summaries, from this repo's `data/understat/` on GitHub (from disk under `npm run dev`) — never understat.com | 30 min; completed seasons 12 h |
 | `understat/profile/{player|club}/{code}/{season}` (app's own) | One player's or club's Understat detail for one season (positions, shots, a player's shots faced while on the pitch, result chances, formations, starting XIs), sliced server-side from `app/profile/<season>.json` | as `understat` |
 | `player-seasons/{code}` (app's own) | One player's match rows for every completed season (the profile's past-season Match Log), bundled with the server | none needed |
@@ -276,8 +276,8 @@ Every analysis page has the same three-way toggle, resolved through
   (see "Minimum minutes"); a light season over that still counts
   (`<no_survivorship_bias>`, `metrics/historicAnalysis.ts`).
   `MIN_QUALIFYING_SEASON_MINUTES` (900) decides nothing the app shows any
-  more (it fed Model Predicted's bonus rate before the points model;
-  Minutes Reliability uses every season).
+  more (it fed Model Predicted's bonus rate before the points model,
+  which reads every season).
   Per-game rates count games from the **total** minutes across the
   seasons, rounded up once (`<games_from_total_minutes>`,
   `metrics/calculations.ts`), so each is total stat ÷ total games — never
@@ -348,8 +348,8 @@ Three rules hold everywhere:
   under the fixed floor for the Data View has no colour and
   isn't in anyone's comparison, even where your own minimum lets his row
   show (see "Comparative colouring"). Clubs have no floor, and nor do
-  forward-looking figures (Team Building's two Exp. Pts, Minutes
-  Reliability, and every colour on its pitch cards — price and ownership
+  forward-looking figures (Team Building's two Exp. Pts, Exp. Mins,
+  and every colour on its pitch cards — price and ownership
   there are ranked among every player in the position — and the Team
   Profile's Fixture Forecast).
 
@@ -430,7 +430,7 @@ Details:
   the exact figure beside it — still typeable, any whole number, "Any" at 0.
 - Player Explorer has no Min Minutes control — its Mins column filter does
   that job.
-- Other minute figures that aren't sample floors: Minutes Reliability uses
+- Other minute figures that aren't sample floors: Model Predicted reads
   every season (a low-minutes season is the signal); the Playing Time
   gauge's tiers (75% / 40% of 90) classify, they don't exclude.
 
@@ -1768,14 +1768,15 @@ temporary squad). Squad rules
 FPL's £100m for a squad built from scratch; an imported squad has its own
 (`<imported_budget>`, `types/team.ts`): its players at today's prices when
 imported plus the bank, so an unchanged import has exactly the manager's
-bank left (FPL's selling prices, which keep half of a rise, need the
-manager's login). Null where that can't be known (no bank, a pick FPL no
+bank left (today's prices, not FPL's selling prices, which keep half of a
+rise: the pitch's Price highlight shows those, `<price_view>` below). Null where that can't be known (no bank, a pick FPL no
 longer lists, or a squad saved before saved-squads store version 2): the
 £100m applies, and the budget's hover text says to import again. Going over
 is a warning ("£2.1m over"), never a block. **Add** starts a player while
 the XI still has a legal place for him (`<add_to_xi>`, `fitsStartingXI`),
 otherwise benches him; dragging moves anyone between pitch and bench.
-**Clear Draft** asks first (there's no undo). Before any squad exists the
+**Clear Draft** asks first (there's no undo); **Best Draft** (below) doesn't,
+as it only rearranges the squad. Before any squad exists the
 whole Squad tile is greyed out and inert (`inert`, `.squad-pitch.is-disabled`):
 nothing on it can be clicked or dropped on, so no player can be added until
 New Squad makes or imports one; the "No squad loaded" note sits above it.
@@ -1789,30 +1790,70 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   **Highlight** (`<kit_view>`: Fixtures, Price, Owned, Minutes, Points Prediction,
   coloured as before), with no fixture beside it; **Fixtures** shows the
   next five FDR-coloured chips instead. **Points Prediction** is the
-  player's Exp. Pts for the next gameweek (a double's two matches added
-  up, "—" for a blank), from the source its FPL/Model toggle picks (shown
-  only while it's selected). The switches are per page, like every view
+  player's Exp. Pts for the gameweek the pitch's arrows pick (a double's
+  two matches added up, "—" for a blank), from the source its FPL/Model
+  toggle picks (shown only while it's selected). **Minutes** is his Exp.
+  Mins for that gameweek (below). **Price** has its own toggle
+  (`<price_view>`, below). The switches are per page, like every view
   switch. Above the pitch, three rows: the squad's name (no formation or
-  player count) with the Captain, Vice-Captain and Clear Draft buttons (the app's standard
-  `.btn`, green while armed); then Squad Value, Bank and Projected Team Points
-  as tiles; then Highlight. A club-limit breach is a banner. The bench is
-  a row of slots, goalkeeper first, each labelled with its position (no
-  bench order: the app has none).
-- **Projected Team Points** (`<squad_projection>`, `metrics/squadProjection.ts`,
-  dictionary `squadProjectedPoints`) — the starting XI's Exp. Pts for
-  each upcoming gameweek **on its own** (up to five figures, labelled
-  with FPL's gameweek numbers, never summed across gameweeks): for
-  gameweek G, Σ over the starters of each one's figure for G, the
-  captain's ×2. The tile's compact FPL/Model toggle picks the source (FPL
-  Official or Model Predicted, never mixed); per page, like the other
-  switches. The bench and automatic substitutions aren't counted, and the
-  captain is assumed to keep the armband in every gameweek. A starter
-  whose club blanks has nothing to add (the hover counts them). A
-  starter who plays but has no figure (the Model has no playing-time
-  estimate) is left out of that total, never counted as 0, as Totals rows
-  do (`<partial_totals>`): its hover says how many had one. "—" with no
-  starters, nobody playing or no figures. Not coloured: a squad total has
-  no pool to rank in.
+  player count) with the Captain, Vice-Captain, Clear Draft and Best Draft
+  buttons (the app's standard `.btn`, green while armed); then Squad Value
+  and Bank as tiles; then the **Gameweek** arrows and Highlight. A
+  club-limit breach is a banner. The bench is a row of slots, goalkeeper
+  first, each labelled with its position (no bench order: the app has
+  none).
+- **Gameweek arrows** (`<gameweek_arrows>`, `GameweekArrows` in
+  `components/MenuControls.tsx`) — ‹ GW10 › steps one gameweek at a time
+  through the upcoming gameweeks (below), greyed at either end, "—" with
+  none left. The pitch has its own (its cards' Points Prediction and
+  Minutes, their colours, and Best Draft follow it) and Add Players has
+  its own (its Exp. Pts and Exp. Mins columns); each moves only its own
+  figures, per page, starting on the next gameweek. The same control in
+  both places (the owner's rule: same thing, same way).
+- **Best Draft** (`<best_draft>`, `metrics/bestDraft.ts`) — sets the
+  starting XI, captain and vice-captain with the most Exp. Pts for the
+  pitch's gameweek, from Points Prediction's source (FPL Official or
+  Model Predicted, named in its hover), in a formation FPL allows (1 GKP,
+  3–5 DEF, 2–5 MID, 1–3 FWD). Every legal formation is tried with each
+  position's best players; the top figure in that XI captains and the
+  next is vice-captain (the captain's doubling can't change which XI
+  wins: the squad's top scorer starts in every formation). A blank counts
+  as 0; a player who plays but has no figure starts only when a legal XI
+  needs him and never gets an armband, as Totals rows never count a
+  missing figure as 0 (`<partial_totals>`). Ties keep the current
+  starters and armbands. The XI is saved as the squad's one XI, not one
+  per gameweek. Greyed out, with the reason as its hover, until the squad
+  can make a legal XI (11 players: at least 1 GKP, 3 DEF, 2 MID, 1 FWD)
+  or while no player has a figure for that gameweek. Bench order and
+  automatic substitutions aren't modelled (the app has no bench order).
+- **Price** (`<price_view>`) — its toggle picks **Current** (today's
+  price, coloured by rank within the position, lower greener, as
+  before), **Sell** (`<selling_price>`, `sellingPrice` in
+  `metrics/squadPrices.ts`: FPL's rule, the purchase price plus half of
+  any rise, rounded down to £0.1m, or today's price after a fall),
+  **Purchase** (`<purchase_prices>`, below) or **Change** (FPL's
+  `cost_change_event`: ▲ rising, ▼ falling, since the last gameweek
+  deadline; the hover adds the season's `cost_change_start`). Sell,
+  Purchase and Change aren't coloured: a squad's own prices have no pool
+  to rank in, and most players' change is 0. "—" for a purchase price
+  that isn't known; the hover says why.
+- **Purchase prices** (`<purchase_prices>`, `SavedSquad.purchasePrices`) —
+  a player added in Scoutline (Add, or dragged in) is bought at his price
+  that day; removing him drops it. An import reads FPL's public
+  `entry/{id}/transfers/` (no login; `importedPurchasePrices`,
+  `metrics/squadPrices.ts`): a player bought by transfer cost that
+  transfer's `element_in_cost` (his latest), transfers in a Free Hit week
+  don't count (the squad goes back afterwards) unless the import is that
+  week, and a player the team has had since it started in GW1 cost his
+  season-start price (`now_cost − cost_change_start`), trusted only when
+  the starting 15's prices add up exactly to £100m − FPL's own bank that
+  week. Checked on 2026-10-26 against 12 real teams by replaying every
+  transfer onto those prices: each ended on FPL's own bank to the £0.1m.
+  A team that started after GW1 bought its first 15 at prices FPL's
+  public data doesn't keep, so those players have none ("—"); players it
+  bought since still do. A failed transfers request still imports the
+  squad, without purchase prices. A new season's rollover drops them
+  (they were paid at last season's prices).
 - **Open places** (`<open_slots>`, `openSquadSlots` in
   `metrics/squadRules.ts`) — every place the squad is still short of
   (2 GKP, 5 DEF, 5 MID, 3 FWD) is a "+": the XI's open places take them
@@ -1835,11 +1876,11 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   (`expectationForGameweek`) is his club's matches in it added up: a
   double counts both, a blank has none ("No match in GW10"). Each match
   is still worked out by its place in his upcoming list (below). The
-  pitch cards are always for the next gameweek; Add Players' Exp. Pts
-  columns are for the one its own gameweek picker (beside the Data View
-  picker) picks, per page, the next by default. The cards' colours rank
-  the next gameweek's figures whatever the table shows
-  (`nextFplOfficial`/`nextModelPredicted`). A match that has kicked off
+  pitch cards are for the gameweek the pitch's arrows pick; Add Players'
+  Exp. Pts and Exp. Mins columns for the one its own arrows (beside the
+  Data View picker) pick, each the next by default. The cards' colours
+  rank the pitch's gameweek's figures among every player whatever the
+  table shows (`pitchExpectations`). A match that has kicked off
   (FPL's `started`) is never upcoming, even before FPL marks it
   `finished` hours after full time. The Fixtures chips and column are
   still each club's next five matches; the Explorers' Next 5 Fixtures use
@@ -1876,8 +1917,7 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
       so it carries news his match record can't; a regular being sold
       says most (it's weighted again by his recent start share). The
       owner's decision, 2026-10-25: the indicator is a lot of transfers
-      out, so buying isn't read, and how many own him only scales it
-      (unlike Minutes Reliability, where ownership plays no part). Live,
+      out, so buying isn't read, and how many own him only scales it. Live,
       the counts are `transfers_in_event` / `transfers_out_event` (which
       run toward the next deadline) and ownership % × `total_players`;
       they count only toward that next gameweek's matches (the fit used
@@ -1892,8 +1932,9 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
     one who plays the 90; and how often he comes off the bench when he
     doesn't start (his own record, pulled toward 1%/11%/21%/23% for
     GKP/DEF/MID/FWD). Everything is multiplied by FPL's availability
-    (Minutes Reliability's: `chance_of_playing_next_round`, else a status
-    default; unknown → no figure). Every other part is worked out for each
+    (`availabilityModifier`, `metrics/availability.ts`:
+    `chance_of_playing_next_round`, else a status default; unknown → no
+    figure). Every other part is worked out for each
     way the match can go for him — starts and plays 60+, starts and goes
     off early, comes on, doesn't play — so the clean sheet, the 2-point
     appearance and the thresholds see the minutes they need.
@@ -2002,18 +2043,23 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   player's minutes, 0.72; and of the chances each got in the match too,
   0.75 — the rest is finishing, clean sheets and bonus falling as they
   do.
-- **Minutes Reliability** (`metrics/minutesReliabilityBlend.ts`: the Add
-  Players column and the pitch cards; Model Predicted has its own chance of
-  starting, above, and shares only the availability part) blends
-  historic minutes share with live share. The live weight is
-  `min(1, club games / 8)`. The historic side uses every season in the
-  window, weights recent seasons more, and discounts inconsistency. Only
-  minutes evidence goes in: ownership plays no part (the owner's decision,
-  audit 2026-10-18; Model Predicted's chance of starting does read
-  managers' selling, above), and with no minutes data anywhere the figure
-  is "—".
-  The result is multiplied by availability (`chance_of_playing_next_round`,
-  else a status default; with neither known, no figure).
+- **Exp. Mins** (`<expected_minutes>`, dictionary `expectedMinutes`: the
+  Add Players column and the pitch's Minutes) — Model Predicted's own
+  playing time for a gameweek, its matches added up (a double's two, up
+  to 180): for each match, Σ over the ways it can go for him (starts and
+  plays 60+, starts and goes off early, comes on, doesn't play) of its
+  chance × its minutes (`expectedMinutes` in `predictMatch`, "Playing
+  time" above). So it reads how much he's been playing this season (his
+  recent starts, the last counting most, and his season's share), last
+  season's starts, a return from an absence, managers selling him on
+  team news (next deadline only), FPL's injury and suspension news
+  (availability), and how long he usually lasts. Competition for his
+  place shows only through his own starts (a rival taking his place
+  lowers his recent share); no squad-depth figure goes in. Whole minutes
+  (`<whole_numbers>`), coloured by rank within the position (more is
+  greener, no minutes floor, as Exp. Pts). Its hover gives his chance of
+  starting. "—" where Model Predicted has none. It replaced Minutes
+  Reliability (`docs/HISTORY.md`).
 - **Availability's limit:** FPL publishes availability for the next round
   only, with no return date, so it can't tell a one-match ban from a long
   injury. The same availability applies to every upcoming gameweek: a
@@ -2025,10 +2071,7 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   | Constant | Value | Where |
   |---|---|---|
   | `FDR_SENSITIVITY` | GKP 0.08, DEF 0.08, MID 0.10, FWD 0.12 per FDR step from 3 | `expectedPoints.ts` (FPL Official) |
-  | `GAMES_FOR_FULL_CURRENT_WEIGHT` | 8 club games | `minutesReliabilityBlend.ts` |
-  | recency weights | oldest season 1 … newest n | `minutesReliabilityBlend.ts` |
-  | `MIN_CONSISTENCY_RETENTION` | 0.65 | `minutesReliabilityBlend.ts` |
-  | status defaults | a 1, d 0.5, i/s/u/n 0, unknown → no figure | `minutesReliabilityBlend.ts` |
+  | status defaults | a 1, d 0.5, i/s/u/n 0, unknown → no figure | `availability.ts` |
 
 ---
 
