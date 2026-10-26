@@ -8,13 +8,17 @@ import type { NormalizedPlayer, Position } from "../types/normalized";
 import type { UpcomingFixture } from "../metrics/fixtureTicker";
 import type { GameweekExpectation } from "../metrics/gameweekExpectations";
 import type { ModelBreakdown } from "../metrics/pointsModel";
+import type { FplBreakdown } from "../metrics/expectedPoints";
 
 afterEach(cleanup);
 
 const fixture = (id: number, opponent: string, isHome: boolean, difficulty = 2, eventId = 9): UpcomingFixture => ({ fixtureId: id, eventId, opponentTeamId: 99, opponentShortName: opponent, isHome, difficulty });
 
+/** An FPL Official figure for one match (<fpl_official>): `total` points, with no season record to go on unless `seasonRate` is given. */
+const fplMatch = (total: number, o: Partial<FplBreakdown> = {}): FplBreakdown => ({ total, epNext: total, seasonRate: null, formShare: 1, availability: 1, multiplier: 1, ...o });
+
 // The next gameweek is GW9: one match v BUR, FPL 4.2, no Model figure.
-const nextGameweek = (): GameweekExpectation => ({ eventId: 9, fixtures: [fixture(1, "BUR", true)], fpl: 4.2, modelBreakdowns: null, model: null, expectedMinutes: null });
+const nextGameweek = (): GameweekExpectation => ({ eventId: 9, fixtures: [fixture(1, "BUR", true)], fplBreakdowns: [fplMatch(4.2)], fpl: 4.2, modelBreakdowns: null, model: null, expectedMinutes: null });
 
 /** A Model figure for one match: `total` points, `minutes` expected. */
 const modelMatch = (total: number, minutes: number, startChance = 0.9) => ({ total, expectedMinutes: minutes, startChance, notes: [] }) as unknown as ModelBreakdown;
@@ -102,7 +106,7 @@ describe("<kit_view> Highlight", () => {
     // Points Prediction, FPL, by default.
     expect(figure()).toBe("4.2");
     expect(container.querySelector(".pitch-card .pitch-card-match")).toBeNull();
-    expect(container.querySelector(".pitch-card .pitch-card-figure")!.getAttribute("title")).toBe("FPL's expected points for GW9 v BUR (H)");
+    expect(container.querySelector(".pitch-card .pitch-card-figure")!.getAttribute("title")).toBe("FPL figures v BUR (H): 4.2 pts. FPL's own expected points (his form) alone: no season record of his to go on yet");
     // Its toggle picks the Model, which has no figure for him here.
     fireEvent.click(getByRole("radiogroup", { name: "Source" }).querySelector<HTMLElement>('[aria-label^="Exp. Pts (Model"]')!);
     expect(figure()).toBe("—");
@@ -210,11 +214,17 @@ describe("<gameweek_arrows> the pitch's gameweek", () => {
   });
 
   it("the cards show the gameweek given: its points and its expected minutes", () => {
-    const gw10: GameweekExpectation = { eventId: 10, fixtures: [fixture(3, "WOL", false, 4, 10)], fpl: 6.1, modelBreakdowns: [modelMatch(5.2, 77.6, 0.88)], model: 5.2, expectedMinutes: 77.6 };
+    const gw10: GameweekExpectation = {
+      eventId: 10,
+      fixtures: [fixture(3, "WOL", false, 4, 10)],
+      fplBreakdowns: [fplMatch(6.1, { epNext: 5, seasonRate: 7.2, formShare: 0.2, availability: 0.75, multiplier: 0.9 })],
+      fpl: 6.1, modelBreakdowns: [modelMatch(5.2, 77.6, 0.88)], model: 5.2, expectedMinutes: 77.6 };
     const { container, getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })], [], vi.fn(), null, true, null, [9, 10], { gameweek: 10, expectations: new Map([[1, gw10]]) });
     const figure = () => container.querySelector(".pitch-card .pitch-card-figure")!;
     expect(figure().textContent).toBe("6.1");
-    expect(figure().getAttribute("title")).toBe("FPL's expected points for GW10 v WOL (A)");
+    expect(figure().getAttribute("title")).toBe(
+      "FPL figures v WOL (A): 6.1 pts. Season 7.2 a match (goals and assists partly as xG and xA), counting 80%; form 5.0 (FPL's own expected points), counting 20%; −10% for FPL difficulty 4; 75% chance of playing",
+    );
     fireEvent.click(getByRole("radio", { name: /^Expected minutes/ }));
     // <whole_numbers>: minutes are whole.
     expect(figure().textContent).toBe("78");
@@ -227,12 +237,13 @@ describe("<expected_minutes> Minutes", () => {
     const double: GameweekExpectation = {
       eventId: 9,
       fixtures: [fixture(1, "BUR", true), fixture(2, "WOL", false)],
+      fplBreakdowns: [fplMatch(4), fplMatch(4)],
       fpl: 8,
       modelBreakdowns: [modelMatch(4, 80), modelMatch(3, 62, 0.7)],
       model: 7,
       expectedMinutes: 142,
     };
-    const blank: GameweekExpectation = { eventId: 9, fixtures: [], fpl: null, modelBreakdowns: null, model: null, expectedMinutes: null };
+    const blank: GameweekExpectation = { eventId: 9, fixtures: [], fplBreakdowns: null, fpl: null, modelBreakdowns: null, model: null, expectedMinutes: null };
     const { container, getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" }), makePlayer({ id: 2, position: "FWD" })], [], vi.fn(), null, true, null, [9], {
       expectations: new Map([
         [1, double],
@@ -331,7 +342,7 @@ describe("<best_draft> Best Draft", () => {
   function fullSquad(points: number[]) {
     const positions: Position[] = ["GKP", "GKP", "DEF", "DEF", "DEF", "DEF", "DEF", "MID", "MID", "MID", "MID", "MID", "FWD", "FWD", "FWD"];
     const all = positions.map((position, i) => makePlayer({ id: i + 1, position }));
-    const expectations = new Map(all.map((p, i) => [p.id, { ...nextGameweek(), fpl: points[i], model: points[i] / 2 } as GameweekExpectation]));
+    const expectations = new Map(all.map((p, i) => [p.id, { ...nextGameweek(), fplBreakdowns: [fplMatch(points[i])], fpl: points[i], model: points[i] / 2 } as GameweekExpectation]));
     // Starting: 1 GKP, 4 DEF, 4 MID, 2 FWD.
     const xi = [all[0], all[2], all[3], all[4], all[5], all[7], all[8], all[9], all[10], all[12], all[13]];
     const bench = all.filter((p) => !xi.includes(p));

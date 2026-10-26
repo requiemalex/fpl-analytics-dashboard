@@ -1,5 +1,6 @@
 import { firstPickableEventId, type UpcomingFixture } from "./fixtureTicker";
 import type { ModelBreakdown } from "./pointsModel";
+import type { FplBreakdown } from "./expectedPoints";
 import type { NormalizedEvent } from "../types/normalized";
 
 /** How many gameweeks Team Building looks ahead: the pitch's and Add Players' gameweek arrows. */
@@ -32,7 +33,9 @@ export interface GameweekExpectation {
   eventId: number;
   /** His club's matches that gameweek: none (a blank), one, or two (a double). */
   fixtures: UpcomingFixture[];
-  /** FPL Official, summed over his matches; null for a blank or with no figure. Not captain-doubled. */
+  /** FPL Official for each of his matches (<fpl_official>); null for a blank or with no figure. */
+  fplBreakdowns: FplBreakdown[] | null;
+  /** FPL Official, summed over his matches; null when fplBreakdowns is. Not captain-doubled. */
   fpl: number | null;
   /** The Model's figure for each of his matches; null for a blank or with no figure. */
   modelBreakdowns: ModelBreakdown[] | null;
@@ -57,24 +60,26 @@ function sumAll<T>(values: T[], value: (v: T) => number | null): number | null {
 /**
  * His Exp. Pts for gameweek `eventId`: each of his matches in it worked
  * out as before (`fplFor` gets the match's place in his upcoming list, so
- * FPL's own `ep_next` is still his first match and later ones extend it by
- * difficulty), then added up — a double gameweek counts both matches, a
+ * form counts for less the further ahead it is, <fpl_official>), then
+ * added up — a double gameweek counts both matches, a
  * blank has none and no figure (`fixtures` empty).
  */
 export function expectationForGameweek(
   upcoming: readonly UpcomingFixture[],
   eventId: number,
-  fplFor: (fixture: UpcomingFixture, index: number) => number | null,
+  fplFor: (fixture: UpcomingFixture, index: number) => FplBreakdown | null,
   modelFor: (fixture: UpcomingFixture) => ModelBreakdown | null,
 ): GameweekExpectation {
   const matches = upcoming.flatMap((fixture, index) => (fixture.eventId === eventId ? [{ fixture, index }] : []));
-  const fpl = sumAll(matches, (m) => fplFor(m.fixture, m.index));
+  const fplParts = matches.map((m) => fplFor(m.fixture, m.index));
+  const fplBreakdowns = fplParts.length > 0 && fplParts.every((b): b is FplBreakdown => b !== null) ? fplParts : null;
   const breakdowns = matches.map((m) => modelFor(m.fixture));
   const modelBreakdowns = breakdowns.length > 0 && breakdowns.every((b): b is ModelBreakdown => b !== null) ? breakdowns : null;
   return {
     eventId,
     fixtures: matches.map((m) => m.fixture),
-    fpl,
+    fplBreakdowns,
+    fpl: fplBreakdowns ? sumAll(fplBreakdowns, (b) => b.total) : null,
     modelBreakdowns,
     model: modelBreakdowns ? sumAll(modelBreakdowns, (b) => b.total) : null,
     expectedMinutes: modelBreakdowns ? sumAll(modelBreakdowns, (b) => b.expectedMinutes) : null,

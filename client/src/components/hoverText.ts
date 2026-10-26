@@ -2,6 +2,7 @@ import type { Position } from "../types/normalized";
 import type { UpcomingFixture } from "../metrics/fixtureTicker";
 import type { ModelBreakdown } from "../metrics/pointsModel";
 import type { GameweekExpectation } from "../metrics/gameweekExpectations";
+import type { FplBreakdown } from "../metrics/expectedPoints";
 import { fmtDecimal, fmtPercent } from "../utils/format";
 
 /**
@@ -121,12 +122,34 @@ function gameweekGapHint(g: GameweekExpectation | null): string | undefined {
   return undefined;
 }
 
-/** An FPL Official figure for one gameweek: "FPL's expected points for GW9 v BUR (H)"; a double names both matches. */
+/**
+ * FPL Official's figure for one match, in parts (<fpl_official>): "FPL
+ * figures v BUR (H): 3.4 pts. Season 3.9 a match (goals and assists partly
+ * as xG and xA), counting 80%; form 1.3 (FPL's own expected points),
+ * counting 20%; +10% for FPL difficulty 2". The difficulty part is left out
+ * at 3 (no change), the chance of playing at 100%.
+ */
+export function fplBreakdownHint(b: FplBreakdown, fixture: UpcomingFixture | undefined, captain = false): string {
+  const head = `FPL figures${versusText(fixture)}${captain ? " (captain ×2)" : ""}: ${fmtDecimal(b.total * (captain ? 2 : 1), 1)} pts`;
+  const parts =
+    b.seasonRate === null
+      ? [`FPL's own expected points (his form) alone: no season record of his to go on yet`]
+      : [
+          `Season ${fmtDecimal(b.seasonRate, 1)} a match (goals and assists partly as xG and xA), counting ${fmtPercent((1 - b.formShare) * 100, 0)}`,
+          `form ${fmtDecimal(b.epNext, 1)} (FPL's own expected points), counting ${fmtPercent(b.formShare * 100, 0)}`,
+        ];
+  const change = Math.round((b.multiplier - 1) * 100);
+  if (change !== 0 && fixture) parts.push(`${change > 0 ? "+" : "−"}${Math.abs(change)}% for FPL difficulty ${fixture.difficulty}`);
+  if (b.availability < 1) parts.push(`${fmtPercent(b.availability * 100, 0)} chance of playing`);
+  return `${head}. ${parts.join("; ")}`;
+}
+
+/** An FPL Official figure for one gameweek: each match's breakdown (fplBreakdownHint), one line each in a double. */
 export function fplGameweekHint(g: GameweekExpectation | null, captain = false): string {
   const gap = gameweekGapHint(g);
   if (gap || g === null) return gap ?? "";
-  if (g.fpl === null) return `FPL has no expected points for him in GW${g.eventId}`;
-  return `FPL's expected points for GW${g.eventId}${gameweekVersusText(g.fixtures)}${captain ? " (captain ×2)" : ""}`;
+  if (g.fplBreakdowns === null) return `FPL has no expected points for him in GW${g.eventId}`;
+  return g.fplBreakdowns.map((b, i) => fplBreakdownHint(b, g.fixtures[i], captain)).join("\n");
 }
 
 /** A Model Predicted figure for one gameweek: each match's breakdown (modelBreakdownHint), one line each in a double. */

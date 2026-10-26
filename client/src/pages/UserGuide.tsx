@@ -397,8 +397,11 @@ export function UserGuide() {
             starts. FPL's availability is for the next round only, so a one-match ban shows as 0 across all five gameweeks.
           </li>
           <li>
-            Two Expected Points figures, never blended: <strong>FPL Official</strong> is FPL's own <code>ep_next</code> prediction
-            (extended to later fixtures using fixture difficulty). <strong>Model Predicted</strong> is Scoutline's own model: his
+            Two Expected Points figures, never blended: <strong>FPL Official</strong> is built from FPL's own figures: mostly his
+            points a match this season (a match he sat out counts as 0), with his goals and assists partly swapped for his xG and
+            xA so a lucky or unlucky run counts for less, plus a little of his form (FPL's own expected points, which are his form
+            and nothing else), less the further ahead the match is, then adjusted for FPL's fixture difficulty and chance of
+            playing. Hover it for its parts. <strong>Model Predicted</strong> is Scoutline's own model: his
             chance of starting (from his recent starts, the last one counting most, allowing for a player just back from an
             absence, and, for the next deadline only, for managers selling him in numbers: they sell on team news before
             anyone plays), how long he usually plays, his scoring rates

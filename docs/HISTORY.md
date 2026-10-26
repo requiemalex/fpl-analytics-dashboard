@@ -4066,3 +4066,17 @@ tiles/graphs only:
   prices (`squadMoney`, `<imported_budget>`). The old budget is still kept
   and used until an import's purchase prices load.
 - **Last commit with it:** `9e9e9d4`.
+
+### FPL Official as `ep_next` extended by difficulty (replaced 2026-10-26)
+- **What it did:** Team Building's Exp. Pts (FPL Official) was FPL's
+  `ep_next` as it stood for a player's next match, and `ep_next ×
+  fixtureMultiplier(FDR, position)` for every later one
+  (`computeExpectedPointsForSingleFixture`, `metrics/expectedPoints.ts`).
+- **Why it went:** the owner found it unrealistic (regular starters under
+  2 points in every gameweek ahead). FPL's `ep_next` turned out to be its
+  form × its chance of playing, nothing more, so a short cold spell
+  carried through the whole timeline. It's now mostly his season's points
+  per match, xG/xA-adjusted, with a fading share of form, adjusted for the
+  fixture and chance of playing (`<fpl_official>`, README "Exp. Pts (FPL
+  Official)").
+- **Last commit with it:** `c502df5`.

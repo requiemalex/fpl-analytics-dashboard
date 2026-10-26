@@ -16,7 +16,7 @@ import { loadImportedPurchasePrices } from "../state/importedPurchasePrices";
 import { validateSquad, validateStartingXI, canAddPlayer, fitsStartingXI, openSquadSlots } from "../metrics/squadRules";
 import { resolvePlayerStats, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
-import { computeExpectedPointsForSingleFixture } from "../metrics/expectedPoints";
+import { fplOfficialForFixture, fplSeasonRate } from "../metrics/expectedPoints";
 import { modelClubRatings, modelForFixture, playerEvidence } from "../metrics/pointsModelLive";
 import { clubSeasonsAsShown } from "../metrics/teamStats";
 import { expectationForGameweek, upcomingGameweeks, type GameweekExpectation } from "../metrics/gameweekExpectations";
@@ -67,7 +67,7 @@ interface PickerRowData {
   fixtures: UpcomingFixture[];
   /** Both Exp. Pts for the gameweek Add Players' gameweek picker picks, his matches in it added up (expectationForGameweek); null with no gameweek left. */
   target: GameweekExpectation | null;
-  /** FPL's own ep_next, extended by fixture difficulty (computeExpectedPointsForSingleFixture), for that gameweek. */
+  /** FPL Official (<fpl_official>, fplOfficialForFixture) for that gameweek. */
   fplOfficial: number | null;
   /** Model Predicted — Scoutline's own points model (<points_model>, metrics/pointsModel.ts) for the same gameweek. */
   modelPredicted: number | null;
@@ -101,7 +101,7 @@ const PREDICTIVE_COLUMNS: PredictiveColumnDef[] = [
     getValue: (row) => row.fplOfficial,
     renderCell: (row) => fmtDecimal(row.fplOfficial, 1),
     decimals: 1,
-    hint: "FPL's own expected points for the gameweek picked above the table (a double gameweek's two matches added up).",
+    hint: "Expected points for the gameweek picked above the table from FPL's own figures (a double gameweek's two matches added up): his points a match this season, with goals and assists partly as xG and xA, and a little of his form (FPL's own expected points), adjusted for FPL's fixture difficulty and chance of playing. Hover a figure for its parts.",
     cellHint: (row) => (row.target ? fplGameweekHint(row.target) : undefined),
   },
   {
@@ -900,9 +900,15 @@ export function TeamBuilder() {
     () => new Map(players.map((p) => [p.id, playerEvidence(p, historicProfiles.get(p.id), seasonMatchesByPlayerId.get(p.id), historicReferenceSeason, totalPlayers)])),
     [players, historicProfiles, seasonMatchesByPlayerId, historicReferenceSeason, totalPlayers],
   );
+  // FPL Official's season part (<fpl_official>): his points per match he
+  // was registered for, from the same season matches Model Predicted reads.
+  const fplSeasonRateByPlayerId = useMemo(
+    () => new Map(players.map((p) => [p.id, fplSeasonRate(p, seasonMatchesByPlayerId.get(p.id)?.length)])),
+    [players, seasonMatchesByPlayerId],
+  );
   // One player's figures for one upcoming gameweek (<upcoming_gameweeks>),
-  // his matches in it added up: FPL's own ep_next, fixture-difficulty-
-  // extended past his first match (see metrics/expectedPoints.ts), and
+  // his matches in it added up: FPL Official, from FPL's own figures
+  // (<fpl_official>, metrics/expectedPoints.ts), and
   // Scoutline's own points model (<points_model>) with its expected
   // minutes (<expected_minutes>). Not captain-doubled: SquadPitch doubles
   // the captain's. Null with no gameweek left.
@@ -913,10 +919,10 @@ export function TeamBuilder() {
         : expectationForGameweek(
             upcomingByTeamId.get(p.teamId) ?? [],
             eventId,
-            (fixture, index) => computeExpectedPointsForSingleFixture(p, fixture, index),
+            (fixture, index) => fplOfficialForFixture(p, fixture, index, fplSeasonRateByPlayerId.get(p.id) ?? null),
             (fixture) => modelFor(evidenceByPlayerId.get(p.id) ?? null, p.teamId, fixture),
           ),
-    [upcomingByTeamId, evidenceByPlayerId, modelFor],
+    [upcomingByTeamId, fplSeasonRateByPlayerId, evidenceByPlayerId, modelFor],
   );
   // Every player's figures for the gameweek the pitch's arrows pick: the
   // squad's cards show them, and their colours rank them among everyone.
@@ -954,7 +960,7 @@ export function TeamBuilder() {
   }
 
   // Memoized deliberately, unlike an earlier version of this file: this
-  // computation runs computeExpectedPointsForSingleFixture and Model
+  // computation runs FPL Official (fplOfficialForFixture) and Model
   // Predicted (modelFor) for every candidate —
   // up to the whole unfiltered player base if no filters are applied. Without
   // memoization, every

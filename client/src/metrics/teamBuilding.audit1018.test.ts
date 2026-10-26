@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { computeExpectedPointsForSingleFixture, computeExpectedPointsForWindow } from "./expectedPoints";
+import { computeExpectedPointsForSingleFixture, computeExpectedPointsForWindow, fplOfficialForFixture, fplSeasonRate, FORM_SHARE } from "./expectedPoints";
+import { MODEL_PARAMS } from "./pointsModelParams.generated";
 import { getUpcomingFixtures, firstPickableEventId, type UpcomingFixture } from "./fixtureTicker";
 import { canAddPlayer, validateSquad } from "./squadRules";
 import { normalizeEntryImport } from "../normalize/normalizeEntryImport";
@@ -10,15 +11,48 @@ const fixture = (o: Partial<UpcomingFixture> = {}): UpcomingFixture => ({ fixtur
 
 // Model Predicted's own tests (scoring rules included) are in pointsModel.test.ts.
 describe("Expected Points (FPL Official)", () => {
-  const p = makePlayer({ id: 1, position: "FWD", epNext: 5 });
-  it("the next fixture is ep_next unmodified; later ones scale by their own FDR", () => {
-    expect(computeExpectedPointsForSingleFixture(p, fixture({ difficulty: 5 }), 0)).toBe(5);
+  const p = makePlayer({ id: 1, position: "FWD", epNext: 5, status: "a" });
+  it("without a season record, every match is ep_next scaled by its own FDR, the next one included (ep_next has no fixture in it)", () => {
+    expect(computeExpectedPointsForSingleFixture(p, fixture({ difficulty: 3 }), 0)).toBe(5);
+    expect(computeExpectedPointsForSingleFixture(p, fixture({ difficulty: 5 }), 0)).toBeCloseTo(3.8, 10);
     expect(computeExpectedPointsForSingleFixture(p, fixture({ difficulty: 2 }), 1)).toBeCloseTo(5.6, 10);
-    expect(computeExpectedPointsForSingleFixture(p, fixture({ difficulty: 5 }), 2)).toBeCloseTo(3.8, 10);
   });
   it("null ep_next stays null, never 0", () => {
     expect(computeExpectedPointsForSingleFixture(makePlayer({ id: 2, position: "MID", epNext: null }), fixture(), 0)).toBeNull();
+    expect(computeExpectedPointsForSingleFixture(makePlayer({ id: 2, position: "MID", epNext: null }), fixture(), 0, 4)).toBeNull();
     expect(computeExpectedPointsForWindow(makePlayer({ id: 2, position: "MID", epNext: null }), [fixture()], 1)).toBeNull();
+  });
+
+  it("<fpl_official> the season rate: points per match he was registered for, goals and assists moved toward xG and xA by the Model's weights", () => {
+    // 32 points in 8 matches; 2 goals from 3.0 xG (MID: 5 a goal), 1 assist from 1.0 xA.
+    const mid = makePlayer({ id: 3, position: "MID", totalPoints: 32, goals: 2, xG: 3, assists: 1, xA: 1 });
+    expect(fplSeasonRate(mid, 8)).toBeCloseTo((32 + MODEL_PARAMS.goalXgWeight * 5 * 1) / 8, 10);
+    // xG not available: his points as they are.
+    expect(fplSeasonRate({ ...mid, xG: null, xA: null }, 8)).toBe(4);
+    // Never below 0, and nothing before his first match or with his matches not loaded.
+    expect(fplSeasonRate({ ...mid, totalPoints: 1, goals: 3, xG: 0 }, 8)).toBe(0);
+    expect(fplSeasonRate(mid, 0)).toBeNull();
+    expect(fplSeasonRate(mid, undefined)).toBeNull();
+  });
+
+  it("<fpl_official> blends form (ep_next) with his season, form counting less the further ahead, then scales by the fixture", () => {
+    // Form 1.3, season 4.0 a match: next match 20% form, then 15%, then 10% for every match after.
+    const mid = makePlayer({ id: 4, position: "MID", epNext: 1.3, status: "a" });
+    expect(FORM_SHARE).toEqual([0.2, 0.15, 0.1]);
+    expect(computeExpectedPointsForSingleFixture(mid, fixture(), 0, 4)).toBeCloseTo(0.2 * 1.3 + 0.8 * 4, 10);
+    expect(computeExpectedPointsForSingleFixture(mid, fixture(), 1, 4)).toBeCloseTo(0.15 * 1.3 + 0.85 * 4, 10);
+    expect(computeExpectedPointsForSingleFixture(mid, fixture(), 4, 4)).toBeCloseTo(0.1 * 1.3 + 0.9 * 4, 10);
+    expect(computeExpectedPointsForSingleFixture(mid, fixture({ difficulty: 2 }), 0, 4)).toBeCloseTo((0.2 * 1.3 + 0.8 * 4) * 1.1, 10);
+  });
+
+  it("<fpl_official> FPL's chance of playing scales the season part (ep_next already carries it); unknown availability falls back to ep_next", () => {
+    // 75% chance: FPL's ep_next is already form × 0.75.
+    const doubt = makePlayer({ id: 5, position: "MID", epNext: 3, status: "d", chanceOfPlayingNextRound: 75 });
+    expect(computeExpectedPointsForSingleFixture(doubt, fixture(), 0, 4)).toBeCloseTo(0.2 * 3 + 0.8 * 4 * 0.75, 10);
+    const out = makePlayer({ id: 6, position: "MID", epNext: 0, status: "i", chanceOfPlayingNextRound: 0 });
+    expect(computeExpectedPointsForSingleFixture(out, fixture(), 3, 5)).toBe(0);
+    const unknown = makePlayer({ id: 7, position: "MID", epNext: 2, status: "", chanceOfPlayingNextRound: null });
+    expect(fplOfficialForFixture(unknown, fixture(), 0, 4)).toMatchObject({ total: 2, seasonRate: null, formShare: 1 });
   });
 });
 

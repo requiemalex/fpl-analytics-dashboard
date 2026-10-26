@@ -13,7 +13,8 @@ import type { NormalizedFixture } from "../types/normalized";
 // their colours, which rank the pitch's gameweek among every player.
 
 const TEAMS = [1, 2, 3, 4].map((id) => makeTeam({ id, shortName: ["ARS", "CHE", "BUR", "WOL"][id - 1], played: 10 }));
-// FPL's ep_next 5 for Saka, 4 for the Chelsea pair: Saka is top at GW+1.
+// FPL's ep_next 5 for Saka, 4 for the Chelsea pair: Saka is top at GW+1
+// (FDR 3, × 1; no season matches loaded, so FPL Official is ep_next × FDR alone, <fpl_official>).
 // In GW2 Arsenal's match is FDR 5 (× 0.8) and Chelsea's FDR 1 (× 1.2): 4.0 against 4.8.
 // In GW3 Arsenal blank and Chelsea have a double (FDR 3, × 1 each): 4.0 + 4.0.
 const PLAYERS = [
@@ -35,7 +36,7 @@ const match = (id: number, eventId: number, homeTeamId: number, awayTeamId: numb
   homeDifficulty,
   awayDifficulty: 3,
 });
-const FIXTURES = [match(1, 1, 1, 3, 2), match(2, 1, 2, 4, 2), match(3, 2, 1, 4, 5), match(4, 2, 2, 3, 1), match(5, 3, 2, 3, 3), match(6, 3, 4, 2, 3)];
+const FIXTURES = [match(1, 1, 1, 3, 3), match(2, 1, 2, 4, 3), match(3, 2, 1, 4, 5), match(4, 2, 2, 3, 1), match(5, 3, 2, 3, 3), match(6, 3, 4, 2, 3)];
 
 vi.mock("../state/AppStateContext", () => ({
   useAppState: () => ({
@@ -133,7 +134,8 @@ describe("Team Building — the gameweek arrows", () => {
     table.next();
     expect(table.shown()).toBe("GW3");
     expect(fplCell(container, "Enzo")!.textContent).toBe("8.0");
-    expect(fplCell(container, "Enzo")!.title).toContain("FPL's expected points for GW3 v BUR (H) and v WOL (A)");
+    expect(fplCell(container, "Enzo")!.title).toContain("FPL figures v BUR (H): 4.0 pts");
+    expect(fplCell(container, "Enzo")!.title).toContain("\nFPL figures v WOL (A): 4.0 pts");
     expect(fplCell(container, "Odegaard")!.textContent).toBe("—");
     expect(fplCell(container, "Odegaard")!.title).toContain("No match in GW3");
   });

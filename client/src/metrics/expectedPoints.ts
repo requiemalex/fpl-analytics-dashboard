@@ -4,6 +4,9 @@ import { MIN_QUALIFYING_SEASON_MINUTES, type HistoricPlayerProfile } from "./his
 import { resolvePlayerStats } from "./resolvePlayerStats";
 import { computeCareerAverages } from "./careerMetrics";
 import { estimatedPointsPerGame } from "./calculations";
+import { availabilityModifier } from "./availability";
+import { SCORING_RULES } from "./pointsModel";
+import { MODEL_PARAMS } from "./pointsModelParams.generated";
 
 export type ExpectedPointsWindow = 1 | 3 | 5;
 
@@ -29,53 +32,118 @@ export function fixtureMultiplier(difficulty: number, position: Position): numbe
 }
 
 /**
+ * <fpl_official>: how much of an FPL Official figure is his form (FPL's
+ * `ep_next`), by how far ahead the match is in his upcoming list (0 = his
+ * next); later matches keep the last share. The rest is his season
+ * (fplSeasonRate). Judgement calls, not fitted coefficients — see README
+ * "Exp. Pts (FPL Official)": form is three or four matches, so it says
+ * more about the next match than one a month away.
+ */
+export const FORM_SHARE: readonly number[] = [0.2, 0.15, 0.1];
+
+/**
+ * <fpl_official>: his season so far as points per match he was registered
+ * for (`registeredMatches`, his <season_matches>: a match he sat out counts
+ * as a 0, as in FPL's form), his goals and assists moved toward his xG and
+ * xA by Model Predicted's fitted weights (`goalXgWeight`, `assistXaWeight`)
+ * at FPL's points for each, never below 0. Not FPL's `points_per_game`:
+ * that's per appearance, so it skips the weeks he was benched or rotated
+ * out. Null before his first match or while his matches haven't loaded.
+ */
+export function fplSeasonRate(
+  player: Pick<NormalizedPlayer, "position" | "totalPoints" | "goals" | "assists" | "xG" | "xA">,
+  registeredMatches: number | undefined,
+): number | null {
+  if (!registeredMatches || player.totalPoints === null) return null;
+  let points = player.totalPoints;
+  if (player.xG !== null && player.goals !== null) points += MODEL_PARAMS.goalXgWeight * SCORING_RULES.goal[player.position] * (player.xG - player.goals);
+  if (player.xA !== null && player.assists !== null) points += MODEL_PARAMS.assistXaWeight * SCORING_RULES.assist * (player.xA - player.assists);
+  return Math.max(0, points / registeredMatches);
+}
+
+/** One match's FPL Official figure, in parts (for its hover). */
+export interface FplBreakdown {
+  total: number;
+  /** FPL's `ep_next`: his form × FPL's chance of playing. */
+  epNext: number;
+  /** fplSeasonRate; null when there's none, and the figure is `ep_next` alone. */
+  seasonRate: number | null;
+  /** FORM_SHARE for this match; 1 when seasonRate is null. */
+  formShare: number;
+  /** FPL's chance of playing (availabilityModifier), applied to the season part. */
+  availability: number;
+  /** fixtureMultiplier for this match. */
+  multiplier: number;
+}
+
+/**
+ * <fpl_official>: one upcoming match's FPL Official figure, from FPL's own
+ * figures: `(share × ep_next + (1 − share) × season × chance of playing) ×
+ * fixtureMultiplier`. `ep_next` is FPL's form × its chance of playing, with
+ * no fixture or season in it (checked against every available player,
+ * 2026-10-26), so the fixture scales every match, the next one included.
+ * Without a season rate (or an availability), `ep_next × fixtureMultiplier`.
+ * `fixtureIndexZeroBased` is the match's place in his upcoming list (a
+ * double's second match is one further on). Null without `ep_next`, never 0.
+ */
+export function fplOfficialForFixture(
+  player: NormalizedPlayer,
+  fixture: UpcomingFixture,
+  fixtureIndexZeroBased: number,
+  seasonRate: number | null,
+): FplBreakdown | null {
+  if (player.epNext === null) return null;
+  const multiplier = fixtureMultiplier(fixture.difficulty, player.position);
+  const availability = availabilityModifier(player);
+  if (seasonRate === null || availability === null) {
+    return { total: player.epNext * multiplier, epNext: player.epNext, seasonRate: null, formShare: 1, availability: availability ?? 1, multiplier };
+  }
+  const formShare = FORM_SHARE[Math.min(fixtureIndexZeroBased, FORM_SHARE.length - 1)];
+  const total = (formShare * player.epNext + (1 - formShare) * seasonRate * availability) * multiplier;
+  return { total, epNext: player.epNext, seasonRate, formShare, availability, multiplier };
+}
+
+/**
  * Sums expected points across the player's next `window` fixtures (not
  * calendar gameweeks — a team with a blank gameweek simply has no
  * fixture that week and contributes nothing for it automatically, by
  * using "next N fixtures" as the unit rather than "next N gameweek
- * slots"; a double gameweek's two fixtures both count).
- *
- * The immediate next fixture uses FPL's own `ep_next` unmodified —
- * "just use that number", not blended with anything of ours. Fixtures
- * after that have no FPL-published estimate, so they're `ep_next`
- * scaled by that specific fixture's own difficulty rating relative to a
- * neutral FDR of 3 — the only extension applied, and it's built entirely
- * from real, FPL-published difficulty data, not a second invented model.
+ * slots"; a double gameweek's two fixtures both count), each one
+ * computeExpectedPointsForSingleFixture.
  *
  * Returns null if the player has no ep_next (shouldn't happen for an
  * active player, but never silently substitutes 0) or no upcoming
  * fixtures at all in the window (e.g. season already over).
  */
-export function computeExpectedPointsForWindow(player: NormalizedPlayer, upcomingFixtures: UpcomingFixture[], window: ExpectedPointsWindow): number | null {
+export function computeExpectedPointsForWindow(
+  player: NormalizedPlayer,
+  upcomingFixtures: UpcomingFixture[],
+  window: ExpectedPointsWindow,
+  seasonRate: number | null = null,
+): number | null {
   if (player.epNext === null) return null;
   const fixtures = upcomingFixtures.slice(0, window);
   if (fixtures.length === 0) return null;
 
   let total = 0;
   fixtures.forEach((fixture, i) => {
-    total += computeExpectedPointsForSingleFixture(player, fixture, i) ?? 0;
+    total += computeExpectedPointsForSingleFixture(player, fixture, i, seasonRate) ?? 0;
   });
   return total;
 }
 
-/**
- * The single-fixture building block computeExpectedPointsForWindow sums
- * across a window — exposed on its own for the gameweek navigator (Team
- * Building's pitch view and Add Players table), which shows exactly one
- * upcoming fixture's estimate at a time rather than a summed window.
- * `fixtureIndexZeroBased` is the fixture's position in the player's own
- * upcoming-fixtures list (0 = the very next one, still `ep_next`
- * unmodified; every fixture after that is `ep_next` scaled by ITS OWN
- * difficulty rating) — not a calendar gameweek number, same "next N
- * fixtures" unit used throughout this app.
- */
-export function computeExpectedPointsForSingleFixture(player: NormalizedPlayer, fixture: UpcomingFixture, fixtureIndexZeroBased: number): number | null {
-  if (player.epNext === null) return null;
-  return fixtureIndexZeroBased === 0 ? player.epNext : player.epNext * fixtureMultiplier(fixture.difficulty, player.position);
+/** fplOfficialForFixture's figure alone. */
+export function computeExpectedPointsForSingleFixture(
+  player: NormalizedPlayer,
+  fixture: UpcomingFixture,
+  fixtureIndexZeroBased: number,
+  seasonRate: number | null = null,
+): number | null {
+  return fplOfficialForFixture(player, fixture, fixtureIndexZeroBased, seasonRate)?.total ?? null;
 }
 
 export interface ExpPointsBreakdown {
-  /** FPL's own ep_next, extended by fixture difficulty — see computeExpectedPointsForWindow. */
+  /** FPL's own ep_next, extended by fixture difficulty (no season rate: this breakdown isn't shown) — see computeExpectedPointsForWindow. */
   fplPredicted: number | null;
   /** Last completed season's points-per-game × window — a flat rate extrapolation, not fixture-adjusted (that season is over; there's nothing to adjust against). */
   lastSeason: number | null;

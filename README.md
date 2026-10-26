@@ -1763,9 +1763,10 @@ included.
 Everything else in the app describes what happened, but for the Team
 Profile's Fixture Forecast (a fitted model, "Fixture Forecast" above), which
 Model Predicted also reads.
-Team Building predicts, at the user's request: FPL Official extends FPL's
-own `ep_next` with **disclosed heuristics** (every weight a named constant
-with its reasoning), and Model Predicted is a **fitted model**, proven on
+Team Building predicts, at the user's request: FPL Official builds on
+FPL's own figures (`ep_next`, his season's points, xG and xA, the chance of
+playing, fixture difficulty) with **disclosed heuristics** (every weight a
+named constant with its reasoning), and Model Predicted is a **fitted model**, proven on
 seasons it wasn't fitted on (below). It has no analysis-mode
 toggle; its Historic/Raw columns have their own. Squads (`useSavedSquads`,
 max 5) are created blank or imported by FPL team ID (positions 1–11 are the
@@ -1927,9 +1928,44 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   `finished` hours after full time. The Fixtures chips and column are
   still each club's next five matches; the Explorers' Next 5 Fixtures use
   the kick-off rule only.
-- **Exp. Pts (FPL Official)** — `metrics/expectedPoints.ts`. FPL's `ep_next`
-  for the player's first upcoming match. Later matches are `ep_next ×
-  fixtureMultiplier(FDR, position)`.
+- **Exp. Pts (FPL Official)** — `<fpl_official>`, `metrics/expectedPoints.ts`
+  (`fplOfficialForFixture`). Expected points for one match from FPL's own
+  figures only: `(share × ep_next + (1 − share) × season × chance of
+  playing) × fixtureMultiplier(FDR, position)`.
+  - **Why not `ep_next` alone.** FPL's `ep_next` is its `form` × its chance
+    of playing, with no fixture and no season in it (checked against every
+    available player with 450+ minutes, 2026-10-26: all 161 matched). Form
+    is the last three or four matches, so a cold spell of 2-pointers gave a
+    regular starter under 2 points in every gameweek ahead.
+  - **Season** (`fplSeasonRate`): his total points ÷ the matches he was
+    registered for this season (his `<season_matches>`: a match he sat out
+    counts as 0, as in FPL's form), with his goals and assists moved toward
+    his xG and xA by Model Predicted's fitted weights (`goalXgWeight`,
+    `assistXaWeight`) at FPL's points for each, never below 0. Not FPL's
+    `points_per_game`: that's per appearance, so it skips the weeks he was
+    benched or rotated out and over-states a squad player.
+  - **Form** is `ep_next` (which already carries the chance of playing);
+    the season part is scaled by the same chance (`availabilityModifier`,
+    as Model Predicted). Form's share falls the further ahead the match is
+    (`FORM_SHARE`, below).
+  - **Fixture**: `fixtureMultiplier` scales every match, the next one
+    included.
+  - **Fallback**: before his first match, while his season matches haven't
+    loaded, or with no availability known, it's `ep_next ×
+    fixtureMultiplier` alone; the hover says so.
+  - **Not used:** `ep_this` and `chance_of_playing_this_round` are for the
+    gameweek already under way, which can't be picked for; season minutes
+    add nothing the per-match rate and form don't already carry.
+  - **Checked** on 2026/27's matches so far (FPL's own data), each figure
+    worked out as of before the match, one to five matches ahead (form
+    rebuilt as his last three matches; no availability news, which only
+    helps both): the blend's typical miss (RMSE) was 2.95–3.30 points against the old
+    figure's 3.14–3.53, and it ordered players within a position better at
+    every distance (correlation 0.36 against 0.32 for the next match). The
+    form shares are judgement calls: this early in the season form adds
+    little either way.
+  - Its hover gives the parts: his season rate and form with their shares,
+    the fixture's adjustment and the chance of playing.
 - **Exp. Pts (Model Predicted)** — `<points_model>`, `metrics/pointsModel.ts`
   (the model), `metrics/pointsModelLive.ts` (its evidence from the app's
   data), `metrics/pointsModelParams.generated.ts` (its fitted settings).
@@ -2105,14 +2141,15 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
 - **Availability's limit:** FPL publishes availability for the next round
   only, with no return date, so it can't tell a one-match ban from a long
   injury. The same availability applies to every upcoming gameweek: a
-  one-match ban zeroes all five in both models (FPL Official because every later step
-  scales `ep_next`, which FPL already zeroes).
+  one-match ban zeroes all five in both models (FPL Official because both
+  its parts scale by FPL's chance of playing).
 - **The named weights** (judgement calls, not fitted; Model Predicted's
   settings are fitted, above):
 
   | Constant | Value | Where |
   |---|---|---|
   | `FDR_SENSITIVITY` | GKP 0.08, DEF 0.08, MID 0.10, FWD 0.12 per FDR step from 3 | `expectedPoints.ts` (FPL Official) |
+  | `FORM_SHARE` | form's share 0.2 for his next match, 0.15 the one after, 0.1 for every later one | `expectedPoints.ts` (FPL Official) |
   | status defaults | a 1, d 0.5, i/s/u/n 0, unknown → no figure | `availability.ts` |
 
 ---
