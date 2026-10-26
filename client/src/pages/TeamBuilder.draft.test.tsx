@@ -85,3 +85,45 @@ describe("Team Building — Best Draft", () => {
     expect(squad.viceCaptainId).toBe(13);
   });
 });
+
+describe("Team Building — an import's budget at selling prices (<imported_budget>)", () => {
+  it("is its bank plus its players' selling prices: unchanged, the Bank tile shows exactly its bank", () => {
+    // All 15 bought at £4.8m, now £5.0m: each sells for £4.9m. £0.5m in the bank.
+    const ids = POSITIONS.map((_, i) => i + 1);
+    const bought = Object.fromEntries(ids.map((id) => [id, 4.8]));
+    saveVersioned(STORE, 4, [
+      {
+        id: "s1",
+        name: "Imported",
+        createdAt: 0,
+        updatedAt: 0,
+        playerIds: ids,
+        startingXI: [1, 3, 4, 5, 6, 8, 9, 10, 11, 13, 14],
+        captainId: null,
+        viceCaptainId: null,
+        purchasePrices: bought,
+        usedChips: [],
+        importedFrom: { teamId: 7, teamName: "T", managerName: "M", asOfEvent: 1, bank: 0.5, budget: 75.5, playerIds: ids, purchasePrices: bought },
+      },
+    ]);
+    const { container } = renderBuilder();
+    const tile = (label: string) => Array.from(container.querySelectorAll(".pitch-view-tiles .stat-tile")).find((t) => t.querySelector(".stat-tile-label")?.textContent === label)!;
+    expect(tile("Squad Value").querySelector(".stat-tile-value")!.textContent).toBe("£73.5m");
+    expect(tile("Bank").querySelector(".stat-tile-value")!.textContent).toBe("£0.5m");
+    expect(tile("Squad Value").getAttribute("title")).toMatch(/^Budget £74\.0m: £0\.5m in the bank plus the players this squad was imported with at their selling prices/);
+  });
+});
+
+describe("Team Building — purchase price colours (<price_view>)", () => {
+  it("rank a squad player's purchase price against everyone else in his position at today's price", () => {
+    // P1 (GKP) bought at £4.5m; P2 (GKP) at £5.0m, today's price.
+    save([1, 2], [1], { 1: 4.5, 2: 5 });
+    const { container, getByRole } = renderBuilder();
+    fireEvent.click(getByRole("radio", { name: /^Price:/ }));
+    fireEvent.click(getByRole("radio", { name: /^Purchase price/ }));
+    const figure = (name: string) => Array.from(container.querySelectorAll<HTMLElement>(".pitch-card")).find((c) => c.querySelector(".pitch-card-name")?.textContent?.includes(name))!.querySelector<HTMLElement>(".pitch-card-figure")!;
+    expect(figure("P1").textContent).toBe("£4.5m");
+    expect(figure("P1").style.backgroundColor).not.toBe("");
+    expect(figure("P1").style.backgroundColor).not.toBe(figure("P2").style.backgroundColor);
+  });
+});

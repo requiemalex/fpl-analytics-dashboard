@@ -149,6 +149,10 @@ No lint script. Playwright isn't installed but works via
   The top bar's palette switch turns every such colour off at once
   (`<comparative_colour_switch>`): paint by rank only through
   `percentileTint` / `percentileColour`, never a colour of your own.
+  One exception, the owner's call (2026-10-26): FPL's price Progress on
+  Team Building's pitch is coloured by the figure itself, grey to full
+  green/red at ±100%, as FPL shows it (`<price_progress>`), still
+  through `percentileTint`.
   Never use green or red as a series or decoration colour (one exception,
   the owner's choice: the green "line" in the Scoutline logo).
 

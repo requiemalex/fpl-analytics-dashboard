@@ -1211,9 +1211,9 @@ goals expected each way (`<points_model>`).
     pool — on every page, including those where the user sets minimum
     minutes for the rows themselves (see "Minimum minutes"). Understat
     figures check Understat's own minutes. Clubs have no floor, and nor
-    do forward-looking figures: Team Building's two Exp. Pts, Minutes
-    Reliability and every colour on its pitch cards (M20, 2026-10-19),
-    and the Team Profile's Fixture Forecast;
+    do forward-looking figures: Team Building's two Exp. Pts, Exp. Mins
+    and every colour on its pitch cards (M20, 2026-10-19), and the Team
+    Profile's Fixture Forecast;
   - the rank is a percentile (half of ties below) flipped for
     lower-is-better figures; `percentileTint` (`utils/colorScale.ts`)
     turns it into the one scale: no colour at the 50th, stronger green
@@ -1227,6 +1227,13 @@ goals expected each way (`<points_model>`).
   - Player Comparison's per-player colours and the Dashboard's charts use
     neither green nor red, so nothing reads as better or worse by its
     series colour.
+  - **One exception, the owner's call (2026-10-26):** FPL's price
+    Progress and Predicted Progress on Team Building's pitch
+    (`<price_progress>`) are coloured by the figure itself, as FPL's own
+    Price Changes page does: grey at 0 to full green at +100% (a rise) and
+    full red at −100% (a drop). They still go through `percentileTint`
+    (the figure placed on its 0–100 scale), so the switch below turns them
+    off with the rest.
   - **One switch turns it all off** (`<comparative_colour_switch>`,
     `state/comparativeColour.ts`): the palette button in the top bar,
     right of the notepad's. Off (struck through), `percentileTint` and
@@ -1766,12 +1773,25 @@ starting XI, also in a Bench Boost week; a Free Hit week imports that week's
 temporary squad). Squad rules
 (`metrics/squadRules.ts`) always use live price and club. The budget is
 FPL's £100m for a squad built from scratch; an imported squad has its own
-(`<imported_budget>`, `types/team.ts`): its players at today's prices when
-imported plus the bank, so an unchanged import has exactly the manager's
-bank left (today's prices, not FPL's selling prices, which keep half of a
-rise: the pitch's Price highlight shows those, `<price_view>` below). Null where that can't be known (no bank, a pick FPL no
-longer lists, or a squad saved before saved-squads store version 2): the
-£100m applies, and the budget's hover text says to import again. Going over
+(`<imported_budget>`, `squadMoney` in `metrics/squadPrices.ts`): what FPL
+would let the manager spend, its bank plus every player it was imported
+with at his selling price today (`<selling_price>`). A player still held
+since the import counts against it at that selling price, so an unchanged
+import has exactly the manager's bank left; one added in Scoutline counts
+at today's price (what he'd be bought at); one removed leaves his selling
+price in the money; an imported player with no purchase price counts at
+today's price on both sides. The players it was imported with and their
+purchase prices are kept with the import (`importedFrom.playerIds`,
+`importedFrom.purchasePrices`, saved-squads store version 4); an import
+saved before them, or whose prices didn't load, has them loaded from FPL
+the first time it's opened each session (`loadImportedPurchasePrices`,
+`state/importedPurchasePrices.ts`), filling in only what's missing. Until
+then, its players at today's prices when imported plus the bank
+(`importedFrom.budget`); null where that can't be known (no bank, a pick
+FPL no longer lists, or a squad saved before store version 2): the £100m
+applies, and the budget's hover text says to import again. A new season's
+rollover drops the selling-price budget (the import was last season's
+team; FPL's team ids are per season too). Going over
 is a warning ("£2.1m over"), never a block. **Add** starts a player while
 the XI still has a legal place for him (`<add_to_xi>`, `fitsStartingXI`),
 otherwise benches him; dragging moves anyone between pitch and bench.
@@ -1827,16 +1847,32 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   or while no player has a figure for that gameweek. Bench order and
   automatic substitutions aren't modelled (the app has no bench order).
 - **Price** (`<price_view>`) — its toggle picks **Current** (today's
-  price, coloured by rank within the position, lower greener, as
-  before), **Sell** (`<selling_price>`, `sellingPrice` in
-  `metrics/squadPrices.ts`: FPL's rule, the purchase price plus half of
-  any rise, rounded down to £0.1m, or today's price after a fall),
-  **Purchase** (`<purchase_prices>`, below) or **Change** (FPL's
-  `cost_change_event`: ▲ rising, ▼ falling, since the last gameweek
-  deadline; the hover adds the season's `cost_change_start`). Sell,
-  Purchase and Change aren't coloured: a squad's own prices have no pool
-  to rank in, and most players' change is 0. "—" for a purchase price
-  that isn't known; the hover says why.
+  price), **Purchase** (`<purchase_prices>`, below), **Sell**
+  (`<selling_price>`, `sellingPrice` in `metrics/squadPrices.ts`: FPL's
+  rule, the purchase price plus half of any rise, rounded down to £0.1m,
+  or today's price after a fall), **Progress** or **Predicted Progress**.
+  FPL's own team page shows purchase and selling prices only where they
+  differ from today's; here they're always shown, today's where he hasn't
+  moved. All three prices are coloured by rank within the position, lower
+  greener (the owner's rule: one rule everywhere): a squad player's
+  purchase or selling price ranks against every other player in his
+  position at today's price, the price they'd be bought at and sold for
+  today. "—" (and no colour) for a purchase price that isn't known; the
+  hover says why.
+- **Progress / Predicted Progress** (`<price_progress>`, `progressFigure`
+  in `components/SquadPitch.tsx`) — FPL's own price change predictor, as
+  its Price Changes page reads it (checked in FPL's site code,
+  2026-10-26): Progress is `price_change_percent`, how far he is toward
+  his next price change (+ toward a rise, − toward a drop, 100% the
+  threshold); Predicted Progress is `price_change_projections[0]`, where
+  FPL expects it at the next price update, and the hover gives FPL's
+  status for it from its `likelihood` (5 very likely to rise, 4 likely
+  to rise, −4 likely to drop, −5 very likely to drop, otherwise unlikely
+  to change). One decimal, as FPL shows them (99.6% and 100.0% are on
+  either side of the threshold). A locked price (`price_change_locked_until`)
+  reads "Locked", with the date in the hover; a calibrating one
+  "Calibrating". Coloured by the figure itself (the comparative-colouring
+  exception above). "—" when FPL hasn't sent it.
 - **Purchase prices** (`<purchase_prices>`, `SavedSquad.purchasePrices`) —
   a player added in Scoutline (Add, or dragged in) is bought at his price
   that day; removing him drops it. An import reads FPL's public
@@ -1850,10 +1886,16 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   week. Checked on 2026-10-26 against 12 real teams by replaying every
   transfer onto those prices: each ended on FPL's own bank to the £0.1m.
   A team that started after GW1 bought its first 15 at prices FPL's
-  public data doesn't keep, so those players have none ("—"); players it
-  bought since still do. A failed transfers request still imports the
-  squad, without purchase prices. A new season's rollover drops them
-  (they were paid at last season's prices).
+  public data doesn't keep: a starting player whose price hasn't moved
+  since before it joined (his `value` in element-summary for every match
+  from the last one before it joined, and today's price, all the same)
+  cost today's price (the owner's call, 2026-10-26), and when only one is
+  left, his is £100m − its bank then − the other 14. The rest have none
+  ("—"); players it bought since still do (tried on 8 late-joining teams,
+  2026-10-26: 1–6 of their 15 hadn't moved). A failed request still
+  imports the squad, without purchase prices (they load next time). A
+  new season's rollover drops them (they were paid at last season's
+  prices).
 - **Open places** (`<open_slots>`, `openSquadSlots` in
   `metrics/squadRules.ts`) — every place the squad is still short of
   (2 GKP, 5 DEF, 5 MID, 3 FWD) is a "+": the XI's open places take them

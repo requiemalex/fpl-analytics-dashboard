@@ -804,8 +804,8 @@ export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
     derived: true,
     formula: "Purchase price + ⌊(today's price − purchase price) ÷ 2⌋ to £0.1m when he's risen; today's price otherwise (FPL's rule).",
     units: "£m",
-    caveats: "A player added in Scoutline is bought at his price that day; an import's purchase prices come from its transfers and, for a team that started in GW1, season-start prices checked against FPL's own bank.",
-    availabilityNote: "— when his purchase price isn't known (a team that started after GW1, for the players it started with, or a squad saved before purchase prices were kept).",
+    caveats: "A player added in Scoutline is bought at his price that day; an import's purchase prices come from its transfers and, for its starting players, season-start prices checked against FPL's own bank (a GW1 team) or today's price where it hasn't moved since the team joined (a later one). An import's budget is its bank plus its players' selling prices.",
+    availabilityNote: "— when his purchase price isn't known (a later-starting team's player whose price has moved since, or a squad saved before purchase prices were kept).",
   }),
   modelPredictedPoints: def({
     displayName: "Exp. Pts (Model Predicted)",

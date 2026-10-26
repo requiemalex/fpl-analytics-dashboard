@@ -3,8 +3,9 @@ import { SQUAD_RULES } from "../types/team";
 
 const POSITIONS: Position[] = ["GKP", "DEF", "MID", "FWD"];
 
-export function squadBudgetUsed(squadPlayers: NormalizedPlayer[]): number {
-  return squadPlayers.reduce((sum, p) => sum + p.price, 0);
+/** What the squad's players count for against the budget: today's prices, or `cost` (an import's selling prices, squadMoney in metrics/squadPrices.ts). */
+export function squadBudgetUsed(squadPlayers: NormalizedPlayer[], cost: (p: NormalizedPlayer) => number = (p) => p.price): number {
+  return squadPlayers.reduce((sum, p) => sum + cost(p), 0);
 }
 
 export function squadCompositionCounts(squadPlayers: NormalizedPlayer[]): Record<Position, number> {
@@ -52,8 +53,8 @@ export interface SquadValidation {
  * Validates the full 15-player squad against budget, composition, and
  * club-limit rules. Does not check the starting XI — see validateStartingXI.
  */
-export function validateSquad(squadPlayers: NormalizedPlayer[], budget: number = SQUAD_RULES.budget): SquadValidation {
-  const budgetUsed = squadBudgetUsed(squadPlayers);
+export function validateSquad(squadPlayers: NormalizedPlayer[], budget: number = SQUAD_RULES.budget, cost?: (p: NormalizedPlayer) => number): SquadValidation {
+  const budgetUsed = squadBudgetUsed(squadPlayers, cost);
   const composition = squadCompositionCounts(squadPlayers);
   const clubViolations = squadClubViolations(squadPlayers);
   const compositionOk = POSITIONS.every((pos) => composition[pos] === SQUAD_RULES.composition[pos]);

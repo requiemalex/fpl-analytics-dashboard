@@ -7,7 +7,7 @@ const base = { id: "squad-1", name: "Mine", createdAt: 1, updatedAt: 1, playerId
 describe("saved squads: an import's budget (<imported_budget>, store version 2)", () => {
   it("a version-1 import has no budget, so the £100m it always had still applies", () => {
     const v1 = normalizeSavedSquad({ ...base, importedFrom: { teamId: 7, teamName: "T", managerName: "M", asOfEvent: 7, bank: 0.1 } });
-    expect(v1?.importedFrom).toEqual({ teamId: 7, teamName: "T", managerName: "M", asOfEvent: 7, bank: 0.1, budget: null });
+    expect(v1?.importedFrom).toEqual({ teamId: 7, teamName: "T", managerName: "M", asOfEvent: 7, bank: 0.1, budget: null, playerIds: null, purchasePrices: null });
     expect(squadBudget(v1)).toBe(100);
   });
 
@@ -31,5 +31,16 @@ describe("saved squads: purchase prices (<purchase_prices>, store version 3)", (
   it("keeps a real price for each squad player, and drops one for a player not in the squad or a damaged one", () => {
     const squad = normalizeSavedSquad({ ...base, importedFrom: null, purchasePrices: { 1: 7.4, 2: "lots", 3: 5.5, 4: -1 } });
     expect(squad?.purchasePrices).toEqual({ 1: 7.4 });
+  });
+});
+
+describe("saved squads: an import's players and purchase prices (<imported_budget>, store version 4)", () => {
+  it("an import saved before them has neither, so Team Building loads them from FPL", () => {
+    expect(normalizeSavedSquad({ ...base, importedFrom: { teamId: 7, bank: 0.1, budget: 100.1 } })?.importedFrom).toMatchObject({ playerIds: null, purchasePrices: null });
+  });
+
+  it("keeps them, a purchase price only for a player it was imported with", () => {
+    const squad = normalizeSavedSquad({ ...base, importedFrom: { teamId: 7, bank: 0.1, budget: 100.1, playerIds: [1, 2, 9], purchasePrices: { 1: 7.4, 3: 5 } } });
+    expect(squad?.importedFrom).toMatchObject({ playerIds: [1, 2, 9], purchasePrices: { 1: 7.4 } });
   });
 });

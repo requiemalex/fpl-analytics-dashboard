@@ -26,24 +26,11 @@ describe("<imported_budget> an imported squad's budget", () => {
   });
 });
 
-describe("<purchase_prices> an imported squad's purchase prices", () => {
-  // Every player £6.8m now, up £0.5m since the season started at £6.3m.
-  const risen = new Map(Array.from({ length: 16 }, (_, i) => [i + 1, makePlayer({ id: i + 1, position: "MID", price: 6.8, costChangeStart: 0.5 })]));
-  const gw1 = (bank: number): RawEntryHistory => ({ current: [{ event: 1, bank }, { event: 7, bank: 1, value: 1018 }], chips: [] });
-  const startPicks: RawEntryPicks = { picks: [16, ...Array.from({ length: 14 }, (_, i) => i + 2)].map((element, i) => ({ element, position: i + 1 })) };
-  // Player 1 replaced 16 in GW4, bought for £6.5m.
-  const transfers = [{ element_in: 1, element_in_cost: 65, element_out: 16, element_out_cost: 63, event: 4, time: "2026-09-10T10:00:00Z" }];
-  const startedGw1: RawEntryTeam = { ...team, started_event: 1 };
-
-  it("come from its transfers and, for a team that started in GW1, its season-start prices", () => {
-    // 15 × £6.3m = £94.5m spent, £5.5m in the bank.
-    const { squad } = normalizeEntryImport(startedGw1, gw1(55), picks, 7, risen, { transfers, startPicks });
-    expect(squad.purchasePrices[1]).toBe(6.5);
-    expect(squad.purchasePrices[2]).toBe(6.3);
-    expect(Object.keys(squad.purchasePrices)).toHaveLength(15);
-  });
-
-  it("are none without its transfers", () => {
-    expect(normalizeEntryImport(startedGw1, gw1(55), picks, 7, risen).squad.purchasePrices).toEqual({});
+describe("<imported_budget> what an import keeps for its selling-price budget", () => {
+  it("the players it was imported with, its purchase prices still to load", () => {
+    const { squad } = normalizeEntryImport(team, history(1), picks, 7, live);
+    expect(squad.importedFrom?.playerIds).toEqual(Array.from({ length: 15 }, (_, i) => i + 1));
+    expect(squad.importedFrom?.purchasePrices).toBeNull();
+    expect(squad.purchasePrices).toEqual({});
   });
 });

@@ -6,8 +6,9 @@ const STORAGE_KEY = "fpl-dashboard:saved-squads:v1";
 /**
  * 2: an import's `importedFrom.budget` (<imported_budget>); a version-1 import gets null, so the £100m it had still applies.
  * 3: `purchasePrices` (<purchase_prices>); an earlier squad gets none, so its purchase and selling prices show "—" until it's imported again or a player is re-added.
+ * 4: an import's `importedFrom.playerIds` and `importedFrom.purchasePrices` (<imported_budget>); an earlier import gets null for both, and Team Building loads them from FPL the next time it's opened.
  */
-const STORAGE_VERSION = 3;
+const STORAGE_VERSION = 4;
 
 const ids = (v: unknown): number[] => (Array.isArray(v) ? v.filter((id): id is number => typeof id === "number" && Number.isFinite(id)) : []);
 const idOrNull = (v: unknown, allowed: number[]): number | null => (typeof v === "number" && allowed.includes(v) ? v : null);
@@ -66,6 +67,8 @@ function normalizeImportedFrom(raw: unknown): SavedSquad["importedFrom"] {
     asOfEvent: numberOrNull(r.asOfEvent) ?? 0,
     bank: numberOrNull(r.bank),
     budget: numberOrNull(r.budget),
+    playerIds: Array.isArray(r.playerIds) ? [...new Set(ids(r.playerIds))] : null,
+    purchasePrices: r.purchasePrices && typeof r.purchasePrices === "object" && Array.isArray(r.playerIds) ? normalizePurchasePrices(r.purchasePrices, ids(r.playerIds)) : null,
   };
 }
 
@@ -84,6 +87,8 @@ export const MAX_SAVED_SQUADS = 5;
 export interface UseSavedSquads {
   squads: SavedSquad[];
   upsert: (squad: SavedSquad) => void;
+  /** Changes one squad as it is at that moment (a change that arrives later, like prices loaded from FPL, never overwrites edits made meanwhile); nothing if it's gone. */
+  update: (id: string, mutator: (squad: SavedSquad) => SavedSquad) => void;
   remove: (id: string) => void;
 }
 
@@ -113,9 +118,13 @@ export function useSavedSquads(): UseSavedSquads {
     });
   }, []);
 
+  const update = useCallback((id: string, mutator: (squad: SavedSquad) => SavedSquad) => {
+    setSquads((prev) => prev.map((s) => (s.id === id ? { ...mutator(s), updatedAt: Date.now() } : s)));
+  }, []);
+
   const remove = useCallback((id: string) => {
     setSquads((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
-  return { squads, upsert, remove };
+  return { squads, upsert, update, remove };
 }

@@ -368,11 +368,15 @@ export function UserGuide() {
             Highlight pick. <strong>Fixtures</strong> shows his next five matches instead, coloured by FPL difficulty.
           </li>
           <li>
-            Price has its own toggle: <strong>Current</strong> (today's price), <strong>Sell</strong> (what FPL would pay you
-            for him: what you paid plus half of any rise, rounded down to £0.1m, or today's price if he's fallen),{" "}
-            <strong>Purchase</strong> (what he cost) and <strong>Change</strong> (▲ rising or ▼ falling since the last gameweek
-            deadline). A player you add here is bought at that day's price. An imported team's prices come from its transfers on
-            FPL; for a team that joined after GW1, what it paid for the players it started with isn't public, so those show "—".
+            Price has its own toggle: <strong>Current</strong> (today's price), <strong>Purchase</strong> (what he cost),{" "}
+            <strong>Sell</strong> (what FPL would pay you for him: what you paid plus half of any rise, rounded down to £0.1m, or
+            today's price if he's fallen), and FPL's own price change predictor: <strong>Progress</strong> (how far he is toward
+            his next price change, + toward a rise, − toward a drop, 100% the threshold) and <strong>Predicted Progress</strong>{" "}
+            (where FPL expects that to be at the next price update; hover for FPL's status, e.g. "likely to rise"). Prices are
+            coloured like today's price, against everyone in the position; Progress goes from grey to full green or red at ±100%,
+            as on FPL. A player you add here is bought at that day's price. An imported team's prices come from its transfers on
+            FPL; for a team that joined after GW1, what it paid for the players it started with is known only where his price
+            hasn't moved since, so the rest show "—".
           </li>
           <li>
             Every place the squad still has to fill is a <strong>+</strong>, on the pitch first (in a legal shape, 4-4-2 for an
@@ -406,9 +410,9 @@ export function UserGuide() {
           </li>
           <li>
             Above the pitch: the squad's name with its buttons, then Squad Value and Bank. A club-limit breach shows as a banner.
-            A squad built from scratch has FPL's £100m; an imported one has its own: its players at today's prices when you
-            imported it, plus its money in the bank, so an unchanged import shows exactly that bank left (a player who has risen
-            counts at today's price, not his selling price; hover the budget for its make-up). Going over turns the budget red and says how
+            A squad built from scratch has FPL's £100m; an imported one has what FPL would let you spend: its money in the bank
+            plus its players at their selling prices, so an unchanged import shows exactly that bank left. Sell one and his
+            selling price goes back in; a player you add costs today's price. Hover the budget for its make-up. Going over turns the budget red and says how
             far over, but never stops you adding a player.
           </li>
           <li>

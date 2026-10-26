@@ -10,7 +10,9 @@ import { columnHint, fplGameweekHint, minutesGameweekHint, modelGameweekHint, pl
 import { useSortSpec, compareSortValues, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
 import { useEscapeLayer } from "../state/useEscapeLayer";
 import { useProgressiveRowCount } from "../state/useProgressiveRowCount";
-import { SQUAD_RULES, createBlankSquad, squadBudget, type SavedSquad } from "../types/team";
+import { SQUAD_RULES, createBlankSquad, type SavedSquad } from "../types/team";
+import { sellingPrice, squadMoney } from "../metrics/squadPrices";
+import { loadImportedPurchasePrices } from "../state/importedPurchasePrices";
 import { validateSquad, validateStartingXI, canAddPlayer, fitsStartingXI, openSquadSlots } from "../metrics/squadRules";
 import { resolvePlayerStats, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
@@ -18,7 +20,7 @@ import { computeExpectedPointsForSingleFixture } from "../metrics/expectedPoints
 import { modelClubRatings, modelForFixture, playerEvidence } from "../metrics/pointsModelLive";
 import { clubSeasonsAsShown } from "../metrics/teamStats";
 import { expectationForGameweek, upcomingGameweeks, type GameweekExpectation } from "../metrics/gameweekExpectations";
-import { fetchEntryTeam, fetchEntryHistory, fetchEntryPicks, fetchEntryTransfers, ApiRequestError } from "../api/client";
+import { fetchEntryTeam, fetchEntryHistory, fetchEntryPicks, ApiRequestError } from "../api/client";
 import { normalizeEntryImport } from "../normalize/normalizeEntryImport";
 import { filterBySearch } from "../utils/playerSearch";
 import { getUpcomingFixtures, firstPickableEventId, averageFixtureDifficulty, formatFixturesForCsv, type UpcomingFixture } from "../metrics/fixtureTicker";
@@ -276,9 +278,15 @@ function squadTitle(squad: SavedSquad): string {
   return squad.name.trim() || "Untitled squad";
 }
 
-/** Hover text for the status line's budget: where it comes from (<imported_budget>, types/team.ts). */
-function budgetHint(squad: SavedSquad | null): string {
+/** Hover text for the status line's budget: where it comes from (<imported_budget>, squadMoney). */
+function budgetHint(squad: SavedSquad | null, money: { budget: number; atSellingPrices: boolean }): string {
   const imported = squad?.importedFrom;
+  if (imported && money.atSellingPrices) {
+    return `Budget ${fmtPrice(money.budget)}: ${fmtPrice(imported.bank ?? 0)} in the bank plus the players this squad was imported with at their selling prices today (what FPL would pay for them: what was paid plus half of any rise). A player still held counts at his selling price, one added here at today's price.`;
+  }
+  if (imported && imported.purchasePrices === null && imported.budget !== null) {
+    return `Budget ${fmtPrice(imported.budget)}: this squad's players at today's prices when it was imported, plus ${fmtPrice(imported.bank ?? 0)} in the bank, until its purchase prices load from FPL.`;
+  }
   if (imported && imported.budget !== null) {
     return `Budget ${fmtPrice(imported.budget)}: this squad's players at today's prices when it was imported, plus ${fmtPrice(imported.bank ?? 0)} in the bank. A player who has risen counts at today's price, not his selling price.`;
   }
@@ -288,8 +296,9 @@ function budgetHint(squad: SavedSquad | null): string {
 
 /** Hover for a player whose purchase price isn't known (<purchase_prices>): why. */
 function purchaseUnknownHint(squad: SavedSquad | null): string {
+  if (squad?.importedFrom && squad.importedFrom.purchasePrices === null) return "Purchase price not loaded: Scoutline reads this team's purchase prices from FPL when the squad is opened, and couldn't yet";
   return squad?.importedFrom
-    ? "Purchase price not known: FPL's public data doesn't show what this team paid for a player it has had since it started, when it started after GW1. If the team was imported before Scoutline kept purchase prices, import it again."
+    ? "Purchase price not known: this team started after GW1 and his price has moved since, and FPL's public data doesn't keep what it was the day the team was picked."
     : "Purchase price not known: he was added before Scoutline kept purchase prices. Remove him and add him again to record today's.";
 }
 
@@ -319,7 +328,7 @@ export function TeamBuilder() {
   useEffect(() => {
     requestHistoricData();
   }, [requestHistoricData]);
-  const { squads, upsert, remove } = useSavedSquads();
+  const { squads, upsert, update, remove } = useSavedSquads();
   const [, setSearchParams] = useSearchParams();
   const [activeId, setActiveId] = useState<string | null>(squads[0]?.id ?? null);
   const [pickerSearch, setPickerSearch] = useState("");
@@ -379,6 +388,30 @@ export function TeamBuilder() {
 
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
 
+  // <purchase_prices> for an import saved before they were kept, or whose
+  // prices didn't load: loaded from FPL once per session when it's opened,
+  // filling in only what's missing (edits made meanwhile are kept).
+  const priceLoadsTried = useRef(new Set<string>());
+  useEffect(() => {
+    const imported = active?.importedFrom;
+    if (!active || !imported || imported.purchasePrices !== null || playersById.size === 0 || priceLoadsTried.current.has(active.id)) return;
+    priceLoadsTried.current.add(active.id);
+    loadImportedPurchasePrices(imported.teamId, imported.asOfEvent, playersById)
+      .then(({ playerIds, purchasePrices }) =>
+        update(active.id, (s) =>
+          s.importedFrom
+            ? {
+                ...s,
+                importedFrom: { ...s.importedFrom, playerIds: s.importedFrom.playerIds ?? playerIds, purchasePrices },
+                purchasePrices: { ...keepPurchases(purchasePrices, (id) => s.playerIds.includes(id)), ...s.purchasePrices },
+              }
+            : s,
+        ),
+      )
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active?.id, active?.importedFrom?.purchasePrices, playersById, update]);
+
   function updateActive(mutator: (s: SavedSquad) => SavedSquad) {
     if (!active) return;
     upsert(mutator(active));
@@ -429,18 +462,14 @@ export function TeamBuilder() {
         const teamResult = await fetchEntryTeam(teamId);
         const fallbackEvent = gameweekState?.kind === "current" || gameweekState?.kind === "last-completed" ? gameweekState.event.id : 1;
         const eventId = teamResult.data.current_event ?? fallbackEvent;
-        const startedEvent = teamResult.data.started_event ?? null;
-        const [historyResult, picksResult, transfersResult, startPicksResult] = await Promise.all([
-          fetchEntryHistory(teamId),
-          fetchEntryPicks(teamId, eventId),
-          // Purchase prices (<purchase_prices>): nice to have, so a failure here doesn't stop the import.
-          fetchEntryTransfers(teamId).catch(() => null),
-          // The starting squad's prices are only checked for a team that started in GW1 (importedPurchasePrices).
-          startedEvent === 1 && eventId !== 1 ? fetchEntryPicks(teamId, 1).catch(() => null) : null,
-        ]);
-        const startPicks = startedEvent === eventId ? picksResult.data : (startPicksResult?.data ?? null);
-        const purchases = transfersResult ? { transfers: transfersResult.data, startPicks } : undefined;
-        const { squad, warnings } = normalizeEntryImport(teamResult.data, historyResult.data, picksResult.data, eventId, playersById, purchases);
+        const [historyResult, picksResult] = await Promise.all([fetchEntryHistory(teamId), fetchEntryPicks(teamId, eventId)]);
+        const { squad, warnings } = normalizeEntryImport(teamResult.data, historyResult.data, picksResult.data, eventId, playersById);
+        // <purchase_prices>: nice to have, so a failure doesn't stop the import (they load the next time the squad is opened).
+        const prices = await loadImportedPurchasePrices(teamId, eventId, playersById).catch(() => null);
+        if (prices && squad.importedFrom) {
+          squad.importedFrom.purchasePrices = prices.purchasePrices;
+          squad.purchasePrices = keepPurchases(prices.purchasePrices, (id) => squad.playerIds.includes(id));
+        }
         upsert(squad);
         setActiveId(squad.id);
         setShowNewSquadModal(false);
@@ -814,7 +843,9 @@ export function TeamBuilder() {
     FWD: startingXIPlayers.filter((p) => p.position === "FWD"),
   };
 
-  const squadValidation = validateSquad(squadPlayers, squadBudget(active));
+  // <imported_budget>: an import's bank plus its players' selling prices, once its purchase prices are in.
+  const money = squadMoney(active, (id) => playersById.get(id)?.price);
+  const squadValidation = validateSquad(squadPlayers, money.budget, money.cost);
   const xiValidation = validateStartingXI(startingXIPlayers);
   const openSlots = openSquadSlots(squadPlayers, startingXIPlayers);
 
@@ -1046,6 +1077,7 @@ export function TeamBuilder() {
   // and nothing on the pitch changes with the picker's Historic/Raw toggle
   // (M20, the owner's call 2026-10-19).
   const pitchColourRanks: PitchColourRanks = useMemo(() => {
+    const squadPurchase = new Map(Object.entries(active?.purchasePrices ?? {}).map(([id, price]) => [Number(id), price]));
     const rank = (value: (p: NormalizedPlayer) => number | null, higherIsBetter: boolean) =>
       rankWithinGroups(players, { id: (p) => p.id, group: (p) => p.position, eligible: () => true, value, higherIsBetter });
     return {
@@ -1053,9 +1085,14 @@ export function TeamBuilder() {
       model: rank((p) => pitchExpectations.get(p.id)?.model ?? null, true),
       minutes: rank((p) => pitchExpectations.get(p.id)?.expectedMinutes ?? null, true),
       price: rank((p) => p.price, false),
+      // <price_view>: a squad player's purchase or selling price against everyone else's in his
+      // position, whose own would be today's (the price they'd be bought at, and sold for, today).
+      purchase: rank((p) => (squadPurchase.has(p.id) ? squadPurchase.get(p.id)! : squadPlayerIdSet.has(p.id) ? null : p.price), false),
+      sell: rank((p) => (squadPurchase.has(p.id) ? sellingPrice(squadPurchase.get(p.id), p.price) : squadPlayerIdSet.has(p.id) ? null : p.price), false),
       ownership: rank((p) => p.ownership, false),
     };
-  }, [players, pitchExpectations]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [players, pitchExpectations, active?.purchasePrices, active?.playerIds]);
 
   // Rows are drawn in stages (see useProgressiveRowCount); sorting,
   // filtering, tints and CSV export above all use the full pickerRows.
@@ -1294,7 +1331,7 @@ export function TeamBuilder() {
           onClearSquad={() => setConfirmClear(true)}
           onBestDraft={handleBestDraft}
           hasSquad={!!active}
-          budgetHint={budgetHint(active)}
+          budgetHint={budgetHint(active, money)}
           warning={warning}
         />
       </div>

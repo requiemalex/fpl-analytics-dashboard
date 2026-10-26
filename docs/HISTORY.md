@@ -4054,3 +4054,15 @@ tiles/graphs only:
   gameweeks on the pitch; the same control (`GameweekArrows`) now does
   the job in Add Players too, so the two read the same way.
 - **Last commit with it:** `451aee1`.
+
+### An imported squad's budget at today's prices (replaced 2026-10-26)
+- **What it did:** an imported squad's budget was its players at today's
+  prices when it was imported plus its bank (`importedFrom.budget`,
+  `squadBudget` in `types/team.ts`), and every player counted against it
+  at today's price, so a risen player counted his full rise.
+- **Why it went:** the owner's request, once Scoutline could read what a
+  team paid from FPL's public transfers: the budget is now what FPL would
+  let the manager spend, the bank plus the imported players' selling
+  prices (`squadMoney`, `<imported_budget>`). The old budget is still kept
+  and used until an import's purchase prices load.
+- **Last commit with it:** `9e9e9d4`.

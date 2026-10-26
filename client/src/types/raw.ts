@@ -234,6 +234,8 @@ export interface RawElementSummaryHistory {
   fixture: number;
   round: number; // gameweek number
   minutes: number;
+  /** £0.1m units: his price at the time of this match (purchase prices of a team that started after GW1, <purchase_prices>). */
+  value?: number;
   starts: number | null;
   total_points: number;
   was_home: boolean;

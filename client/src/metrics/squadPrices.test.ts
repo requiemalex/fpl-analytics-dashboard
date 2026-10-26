@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { importedPurchasePrices, sellingPrice } from "./squadPrices";
+import { importedPurchasePrices, sellingPrice, squadMoney } from "./squadPrices";
+import type { SavedSquad } from "../types/team";
 import type { RawEntryTransfer } from "../types/raw";
 
 describe("<selling_price> sellingPrice", () => {
@@ -57,5 +58,78 @@ describe("<purchase_prices> importedPurchasePrices", () => {
   it("a team that started after GW1 has no price for the players it started with, but still has its transfers'", () => {
     const prices = importedPurchasePrices({ ...base, squadIds: [16, 2], startedEvent: 6, transfers: [t(7, 1, 16, 62, "2026-10-01T10:00:00Z")] });
     expect(prices).toEqual({ 16: 6.2 });
+  });
+
+  describe("a team that started after GW1 (GW6)", () => {
+    // Today all £5.5m (55). Each player's price in his matches, GW5 onwards.
+    const steady = [5, 6, 7, 8].map((round) => ({ round, value: 55 }));
+    const rose = [{ round: 5, value: 54 }, ...[6, 7, 8].map((round) => ({ round, value: 55 }))];
+    const late = { ...base, startedEvent: 6, squadIds: startIds };
+
+    it("a starting player whose price hasn't moved since before it joined cost today's price; one whose has, none", () => {
+      const priceHistory = new Map(startIds.map((id) => [id, id <= 2 ? rose : steady]));
+      const prices = importedPurchasePrices({ ...late, priceHistory });
+      expect(prices[3]).toBe(5.5);
+      expect(prices[1]).toBeUndefined();
+      expect(prices[2]).toBeUndefined();
+      expect(Object.keys(prices)).toHaveLength(13);
+    });
+
+    it("with only one left unknown, his is what the bank says the 15 cost less the others", () => {
+      // 14 × £5.5m = £77.0m; £100m − £17.6m bank = £82.4m spent, so player 1 cost £5.4m.
+      const priceHistory = new Map(startIds.map((id) => [id, id === 1 ? rose : steady]));
+      expect(importedPurchasePrices({ ...late, priceHistory, startBankTenths: 176 })[1]).toBe(5.4);
+    });
+
+    it("needs a match from before it joined to tell", () => {
+      const priceHistory = new Map(startIds.map((id) => [id, steady.filter((r) => r.round >= 6)]));
+      expect(importedPurchasePrices({ ...late, priceHistory, startBankTenths: null })).toEqual({});
+    });
+  });
+});
+
+describe("<imported_budget> squadMoney", () => {
+  // Bought 1 for £7.4m (now £7.9m: sells for £7.6m) and 2 for £5.0m (now £4.8m: sells for £4.8m); £0.5m in the bank.
+  const live = new Map([
+    [1, 7.9],
+    [2, 4.8],
+    [3, 6.0],
+  ]);
+  const imported = (over: Partial<NonNullable<SavedSquad["importedFrom"]>> = {}): NonNullable<SavedSquad["importedFrom"]> => ({
+    teamId: 7,
+    teamName: "T",
+    managerName: "M",
+    asOfEvent: 8,
+    bank: 0.5,
+    budget: 13.2,
+    playerIds: [1, 2],
+    purchasePrices: { 1: 7.4, 2: 5 },
+    ...over,
+  });
+  const money = (squad: Pick<SavedSquad, "importedFrom" | "purchasePrices">) => squadMoney(squad, (id) => live.get(id));
+
+  it("is the bank plus the imported players' selling prices, so an unchanged import has exactly its bank left", () => {
+    const m = money({ importedFrom: imported(), purchasePrices: { 1: 7.4, 2: 5 } });
+    expect(m.budget).toBe(12.9);
+    expect(m.cost({ id: 1, price: 7.9 }) + m.cost({ id: 2, price: 4.8 })).toBeCloseTo(12.4, 9);
+    expect(m.atSellingPrices).toBe(true);
+  });
+
+  it("selling an imported player frees his selling price; a player added costs today's price", () => {
+    // 1 sold (£7.6m), 3 added at £6.0m.
+    const m = money({ importedFrom: imported(), purchasePrices: { 2: 5, 3: 6 } });
+    expect(12.9 - m.cost({ id: 2, price: 4.8 }) - m.cost({ id: 3, price: 6 })).toBeCloseTo(2.1, 9);
+  });
+
+  it("an imported player with no purchase price counts at today's price on both sides", () => {
+    const m = money({ importedFrom: imported({ purchasePrices: { 2: 5 } }), purchasePrices: { 2: 5 } });
+    expect(m.budget).toBe(13.2);
+    expect(m.cost({ id: 1, price: 7.9 })).toBe(7.9);
+  });
+
+  it("falls back to the stored budget before its prices load, and to £100m for a squad built from scratch", () => {
+    expect(money({ importedFrom: imported({ purchasePrices: null }), purchasePrices: {} })).toMatchObject({ budget: 13.2, atSellingPrices: false });
+    expect(money({ importedFrom: null, purchasePrices: { 3: 6 } }).budget).toBe(100);
+    expect(money({ importedFrom: null, purchasePrices: {} }).cost({ id: 3, price: 6 })).toBe(6);
   });
 });

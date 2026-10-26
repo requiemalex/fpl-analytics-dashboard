@@ -213,6 +213,7 @@ export const elementSummaryHistorySchema = z
     fixture: z.number(),
     round: z.number(),
     minutes: z.number(),
+    value: z.number().optional(),
     starts: z.number().nullable().optional(),
     total_points: z.number(),
     was_home: z.boolean(),

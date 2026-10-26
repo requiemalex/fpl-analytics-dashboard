@@ -7,7 +7,7 @@ import { PitchMarkings } from "./PitchMarkings";
 import { Kit } from "./Kit";
 import { CloseIcon, PlusIcon } from "./IconToolbar";
 import { GameweekArrows, SegmentedControl, type SegmentOption } from "./MenuControls";
-import { fmtPrice, fmtPercent, fmtDecimal, DASH } from "../utils/format";
+import { fmtDate, fmtPrice, fmtPercent, fmtDecimal, DASH } from "../utils/format";
 import { fdrColor, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { percentileTint } from "../utils/colorScale";
 import { SQUAD_RULES } from "../types/team";
@@ -50,14 +50,15 @@ const SOURCE_OPTIONS: SegmentOption<PointsSource>[] = [
 ];
 const SOURCE_NAME: Record<PointsSource, string> = { fpl: "FPL Official", model: "Model Predicted" };
 
-/** <price_view>: which price the Price highlight shows. */
-export type PriceView = "current" | "sell" | "purchase" | "change";
+/** <price_view>: which price figure the Price highlight shows. */
+export type PriceView = "current" | "purchase" | "sell" | "progress" | "predicted";
 
 const PRICE_VIEW_OPTIONS: SegmentOption<PriceView>[] = [
   { value: "current", label: "Current", title: "Today's price" },
-  { value: "sell", label: "Sell", title: "Selling price: what FPL would pay for him, his purchase price plus half of any rise since (rounded down to £0.1m), or today's price after a fall" },
   { value: "purchase", label: "Purchase", title: "Purchase price: what he cost when he joined this squad" },
-  { value: "change", label: "Change", title: "Price change since the last gameweek deadline: ▲ rising, ▼ falling" },
+  { value: "sell", label: "Sell", title: "Selling price: what FPL would pay for him, his purchase price plus half of any rise since (rounded down to £0.1m), or today's price after a fall" },
+  { value: "progress", label: "Progress", title: "Progress: FPL's own figure for how far he is toward his next price change, + toward a rise, − toward a drop (100% is the threshold)" },
+  { value: "predicted", label: "Predicted Progress", title: "Predicted Progress: where FPL expects his progress to be at the next price update" },
 ];
 
 /** The next five matches as FPL-difficulty chips. */
@@ -100,44 +101,75 @@ function SquadTiles({ validation, budgetHint }: { validation: SquadValidation; b
   );
 }
 
-/** <price_view> "Change": ▲£0.1m rising, ▼£0.1m falling, since the last deadline; and its hover. */
-function priceChangeFigure(player: NormalizedPlayer): { text: string; title: string } {
-  const change = player.costChangeEvent;
-  if (change === null) return { text: DASH, title: "FPL hasn't sent his price change" };
-  const season = player.costChangeStart === null ? "" : `; ${player.costChangeStart < 0 ? "−" : "+"}${fmtPrice(Math.abs(player.costChangeStart))} this season`;
-  if (change === 0) return { text: fmtPrice(0), title: `Unchanged since the last gameweek deadline, ${fmtPrice(player.price)}${season}` };
-  const rising = change > 0;
-  return {
-    text: `${rising ? "▲" : "▼"}${fmtPrice(Math.abs(change))}`,
-    title: `${rising ? "Up" : "Down"} ${fmtPrice(Math.abs(change))} since the last gameweek deadline, to ${fmtPrice(player.price)}${season}`,
-  };
+/** FPL's own words for its next-update projection's likelihood, as its Price Changes page shows them. */
+const PROJECTION_STATUS: Record<number, string> = { 5: "very likely to rise", 4: "likely to rise", [-4]: "likely to drop", [-5]: "very likely to drop" };
+
+/** "+51.2%", "−105.0%": FPL's progress figures, to one decimal as FPL shows them (the 100% threshold makes 99.6 and 100.0 different things). */
+function fmtProgress(value: number): string {
+  return `${value > 0 ? "+" : value < 0 ? "−" : ""}${Math.abs(value).toFixed(1)}%`;
 }
 
-/** Every player's ranks for the pitch cards' figures (<comparative_colouring>). The price ranks are today's price; selling, purchase and change aren't coloured. */
+/**
+ * <price_progress>: FPL's own Progress (`price_change_percent`) or Predicted
+ * Progress (its projection for the next price update,
+ * `price_change_projections[0]`), as FPL's Price Changes page reads them.
+ * Coloured by the figure itself, not a rank (the owner's call, 2026-10-26):
+ * grey at 0 to full green at +100% and full red at −100%, through the
+ * shared scale so the palette switch turns it off with the rest. A locked
+ * or calibrating price says so instead.
+ */
+function progressFigure(player: NormalizedPlayer, predicted: boolean): { text: string; title: string; rank: undefined; tint: number | undefined } {
+  const pc = player.priceChange;
+  const plain = (text: string, title: string) => ({ text, title, rank: undefined, tint: undefined });
+  if (!pc) return plain(DASH, "FPL hasn't sent his price change progress");
+  if (pc.lockedUntil) return plain("Locked", `FPL has locked his price until ${fmtDate(pc.lockedUntil)}`);
+  if (pc.calibrating) return plain("Calibrating", "FPL is still calibrating his price change progress");
+  const next = pc.projections.find((p) => p.offsetDays === 0) ?? null;
+  const status = next ? (PROJECTION_STATUS[next.likelihood] ?? "unlikely to change") : null;
+  const value = predicted ? (next?.projectedPercent ?? null) : pc.percent;
+  if (value === null) return plain(DASH, "FPL hasn't sent a prediction for him");
+  const towards = value >= 0 ? "a rise" : "a drop";
+  const title = predicted
+    ? `Predicted Progress ${fmtProgress(value)}: where FPL expects him to be toward ${towards} at the next price update${status ? `, ${status}` : ""}. Now ${fmtProgress(pc.percent)}.`
+    : `Progress ${fmtProgress(value)}: FPL's figure for how far he is toward ${towards} (100% is the threshold)${next ? `. Predicted at the next update: ${fmtProgress(next.projectedPercent)}, ${status}` : ""}.`;
+  return { text: fmtProgress(value), title, rank: undefined, tint: Math.max(0, Math.min(100, 50 + value / 2)) };
+}
+
+/** Every player's ranks for the pitch cards' figures (<comparative_colouring>). Purchase and selling prices rank a squad player's against everyone else's in his position at today's price. */
 export interface PitchColourRanks {
   points?: Map<number, number>;
   model?: Map<number, number>;
   minutes?: Map<number, number>;
   price?: Map<number, number>;
+  purchase?: Map<number, number>;
+  sell?: Map<number, number>;
   ownership?: Map<number, number>;
 }
 type PitchCardRanks = { [K in keyof PitchColourRanks]?: number };
 
 function pitchCardRanks(ranks: PitchColourRanks, id: number): PitchCardRanks {
-  return { points: ranks.points?.get(id), model: ranks.model?.get(id), minutes: ranks.minutes?.get(id), price: ranks.price?.get(id), ownership: ranks.ownership?.get(id) };
+  return Object.fromEntries((Object.keys(ranks) as (keyof PitchColourRanks)[]).map((k) => [k, ranks[k]?.get(id)])) as PitchCardRanks;
+}
+
+/** A card's one figure: its text and hover; `rank` (his rank within his position) colours it and is named in the hover, `tint` colours it on its own scale. */
+interface CardFigure {
+  text: string;
+  title: string;
+  rank: number | undefined;
+  tint?: number;
 }
 
 /** The nameplate's figure for the Price highlight's choice (<price_view>). */
-function priceFigure(player: NormalizedPlayer, priceView: PriceView, purchase: number | null, purchaseUnknownHint: string, rank: number | undefined): { text: string; title: string; rank: number | undefined } {
-  if (priceView === "current") return { text: fmtPrice(player.price), title: `${fmtPrice(player.price)} today`, rank };
-  if (priceView === "change") return { ...priceChangeFigure(player), rank: undefined };
+function priceFigure(player: NormalizedPlayer, priceView: PriceView, purchase: number | null, purchaseUnknownHint: string, ranks: PitchCardRanks): CardFigure {
+  if (priceView === "current") return { text: fmtPrice(player.price), title: `${fmtPrice(player.price)} today`, rank: ranks.price };
+  if (priceView === "progress" || priceView === "predicted") return progressFigure(player, priceView === "predicted");
   if (purchase === null) return { text: DASH, title: purchaseUnknownHint, rank: undefined };
-  if (priceView === "purchase") return { text: fmtPrice(purchase), title: `Bought for ${fmtPrice(purchase)}, ${fmtPrice(player.price)} today`, rank: undefined };
+  if (priceView === "purchase") return { text: fmtPrice(purchase), title: `Bought for ${fmtPrice(purchase)}, ${fmtPrice(player.price)} today`, rank: ranks.purchase };
   const sell = sellingPrice(purchase, player.price);
   return {
     text: fmtPrice(sell),
     title: `Sells for ${fmtPrice(sell)}: bought for ${fmtPrice(purchase)}, ${fmtPrice(player.price)} today (FPL keeps half of a rise, rounded down to £0.1m)`,
-    rank: undefined,
+    rank: ranks.sell,
   };
 }
 
@@ -196,7 +228,7 @@ function PlayerCard({
     const phrase = playerRankHint(rank, player.position);
     return phrase ? `${text}\n${phrase}` : text;
   };
-  const figure: { text: string; title: string; rank: number | undefined } | null =
+  const figure: CardFigure | null =
     view === "points" && pointsSource === "fpl"
       ? {
           text: displayPoints !== null ? fmtDecimal(displayPoints, 1) : DASH,
@@ -210,7 +242,7 @@ function PlayerCard({
             rank: ranks.model,
           }
         : view === "price"
-          ? priceFigure(player, priceView, purchasePrice, purchaseUnknownHint, ranks.price)
+          ? priceFigure(player, priceView, purchasePrice, purchaseUnknownHint, ranks)
           : view === "ownership"
             ? { text: fmtPercent(player.ownership, 1), title: `Owned by ${fmtPercent(player.ownership, 1)} of FPL managers`, rank: ranks.ownership }
             : view === "minutes"
@@ -280,7 +312,7 @@ function PlayerCard({
         </div>
         {figure ? (
           <div className="pitch-card-info">
-            <span className="pitch-card-figure num" style={{ background: percentileTint(figure.rank) }} title={withRank(figure.title, figure.rank)}>
+            <span className="pitch-card-figure num" style={{ background: percentileTint(figure.tint ?? figure.rank) }} title={withRank(figure.title, figure.rank)}>
               {figure.text}
             </span>
           </div>

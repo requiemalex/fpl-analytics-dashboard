@@ -42,7 +42,7 @@ beforeEach(() => {
   localStorage.setItem(ID_STORE_KEYS.savedViews, JSON.stringify({ version: 6, data: [{ id: "v", scope: "player", name: "Mine", tiles: [tile({ playerIds: [381] })], graphs: [], updatedAt: 1 }] }));
   localStorage.setItem(
     ID_STORE_KEYS.savedSquads,
-    JSON.stringify({ version: 3, data: [{ id: "s1", name: "Sq", playerIds: [430, 381, 12], startingXI: [430, 12], captainId: 12, viceCaptainId: 430, purchasePrices: { 430: 5.5, 381: 14 }, usedChips: [], importedFrom: null }] }),
+    JSON.stringify({ version: 3, data: [{ id: "s1", name: "Sq", playerIds: [430, 381, 12], startingXI: [430, 12], captainId: 12, viceCaptainId: 430, purchasePrices: { 430: 5.5, 381: 14 }, usedChips: [], importedFrom: { teamId: 7, teamName: "T", managerName: "M", asOfEvent: 38, bank: 0.5, budget: 100.5, playerIds: [430, 381], purchasePrices: { 430: 5.5 } } }] }),
   );
 });
 
@@ -72,6 +72,7 @@ describe("saved ids across FPL's summer renumbering (audit 2026-10-18 M6)", () =
     expect(squad).toMatchObject({ playerIds: [411, 380], startingXI: [411], captainId: null, viceCaptainId: 411 });
     // Paid at last season's prices, which FPL resets: dropped, not carried to the new ids.
     expect(squad.purchasePrices).toEqual({});
+    expect(squad.importedFrom).toMatchObject({ teamId: 7, budget: 100.5, playerIds: null, purchasePrices: {} });
   });
 
   it("a tracked list whose players or clubs have all left stays empty and says so, rather than turning into the whole league (audit 2026-10-18 R2)", () => {

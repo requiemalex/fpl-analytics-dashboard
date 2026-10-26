@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/react";
-import { SquadPitch } from "./SquadPitch";
+import { SquadPitch, type PitchColourRanks } from "./SquadPitch";
+import { percentileTint } from "../utils/colorScale";
 import { openSquadSlots, validateSquad } from "../metrics/squadRules";
 import { makePlayer } from "../test/fixtures";
 import type { NormalizedPlayer, Position } from "../types/normalized";
@@ -32,6 +33,7 @@ function renderPitch(
     onGameweekChange?: (eventId: number) => void;
     onBestDraft?: (picks: unknown) => void;
     purchasePrices?: Record<number, number>;
+    colourRanks?: PitchColourRanks;
   } = {},
 ) {
   const squad = [...xi, ...bench];
@@ -51,7 +53,7 @@ function renderPitch(
       expectationByPlayerId={extra.expectations ?? new Map(squad.map((p) => [p.id, nextGameweek()]))}
       purchasePrices={extra.purchasePrices ?? {}}
       purchaseUnknownHint="Purchase price not known"
-      colourRanks={{}}
+      colourRanks={extra.colourRanks ?? {}}
       fixturesByTeamId={new Map([[1, [fixture(1, "BUR", true), fixture(2, "WOL", false, 4)]]])}
       captainPickMode={captainPickMode}
       onCaptainTileClick={() => {}}
@@ -248,42 +250,81 @@ describe("<expected_minutes> Minutes", () => {
 });
 
 describe("<price_view> Price", () => {
-  const priced = () =>
+  const progress = (percent: number, projected: number, likelihood: number) => ({ percent, projections: [{ offsetDays: 0, projectedPercent: projected, likelihood }], lockedUntil: null, calibrating: false });
+  const priced = (colourRanks: PitchColourRanks = {}) =>
     renderPitch(
       [
-        makePlayer({ id: 1, position: "MID", price: 7.9, costChangeEvent: 0.1, costChangeStart: 0.4 }),
-        makePlayer({ id: 2, position: "FWD", price: 7.1, costChangeEvent: -0.1, costChangeStart: -0.3 }),
+        makePlayer({ id: 1, position: "MID", price: 7.9, priceChange: progress(100.2, 102.7, 5) }),
+        makePlayer({ id: 2, position: "FWD", price: 7.1, priceChange: progress(-96.1, -97, -4) }),
       ],
-      [],
+      [makePlayer({ id: 3, position: "DEF", price: 4.5, priceChange: { ...progress(3, 4, 1), lockedUntil: "2026-10-29T01:30:00Z" } })],
       vi.fn(),
       null,
       true,
       null,
       [9],
-      { purchasePrices: { 1: 7.4 } },
+      { purchasePrices: { 1: 7.4, 3: 4.5 }, colourRanks },
     );
   const figures = (container: HTMLElement) => [...container.querySelectorAll(".pitch-card .pitch-card-figure")].map((f) => ({ text: f.textContent, title: f.getAttribute("title") }));
 
-  it("toggles between today's price, the selling price, the purchase price and the price change", () => {
+  it("toggles between today's price, the purchase price and the selling price", () => {
     const { container, getByRole } = priced();
     fireEvent.click(getByRole("radio", { name: /^Price:/ }));
-    // Forward (id 2) first, then the midfielder (id 1).
-    expect(figures(container).map((f) => f.text)).toEqual(["£7.1m", "£7.9m"]);
+    expect([...getByRole("radiogroup", { name: "Price" }).querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Current", "Purchase", "Sell", "Progress", "Predicted Progress"]);
+    // Forward (id 2) first, then the midfielder (id 1), then the bench defender (id 3).
+    expect(figures(container).map((f) => f.text)).toEqual(["£7.1m", "£7.9m", "£4.5m"]);
     fireEvent.click(getByRole("radio", { name: /^Selling price/ }));
     // Bought for £7.4m, now £7.9m: FPL keeps half the £0.5m rise, rounded down. The forward's purchase price isn't known.
+    // Bought at today's price, the defender sells for it too.
     expect(figures(container)).toEqual([
       { text: "—", title: "Purchase price not known" },
       { text: "£7.6m", title: "Sells for £7.6m: bought for £7.4m, £7.9m today (FPL keeps half of a rise, rounded down to £0.1m)" },
+      { text: "£4.5m", title: "Sells for £4.5m: bought for £4.5m, £4.5m today (FPL keeps half of a rise, rounded down to £0.1m)" },
     ]);
     fireEvent.click(getByRole("radio", { name: /^Purchase price/ }));
-    expect(figures(container).map((f) => f.text)).toEqual(["—", "£7.4m"]);
-    fireEvent.click(getByRole("radio", { name: /^Price change/ }));
-    expect(figures(container)).toEqual([
-      { text: "▼£0.1m", title: "Down £0.1m since the last gameweek deadline, to £7.1m; −£0.3m this season" },
-      { text: "▲£0.1m", title: "Up £0.1m since the last gameweek deadline, to £7.9m; +£0.4m this season" },
-    ]);
+    expect(figures(container).map((f) => f.text)).toEqual(["—", "£7.4m", "£4.5m"]);
+  });
+
+  it("colours purchase and selling prices by their rank within the position, lower greener, as today's price", () => {
+    const { container, getByRole } = priced({ purchase: new Map([[1, 90]]), sell: new Map([[1, 20]]) });
+    fireEvent.click(getByRole("radio", { name: /^Price:/ }));
+    const mid = () => container.querySelectorAll<HTMLElement>(".pitch-card .pitch-card-figure")[1];
+    fireEvent.click(getByRole("radio", { name: /^Purchase price/ }));
+    expect(mid().style.background).toBe(asRendered(percentileTint(90)));
+    fireEvent.click(getByRole("radio", { name: /^Selling price/ }));
+    expect(mid().style.background).toBe(asRendered(percentileTint(20)));
+  });
+
+  it("<price_progress> shows FPL's Progress and Predicted Progress, coloured grey to full green or red by the figure, and says when a price is locked", () => {
+    const { container, getByRole } = priced();
+    fireEvent.click(getByRole("radio", { name: /^Price:/ }));
+    fireEvent.click(getByRole("radio", { name: /^Progress:/ }));
+    const [fwd, mid, def] = figures(container);
+    expect(mid).toEqual({
+      text: "+100.2%",
+      title: "Progress +100.2%: FPL's figure for how far he is toward a rise (100% is the threshold). Predicted at the next update: +102.7%, very likely to rise.",
+    });
+    expect(fwd.text).toBe("−96.1%");
+    expect(def.text).toBe("Locked");
+    expect(def.title).toMatch(/^FPL has locked his price until /);
+    const cards = () => container.querySelectorAll<HTMLElement>(".pitch-card .pitch-card-figure");
+    // +100.2% is full green; −96.1% nearly full red.
+    expect(cards()[1].style.background).toBe(asRendered(percentileTint(100)));
+    expect(cards()[0].style.background).toBe(asRendered(percentileTint(50 - 96.1 / 2)));
+    fireEvent.click(getByRole("radio", { name: /^Predicted Progress:/ }));
+    expect(figures(container)[0]).toEqual({
+      text: "−97.0%",
+      title: "Predicted Progress −97.0%: where FPL expects him to be toward a drop at the next price update, likely to drop. Now −96.1%.",
+    });
   });
 });
+
+/** A CSS background as the browser stores it. */
+function asRendered(css: string | undefined): string {
+  const el = document.createElement("div");
+  if (css) el.style.background = css;
+  return el.style.background;
+}
 
 describe("<best_draft> Best Draft", () => {
   /** A full 15 (2 GKP, 5 DEF, 5 MID, 3 FWD), ids 1–15, with GW9 figures; the first 11 start. */

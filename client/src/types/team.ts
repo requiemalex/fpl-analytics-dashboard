@@ -60,14 +60,18 @@ export interface SavedSquad {
     asOfEvent: number;
     bank: number | null;
     /**
-     * <imported_budget>: £m this squad has to spend: its 15 players at
-     * today's prices when it was imported, plus the bank. So an unchanged
-     * import has exactly the manager's real money left, not a flat £100m
-     * that a squad whose players have risen is always over. Null when that
-     * can't be known (no bank from FPL, a player FPL no longer lists, or a
-     * squad imported before this existed): the £100m then applies.
+     * £m this squad had to spend at today's prices when it was imported
+     * (its 15 players plus the bank): the budget only until its purchase
+     * prices load (<imported_budget>, squadMoney in metrics/squadPrices.ts).
+     * Null when that can't be known (no bank from FPL, a player FPL no
+     * longer lists, or a squad imported before this existed): the £100m
+     * then applies.
      */
     budget: number | null;
+    /** The players it was imported with (<imported_budget>); null for an import saved before these were kept, until they're loaded again. */
+    playerIds: number[] | null;
+    /** What the team paid for each of them, from FPL (<purchase_prices>; one with none isn't known); null until loaded. */
+    purchasePrices: Record<number, number> | null;
   } | null;
 }
 
