@@ -5,6 +5,10 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.116.1 · 26 Oct 2026
+
+- Team Building: Projected Points sits under the Captain to Best Draft buttons at their width, its parts in aligned rows, with a green heading and stripe
+
 ## v1.116.0 · 26 Oct 2026
 
 - Team Building: Squad Value shows FPL's figure (players at today's prices); its hover gives what they'd sell for
