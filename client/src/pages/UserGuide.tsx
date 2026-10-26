@@ -417,9 +417,9 @@ export function UserGuide() {
             Above the pitch: the squad's name with its buttons, then Squad Value and Bank, with <strong>Projected Points</strong>{" "}
             beside them: your starting XI's Expected Points for the gameweek above the pitch, the captain's counted twice, from FPL's
             figure or the Model's (the <strong>Source</strong> toggle, which Best Draft follows too). It shows "—" while a starter
-            who has a match has no figure yet. Squad Value is your players at their <em>selling</em> prices, what you could raise
-            by selling them, so it's lower than FPL's own Squad Value, which counts today's prices: the difference is the half of
-            each rise FPL keeps. A club-limit breach shows as a banner.
+            who has a match has no figure yet. Squad Value is FPL's own figure, your players at today's prices. Selling them would
+            raise a little less after a rise, as FPL keeps half of it: hover Squad Value for what they'd raise, which is what
+            your budget and Bank count. A club-limit breach shows as a banner.
             A squad built from scratch has FPL's £100m; an imported one has what FPL would let you spend: its money in the bank
             plus its players at their selling prices, so an unchanged import shows exactly that bank left. Sell one and his
             selling price goes back in; a player you add costs today's price. Hover the budget for its make-up. Going over turns the budget red and says how

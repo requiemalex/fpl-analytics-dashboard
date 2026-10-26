@@ -1832,10 +1832,12 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   switch. Above the pitch, three rows: the squad's name (no formation or
   player count) with the Captain, Vice-Captain, Clear Draft and Best Draft
   buttons (the app's standard `.btn`, green while armed); then Squad Value
-  and Bank as tiles (Squad Value: the players at what they count against
-  the budget, an import's at their selling prices, so it's under FPL's own
-  Squad Value, which is today's prices; the gap is the half of each rise
-  FPL keeps); then the **Gameweek** arrows, Highlight and Source,
+  and Bank as tiles (Squad Value, `<squad_value>`, `squadMarketValue`: FPL's
+  own figure, the squad's players at today's prices, the owner's call
+  2026-10-26. What they count against the budget can be less — an
+  import's players still held count at their selling prices, FPL keeping
+  half of each rise — and its hover gives that figure where it differs;
+  Bank is the budget left, as FPL's is); then the **Gameweek** arrows, Highlight and Source,
   with **Projected Points** beside those two rows (below). A club-limit
   breach is a banner. The bench is a row of slots, goalkeeper
   first, each labelled with its position (no bench order: the app has

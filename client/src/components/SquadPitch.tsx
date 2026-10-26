@@ -83,15 +83,30 @@ export function budgetLeftText(remaining: number): string {
   return tenths < 0 ? `${fmtPrice(-tenths / 10)} over` : `${fmtPrice(Math.max(0, tenths) / 10)} left`;
 }
 
+/**
+ * <squad_value>: FPL's own Squad Value — the squad's players at today's
+ * prices (the owner's call, 2026-10-26, so it reads as FPL's does). What
+ * they count against the budget can be less: an imported player he still
+ * holds counts at his selling price (<imported_budget>), FPL keeping half
+ * of each rise; the hover gives that figure where it differs.
+ */
+export function squadMarketValue(players: readonly Pick<NormalizedPlayer, "price">[]): number {
+  return players.reduce((sum, p) => sum + Math.round(p.price * 10), 0) / 10;
+}
+
 /** The squad's figures: value and money left, one strip under its name. */
-function SquadTiles({ validation, budgetHint }: { validation: SquadValidation; budgetHint: string }) {
+function SquadTiles({ validation, budgetHint, marketValue }: { validation: SquadValidation; budgetHint: string; marketValue: number }) {
   // To the tenth, as budgetLeftText does.
   const tenths = Math.round(validation.budgetRemaining * 10);
+  const sellingDiffers = Math.round(validation.budgetUsed * 10) !== Math.round(marketValue * 10);
+  const valueHint = `Squad Value ${fmtPrice(marketValue)}: the squad's players at today's prices, as FPL shows it.${
+    sellingDiffers ? ` Against the budget they count ${fmtPrice(validation.budgetUsed)}: a player you've held since the import counts at his selling price, as FPL keeps half of each rise.` : ""
+  }`;
   return (
     <div className="pitch-view-tiles">
-      <div className="stat-tile" title={budgetHint}>
+      <div className="stat-tile" title={valueHint}>
         <span className="stat-tile-label">Squad Value</span>
-        <span className="stat-tile-value num">{fmtPrice(validation.budgetUsed)}</span>
+        <span className="stat-tile-value num">{fmtPrice(marketValue)}</span>
       </div>
       <div className="stat-tile" title={`${budgetLeftText(validation.budgetRemaining)} of ${fmtPrice(validation.budget)}. ${budgetHint}`}>
         <span className="stat-tile-label">Bank</span>
@@ -602,7 +617,7 @@ export function SquadPitch({
       {/* The squad's figures and the pitch's controls, with Projected Points beside them (<projected_points>). */}
       <div className="pitch-view-top">
         <div className="pitch-view-top-main">
-          <SquadTiles validation={squadValidation} budgetHint={budgetHint} />
+          <SquadTiles validation={squadValidation} budgetHint={budgetHint} marketValue={squadMarketValue([...starters, ...benchPlayers])} />
           {squadValidation.clubViolations.length > 0 && (
             <div className="banner error">
               Over {SQUAD_RULES.maxPerClub} from one club: {squadValidation.clubViolations.map((v) => `${v.teamName} ${v.count}/${SQUAD_RULES.maxPerClub}`).join(", ")}
