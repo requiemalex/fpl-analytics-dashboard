@@ -2,7 +2,7 @@
   "season": "2026/27",
   "gameweek": 9,
   "deadline": "2026-10-31T11:00:00Z",
-  "recordedAt": "2026-10-27T20:06:46.415Z",
+  "recordedAt": "2026-10-27T23:47:46.074Z",
   "pool": 669,
   "players": [
     {"code":21205,"element":414,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-08-15T16:00:07.854151Z"},
@@ -348,7 +348,7 @@
     {"code":613221,"element":634,"status":"d","chanceNextRound":75,"chanceThisRound":75,"news":"Illness - 75% chance of playing","newsAdded":"2026-10-23T14:30:10.429365Z"},
     {"code":614071,"element":53,"status":"a","chanceNextRound":100,"chanceThisRound":75,"news":"","newsAdded":"2026-10-17T19:30:09.768277Z"},
     {"code":614574,"element":76,"status":"i","chanceNextRound":0,"chanceThisRound":0,"news":"Hamstring injury - Unknown return date","newsAdded":"2026-10-23T11:30:09.133819Z"},
-    {"code":616077,"element":20,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-10-05T19:00:10.141532Z"},
+    {"code":616077,"element":20,"status":"s","chanceNextRound":0,"chanceThisRound":100,"news":"Suspended until 29 Nov","newsAdded":"2026-10-27T22:30:09.534466Z"},
     {"code":616221,"element":511,"status":"u","chanceNextRound":0,"chanceThisRound":0,"news":"Has joined FC Porto on loan for the rest of the season","newsAdded":"2026-09-01T13:24:26.858636Z"},
     {"code":620109,"element":152,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-08-24T18:30:07.421239Z"},
     {"code":620487,"element":63,"status":"i","chanceNextRound":0,"chanceThisRound":0,"news":"Thigh injury - Expected back 31 Oct","newsAdded":"2026-08-06T10:00:10.456051Z"},
