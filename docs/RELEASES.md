@@ -5,6 +5,10 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.118.0 · 28 Oct 2026
+
+- Team Building: the squad's name is a section heading with an icon, and Projected Points uses the same tiles as Squad Value and Bank
+
 ## v1.117.0 · 26 Oct 2026
 
 - Every figure's hover says what it measures and its percentile in position; Next 5 Fixtures joins the always-live columns and Add Players' Data View picker sits over the columns it changes
