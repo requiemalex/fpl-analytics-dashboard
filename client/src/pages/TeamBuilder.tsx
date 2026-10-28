@@ -25,6 +25,7 @@ import type { NormalizedPlayer, Position } from "../types/normalized";
 import { describeLoadError } from "../api/errors";
 import { EXPLORER_DEFAULT_VISIBLE_COLUMNS, FIXTURES_COLUMN_KEY, PlayerExplorerTable, type ExplorerOpenRequest, type LeadColumn } from "../components/PlayerExplorerTable";
 import { HorizonPicker } from "../components/HorizonPicker";
+import { SectionHeading } from "../components/SectionHeading";
 
 /** How long a rejected drag's warning message stays visible before clearing itself. */
 const WARNING_DISPLAY_MS = 4000;
@@ -867,8 +868,8 @@ export function TeamBuilder() {
         </div>
       )}
 
+      <SectionHeading icon="squad">{active ? squadTitle(active) : "Squad"}</SectionHeading>
       <div className="card" style={{ marginBottom: 24 }}>
-        <div className="card-title">Squad</div>
         {missingSavedIds.length > 0 && (
           <div className="banner stale" style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ flex: 1 }}>

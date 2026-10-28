@@ -2,15 +2,24 @@ import React from "react";
 
 /**
  * Page-section heading (Dashboard's Summary Tiles / Graphs, Player
- * Comparison's Players / Saved Views / Charts / Outputs / Trends): a tinted icon badge, the title,
+ * Comparison's Players / Saved Views / Charts / Outputs / Trends, Team Building's squad): a tinted icon badge, the title,
  * then a hairline running to the edge that doubles as the section divider.
  * Icons share IconToolbar's 16-unit grid and stroke weights so they read
  * as one set with the app's chip buttons.
  */
 
-export type SectionIcon = "players" | "views" | "tiles" | "graphs" | "radar" | "outputs" | "trends";
+export type SectionIcon = "squad" | "players" | "views" | "tiles" | "graphs" | "radar" | "outputs" | "trends";
 
 const ICONS: Record<SectionIcon, React.ReactNode> = {
+  // A shirt: sleeves out from a round collar.
+  squad: (
+    <path
+      d="M5.6 2.2 2 4.2l1.3 3 1.4-.6v7.2h6.6V6.6l1.4.6 1.3-3-3.6-2C10 3.4 9.1 4 8 4s-2-.6-2.4-1.8Z"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinejoin="round"
+    />
+  ),
   // A person: head over shoulders.
   players: (
     <>

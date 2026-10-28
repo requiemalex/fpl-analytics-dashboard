@@ -417,7 +417,7 @@ export function UserGuide() {
             allowed for managers selling him.
           </li>
           <li>
-            Above the pitch: the squad's name with its buttons, then Squad Value and Bank, with <strong>Projected Points</strong>{" "}
+            Above the pitch: Squad Value and Bank, with the squad's buttons and <strong>Projected Points</strong>{" "}
             beside them: your starting XI's Expected Points for the gameweek above the pitch, the captain's counted twice, from FPL's
             figure or the Model's (the <strong>Source</strong> toggle, which Best Draft follows too). It shows "—" while a starter
             who has a match has no figure yet. Squad Value is FPL's own figure, your players at today's prices. Selling them would

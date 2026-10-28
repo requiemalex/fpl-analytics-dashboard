@@ -101,7 +101,7 @@ function renderBuilder() {
   return utils;
 }
 
-const projected = (container: HTMLElement) => container.querySelector(".projected-box-value")!.textContent;
+const projected = (container: HTMLElement) => container.querySelector(".projected-box .stat-tile-value")!.textContent;
 
 describe("Team Building — gameweeks", () => {
   it("<points_horizon> an Exp. Pts column adds up as many gameweeks as its header picks, a blank counting 0; the pitch stays where its arrows are", () => {
@@ -146,5 +146,15 @@ describe("Team Building — gameweeks", () => {
     expect(card(container, "Saka").title).toContain("No match in GW3");
     // Saka's blank adds 0 to Projected Points.
     expect(projected(container)).toBe("8.0");
+  });
+});
+
+describe("Team Building — the squad's heading", () => {
+  it("is the page's section heading, as the Dashboard's: an icon and just the squad's name, no formation or player count", () => {
+    const { container } = renderBuilder();
+    const heading = container.querySelector("h2.section-heading")!;
+    expect(heading.querySelector(".section-heading-icon svg")).toBeTruthy();
+    expect(heading.textContent).toBe("Test");
+    expect(heading.nextElementSibling!.querySelector(".squad-pitch")).toBeTruthy();
   });
 });

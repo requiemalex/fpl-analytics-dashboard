@@ -1858,10 +1858,12 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   too, whatever the kits highlight). **Minutes** is his Exp.
   Mins for that gameweek (below). **Price** has its own toggle
   (`<price_view>`, below). The switches are per page, like every view
-  switch. Above the pitch, three rows: the squad's name (no formation or
-  player count) with the Captain, Vice-Captain, Clear Draft and Best Draft
-  buttons (the app's standard `.btn`, green while armed); then Squad Value
-  and Bank as tiles (Squad Value, `<squad_value>`, `squadMarketValue`: FPL's
+  switch. The squad's name (no formation or player count) is the section
+  heading over the pitch's card, the shared `SectionHeading` with a shirt
+  icon, as the Dashboard's and Player Comparison's sections have ("Squad"
+  with none loaded). In the card, beside the Captain, Vice-Captain, Clear
+  Draft and Best Draft buttons (the app's standard `.btn`, green while
+  armed): Squad Value and Bank as tiles (Squad Value, `<squad_value>`, `squadMarketValue`: FPL's
   own figure, the squad's players at today's prices, the owner's call
   2026-10-26. What they count against the budget can be less — an
   import's players still held count at their selling prices, FPL keeping
@@ -1881,17 +1883,17 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   Exp. Pts columns each add up a number of gameweeks from the next one
   (`<points_horizon>`), and Exp. Mins and Next 5 Fixtures don't move.
 - **Projected Points** (`<projected_points>`, `projectedPoints` in
-  `components/SquadPitch.tsx`) — a box beside the squad's figures: the
+  `components/SquadPitch.tsx`) — beside the squad's figures: the
   starting XI's Exp. Pts for the pitch's gameweek from the Source toggle's
   figure, the captain's counted twice as FPL scores him. A starter with no
   match that gameweek adds 0; one with a match but no figure leaves "—"
   (never a part-count, `<partial_totals>`), and the hover names him.
-  Beside the total, one aligned row each: starters (of 11), the captain
-  and his doubled figure, and the bench's total (not in the figure). It
-  sits under the Captain … Best Draft buttons at exactly their width
-  (they share the right-hand column); on a narrow window that column
-  drops below the rest. Its heading and side stripe are green, the
-  owner's choice (2026-10-26).
+  Four tiles, the same `.stat-tile` as Squad Value and Bank, two by two:
+  the total (its label naming the gameweek and source), starters (of
+  11), the captain (named in the label) and his doubled figure, and the
+  bench's total (not in the figure). They sit under the Captain … Best
+  Draft buttons at exactly their width (they share the right-hand
+  column); on a narrow window that column drops below the rest.
 - **Best Draft** (`<best_draft>`, `metrics/bestDraft.ts`) — sets the
   starting XI, captain and vice-captain with the most Exp. Pts for the
   pitch's gameweek, from Points Prediction's source (FPL Official or

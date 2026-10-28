@@ -103,7 +103,7 @@ export function squadMarketValue(players: readonly Pick<NormalizedPlayer, "price
   return players.reduce((sum, p) => sum + Math.round(p.price * 10), 0) / 10;
 }
 
-/** The squad's figures: value and money left, one strip under its name. */
+/** The squad's figures: value and money left, one strip above the pitch's controls. */
 function SquadTiles({ validation, budgetHint, marketValue }: { validation: SquadValidation; budgetHint: string; marketValue: number }) {
   // To the tenth, as budgetLeftText does.
   const tenths = Math.round(validation.budgetRemaining * 10);
@@ -166,7 +166,7 @@ export function projectedPoints(
   return { total: starters.length > 0 && missing.length === 0 ? total : null, missing, captain, bench: bench.length > 0 ? benchTotal : null };
 }
 
-/** <projected_points>: the summary box beside the squad's figures. */
+/** <projected_points>: tiles beside the squad's figures, in their style. */
 function ProjectedPointsBox({
   starters,
   bench,
@@ -192,35 +192,28 @@ function ProjectedPointsBox({
         : p.total === null
           ? `No total yet: ${p.missing.length > 0 ? `${p.missing.join(", ")} ${p.missing.length === 1 ? "has" : "have"} no ${sourceName} figure for GW${gameweek}` : "the figures are still loading"}`
           : `The starting XI's Exp. Pts (${sourceName}) for GW${gameweek}, the captain's counted twice. Changes with the gameweek arrows and the Source toggle.`;
+  // The same tiles as Squad Value and Bank, two by two: the total, then what makes it up.
   return (
     <div className="projected-box" title={hint}>
-      <div className="projected-box-head">
-        <span className="projected-box-label">Projected Points</span>
-        <span className="projected-box-tag">
-          {gameweek !== null ? `GW${gameweek}` : DASH} · {source === "fpl" ? "FPL" : "Model"}
+      <div className="stat-tile">
+        <span className="stat-tile-label">
+          Projected Points · {gameweek !== null ? `GW${gameweek}` : DASH} · {source === "fpl" ? "FPL" : "Model"}
+        </span>
+        <span className="stat-tile-value num">{p.total !== null ? fmtDecimal(p.total, 1) : DASH}</span>
+      </div>
+      <div className="stat-tile">
+        <span className="stat-tile-label">Starters</span>
+        <span className="stat-tile-value num">
+          {starters.length}/{SQUAD_RULES.startingXISize}
         </span>
       </div>
-      {/* The total on the left; what makes it up, one aligned row each, on the right. */}
-      <div className="projected-box-body">
-        <div className="projected-box-value num">{p.total !== null ? fmtDecimal(p.total, 1) : DASH}</div>
-        <dl className="projected-box-parts">
-          <dt>Starters</dt>
-          <dd className="num">
-            {starters.length}/{SQUAD_RULES.startingXISize}
-          </dd>
-          <dt>Captain</dt>
-          <dd>
-            {p.captain ? (
-              <>
-                <span className="projected-box-name">{p.captain.name}</span> <span className="num">{fmtDecimal(p.captain.points, 1)}</span>
-              </>
-            ) : (
-              DASH
-            )}
-          </dd>
-          <dt>Bench</dt>
-          <dd className="num">{p.bench !== null ? fmtDecimal(p.bench, 1) : DASH}</dd>
-        </dl>
+      <div className="stat-tile">
+        <span className="stat-tile-label">{p.captain ? `Captain · ${p.captain.name}` : "Captain"}</span>
+        <span className="stat-tile-value num">{p.captain ? fmtDecimal(p.captain.points, 1) : DASH}</span>
+      </div>
+      <div className="stat-tile">
+        <span className="stat-tile-label">Bench</span>
+        <span className="stat-tile-value num">{p.bench !== null ? fmtDecimal(p.bench, 1) : DASH}</span>
       </div>
     </div>
   );
@@ -605,16 +598,16 @@ export function SquadPitch({
     ...openSlots.bench.filter((b) => b === pos).map(() => ({ position: pos, player: null })),
   ]);
 
-  // Above the pitch, two columns: the squad's name, its figures, then the
-  // gameweek and what the kits highlight; beside them its buttons, with
-  // Projected Points underneath at the buttons' width.
+  // Above the pitch (the squad's name is the page's section heading), two
+  // columns: the squad's figures, then the gameweek and what the kits
+  // highlight; beside them its buttons, with Projected Points underneath at
+  // the buttons' width.
   return (
     <div className={`squad-pitch${hasSquad ? "" : " is-disabled"}`} ref={rootRef} aria-disabled={!hasSquad || undefined}>
-      {/* Left: the squad's name, figures and the pitch's controls. Right: its buttons with Projected Points under them, the
+      {/* Left: the squad's figures and the pitch's controls. Right: its buttons with Projected Points under them, the
           same width (<projected_points>). */}
       <div className="pitch-view-top">
         <div className="pitch-view-top-main">
-          <div className="pitch-view-heading">{squadName && <span className="pitch-view-title">{squadName}</span>}</div>
           <SquadTiles validation={squadValidation} budgetHint={budgetHint} marketValue={squadMarketValue([...starters, ...benchPlayers])} />
           {squadValidation.clubViolations.length > 0 && (
             <div className="banner error">

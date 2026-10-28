@@ -142,13 +142,6 @@ describe("<kit_view> Highlight", () => {
   });
 });
 
-describe("the squad's heading", () => {
-  it("is just its name: no formation or player count", () => {
-    const { container } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
-    expect(container.querySelector(".pitch-view-heading")!.textContent).toBe("My Squad");
-  });
-});
-
 describe("the squad's actions", () => {
   it("an armed Captain button is green, with no instructions under the pitch controls", () => {
     const { container, getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })], [], vi.fn(), null, true, "captain");
@@ -416,12 +409,13 @@ describe("<projected_points> projectedPoints", () => {
   });
   it("shows on the pitch beside the squad's figures, following the Source toggle", () => {
     const { container, getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })], [], vi.fn(), 1);
-    expect(container.querySelector(".projected-box-value")!.textContent).toBe("8.4");
-    expect(container.querySelector(".projected-box-tag")!.textContent).toBe("GW9 · FPL");
-    // Its parts, one aligned row each: starters, the captain's doubled figure, the bench (none here).
-    const parts = [...container.querySelectorAll(".projected-box-parts dt")].map((dt) => `${dt.textContent}: ${dt.nextElementSibling!.textContent}`);
-    expect(parts).toEqual(["Starters: 1/11", "Captain: Player 1 8.4", "Bench: —"]);
+    // Tiles as Squad Value's and Bank's: the total, starters, the captain's doubled figure, the bench (none here).
+    const tiles = () =>
+      [...container.querySelectorAll(".projected-box > .stat-tile")].map(
+        (t) => `${t.querySelector(".stat-tile-label")!.textContent}: ${t.querySelector(".stat-tile-value")!.textContent}`,
+      );
+    expect(tiles()).toEqual(["Projected Points · GW9 · FPL: 8.4", "Starters: 1/11", "Captain · Player 1: 8.4", "Bench: —"]);
     fireEvent.click(getByRole("radiogroup", { name: "Source" }).querySelector<HTMLElement>('[aria-label^="Exp. Pts (Model"]')!);
-    expect(container.querySelector(".projected-box-value")!.textContent).toBe("—");
+    expect(tiles()[0]).toBe("Projected Points · GW9 · Model: —");
   });
 });
