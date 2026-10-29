@@ -5,6 +5,11 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.119.0 · 29 Oct 2026
+
+- Pickers: fewer, fuller headings — no heading over one or two statistics
+- Dashboard: team Starter view now has as many tiles and graphs as the player one
+
 ## v1.118.0 · 28 Oct 2026
 
 - Team Building: the squad's name is a section heading with an icon, and Projected Points uses the same tiles as Squad Value and Bank
