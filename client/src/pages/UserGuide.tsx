@@ -248,10 +248,10 @@ export function UserGuide() {
           the Explorers, and a figure both sources have gets the ⇄ switch (see Understat stats; the same goes for tiles). A scatter plot can add a dashed 45° trend line (
           <strong>Add Trend Line</strong>) marking where X equals Y. It's useful only when both are on the same scale, like xG and Goals.
           The Starter view, all Last Season, starts with FPL's figures, then Understat's (while Understat is on):
-          for players, tiles of Points, Pts/£m and DC/Game, then NPxGI/Game, Shots/Game, Key Passes/Game, Penalties Taken and NP Goals
+          for players, tiles of Points, Pts/£m, DC/Game and Bonus, then NPxGI/Game, Shots/Game, Key Passes/Game, Penalties Taken and NP Goals
           − NPxG (lowest first: finishing that has fallen short of the chances, which tends to even out), and graphs of xG vs Goals
           and Price vs Points, then Shots/Game vs xG/Shot (many shots, or good ones) and Price vs NPxGI/Game; for teams, tiles of FPL
-          Points, Clean Sheets and DC/Game, then xGD, Pts − xPts, Shots, Shots Against and Set-Piece xG, and graphs of Team xG vs
+          Points, Clean Sheets, DC/Game and Bonus Points, then xGD, Pts − xPts, Shots, Shots Against and Set-Piece xG, and graphs of Team xG vs
           Goals and Team xGC vs Goals Against, then NPxG vs NPxGA and Shots vs xG/Shot. Its player tiles and graphs leave out players under the fixed minutes floor, who
           would otherwise pile up at zero. A tile's or graph's first header icon says where its figures come from (FPL's football,
           the ⇄ for both, or Understat's icon), then comes the stopwatch if a minimum applies, then the Data View; its title is

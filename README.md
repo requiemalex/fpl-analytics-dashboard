@@ -1415,8 +1415,8 @@ obvious from the UI.
   per scope; "Default" in code, ids `default-view-*`) is immutable: no
   add, edit, remove or reorder, and it is re-synced to the packaged set on
   every load (so changing the packaged set needs no storage bump). The
-  packaged FPL set is Points, Pts/£m and DC/Game tiles and xG vs Goals and
-  Price vs Points graphs for players, FPL Points, Clean Sheets and DC/Game tiles and
+  packaged FPL set is Points, Pts/£m, DC/Game and Bonus tiles and xG vs Goals and
+  Price vs Points graphs for players, FPL Points, Clean Sheets, DC/Game and Bonus Points tiles and
   Team xG vs Goals and Team xGC vs Goals Against graphs for clubs; a
   mounted second source adds its own after them, on screen only
   (`withSourceStarterItems`; Understat's: <source_starter_items>). A default-id tile or graph can therefore only ever be an

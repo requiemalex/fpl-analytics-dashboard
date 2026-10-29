@@ -282,6 +282,7 @@ describe("the Dashboard's Starter view (<source_starter_items>) and its cards' s
       "Points",
       "Pts/£m",
       "DC/Game",
+      "Bonus",
       "NPxGI/Game",
       "Shots/Game",
       "Key Passes/Game",
@@ -300,7 +301,7 @@ describe("the Dashboard's Starter view (<source_starter_items>) and its cards' s
   it("with Understat switched off, the Starter view is FPL's tiles and graphs alone, with nothing marked unavailable", () => {
     showStarter();
     const { container } = renderDashboard(null);
-    expect(titles(container).map((t) => t.textContent)).toEqual(["Points", "Pts/£m", "DC/Game", "xG vs Goals", "Price vs Points"]);
+    expect(titles(container).map((t) => t.textContent)).toEqual(["Points", "Pts/£m", "DC/Game", "Bonus", "xG vs Goals", "Price vs Points"]);
     expect(container.textContent).not.toContain("switched off");
   });
 
