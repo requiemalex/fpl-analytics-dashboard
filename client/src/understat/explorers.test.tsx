@@ -190,6 +190,11 @@ describe("Player Explorer with Understat mounted", () => {
     for (const label of alternates) expect(groupOf(popover, label), label).toBe("FPL & Understat");
     expect(groupOf(popover, "Goals")).toBe("FPL · Actual Output");
     expect(groupOf(popover, "Shots")).toBe("Understat · Shooting");
+    // No heading over nothing (every FPL underlying figure is shared) or over one figure.
+    expect(headings.map((h) => h.textContent)).not.toContain("FPL · Underlying Performance");
+    expect(groupOf(popover, "Next 5 Fixtures")).toBe("FPL · Advanced");
+    expect(groupOf(popover, "Pts/£m")).toBe("FPL · Actual Output");
+    expect(groupOf(popover, "Apps")).toBe("Understat · Creating & Involvement");
   });
 
   it("Goals − xG is one column with a toggle: FPL's goals − FPL's xG, or Understat's against Understat's", () => {

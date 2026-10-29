@@ -46,7 +46,7 @@ const num = (decimals = 0) => (v: number | null) => fmtDecimal(v, decimals);
  * only exist as PlayerDerivedMetrics fields, not as their own table column.
  * This is the full set a user can build a Dashboard tile from.
  */
-/** Tile-only metrics, and fuller tile names for two that are also columns (Goals − xG, Assists − xA: the tile's entry wins). */
+/** Tile-only metrics, and fuller tile names for three that are also columns (Goals − xG, Assists − xA, G+A − xGI: the tile's entry wins). */
 const TILE_EXTRA_METRICS: PlayerTileMetric[] = [
   { key: "goalsMinusXG", label: "Goals vs xG (Goals − xG)", group: "UNDERLYING PERFORMANCE", getValue: (_p, d) => d.goalsMinusXG, format: fmtSigned, higherIsBetter: true, signed: true },
   {

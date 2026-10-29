@@ -179,23 +179,12 @@ function groupIcon(group: string): React.ReactNode {
           <path d="M4.5 10.5 7 7.5l2.2 1.8L13 4.8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
         </>,
       );
-    case "value":
-    case "price":
-      return <span className="menu-group-glyph">£</span>;
     case "advanced":
       // Mixer sliders.
       return svg(
         <>
           <path d="M4 2v12M8 2v12M12 2v12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
           <path d="M2.5 10h3M6.5 5h3M10.5 9h3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-        </>,
-      );
-    case "playing time":
-      // Clock.
-      return svg(
-        <>
-          <circle cx="8" cy="8.3" r="5.8" stroke="currentColor" strokeWidth="1.3" />
-          <path d="M8 4.9V8.3l2.6 1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
         </>,
       );
     case "results":

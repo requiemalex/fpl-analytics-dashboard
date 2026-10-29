@@ -333,17 +333,22 @@ export function Teams() {
             {showColumnPopover && (
               <ColumnsPopover style={{ left: 0, right: "auto" }}>
                 {/* Three kinds of heading, by source: green FPL only, the crossover colour for figures both sources have (⇄ on the header), then the second source's own. */}
-                {GROUPS.map((group) => (
-                  <div key={group}>
-                    <MenuGroupHeading group={group} label={fplHeading(group)} className="col-source-fpl" />
-                    {TEAM_COLUMNS.filter((c) => c.group === group && !crossoverKeys.has(c.key)).map((c) => (
-                      <label key={c.key}>
-                        <input type="checkbox" checked={visibleColumns.includes(c.key)} onChange={() => handleToggleColumn(c.key)} />
-                        {c.label}
-                      </label>
-                    ))}
-                  </div>
-                ))}
+                {/* A heading with nothing under it isn't shown, as in every picker. */}
+                {GROUPS.map((group) => {
+                  const columns = TEAM_COLUMNS.filter((c) => c.group === group && !crossoverKeys.has(c.key));
+                  if (columns.length === 0) return null;
+                  return (
+                    <div key={group}>
+                      <MenuGroupHeading group={group} label={fplHeading(group)} className="col-source-fpl" />
+                      {columns.map((c) => (
+                        <label key={c.key}>
+                          <input type="checkbox" checked={visibleColumns.includes(c.key)} onChange={() => handleToggleColumn(c.key)} />
+                          {c.label}
+                        </label>
+                      ))}
+                    </div>
+                  );
+                })}
                 {ext && crossoverKeys.size > 0 && (
                   <div>
                     <CrossoverGroupHeading externalLabel={ext.label} />

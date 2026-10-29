@@ -275,6 +275,7 @@ export const PLAYER_STAT_HINTS: Record<string, string> = {
   xGIPerGame: "xG + xA per game played.",
   goalsMinusXG: "Goals minus xG. Above 0: scoring more than his chances suggest. Below 0: fewer.",
   assistsMinusXA: "Assists minus xA. Above 0: more assists than his chances made suggest. Below 0: fewer.",
+  goalInvolvementsMinusXGI: "Goals plus assists minus xGI. Above 0: more goal involvements than his chances suggest.",
   xGC: "Expected goals conceded while he was on the pitch. Coloured per game.",
   xGCPerGame: "Expected goals conceded per game while he was on the pitch.",
   price: "FPL price today.",
@@ -300,7 +301,6 @@ export const PLAYER_STAT_HINTS: Record<string, string> = {
   cornersOrder: "His place on his club's corner and indirect free-kick list (1 = first choice).",
   ownership: "Share of FPL managers who own him.",
   // Profile-only figures (no Explorer column).
-  goalInvolvementsMinusXGI: "Goals plus assists minus xGI. Above 0: more goal involvements than his chances suggest.",
   minutesPerGoal: "Minutes played per goal scored.",
 };
 
@@ -362,6 +362,7 @@ export const UNDERSTAT_STAT_HINTS: Record<string, string> = {
   minutes: "Minutes played, as Understat records them.",
   goalsMinusXG: "Goals minus xG. Above 0: scoring more than the chances suggest.",
   assistsMinusXA: "Assists minus xA. Above 0: more assists than the chances made suggest.",
+  goalInvolvementsMinusXGI: "Goals plus assists minus xG + xA. Above 0: more goal involvements than the chances suggest.",
   "us.shots": "Shots taken.",
   "us.shotsPerGame": "Shots per game played.",
   "us.shotsOnTarget": "Shots on target (scored or saved).",

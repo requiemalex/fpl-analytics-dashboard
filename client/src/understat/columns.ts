@@ -7,7 +7,7 @@
  *    own picker groups.
  *  - "Alternates": Understat's version of a figure FPL also has, where the
  *    two genuinely differ — xG, xA, xGI and their per-game and per-£m
- *    rates, Assists, Minutes, Goals − xG, Assists − xA and xGC (players,
+ *    rates, Assists, Minutes, Goals − xG, Assists − xA, G+A − xGI and xGC (players,
  *    <understat_player_xgc>); xG,
  *    xA, xGI, xGC and Assists (clubs). They keep the FPL column's key, so the column's place,
  *    width, sort and filter follow it when its source toggle is flipped.
@@ -121,6 +121,7 @@ export function understatPlayerColumns(lookup: (p: NormalizedPlayer) => UsPlayer
     // Understat's goals and assists against Understat's own xG and xA.
     goalsMinusXG: col("goalsMinusXG", "Goals − xG", (r) => perSeason(r, r.totals.goals - r.totals.xG), signed(2), { signed: true }),
     assistsMinusXA: col("assistsMinusXA", "Assists − xA", (r) => perSeason(r, r.totals.assists - r.totals.xA), signed(2), { signed: true }),
+    goalInvolvementsMinusXGI: col("goalInvolvementsMinusXGI", "G+A − xGI", (r) => perSeason(r, r.totals.goals + r.totals.assists - xGI(r.totals)), signed(2), { signed: true }),
     // <understat_player_xgc>: xG his club faced while he was on the pitch. Fewer is better, and like FPL's
     // xGC the total ranks per game, or a bench player would look best.
     xGC: col("xGC", "xGC", (r) => xGCOf(r, (v) => perSeason(r, v)), fmt(2), { higherIsBetter: false, rankBy: (p) => xGCPerGameOf(lookup(p)) }),
@@ -189,7 +190,8 @@ export function understatPlayerColumns(lookup: (p: NormalizedPlayer) => UsPlayer
         ],
       },
       {
-        heading: "Understat · Creating",
+        // Apps here too, not a heading of its own over one figure (owner's call, 2026-10-29): Understat's minutes are FPL & Understat.
+        heading: "Understat · Creating & Involvement",
         columns: [
           col("us.keyPasses", "Key Passes", total((t) => t.keyPasses), fmt(0)),
           col("us.keyPassesPerGame", "Key Passes/Game", perGameOf((t) => t.keyPasses), fmt(2)),
@@ -200,11 +202,8 @@ export function understatPlayerColumns(lookup: (p: NormalizedPlayer) => UsPlayer
           col("us.xGChainPerGame", "xGChain/Game", perGameOf((t) => t.xGChain), fmt(2)),
           col("us.xGBuildup", "xGBuildup", total((t) => t.xGBuildup), fmt(2)),
           col("us.xGBuildupPerGame", "xGBuildup/Game", perGameOf((t) => t.xGBuildup), fmt(2)),
+          col("us.appearances", "Apps", total((t) => t.appearances), fmt(0)),
         ],
-      },
-      {
-        heading: "Understat · Playing Time",
-        columns: [col("us.appearances", "Apps", total((t) => t.appearances), fmt(0))],
       },
     ],
   };

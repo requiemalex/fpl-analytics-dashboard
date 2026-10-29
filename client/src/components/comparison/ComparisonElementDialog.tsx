@@ -173,12 +173,18 @@ export function ComparisonElementDialog({
               No statistic matches "{filter.trim()}".
             </div>
             <div className="menu-chips" ref={chipsRef}>
-              {TREND_METRIC_GROUP_ORDER.map((group) => (
-                <div key={group}>
-                  <MenuGroupHeading group={group} label={fplHeading(group)} className={fplHeadingClass} />
-                  <div className="chip-row">{TREND_METRICS.filter((m) => m.group === group && !trendCrossover.has(m.key)).map(trendChip)}</div>
-                </div>
-              ))}
+              {/* A heading with nothing under it (every figure in the crossover group) isn't shown, as in every picker. */}
+              {TREND_METRIC_GROUP_ORDER.map((group) => {
+                const metrics = TREND_METRICS.filter((m) => m.group === group && !trendCrossover.has(m.key));
+                return (
+                  metrics.length > 0 && (
+                    <div key={group}>
+                      <MenuGroupHeading group={group} label={fplHeading(group)} className={fplHeadingClass} />
+                      <div className="chip-row">{metrics.map(trendChip)}</div>
+                    </div>
+                  )
+                );
+              })}
               {external && trendCrossover.size > 0 && (
                 <div>
                   <CrossoverGroupHeading externalLabel={external.label} />
@@ -214,12 +220,17 @@ export function ComparisonElementDialog({
               No statistic matches "{filter.trim()}".
             </div>
             <div className="menu-chips" ref={chipsRef}>
-              {COMPARISON_GROUP_ORDER.map((group) => (
-                <div key={group}>
-                  <MenuGroupHeading group={group} label={fplHeading(COMPARISON_GROUP_LABELS[group])} className={fplHeadingClass} />
-                  <div className="chip-row">{COMPARISON_METRICS.filter((m) => m.group === group && !crossover.has(m.key)).map(metricChip)}</div>
-                </div>
-              ))}
+              {COMPARISON_GROUP_ORDER.map((group) => {
+                const metrics = COMPARISON_METRICS.filter((m) => m.group === group && !crossover.has(m.key));
+                return (
+                  metrics.length > 0 && (
+                    <div key={group}>
+                      <MenuGroupHeading group={group} label={fplHeading(COMPARISON_GROUP_LABELS[group])} className={fplHeadingClass} />
+                      <div className="chip-row">{metrics.map(metricChip)}</div>
+                    </div>
+                  )
+                );
+              })}
               {external && crossover.size > 0 && (
                 <div>
                   <CrossoverGroupHeading externalLabel={external.label} />

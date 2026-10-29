@@ -45,7 +45,7 @@ import { ExplorerViewNotice, ExplorerViewsMenu, explorerViewNote } from "./Explo
  * `playerAction` on each row (Add), and `excludeIds` (the squad).
  */
 
-const GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE", "ADVANCED"];
+const GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "ADVANCED"];
 /**
  * Not a PLAYER_COLUMNS entry (renders fixture chips, not a number), so it shares the resize/Fit-to-Box engine as a special key. Always the
  * player's live team's upcoming fixtures, regardless of analysis mode — moving between seasons' fixtures wouldn't mean anything, same
@@ -1115,26 +1115,31 @@ export function PlayerExplorerTable({
                     ))}
                   </div>
                 )}
-                {/* Ownership/Price/Team/Position aren't listed here at all — they're the fixed identity block (IDENTITY_COLUMNS), always shown, never toggleable. */}
-                <div>
-                  <MenuGroupHeading group="Other" label={fplHeading("Other")} className="col-source-fpl" />
-                  <label>
-                    <input type="checkbox" checked={visibleColumns.includes(FIXTURES_COLUMN_KEY)} onChange={() => handleToggleColumn(FIXTURES_COLUMN_KEY)} />
-                    Next 5 Fixtures
-                  </label>
-                </div>
                 {/* Three kinds of heading, by source: green FPL only, the crossover colour for figures both sources have (⇄ on the header), then the second source's own. */}
-                {GROUPS.map((group) => (
-                  <div key={group}>
-                    <MenuGroupHeading group={group} label={fplHeading(group)} className="col-source-fpl" />
-                    {PLAYER_COLUMNS.filter((c) => c.group === group && !FIXED_COLUMN_KEYS.has(c.key) && !crossoverKeys.has(c.key)).map((c) => (
-                      <label key={c.key}>
-                        <input type="checkbox" checked={visibleColumns.includes(c.key)} onChange={() => handleToggleColumn(c.key)} />
-                        {c.label}
-                      </label>
-                    ))}
-                  </div>
-                ))}
+                {/* Ownership/Price/Team/Position aren't listed here at all — they're the fixed identity block (IDENTITY_COLUMNS), always shown, never toggleable. */}
+                {/* A heading with nothing under it (every figure in the crossover group) isn't shown; Next 5 Fixtures ends Advanced rather than heading a group of one. */}
+                {GROUPS.map((group) => {
+                  const columns = PLAYER_COLUMNS.filter((c) => c.group === group && !FIXED_COLUMN_KEYS.has(c.key) && !crossoverKeys.has(c.key));
+                  const withFixtures = group === "ADVANCED";
+                  if (columns.length === 0 && !withFixtures) return null;
+                  return (
+                    <div key={group}>
+                      <MenuGroupHeading group={group} label={fplHeading(group)} className="col-source-fpl" />
+                      {columns.map((c) => (
+                        <label key={c.key}>
+                          <input type="checkbox" checked={visibleColumns.includes(c.key)} onChange={() => handleToggleColumn(c.key)} />
+                          {c.label}
+                        </label>
+                      ))}
+                      {withFixtures && (
+                        <label>
+                          <input type="checkbox" checked={visibleColumns.includes(FIXTURES_COLUMN_KEY)} onChange={() => handleToggleColumn(FIXTURES_COLUMN_KEY)} />
+                          Next 5 Fixtures
+                        </label>
+                      )}
+                    </div>
+                  );
+                })}
                 {ext && crossoverKeys.size > 0 && (
                   <div>
                     <CrossoverGroupHeading externalLabel={ext.label} />

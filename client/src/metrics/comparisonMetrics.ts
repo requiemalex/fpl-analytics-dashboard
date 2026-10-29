@@ -7,11 +7,10 @@ import { isUnderMinimum } from "./fixedMinutesFloor";
 export const COMPARISON_GROUP_LABELS: Record<ColumnGroup, string> = {
   "ACTUAL OUTPUT": "Output",
   "UNDERLYING PERFORMANCE": "Underlying",
-  VALUE: "Value",
   ADVANCED: "Advanced",
 };
 
-export const COMPARISON_GROUP_ORDER: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "VALUE", "ADVANCED"];
+export const COMPARISON_GROUP_ORDER: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "ADVANCED"];
 
 /** Fuller names than Player Explorer's column headers — a radar axis or an Outputs row has room for them. */
 const LABELS: Record<string, string> = {

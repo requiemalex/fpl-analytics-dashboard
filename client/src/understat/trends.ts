@@ -54,7 +54,7 @@ const GROUPS: { heading: string; metrics: Def[] }[] = [
     ],
   },
   {
-    heading: "Understat · Creating",
+    heading: "Understat · Creating & Involvement",
     metrics: [
       { key: "us.keyPasses", label: "Key Passes", decimals: 0, figure: total((t) => t.keyPasses) },
       { key: "us.keyPassesPerGame", label: "Key Passes per Game", decimals: 2, figure: perGameOf((t) => t.keyPasses) },

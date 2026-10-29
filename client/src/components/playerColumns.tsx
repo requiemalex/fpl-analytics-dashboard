@@ -5,7 +5,16 @@ import { defensiveRewardPerGame } from "../metrics/defensiveReward";
 import { perEstimatedGame } from "../metrics/calculations";
 import { fmtDecimal, fmtPrice, fmtPercent, fmtSigned } from "../utils/format";
 
-export type ColumnGroup = "ACTUAL OUTPUT" | "UNDERLYING PERFORMANCE" | "VALUE" | "ADVANCED";
+/**
+ * The player catalogue's groups: the headings of every player picker (the
+ * Explorers' Columns, the Dashboard's Statistic and axis pickers, Player
+ * Comparison's). Few and full (owner's call, 2026-10-29): a second source
+ * takes the figures both have into its own crossover group, which left a
+ * separate Value group with one or two entries. Value figures sit with
+ * what they're built from (Pts/£m in Output, xG/£m in Underlying), Price
+ * with the other always-live figures in Advanced.
+ */
+export type ColumnGroup = "ACTUAL OUTPUT" | "UNDERLYING PERFORMANCE" | "ADVANCED";
 
 export interface PlayerColumn {
   key: string;
@@ -126,6 +135,7 @@ export const PLAYER_COLUMNS: PlayerColumn[] = [
   // ACTUAL OUTPUT
   { key: "totalPoints", label: "Points", group: "ACTUAL OUTPUT", metricKey: "totalPoints", getValue: (p) => p.totalPoints, ...num(0) },
   { key: "pointsPerGame", label: "PPG", group: "ACTUAL OUTPUT", metricKey: "pointsPerGame", getValue: (p) => p.pointsPerGame, ...num(1) },
+  { key: "pointsPerMillion", label: "Pts/£m", group: "ACTUAL OUTPUT", metricKey: "pointsPerMillion", getValue: (_p, d) => d.pointsPerMillion, ...num(1) },
   { key: "goals", label: "Goals", group: "ACTUAL OUTPUT", metricKey: "goals", getValue: (p) => p.goals, ...num(0), smallCount: true },
   { key: "assists", label: "Assists", group: "ACTUAL OUTPUT", metricKey: "assists", getValue: (p) => p.assists, ...num(0), smallCount: true },
   { key: "cleanSheets", label: "CS", group: "ACTUAL OUTPUT", metricKey: "cleanSheets", getValue: (p) => p.cleanSheets, ...num(0), smallCount: true },
@@ -179,15 +189,21 @@ export const PLAYER_COLUMNS: PlayerColumn[] = [
   // FPL's goals and assists against FPL's own xG and xA (each source against itself, never mixed).
   { key: "goalsMinusXG", label: "Goals − xG", group: "UNDERLYING PERFORMANCE", metricKey: "goalsMinusXG", getValue: (_p, d) => d.goalsMinusXG, format: (v) => fmtSigned(v, 2), decimals: 2, signed: true },
   { key: "assistsMinusXA", label: "Assists − xA", group: "UNDERLYING PERFORMANCE", metricKey: "assistsMinusXA", getValue: (_p, d) => d.assistsMinusXA, format: (v) => fmtSigned(v, 2), decimals: 2, signed: true },
+  {
+    key: "goalInvolvementsMinusXGI",
+    label: "G+A − xGI",
+    group: "UNDERLYING PERFORMANCE",
+    metricKey: "goalInvolvementsMinusXGI",
+    getValue: (_p, d) => d.goalInvolvementsMinusXGI,
+    format: (v) => fmtSigned(v, 2),
+    decimals: 2,
+    signed: true,
+  },
   { key: "xGC", label: "xGC", group: "UNDERLYING PERFORMANCE", metricKey: "xGC", getValue: (p) => p.xGC, ...num(2), higherIsBetter: false, rankBy: (p) => p.xGCPerGame },
   { key: "xGCPerGame", label: "xGC/Game", group: "UNDERLYING PERFORMANCE", metricKey: "xGCPerGame", getValue: (p) => p.xGCPerGame, ...num(2), higherIsBetter: false },
-
-  // VALUE
-  { key: "price", label: "Price", group: "VALUE", metricKey: "price", getValue: (p) => p.price, format: (v) => fmtPrice(v), decimals: 1, higherIsBetter: false, varies: false },
-  { key: "pointsPerMillion", label: "Pts/\u00a3m", group: "VALUE", metricKey: "pointsPerMillion", getValue: (_p, d) => d.pointsPerMillion, ...num(1) },
-  { key: "xGPerMillion", label: "xG/\u00a3m", group: "VALUE", metricKey: "xGPerMillion", getValue: (_p, d) => d.xGPerMillion, ...num(2) },
-  { key: "xAPerMillion", label: "xA/\u00a3m", group: "VALUE", metricKey: "xAPerMillion", getValue: (_p, d) => d.xAPerMillion, ...num(2) },
-  { key: "xGIPerMillion", label: "xGI/\u00a3m", group: "VALUE", metricKey: "xGIPerMillion", getValue: (_p, d) => d.xGIPerMillion, ...num(2) },
+  { key: "xGPerMillion", label: "xG/\u00a3m", group: "UNDERLYING PERFORMANCE", metricKey: "xGPerMillion", getValue: (_p, d) => d.xGPerMillion, ...num(2) },
+  { key: "xAPerMillion", label: "xA/\u00a3m", group: "UNDERLYING PERFORMANCE", metricKey: "xAPerMillion", getValue: (_p, d) => d.xAPerMillion, ...num(2) },
+  { key: "xGIPerMillion", label: "xGI/\u00a3m", group: "UNDERLYING PERFORMANCE", metricKey: "xGIPerMillion", getValue: (_p, d) => d.xGIPerMillion, ...num(2) },
 
   // ADVANCED
   { key: "minutes", label: "Mins", group: "ADVANCED", metricKey: "minutes", getValue: (p) => p.minutes, ...num(0) },
@@ -228,6 +244,7 @@ export const PLAYER_COLUMNS: PlayerColumn[] = [
   { key: "penaltiesOrder", label: "Pen Order", group: "ADVANCED", metricKey: "penaltiesOrder", getValue: (p) => p.penaltiesOrder, ...num(0), higherIsBetter: false, varies: false },
   { key: "directFreekicksOrder", label: "FK Order", group: "ADVANCED", metricKey: "directFreekicksOrder", getValue: (p) => p.directFreekicksOrder, ...num(0), higherIsBetter: false, varies: false },
   { key: "cornersOrder", label: "Corner Order", group: "ADVANCED", metricKey: "cornersOrder", getValue: (p) => p.cornersOrder, ...num(0), higherIsBetter: false, varies: false },
+  { key: "price", label: "Price", group: "ADVANCED", metricKey: "price", getValue: (p) => p.price, format: (v) => fmtPrice(v), decimals: 1, higherIsBetter: false, varies: false },
   {
     key: "ownership",
     label: "Own%",

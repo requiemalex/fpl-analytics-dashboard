@@ -4100,3 +4100,23 @@ tiles/graphs only:
   arrows are the pitch's alone (`<points_horizon>` for the columns).
   Dragging from it went, as the dialog covers the pitch.
 - **Last commit with it:** `abd27eb`.
+
+### Small picker headings: FPL · Value, Playing Time, Price, Other (replaced 2026-10-29)
+- **What it did:** player figures were grouped under four FPL headings,
+  Actual Output, Underlying Performance, **Value** (Price, Pts/£m and the
+  xG/xA/xGI per £m rates) and Advanced. Player Comparison's trend graphs
+  had **Playing Time** (Minutes, Starts) and **Price** (Season-End Price)
+  headings of their own, the Columns picker an FPL **Other** heading
+  holding only Next 5 Fixtures, and Understat a **Playing Time** heading
+  holding only Apps. G+A − xGI was a Dashboard tile with no Explorer column
+  and no Understat version.
+- **Why it went:** with Understat on, the figures both sources have move to
+  the "FPL & Understat" heading, leaving Value with one or two entries and
+  FPL Underlying with none (the heading still showed over nothing); the
+  owner asked for fewer headings with a good number of figures under each.
+  Value's figures joined what they're built from (Pts/£m Output, the per-£m
+  rates Underlying, Price Advanced); trend graphs use the same three
+  headings; Next 5 Fixtures ends Advanced; Apps is in "Understat · Creating
+  & Involvement"; G+A − xGI became a column with a ⇄ toggle like Goals − xG;
+  and an empty heading is no longer shown.
+- **Last commit with it:** `ff1ab72`.

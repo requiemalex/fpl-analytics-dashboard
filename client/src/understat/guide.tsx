@@ -9,7 +9,7 @@ import React from "react";
 const PLAYER_METRICS: [string, string][] = [
   ["xG, xA, xGI (with ⇄)", "Understat's own expected goals and assists model — a different model from FPL's, so the numbers differ. xGI = xG + xA."],
   ["Assists, Mins (with ⇄)", "Understat's count. FPL awards assists more widely (about 2% of player-matches differ), and FPL counts stoppage time in minutes."],
-  ["Goals − xG, Assists − xA (with ⇄)", "Understat's goals and assists minus Understat's xG and xA: finishing (or team-mates finishing his chances) above (+) or below (−) the chances' quality."],
+  ["Goals − xG, Assists − xA, G+A − xGI (with ⇄)", "Understat's goals and assists minus Understat's xG and xA: finishing (or team-mates finishing his chances) above (+) or below (−) the chances' quality."],
   ["Shots, Shots/Game", "Every attempt, blocked ones included."],
   ["On Target, On Target %", "Shots scored or saved (a shot off the post isn't on target), and their share of all shots."],
   ["xG/Shot", "Average chance quality: xG ÷ shots."],

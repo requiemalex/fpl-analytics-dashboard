@@ -1,9 +1,10 @@
 import type { PlayerSeasonHistory } from "../types/normalized";
 import { estimatedPointsPerGame, perGame } from "./calculations";
 
-export type TrendMetricGroup = "Output" | "Underlying" | "Playing Time" | "Advanced" | "Price";
+/** The same groups as every other player picker (ColumnGroup, playerColumns.tsx): playing time and season-end price sit in Advanced, not under headings of one or two (owner's call, 2026-10-29). */
+export type TrendMetricGroup = "Output" | "Underlying" | "Advanced";
 
-export const TREND_METRIC_GROUP_ORDER: TrendMetricGroup[] = ["Output", "Underlying", "Playing Time", "Advanced", "Price"];
+export const TREND_METRIC_GROUP_ORDER: TrendMetricGroup[] = ["Output", "Underlying", "Advanced"];
 
 export interface TrendMetric {
   key: string;
@@ -35,8 +36,8 @@ export const TREND_METRICS: TrendMetric[] = [
   { key: "xGPerGame", label: "xG per Game", group: "Underlying", decimals: 2, getValue: (s) => perGame(s.xG, s.minutes) },
   { key: "xAPerGame", label: "xA per Game", group: "Underlying", decimals: 2, getValue: (s) => perGame(s.xA, s.minutes) },
   { key: "xGIPerGame", label: "xGI per Game", group: "Underlying", decimals: 2, getValue: (s) => perGame(s.xGI, s.minutes) },
-  { key: "minutes", label: "Minutes", group: "Playing Time", decimals: 0, getValue: (s) => s.minutes },
-  { key: "starts", label: "Starts", group: "Playing Time", decimals: 0, getValue: (s) => s.starts },
+  { key: "minutes", label: "Minutes", group: "Advanced", decimals: 0, getValue: (s) => s.minutes },
+  { key: "starts", label: "Starts", group: "Advanced", decimals: 0, getValue: (s) => s.starts },
   { key: "bps", label: "BPS", group: "Advanced", decimals: 0, getValue: (s) => s.bps },
   { key: "ictIndex", label: "ICT Index", group: "Advanced", decimals: 0, getValue: (s) => s.ictIndex },
   { key: "defensiveContribution", label: "Defensive Contributions", group: "Advanced", decimals: 0, getValue: (s) => s.defensiveContribution },
@@ -47,7 +48,7 @@ export const TREND_METRICS: TrendMetric[] = [
     decimals: 2,
     getValue: (s) => perGame(s.defensiveContribution, s.minutes),
   },
-  { key: "endCost", label: "Price (Season End)", group: "Price", decimals: 1, price: true, getValue: (s) => s.endCost },
+  { key: "endCost", label: "Price (Season End)", group: "Advanced", decimals: 1, price: true, getValue: (s) => s.endCost },
 ];
 
 /** What a trend graph needs to name and format its figure — an FPL TrendMetric, or a second source's. */

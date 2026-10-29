@@ -1710,12 +1710,6 @@ select:focus {
   color: var(--accent-positive);
   flex-shrink: 0;
 }
-.menu-group-glyph {
-  font-family: var(--font-display);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1;
-}
 /* Column menus: a list of checkboxes under each group heading. */
 .popover input[type="checkbox"] {
   accent-color: var(--accent-positive);

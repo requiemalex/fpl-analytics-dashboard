@@ -703,7 +703,17 @@ without it leaves that season's Shots Faced uncoloured.
   group for every figure with a ⇄ toggle, then violet "Understat ·"
   groups (Understat-only figures). With Understat switched off, the
   crossover figures go back to their FPL groups and the rose heading
-  disappears. Team Building's Add Players is Player Explorer's own table
+  disappears. **Few, full headings** (owner's call, 2026-10-29;
+  `understat/pickerGroups.test.ts`): every heading shown holds at least
+  5 figures, Understat on or off, and one left with nothing (FPL's
+  Underlying while Understat is on: all of it is crossover) isn't shown.
+  So a player's FPL figures are in three groups, the same in every
+  picker, trend graphs included: **Output** (Pts/£m there too),
+  **Underlying** (the xG/£m rates and G+A − xGI there too) and
+  **Advanced** (minutes, starts, the always-live Price, Own% and
+  set-piece orders, and in the Columns picker Next 5 Fixtures; a trend
+  graph's Season-End Price). Understat's Apps is in "Understat · Creating
+  & Involvement". Team Building's Add Players is Player Explorer's own table
   (`<shared_player_table>`), so its headers and pickers are the same; its
   Predictive columns (the app's own forecasts, not a Data View's figures)
   stay plain. A
@@ -715,7 +725,7 @@ without it leaves that season's Shots Faced uncoloured.
 - **Source toggle** (`components/SourceToggle.tsx`): a ⇄ icon on a header,
   only where the two sources genuinely differ:
   - players: xG, xA, xGI, their per-game and per-£m rates, Assists, Mins,
-    Goals − xG, Assists − xA, xGC and xGC/Game;
+    Goals − xG, Assists − xA, G+A − xGI, xGC and xGC/Game;
   - clubs: xG, xA, xGI, xGC, Assists.
 
   **A player's Understat xGC — one rule everywhere**
@@ -936,7 +946,7 @@ without it leaves that season's Shots Faced uncoloured.
   - **Pickers** are grouped as the Columns picker is: green "FPL ·" groups
     of FPL-only figures, one rose "FPL & Understat" group of the figures
     both have (players: xG, xA, xGI and their per-game and per-£m rates,
-    Assists, Minutes, Goals − xG, Assists − xA, xGC, xGC/Game; clubs: xG, xA, xGI, xGC,
+    Assists, Minutes, Goals − xG, Assists − xA, G+A − xGI, xGC, xGC/Game; clubs: xG, xA, xGI, xGC,
     Assists), then violet "Understat ·" groups of Understat's own. With
     Understat switched off only the FPL groups show. The Dashboard's
     Statistic and axis lists are `GroupedPicker`s (`metricPickerGroups`);

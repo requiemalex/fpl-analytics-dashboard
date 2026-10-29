@@ -210,7 +210,9 @@ describe("Dashboard with Understat mounted", () => {
     const list = getByRole("listbox");
     const groupEls = [...list.querySelectorAll<HTMLElement>('[role="group"]')];
     const groups = groupEls.map((g) => g.getAttribute("aria-label"));
-    expect(groups.slice(0, 2)).toEqual(["FPL · Actual Output", "FPL · Underlying Performance"]);
+    // Every FPL underlying figure has an Understat version, so its heading would be empty and isn't shown.
+    expect(groups.slice(0, 2)).toEqual(["FPL · Actual Output", "FPL · Advanced"]);
+    expect(groups).not.toContain("FPL · Underlying Performance");
     expect(groups).toContain("FPL & Understat");
     expect(groups.indexOf("Understat · Shooting")).toBeGreaterThan(groups.indexOf("FPL & Understat"));
     // Headed as the Explorers' Columns picker is: the shared heading, in each source's colour.
