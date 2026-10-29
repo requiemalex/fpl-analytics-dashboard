@@ -5,6 +5,11 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.120.0 · 29 Oct 2026
+
+- Explorers open with Understat's most useful columns after FPL's
+- Dashboard: Starter views get a Bonus tile, 9 tiles for players and teams alike
+
 ## v1.119.0 · 29 Oct 2026
 
 - Pickers: fewer, fuller headings — no heading over one or two statistics
