@@ -986,8 +986,11 @@ without it leaves that season's Shots Faced uncoloured.
     alone, with nothing marked unavailable. Players: NPxGI/Game,
     Shots/Game, Key Passes/Game, Penalties Taken, NP Goals − NPxG lowest
     first (finishing below the chances); graphs Shots/Game vs xG/Shot and
-    Price vs NPxGI/Game (FPL & Understat). Clubs: xGD, Pts − xPts, Shots
-    Against (fewest first), Set-Piece xG; graph NPxG vs NPxGA.
+    Price vs NPxGI/Game (FPL & Understat). Clubs: xGD, Pts − xPts, Shots,
+    Shots Against (fewest first), Set-Piece xG; graphs NPxG vs NPxGA and
+    Shots vs xG/Shot. Players and clubs get the same number of tiles and
+    graphs, in this set and the FPL one, so both scopes' Starters have the
+    same shape with Understat on or off.
   - **Source mark and title** (<card_source_mark>, `SourceMark`,
     `cardSource`/`CardTitle` in `components/SourceToggle.tsx`): every
     Dashboard tile and graph and Player Comparison card says where its
@@ -1403,7 +1406,7 @@ obvious from the UI.
   add, edit, remove or reorder, and it is re-synced to the packaged set on
   every load (so changing the packaged set needs no storage bump). The
   packaged FPL set is Points, Pts/£m and DC/Game tiles and xG vs Goals and
-  Price vs Points graphs for players, FPL Points and Clean Sheets tiles and
+  Price vs Points graphs for players, FPL Points, Clean Sheets and DC/Game tiles and
   Team xG vs Goals and Team xGC vs Goals Against graphs for clubs; a
   mounted second source adds its own after them, on screen only
   (`withSourceStarterItems`; Understat's: <source_starter_items>). A default-id tile or graph can therefore only ever be an

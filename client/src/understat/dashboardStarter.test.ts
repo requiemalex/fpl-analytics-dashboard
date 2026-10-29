@@ -37,6 +37,17 @@ describe("Understat's Starter items", () => {
     }
   });
 
+  it("give players and clubs the same number of tiles and graphs, with Understat on or off", () => {
+    const count = (items: { scope: "player" | "team" }[], scope: "player" | "team") => items.filter((i) => i.scope === scope).length;
+    for (const [fplItems, usItems] of [
+      [DEFAULT_SUMMARY_TILES, tiles],
+      [DEFAULT_DASHBOARD_GRAPHS, graphs],
+    ] as const) {
+      expect(count(fplItems, "team")).toBe(count(fplItems, "player"));
+      expect(count(usItems, "team")).toBe(count(usItems, "player"));
+    }
+  });
+
   it("have ids of their own, never an FPL default's", () => {
     const ids = [...tiles, ...graphs].map((i) => i.id);
     expect(new Set(ids).size).toBe(ids.length);

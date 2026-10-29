@@ -12,9 +12,12 @@ import { UNDERSTAT_SOURCE_ID } from "./columns";
  * Key Passes/Game), who's on penalties, whose finishing has fallen short
  * of his chances (likely to bounce back); and for clubs, the strongest by
  * chance difference (xGD), the luckiest against their chances
- * (Pts − xPts), the meanest defences (Shots Against) and the set-piece
- * threats. Kept here, not in the FPL defaults, so switching Understat off
- * or removing it takes them with it.
+ * (Pts − xPts), who shoots most and the meanest defences (Shots, Shots
+ * Against) and the set-piece threats. Players and clubs get the same
+ * number of tiles and graphs, here and in the FPL defaults, so each
+ * scope's Starter has the same shape with Understat on or off (owner's
+ * call, 2026-10-29). Kept here, not in the FPL defaults, so switching
+ * Understat off or removing it takes them with it.
  */
 
 const us = (key: string) => externalMetricKey(UNDERSTAT_SOURCE_ID, key);
@@ -59,6 +62,7 @@ export const UNDERSTAT_DASHBOARD_STARTER: ExternalStatsSource["dashboardStarter"
     tile("np-goals-below-npxg", "player", "us.npGoalsMinusNpxG", "asc"),
     tile("team-xgd", "team", "us.xGD"),
     tile("team-pts-above-xpts", "team", "us.ptsMinusXPts"),
+    tile("team-shots", "team", "us.shots"),
     tile("team-shots-against", "team", "us.shotsAgainst", "asc"),
     tile("team-set-piece-xg", "team", "us.setPieceXG"),
   ],
@@ -68,5 +72,7 @@ export const UNDERSTAT_DASHBOARD_STARTER: ExternalStatsSource["dashboardStarter"
     // FPL's price against Understat's threat: an FPL & Understat graph.
     scatter("price-npxgi", "player", "Price vs NPxGI/Game", "price", us("us.npxGIPerGame")),
     scatter("team-npxg-npxga", "team", "NPxG vs NPxGA", us("us.npxG"), us("us.npxGA")),
+    // The players' volume-against-quality question, for clubs.
+    scatter("team-shot-volume-quality", "team", "Shots vs xG/Shot", us("us.shots"), us("us.xGPerShot")),
   ],
 };

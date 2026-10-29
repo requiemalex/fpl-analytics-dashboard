@@ -110,7 +110,9 @@ export function normalizeSummaryTile(t: Partial<SummaryTileConfig>): SummaryTile
 /**
  * The Starter view's FPL tiles (the view is "Default" in code): Points, the
  * value of those points (Pts/£m) and Defensive Contributions per game, the
- * FPL-only figures a manager checks first. Pared back on 2026-10-24, when
+ * FPL-only figures a manager checks first; for clubs, FPL Points, Clean
+ * Sheets and DC/Game, so both scopes open on the same number of tiles and
+ * graphs (owner's call, 2026-10-29). Pared back on 2026-10-24, when
  * Understat's Starter tiles (<source_starter_items>, shown after these
  * while it's mounted) took over the attacking picture: xGI and xGI/£m
  * overlapped Points and Pts/£m, and the two Goals − xG tiles and G+A − xGI
@@ -125,6 +127,7 @@ export const DEFAULT_SUMMARY_TILES: SummaryTileConfig[] = [
   { id: "default-dc-per-game", scope: "player", metricKey: "defensiveContributionsPerGame", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: DEFAULT_FILTERS, playerIds: null, teamIds: null },
   { id: "default-team-points", scope: "team", metricKey: "points", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: null, playerIds: null, teamIds: null },
   { id: "default-team-clean-sheets", scope: "team", metricKey: "cleanSheets", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: null, playerIds: null, teamIds: null },
+  { id: "default-team-dc-per-game", scope: "team", metricKey: "defensiveContributionsPerGame", direction: "desc", dataView: DEFAULT_DATA_VIEW, name: null, criteria: null, playerIds: null, teamIds: null },
 ];
 
 const SUMMARY_TILES_STORE: VersionedStore<SummaryTileConfig[]> = {

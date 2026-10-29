@@ -251,8 +251,8 @@ export function UserGuide() {
           for players, tiles of Points, Pts/£m and DC/Game, then NPxGI/Game, Shots/Game, Key Passes/Game, Penalties Taken and NP Goals
           − NPxG (lowest first: finishing that has fallen short of the chances, which tends to even out), and graphs of xG vs Goals
           and Price vs Points, then Shots/Game vs xG/Shot (many shots, or good ones) and Price vs NPxGI/Game; for teams, tiles of FPL
-          Points and Clean Sheets, then xGD, Pts − xPts, Shots Against and Set-Piece xG, and graphs of Team xG vs Goals and Team xGC
-          vs Goals Against, then NPxG vs NPxGA. Its player tiles and graphs leave out players under the fixed minutes floor, who
+          Points, Clean Sheets and DC/Game, then xGD, Pts − xPts, Shots, Shots Against and Set-Piece xG, and graphs of Team xG vs
+          Goals and Team xGC vs Goals Against, then NPxG vs NPxGA and Shots vs xG/Shot. Its player tiles and graphs leave out players under the fixed minutes floor, who
           would otherwise pile up at zero. A tile's or graph's first header icon says where its figures come from (FPL's football,
           the ⇄ for both, or Understat's icon), then comes the stopwatch if a minimum applies, then the Data View; its title is
           coloured by the source showing: green for FPL, violet for Understat, rose for both (hover either to see which). On a graph you build, a player under the floor is drawn as the amber stopwatch instead of a dot (on a bar chart,
