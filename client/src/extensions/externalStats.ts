@@ -136,6 +136,13 @@ export interface ExternalStatsSource {
    * floor); ids unique to the source.
    */
   dashboardStarter: { tiles: SummaryTileConfig[]; graphs: DashboardGraphConfig[] };
+  /**
+   * <source_explorer_defaults>: keys of the source's own columns (its
+   * groups' keys) shown by default in Player Explorer, Team Building's Add
+   * Players and Team Explorer, after FPL's defaults, while the source is
+   * mounted. Reset returns to them too.
+   */
+  explorerDefaults: { player: string[]; team: string[] };
   /** Player Comparison's trend graphs: the source's season-by-season figures — its own in picker groups, and its version of FPL trend figures (keyed by the FPL trend key) for their ⇄ toggle. */
   playerTrends: ExternalColumnSet<ExternalTrendMetric>;
   profiles: ExternalProfiles;

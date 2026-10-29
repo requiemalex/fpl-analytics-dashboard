@@ -7,6 +7,7 @@ import { ExternalStatsContext, type ExternalStatsSource } from "../extensions/ex
 import { makePlayer, makeTeam } from "../test/fixtures";
 import { understatPlayerColumns, understatTeamColumns } from "./columns";
 import { createProfiles } from "./profiles";
+import { UNDERSTAT_EXPLORER_DEFAULTS } from "./explorerDefaults";
 import type { UsPlayerResolved } from "./resolve";
 import type { UsPlayerTotals } from "./schema";
 
@@ -61,6 +62,7 @@ function fakeSource(staleNote: string | null = null): ExternalStatsSource {
     teamColumns: () => understatTeamColumns(new Map(), () => null),
     playerTrends: { groups: [], alternates: {} },
     dashboardStarter: { tiles: [], graphs: [] },
+    explorerDefaults: { player: [], team: [] },
     profiles: createProfiles(new Map(), { player: () => {}, club: () => {} }),
     guideSection: { id: "understat", navLabel: "Understat stats", title: "Understat stats", accentVar: "--col-understat", body: null },
   };
@@ -92,6 +94,39 @@ function cellUnder(container: HTMLElement, label: string, playerName: string): s
   const row = Array.from(container.querySelectorAll<HTMLElement>("table.data-table tbody tr")).find((tr) => tr.querySelector(".name")?.textContent?.includes(playerName))!;
   return row.children[index].textContent ?? "";
 }
+
+describe("Understat's default Explorer columns (<source_explorer_defaults>)", () => {
+  const headerLabels = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll<HTMLElement>("table.data-table thead th")).map((th) => th.childNodes[0]?.textContent?.trim());
+
+  it("name Understat's own columns, for players and clubs", () => {
+    const ownKeys = (set: { groups: { columns: { key: string }[] }[] }) => new Set(set.groups.flatMap((g) => g.columns.map((c) => c.key)));
+    const players = ownKeys(understatPlayerColumns(() => null));
+    const clubs = ownKeys(understatTeamColumns(new Map(), () => null));
+    expect(UNDERSTAT_EXPLORER_DEFAULTS.player.length).toBeGreaterThan(0);
+    expect(UNDERSTAT_EXPLORER_DEFAULTS.team.length).toBeGreaterThan(0);
+    for (const key of UNDERSTAT_EXPLORER_DEFAULTS.player) expect(players.has(key), key).toBe(true);
+    for (const key of UNDERSTAT_EXPLORER_DEFAULTS.team) expect(clubs.has(key), key).toBe(true);
+  });
+
+  it("show after FPL's defaults, and Reset brings them back", () => {
+    const { container, getByRole } = renderExplorer({ ...fakeSource(), explorerDefaults: UNDERSTAT_EXPLORER_DEFAULTS });
+    const shown = headerLabels(container);
+    for (const label of ["Shots", "Key Passes", "NPxGI"]) expect(shown.indexOf(label), label).toBeGreaterThan(shown.indexOf("Mins"));
+    expect(header(container, "Shots").classList.contains("col-source-understat")).toBe(true);
+    fireEvent.click(getByRole("button", { name: /^Columns/ }));
+    fireEvent.click(within(container.querySelector<HTMLElement>(".popover")!).getByLabelText("Shots"));
+    expect(headerLabels(container)).not.toContain("Shots");
+    fireEvent.click(getByRole("button", { name: /^Restore the default columns/ }));
+    expect(headerLabels(container)).toContain("Shots");
+  });
+
+  it("aren't there with Understat switched off", () => {
+    const { container } = renderExplorer(null);
+    expect(headerLabels(container)).toContain("Mins");
+    expect(headerLabels(container)).not.toContain("Shots");
+  });
+});
 
 describe("Player Explorer with Understat mounted", () => {
   it("lists Understat's columns under their own violet headings, and shows them violet", () => {

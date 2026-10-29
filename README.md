@@ -1001,6 +1001,12 @@ without it leaves that season's Shots Faced uncoloured.
     Shots vs xG/Shot. Players and clubs get the same number of tiles and
     graphs, in this set and the FPL one, so both scopes' Starters have the
     same shape with Understat on or off.
+  - **Explorer defaults** (<source_explorer_defaults>, `explorerDefaults`
+    in the slot, `understat/explorerDefaults.ts`): the source's own
+    columns shown by default after FPL's in Player Explorer, Team
+    Building's Add Players and Team Explorer, and what Reset returns to.
+    Players: Shots, Key Passes, NPxGI; clubs: Shots, Shots Against,
+    Pts − xPts. Switched off or removed, only FPL's defaults show.
   - **Source mark and title** (<card_source_mark>, `SourceMark`,
     `cardSource`/`CardTitle` in `components/SourceToggle.tsx`): every
     Dashboard tile and graph and Player Comparison card says where its
@@ -1727,8 +1733,8 @@ works like Player Explorer's: the same toolbar (Reset, Columns, clear
 filters, saved views, Export CSV, a "Team name…" search via `matchesTeamSearch`), sort,
 drag-reorder, resize, a ▾ filter per column, and Fit to Box sharing the width
 left after the pinned, content-width Team column. The Columns picker lists
-every `TEAM_COLUMNS` metric; beyond the nine league-table defaults they're
-off. Headers wrap between words on narrow screens, each column floored at its
+every `TEAM_COLUMNS` metric; beyond the nine league-table defaults (then
+Understat's, <source_explorer_defaults>) they're off. Headers wrap between words on narrow screens, each column floored at its
 longest word (`<header_floor>`, as in every customisable table).
 - The Team Profile's header (position, league points, played, W/D/L)
   follows its Data View like every other club figure, formatted as Team
@@ -2011,7 +2017,7 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   and clears the search. Under the profile takeover, so clicking a name
   opens his profile on top. Its table is Player Explorer's
   (`<shared_player_table>`, above), starting with Next 5 Fixtures and
-  Player Explorer's default columns, the squad left out, and an **Add**
+  Player Explorer's default columns (Understat's included), the squad left out, and an **Add**
   on each row (greyed, with the reason as its hover, when a squad rule
   stops him). Its Data View picker sits under the toolbar, straight over
   the first column it changes (`<view_picker_over_columns>`, the owner's

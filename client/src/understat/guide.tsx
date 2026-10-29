@@ -80,7 +80,9 @@ export function UnderstatGuide() {
       <p className="page-subtitle" style={{ marginTop: 0 }}>
         <strong>Understat</strong> (understat.com) is an independent football-data site with its own xG model and shot-by-shot
         data. Player Explorer, Team Explorer, the player and team profiles, the Dashboard and Player Comparison add its figures as a
-        clearly separate second source; everything else in the app is FPL. It's updated once a day.
+        clearly separate second source; everything else in the app is FPL. It's updated once a day. The Explorers open with a few
+        of its columns after FPL's: Shots, Key Passes and NPxGI for players (Add Players too); Shots, Shots Against and Pts − xPts
+        for clubs.
       </p>
       <ul style={list}>
         <li>

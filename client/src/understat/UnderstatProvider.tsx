@@ -15,6 +15,7 @@ import { fetchClubDetail, fetchPlayerDetail, type DetailLoad, type UsClubSeasonD
 import { clubKey, createProfiles, playerKey } from "./profiles";
 import { understatTrends } from "./trends";
 import { UNDERSTAT_DASHBOARD_STARTER } from "./dashboardStarter";
+import { UNDERSTAT_EXPLORER_DEFAULTS } from "./explorerDefaults";
 import "./understat.css";
 
 /**
@@ -161,6 +162,7 @@ export function UnderstatProvider({ children }: { children: React.ReactNode }) {
       request,
       playerTrends: understatTrends(data),
       dashboardStarter: UNDERSTAT_DASHBOARD_STARTER,
+      explorerDefaults: UNDERSTAT_EXPLORER_DEFAULTS,
       // A profile also needs the season summaries — its Summary, and what its colours rank against — wherever it's
       // opened from, not only on a page that has loaded them, so asking for its details loads them too.
       profiles: createProfiles(

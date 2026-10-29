@@ -449,6 +449,9 @@ export function PlayerExplorerTable({
   const extOnlyByKey = useMemo(() => new Map((extColumns?.groups ?? []).flatMap((g) => g.columns).map((c) => [c.key, c])), [extColumns]);
   /** FPL columns the second source also has (the ⇄ ones): listed under their own picker heading while it's mounted. */
   const crossoverKeys = useMemo(() => new Set(ext && extColumns ? Object.keys(extColumns.alternates) : []), [ext, extColumns]);
+  /** The host's defaults, then a mounted second source's own (<source_explorer_defaults>). */
+  const extDefaults = ext?.explorerDefaults.player;
+  const defaultColumns = useMemo(() => [...defaultVisibleColumns, ...(extDefaults ?? [])], [defaultVisibleColumns, extDefaults]);
   const [sourceChoice, setSourceChoice] = useState<ColumnSourceChoice>({});
   const lookupColumn = useCallback(
     (key: string): PlayerColumn | undefined => {
@@ -536,7 +539,7 @@ export function PlayerExplorerTable({
     fitToBox,
     manualWidths,
     applyLayout,
-  } = useColumnCustomization(defaultVisibleColumns, explorerMinWidths, () => handleFitToBox());
+  } = useColumnCustomization(defaultColumns, explorerMinWidths, () => handleFitToBox());
   const headerLayout = { dragOverKey, setDragOverKey, reorderColumn, resizingKey, startResize };
   // The lead columns are their own set, so they can never be dragged in among the Explorer's (useColumnCustomization).
   const leadCols = useColumnCustomization(
@@ -1082,7 +1085,7 @@ export function PlayerExplorerTable({
             onClick={() => {
               resetColumns();
               leadCols.resetColumns();
-              const keysAfterReset = new Set<string>(["name", ...FIXED_COLUMN_KEYS, ...defaultVisibleColumns, ...leadColumns.map((c) => c.key)]);
+              const keysAfterReset = new Set<string>(["name", ...FIXED_COLUMN_KEYS, ...defaultColumns, ...leadColumns.map((c) => c.key)]);
               setSort((prev) => sortWithinColumns(prev, keysAfterReset, EXPLORER_DEFAULT_SORT));
               setSourceChoice({});
               setSearch("");

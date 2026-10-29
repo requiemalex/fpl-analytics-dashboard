@@ -26,11 +26,9 @@ import { ExplorerViewNotice, ExplorerViewsMenu, explorerViewNote } from "../comp
 
 /** A league-table-style view of each club in the selected season(s) — every column a club figure (see <club_not_squad>, metrics/teamStats.ts). */
 const GROUPS: TeamColumnGroup[] = ["RESULTS", "OUTPUT", "UNDERLYING PERFORMANCE"];
-/** The league table this page has always opened on. Every other TEAM_COLUMNS metric (the Dashboard's full team catalogue) is in the Columns picker, off by default. */
+/** The league table this page has always opened on (a mounted second source's defaults follow, <source_explorer_defaults>). Every other TEAM_COLUMNS metric (the Dashboard's full team catalogue) is in the Columns picker, off by default. */
 const TEAM_EXPLORER_DEFAULT_VISIBLE_COLUMNS = ["leaguePosition", "leaguePoints", "goalsFor", "goalsAgainst", "cleanSheets", "xG", "xGC", "xA", "points"];
 const TEAM_EXPLORER_DEFAULT_SORT: SortSpec[] = [{ key: "leaguePosition", direction: "asc" }];
-/** Every sortable key on screen straight after Reset: the club name and the default columns. */
-const TEAM_EXPLORER_KEYS_AFTER_RESET = new Set<string>(["name", ...TEAM_EXPLORER_DEFAULT_VISIBLE_COLUMNS]);
 /** Always on screen, so never in a saved view's visibleColumns: the club name. */
 const TEAM_EXPLORER_ALWAYS_SHOWN_KEYS = new Set<string>(["name"]);
 
@@ -67,6 +65,10 @@ export function Teams() {
   const extOnlyByKey = useMemo(() => new Map((extColumns?.groups ?? []).flatMap((g) => g.columns).map((c) => [c.key, c])), [extColumns]);
   /** FPL columns the second source also has (the ⇄ ones): listed under their own picker heading while it's mounted. */
   const crossoverKeys = useMemo(() => new Set(ext && extColumns ? Object.keys(extColumns.alternates) : []), [ext, extColumns]);
+  const extDefaults = ext?.explorerDefaults.team;
+  const defaultColumns = useMemo(() => [...TEAM_EXPLORER_DEFAULT_VISIBLE_COLUMNS, ...(extDefaults ?? [])], [extDefaults]);
+  /** Every sortable key on screen straight after Reset: the club name and the default columns. */
+  const keysAfterReset = useMemo(() => new Set<string>(["name", ...defaultColumns]), [defaultColumns]);
   const [sourceChoice, setSourceChoice] = useState<ColumnSourceChoice>({});
   const lookupColumn = useCallback(
     (key: string): TeamColumn | undefined => {
@@ -112,7 +114,7 @@ export function Teams() {
     fitToBox,
     manualWidths,
     applyLayout,
-  } = useColumnCustomization(TEAM_EXPLORER_DEFAULT_VISIBLE_COLUMNS, minColumnWidths, () => handleFitToBox());
+  } = useColumnCustomization(defaultColumns, minColumnWidths, () => handleFitToBox());
   const headerLayout = { dragOverKey, setDragOverKey, reorderColumn, resizingKey, startResize };
   const columnPickerRef = useRef<HTMLDivElement>(null);
   const tableWrapRef = useRef<HTMLDivElement>(null);
@@ -316,7 +318,7 @@ export function Teams() {
             label="Restore the default columns, order, and natural widths, and clear every filter"
             onClick={() => {
               resetColumns();
-              setSort((prev) => sortWithinColumns(prev, TEAM_EXPLORER_KEYS_AFTER_RESET, TEAM_EXPLORER_DEFAULT_SORT));
+              setSort((prev) => sortWithinColumns(prev, keysAfterReset, TEAM_EXPLORER_DEFAULT_SORT));
               setSourceChoice({});
               setSearch("");
               columnFiltersState.resetAllFilters();
