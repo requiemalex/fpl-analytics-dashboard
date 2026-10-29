@@ -2,7 +2,7 @@
   "season": "2026/27",
   "gameweek": 9,
   "deadline": "2026-10-31T11:00:00Z",
-  "recordedAt": "2026-10-28T23:14:58.054Z",
+  "recordedAt": "2026-10-29T10:00:25.249Z",
   "pool": 669,
   "players": [
     {"code":21205,"element":414,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-08-15T16:00:07.854151Z"},
@@ -173,6 +173,7 @@
     {"code":441264,"element":552,"status":"a","chanceNextRound":100,"chanceThisRound":75,"news":"","newsAdded":"2026-10-19T11:00:09.674071Z"},
     {"code":441266,"element":371,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-10-11T17:00:08.994657Z"},
     {"code":441302,"element":36,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-09-12T18:00:08.729468Z"},
+    {"code":442299,"element":650,"status":"d","chanceNextRound":75,"chanceThisRound":null,"news":"Unspecified injury - 75% chance of playing","newsAdded":"2026-10-29T08:30:08.436091Z"},
     {"code":444145,"element":18,"status":"u","chanceNextRound":0,"chanceThisRound":0,"news":"Has joined Al Hilal permanently","newsAdded":"2026-09-04T12:34:46.738449Z"},
     {"code":444172,"element":59,"status":"u","chanceNextRound":0,"chanceThisRound":0,"news":"Has joined MK Dons permanently","newsAdded":"2026-08-27T14:53:48.692835Z"},
     {"code":444307,"element":276,"status":"u","chanceNextRound":0,"chanceThisRound":0,"news":"Has joined Colchester United on loan for the rest of the season","newsAdded":"2026-08-17T13:50:27.125537Z"},
