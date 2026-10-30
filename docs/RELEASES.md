@@ -5,6 +5,11 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.121.0 · 30 Oct 2026
+
+- Help replaces the User Guide: a magnifying glass in the top bar searches 40 short visual guides and every statistic, matched to your own words
+- User Guide: brought up to date — Team Building's Source toggle, Projected Points and Delete, Exp. Mins, Data View throughout, defensive contribution dates, sections in the menu's order
+
 ## v1.120.0 · 29 Oct 2026
 
 - Explorers open with Understat's most useful columns after FPL's
