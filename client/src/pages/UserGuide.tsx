@@ -36,12 +36,12 @@ const FIELD_LABELS: Record<string, string> = {
  */
 const SECTION_META = [
   { id: "overview", label: "Overview", accent: "--accent-positive" },
-  { id: "modes", label: "Analysis modes", accent: "--accent-focus" },
+  { id: "modes", label: "Data Views", accent: "--accent-focus" },
   { id: "dashboard", label: "Dashboard", accent: "--accent-value" },
   { id: "player-explorer", label: "Player Explorer", accent: "--accent-positive" },
-  { id: "team-building", label: "Team Building", accent: "--accent-focus" },
+  { id: "teams", label: "Team Explorer", accent: "--accent-focus" },
   { id: "player-comparison", label: "Player Comparison", accent: "--accent-value" },
-  { id: "teams", label: "Team Explorer", accent: "--accent-positive" },
+  { id: "team-building", label: "Team Building", accent: "--accent-positive" },
   { id: "player-profile", label: "Player Profile", accent: "--accent-focus" },
   { id: "notepad", label: "Notepad", accent: "--accent-value" },
   { id: "app", label: "Opening & updating", accent: "--accent-positive" },
@@ -125,20 +125,22 @@ export function UserGuide() {
         <p className="page-subtitle" style={{ margin: 0 }}>
           Scoutline is an independent scouting dashboard for Fantasy Premier League, built on the game's own live data, with no manual
           data entry and no third-party estimates passed off as fact. It isn't affiliated with or endorsed by the Premier League; About
-          &amp; Legal, at the bottom of the menu, has the terms, the privacy notice and who owns the data. Almost everything comes from the live <code>bootstrap-static</code> snapshot (today's prices, ownership,
-          current-season stats, fixtures) and every player's season-by-season history (<code>element-summary</code>'s{" "}
-          <code>history_past</code>), which feeds the historic modes below.
+          &amp; Legal, at the bottom of the menu, has the terms, the privacy notice and who owns the data. Almost everything comes
+          from FPL's live data (today's prices, ownership, this season's figures and fixtures) and every player's season-by-season
+          history, which feeds the past-season Data Views below.
         </p>
         <p className="page-subtitle">
-          Every section is <strong>descriptive</strong> (it shows what has happened, never what will) except two built to predict:
-          Team Building, and the Team Profile's Fixture Forecast. Their guides below explain what they predict and how.
+          The menu has the <strong>Dashboard</strong>, then <strong>Analysis Tools</strong> (Player Explorer, Team Explorer, Player
+          Comparison) and <strong>Predictive Tools</strong> (Team Building); this guide follows the same order. Every section is{" "}
+          <strong>descriptive</strong> (it shows what has happened, never what will) except two built to predict: Team Building,
+          and the Team Profile's Fixture Forecast. Their guides below explain what they predict and how.
         </p>
       </Section>
 
-      <Section id="modes" title="Analysis modes: Last Completed Season / Historic Average / Current Season">
+      <Section id="modes" title="Data Views: Last Completed Season / Historic Average / Current Season">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
           Most pages (Dashboard, Player Explorer, Player Comparison, Team Explorer, Team Profile, the player profile) have the same
-          toggle near the top, with the season(s) the selected view covers shown inside it (e.g. 2026/27, or 2022/23–2025/26 for
+          Data View toggle near the top, with the season(s) the selected view covers shown inside it (e.g. 2026/27, or 2022/23–2025/26 for
           Historic Average). Each page's toggle, and its Search/Position/Team/Min Minutes criteria where it has them, is its
           own: changing one page never changes what another shows.
         </p>
@@ -164,7 +166,7 @@ export function UserGuide() {
         <p className="page-subtitle">
           <strong>Minimum minutes.</strong> Where you set a minimum yourself (Player Explorer's Mins column, the tiles and graphs
           you build on the Dashboard, the cards you build on Player Comparison, Team Building's Add Players, which is the same table as Player Explorer) it's the only one that
-          decides which players show, in every mode, Current Season included: raise it if one short appearance is topping a
+          decides which players show, in every Data View, Current Season included: raise it if one short appearance is topping a
           per-game list. Where you can't (the player profile and the Starter views on the Dashboard and Player Comparison) a fixed
           floor applies: a quarter of the minutes available. That's 855 minutes for a completed season; in Current Season it's a quarter of
           the gameweeks finished so far (never under 90), so it rises as the season goes on. A player with no minutes counts as 0, so
@@ -181,8 +183,8 @@ export function UserGuide() {
           threshold: click it to leave those players out, and again to bring them back. The stopwatch appears on a view where one is in force (the profile, a tile, graph or card
           with a floor or your own minimum, Player Explorer's and Add Players' Mins heading when you filter it), and on anything under one (a player's row, a season in Points History, the Match Log's
           season, a card on the profile, a point or marker on Player Comparison, a point or bar on a Dashboard graph). Historic Average's 855-minute seasons don't put a stopwatch on a view by themselves:
-          only the players without such a season carry one. Team Building's Expected Points, Minutes
-          Reliability and pitch cards look ahead rather than back, so no minutes floor touches their colours.
+          only the players without such a season carry one. Team Building's Expected Points, expected
+          minutes (Exp. Mins) and pitch cards look ahead rather than back, so no minutes floor touches their colours.
         </p>
         <p className="page-subtitle">
           <strong>Green and red</strong> mean the same everywhere: how a figure compares. A player's is compared with every
@@ -201,7 +203,7 @@ export function UserGuide() {
           back. Hovering a figure still tells you where it ranks, and the app remembers your choice next time.
         </p>
         <p className="page-subtitle" style={{ margin: 0 }}>
-          Price, ownership and availability are always today's, in every mode, including anything worked out from price like
+          Price, ownership and availability are always today's, in every Data View, including anything worked out from price like
           Points/£m, because what a player costs now is what matters for picking a squad. The one exception is the profile's
           Match Log, whose heading shows a past season's start and end price.
         </p>
@@ -328,7 +330,8 @@ export function UserGuide() {
             {ext ? ` ${ext.label}'s figures have their own colour; see "${ext.guideSection.navLabel}" below.` : ""}
           </li>
           <li>
-            <strong>Next 5 Fixtures</strong> (off by default; turn it on in Columns) is always the player's actual upcoming
+            <strong>Next 5 Fixtures</strong> (off by default here, so turn it on in Columns; on by default in Team Building's Add
+            Players) is always the player's actual upcoming
             fixtures, whatever the mode: matches not yet kicked off. Like Own%, Price, Team and Position it doesn't change with
             the Data View, so it sits with them, and the grey line after it marks where the Data View's columns start.
           </li>
@@ -337,156 +340,6 @@ export function UserGuide() {
         <Try>
           Looking for undervalued midfielders? Filter Position to MID, sort Pts/£m descending, and cap Price at your budget with its ▾.
         </Try>
-      </Section>
-
-      <Section id="team-building" title="Team Building">
-        <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Picking a squad for the season ahead. Start with <strong>New Squad</strong>: a blank one (just give it a name), or import
-          a real squad by its FPL team ID: sign in at fantasy.premierleague.com, open the <strong>Points</strong> tab, and it's
-          the number after <code>/entry/</code> in the web address (e.g. fantasy.premierleague.com/entry/1234567/event/8). Hover
-          "FPL team ID" on the page for the same tip.
-          Importing reads FPL's public data for that team, chip history included; no login, nothing written back. The squad's own
-          buttons (Captain, Vice-Captain, Clear Draft, Best Draft, Delete) work once a squad is loaded; until then the Squad tile is greyed out
-          and no players can be added. Up to 5 squads can be saved; <strong>Delete</strong> asks you to confirm the name
-          first (no undo).
-        </p>
-        <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
-          <li>
-            <strong>Add</strong> (in Add Players) puts a player in the starting XI while there's a legal place for him, otherwise on
-            the bench. On the <strong>pitch</strong>, drag a player between the pitch and the bench, or one card onto another to
-            swap. Click a name for the profile; click <strong>Captain</strong>/<strong>Vice-Captain</strong>,
-            then a starter, to assign it (the C or V badge sits at the shirt's top left); <strong>Clear Draft</strong> empties the
-            squad after you confirm (no undo). <strong>Best Draft</strong> picks the starting XI, captain and vice-captain with
-            the most Expected Points for the gameweek shown above the pitch, in a formation FPL allows, from FPL's figure or the
-            Model's (whichever Points Prediction's toggle is on; hover the button to check). It needs enough players for a legal XI,
-            and saves one XI for the squad, not one per gameweek. A saved player FPL no longer lists is named in a
-            banner above the pitch, with a bin to remove him. Hover a card for its remove button.
-          </li>
-          <li>
-            Each player wears his club's kit in its colours (a goalkeeper's are swapped). Under it, <strong>Highlight</strong>{" "}
-            picks the one figure each card shows: <strong>Price</strong>, ownership, <strong>Minutes</strong> (his expected
-            minutes) or <strong>Points Prediction</strong> (his Expected Points, doubled for the captain, with a toggle for FPL's
-            figure or the Model's). Minutes and Points Prediction are for the gameweek the <strong>‹ ›</strong> arrows beside
-            Highlight pick. <strong>Fixtures</strong> shows his next five matches instead, coloured by FPL difficulty.
-          </li>
-          <li>
-            Price has its own toggle: <strong>Current</strong> (today's price), <strong>Purchase</strong> (what he cost),{" "}
-            <strong>Sell</strong> (what FPL would pay you for him: what you paid plus half of any rise, rounded down to £0.1m, or
-            today's price if he's fallen), and FPL's own price change predictor: <strong>Progress</strong> (how far he is toward
-            his next price change, + toward a rise, − toward a drop, 100% the threshold) and <strong>Predicted Progress</strong>{" "}
-            (where FPL expects that to be at the next price update; hover for FPL's status, e.g. "likely to rise"). Prices are
-            coloured like today's price, against everyone in the position; Progress goes from grey to full green or red at ±100%,
-            as on FPL. A player you add here is bought at that day's price. An imported team's prices come from its transfers on
-            FPL; for a team that joined after GW1, what it paid for the players it started with is known only where his price
-            hasn't moved since, so the rest show "—".
-          </li>
-          <li>
-            Every place the squad still has to fill is a <strong>+</strong>, on the pitch first (in a legal shape, 4-4-2 for an
-            empty squad) and then on the bench. Click one to open <strong>Add Players</strong> listing that position, search box
-            ready. It closes when you add someone, or with its ×, Escape or a click outside it, and opens again just as you left it.
-          </li>
-          <li>
-            Expected Points and expected minutes are by real gameweek, labelled with FPL's own numbers (GW9, GW10…) and
-            starting at the next gameweek you can still pick for (the one FPL's own estimate is for): once a deadline passes, the
-            labels move on by themselves. Step the pitch through the next five with the <strong>‹ ›</strong> arrows above it. In
-            Add Players, each Expected Points column has its own picker on its heading, 1 to 5 gameweeks: it adds up that many
-            from the next one (hover a figure for each gameweek's). Expected minutes and Next 5 Fixtures there are always for
-            what's next, as who starts weeks from now can't be known yet. A double gameweek's two matches are added up; a club
-            with a blank gameweek has no match in it, shown as "—" on the pitch and counted as 0 in a total. Near the end of the
-            season only the gameweeks left are shown.
-          </li>
-          <li>
-            <strong>Expected minutes</strong> come from the Model: how often he's been starting this season (his recent matches
-            counting most), last season, whether he's just back from an absence, managers selling him on team news, FPL's
-            injury and suspension news, and how long he usually stays on. A rival for his place shows up only through his own
-            starts. FPL's availability is for the next round only, so a one-match ban shows as 0 across all five gameweeks.
-          </li>
-          <li>
-            Two Expected Points figures, never blended: <strong>FPL Official</strong> is built from FPL's own figures: mostly his
-            points a match this season (a match he sat out counts as 0), with his goals and assists partly swapped for his xG and
-            xA so a lucky or unlucky run counts for less, plus a little of his form (FPL's own expected points, which are his form
-            and nothing else), less the further ahead the match is, then adjusted for FPL's fixture difficulty and chance of
-            playing. Hover it for its parts. <strong>Model Predicted</strong> is Scoutline's own model: his
-            chance of starting (from his recent starts, the last one counting most, allowing for a player just back from an
-            absence, and, for the next deadline only, for managers selling him in numbers: they sell on team news before
-            anyone plays), how long he usually plays, his scoring rates
-            from this season and past ones, and each match's Fixture Forecast (the goals each club is expected to score), through
-            FPL's scoring rules — goals, assists, clean sheets, saves, defensive contributions, bonus and cards. It was fitted on
-            past seasons and tested on seasons it hadn't seen. Hover it, in Add Players or on a pitch card, for how it adds up, his
-            chance of starting, and when it leans on his position and price, has allowed for a return from an absence, or has
-            allowed for managers selling him.
-          </li>
-          <li>
-            Above the pitch: Squad Value and Bank, with the squad's buttons and <strong>Projected Points</strong>{" "}
-            beside them: your starting XI's Expected Points for the gameweek above the pitch, the captain's counted twice, from FPL's
-            figure or the Model's (the <strong>Source</strong> toggle, which Best Draft follows too). It shows "—" while a starter
-            who has a match has no figure yet. Squad Value is FPL's own figure, your players at today's prices. Selling them would
-            raise a little less after a rise, as FPL keeps half of it: hover Squad Value for what they'd raise, which is what
-            your budget and Bank count. A club-limit breach shows as a banner.
-            A squad built from scratch has FPL's £100m; an imported one has what FPL would let you spend: its money in the bank
-            plus its players at their selling prices, so an unchanged import shows exactly that bank left. Sell one and his
-            selling price goes back in; a player you add costs today's price. Hover the budget for its make-up. Going over turns the budget red and says how
-            far over, but never stops you adding a player.
-          </li>
-          <li>
-            <strong>Add Players</strong> is Player Explorer's own table: the same Data View, columns (Understat's included),
-            filters, Hide, export and saved views. A view you saved in Player Explorer loads here from the views menu, so players
-            you've already found are a click away (and a view saved here shows in Player Explorer). It adds the{" "}
-            <strong>Predictive</strong> columns first (both Expected Points and expected minutes), an <strong>Add</strong> on each
-            row, and leaves out your squad. Its Data View picker sits just above the first column it changes. Price and club
-            limits always use today's price and club.
-          </li>
-        </ul>
-        <Try>Sort Add Players by "Exp. Pts (Model Predicted)" and compare it with "FPL Official". Where they disagree most is worth a second look.</Try>
-      </Section>
-
-      <Section id="player-comparison" title="Player Comparison">
-        <p className="page-subtitle" style={{ marginTop: 0 }}>
-          Side-by-side analysis of up to 5 players, added with the search box at the top. Each gets a tag (ownership · today's
-          price, club, position) and a colour (blue, gold, orange, white, then grey, in the order added) used for him on every chart.
-          Click a name for his profile; × removes him.
-        </p>
-        <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
-          <li>
-            <strong>Charts</strong> are percentile radars: each axis is a player's percentile within his position, outward always
-            better (xGC/Game is turned round, since fewer is better; total xGC is ranked on xGC per game, so fewer minutes don't
-            count as better). Pick 3–8 statistics and a Data View.
-          </li>
-          <li>
-            <strong>Outputs</strong> list up to 12 statistics as rows. Each row's bar runs from 0 to the highest figure among the
-            players, with each player's marker at their own figure and the figure above it, the best in bold. The bar is grey as
-            far as every player reaches; past that, each stretch is tinted in the colour of the player whose marker ends it, so
-            the length of a colour is how far that player is past the one before (for xGC and xGC/Game, where fewer is better,
-            how far behind). Faint notches mark a quarter, half and three quarters of the leader. For xGC/Game the best is
-            furthest left; for total xGC the best is the lowest per game.
-          </li>
-          <li>
-            <strong>Trends</strong> graph one statistic season by season across the completed seasons on record. A season with no
-            figure is a gap, not a zero. A spell when a player wasn't in FPL (say, his club was relegated) between two of his
-            seasons is a dotted line in his colour; hover it to see he wasn't in FPL. A season he played no minutes in has nothing
-            to show either, so it's drawn the same way, the hover saying he didn't play.
-          </li>
-          <li>
-            <strong>Views</strong> work like the Dashboard's: <strong>My View</strong> starts blank, with a + card in each section
-            (up to 4 cards per section); pencil edits, bin removes (after you confirm), and cards drag to reorder. A card's name is
-            optional, and its dialog's box filters the statistics by name. <strong>Starter</strong> is a
-            read-only set of radars, outputs and trends that works for any players. Create View adds another (up to 5, Starter
-            included). A view keeps the layout, not the players.
-          </li>
-          <li>
-            Every card's statistics include Understat's, grouped as in the Explorers, with the ⇄ switch on figures both sources
-            have (see Understat stats).
-          </li>
-        </ul>
-        <p className="page-subtitle">
-          <strong>Min Minutes</strong> is set per card you build (0 unless you set it). A player under it, or under the fixed floor
-          (see Minimum minutes above) whatever it's set to, gets an amber stopwatch on that card (hover for his minutes): he isn't
-          drawn on a radar (radars rank only players at or above the fixed floor), his Outputs marker is the amber stopwatch and
-          doesn't set the scale or tint the bar, and he can't be the best. On a Trends graph, a season under it still shows his
-          figure, but as the amber stopwatch rather than a dot; a season he didn't play gets the stopwatch too, on his dotted line
-          or along the bottom of the chart. Starter cards use the fixed floor alone.
-        </p>
-        <Try>Add two players you're deciding between and switch to Starter. If one leads on totals but the other on per-game rows, the first may just have played more.</Try>
       </Section>
 
       <Section id="teams" title="Team Explorer &amp; Team Profile">
@@ -556,10 +409,163 @@ export function UserGuide() {
         </p>
       </Section>
 
+      <Section id="player-comparison" title="Player Comparison">
+        <p className="page-subtitle" style={{ marginTop: 0 }}>
+          Side-by-side analysis of up to 5 players, added with the search box at the top. Each gets a tag (ownership · today's
+          price, club, position) and a colour (blue, gold, orange, white, then grey, in the order added) used for him on every chart.
+          Click a name for his profile; × removes him.
+        </p>
+        <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
+          <li>
+            <strong>Charts</strong> are percentile radars: each axis is a player's percentile within his position, outward always
+            better (xGC/Game is turned round, since fewer is better; total xGC is ranked on xGC per game, so fewer minutes don't
+            count as better). Pick 3–8 statistics and a Data View.
+          </li>
+          <li>
+            <strong>Outputs</strong> list up to 12 statistics as rows. Each row's bar runs from 0 to the highest figure among the
+            players, with each player's marker at their own figure and the figure above it, the best in bold. The bar is grey as
+            far as every player reaches; past that, each stretch is tinted in the colour of the player whose marker ends it, so
+            the length of a colour is how far that player is past the one before (for xGC and xGC/Game, where fewer is better,
+            how far behind). Faint notches mark a quarter, half and three quarters of the leader. For xGC/Game the best is
+            furthest left; for total xGC the best is the lowest per game.
+          </li>
+          <li>
+            <strong>Trends</strong> graph one statistic season by season across the completed seasons on record. A season with no
+            figure is a gap, not a zero. A spell when a player wasn't in FPL (say, his club was relegated) between two of his
+            seasons is a dotted line in his colour; hover it to see he wasn't in FPL. A season he played no minutes in has nothing
+            to show either, so it's drawn the same way, the hover saying he didn't play.
+          </li>
+          <li>
+            <strong>Views</strong> work like the Dashboard's: <strong>My View</strong> starts blank, with a + card in each section
+            (up to 4 cards per section); pencil edits, bin removes (after you confirm), and cards drag to reorder. A card's name is
+            optional, and its dialog's box filters the statistics by name. <strong>Starter</strong> is a
+            read-only set of radars, outputs and trends that works for any players. Create View adds another (up to 5, Starter
+            included). A view keeps the layout, not the players.
+          </li>
+          <li>
+            Every card's statistics include Understat's, grouped as in the Explorers, with the ⇄ switch on figures both sources
+            have (see Understat stats).
+          </li>
+        </ul>
+        <p className="page-subtitle">
+          <strong>Min Minutes</strong> is set per card you build (0 unless you set it). A player under it, or under the fixed floor
+          (see Minimum minutes above) whatever it's set to, gets an amber stopwatch on that card (hover for his minutes): he isn't
+          drawn on a radar (radars rank only players at or above the fixed floor), his Outputs marker is the amber stopwatch and
+          doesn't set the scale or tint the bar, and he can't be the best. On a Trends graph, a season under it still shows his
+          figure, but as the amber stopwatch rather than a dot; a season he didn't play gets the stopwatch too, on his dotted line
+          or along the bottom of the chart. Starter cards use the fixed floor alone.
+        </p>
+        <Try>Add two players you're deciding between and switch to Starter. If one leads on totals but the other on per-game rows, the first may just have played more.</Try>
+      </Section>
+
+      <Section id="team-building" title="Team Building">
+        <p className="page-subtitle" style={{ marginTop: 0 }}>
+          Picking a squad for the season ahead. Start with <strong>New Squad</strong>: a blank one (just give it a name), or import
+          a real squad by its FPL team ID: sign in at fantasy.premierleague.com, open the <strong>Points</strong> tab, and it's
+          the number after <code>/entry/</code> in the web address (e.g. fantasy.premierleague.com/entry/1234567/event/8). Hover
+          "FPL team ID" on the page for the same tip.
+          Importing reads FPL's public data for that team, chip history included; no login, nothing written back. The squad's
+          buttons above the pitch (Captain, Vice-Captain, Clear Draft, Best Draft) work once a squad is loaded; until then the
+          pitch is greyed out and no players can be added. Up to 5 squads can be saved: pick one in the Squad box at the top, and
+          rename it in the Name box beside it. <strong>Delete</strong>, next to New Squad, removes the squad you're on after you
+          confirm (no undo).
+        </p>
+        <ul style={{ margin: "0 0 10px", paddingLeft: 20, color: "var(--text-secondary)", fontSize: 13 }}>
+          <li>
+            <strong>Add</strong> (in Add Players) puts a player in the starting XI while there's a legal place for him, otherwise on
+            the bench. On the <strong>pitch</strong>, drag a player between the pitch and the bench, or one card onto another to
+            swap. Click a name for the profile; click <strong>Captain</strong>/<strong>Vice-Captain</strong>,
+            then a starter, to assign it (the C or V badge sits at the shirt's top left); <strong>Clear Draft</strong> empties the
+            squad after you confirm (no undo). <strong>Best Draft</strong> picks the starting XI, captain and vice-captain with
+            the most Expected Points for the gameweek shown above the pitch, in a formation FPL allows, from FPL's figure or the
+            Model's, whichever the <strong>Source</strong> toggle picks (hover the button to check). It needs enough players for a legal XI,
+            and saves one XI for the squad, not one per gameweek. A saved player FPL no longer lists is named in a
+            banner above the pitch, with a bin to remove him. Hover a card for its remove button.
+          </li>
+          <li>
+            Each player wears his club's kit in its colours (a goalkeeper's are swapped). Under it, <strong>Highlight</strong>{" "}
+            picks the one figure each card shows: <strong>Price</strong>, <strong>Owned</strong> (his ownership),{" "}
+            <strong>Minutes</strong> (his expected minutes) or <strong>Points Prediction</strong> (his Expected Points, doubled
+            for the captain). Beside it, the <strong>Source</strong> toggle picks FPL's figure or the Model's, for Points
+            Prediction, Projected Points and Best Draft alike. Minutes and Points Prediction are for the gameweek the <strong>‹ ›</strong> arrows beside
+            Highlight pick. <strong>Fixtures</strong> shows his next five matches instead, coloured by FPL difficulty.
+          </li>
+          <li>
+            Price has its own toggle: <strong>Current</strong> (today's price), <strong>Purchase</strong> (what he cost),{" "}
+            <strong>Sell</strong> (what FPL would pay you for him: what you paid plus half of any rise, rounded down to £0.1m, or
+            today's price if he's fallen), and FPL's own price change predictor: <strong>Progress</strong> (how far he is toward
+            his next price change, + toward a rise, − toward a drop, 100% the threshold) and <strong>Predicted Progress</strong>{" "}
+            (where FPL expects that to be at the next price update; hover for FPL's status, e.g. "likely to rise"). Prices are
+            coloured like today's price, against everyone in the position; Progress goes from grey to full green or red at ±100%,
+            as on FPL. A player you add here is bought at that day's price. An imported team's prices come from its transfers on
+            FPL; for a team that joined after GW1, what it paid for the players it started with is known only where his price
+            hasn't moved since, so the rest show "—".
+          </li>
+          <li>
+            Every place the squad still has to fill is a <strong>+</strong>, on the pitch first (in a legal shape, 4-4-2 for an
+            empty squad) and then on the bench. Click one to open <strong>Add Players</strong> listing that position, search box
+            ready. It closes when you add someone, or with its ×, Escape or a click outside it, and opens again just as you left it.
+          </li>
+          <li>
+            Expected Points and expected minutes are by real gameweek, labelled with FPL's own numbers (GW9, GW10…) and
+            starting at the next gameweek you can still pick for (the one FPL's own estimate is for): once a deadline passes, the
+            labels move on by themselves. Step the pitch through the next five with the <strong>‹ ›</strong> arrows above it. In
+            Add Players, each Expected Points column has its own picker on its heading, 1 to 5 gameweeks: it adds up that many
+            from the next one (hover a figure for each gameweek's). Expected minutes and Next 5 Fixtures there are always for
+            what's next, as who starts weeks from now can't be known yet. A double gameweek's two matches are added up; a club
+            with a blank gameweek has no match in it, shown as "—" on the pitch and counted as 0 in a total. Near the end of the
+            season only the gameweeks left are shown.
+          </li>
+          <li>
+            <strong>Expected minutes</strong> come from the Model: how often he's been starting this season (his recent matches
+            counting most), last season, whether he's just back from an absence, managers selling him on team news, FPL's
+            injury and suspension news, and how long he usually stays on. A rival for his place shows up only through his own
+            starts. FPL's availability is for the next round only, so a one-match ban shows as 0 across all five gameweeks.
+          </li>
+          <li>
+            Two Expected Points figures, never blended: <strong>FPL Official</strong> is built from FPL's own figures: mostly his
+            points a match this season (a match he sat out counts as 0), with his goals and assists partly swapped for his xG and
+            xA so a lucky or unlucky run counts for less, plus a little of his form (FPL's own expected points, which are his form
+            and nothing else), less the further ahead the match is, then adjusted for FPL's fixture difficulty and chance of
+            playing. Hover it for its parts. <strong>Model Predicted</strong> is Scoutline's own model: his
+            chance of starting (from his recent starts, the last one counting most, allowing for a player just back from an
+            absence, and, for the next deadline only, for managers selling him in numbers: they sell on team news before
+            anyone plays), how long he usually plays, his scoring rates
+            from this season and past ones, and each match's Fixture Forecast (the goals each club is expected to score), through
+            FPL's scoring rules — goals, assists, clean sheets, saves, defensive contributions, bonus and cards. It was fitted on
+            past seasons and tested on seasons it hadn't seen. Hover it, in Add Players or on a pitch card, for how it adds up, his
+            chance of starting, and when it leans on his position and price, has allowed for a return from an absence, or has
+            allowed for managers selling him.
+          </li>
+          <li>
+            Above the pitch: Squad Value and Bank on the left; on the right the squad's buttons, with{" "}
+            <strong>Projected Points</strong> under them: your starting XI's Expected Points for the gameweek above the pitch, the
+            captain's counted twice, from FPL's figure or the Model's (the Source toggle). Beside the total are its parts: how many
+            of the 11 starters you have, the captain's points (already doubled) and the bench's, which the total leaves out. The
+            total shows "—" while a starter who has a match has no figure yet. Squad Value is FPL's own figure, your players at today's prices. Selling them would
+            raise a little less after a rise, as FPL keeps half of it: hover Squad Value for what they'd raise, which is what
+            your budget and Bank count. A club-limit breach shows as a banner.
+            A squad built from scratch has FPL's £100m; an imported one has what FPL would let you spend: its money in the bank
+            plus its players at their selling prices, so an unchanged import shows exactly that bank left. Sell one and his
+            selling price goes back in; a player you add costs today's price. Hover the budget for its make-up. Going over turns the budget red and says how
+            far over, but never stops you adding a player.
+          </li>
+          <li>
+            <strong>Add Players</strong> is Player Explorer's own table: the same Data View, columns (Understat's included),
+            filters, Hide, export and saved views. A view you saved in Player Explorer loads here from the views menu, so players
+            you've already found are a click away (and a view saved here shows in Player Explorer). It adds the{" "}
+            <strong>Predictive</strong> columns first (both Expected Points and expected minutes), shows Next 5 Fixtures from
+            the start, puts an <strong>Add</strong> on each row, and leaves out your squad. Its Data View picker sits just above the first column it changes. Price and club
+            limits always use today's price and club.
+          </li>
+        </ul>
+        <Try>Sort Add Players by "Exp. Pts (Model Predicted)" and compare it with "FPL Official". Where they disagree most is worth a second look.</Try>
+      </Section>
+
       <Section id="player-profile" title="Player Profile">
         <p className="page-subtitle" style={{ marginTop: 0 }}>
           Click a player's name almost anywhere to open it (or Tab to it and press Enter); × or Escape closes it. The "FPL · Views" zone (Summary and
-          Percentile Radar) follows the analysis mode; Points History, the Match Log and Playing Time
+          Percentile Radar) follows the Data View; Points History, the Match Log and Playing Time
           don't. Section headings are coloured by where their figures come from: green for FPL, violet for Understat, and rose for
           the Match Log when it holds both. The Percentile Radar is position-specific: defenders and midfielders get Defense and Offense radars, goalkeepers
           and forwards one combined radar. The <strong>Summary</strong> gives every figure as a tile, in groups: Defensive (for
@@ -574,7 +580,7 @@ export function UserGuide() {
         <p className="page-subtitle">
           The profile has no minutes setting, so its percentiles use the fixed floor (see Analysis modes): only players with a quarter of
           the minutes available (855 in a completed season; in Current Season, a quarter of the gameweeks finished so far) are ranked. A player under it is a <em>small sample</em>: his Summary and radars
-          carry an amber stopwatch (hover for the figures) and nothing is coloured. If he has no figures in the chosen mode, the profile suggests
+          carry an amber stopwatch (hover for the figures) and nothing is coloured. If he has no figures in the chosen Data View, the profile suggests
           Data Views that do.
         </p>
         <p className="page-subtitle">
@@ -657,9 +663,11 @@ export function UserGuide() {
             From 2026/27 on it's archived straight from the official API.
           </li>
           <li>
-            <strong>Starts and xG-family stats are placeholder zeros before 2022/23</strong>, shown as "—", <strong>Defensive Contribution before 2024/25</strong>,
-            and its parts (<strong>Tackles, CBI, Recoveries</strong>) before 2025/26, confirmed directly against the raw data. Historic Average correctly excludes these rather than diluting an average with a
-            fake zero.
+            <strong>Starts and xG-family stats are placeholder zeros before 2022/23</strong>, shown as "—". <strong>Defensive
+            Contributions</strong> have season totals from 2024/25, but match-by-match figures (the Match Log, club figures) and
+            its parts (<strong>Tackles, CBI, Recoveries</strong>) only from 2025/26, so a 2024/25 Match Log shows "—" for them
+            although the season total exists. All confirmed directly against the raw data. Historic Average correctly excludes
+            these rather than diluting an average with a fake zero.
           </li>
           <li>
             <strong>Set-piece orders</strong> (penalty, direct free-kick, corner pecking order) are FPL's current list only: FPL keeps no
@@ -669,7 +677,7 @@ export function UserGuide() {
             <strong>No predicted-lineup data exists anywhere in the FPL API</strong>. That's third-party editorial judgement on other
             sites, not something this dashboard could source honestly.
           </li>
-          <li>Ownership has no historic equivalent at all. It always shows today's live figure, in every mode, clearly labelled as such.</li>
+          <li>Ownership has no historic equivalent at all. It always shows today's live figure, in every Data View, clearly labelled as such.</li>
         </ul>
       </Section>
 
@@ -722,7 +730,7 @@ export function UserGuide() {
 
         {validationReport && (
           <div style={{ marginBottom: 20 }}>
-            <SubHeading>xGI Cross-Check (development validation)</SubHeading>
+            <SubHeading>xGI check</SubHeading>
             <p className="page-subtitle" style={{ marginBottom: 6 }}>
               The app recomputes xGI as xG + xA and compares it with the API's own figure (tolerance 0.01). The API's figure is
               always the one shown; this check only surfaces any disagreement.
@@ -734,9 +742,7 @@ export function UserGuide() {
             <div className="stat-row">
               <span className="stat-row-name">Discrepancies beyond tolerance</span>
               <span className="stat-row-value">{validationReport.discrepancies.length}</span>
-            </div>
-            {validationReport.discrepancies.length > 0 && <p className="page-subtitle">See the browser console for the full discrepancy list.</p>}
-          </div>
+            </div>          </div>
         )}
 
         <div style={{ marginBottom: 20 }}>
