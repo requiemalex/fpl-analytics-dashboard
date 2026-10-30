@@ -1557,21 +1557,40 @@ mark so Excel on Windows reads £ and accented names correctly
   window), the table scrolls sideways inside `.table-wrap` with every width
   honoured. At `width: 100%` the browser ignored all set widths once they
   overflowed, so dragging did nothing and columns fell below 64px.
-- Both tables draw rows in stages (`state/useProgressiveRowCount.ts`): the
-  first 50 at once, then 100 per animation frame until every row is drawn,
-  with no scrolling needed. Mounting all ~700 rows in one go blocked the
-  page for most of a second before anything showed. Only the drawing is
-  staged — sort, filters, tints, the row count and CSV export always use the
-  full list — and a filter that shrinks the list restages it when cleared.
-  Rows are `React.memo` components (`ExplorerRow`, `PickerRow`) with stable
-  props, so a filter popover, a sort or a newly staged batch doesn't redraw
-  rows that haven't changed; the colour ranks come from the whole pool
-  (`allRows`, Team Building's `pickerAllRows`), so neither a sort nor a
-  filter recomputes them. Player Explorer's Player column is sized by the browser to its
-  widest name, so while rows are staged the likeliest-widest undrawn Player
-  cells sit in hidden `visibility: collapse` rows (`.width-sizer-row`, which
-  still count towards column widths) — the column is its final width from
-  the first frame.
+- **Only the rows in view are drawn** (`<row_window>`,
+  `state/useRowWindow.ts`): the shared player table (Player Explorer, Add
+  Players) draws the rows in its scroll box plus 15 either side, moving 10
+  at a time, with one empty row above and one below standing in for the
+  rest at their real height, so the scrollbar and scroll position are as
+  with every row drawn. Drawing all ~670 rows (some 11,000 cells) made
+  scrolling, sorting and switching Data View lag; measured in the built
+  app at a 4× slowed CPU (2026-10-30), sorting went from 2.6s to 0.1s,
+  switching Data View from 3.6s to 0.15s, and scrolling down from 11 to
+  about 40 frames a second. The rows' height is measured from the drawn
+  rows, so every row is one height: a name line is one line of text tall
+  (`.player-name-cell .name`, `height: 1lh`) however tall the stopwatch
+  after it. Scroll anchoring is off in the box (`.windowed-rows`), which
+  would otherwise nudge the position as rows swap for space. Only the
+  drawing is windowed — sort, filters, tints, the row count and CSV export
+  always use the full list. A box with no height to measure (jsdom in
+  tests) draws rows in stages instead (`state/useProgressiveRowCount.ts`):
+  the first 50 at once, then 100 per animation frame; a hidden dialog
+  keeps just the first 50 ready. Rows are `React.memo` components
+  (`ExplorerRow`) with stable props (each club's Next 5 Fixtures is one
+  list, `nextFiveByTeamId`), so moving the window, a filter popover or a
+  sort doesn't redraw rows that haven't changed; the colour ranks come
+  from the whole pool (`allRows`), so neither a sort nor a filter
+  recomputes them. The Player column and the fixed Own%/Price/Team/Position
+  block are sized by the browser to their widest content, so the
+  likeliest-widest undrawn cells (names, meta lines, Own% and Price
+  figures, one player per club) sit in hidden `visibility: collapse` rows
+  (`.width-sizer-row`, which still count towards column widths): the
+  columns keep one width while scrolling. The table's Team badges share
+  one way to open a club's profile (`<team_badge_opener>`,
+  `TeamProfileOpener`), so opening a profile doesn't redraw each badge.
+  Every figure is formatted through one `Intl.NumberFormat` per setting
+  (`utils/format.ts`): `toLocaleString` with options built a new one on
+  every call.
 - The per-page row calculations are not cached across visits on purpose:
   on the live pool they take under 5ms (Team Building's predictions
   included), against the ~0.6s the full table took to draw. The data behind

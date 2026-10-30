@@ -76,18 +76,39 @@ export function pressable(onPress: () => void, label: string) {
   };
 }
 
+/** The page address with a club's profile open. */
+export function withTeamProfile(prev: URLSearchParams, teamId: number): URLSearchParams {
+  const next = new URLSearchParams(prev);
+  next.set("teamProfile", String(teamId));
+  return next;
+}
+
+/**
+ * <team_badge_opener>: a long table's one way to open a club's profile,
+ * shared by all its Team badges. A badge on its own follows the page
+ * address (useSearchParams), so it redraws whenever the address changes;
+ * under this, the table's hundreds of badges don't each redraw when a
+ * profile opens or closes.
+ */
+export const TeamProfileOpener = React.createContext<((teamId: number) => void) | null>(null);
+
 export function TeamBadge({ teamId, shortName }: { teamId: number; shortName: string }) {
+  const open = React.useContext(TeamProfileOpener);
+  return open ? <TeamBadgeView teamId={teamId} shortName={shortName} onOpen={open} /> : <RoutedTeamBadge teamId={teamId} shortName={shortName} />;
+}
+
+function RoutedTeamBadge({ teamId, shortName }: { teamId: number; shortName: string }) {
+  const [, setSearchParams] = useSearchParams();
+  return <TeamBadgeView teamId={teamId} shortName={shortName} onOpen={(id) => setSearchParams((prev) => withTeamProfile(prev, id))} />;
+}
+
+function TeamBadgeView({ teamId, shortName, onOpen }: { teamId: number; shortName: string; onOpen: (teamId: number) => void }) {
   const { primary, secondary } = teamDisplayColors(teamId, shortName);
   const identity = teamIdentityColor(teamId, shortName);
-  const [, setSearchParams] = useSearchParams();
 
   function openProfile(e: React.SyntheticEvent) {
     e.stopPropagation();
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.set("teamProfile", String(teamId));
-      return next;
-    });
+    onOpen(teamId);
   }
 
   return (

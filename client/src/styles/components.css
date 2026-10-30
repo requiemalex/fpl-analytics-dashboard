@@ -425,6 +425,22 @@ table.data-table tbody tr.width-sizer-row {
 table.data-table tbody tr:hover td {
   background: var(--surface-hover);
 }
+/* <row_window>: the empty rows standing in for the rows not drawn, above
+   and below the drawn ones, at their real height. Scroll anchoring is off
+   in a windowed table: the browser would otherwise nudge the scroll
+   position as rows are swapped for space, which moves the window again. */
+.table-wrap.windowed-rows {
+  overflow-anchor: none;
+}
+table.data-table tbody tr.row-window-spacer {
+  cursor: default;
+}
+table.data-table tbody tr.row-window-spacer td,
+table.data-table tbody tr.row-window-spacer:hover td {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
 
 .player-name-cell {
   display: flex;
@@ -433,6 +449,11 @@ table.data-table tbody tr:hover td {
 }
 .player-name-cell .name {
   font-weight: 600;
+  /* One line of text tall, whatever follows the name: the stopwatch badge
+     is a little taller than the text and made its rows 2px taller than the
+     rest, and a windowed table (<row_window>) needs every row one height
+     for the space standing in for undrawn rows to be exact. */
+  height: 1lh;
 }
 .player-name-cell .meta {
   display: flex;

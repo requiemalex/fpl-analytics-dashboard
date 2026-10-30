@@ -10,9 +10,20 @@ function isDisplayable(n: number | null | undefined): n is number {
  * always filters as it's shown. Price and percent used to round with
  * toFixed, which can disagree with this on a value like 1.005 (audit
  * 2026-09-25).
+ *
+ * One formatter per setting, made once: `toLocaleString` with options
+ * builds a new one on every call (the same text, much slower), and every
+ * figure on screen, every column filter and every export comes through here.
  */
+const FORMATTERS = new Map<string, Intl.NumberFormat>();
 function fixedDecimals(n: number, decimals: number, useGrouping: boolean): string {
-  return n.toLocaleString("en-GB", { minimumFractionDigits: decimals, maximumFractionDigits: decimals, useGrouping });
+  const key = `${decimals}:${useGrouping}`;
+  let formatter = FORMATTERS.get(key);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat("en-GB", { minimumFractionDigits: decimals, maximumFractionDigits: decimals, useGrouping });
+    FORMATTERS.set(key, formatter);
+  }
+  return formatter.format(n);
 }
 
 export function fmtNumber(n: number | null | undefined, decimals = 0): string {
