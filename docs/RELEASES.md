@@ -5,6 +5,10 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.123.0 · 30 Oct 2026
+
+- Team Building: redesigned squad header, squad picker under the heading, formation warning removed
+
 ## v1.122.2 · 30 Oct 2026
 
 - Faster across the app with identical figures: Add Players opens without freezing, profiles open without recalculating the page beneath, Team Building's predictions and Player Explorer's column sizing do less work
