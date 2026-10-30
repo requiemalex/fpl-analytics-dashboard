@@ -330,3 +330,52 @@ describe("Model Predicted — fitted settings", () => {
     expect(finite({ ...MODEL_PARAMS, byPosition: 0 })).toBe(true);
   });
 });
+
+// The probability helpers work each P(X = k) out once and carry their
+// running totals on rather than restarting them; these are the plain
+// versions they replaced, which every figure must still match exactly.
+function referenceLogGamma(x: number): number {
+  const g = 7;
+  const c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+  if (x < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * x)) - referenceLogGamma(1 - x);
+  x -= 1;
+  let a = c[0];
+  const t = x + g + 0.5;
+  for (let i = 1; i < g + 2; i++) a += c[i] / (x + i);
+  return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a);
+}
+function referencePmf(k: number, mean: number, dispersion: number): number {
+  if (mean <= 0) return k === 0 ? 1 : 0;
+  if (dispersion <= 1.0001) return Math.exp(-mean + k * Math.log(mean) - referenceLogGamma(k + 1));
+  const r = mean / (dispersion - 1);
+  const p = r / (r + mean);
+  return Math.exp(referenceLogGamma(k + r) - referenceLogGamma(r) - referenceLogGamma(k + 1) + r * Math.log(p) + k * Math.log(1 - p));
+}
+function referenceChanceAtLeast(threshold: number, mean: number, dispersion = 1): number {
+  if (mean <= 0) return 0;
+  let below = 0;
+  for (let k = 0; k < threshold; k++) below += referencePmf(k, mean, dispersion);
+  return Math.min(1, Math.max(0, 1 - below));
+}
+function referenceExpectedEvery(per: number, mean: number): number {
+  if (mean <= 0) return 0;
+  let total = 0;
+  for (let j = 1; j < 60; j++) {
+    const p = referenceChanceAtLeast(j * per, mean);
+    total += p;
+    if (p < 1e-7) break;
+  }
+  return total;
+}
+
+describe("Model Predicted — the probability helpers give exactly the plain calculation's figures", () => {
+  const means = [0, -1, 1e-9, 0.001, 0.05, 0.3, 0.9, 1.4, 2.5, 4, 7.3, 12, 19];
+  it("chanceAtLeast, Poisson and over-dispersed", () => {
+    for (const mean of means)
+      for (const dispersion of [1, 1.00005, 1.0001, 1.00011, 1.2, 1.5, 2, 3.7])
+        for (let threshold = 0; threshold <= 30; threshold++) expect(chanceAtLeast(threshold, mean, dispersion)).toBe(referenceChanceAtLeast(threshold, mean, dispersion));
+  });
+  it("expectedEvery", () => {
+    for (const mean of means) for (const per of [1, 2, 3, 4]) expect(expectedEvery(per, mean)).toBe(referenceExpectedEvery(per, mean));
+  });
+});

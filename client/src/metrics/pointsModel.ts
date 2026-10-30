@@ -319,30 +319,55 @@ function logGamma(x: number): number {
   return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a);
 }
 
-/** P(X = k) for a count with mean `mean` and variance `mean × dispersion`: Poisson at dispersion 1, negative binomial above it. */
-function countPmf(k: number, mean: number, dispersion: number): number {
-  if (mean <= 0) return k === 0 ? 1 : 0;
-  if (dispersion <= 1.0001) return Math.exp(-mean + k * Math.log(mean) - logGamma(k + 1));
+/** ln Γ(k + 1) = ln k! for a whole number k, worked out once each (logGamma's own value, so every figure is unchanged). */
+const LOG_FACTORIALS: number[] = [];
+function logFactorial(k: number): number {
+  return (LOG_FACTORIALS[k] ??= logGamma(k + 1));
+}
+
+/**
+ * P(X = k) for k = 0, 1, 2, … in turn, for a count with mean `mean` and
+ * variance `mean × dispersion`: Poisson at dispersion 1, negative binomial
+ * above it. The parts that don't depend on k are worked out once; each
+ * term is the same expression, in the same order, as working it out alone.
+ */
+function countPmfs(mean: number, dispersion: number): (k: number) => number {
+  if (mean <= 0) return (k) => (k === 0 ? 1 : 0);
+  if (dispersion <= 1.0001) {
+    const logMean = Math.log(mean);
+    return (k) => Math.exp(-mean + k * logMean - logFactorial(k));
+  }
   const r = mean / (dispersion - 1);
   const p = r / (r + mean);
-  return Math.exp(logGamma(k + r) - logGamma(r) - logGamma(k + 1) + r * Math.log(p) + k * Math.log(1 - p));
+  const logGammaR = logGamma(r);
+  const rLogP = r * Math.log(p);
+  const logQ = Math.log(1 - p);
+  return (k) => Math.exp(logGamma(k + r) - logGammaR - logFactorial(k) + rLogP + k * logQ);
 }
 
 /** P(X ≥ threshold). */
 export function chanceAtLeast(threshold: number, mean: number, dispersion = 1): number {
   if (mean <= 0) return 0;
+  const pmf = countPmfs(mean, dispersion);
   let below = 0;
-  for (let k = 0; k < threshold; k++) below += countPmf(k, mean, dispersion);
+  for (let k = 0; k < threshold; k++) below += pmf(k);
   return Math.min(1, Math.max(0, 1 - below));
 }
 
 /** E[floor(X / per)] for a Poisson X: what "a point for every `per`" pays. */
 export function expectedEvery(per: number, mean: number): number {
   if (mean <= 0) return 0;
-  // Tail sum: E[floor(X/per)] = Σ_{j≥1} P(X ≥ j·per).
+  // Tail sum: E[floor(X/per)] = Σ_{j≥1} P(X ≥ j·per). Each P(X ≥ j·per) is
+  // chanceAtLeast's: one running total of P(X = k) from k = 0, carried on
+  // from j to j + 1 rather than restarted — the same additions in the same
+  // order, so the same figure.
+  const pmf = countPmfs(mean, 1);
   let total = 0;
+  let below = 0;
+  let k = 0;
   for (let j = 1; j < 60; j++) {
-    const p = chanceAtLeast(j * per, mean);
+    for (; k < j * per; k++) below += pmf(k);
+    const p = Math.min(1, Math.max(0, 1 - below));
     total += p;
     if (p < 1e-7) break;
   }

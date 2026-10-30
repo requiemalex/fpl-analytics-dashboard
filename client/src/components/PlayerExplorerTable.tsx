@@ -381,8 +381,15 @@ const SIZER_CANDIDATES_BY_FIGURE = 3;
 const FLAG_ALLOWANCE_PX = 14;
 
 let measureContext: CanvasRenderingContext2D | null | undefined;
+/** The font last set on measureContext (the canvas reports it back reworded, so it's kept here). */
+let measureFont: string | undefined;
+/** Each text's width by font, once the fonts have loaded (one measured before then is the fallback font's, so it isn't kept). */
+const textWidths = new Map<string, number>();
 /** Text width for ranking candidates only. Falls back to character count where canvas isn't available (tests). */
 function estimateTextWidth(text: string, font: string): number {
+  const key = `${font}|${text}`;
+  const known = textWidths.get(key);
+  if (known !== undefined) return known;
   if (measureContext === undefined) {
     try {
       measureContext = document.createElement("canvas").getContext("2d") ?? null;
@@ -391,8 +398,14 @@ function estimateTextWidth(text: string, font: string): number {
     }
   }
   if (!measureContext) return text.length * 7;
-  measureContext.font = font;
-  return measureContext.measureText(text).width;
+  // Setting a canvas font is slow: only when it changes, not before every one of the ~2,700 texts.
+  if (measureFont !== font) {
+    measureContext.font = font;
+    measureFont = font;
+  }
+  const width = measureContext.measureText(text).width;
+  if (document.fonts?.status === "loaded") textWidths.set(key, width);
+  return width;
 }
 
 function topIds(entries: { id: number; width: number }[], count: number): number[] {
@@ -898,10 +911,13 @@ export function PlayerExplorerTable({
   // in stages (useProgressiveRowCount) as before, and a hidden dialog
   // keeps just the first ones ready. Everything above still works on the
   // full sortedRows.
-  const renderedRowCount = useProgressiveRowCount(sortedRows.length);
+  // Hidden, the staging stops at the first rows: carried on to every row,
+  // they were all drawn (and measured) the moment the dialog opened, before
+  // the window took over.
+  const renderedRowCount = useProgressiveRowCount(visible ? sortedRows.length : Math.min(INITIAL_ROW_COUNT, sortedRows.length));
   const rowWindow = useRowWindow(tableWrapRef, sortedRows.length);
   const [drawStart, drawEnd] = !visible
-    ? [0, Math.min(INITIAL_ROW_COUNT, renderedRowCount)]
+    ? [0, renderedRowCount]
     : rowWindow.active
       ? [rowWindow.start, rowWindow.end]
       : [0, renderedRowCount];

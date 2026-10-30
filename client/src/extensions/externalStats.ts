@@ -146,6 +146,7 @@ export interface ExternalStatsSource {
   explorerDefaults: { player: string[]; team: string[] };
   /** Player Comparison's trend graphs: the source's season-by-season figures — its own in picker groups, and its version of FPL trend figures (keyed by the FPL trend key) for their ⇄ toggle. */
   playerTrends: ExternalColumnSet<ExternalTrendMetric>;
+  /** Always the latest profile figures, but this source object doesn't change when they load: a profile reads them with useExternalProfiles, to redraw as they arrive (<profile_details_apart>). */
   profiles: ExternalProfiles;
   /** The source's own Help guides (what it is, its colours, its toggle, its own sections), searched and listed with FPL's (help/HelpPanel.tsx). Its statistics join Help's Statistics guide from its columns. */
   helpGuides: HelpGuide[];
@@ -156,6 +157,22 @@ export const ExternalStatsContext = createContext<ExternalStatsSource | null>(nu
 /** Null when no second source is mounted (or it's switched off). */
 export function useExternalStats(): ExternalStatsSource | null {
   return useContext(ExternalStatsContext);
+}
+
+/**
+ * <profile_details_apart>: a second source's profile figures, provided on
+ * their own, changing as a player's or club's details load. They used to
+ * change the whole source object, so every page reading the source (its
+ * Explorer columns, Help) worked everything out again, twice, each time a
+ * profile opened, though nothing it showed had changed.
+ */
+export const ExternalProfilesContext = createContext<ExternalProfiles | null>(null);
+
+/** The profile figures, redrawing as they load; the source's own `profiles` where a source is provided on its own (tests). Null with no source. */
+export function useExternalProfiles(): ExternalProfiles | null {
+  const profiles = useContext(ExternalProfilesContext);
+  const source = useExternalStats();
+  return source ? (profiles ?? source.profiles) : null;
 }
 
 /** Which source a toggleable column is showing: "fpl", or an external source's id. */

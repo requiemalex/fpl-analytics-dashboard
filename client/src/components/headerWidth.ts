@@ -6,10 +6,15 @@ const HEADER_PADDING = 8 + 22;
 const SAFETY = 1;
 
 let context: CanvasRenderingContext2D | null | undefined;
+let headerFont: string | undefined;
+/** Each word's width, once the fonts have loaded (a width measured before then is the fallback font's, so it isn't kept). */
+const widths = new Map<string, number>();
 
 /** Width of one header word as drawn: 11px, weight 600, uppercase, 0.04em letter-spacing (components.css). */
 function wordWidth(word: string): number {
   const text = word.toUpperCase();
+  const known = widths.get(text);
+  if (known !== undefined) return known;
   if (context === undefined) {
     try {
       context = document.createElement("canvas").getContext("2d");
@@ -19,8 +24,14 @@ function wordWidth(word: string): number {
   }
   // No canvas (tests): about 8px a character, the widest the header font draws on average.
   if (!context) return text.length * 8;
-  context.font = `600 11px ${getComputedStyle(document.body).fontFamily}`;
-  return context.measureText(text).width + 0.44 * text.length;
+  // Set once: setting a canvas font (and reading the page's) on every word was most of the cost.
+  if (headerFont === undefined) {
+    headerFont = `600 11px ${getComputedStyle(document.body).fontFamily}`;
+    context.font = headerFont;
+  }
+  const width = context.measureText(text).width + 0.44 * text.length;
+  if (document.fonts?.status === "loaded") widths.set(text, width);
+  return width;
 }
 
 /**

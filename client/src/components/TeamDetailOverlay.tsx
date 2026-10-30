@@ -28,7 +28,7 @@ import { coverageNote, partialAverage, partialTotal, sumKnown, type PartialSum }
 import { PercentileRadarChart } from "./PlayerRadarChart";
 import { AverageLineIcon, PointsHistoryChart, PointsHistoryHeader, PointsHistoryStats } from "./playerProfile/PointsHistory";
 import { fmtDecimal, fmtOrdinal, DASH } from "../utils/format";
-import { useExternalStats, type ProfileView } from "../extensions/externalStats";
+import { useExternalProfiles, useExternalStats, type ProfileView } from "../extensions/externalStats";
 import { SourceToggle } from "./SourceToggle";
 import { CloseIcon } from "./IconToolbar";
 import { ProfileSummary, type SummaryGroup } from "./playerProfile/ProfileSummary";
@@ -313,6 +313,8 @@ export function TeamDetailOverlay() {
   // club's own figures use: those it was in the league (clubRecordsForMode).
   // Null while the historic dataset is still loading.
   const external = useExternalStats();
+  // Its figures, redrawing as they load (<profile_details_apart>); `external` stays the same meanwhile.
+  const externalProfiles = useExternalProfiles();
   const teamCode = team?.code ?? null;
   const externalView: ProfileView = useMemo(() => {
     if (historicReferenceSeason === null) return { mode: analysisMode, seasons: historicStatus === "error" ? [] : null };
@@ -360,12 +362,12 @@ export function TeamDetailOverlay() {
 
   // A second source's columns for the shown season (Understat: each match's result chances).
   const logFixtures = logMatches.map((m) => m.fixture);
-  const externalColumns = external && team.code !== null && logSeason !== null ? external.profiles.clubMatchColumns(team.code, logSeason, logFixtures) : [];
+  const externalColumns = external && externalProfiles && team.code !== null && logSeason !== null ? externalProfiles.clubMatchColumns(team.code, logSeason, logFixtures) : [];
   // A figure both sources have (Assists, xG, xA, xGI, xGC) gets a ⇄ toggle
   // on its header; switched, the whole column is the second source's — each
   // match, Totals and Average, and their colours ranked on that source's
   // figures — <one_source_per_figure>.
-  const alternates = external && team.code !== null && logSeason !== null ? external.profiles.clubMatchAlternates(team.code, logSeason, logFixtures) : {};
+  const alternates = external && externalProfiles && team.code !== null && logSeason !== null ? externalProfiles.clubMatchAlternates(team.code, logSeason, logFixtures) : {};
   const switchedKeys = new Set(switchedLog && switchedLog.teamId === team.id ? switchedLog.keys : []);
   const switchedAlternate = (key: string) => (switchedKeys.has(key) ? (alternates[key] ?? null) : null);
   // <stat_hover> for the Match Log: what each column is (its Team Explorer column's meaning, FPL's or the second
@@ -436,12 +438,12 @@ export function TeamDetailOverlay() {
           </div>
         </div>
 
-        {external && team.code !== null && (
+        {external && externalProfiles && team.code !== null && (
           <div className="profile-section">
             <div className={`profile-section-heading ${external.className}`}>
               <h3>{external.label} · Views</h3>
             </div>
-            <div className="profile-grid">{external.profiles.clubCards(team.code, externalView)}</div>
+            <div className="profile-grid">{externalProfiles.clubCards(team.code, externalView)}</div>
           </div>
         )}
 
@@ -465,13 +467,13 @@ export function TeamDetailOverlay() {
         </div>
 
         {/* This season's formations, whatever the Data View — the club's set-up now, not its past ones (owner's decision, 2026-10-21). */}
-        {external && team.code !== null && liveSeasonName && (
+        {external && externalProfiles && team.code !== null && liveSeasonName && (
           <div className="profile-section">
             <div className={`profile-section-heading match-log-head ${external.className}`}>
               <h3>{external.label} · Formations</h3>
               <span className="match-log-season">{liveSeasonName} (current season)</span>
             </div>
-            {external.profiles.clubFormations(team.code, liveSeasonName)}
+            {externalProfiles.clubFormations(team.code, liveSeasonName)}
           </div>
         )}
 

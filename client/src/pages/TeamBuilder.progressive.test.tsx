@@ -112,6 +112,20 @@ describe("Team Building — staged drawing of the Add Players table", () => {
     expect(pickerRows(container)).toHaveLength(130);
   });
 
+  it("closed, it keeps only its first rows drawn, and stages the rest in again when it opens (rather than drawing them all at once)", () => {
+    const utils = renderBuilder();
+    const { container } = utils;
+    drawAllFrames();
+    expect(pickerRows(container)).toHaveLength(130);
+    fireEvent.click(utils.getByRole("button", { name: "Close Add Players" }));
+    drawAllFrames();
+    expect(pickerRows(container)).toHaveLength(INITIAL_ROW_COUNT);
+    openEveryone(utils);
+    expect(pickerRows(container)).toHaveLength(INITIAL_ROW_COUNT);
+    drawAllFrames();
+    expect(pickerRows(container)).toHaveLength(130);
+  });
+
   it("a sort made before every row is drawn still sorts all candidates", () => {
     const { container } = renderBuilder();
     fireEvent.click(header(container, "Goals")); // first click: highest first

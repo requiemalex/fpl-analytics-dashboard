@@ -91,7 +91,8 @@ export function HelpPanel({ open, onClose }: { open: boolean; onClose: () => voi
     [ext, used],
   );
   const byId = useMemo(() => new Map(guides.map((g) => [g.id, g])), [guides]);
-  const index = useMemo(() => buildHelpIndex(guides), [guides]);
+  // Only searched once Help has been opened, so built then rather than as the app starts.
+  const index = useMemo(() => buildHelpIndex(used ? guides : []), [guides, used]);
   const asking = questionTokens(question).length > 0;
   const results = useMemo(() => (asking ? searchHelp(index, question) : []), [index, question, asking]);
 

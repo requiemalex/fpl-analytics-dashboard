@@ -787,6 +787,12 @@ without it leaves that season's Shots Faced uncoloured.
   A profile asking for its Understat details also starts the season
   summaries loading, so its Summary and colours work wherever it's
   opened from, not only after a page that uses Understat has loaded them.
+  Those details are provided apart from the rest of the source
+  (`<profile_details_apart>`: `ExternalProfilesContext`, read with
+  `useExternalProfiles`): as they load only the profile redraws. They
+  used to change the whole source object, so every page under the profile
+  worked its Understat columns (and Help its index) out again, twice, each
+  time a profile opened.
   - **Summary** (`summary.ts`, on the shared `ProfileSummary` card, first
     in the section): the figures that matter most for his position, from
     the season summaries over the view's seasons summed as a Data View's
@@ -1409,7 +1415,8 @@ a question in your own words (`<help_panel>`, `HelpPanel.tsx`).
   nothing else isn't one yet). A statistic's name alone puts the
   Statistics guide first. The best match opens by itself from 3 letters.
   `search.test.ts` and `understat/help.test.ts` hold the questions each
-  guide must answer first: add a question when adding a guide.
+  guide must answer first: add a question when adding a guide. The search
+  index is built the first time Help opens, not as the app starts.
 - With nothing typed it lists the current page's own guides ("This page"),
   then every guide by topic (`topics.ts`). The question stays as left
   between opens.
@@ -1575,7 +1582,9 @@ mark so Excel on Windows reads £ and accented names correctly
   always use the full list. A box with no height to measure (jsdom in
   tests) draws rows in stages instead (`state/useProgressiveRowCount.ts`):
   the first 50 at once, then 100 per animation frame; a hidden dialog
-  keeps just the first 50 ready. Rows are `React.memo` components
+  keeps just the first 50 ready and stages no further (staged on to every
+  row while closed, they were all drawn and measured at once the moment
+  it opened: a 3.4s freeze at a 4× slowed CPU). Rows are `React.memo` components
   (`ExplorerRow`) with stable props (each club's Next 5 Fixtures is one
   list, `nextFiveByTeamId`), so moving the window, a filter popover or a
   sort doesn't redraw rows that haven't changed; the colour ranks come
@@ -1583,7 +1592,9 @@ mark so Excel on Windows reads £ and accented names correctly
   recomputes them. The Player column and the fixed Own%/Price/Team/Position
   block are sized by the browser to their widest content, so the
   likeliest-widest undrawn cells (names, meta lines, Own% and Price
-  figures, one player per club) sit in hidden `visibility: collapse` rows
+  figures, one player per club; each text's width measured once, and the
+  canvas font set only when it changes, as `headerWidth.ts` does for
+  headers) sit in hidden `visibility: collapse` rows
   (`.width-sizer-row`, which still count towards column widths): the
   columns keep one width while scrolling. The table's Team badges share
   one way to open a club's profile (`<team_badge_opener>`,
@@ -2135,7 +2146,12 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   2026/27 rules, added up. Its shape comes from an analysis of every
   player-match since 2016/17 (which stats repeat season to season, how each
   position scores, what moves with the fixture), and every setting is fitted
-  on past seasons and proven on seasons it didn't see (below).
+  on past seasons and proven on seasons it didn't see (below). Its count
+  probabilities (`chanceAtLeast`, `expectedEvery`) work out the parts of
+  each P(X = k) that don't change once, and carry "a point for every N"'s
+  running total on rather than restarting it: the same additions in the
+  same order, so exactly the plain calculation's figures
+  (`pointsModel.test.ts`), in a fraction of the time.
   - **Playing time.** A chance of starting: a logistic per position of his
     starts in his last six matches this season (the latest counting most:
     ×0.75 per match back), whether he started the last one, his season's

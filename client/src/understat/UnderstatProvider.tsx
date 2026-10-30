@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getEnvelope } from "../api/client";
 import { useAppState } from "../state/AppStateContext";
-import { ExternalStatsContext, type ExternalColumnSet, type ExternalStatsSource } from "../extensions/externalStats";
+import { ExternalProfilesContext, ExternalStatsContext, type ExternalColumnSet, type ExternalProfiles, type ExternalStatsSource } from "../extensions/externalStats";
 import type { AnalysisMode } from "../metrics/resolvePlayerStats";
 import type { PlayerColumn } from "../components/playerColumns";
 import type { TeamColumn } from "../components/teamColumns";
@@ -50,6 +50,21 @@ function UnderstatIcon() {
 
 /** Understat's Help guides: fixed text, made once. */
 const HELP_GUIDES = understatHelpGuides(<UnderstatIcon />);
+
+/** Profiles that always read the latest ones in `ref`: what the source carries, so it needn't change when a profile's details load (<profile_details_apart>). */
+function latestProfiles(ref: React.MutableRefObject<ExternalProfiles>): ExternalProfiles {
+  return {
+    requestPlayer: (...args) => ref.current.requestPlayer(...args),
+    requestClub: (...args) => ref.current.requestClub(...args),
+    playerMatchColumns: (...args) => ref.current.playerMatchColumns(...args),
+    clubMatchColumns: (...args) => ref.current.clubMatchColumns(...args),
+    playerMatchAlternates: (...args) => ref.current.playerMatchAlternates(...args),
+    clubMatchAlternates: (...args) => ref.current.clubMatchAlternates(...args),
+    playerCards: (...args) => ref.current.playerCards(...args),
+    clubCards: (...args) => ref.current.clubCards(...args),
+    clubFormations: (...args) => ref.current.clubFormations(...args),
+  };
+}
 
 export function UnderstatProvider({ children }: { children: React.ReactNode }) {
   const { players, teams, teamsById, historicProfiles, historicReferenceSeason, currentSeasonHasStarted, fixtures } = useAppState();
@@ -127,12 +142,10 @@ export function UnderstatProvider({ children }: { children: React.ReactNode }) {
     return () => window.clearInterval(timer);
   }, [polling, fetchData]);
 
-  const source = useMemo<ExternalStatsSource | null>(() => {
-    if (load.state === "disabled") return null;
+  // What the profiles' comparative colours rank against (comparisons.ts).
+  const compare = useMemo<UsComparisonContext | null>(() => {
     const data = load.state === "ready" ? load.data : null;
-    const playerCache = new Map<AnalysisMode, ExternalColumnSet<PlayerColumn>>();
-    // What the profiles' comparative colours rank against (comparisons.ts).
-    const compare: UsComparisonContext | null = data
+    return data
       ? {
           seasons: data.seasons,
           liveSeason: data.liveSeason,
@@ -145,6 +158,37 @@ export function UnderstatProvider({ children }: { children: React.ReactNode }) {
           ),
         }
       : null;
+  }, [load, players, teamsById]);
+
+  // <profile_details_apart>: the profiles change as a player's or club's
+  // details load; the source below doesn't, so its columns and everything
+  // worked out from them stay as they are while a profile opens.
+  const profiles = useMemo(
+    () =>
+      createProfiles(
+        profileLoads,
+        {
+          player: (code, seasons) => {
+            request();
+            requestPlayerDetail(code, seasons);
+          },
+          club: (code, seasons) => {
+            request();
+            requestClubDetail(code, seasons);
+          },
+        },
+        compare,
+      ),
+    [profileLoads, request, requestPlayerDetail, requestClubDetail, compare],
+  );
+  const profilesRef = useRef(profiles);
+  profilesRef.current = profiles;
+  const sourceProfiles = useMemo(() => latestProfiles(profilesRef), []);
+
+  const source = useMemo<ExternalStatsSource | null>(() => {
+    if (load.state === "disabled") return null;
+    const data = load.state === "ready" ? load.data : null;
+    const playerCache = new Map<AnalysisMode, ExternalColumnSet<PlayerColumn>>();
     const teamCache = new Map<AnalysisMode, ExternalColumnSet<TeamColumn>>();
 
     let staleNote: string | null = null;
@@ -168,20 +212,7 @@ export function UnderstatProvider({ children }: { children: React.ReactNode }) {
       explorerDefaults: UNDERSTAT_EXPLORER_DEFAULTS,
       // A profile also needs the season summaries — its Summary, and what its colours rank against — wherever it's
       // opened from, not only on a page that has loaded them, so asking for its details loads them too.
-      profiles: createProfiles(
-        profileLoads,
-        {
-          player: (code, seasons) => {
-            request();
-            requestPlayerDetail(code, seasons);
-          },
-          club: (code, seasons) => {
-            request();
-            requestClubDetail(code, seasons);
-          },
-        },
-        compare,
-      ),
+      profiles: sourceProfiles,
       helpGuides: HELP_GUIDES,
       playerColumns(mode) {
         const cached = playerCache.get(mode);
@@ -206,7 +237,11 @@ export function UnderstatProvider({ children }: { children: React.ReactNode }) {
         return set;
       },
     };
-  }, [load, request, profileLoads, requestPlayerDetail, requestClubDetail, players, teams, teamsById, historicProfiles, historicReferenceSeason, currentSeasonHasStarted, fixtures]);
+  }, [load, request, sourceProfiles, players, teams, teamsById, historicProfiles, historicReferenceSeason, currentSeasonHasStarted, fixtures]);
 
-  return <ExternalStatsContext.Provider value={source}>{children}</ExternalStatsContext.Provider>;
+  return (
+    <ExternalStatsContext.Provider value={source}>
+      <ExternalProfilesContext.Provider value={source ? profiles : null}>{children}</ExternalProfilesContext.Provider>
+    </ExternalStatsContext.Provider>
+  );
 }

@@ -30,7 +30,7 @@ import { coverageNote } from "../metrics/partialTotals";
 import { rankAmong } from "../metrics/comparativeColour";
 import { fmtDecimal, fmtPrice, fmtPercent, fmtSigned, DASH } from "../utils/format";
 import { usePlayerPastSeasons } from "../state/usePlayerPastSeasons";
-import { useExternalStats, type ExternalMatchColumn, type ProfileView } from "../extensions/externalStats";
+import { useExternalProfiles, useExternalStats, type ExternalMatchColumn, type ProfileView } from "../extensions/externalStats";
 import { SourceToggle } from "./SourceToggle";
 import type { NormalizedPlayer, PlayerSeasonHistory, PlayerGameweekHistory, PlayerPastMatch } from "../types/normalized";
 import { columnHint, noPercentileHint, playerColumnHint, playerRankHint, POSITION_PLURAL, PLAYER_STAT_HINTS, statHover } from "./hoverText";
@@ -376,6 +376,8 @@ export function PlayerDetailOverlay() {
   // seasons reaching the fixed floor (<fixed_minutes_floor>). Null while
   // they're still being worked out.
   const external = useExternalStats();
+  // Its figures, redrawing as they load (<profile_details_apart>); `external` stays the same meanwhile.
+  const externalProfiles = useExternalProfiles();
   const playerCode = player?.code ?? null;
   const externalView: ProfileView = useMemo(() => {
     const failed = historicStatus === "error" || history.status === "error";
@@ -890,8 +892,8 @@ export function PlayerDetailOverlay() {
 
   // A second source's columns for the shown season (Understat: his position in each match).
   const externalColumns =
-    external && player.code !== null && logSeason !== null
-      ? external.profiles.playerMatchColumns(player.code, logSeason).map((c) => ({ ...c, className: external.className }))
+    external && externalProfiles && player.code !== null && logSeason !== null
+      ? externalProfiles.playerMatchColumns(player.code, logSeason).map((c) => ({ ...c, className: external.className }))
       : [];
 
   // A figure both sources have (Minutes, Assists, xG, xA, xGI) gets a ⇄
@@ -919,8 +921,8 @@ export function PlayerDetailOverlay() {
       ext?: Pick<ExternalMatchColumn, "cellRank" | "totalRank" | "averageRank" | "totalNote" | "averageNote">;
     };
     const alternates =
-      external && player!.code !== null && logSeason !== null
-        ? external.profiles.playerMatchAlternates(player!.code, logSeason, log.rows.map((r) => ({ fixtureId: r.fixtureId, minutes: r.minutes })))
+      external && externalProfiles && player!.code !== null && logSeason !== null
+        ? externalProfiles.playerMatchAlternates(player!.code, logSeason, log.rows.map((r) => ({ fixtureId: r.fixtureId, minutes: r.minutes })))
         : {};
     const fplColumn = (c: GwColumn): Column => {
       const alt = alternates[c.key];
@@ -1112,12 +1114,12 @@ export function PlayerDetailOverlay() {
           </div>
         </div>
 
-        {external && player.code !== null && (
+        {external && externalProfiles && player.code !== null && (
           <div className="profile-section">
             <div className={`profile-section-heading ${external.className}`}>
               <h3>{external.label} · Views</h3>
             </div>
-            <div className="profile-grid">{external.profiles.playerCards(player.code, externalView, player.position)}</div>
+            <div className="profile-grid">{externalProfiles.playerCards(player.code, externalView, player.position)}</div>
           </div>
         )}
 
