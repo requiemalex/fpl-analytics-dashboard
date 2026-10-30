@@ -43,8 +43,8 @@ export function Label({ children }: { children: React.ReactNode }) {
 export function IconKey({ rows }: { rows: { icon: React.ReactNode; label: string; text?: React.ReactNode; tone?: "amber" | "green" | "violet" | "rose" | "muted" }[] }) {
   return (
     <div className="help-iconkey">
-      {rows.map((r) => (
-        <div className="help-iconkey-row" key={r.label}>
+      {rows.map((r, i) => (
+        <div className="help-iconkey-row" key={i}>
           <span className={`help-icon-square${r.tone ? ` tone-${r.tone}` : ""}`}>{r.icon}</span>
           <span>
             <b>{r.label}</b>

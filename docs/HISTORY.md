@@ -4143,3 +4143,16 @@ tiles/graphs only:
   `metrics/dictionary.ts` and README "Metric methodology" remain the
   record of every formula.
 - **Last commit with it:** `e51eaae`.
+
+### Help's separate statistic entries (replaced 2026-10-30)
+- **What it did:** v1.121.0's Help gave every statistic its own search
+  result, a card of its name, source badge and hover meaning, and showed a
+  guide only once its match reached a score (so "ic" showed nothing until
+  "ico").
+- **Why it went:** the owner asked for one Statistics guide rather than a
+  card per statistic, and for show all to show none: every guide listed
+  with nothing typed, narrowing from the first letter. Now one Statistics
+  guide (`help/statistics.tsx`, `<help_statistics>`) lists them all under
+  the Columns picker's headings and narrows to those named; a statistic's
+  name alone puts it first.
+- **Last commit with it:** `ff4ad87`.

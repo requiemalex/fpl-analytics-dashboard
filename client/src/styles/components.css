@@ -2622,20 +2622,6 @@ button.help-card-head:hover .help-card-title {
   line-height: 1.45;
   color: var(--text-secondary);
 }
-.help-card-answer b {
-  font-weight: 500;
-  color: var(--text-primary);
-}
-.help-stat-source {
-  margin-left: var(--space-2);
-  padding: 0 6px;
-  border: 1px solid currentColor;
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 500;
-  vertical-align: 2px;
-}
 .help-card-body {
   display: flex;
   flex-direction: column;
@@ -3051,6 +3037,53 @@ button.help-card-head:hover .help-card-title {
 }
 .help-health.ok {
   border-color: var(--accent-positive);
+}
+/* FPL difficulty 1–5, in the fixture chips' own colours (fdrColor). */
+.help-fdr {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.help-fdr span {
+  width: 24px;
+  padding: 2px 0;
+  border-radius: var(--radius-sm);
+  color: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+}
+.help-fdr i {
+  margin-left: var(--space-2);
+  font-style: normal;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+/* The Statistics guide's list: Players then Clubs, under the Columns picker's headings. */
+.help-stats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.help-stats-scope {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.help-stats-scope-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+}
+.help-stats-heading {
+  margin: var(--space-1) 0 2px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 /* ---------- Side panels: the Notepad (components/Notepad.tsx) and Help (help/HelpPanel.tsx) ----------

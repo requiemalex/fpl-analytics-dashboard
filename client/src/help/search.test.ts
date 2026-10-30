@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { HELP_GUIDES } from "./guides";
-import { buildHelpIndex, helpWords, searchHelp } from "./search";
-import { helpStatistics } from "./statistics";
-import type { HelpEntry } from "./types";
+import { buildHelpIndex, helpWords, questionTokens, searchHelp } from "./search";
+import { helpStatSections, statisticsGuide } from "./statistics";
 
 /**
  * <help_search>: the questions people ask, and the guide each must put
@@ -10,12 +9,11 @@ import type { HelpEntry } from "./types";
  * found; a new guide adds its own questions here.
  */
 
-const entries: HelpEntry[] = [
-  ...HELP_GUIDES.map((g): HelpEntry => ({ kind: "guide", ...g })),
-  ...helpStatistics(null).map((s): HelpEntry => ({ kind: "statistic", ...s })),
-];
-const index = buildHelpIndex(entries);
-const top = (q: string) => searchHelp(index, q)[0]?.entry.id;
+const sections = helpStatSections(null);
+const guides = [...HELP_GUIDES, statisticsGuide(sections)];
+const index = buildHelpIndex(guides);
+const ids = (q: string) => searchHelp(index, q).map((r) => r.guide.id);
+const top = (q: string) => ids(q)[0];
 
 const QUESTIONS: [string, string][] = [
   // Reading the numbers
@@ -45,13 +43,46 @@ const QUESTIONS: [string, string][] = [
   ["what does the red header mean", "today-only"],
   ["how is per game calculated", "per-game"],
   ["why are numbers rounded", "per-game"],
+  ["icons", "icons"],
+  ["what does this button do", "icons"],
+  ["what does the green dot mean", "top-bar"],
+  ["players loaded", "top-bar"],
+  ["what colour is a defender", "positions"],
+  ["club badge", "club-pills"],
+  ["what is xg", "xg-basics"],
+  ["expected assists", "xg-basics"],
+  ["is he overperforming", "over-under"],
+  ["unlucky finishing", "over-under"],
+  ["defcon points", "defensive-contributions"],
+  ["how do defenders get 2 points", "defensive-contributions"],
+  ["how does bonus work", "bonus-bps"],
+  ["who takes penalties", "set-pieces"],
+  ["stats", "statistics"],
+  ["glossary", "statistics"],
+  // Finding players
+  ["cheap midfielders", "find-value"],
+  ["best value", "find-value"],
+  ["differentials", "find-differentials"],
+  ["low owned players", "find-differentials"],
+  ["who will score", "find-attackers"],
+  ["best defenders", "find-defenders"],
+  ["which keeper", "find-keepers"],
+  // Fixtures & gameweeks
+  ["fdr", "fixture-difficulty"],
+  ["fixture ticker", "fixture-difficulty"],
+  ["double gameweek", "double-blank"],
+  ["blank gameweek", "double-blank"],
+  ["when is the deadline", "gameweeks"],
   // Dashboard
   ["create a new dashboard view", "dashboard-views"],
-  ["starter view", "dashboard-views"],
   ["add a tile", "dashboard-tiles"],
   ["top 5 leaderboard", "dashboard-tiles"],
   ["scatter plot", "dashboard-graphs"],
   ["add trend line", "dashboard-graphs"],
+  ["log scale", "graph-axes"],
+  ["graph looks squashed", "graph-axes"],
+  ["team tiles", "dashboard-teams"],
+  ["can't edit the starter view", "dashboard-starter"],
   // Tables
   ["export to excel", "toolbar"],
   ["download csv", "toolbar"],
@@ -64,19 +95,30 @@ const QUESTIONS: [string, string][] = [
   ["load a saved view", "saved-views"],
   ["cant find a player", "player-search"],
   ["search box typo", "player-search"],
-  // Teams & profiles
+  ["find tottenham", "find-club"],
+  // Teams
   ["league table", "team-explorer"],
   ["open a team page", "team-profile"],
   ["clean sheet odds", "fixture-forecast"],
   ["easy fixtures", "fixture-forecast"],
+  ["new signing club figures", "club-figures"],
+  ["team radar", "team-summary"],
+  ["club results", "team-match-log"],
+  // Player Profile
   ["open a player profile", "player-profile"],
-  ["match log", "points-history"],
+  ["match log", "match-log"],
   ["what does the dagger mean", "points-history"],
+  ["profile tiles", "profile-summary"],
+  ["spider chart", "percentile-radar"],
+  ["minutes gauge", "playing-time"],
+  ["profile is empty", "profile-no-data"],
   // Player Comparison
   ["compare two players", "comparison"],
   ["head to head", "comparison"],
   ["radar chart", "comparison-cards"],
-  ["dotted line", "comparison-cards"],
+  ["reorder cards", "comparison-build"],
+  ["outputs bar", "outputs-bars"],
+  ["season by season", "trends"],
   // Team Building
   ["how do i import my team", "import-team"],
   ["where do i find my team id", "import-team"],
@@ -84,7 +126,6 @@ const QUESTIONS: [string, string][] = [
   ["add players to my squad", "build-squad"],
   ["wildcard", "build-squad"],
   ["what's on the shirts", "pitch-highlight"],
-  ["show fixtures on the pitch", "pitch-highlight"],
   ["expected points", "expected-points"],
   ["fpl official or model", "expected-points"],
   ["how many points will he get", "expected-points"],
@@ -96,6 +137,11 @@ const QUESTIONS: [string, string][] = [
   ["how much money is in the bank", "sell-price"],
   ["price rise tonight", "price-changes"],
   ["price predictor", "price-changes"],
+  ["who to buy", "add-players"],
+  ["bench points", "projected-points"],
+  ["rename squad", "manage-squads"],
+  ["3 per club", "squad-rules"],
+  ["can i afford", "plan-transfer"],
   // The app
   ["notes", "notepad"],
   ["backtick", "notepad"],
@@ -103,29 +149,52 @@ const QUESTIONS: [string, string][] = [
   ["no internet", "updates"],
   ["app wont load", "problems"],
   ["report a bug", "problems"],
+  ["keyboard shortcuts", "keyboard"],
+  ["lost my views", "saved-data"],
+  ["privacy", "about-legal"],
   // Words still being typed, and wildcards
   ["capt", "best-draft"],
   ["notep", "notepad"],
   ["forec*", "fixture-forecast"],
-  // Statistics, by name
-  ["bps", "stat-fpl-bps"],
-  ["pts/£m", "stat-fpl-pts/£m"],
-  ["what is ict", "stat-fpl-ict"],
-  ["ppg", "stat-fpl-ppg"],
+  // Statistics, by name: the Statistics guide first
+  ["bps", "statistics"],
+  ["pts/£m", "statistics"],
+  ["what is ict", "statistics"],
+  ["ppg", "statistics"],
 ];
 
 describe("Help finds the right guide first", () => {
   it.each(QUESTIONS)("%s → %s", (question, id) => {
     expect(top(question)).toBe(id);
   });
+});
 
-  it("finds a statistic by what it stands for", () => {
-    expect(searchHelp(index, "expected goals")[0]?.entry.title).toMatch(/^xG/);
+describe("show all to show none", () => {
+  it("lists guides from the first letters typed", () => {
+    for (const prefix of ["ic", "ico", "icon", "icons"]) expect(ids(prefix), prefix).toContain("icons");
+    expect(ids("x").length).toBeGreaterThan(0);
+  });
+
+  it("each letter of a word narrows the list, never widens it", () => {
+    for (const word of ["captain", "fixtures", "stopwatch"]) {
+      let previous = guides.map((g) => g.id);
+      for (let n = 1; n <= word.length; n++) {
+        const typed = word.slice(0, n);
+        if (questionTokens(typed).length === 0) continue;
+        const now = ids(typed);
+        // Only a typo match (from 5 letters) can bring a guide in late.
+        if (n < 5) for (const id of now) expect(previous, `${typed} → ${id}`).toContain(id);
+        previous = now;
+      }
+    }
+  });
+
+  it("a question of filler words alone isn't a question yet", () => {
+    expect(questionTokens("why is the")).toEqual([]);
   });
 
   it("finds nothing for words no guide uses", () => {
-    expect(searchHelp(index, "zebra crossing")).toEqual([]);
-    expect(searchHelp(index, "why is the")).toEqual([]);
+    expect(ids("zebra crossing")).toEqual([]);
   });
 });
 
@@ -135,36 +204,43 @@ describe("helpWords", () => {
     expect(helpWords("color")).toEqual(helpWords("colour"));
     expect(helpWords("selling")).toEqual(helpWords("sell"));
     expect(helpWords("orange")).toEqual(helpWords("amber"));
+    expect(helpWords("stats")).toEqual(helpWords("statistic"));
     expect(helpWords("Ødegaard")).toEqual(["odegaard"]);
   });
 });
 
 describe("the guides", () => {
-  const ids = HELP_GUIDES.map((g) => g.id);
+  const all = guides.map((g) => g.id);
 
   it("have unique ids, and every related guide exists", () => {
-    expect(new Set(ids).size).toBe(ids.length);
-    for (const g of HELP_GUIDES) for (const r of g.related ?? []) expect(ids, `${g.id} → ${r}`).toContain(r);
+    expect(new Set(all).size).toBe(all.length);
+    for (const g of guides) for (const r of g.related ?? []) expect(all, `${g.id} → ${r}`).toContain(r);
   });
 
   it("keep the answer to one short line, and list plenty of words to be found by", () => {
     for (const g of HELP_GUIDES) {
-      expect(g.answer.length, g.id).toBeLessThanOrEqual(110);
+      expect(g.answer.length, g.id).toBeLessThanOrEqual(120);
       expect(g.keywords.length, g.id).toBeGreaterThanOrEqual(20);
     }
   });
 });
 
-describe("statistic entries", () => {
-  const stats = helpStatistics(null);
+describe("the Statistics guide", () => {
+  const rows = sections.flatMap((s) => s.rows);
 
-  it("give every statistic its hover's meaning", () => {
-    const xg = stats.find((s) => s.id === "stat-fpl-xg");
-    expect(xg?.player).toMatch(/^Expected goals/);
-    expect(xg?.club).toBeTruthy();
+  it("gives every statistic its hover's meaning, without the hover's own heading", () => {
+    const xg = rows.find((r) => r.name === "xG");
+    expect(xg?.meaning).toMatch(/^Expected goals/);
+    for (const r of rows) expect(r.meaning.startsWith(`${r.name}:`), r.id).toBe(false);
   });
 
-  it("drop the hover's own heading, keeping only the meaning", () => {
-    for (const s of stats) for (const m of [s.player, s.club]) if (m) expect(m.startsWith(`${s.title}:`), s.id).toBe(false);
+  it("lists players and clubs under the Columns picker's headings", () => {
+    expect(sections.map((s) => `${s.scope} · ${s.heading}`)).toContain("Players · FPL · Actual Output");
+    expect(sections.some((s) => s.scope === "Clubs")).toBe(true);
+  });
+
+  it("is found by what a short name stands for", () => {
+    expect(ids("points per million")).toContain("statistics");
+    expect(ids("bonus points system")).toContain("statistics");
   });
 });

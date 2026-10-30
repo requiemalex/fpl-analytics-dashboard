@@ -1042,8 +1042,8 @@ without it leaves that season's Shots Faced uncoloured.
     ("…uses figures from a second data source that's switched off") and
     can still be removed; an Outputs panel with FPL rows too keeps those.
 - Its Help guides live in `client/src/understat/help.tsx`, handed to Help
-  through the slot (`helpGuides`); its statistics get Help entries from its
-  columns' hover text, like FPL's.
+  through the slot (`helpGuides`); its statistics join Help's Statistics
+  guide from its columns' hover text, after FPL's.
 
 ### Removing it
 
@@ -1391,20 +1391,28 @@ a question in your own words (`<help_panel>`, `HelpPanel.tsx`).
   minimum; the effort goes into each guide's `keywords`, every word or
   phrase someone might type for it (20 at least). A second source adds its
   own through the slot (`helpGuides`).
-- **Statistics** (`statistics.ts`, `<help_statistic>`): an entry per
-  column, made from its header and hover text (`hoverText.ts`), so Help
-  says what the hovers say. A figure players and clubs both have is one
-  entry; a second source's version is its own. Built only once Help has
+- **Statistics** (`statistics.tsx`, `<help_statistics>`): one guide listing
+  every statistic, players then clubs, under the Columns picker's headings
+  (a second source's after FPL's, its versions of FPL figures under "FPL &
+  …"), each with the meaning its column's hover gives (`hoverText.ts`), so
+  Help says what the hovers say. Typing narrows the list to the statistics
+  named; a question naming none shows them all. Made only once Help has
   been opened (a second source works out its columns' figures when asked).
 - **Matching** (`search.ts`, `<help_search>`): no AI, nothing sent
-  anywhere. Phrases, keywords, title and answer words score in that order;
-  words are stemmed, folded through a few synonyms, matched as prefixes
-  while typed (or with `*`) and through the player search's typo check;
-  filler words are ignored. A statistic named on its own goes first.
+  anywhere. Show all to show none (owner's rule, 2026-10-30): with nothing
+  typed every guide shows, and each letter narrows the list to the guides
+  it still matches, from the first letter, with no score to reach. Best
+  first: phrases, then keywords (more when in the title), then title and
+  answer words; any word matches as the start of a guide's word (or with
+  `*`) and through the player search's typo check; words are stemmed and
+  folded through a few synonyms; filler words are ignored (a question of
+  nothing else isn't one yet). A statistic's name alone puts the
+  Statistics guide first. The best match opens by itself from 3 letters.
   `search.test.ts` and `understat/help.test.ts` hold the questions each
   guide must answer first: add a question when adding a guide.
 - With nothing typed it lists the current page's own guides ("This page"),
-  then every guide by topic. The question stays as left between opens.
+  then every guide by topic (`topics.ts`). The question stays as left
+  between opens.
 - **Data check** (`DataHealth.tsx`, in "Something looks wrong"): fields FPL
   didn't send, records dropped for invalid data, and the xGI check.
 

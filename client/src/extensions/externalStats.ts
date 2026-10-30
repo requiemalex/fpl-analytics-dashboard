@@ -147,7 +147,7 @@ export interface ExternalStatsSource {
   /** Player Comparison's trend graphs: the source's season-by-season figures — its own in picker groups, and its version of FPL trend figures (keyed by the FPL trend key) for their ⇄ toggle. */
   playerTrends: ExternalColumnSet<ExternalTrendMetric>;
   profiles: ExternalProfiles;
-  /** The source's own Help guides (what it is, its colours, its toggle, its own sections), searched and listed with FPL's (help/HelpPanel.tsx). Its statistics get entries from its columns. */
+  /** The source's own Help guides (what it is, its colours, its toggle, its own sections), searched and listed with FPL's (help/HelpPanel.tsx). Its statistics join Help's Statistics guide from its columns. */
   helpGuides: HelpGuide[];
 }
 

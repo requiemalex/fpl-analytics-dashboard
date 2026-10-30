@@ -3,7 +3,7 @@ import { COPYRIGHT_NOTICE } from "../brand";
 import { NavLink } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { fmtTimeAgo, fmtDate, fmtDateShort } from "../utils/format";
-import { CalendarIcon, ComparativeColourIcon, HelpIcon, NotepadIcon } from "./IconToolbar";
+import { CalendarIcon, ComparativeColourIcon, HelpIcon, NotepadIcon, PersonIcon } from "./IconToolbar";
 import { Notepad, NOTEPAD_KEY, useNotepadHotkey } from "./Notepad";
 import { setComparativeColourOn, useComparativeColour } from "../state/comparativeColour";
 import { HelpPanel } from "../help/HelpPanel";
@@ -77,16 +77,6 @@ function getGameweekInfo(gameweekState: ReturnType<typeof useAppState>["gameweek
     return { label: `GW ${gameweekState.event.id} · final`, title: `Last completed: GW ${gameweekState.event.id}`, deadlineIso: null };
   }
   return { label: "Pre-season", title: "Pre-season / No active gameweek", deadlineIso: null };
-}
-
-/** One player: head and shoulders, on the shared 16-unit icon grid. */
-function PersonIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <circle cx="8" cy="5.2" r="2.7" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M2.8 14c0-2.9 2.3-4.9 5.2-4.9s5.2 2 5.2 4.9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
-  );
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {

@@ -17,6 +17,8 @@ import {
 import { HideSmallSamplesIcon, MinutesFloorIcon } from "../components/MinutesFloorBadge";
 import { NOTEPAD_KEY } from "../components/Notepad";
 import { DataHealth } from "./DataHealth";
+import { MORE_HELP_GUIDES } from "./moreGuides";
+import { TOPIC } from "./topics";
 import type { HelpGuide } from "./types";
 import {
   Chips,
@@ -46,15 +48,6 @@ import {
  * for it. help/search.test.ts holds the questions each must answer.
  */
 
-const TOPIC = {
-  numbers: "Reading the numbers",
-  dashboard: "Dashboard",
-  tables: "Player & Team Explorer",
-  profiles: "Teams & profiles",
-  comparison: "Player Comparison",
-  building: "Team Building",
-  app: "The app",
-} as const;
 
 const ALL_PAGES: HelpGuide["pages"] = ["dashboard", "player-explorer", "team-explorer", "player-comparison", "team-building"];
 const TABLE_PAGES: HelpGuide["pages"] = ["player-explorer", "team-explorer", "team-building"];
@@ -79,7 +72,7 @@ function DottedLineIcon() {
   );
 }
 
-export const HELP_GUIDES: HelpGuide[] = [
+const FIRST_GUIDES: HelpGuide[] = [
   // ---------- Reading the numbers ----------
   {
     id: "colours",
@@ -121,6 +114,7 @@ export const HELP_GUIDES: HelpGuide[] = [
     answer: "Too few minutes to rank fairly, so no colour and no percentile.",
     pages: ALL_PAGES,
     keywords: [
+      "player not coloured", "player coloured",
       "stopwatch", "stop watch", "clock", "timer", "watch icon", "amber", "amber icon", "yellow", "yellow icon", "yellow clock", "small sample", "sample size", "not enough minutes",
       "too few minutes", "few minutes", "no percentile", "not coloured", "no colour", "why no colour", "greyed", "grey icon",
       "floor", "minutes floor", "fixed floor", "855", "quarter of the minutes", "cameo", "left out", "excluded", "icon next to name",
@@ -239,6 +233,7 @@ export const HELP_GUIDES: HelpGuide[] = [
     answer: "No figure exists. A dash never means 0.",
     pages: ALL_PAGES,
     keywords: [
+      "why is it blank", "blank cell",
       "dash", "—", "-", "hyphen", "line", "blank", "empty", "missing", "no number", "no value", "no data", "nothing", "zero", "0",
       "null", "not showing", "not available", "n/a", "why missing", "why blank",
     ],
@@ -410,8 +405,8 @@ export const HELP_GUIDES: HelpGuide[] = [
     answer: "A scatter plot of two statistics, or a bar chart of the top 15 by one.",
     pages: ["dashboard"],
     keywords: [
-      "graph", "graphs", "chart", "charts", "scatter", "scatter plot", "bar chart", "plot", "axis", "axes", "trend line", "diagonal",
-      "x = y", "log scale", "logarithmic", "outlier", "outliers", "add graph", "edit graph", "dots", "points on chart",
+      "graph", "graphs", "chart", "charts", "make a graph", "new chart", "scatter", "scatter plot", "bar chart", "plot", "axis", "axes", "trend line", "diagonal",
+      "x = y", "outlier", "outliers", "add graph", "edit graph", "dots", "points on chart",
     ],
     related: ["dashboard-tiles", "stopwatch"],
     body: (
@@ -561,7 +556,7 @@ export const HELP_GUIDES: HelpGuide[] = [
   // ---------- Teams & profiles ----------
   {
     id: "team-explorer",
-    topic: TOPIC.profiles,
+    topic: TOPIC.teams,
     title: "Team Explorer",
     answer: "The league as a table: each club's figures for the Data View.",
     pages: ["team-explorer"],
@@ -583,7 +578,7 @@ export const HELP_GUIDES: HelpGuide[] = [
   },
   {
     id: "team-profile",
-    topic: TOPIC.profiles,
+    topic: TOPIC.teams,
     title: "Team Profile",
     answer: "Click any club's pill for its own page: club figures only, no players.",
     keywords: [
@@ -591,7 +586,7 @@ export const HELP_GUIDES: HelpGuide[] = [
       "team profile", "club profile", "team page", "club page", "team summary", "team radar", "club pill", "badge", "kit",
       "open team", "team details", "club details", "team history", "club summary", "club radar", "team points history",
     ],
-    related: ["fixture-forecast", "points-history"],
+    related: ["team-summary", "fixture-forecast"],
     body: (
       <>
         <Terms
@@ -609,12 +604,12 @@ export const HELP_GUIDES: HelpGuide[] = [
   },
   {
     id: "fixture-forecast",
-    topic: TOPIC.profiles,
+    topic: TOPIC.teams,
     title: "Fixture Forecast",
     answer: "Scoutline's own forecast for a club's next five matches, on its Team Profile.",
     keywords: [
       "fixture difficulty", "next 5 fixtures", "forecast goals", "expected goals against", "win probability",
-      "fixture forecast", "fixtures", "forecast", "clean sheet chance", "clean sheet odds", "win chance", "fdr", "difficulty",
+      "fixture forecast", "fixtures", "forecast", "clean sheet chance", "clean sheet odds", "win chance",
       "upcoming", "next matches", "next games", "easy fixtures", "hard fixtures", "schedule", "odds", "probability", "who to buy defence",
     ],
     related: ["team-profile", "expected-points"],
@@ -645,8 +640,8 @@ export const HELP_GUIDES: HelpGuide[] = [
     answer: "Click a player's name almost anywhere. Esc or × closes it.",
     keywords: [
       "player info", "player stats", "player history",
-      "player profile", "profile", "player page", "open player", "player details", "summary", "tiles", "percentile radar",
-      "spider chart", "playing time", "gauge", "close profile", "click name", "section colours", "player summary", "player card", "more about a player",
+      "player profile", "profile", "player page", "open player", "player details", "summary", "tiles",
+      "playing time", "gauge", "close profile", "click name", "player overview", "profile page", "his page", "player summary", "player card", "more about a player",
     ],
     related: ["points-history", "stopwatch"],
     body: (
@@ -666,14 +661,14 @@ export const HELP_GUIDES: HelpGuide[] = [
   {
     id: "points-history",
     topic: TOPIC.profiles,
-    title: "Points History and Match Log",
-    answer: "A bar per season; click one to list that season's matches in the Match Log below.",
+    title: "Points History",
+    answer: "A bar per season of his FPL points; click one to show that season in the Match Log.",
     keywords: [
-      "points history", "match log", "season bars", "past points", "previous seasons", "career points", "dagger", "†", "grey bar",
-      "green bar", "outline", "average line", "change", "matches", "match by match", "game log", "gamelog", "results", "past matches",
-      "totals", "average row", "double gameweek", "season price",
+      "points history", "season bars", "bar per season", "past points", "previous seasons", "career points", "points per season",
+      "dagger", "†", "grey bar", "green bar", "outline", "outlined bar", "average line", "4 season average", "change", "up arrow",
+      "down arrow", "trend", "history chart", "season icons",
     ],
-    related: ["player-profile", "historic-average"],
+    related: ["match-log", "historic-average"],
     body: (
       <>
         <IconKey
@@ -684,7 +679,7 @@ export const HELP_GUIDES: HelpGuide[] = [
             { icon: <MinutesFloorIcon size={14} />, tone: "amber", label: "Stopwatch:", text: "under 855 minutes" },
           ]}
         />
-        <Points items={["Match Log: one row per match, back to 2016/17, with Totals and Average.", "Its heading shows the season's price, start → end."]} />
+        <Note>Top right: the change between his last two seasons. The icons underneath: his average points, minutes, goals and assists a season.</Note>
       </>
     ),
   },
@@ -697,7 +692,7 @@ export const HELP_GUIDES: HelpGuide[] = [
     answer: "Up to 5 players side by side, each in his own colour.",
     pages: ["player-comparison"],
     keywords: [
-      "compare players", "similar players", "pick between", "who to buy",
+      "compare players", "similar players", "pick between",
       "compare", "comparison", "player comparison", "side by side", "versus", "vs", "head to head", "h2h", "two players",
       "between players", "blue", "gold", "series colours", "add player", "comparison views", "who is better", "choose between",
     ],
@@ -725,9 +720,10 @@ export const HELP_GUIDES: HelpGuide[] = [
     answer: "Radars rank, Outputs measure, Trends go season by season.",
     pages: ["player-comparison"],
     keywords: [
+      "radar card", "outputs card", "trends card", "three cards",
       "outputs bar", "radar axis", "trend graph", "season trend",
-      "radar", "radars", "spider", "outputs", "output", "bars", "trends", "trend", "season by season", "over time", "dotted line",
-      "gap", "percentile", "chart", "radar chart", "card", "cards", "best in bold", "tinted bar",
+      "radar", "radars", "spider", "outputs", "output", "bars", "trends", "trend",
+      "percentile", "chart", "radar chart", "card", "cards", "best in bold", "tinted bar",
     ],
     related: ["comparison", "stopwatch"],
     body: (
@@ -788,8 +784,8 @@ export const HELP_GUIDES: HelpGuide[] = [
     pages: ["team-building"],
     keywords: [
       "squad", "build squad", "new squad", "blank squad", "add player", "add players", "transfer", "transfers", "swap", "substitute", "sub",
-      "bench", "pitch", "drag", "remove player", "clear draft", "wildcard", "free hit", "draft", "plus", "+", "15 players",
-      "3 per club", "club limit", "delete squad", "rename squad", "5 squads",
+      "bench", "pitch", "drag", "remove player", "clear draft", "wildcard", "free hit", "draft", "plus", "+",
+      "club limit",
     ],
     related: ["import-team", "best-draft"],
     body: (
@@ -813,7 +809,7 @@ export const HELP_GUIDES: HelpGuide[] = [
     pages: ["team-building"],
     keywords: [
       "pitch view", "what does the shirt say", "figure on shirt", "kit view",
-      "highlight", "shirt", "shirts", "kit", "nameplate", "card", "fixtures", "fdr", "difficulty", "gameweek arrows", "‹ ›", "next gameweek",
+      "highlight", "shirt", "shirts", "kit", "nameplate", "card", "fixtures", "gameweek arrows", "‹ ›", "next gameweek",
       "owned", "ownership", "points prediction", "show fixtures", "what's on the shirt", "change gameweek",
     ],
     related: ["expected-points", "price-changes"],
@@ -1016,3 +1012,6 @@ export const HELP_GUIDES: HelpGuide[] = [
     ),
   },
 ];
+
+/** Every FPL guide (a second source adds its own through the slot; the Statistics guide is made from the columns, help/statistics.tsx). */
+export const HELP_GUIDES: HelpGuide[] = [...FIRST_GUIDES, ...MORE_HELP_GUIDES];

@@ -4,9 +4,10 @@ import { CloseIcon, HelpIcon } from "../components/IconToolbar";
 import { useExternalStats } from "../extensions/externalStats";
 import { useEscapeLayer } from "../state/useEscapeLayer";
 import { HELP_GUIDES } from "./guides";
-import { buildHelpIndex, searchHelp } from "./search";
-import { helpStatistics } from "./statistics";
-import type { HelpEntry, HelpGuide, HelpPage } from "./types";
+import { buildHelpIndex, questionTokens, searchHelp } from "./search";
+import { helpStatSections, statisticsGuide } from "./statistics";
+import { sortTopics } from "./topics";
+import type { HelpGuide, HelpPage } from "./types";
 
 /** Which page Help is opened over, for its "This page" list (<help_this_page>). */
 const PAGE_BY_PATH: Record<string, HelpPage> = {
@@ -22,9 +23,13 @@ function isAbout(guide: HelpGuide, page: HelpPage | undefined): boolean {
   return !!page && !!guide.pages && guide.pages.includes(page) && guide.pages.length < 5;
 }
 
-function GuideCard({ guide, open, onToggle, onRelated, byId }: {
+/** The best match opens by itself once a question is long enough to mean something (a letter or two narrows the list, nothing more). */
+const OPEN_BEST_FROM = 3;
+
+function GuideCard({ guide, open, question, onToggle, onRelated, byId }: {
   guide: HelpGuide;
   open: boolean;
+  question: string;
   onToggle: () => void;
   onRelated: (id: string) => void;
   byId: Map<string, HelpGuide>;
@@ -38,7 +43,7 @@ function GuideCard({ guide, open, onToggle, onRelated, byId }: {
       </button>
       {open && (
         <div className="help-card-body">
-          {guide.body}
+          {typeof guide.body === "function" ? guide.body(question) : guide.body}
           {related.length > 0 && (
             <div className="help-related">
               {related.map((g) => (
@@ -54,44 +59,20 @@ function GuideCard({ guide, open, onToggle, onRelated, byId }: {
   );
 }
 
-function StatisticCard({ entry }: { entry: Extract<HelpEntry, { kind: "statistic" }> }) {
-  return (
-    <div className="help-card help-stat">
-      <div className="help-card-head">
-        <span className="help-card-title">
-          {entry.title}
-          <span className={`help-stat-source source-coloured ${entry.source ? entry.source.className : "col-source-fpl"}`}>{entry.source ? entry.source.label : "FPL"}</span>
-        </span>
-        {entry.player && (
-          <span className="help-card-answer">
-            {entry.club && <b>Player: </b>}
-            {entry.player}
-          </span>
-        )}
-        {entry.club && (
-          <span className="help-card-answer">
-            {entry.player && <b>Club: </b>}
-            {entry.club}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
 /**
  * <help_panel>: the top bar's Help, opened by the magnifying glass beside
  * the colour switch. It slides in like the Notepad (the shared side panel,
- * one at a time) with a box to ask in your own words: the guides and
- * statistics that match (help/search.ts) are listed best first, the best
- * one already open. With nothing typed it lists this page's guides, then
- * every guide by topic. The question stays as left between opens.
+ * one at a time) with a box to ask in your own words. Show all to show
+ * none (<help_search>): with nothing typed every guide is listed (this
+ * page's first, then by topic), and each letter typed narrows the list to
+ * the guides it still matches, best first; the best opens by itself once
+ * the question has a few letters. The question stays as left between opens.
  */
 export function HelpPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const ext = useExternalStats();
   const { pathname } = useLocation();
   const page = PAGE_BY_PATH[pathname];
-  const [query, setQuery] = useState("");
+  const [question, setQuestion] = useState("");
   const [openIds, setOpenIds] = useState<Set<string>>(new Set());
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -100,29 +81,24 @@ export function HelpPanel({ open, onClose }: { open: boolean; onClose: () => voi
 
   useEscapeLayer(open, onClose);
 
-  const guides = useMemo(() => [...HELP_GUIDES, ...(ext?.helpGuides ?? [])], [ext?.helpGuides]);
-  const byId = useMemo(() => new Map(guides.map((g) => [g.id, g])), [guides]);
-  // A second source works out its columns' figures when asked for them, so Help asks only once it's been opened.
+  // A second source works out its columns' figures when asked for them, so the Statistics guide is made only once Help has been opened.
   const [used, setUsed] = useState(false);
   useEffect(() => {
     if (open) setUsed(true);
   }, [open]);
-  // A few hundred short entries: cheap to rebuild whenever the second source changes.
-  const index = useMemo(
-    () =>
-      buildHelpIndex([
-        ...guides.map((g): HelpEntry => ({ kind: "guide", ...g })),
-        ...(used ? helpStatistics(ext) : []).map((s): HelpEntry => ({ kind: "statistic", ...s })),
-      ]),
-    [guides, ext, used],
+  const guides = useMemo(
+    () => [...HELP_GUIDES, ...(ext?.helpGuides ?? []), ...(used ? [statisticsGuide(helpStatSections(ext))] : [])],
+    [ext, used],
   );
-  const results = useMemo(() => (query.trim() ? searchHelp(index, query) : []), [index, query]);
+  const byId = useMemo(() => new Map(guides.map((g) => [g.id, g])), [guides]);
+  const index = useMemo(() => buildHelpIndex(guides), [guides]);
+  const asking = questionTokens(question).length > 0;
+  const results = useMemo(() => (asking ? searchHelp(index, question) : []), [index, question, asking]);
 
-  // Each new question opens only its best match.
   const ask = (text: string) => {
-    setQuery(text);
-    const best = text.trim() ? searchHelp(index, text)[0] : undefined;
-    setOpenIds(new Set(best?.entry.kind === "guide" ? [best.entry.id] : []));
+    setQuestion(text);
+    const best = text.trim().length >= OPEN_BEST_FROM ? searchHelp(index, text)[0] : undefined;
+    setOpenIds(new Set(best ? [best.guide.id] : []));
     listRef.current?.scrollTo?.({ top: 0 });
   };
   const toggle = (id: string) =>
@@ -135,7 +111,7 @@ export function HelpPanel({ open, onClose }: { open: boolean; onClose: () => voi
   const showGuide = (id: string) => {
     const g = byId.get(id);
     if (!g) return;
-    setQuery(g.title);
+    setQuestion(g.title);
     setOpenIds(new Set([id]));
     listRef.current?.scrollTo?.({ top: 0 });
   };
@@ -155,13 +131,14 @@ export function HelpPanel({ open, onClose }: { open: boolean; onClose: () => voi
     }
   }, [open]);
 
-  const card = (g: HelpGuide) => <GuideCard key={g.id} guide={g} open={openIds.has(g.id)} onToggle={() => toggle(g.id)} onRelated={showGuide} byId={byId} />;
+  const card = (g: HelpGuide) => (
+    <GuideCard key={g.id} guide={g} open={openIds.has(g.id)} question={question} onToggle={() => toggle(g.id)} onRelated={showGuide} byId={byId} />
+  );
 
   let list: React.ReactNode;
-  if (!query.trim()) {
+  if (!asking) {
     // The guides only about this page first, then those it shares with others (Team Building's own before the table's).
     const here = guides.filter((g) => isAbout(g, page)).sort((a, b) => (a.pages?.length ?? 0) - (b.pages?.length ?? 0));
-    const topics = [...new Set(guides.map((g) => g.topic))];
     list = (
       <>
         {here.length > 0 && (
@@ -170,7 +147,7 @@ export function HelpPanel({ open, onClose }: { open: boolean; onClose: () => voi
             {here.map(card)}
           </section>
         )}
-        {topics.map((t) => (
+        {sortTopics([...new Set(guides.map((g) => g.topic))]).map((t) => (
           <section className="help-group" key={t}>
             <h3 className="help-group-title">{t}</h3>
             {guides.filter((g) => g.topic === t).map(card)}
@@ -179,13 +156,9 @@ export function HelpPanel({ open, onClose }: { open: boolean; onClose: () => voi
       </>
     );
   } else if (results.length === 0) {
-    list = (
-      <div className="help-empty">
-        Nothing matches "{query.trim()}". Try one word, like <i>colour</i>, <i>captain</i> or <i>xG</i>.
-      </div>
-    );
+    list = <div className="help-empty">Nothing matches "{question.trim()}".</div>;
   } else {
-    list = results.map((r) => (r.entry.kind === "guide" ? card(r.entry) : <StatisticCard key={r.entry.id} entry={r.entry} />));
+    list = results.map((r) => card(r.guide));
   }
 
   return (
@@ -208,14 +181,14 @@ export function HelpPanel({ open, onClose }: { open: boolean; onClose: () => voi
           <input
             ref={inputRef}
             type="text"
-            value={query}
+            value={question}
             onChange={(e) => ask(e.target.value)}
             placeholder="Ask a question, or name a statistic"
             aria-label="Ask a question, or name a statistic"
             autoComplete="off"
             spellCheck={false}
           />
-          {query && (
+          {question && (
             <button type="button" className="help-search-clear" title="Clear" aria-label="Clear the question" onClick={() => ask("")}>
               <CloseIcon size={12} />
             </button>

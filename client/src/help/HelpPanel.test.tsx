@@ -92,11 +92,38 @@ describe("Help (<help_panel>)", () => {
     expect(open).toBe("Setting a minimum minutes");
   });
 
-  it("names a statistic's meaning, as its hover does", () => {
+  it("a statistic's name opens the Statistics guide, narrowed to it, with its hover's meaning", () => {
     shell();
     fireEvent.click(helpButton());
     ask("bps");
-    expect(document.querySelector(".help-stat .help-card-answer")?.textContent).toMatch(/^Bonus Points System/);
+    const open = document.querySelector(".help-card.open")!;
+    expect(open.querySelector(".help-card-title")?.textContent).toBe("Statistics");
+    const rows = [...open.querySelectorAll(".help-stats tr")].map((r) => r.querySelector("td")?.textContent);
+    expect(rows).toContain("BPS");
+    expect(rows).not.toContain("xG");
+    expect(open.textContent).toContain("Bonus Points System");
+  });
+
+  it("shows all, then narrows from the first letters typed, opening nothing until there's a word", () => {
+    shell();
+    fireEvent.click(helpButton());
+    const titles = () => [...document.querySelectorAll(".help-card-title")].map((t) => t.textContent);
+    const everything = titles().length;
+    ask("ic");
+    expect(titles()).toContain("What the icons mean");
+    expect(titles().length).toBeLessThan(everything);
+    expect(document.querySelector(".help-card.open")).toBeNull();
+    ask("icons");
+    expect(document.querySelector(".help-card.open .help-card-title")?.textContent).toBe("What the icons mean");
+  });
+
+  it("\"stats\" finds the Statistics guide, listing them all", () => {
+    shell();
+    fireEvent.click(helpButton());
+    ask("stats");
+    const open = document.querySelector(".help-card.open")!;
+    expect(open.querySelector(".help-card-title")?.textContent).toBe("Statistics");
+    expect(open.querySelectorAll(".help-stats tr").length).toBeGreaterThan(40);
   });
 
   it("says so when nothing matches", () => {

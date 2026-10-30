@@ -26,8 +26,8 @@ const FORECAST_CAVEATS =
  * shown anywhere in the UI must have an entry here — see
  * <data_transparency> in the project brief. It's the written record of
  * every formula (with README "Metric methodology"); the app itself
- * explains a statistic through its hover text, which Help's statistic
- * entries reuse (help/statistics.ts).
+ * explains a statistic through its hover text, which Help's Statistics
+ * guide reuses (help/statistics.tsx).
  */
 export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
   totalPoints: def({

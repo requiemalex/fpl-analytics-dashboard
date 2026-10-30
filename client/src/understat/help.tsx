@@ -1,12 +1,13 @@
 import React from "react";
-import { SourceSwapIcon } from "../components/SourceToggle";
+import { FplSourceIcon, SourceSwapIcon } from "../components/SourceToggle";
 import type { HelpGuide } from "../help/types";
 import { Chips, HeaderKey, IconKey, Note, Points, Terms } from "../help/visuals";
 
 /**
  * Understat's own Help guides (<help_guide>), handed to Help through the
  * external-stats slot (extensions/externalStats.ts), so they go when
- * Understat goes. Its statistics get their entries from its columns.
+ * Understat goes. Its statistics join Help's Statistics guide from its
+ * columns.
  */
 
 const TOPIC = "Understat";
@@ -109,6 +110,104 @@ export function understatHelpGuides(icon: React.ReactNode): HelpGuide[] {
           ]}
         />
       ),
+    },
+    {
+      id: "understat-profiles",
+      topic: TOPIC,
+      title: "Understat in a profile",
+      answer: "An Understat · Views section, following the profile's Data View, opens with the figures that matter for his position.",
+      keywords: [
+        "understat views", "understat summary", "understat section", "profile understat", "violet section", "understat tiles",
+        "shots faced", "goalkeeper understat", "defender understat", "midfielder understat", "forward understat", "key passes",
+        "xgchain", "xgbuildup", "position summary", "creating", "shooting", "understat profile", "player understat", "club understat",
+      ],
+      related: ["shot-maps", "understat"],
+      body: (
+        <Terms
+          rows={[
+            ["Goalkeeper", "shots faced while he was on the pitch"],
+            ["Defender", "shots faced, and his attacking figures"],
+            ["Midfielder", "attacking and creating (key passes, xGChain, xGBuildup)"],
+            ["Forward", "attacking and shooting"],
+          ]}
+        />
+      ),
+    },
+    {
+      id: "result-chances",
+      topic: TOPIC,
+      title: "Win, Draw and Loss Chance",
+      answer: "In a club's Match Log: the result its chances deserved, worked out by Understat after the match.",
+      keywords: [
+        "win chance", "draw chance", "loss chance", "result chances", "deserved", "deserved result", "lucky win", "unlucky", "xpts",
+        "expected points club", "pts − xpts", "points minus expected points", "luck", "match chances", "shots both sides", "should have won",
+        "position column", "sub", "off the bench", "played position",
+      ],
+      related: ["team-match-log", "understat"],
+      body: (
+        <>
+          <Points items={["From both sides' shots: a match that's been played, never a forecast.", "Its Average is coloured against every club that season."]} />
+          <Note>A player's Match Log gains his Position in each match (Sub: off the bench).</Note>
+        </>
+      ),
+    },
+    {
+      id: "understat-coverage",
+      topic: TOPIC,
+      title: "Which players and seasons Understat covers",
+      answer: "Premier League seasons since 2016/17, matched to FPL's players automatically. It updates daily.",
+      keywords: [
+        "understat missing", "understat dash", "understat blank", "not matched", "player not found understat", "new signing understat",
+        "promoted player", "championship season", "coverage", "which seasons", "how far back understat", "daily", "a day behind",
+        "latest match missing", "matched", "matching", "default columns", "understat columns", "shots key passes npxgi", "understat seasons",
+      ],
+      related: ["understat", "dash"],
+      body: (
+        <Points
+          items={[
+            "Players are matched by the matches they played and their names; one not yet certain shows \"—\", never someone else's figures.",
+            "A season outside the Premier League shows \"—\".",
+            "The Explorers open with a few of its columns: Shots, Key Passes and NPxGI; for clubs Shots, Shots Against and Pts − xPts.",
+          ]}
+        />
+      ),
+    },
+    {
+      id: "source-icons",
+      topic: TOPIC,
+      title: "Source icons and title colours",
+      answer: "A tile's, graph's or card's first icon and its title colour say whose figures it shows.",
+      keywords: [
+        "source icon", "source icons", "card icon", "tile icon", "graph icon", "first icon", "title colour", "green title", "violet title",
+        "rose title", "pink title", "whose figures", "which source", "fpl or understat", "football icon", "goal icon", "card header",
+        "tile header", "violet axis", "(understat)",
+      ],
+      related: ["understat", "source-switch"],
+      body: (
+        <>
+          <IconKey
+            rows={[
+              { icon: <FplSourceIcon size={15} />, tone: "green", label: "FPL's figures", text: "(green title)" },
+              { icon, tone: "violet", label: "Understat's figures", text: "(violet title)" },
+              { icon: <SourceSwapIcon size={15} />, tone: "rose", label: "Both, or switchable", text: "(rose title)" },
+            ]}
+          />
+          <Note>Understat's figures are named in violet on axes and hovers; only a CSV export spells out "(Understat)".</Note>
+        </>
+      ),
+    },
+    {
+      id: "non-penalty",
+      topic: TOPIC,
+      title: "Non-penalty figures (NP)",
+      answer: "NP Goals, NPxG and NPxGI leave penalties out, so a penalty taker isn't flattered.",
+      keywords: [
+        "non penalty", "non-penalty", "np", "npxg", "npxgi", "np goals", "npg", "without penalties", "excluding penalties", "no penalties",
+        "penalty taker", "open play", "flattered", "pens", "penalties removed", "np goals − npxg", "npxg/game", "npxg/shot", "true threat",
+        "real threat",
+      ],
+      related: ["understat", "set-pieces"],
+      body: <Note>Compare NPxG with xG: the gap is his penalties.</Note>,
     },
   ];
 }

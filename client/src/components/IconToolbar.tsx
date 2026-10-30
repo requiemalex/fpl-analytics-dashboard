@@ -195,6 +195,16 @@ export function CreateViewIcon() {
   );
 }
 
+/** One player: head and shoulders — the top bar's count of players loaded. */
+export function PersonIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="8" cy="5.2" r="2.7" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M2.8 14c0-2.9 2.3-4.9 5.2-4.9s5.2 2 5.2 4.9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 /** A magnifying glass: Help, the top bar's search of how the app works (help/HelpPanel.tsx). */
 export function HelpIcon({ size = 15 }: { size?: number }) {
   return (
