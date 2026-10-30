@@ -163,11 +163,11 @@ export function Notepad({ open, onClose }: { open: boolean; onClose: () => void 
 
   return (
     <>
-      <div className={`notepad-layer${open ? " open" : ""}`} aria-hidden={!open}>
-        <div className="notepad-dim" />
-        <div className={`notepad-panel${expanded ? " expanded" : ""}`} ref={panelRef} role="dialog" aria-modal="false" aria-label="Notepad">
-          <div className="notepad-header">
-            <div className="notepad-heading">
+      <div className={`side-layer${open ? " open" : ""}`} aria-hidden={!open}>
+        <div className="side-dim" />
+        <div className={`side-panel${expanded ? " expanded" : ""}`} ref={panelRef} role="dialog" aria-modal="false" aria-label="Notepad">
+          <div className="side-panel-header">
+            <div className="side-panel-heading">
               <button
                 type="button"
                 className="chip chip-icon"
@@ -178,9 +178,9 @@ export function Notepad({ open, onClose }: { open: boolean; onClose: () => void 
               >
                 <ChevronsIcon direction={expanded ? "right" : "left"} />
               </button>
-              <span className="notepad-title">Notepad</span>
+              <span className="side-panel-title">Notepad</span>
             </div>
-            <div className="notepad-actions">
+            <div className="side-panel-actions">
               <button type="button" className="chip chip-icon" title={atTabLimit ? `New tab: up to ${MAX_TABS} tabs, so delete one first` : "New tab"} aria-label="New tab" disabled={atTabLimit} onClick={handleAdd}>
                 <PlusIcon size={13} />
               </button>

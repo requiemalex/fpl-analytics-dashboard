@@ -24,9 +24,10 @@ const FORECAST_CAVEATS =
 /**
  * Central, machine- and human-readable metric dictionary. Every metric
  * shown anywhere in the UI must have an entry here — see
- * <data_transparency> in the project brief. This is rendered directly by
- * the User Guide's metric reference section and also backs the Player
- * Explorer tooltips.
+ * <data_transparency> in the project brief. It's the written record of
+ * every formula (with README "Metric methodology"); the app itself
+ * explains a statistic through its hover text, which Help's statistic
+ * entries reuse (help/statistics.ts).
  */
 export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
   totalPoints: def({

@@ -20,8 +20,9 @@ workspaces at this root. Shipped as a Windows desktop app (Electron).
 - `README.md` — how the app works **now**. Before non-trivial changes, read
   the section you're touching ("Data rules", "Metric methodology", "Saved
   data", the page's implementation notes) — not the whole file.
-- In-app User Guide (`client/src/pages/UserGuide.tsx`) — what each page does,
-  for users.
+- In-app Help (`client/src/help/guides.tsx`, the top bar's magnifying glass)
+  — short, visual guides to what each page does, for users, found by
+  searching in your own words.
 - `docs/HISTORY.md` — how things **used to** work. Archived: ignore it unless
   I ask to understand or restore an old feature.
 - `DEPLOYMENT.md` — desktop build/packaging/auto-update.
@@ -202,16 +203,19 @@ No lint script. Playwright isn't installed but works via
   hard-coded font; `client/src/styles/fontRule.test.ts` fails if you do.
 - **Graceful degradation over crashes** — a bad field, unmatched player, or
   unknown value gives a warning, not a broken page.
-- **No inline explanatory captions.** Explanations go in the User Guide
-  only, not under a control.
+- **No inline explanatory captions.** Explanations go in Help only, not
+  under a control. A Help guide is a one-line answer, a visual and a few
+  short points (owner's rule, 2026-10-30): keep text to a minimum, prefer
+  the app's own icons and visuals, and give it many search words
+  (`keywords`), with a question for it in `help/search.test.ts`.
 - **Icons over text buttons** for toolbar and card actions, each with hover
   text (`title` + `aria-label`) saying what it does. Shared icons live in
   `components/IconToolbar.tsx`.
 
 ## Keeping docs current
 - When behaviour changes, update the affected README section **in place** (no
-  changelog entries) and the User Guide if users see it. Check both for
-  anything the change makes untrue.
+  changelog entries) and Help if users see it. Check both for anything the
+  change makes untrue.
 - When a feature is removed or replaced, add an entry to `docs/HISTORY.md`
   under "Removed or replaced since 2026-09-24": what it did, why it went, and
   the last commit that had it.

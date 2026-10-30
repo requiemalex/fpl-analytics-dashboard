@@ -21,7 +21,6 @@ const PlayerExplorer = lazy(() => import("./pages/PlayerExplorer").then((m) => (
 const Teams = lazy(() => import("./pages/Teams").then((m) => ({ default: m.Teams })));
 const TeamBuilder = lazy(() => import("./pages/TeamBuilder").then((m) => ({ default: m.TeamBuilder })));
 const PlayerComparison = lazy(() => import("./pages/PlayerComparison").then((m) => ({ default: m.PlayerComparison })));
-const UserGuide = lazy(() => import("./pages/UserGuide").then((m) => ({ default: m.UserGuide })));
 const Legal = lazy(() => import("./pages/Legal").then((m) => ({ default: m.Legal })));
 
 export default function App() {
@@ -46,7 +45,6 @@ export default function App() {
                     <Route path="/teams" element={<Teams />} />
                     <Route path="/player-comparison" element={<PlayerComparison />} />
                     <Route path="/team-building" element={<TeamBuilder />} />
-                    <Route path="/guide" element={<UserGuide />} />
                     <Route path="/legal" element={<Legal />} />
                   </Routes>
                 </Suspense>

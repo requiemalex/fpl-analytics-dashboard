@@ -1,7 +1,7 @@
 /**
  * Bar widths for a tile's rows (TopList, TeamTopList): the top row, the
  * tile's leader, is always full length, and a shorter bar shows how far
- * behind the leader a row is (User Guide, Dashboard).
+ * behind the leader a row is (Help, "Build a tile").
  *
  * Highest First, or any +/- metric: width = |value| ÷ the largest |value|.
  * Lowest First on a non-negative metric (the top row holds the smallest

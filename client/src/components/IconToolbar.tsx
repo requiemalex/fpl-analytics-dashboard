@@ -195,6 +195,16 @@ export function CreateViewIcon() {
   );
 }
 
+/** A magnifying glass: Help, the top bar's search of how the app works (help/HelpPanel.tsx). */
+export function HelpIcon({ size = 15 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="7" cy="7" r="4.6" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M10.4 10.4 14 14" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 /** A view stacked over another: saved views. The same drawing as SectionHeading's "views" (the Dashboard's and Player Comparison's Saved Views heading); here the Explorers' save/load menu. */
 export function SavedViewsIcon({ size = 17 }: { size?: number }) {
   return (

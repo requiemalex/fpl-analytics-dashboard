@@ -5,6 +5,7 @@ import type { TeamColumn } from "../components/teamColumns";
 import type { Position } from "../types/normalized";
 import type { SummaryTileConfig } from "../state/useSummaryTiles";
 import type { DashboardGraphConfig } from "../state/useDashboardGraphs";
+import type { HelpGuide } from "../help/types";
 
 /**
  * The one slot through which a second data source (today: Understat, in
@@ -146,8 +147,8 @@ export interface ExternalStatsSource {
   /** Player Comparison's trend graphs: the source's season-by-season figures — its own in picker groups, and its version of FPL trend figures (keyed by the FPL trend key) for their ⇄ toggle. */
   playerTrends: ExternalColumnSet<ExternalTrendMetric>;
   profiles: ExternalProfiles;
-  /** The source's own User Guide section (what it is, its colour, its metrics), shown before "Data sourcing & known limitations". */
-  guideSection: { id: string; navLabel: string; title: string; accentVar: string; body: ReactNode };
+  /** The source's own Help guides (what it is, its colours, its toggle, its own sections), searched and listed with FPL's (help/HelpPanel.tsx). Its statistics get entries from its columns. */
+  helpGuides: HelpGuide[];
 }
 
 export const ExternalStatsContext = createContext<ExternalStatsSource | null>(null);

@@ -75,7 +75,7 @@ function fakeSource(overrides: Partial<ExternalStatsSource> = {}): ExternalStats
     dashboardStarter: { tiles: [], graphs: [] },
     explorerDefaults: { player: [], team: [] },
     profiles: createProfiles(new Map(), { player: () => {}, club: () => {} }),
-    guideSection: { id: "understat", navLabel: "Understat stats", title: "Understat stats", accentVar: "--col-understat", body: null },
+    helpGuides: [],
     ...overrides,
   };
 }

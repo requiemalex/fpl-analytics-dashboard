@@ -66,7 +66,7 @@ function fakeSource(): ExternalStatsSource {
   return {
     id: "understat", label: "Understat", className: "col-source-understat", icon: null, status: "ready", staleNote: null, request: () => {},
     playerColumns: () => noColumns, teamColumns: () => noColumns, playerTrends: { groups: [], alternates: {} }, dashboardStarter: { tiles: [], graphs: [] }, explorerDefaults: { player: [], team: [] },
-    guideSection: { id: "understat", navLabel: "Understat", title: "Understat", accentVar: "--col-understat", body: null },
+    helpGuides: [],
     profiles: {
       requestPlayer: () => {},
       requestClub: () => {},

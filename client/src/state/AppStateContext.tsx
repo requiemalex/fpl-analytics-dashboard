@@ -45,7 +45,7 @@ interface AppState {
   totalPlayers: number | null;
   advancedFieldAvailability: AdvancedFieldAvailability | null;
   skippedPlayerCount: number;
-  /** Fixtures and club-seasons dropped for failing validation, one record at a time (audit 2026-10-18 M2), so the rest still load. Shown in the User Guide's data health. */
+  /** Fixtures and club-seasons dropped for failing validation, one record at a time (audit 2026-10-18 M2), so the rest still load. Shown in Help's data check (help/DataHealth.tsx). */
   skippedRecordCounts: { fixtures: number; clubSeasons: number };
   validationReport: ValidationReport | null;
   refreshing: boolean;
@@ -220,7 +220,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       // dropped for failing raw schema validation (result.skippedElementCount
       // — see parseBootstrapStatic) and schema-valid records dropped for
       // referencing an unknown team/position id (skippedCount, from
-      // normalizePlayers itself). See UserGuide.tsx's explanatory copy.
+      // normalizePlayers itself). Help's data check (help/DataHealth.tsx) reports it.
       setSkippedPlayerCount(skippedCount + result.skippedElementCount);
       setValidationReport(report);
       setLastUpdated(result.fetchedAt);

@@ -8,7 +8,7 @@ import type { TeamColumn } from "../components/teamColumns";
 import { parseUnderstatPayload, type UnderstatData } from "./schema";
 import { resolveUnderstatClub, resolveUnderstatPlayer, type UsClubResolved, type UsPlayerResolved } from "./resolve";
 import { UNDERSTAT_SOURCE_ID, understatPlayerColumns, understatTeamColumns } from "./columns";
-import { UnderstatGuide } from "./guide";
+import { understatHelpGuides } from "./help";
 import { understatMatchesBehind } from "./staleness";
 import type { UsComparisonContext } from "./comparisons";
 import { fetchClubDetail, fetchPlayerDetail, type DetailLoad, type UsClubSeasonDetail, type UsPlayerSeasonDetail } from "./profileData";
@@ -47,6 +47,9 @@ function UnderstatIcon() {
     </svg>
   );
 }
+
+/** Understat's Help guides: fixed text, made once. */
+const HELP_GUIDES = understatHelpGuides(<UnderstatIcon />);
 
 export function UnderstatProvider({ children }: { children: React.ReactNode }) {
   const { players, teams, teamsById, historicProfiles, historicReferenceSeason, currentSeasonHasStarted, fixtures } = useAppState();
@@ -179,7 +182,7 @@ export function UnderstatProvider({ children }: { children: React.ReactNode }) {
         },
         compare,
       ),
-      guideSection: { id: "understat", navLabel: "Understat stats", title: "Understat stats", accentVar: "--col-understat", body: <UnderstatGuide /> },
+      helpGuides: HELP_GUIDES,
       playerColumns(mode) {
         const cached = playerCache.get(mode);
         if (cached) return cached;

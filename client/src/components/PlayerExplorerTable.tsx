@@ -1207,7 +1207,7 @@ export function PlayerExplorerTable({
 
       {advancedFieldAvailability && !advancedFieldAvailability.defensive_contribution && (
         <div className="banner info">
-          Defensive Contributions is not present on this build of the live API, so affected columns show "—". See the User Guide's metric reference for details.
+          Defensive Contributions is not present on this build of the live API, so affected columns show "—".
         </div>
       )}
       {notice}

@@ -35,7 +35,7 @@ export function ColumnHeader({
   columnKey: string;
   label: React.ReactNode;
   className?: string;
-  /** What the column's figure is (hoverText.ts columnHint). How to sort, drag and resize is in the User Guide. */
+  /** What the column's figure is (hoverText.ts columnHint). How to sort, drag and resize is in Help (help/guides.tsx). */
   title: string;
   /** The table's column customisation (useColumnCustomization). */
   layout: Pick<UseColumnCustomization, "dragOverKey" | "setDragOverKey" | "reorderColumn" | "resizingKey" | "startResize">;

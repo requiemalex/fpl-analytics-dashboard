@@ -3,8 +3,8 @@
 **This file describes how the app used to work and why it changed. It is not
 a description of the app as it is today** — much of it has since been
 superseded (pages removed, features reworked, numbers changed). For how the
-app works now, read `README.md`; for what each page does, the in-app User
-Guide (`client/src/pages/UserGuide.tsx`).
+app works now, read `README.md`; for what each page does, the in-app Help
+(`client/src/help/guides.tsx`).
 
 Use this only to understand or restore something that used to exist, when
 that is specifically asked for. Everything below the line is the README as it
@@ -4120,3 +4120,26 @@ tiles/graphs only:
   & Involvement"; G+A − xGI became a column with a ⇄ toggle like Goals − xG;
   and an empty heading is no longer shown.
 - **Last commit with it:** `ff1ab72`.
+
+### The User Guide page (replaced 2026-10-30)
+- **What it did:** a menu page (`/guide`, `client/src/pages/UserGuide.tsx`)
+  of numbered sections in long prose, one per page (Overview, Data Views,
+  Dashboard, Player Explorer, Team Explorer & Team Profile, Player
+  Comparison, Team Building, Player Profile, Notepad, Opening & updating),
+  plus Understat's own section (`client/src/understat/guide.tsx`, through
+  the slot's `guideSection`), "Data sourcing & known limitations" and a
+  **Metric reference**: a table of every metric's API fields, formula,
+  units and caveats from `metrics/dictionary.ts`, a live table of which
+  advanced API fields were present, counts of records dropped for invalid
+  data, and the xGI cross-check's result.
+- **Why it went:** the owner wanted help that answers the question in hand,
+  briefly and visually, instead of about 9,000 words to scroll. It's now
+  Help (`client/src/help/`, `<help_panel>`): the top bar's magnifying
+  glass opens a search of 40 short visual guides (36 FPL's, 4 Understat's
+  through the slot's `helpGuides`) and an entry per statistic made from its
+  hover text. The data checks moved to Help's "Something looks wrong"
+  guide (`help/DataHealth.tsx`, missing fields named rather than every
+  field listed). The formula table isn't shown in the app any more:
+  `metrics/dictionary.ts` and README "Metric methodology" remain the
+  record of every formula.
+- **Last commit with it:** `e51eaae`.

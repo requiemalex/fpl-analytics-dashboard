@@ -155,7 +155,8 @@ const SPECIAL_LETTER_MAP: Record<string, string> = {
 };
 const SPECIAL_LETTERS = new RegExp(`[${Object.keys(SPECIAL_LETTER_MAP).join("")}]`, "g");
 
-function normalizeSearchText(s: string): string {
+/** Accents stripped, lower-cased and trimmed: how every search box compares text (player names here, Help's questions in help/search.ts). */
+export function normalizeSearchText(s: string): string {
   return s
     .replace(SPECIAL_LETTERS, (ch) => SPECIAL_LETTER_MAP[ch])
     .normalize("NFD")
@@ -178,7 +179,8 @@ function fuzzyThreshold(length: number): number {
   return 2;
 }
 
-function fuzzyWordMatch(token: string, word: string): boolean {
+/** Whether `token` is probably a typo of `word`: within the length-scaled edit distance above. Shared with Help's search (help/search.ts). */
+export function fuzzyWordMatch(token: string, word: string): boolean {
   const threshold = fuzzyThreshold(Math.max(token.length, word.length));
   if (threshold === 0) return false;
   if (Math.abs(token.length - word.length) > threshold) return false;

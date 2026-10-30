@@ -20,7 +20,7 @@ League. © 2026 the Scoutline developer, all rights reserved — see "Legal" bel
 | Document | What it's for |
 |---|---|
 | `README.md` (this file) | How the app works **now** — architecture, data rules, methodology, storage, releases |
-| In-app User Guide (`client/src/pages/UserGuide.tsx`) | What each page does and how to use it — the user-facing feature reference |
+| In-app Help (`client/src/help/guides.tsx`) | Short guides to what each part of the app does and how to use it — the user-facing feature reference, searched from the top bar |
 | `DEPLOYMENT.md` | Desktop-app build, packaging, auto-update, and the retired web-hosting setup |
 | `docs/HISTORY.md` | How the app **used to** work — archived. Only for understanding or restoring something old |
 | `docs/audits/` | Audits: `strategy/` holds the reusable three-phase prompts, `results/` one dated folder per past run (index in `docs/audits/README.md`) |
@@ -103,8 +103,8 @@ is the smallest unit that can be dropped without leaving a part-total:
 - `element-summary`: one player's whole summary — a bad row fails only that
   player's profile, since a gameweek log with a row missing would mislead.
 
-Dropped fixtures and club-seasons are counted (`skippedRecordCounts`, in the
-User Guide's data health) and logged; a broken top-level shape is still
+Dropped fixtures and club-seasons are counted (`skippedRecordCounts`, in
+Help's data check, `help/DataHealth.tsx`) and logged; a broken top-level shape is still
 fatal. Validation adds no defaults that would invent a figure: a missing
 `ep_next` is unknown, not 0 points; a missing `status` is unknown, not
 available (Model Predicted then has no figure); an imported squad with no
@@ -151,7 +151,8 @@ link; it also checks the update window's copy still matches the package.
 
 **Pages:** Dashboard (`/`), Player Explorer (`/players`), Team Explorer (`/teams`),
 Player Comparison (`/player-comparison`), Team Building (`/team-building`),
-User Guide (`/guide`), plus the player and team profile overlays.
+About & Legal (`/legal`), plus the player and team profile overlays and the
+top bar's Notepad and Help panels.
 
 ## API endpoints and caching
 
@@ -251,7 +252,7 @@ used any stale input is served as `stale-cache`, never labelled live.
 **Inspect, don't assume.** Field availability is detected from the live
 response (`normalize/fieldAvailability.ts`). A missing field makes that
 metric `null` for everyone, shown as "—" (`DASH`, `utils/format.ts`), and
-the User Guide's Metric reference lists which fields were found. Nothing is
+Help's data check ("Something looks wrong") names any that weren't sent. Nothing is
 substituted from another statistic.
 
 **Units and identity.** `now_cost` is £0.1m units. Price, ownership,
@@ -1040,8 +1041,9 @@ without it leaves that season's Shots Faced uncoloured.
     With Understat switched off, an item built on its own figures says so
     ("…uses figures from a second data source that's switched off") and
     can still be removed; an Outputs panel with FPL rows too keeps those.
-- Its User Guide section and metric definitions live in
-  `client/src/understat/guide.tsx`, shown through the slot.
+- Its Help guides live in `client/src/understat/help.tsx`, handed to Help
+  through the slot (`helpGuides`); its statistics get Help entries from its
+  columns' hover text, like FPL's.
 
 ### Removing it
 
@@ -1187,7 +1189,7 @@ goals expected each way (`<points_model>`).
 
 - **xGI validation** (`metrics/validation.ts`) recomputes xG + xA against
   the API's xGI (tolerance 0.01) on every load. Discrepancies are logged and
-  shown in the User Guide.
+  counted in Help's data check.
 - **Percentiles** (`metrics/percentiles.ts`) are within-position, against
   the full mode-resolved pool at or above the fixed minutes floor — never a
   filtered view. The player profile's and Player Comparison's Starter
@@ -1269,7 +1271,7 @@ goals expected each way (`<points_model>`).
   or match, in one line. A column header gives its statistic in plain words
   (`PLAYER_STAT_HINTS`, `CLUB_STAT_HINTS`, the Understat maps), plus "Lower
   is better" or "Today's figure" where true; how to sort, drag and resize is
-  in the User Guide only. A fixture chip names the opponent, home or away,
+  in Help only. A fixture chip names the opponent, home or away,
   and FPL's difficulty. All are short strings from figures the page already
   has; the phrases are cached, so a table's cells share a few hundred strings.
 - **Every figure's hover: what it is, then where it ranks** (the owner's
@@ -1375,8 +1377,36 @@ goals expected each way (`<points_model>`).
 
 ## Implementation notes by page
 
-For what each page does, see the User Guide. These notes cover what isn't
-obvious from the UI.
+For what each page does, see Help (`client/src/help/guides.tsx`). These
+notes cover what isn't obvious from the UI.
+
+### Help (`client/src/help/`)
+
+The magnifying glass in the top bar, beside the colour switch, opens Help:
+the shared side panel (the Notepad's; one open at a time) with a box to ask
+a question in your own words (`<help_panel>`, `HelpPanel.tsx`).
+- **Guides** (`guides.tsx`, `<help_guides>`): one short guide per question,
+  each a one-line answer, a visual (`visuals.tsx`: steps, the app's own
+  icons, figures, a colour scale) and a few short points. Text is kept to a
+  minimum; the effort goes into each guide's `keywords`, every word or
+  phrase someone might type for it (20 at least). A second source adds its
+  own through the slot (`helpGuides`).
+- **Statistics** (`statistics.ts`, `<help_statistic>`): an entry per
+  column, made from its header and hover text (`hoverText.ts`), so Help
+  says what the hovers say. A figure players and clubs both have is one
+  entry; a second source's version is its own. Built only once Help has
+  been opened (a second source works out its columns' figures when asked).
+- **Matching** (`search.ts`, `<help_search>`): no AI, nothing sent
+  anywhere. Phrases, keywords, title and answer words score in that order;
+  words are stemmed, folded through a few synonyms, matched as prefixes
+  while typed (or with `*`) and through the player search's typo check;
+  filler words are ignored. A statistic named on its own goes first.
+  `search.test.ts` and `understat/help.test.ts` hold the questions each
+  guide must answer first: add a question when adding a guide.
+- With nothing typed it lists the current page's own guides ("This page"),
+  then every guide by topic. The question stays as left between opens.
+- **Data check** (`DataHealth.tsx`, in "Something looks wrong"): fields FPL
+  didn't send, records dropped for invalid data, and the xGI check.
 
 **Dashboard** (`pages/Dashboard.tsx`)
 - Tiles (`useSummaryTiles`) and graphs (`useDashboardGraphs`) each carry

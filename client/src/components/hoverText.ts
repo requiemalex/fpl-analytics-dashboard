@@ -11,7 +11,7 @@ import { fmtDecimal, fmtPercent } from "../utils/format";
  * line: the stat in plain words on a header, the figure's rank on a
  * coloured cell or tile, the actual opponent or breakdown on a match
  * figure. How to use the app (sort, drag, resize) and methodology live in
- * the User Guide and README, not in hovers.
+ * Help (help/guides.tsx) and the README, not in hovers.
  *
  * Every hover here is a short string built from figures the page already
  * has: nothing is fetched or ranked for it, and the rank phrases are cached,

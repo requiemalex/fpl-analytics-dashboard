@@ -3,9 +3,10 @@ import { COPYRIGHT_NOTICE } from "../brand";
 import { NavLink } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { fmtTimeAgo, fmtDate, fmtDateShort } from "../utils/format";
-import { CalendarIcon, ComparativeColourIcon, NotepadIcon } from "./IconToolbar";
+import { CalendarIcon, ComparativeColourIcon, HelpIcon, NotepadIcon } from "./IconToolbar";
 import { Notepad, NOTEPAD_KEY, useNotepadHotkey } from "./Notepad";
 import { setComparativeColourOn, useComparativeColour } from "../state/comparativeColour";
+import { HelpPanel } from "../help/HelpPanel";
 
 type NavEntry =
   | { type: "link"; to: string; label: string }
@@ -31,7 +32,6 @@ const NAV_STRUCTURE: NavEntry[] = [
     links: [{ to: "/team-building", label: "Team Building" }],
   },
   { type: "separator" },
-  { type: "link", to: "/guide", label: "User Guide" },
   { type: "link", to: "/legal", label: "About & Legal" },
 ];
 
@@ -93,9 +93,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { status, isStale, staleDatasets, fixturesUnavailable, refresh, refreshing, lastUpdated, players, errorMessage, gameweekState, events } = useAppState();
   const staleParts = [staleDatasets.fixtures && "fixtures", staleDatasets.historic && "historic data"].filter((x): x is string => !!x);
   const gwInfo = getGameweekInfo(gameweekState, events);
-  const [notepadOpen, setNotepadOpen] = useState(false);
-  const toggleNotepad = useCallback(() => setNotepadOpen((o) => !o), []);
-  const closeNotepad = useCallback(() => setNotepadOpen(false), []);
+  // The Notepad and Help share the side panel, so opening one closes the other.
+  const [sidePanel, setSidePanel] = useState<"notepad" | "help" | null>(null);
+  const notepadOpen = sidePanel === "notepad";
+  const helpOpen = sidePanel === "help";
+  const toggleNotepad = useCallback(() => setSidePanel((p) => (p === "notepad" ? null : "notepad")), []);
+  const toggleHelp = useCallback(() => setSidePanel((p) => (p === "help" ? null : "help")), []);
+  const closeSidePanel = useCallback(() => setSidePanel(null), []);
   useNotepadHotkey(toggleNotepad);
   const colourOn = useComparativeColour();
   const colourLabel = colourOn ? "Turn off green/red comparative colouring everywhere" : "Turn green/red comparative colouring back on everywhere";
@@ -171,6 +175,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           >
             <ComparativeColourIcon off={!colourOn} />
           </button>
+          <button
+            type="button"
+            className={`topbar-icon-btn${helpOpen ? " active" : ""}`}
+            onClick={toggleHelp}
+            title={helpOpen ? "Close Help" : "Help: ask how anything in Scoutline works"}
+            aria-label={helpOpen ? "Close Help" : "Help: ask how anything in Scoutline works"}
+            aria-pressed={helpOpen}
+          >
+            <HelpIcon />
+          </button>
         </div>
         <WindowControls />
       </header>
@@ -197,7 +211,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      <Notepad open={notepadOpen} onClose={closeNotepad} />
+      <Notepad open={notepadOpen} onClose={closeSidePanel} />
+      <HelpPanel open={helpOpen} onClose={closeSidePanel} />
     </div>
   );
 }

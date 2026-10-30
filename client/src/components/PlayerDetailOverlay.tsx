@@ -299,7 +299,7 @@ export function PlayerDetailOverlay() {
   // Only an open profile needs the historic dataset (it opens on Last
   // Completed Season, and Points History's window needs it). This overlay
   // is mounted on every page, so asking on mount started the one-minute
-  // bulk build everywhere, even on the User Guide (audit 2026-09-25
+  // bulk build everywhere, even on About & Legal (audit 2026-09-25
   // player-team-profiles M3).
   useEffect(() => {
     if (isOpen) requestHistoricData();

@@ -17,7 +17,7 @@ function Harness() {
 }
 
 function layer() {
-  return document.querySelector(".notepad-layer")!;
+  return document.querySelector(".side-layer")!;
 }
 
 function press(key: string, init: KeyboardEventInit = {}, target: Element | Window = window) {
@@ -111,7 +111,7 @@ describe("Notepad overlay", () => {
   it("the arrow widens the panel to the full page and back", () => {
     render(<Harness />);
     press(NOTEPAD_KEY);
-    const panel = document.querySelector(".notepad-panel")!;
+    const panel = document.querySelector(".side-panel")!;
     expect(panel.classList.contains("expanded")).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Expand to full page" }));
     expect(panel.classList.contains("expanded")).toBe(true);
