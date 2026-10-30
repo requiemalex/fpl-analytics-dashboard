@@ -22,25 +22,37 @@ export interface SegmentOption<T extends string> {
 /** One-of-a-few choice (Data View, Order, Graph Type…) as a row of segments. */
 export function SegmentedControl<T extends string>({
   label,
+  hideLabel,
+  inlineLabel,
   options,
   value,
   onChange,
 }: {
   label?: string;
+  /** The label names the choice for screen readers only, not shown. */
+  hideLabel?: boolean;
+  /** The label sits to the left of the segments rather than above them. */
+  inlineLabel?: boolean;
   options: SegmentOption<T>[];
   value: T;
   onChange: (value: T) => void;
 }) {
   const labelId = useId();
   const iconOnly = options.every((o) => !o.label);
+  const shown = label && !hideLabel;
   return (
-    <div className="field">
-      {label && (
+    <div className={`field${inlineLabel ? " field-inline" : ""}`}>
+      {shown && (
         <span className="field-label" id={labelId}>
           {label}
         </span>
       )}
-      <div className={`segmented${iconOnly ? " icon-only" : ""}`} role="radiogroup" aria-labelledby={label ? labelId : undefined}>
+      <div
+        className={`segmented${iconOnly ? " icon-only" : ""}`}
+        role="radiogroup"
+        aria-labelledby={shown ? labelId : undefined}
+        aria-label={label && !shown ? label : undefined}
+      >
         {options.map((o) => {
           const on = o.value === value;
           const name = o.title ?? o.label;

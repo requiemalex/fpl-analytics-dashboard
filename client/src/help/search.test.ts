@@ -138,7 +138,7 @@ const QUESTIONS: [string, string][] = [
   ["price rise tonight", "price-changes"],
   ["price predictor", "price-changes"],
   ["who to buy", "add-players"],
-  ["bench points", "projected-points"],
+  ["why is my projected points red", "projected-points"],
   ["rename squad", "manage-squads"],
   ["3 per club", "squad-rules"],
   ["can i afford", "plan-transfer"],

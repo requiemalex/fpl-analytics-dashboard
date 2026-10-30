@@ -114,13 +114,13 @@ describe("Team Building — an import's budget at selling prices (<imported_budg
       },
     ]);
     const { container } = renderBuilder();
-    const tile = (label: string) => Array.from(container.querySelectorAll(".pitch-view-tiles .stat-tile")).find((t) => t.querySelector(".stat-tile-label")?.textContent === label)!;
+    const tile = (label: string) => Array.from(container.querySelectorAll(".squad-summary-figure")).find((t) => t.querySelector(".squad-summary-label")?.textContent === label)!;
     // <squad_value>: FPL's figure, the 15 at today's £5.0m; against the budget they count £73.5m at selling prices.
-    expect(tile("Squad Value").querySelector(".stat-tile-value")!.textContent).toBe("£75.0m");
+    expect(tile("Squad Value").querySelector(".squad-summary-value")!.textContent).toBe("£75.0m");
     expect(tile("Squad Value").getAttribute("title")).toBe(
       "Squad Value £75.0m: the squad's players at today's prices, as FPL shows it. Against the budget they count £73.5m: a player you've held since the import counts at his selling price, as FPL keeps half of each rise.",
     );
-    expect(tile("Bank").querySelector(".stat-tile-value")!.textContent).toBe("£0.5m");
+    expect(tile("Bank").querySelector(".squad-summary-value")!.textContent).toBe("£0.5m");
     expect(tile("Bank").getAttribute("title")).toMatch(/£0\.5m left of £74\.0m\. Budget £74\.0m: £0\.5m in the bank plus the players this squad was imported with at their selling prices/);
   });
 });

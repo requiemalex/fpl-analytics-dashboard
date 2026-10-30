@@ -51,7 +51,7 @@ export interface SquadValidation {
 
 /**
  * Validates the full 15-player squad against budget, composition, and
- * club-limit rules. Does not check the starting XI — see validateStartingXI.
+ * club-limit rules. Does not check the starting XI.
  */
 export function validateSquad(squadPlayers: NormalizedPlayer[], budget: number = SQUAD_RULES.budget, cost?: (p: NormalizedPlayer) => number): SquadValidation {
   const budgetUsed = squadBudgetUsed(squadPlayers, cost);
@@ -73,34 +73,6 @@ export function validateSquad(squadPlayers: NormalizedPlayer[], budget: number =
     clubViolations,
     valid: squadComplete && budgetOk && compositionOk && clubViolations.length === 0,
   };
-}
-
-export interface StartingXIValidation {
-  size: number;
-  sizeOk: boolean; // exactly 11
-  composition: Record<Position, number>;
-  formationOk: boolean; // within startingXIBounds for every position
-  issues: string[];
-  valid: boolean;
-}
-
-export function validateStartingXI(startingXIPlayers: NormalizedPlayer[]): StartingXIValidation {
-  const composition = squadCompositionCounts(startingXIPlayers);
-  const issues: string[] = [];
-  const sizeOk = startingXIPlayers.length === SQUAD_RULES.startingXISize;
-  if (!sizeOk) issues.push(`Starting XI has ${startingXIPlayers.length} of ${SQUAD_RULES.startingXISize} players`);
-
-  let formationOk = true;
-  for (const pos of POSITIONS) {
-    const { min, max } = SQUAD_RULES.startingXIBounds[pos];
-    const count = composition[pos];
-    if (count < min || count > max) {
-      formationOk = false;
-      issues.push(`${pos}: ${count} selected (needs ${min}${max > min ? `–${max}` : ""})`);
-    }
-  }
-
-  return { size: startingXIPlayers.length, sizeOk, composition, formationOk, issues, valid: sizeOk && formationOk };
 }
 
 /**

@@ -16,7 +16,8 @@ export interface PickerGroup {
   options: PickerOption[];
 }
 
-function ChevronIcon({ open }: { open: boolean }) {
+/** The ▾ of a select-like picker, turned over while its list is open. */
+export function PickerChevron({ open }: { open: boolean }) {
   return (
     <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={{ transform: open ? "rotate(180deg)" : undefined, flexShrink: 0 }}>
       <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -145,7 +146,7 @@ export function GroupedPicker({ id, value, groups, onChange }: { id: string; val
         }}
       >
         <span className="grouped-picker-value">{selected?.label ?? "—"}</span>
-        <ChevronIcon open={open} />
+        <PickerChevron open={open} />
       </button>
       {open && (
         <div

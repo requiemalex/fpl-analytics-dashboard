@@ -8,7 +8,7 @@ import { useDialogFocus } from "../state/useDialogFocus";
 import { SQUAD_RULES, createBlankSquad, type SavedSquad } from "../types/team";
 import { sellingPrice, squadMoney } from "../metrics/squadPrices";
 import { loadImportedPurchasePrices } from "../state/importedPurchasePrices";
-import { validateSquad, validateStartingXI, canAddPlayer, fitsStartingXI, openSquadSlots } from "../metrics/squadRules";
+import { validateSquad, canAddPlayer, fitsStartingXI, openSquadSlots } from "../metrics/squadRules";
 import { fplOfficialForFixture, fplSeasonRate } from "../metrics/expectedPoints";
 import { modelClubRatings, modelForFixture, playerEvidence } from "../metrics/pointsModelLive";
 import { clubSeasonsAsShown } from "../metrics/teamStats";
@@ -26,6 +26,7 @@ import { describeLoadError } from "../api/errors";
 import { EXPLORER_DEFAULT_VISIBLE_COLUMNS, FIXTURES_COLUMN_KEY, PlayerExplorerTable, type ExplorerOpenRequest, type LeadColumn } from "../components/PlayerExplorerTable";
 import { HorizonPicker } from "../components/HorizonPicker";
 import { SectionHeading } from "../components/SectionHeading";
+import { SquadPicker } from "../components/SquadPicker";
 
 /** How long a rejected drag's warning message stays visible before clearing itself. */
 const WARNING_DISPLAY_MS = 4000;
@@ -525,7 +526,6 @@ export function TeamBuilder() {
   // <imported_budget>: an import's bank plus its players' selling prices, once its purchase prices are in.
   const money = squadMoney(active, (id) => playersById.get(id)?.price);
   const squadValidation = validateSquad(squadPlayers, money.budget, money.cost);
-  const xiValidation = validateStartingXI(startingXIPlayers);
   const openSlots = openSquadSlots(squadPlayers, startingXIPlayers);
 
   // Upcoming fixtures for every club (cheap — 20 clubs), reused below for
@@ -723,35 +723,6 @@ export function TeamBuilder() {
         </div>
       </div>
 
-      <div className="filters-bar">
-        {active && (
-          <>
-            <div className="field">
-              <label htmlFor="squad-select">Squad</label>
-              <select id="squad-select" value={active.id} onChange={(e) => setActiveId(e.target.value)}>
-                {squads.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {squadTitle(s)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label htmlFor="squad-name">Name</label>
-              <input id="squad-name" type="text" value={active.name} onChange={(e) => updateActive((s) => ({ ...s, name: e.target.value }))} />
-            </div>
-          </>
-        )}
-        <button type="button" className="btn" onClick={openNewSquadModal}>
-          New Squad
-        </button>
-        {active && (
-          <button type="button" className="btn" onClick={handleDelete}>
-            Delete
-          </button>
-        )}
-      </div>
-
       {showNewSquadModal && (
         <div className="dialog-backdrop" onClick={closeNewSquadModal}>
           <div className="dialog" onClick={(e) => e.stopPropagation()}>
@@ -863,23 +834,31 @@ export function TeamBuilder() {
             <span className="hint-term" title={TEAM_ID_HINT}>
               FPL team ID
             </span>{" "}
-            using "New Squad" above to start adding players.
+            with New Squad below to start adding players.
           </p>
         </div>
       )}
 
       <SectionHeading icon="squad">{active ? squadTitle(active) : "Squad"}</SectionHeading>
-      <div className="card" style={{ marginBottom: 24 }}>
-        {missingSavedIds.length > 0 && (
-          <div className="banner stale" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ flex: 1 }}>
-              {missingSavedIds.length === 1 ? "1 saved player is" : `${missingSavedIds.length} saved players are`} no longer in FPL's player list, so{" "}
-              {missingSavedIds.length === 1 ? "it isn't" : "they aren't"} shown or counted (FPL id {missingSavedIds.join(", ")}).
-            </span>
-            <IconChipButton icon={<TrashIcon />} label="Remove players no longer in FPL from this squad" onClick={handleRemoveMissingPlayers} />
-          </div>
-        )}
-        {xiValidation.size > 0 && !xiValidation.valid && <div className="banner info">Formation: {xiValidation.issues.join(" · ")}</div>}
+      <SquadPicker
+        squads={squads.map((s) => ({ id: s.id, title: squadTitle(s) }))}
+        activeId={active?.id ?? null}
+        name={active?.name ?? ""}
+        onSelect={setActiveId}
+        onRename={(name) => updateActive((s) => ({ ...s, name }))}
+        onNew={openNewSquadModal}
+        onDelete={handleDelete}
+      />
+      {missingSavedIds.length > 0 && (
+        <div className="banner stale" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ flex: 1 }}>
+            {missingSavedIds.length === 1 ? "1 saved player is" : `${missingSavedIds.length} saved players are`} no longer in FPL's player list, so{" "}
+            {missingSavedIds.length === 1 ? "it isn't" : "they aren't"} shown or counted (FPL id {missingSavedIds.join(", ")}).
+          </span>
+          <IconChipButton icon={<TrashIcon />} label="Remove players no longer in FPL from this squad" onClick={handleRemoveMissingPlayers} />
+        </div>
+      )}
+      <div style={{ marginBottom: 24 }}>
         <SquadPitch
           squadName={active ? squadTitle(active) : ""}
           squadValidation={squadValidation}

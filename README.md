@@ -1254,13 +1254,15 @@ goals expected each way (`<points_model>`).
   - Player Comparison's per-player colours and the Dashboard's charts use
     neither green nor red, so nothing reads as better or worse by its
     series colour.
-  - **One exception, the owner's call (2026-10-26):** FPL's price
+  - **Two exceptions, the owner's calls:** FPL's price
     Progress and Predicted Progress on Team Building's pitch
-    (`<price_progress>`) are coloured by the figure itself, as FPL's own
+    (`<price_progress>`, 2026-10-26) are coloured by the figure itself, as FPL's own
     Price Changes page does: grey at 0 to full green at +100% (a rise) and
-    full red at −100% (a drop). They still go through `percentileTint`
-    (the figure placed on its 0–100 scale), so the switch below turns them
-    off with the rest.
+    full red at −100% (a drop); and Team Building's Projected Points
+    (`<projected_points_colour>`, 2026-10-30) is coloured by how close it
+    is to Best Draft's total. They still go through `percentileTint` /
+    `percentileColour` (the figure placed on its 0–100 scale), so the
+    switch below turns them off with the rest.
   - **One switch turns it all off** (`<comparative_colour_switch>`,
     `state/comparativeColour.ts`): the palette button in the top bar,
     right of the notepad's. Off (struck through), `percentileTint` and
@@ -1306,7 +1308,8 @@ goals expected each way (`<points_model>`).
   match ledger has loaded); a trend graph's season among everyone's that
   season in his current position (FPL's season records keep no past
   position). Nothing ranks a squad's own totals (Squad Value, Bank,
-  Projected Points) or a season before the match ledger: there's no pool.
+  Projected Points: coloured against Best Draft instead, an exception
+  above) or a season before the match ledger: there's no pool.
   A Totals or Average cell's partial-matches note follows on the line
   after.
 - **Historic data caveats:** `history_past` carries FPL's placeholder 0 /
@@ -1929,6 +1932,17 @@ as it only rearranges the squad. Before any squad exists the
 whole Squad tile is greyed out and inert (`inert`, `.squad-pitch.is-disabled`):
 nothing on it can be clicked or dropped on, so no player can be added until
 New Squad makes or imports one; the "No squad loaded" note sits above it.
+There's no formation warning: the pitch's open "+" places already show a
+starting XI short of 11 or a line under its minimum.
+
+- **The squad picker** (`<squad_picker>`, `components/SquadPicker.tsx`) —
+  under the section heading and above the summary card, as the Dashboard's
+  view picker sits under its heading: the squad box, then **New Squad**
+  (the Create View icon) and **Delete Squad** (the bin) as icon buttons.
+  The box holds the open squad's name, typed over to rename it (saved as
+  it changes; a blank name reads "Untitled squad"); its ▾ (or ↓ in the
+  name) lists every saved squad to switch to. Before any squad exists only
+  New Squad shows, with Delete greyed out.
 
 - **The pitch** (`components/SquadPitch.tsx`) — each player is his club's
   kit (`<club_kit>`, `components/Kit.tsx`): body in the club's colour,
@@ -1946,19 +1960,25 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   Mins for that gameweek (below). **Price** has its own toggle
   (`<price_view>`, below). The switches are per page, like every view
   switch. The squad's name (no formation or player count) is the section
-  heading over the pitch's card, the shared `SectionHeading` with a shirt
-  icon, as the Dashboard's and Player Comparison's sections have ("Squad"
-  with none loaded). In the card, beside the Captain, Vice-Captain, Clear
-  Draft and Best Draft buttons (the app's standard `.btn`, green while
-  armed): Squad Value and Bank as tiles (Squad Value, `<squad_value>`, `squadMarketValue`: FPL's
-  own figure, the squad's players at today's prices, the owner's call
-  2026-10-26. What they count against the budget can be less — an
-  import's players still held count at their selling prices, FPL keeping
-  half of each rise — and its hover gives that figure where it differs;
-  Bank is the budget left, as FPL's is); then the **Gameweek** arrows, Highlight and Source;
-  the buttons and **Projected Points** (below) form a column beside those
-  rows. A club-limit
-  breach is a banner. The bench is a row of slots, goalkeeper
+  heading, the shared `SectionHeading` with a shirt icon, as the
+  Dashboard's and Player Comparison's sections have ("Squad" with none
+  loaded); the squad picker (above) sits under it.
+- **The summary card** (`<squad_summary>`, `SummaryFigures` in
+  `components/SquadPitch.tsx`) — its own card above the pitch's. Along the
+  top, four figures, each after a hairline: **Projected Points** (below),
+  **Captain** (named in the label: his Exp. Pts, doubled), **Squad Value**
+  (`<squad_value>`, `squadMarketValue`: FPL's own figure, the squad's
+  players at today's prices, the owner's call 2026-10-26. What they count
+  against the budget can be less — an import's players still held count
+  at their selling prices, FPL keeping half of each rise — and its hover
+  gives that figure where it differs) and **Bank** (the budget left, as
+  FPL's is). Under a rule: what the kits highlight (no label shown) and
+  **Source** (its label to the left); then the Captain, Vice-Captain and
+  Clear Draft buttons (the app's standard `.btn`, green while armed) and
+  **Best Draft** (the primary `.btn.primary`), with the gameweek arrows
+  (no label shown) at the far end of that row. Rows wrap on a narrow
+  window; the gaps are fixed. A club-limit breach is a banner at the top
+  of the pitch's card. The bench is a row of slots, goalkeeper
   first, each labelled with its position (no bench order: the app has
   none).
 - **Gameweek arrows** (`<gameweek_arrows>`, `GameweekArrows` in
@@ -1970,17 +1990,19 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   Exp. Pts columns each add up a number of gameweeks from the next one
   (`<points_horizon>`), and Exp. Mins and Next 5 Fixtures don't move.
 - **Projected Points** (`<projected_points>`, `projectedPoints` in
-  `components/SquadPitch.tsx`) — beside the squad's figures: the
+  `components/SquadPitch.tsx`) — the summary card's first figure: the
   starting XI's Exp. Pts for the pitch's gameweek from the Source toggle's
   figure, the captain's counted twice as FPL scores him. A starter with no
   match that gameweek adds 0; one with a match but no figure leaves "—"
   (never a part-count, `<partial_totals>`), and the hover names him.
-  Four tiles, the same `.stat-tile` as Squad Value and Bank, two by two:
-  the total (its label naming the gameweek and source), starters (of
-  11), the captain (named in the label) and his doubled figure, and the
-  bench's total (not in the figure). They sit under the Captain … Best
-  Draft buttons at exactly their width (they share the right-hand
-  column); on a narrow window that column drops below the rest.
+  **Coloured against Best Draft** (`<projected_points_colour>`,
+  `projectedPointsScore`, the owner's call 2026-10-30): the figure's own
+  colour runs from full green at what Best Draft's XI and armbands would
+  score (same gameweek and source) through grey a tenth short to full red
+  a fifth or more short (`PROJECTED_SHORTFALL_RED`), through
+  `percentileColour` so the palette switch turns it off. No colour while
+  Best Draft can't run or either total is unknown; the hover gives Best
+  Draft's total.
 - **Best Draft** (`<best_draft>`, `metrics/bestDraft.ts`) — sets the
   starting XI, captain and vice-captain with the most Exp. Pts for the
   pitch's gameweek, from Points Prediction's source (FPL Official or

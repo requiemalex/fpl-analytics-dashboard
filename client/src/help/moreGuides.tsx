@@ -771,26 +771,29 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
     pages: ["team-building"],
     keywords: [
       "projected points", "projected", "team points", "total points", "squad points", "how many points", "my score", "predicted score",
-      "starters", "bench points", "captain points", "points this week", "team total", "expected total", "score prediction", "xi points",
-      "predicted points", "gameweek total", "fpl score", "team prediction",
+      "captain points", "points this week", "team total", "expected total", "score prediction", "xi points",
+      "predicted points", "gameweek total", "fpl score", "team prediction", "green", "red", "colour", "color", "best possible",
+      "optimal", "how close", "could score", "squad value", "bank", "summary",
     ],
     related: ["expected-points", "best-draft"],
     body: (
-      <Terms
-        rows={[
-          ["Total", "the XI's Expected Points, captain doubled"],
-          ["Starters", "how many of the 11 you've picked"],
-          ["Captain", "his points, already doubled"],
-          ["Bench", "not in the total"],
-        ]}
-      />
+      <>
+        <Terms
+          rows={[
+            ["Projected Points", "the XI's Expected Points, captain doubled"],
+            ["Captain", "his points, already doubled"],
+          ]}
+        />
+        <Label>Its colour, against Best Draft's total</Label>
+        <ColourScale low="A fifth short" mid="A tenth short" high="Best Draft's" />
+      </>
     ),
   },
   {
     id: "manage-squads",
     topic: TOPIC.building,
     title: "Save, switch and delete squads",
-    answer: "Up to 5 squads: pick one in the Squad box, rename it in Name, and Delete removes it.",
+    answer: "Up to 5 squads: type in the squad box to rename it, ▾ to switch, and the bin deletes it.",
     pages: ["team-building"],
     keywords: [
       "save squad", "saved squads", "switch squad", "change squad", "rename squad", "delete squad", "remove squad", "squad name",
@@ -800,8 +803,13 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
     related: ["build-squad", "import-team"],
     body: (
       <>
-        <Flow steps={["New Squad", "Squad box to switch", "Name to rename", "Delete"]} />
-        <Note>Everything saves as you go. Delete asks first, and can't be undone.</Note>
+        <IconKey
+          rows={[
+            { icon: <CreateViewIcon />, label: "New Squad", text: "blank, or import yours" },
+            { icon: <TrashIcon />, label: "Bin", text: "delete, after you confirm" },
+          ]}
+        />
+        <Note>Everything saves as you go, the name included.</Note>
       </>
     ),
   },
@@ -829,7 +837,7 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
         />
         <Label>Starting XI</Label>
         <Chips items={[`${XI.GKP.min} GKP`, `${XI.DEF.min}–${XI.DEF.max} DEF`, `${XI.MID.min}–${XI.MID.max} MID`, `${XI.FWD.min}–${XI.FWD.max} FWD`]} />
-        <Note>Breaking a rule shows a warning but never stops you.</Note>
+        <Note>Over budget or a club's limit shows a warning; a short XI shows as open + places. Nothing stops you.</Note>
       </>
     ),
   },

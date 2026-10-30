@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/react";
-import { SquadPitch, projectedPoints, type PitchColourRanks } from "./SquadPitch";
+import { SquadPitch, projectedPoints, projectedPointsScore, type PitchColourRanks } from "./SquadPitch";
 import { percentileTint } from "../utils/colorScale";
 import { openSquadSlots, validateSquad } from "../metrics/squadRules";
 import { makePlayer } from "../test/fixtures";
@@ -149,11 +149,12 @@ describe("the squad's actions", () => {
     expect(container.textContent).not.toMatch(/Click a starting player/);
   });
 
-  it("Captain, Vice-Captain, Clear Draft and Best Draft are the app's standard buttons", () => {
+  it("Captain, Vice-Captain and Clear Draft are the app's standard buttons; Best Draft its primary one", () => {
     const { getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
-    for (const name of ["Captain", "Vice-Captain", "Clear Draft", "Best Draft"]) {
+    for (const name of ["Captain", "Vice-Captain", "Clear Draft"]) {
       expect(getByRole("button", { name }).className).toBe("btn");
     }
+    expect(getByRole("button", { name: "Best Draft" }).className).toBe("btn primary");
   });
 });
 
@@ -186,11 +187,28 @@ describe("<club_kit> kits", () => {
   });
 });
 
-describe("Projected Team Points", () => {
-  it("is gone: the squad's tiles are Squad Value and Bank", () => {
+describe("<squad_summary> the card above the pitch", () => {
+  it("shows Projected Points, the captain, Squad Value and Bank in that order, and no Starters or Bench", () => {
     const { container, queryByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
     expect(queryByRole("group", { name: "Projected Team Points" })).toBeNull();
-    expect([...container.querySelectorAll(".pitch-view-tiles .stat-tile-label")].map((l) => l.textContent)).toEqual(["Squad Value", "Bank"]);
+    expect([...container.querySelectorAll(".squad-summary-figure .squad-summary-label")].map((l) => l.textContent)).toEqual(["Projected Points", "Captain", "Squad Value", "Bank"]);
+  });
+
+  it("names the Source toggle beside it, but shows no Highlight or Gameweek label", () => {
+    const { container, getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
+    expect([...container.querySelectorAll(".squad-summary .field-label")].map((l) => l.textContent)).toEqual(["Source"]);
+    // Still named for screen readers.
+    expect(getByRole("radiogroup", { name: "Highlight" })).toBeTruthy();
+    expect(getByRole("group", { name: "Gameweek" })).toBeTruthy();
+  });
+
+  it("has the buttons first and the gameweek arrows after them, under the toggles", () => {
+    const { container } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
+    const rows = container.querySelectorAll(".squad-summary-controls > .squad-summary-row");
+    expect(rows).toHaveLength(2);
+    expect(rows[0].querySelector('[role="radiogroup"]')).not.toBeNull();
+    expect([...rows[1].children].map((c) => c.className)).toEqual(["pitch-view-actions", "field"]);
+    expect(rows[1].querySelector(".gameweek-arrows")).not.toBeNull();
   });
 });
 
@@ -389,33 +407,76 @@ describe("<projected_points> projectedPoints", () => {
   const gw = (fpl: number | null, matches = 1): GameweekExpectation => ({ ...nextGameweek(), fixtures: matches ? [fixture(1, "BUR", true)] : [], fplBreakdowns: null, fpl });
   const xi = [mid(1, "A"), mid(2, "B"), mid(3, "C")];
 
-  it("adds up the starting XI, the captain's counted twice, a blank counting 0; the bench apart", () => {
+  it("adds up the starting XI, the captain's counted twice, a blank counting 0", () => {
     const figures = new Map([
       [1, gw(4)],
       [2, gw(null, 0)],
       [3, gw(2.5)],
-      [4, gw(1.5)],
     ]);
-    const p = projectedPoints(xi, [mid(4, "D")], 1, figures, "fpl");
+    const p = projectedPoints(xi, 1, figures, "fpl");
     expect(p.total).toBe(10.5);
     expect(p.captain).toEqual({ name: "A", points: 8 });
-    expect(p.bench).toBe(1.5);
   });
   it("has no total while a starter with a match has no figure, and names him", () => {
-    const p = projectedPoints(xi, [], null, new Map([[1, gw(4)], [2, gw(null)], [3, gw(1)]]), "fpl");
+    const p = projectedPoints(xi, null, new Map([[1, gw(4)], [2, gw(null)], [3, gw(1)]]), "fpl");
     expect(p.total).toBeNull();
     expect(p.missing).toEqual(["B"]);
-    expect(projectedPoints([], [], null, new Map(), "fpl").total).toBeNull();
+    expect(projectedPoints([], null, new Map(), "fpl").total).toBeNull();
   });
-  it("shows on the pitch beside the squad's figures, following the Source toggle", () => {
+  it("leads the squad's figures, the captain's doubled figure beside it, following the Source toggle", () => {
     const { container, getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })], [], vi.fn(), 1);
-    // Tiles as Squad Value's and Bank's: the total, starters, the captain's doubled figure, the bench (none here).
-    const tiles = () =>
-      [...container.querySelectorAll(".projected-box > .stat-tile")].map(
-        (t) => `${t.querySelector(".stat-tile-label")!.textContent}: ${t.querySelector(".stat-tile-value")!.textContent}`,
-      );
-    expect(tiles()).toEqual(["Projected Points · GW9 · FPL: 8.4", "Starters: 1/11", "Captain · Player 1: 8.4", "Bench: —"]);
+    const figures = () =>
+      [...container.querySelectorAll(".squad-summary-figure")]
+        .slice(0, 2)
+        .map((t) => `${t.querySelector(".squad-summary-label")!.textContent}: ${t.querySelector(".squad-summary-value")!.textContent}`);
+    expect(figures()).toEqual(["Projected Points: 8.4", "Captain · Player 1: 8.4"]);
     fireEvent.click(getByRole("radiogroup", { name: "Source" }).querySelector<HTMLElement>('[aria-label^="Exp. Pts (Model"]')!);
-    expect(tiles()[0]).toBe("Projected Points · GW9 · Model: —");
+    expect(figures()[0]).toBe("Projected Points: —");
+  });
+});
+
+describe("<projected_points_colour> Projected Points against Best Draft", () => {
+  it("scores full green at Best Draft's total, neutral a tenth short, full red a fifth or more short", () => {
+    expect(projectedPointsScore(60, 60)).toBe(100);
+    expect(projectedPointsScore(54, 60)).toBeCloseTo(50);
+    expect(projectedPointsScore(48, 60)).toBeCloseTo(0);
+    expect(projectedPointsScore(30, 60)).toBe(0);
+    // Never past full green, and nothing to score without both totals.
+    expect(projectedPointsScore(61, 60)).toBe(100);
+    expect(projectedPointsScore(null, 60)).toBeNull();
+    expect(projectedPointsScore(50, null)).toBeNull();
+    expect(projectedPointsScore(0, 0)).toBeNull();
+  });
+
+  /** A full 15 (2 GKP, 5 DEF, 5 MID, 3 FWD) with GW9 figures; `xiIds` start. */
+  function squad(points: number[], xiIds: number[]) {
+    const positions: Position[] = ["GKP", "GKP", "DEF", "DEF", "DEF", "DEF", "DEF", "MID", "MID", "MID", "MID", "MID", "FWD", "FWD", "FWD"];
+    const all = positions.map((position, i) => makePlayer({ id: i + 1, position }));
+    const expectations = new Map(all.map((p, i) => [p.id, { ...nextGameweek(), fplBreakdowns: [fplMatch(points[i])], fpl: points[i] } as GameweekExpectation]));
+    return { xi: all.filter((p) => xiIds.includes(p.id)), bench: all.filter((p) => !xiIds.includes(p.id)), expectations };
+  }
+  const value = (container: HTMLElement) => container.querySelector<HTMLElement>(".squad-summary-figure .squad-summary-value")!;
+  // Every player 2 but the third forward, 15, at 6.
+  const points = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 6];
+
+  it("is green when the XI and captain are Best Draft's own", () => {
+    const { xi, bench, expectations } = squad(points, [1, 3, 4, 5, 6, 8, 9, 10, 11, 13, 15]);
+    const { container } = renderPitch(xi, bench, vi.fn(), 15, true, null, [9], { expectations });
+    expect(value(container).textContent).toBe("32.0");
+    expect(value(container).style.color).toBe("rgb(63, 191, 127)");
+    expect(value(container).parentElement!.getAttribute("title")).toContain("Best Draft would make it 32.0");
+  });
+
+  it("is red when well short of it", () => {
+    // The 6-pointer on the bench and no captain: 22 against Best Draft's 32.
+    const { xi, bench, expectations } = squad(points, [1, 3, 4, 5, 6, 8, 9, 10, 11, 13, 14]);
+    const { container } = renderPitch(xi, bench, vi.fn(), null, true, null, [9], { expectations });
+    expect(value(container).textContent).toBe("22.0");
+    expect(value(container).style.color).toBe("rgb(224, 101, 74)");
+  });
+
+  it("has no colour while Best Draft can't run", () => {
+    const { container } = renderPitch([makePlayer({ id: 1, position: "MID" })], [], vi.fn(), 1);
+    expect(value(container).style.color).toBe("");
   });
 });

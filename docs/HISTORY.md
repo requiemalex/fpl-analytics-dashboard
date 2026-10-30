@@ -4166,3 +4166,31 @@ tiles/graphs only:
   table scrolled sideways, and asked for it back at the far left under the
   toolbar, fixed.
 - **Last commit with it:** `9df61b7`.
+
+### Team Building's formation warning (removed 2026-10-30)
+- **What it did:** over the pitch, a "Formation: …" banner listed what the
+  starting XI broke (e.g. "Starting XI has 10 of 11 players", "DEF: 2
+  selected (needs 3–5)"), from `validateStartingXI` in
+  `metrics/squadRules.ts`.
+- **Why it went:** the owner found it repeated what the pitch already
+  shows: its open "+" places mark every place the XI still needs.
+  `validateStartingXI` went with it, as nothing else used it.
+- **Last commit with it:** `980549b`.
+
+### Team Building's squad bar and pitch header layout (replaced 2026-10-30)
+- **What it did:** a bar under the page title held a Squad dropdown, a
+  separate Name box to rename the squad, and New Squad and Delete text
+  buttons. In the squad card, Squad Value and Bank tiles sat over the
+  Gameweek arrows, Highlight and Source (each labelled above), with the
+  Captain … Best Draft buttons to the right and four Projected Points
+  tiles under them: the total (its label naming the gameweek and source),
+  Starters (of 11), the captain, and the bench's total.
+- **Why it went:** the owner's redesign. The squad picker now sits under
+  the section heading (`<squad_picker>`): one box, typed over to rename,
+  with a ▾ to switch, and New Squad and Delete as icons, like the
+  Dashboard's view picker. A summary card (`<squad_summary>`) leads with
+  Projected Points (coloured against Best Draft), the captain, Squad Value
+  and Bank, then the toggles, then the buttons with the gameweek arrows at
+  the end. Starters, the bench's total and the Highlight and Gameweek
+  labels were judged to add nothing (the pitch shows the XI and bench).
+- **Last commit with it:** `980549b`.

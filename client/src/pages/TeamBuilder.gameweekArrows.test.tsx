@@ -101,7 +101,7 @@ function renderBuilder() {
   return utils;
 }
 
-const projected = (container: HTMLElement) => container.querySelector(".projected-box .stat-tile-value")!.textContent;
+const projected = (container: HTMLElement) => container.querySelector(".squad-summary-figure .squad-summary-value")!.textContent;
 
 describe("Team Building — gameweeks", () => {
   it("<points_horizon> an Exp. Pts column adds up as many gameweeks as its header picks, a blank counting 0; the pitch stays where its arrows are", () => {
@@ -155,6 +155,39 @@ describe("Team Building — the squad's heading", () => {
     const heading = container.querySelector("h2.section-heading")!;
     expect(heading.querySelector(".section-heading-icon svg")).toBeTruthy();
     expect(heading.textContent).toBe("Test");
-    expect(heading.nextElementSibling!.querySelector(".squad-pitch")).toBeTruthy();
+    // Under it the squad picker (<squad_picker>), then the squad's summary and pitch.
+    expect(heading.nextElementSibling!.classList.contains("squad-picker-row")).toBe(true);
+    expect(heading.nextElementSibling!.nextElementSibling!.querySelector(".squad-pitch .squad-summary")).toBeTruthy();
+  });
+
+  it("<squad_picker> renames the squad in its box, switches squad from its list, and has New Squad and Delete as icons", () => {
+    saveVersioned("fpl-dashboard:saved-squads:v1", 1, [
+      { id: "s1", name: "Test", createdAt: 0, updatedAt: 0, playerIds: [1, 2], startingXI: [1, 2], captainId: null, viceCaptainId: null, usedChips: [], importedFrom: null },
+      { id: "s2", name: "Wildcard", createdAt: 0, updatedAt: 0, playerIds: [3], startingXI: [3], captainId: null, viceCaptainId: null, usedChips: [], importedFrom: null },
+    ]);
+    const { container, getByRole, queryByRole, queryByLabelText } = renderBuilder();
+    const heading = () => container.querySelector("h2.section-heading")!.textContent;
+    // No separate Squad select or Name box any more.
+    expect(container.querySelector("#squad-select")).toBeNull();
+    expect(queryByLabelText("Name")).toBeNull();
+    const box = getByRole("textbox", { name: /^Squad name/ }) as HTMLInputElement;
+    expect(box.value).toBe("Test");
+    fireEvent.change(box, { target: { value: "Eze Peasy" } });
+    expect(heading()).toBe("Eze Peasy");
+    fireEvent.click(getByRole("button", { name: "Switch squad" }));
+    const options = [...getByRole("listbox", { name: "Saved squads" }).querySelectorAll('[role="option"]')];
+    expect(options.map((o) => o.textContent)).toEqual(["Eze Peasy", "Wildcard"]);
+    fireEvent.click(options[1]);
+    expect(queryByRole("listbox")).toBeNull();
+    expect(heading()).toBe("Wildcard");
+    expect(box.value).toBe("Wildcard");
+    expect(getByRole("button", { name: "New Squad" }).querySelector("svg")).toBeTruthy();
+    fireEvent.click(getByRole("button", { name: "Delete Squad" }));
+    expect(getByRole("button", { name: "Delete" })).toBeTruthy();
+  });
+
+  it("has no formation warning: the pitch shows a starting XI short of 11", () => {
+    const { container } = renderBuilder();
+    expect(container.textContent).not.toMatch(/Formation:|Starting XI has/);
   });
 });

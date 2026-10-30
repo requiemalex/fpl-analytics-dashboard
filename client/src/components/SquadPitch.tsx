@@ -9,7 +9,7 @@ import { CloseIcon, PlusIcon } from "./IconToolbar";
 import { GameweekArrows, SegmentedControl, type SegmentOption } from "./MenuControls";
 import { fmtDate, fmtPrice, fmtPercent, fmtDecimal, DASH } from "../utils/format";
 import { fdrColor, type UpcomingFixture } from "../metrics/fixtureTicker";
-import { percentileTint } from "../utils/colorScale";
+import { percentileColour, percentileTint } from "../utils/colorScale";
 import { SQUAD_RULES } from "../types/team";
 import type { OpenSlots, SquadValidation } from "../metrics/squadRules";
 import type { NormalizedPlayer, Position } from "../types/normalized";
@@ -103,28 +103,6 @@ export function squadMarketValue(players: readonly Pick<NormalizedPlayer, "price
   return players.reduce((sum, p) => sum + Math.round(p.price * 10), 0) / 10;
 }
 
-/** The squad's figures: value and money left, one strip above the pitch's controls. */
-function SquadTiles({ validation, budgetHint, marketValue }: { validation: SquadValidation; budgetHint: string; marketValue: number }) {
-  // To the tenth, as budgetLeftText does.
-  const tenths = Math.round(validation.budgetRemaining * 10);
-  const sellingDiffers = Math.round(validation.budgetUsed * 10) !== Math.round(marketValue * 10);
-  const valueHint = `Squad Value ${fmtPrice(marketValue)}: the squad's players at today's prices, as FPL shows it.${
-    sellingDiffers ? ` Against the budget they count ${fmtPrice(validation.budgetUsed)}: a player you've held since the import counts at his selling price, as FPL keeps half of each rise.` : ""
-  }`;
-  return (
-    <div className="pitch-view-tiles">
-      <div className="stat-tile" title={valueHint}>
-        <span className="stat-tile-label">Squad Value</span>
-        <span className="stat-tile-value num">{fmtPrice(marketValue)}</span>
-      </div>
-      <div className="stat-tile" title={`${budgetLeftText(validation.budgetRemaining)} of ${fmtPrice(validation.budget)}. ${budgetHint}`}>
-        <span className="stat-tile-label">Bank</span>
-        <span className={`stat-tile-value num${tenths < 0 ? " value-negative" : ""}`}>{tenths < 0 ? `−${fmtPrice(-tenths / 10)}` : fmtPrice(Math.max(0, tenths) / 10)}</span>
-      </div>
-    </div>
-  );
-}
-
 /**
  * <projected_points>: the starting XI's Exp. Pts for the pitch's gameweek
  * from its source, the captain's counted twice, as FPL scores them. A
@@ -134,22 +112,17 @@ function SquadTiles({ validation, budgetHint, marketValue }: { validation: Squad
  */
 export function projectedPoints(
   starters: readonly NormalizedPlayer[],
-  bench: readonly NormalizedPlayer[],
   captainId: number | null,
   expectationByPlayerId: Map<number, GameweekExpectation | null>,
   source: PointsSource,
-): { total: number | null; missing: string[]; captain: { name: string; points: number } | null; bench: number | null } {
-  const figure = (p: NormalizedPlayer): number | null | undefined => {
-    const g = expectationByPlayerId.get(p.id) ?? null;
-    if (g === null) return undefined;
-    return g.fixtures.length === 0 ? 0 : g[source];
-  };
+): { total: number | null; missing: string[]; captain: { name: string; points: number } | null } {
   const missing: string[] = [];
   let total = 0;
   let captain: { name: string; points: number } | null = null;
   for (const p of starters) {
-    const value = figure(p);
-    if (value === null || value === undefined) {
+    const g = expectationByPlayerId.get(p.id) ?? null;
+    const value = g === null ? null : g.fixtures.length === 0 ? 0 : g[source];
+    if (value === null) {
       missing.push(p.name);
       continue;
     }
@@ -157,64 +130,100 @@ export function projectedPoints(
     if (p.id === captainId) captain = { name: p.name, points: counted };
     total += counted;
   }
-  let benchTotal: number | null = 0;
-  for (const p of bench) {
-    const value = figure(p);
-    if (value === null || value === undefined) benchTotal = null;
-    else if (benchTotal !== null) benchTotal += value;
-  }
-  return { total: starters.length > 0 && missing.length === 0 ? total : null, missing, captain, bench: bench.length > 0 ? benchTotal : null };
+  return { total: starters.length > 0 && missing.length === 0 ? total : null, missing, captain };
 }
 
-/** <projected_points>: tiles beside the squad's figures, in their style. */
-function ProjectedPointsBox({
+/** <projected_points_colour>: how far short of Best Draft's total turns Projected Points full red (a fifth); half of it is neutral grey. */
+const PROJECTED_SHORTFALL_RED = 0.2;
+
+/**
+ * <projected_points_colour>: Projected Points against the best this squad
+ * could score (Best Draft's XI and armbands, same gameweek and source), on
+ * the shared scale: full green at Best Draft's total, grey a tenth short,
+ * full red a fifth or more short. The owner's call (2026-10-30), like FPL's
+ * price Progress coloured by the figure itself rather than a rank, and
+ * through percentileColour so the palette switch turns it off. Null when
+ * either total isn't known.
+ */
+export function projectedPointsScore(current: number | null, best: number | null): number | null {
+  if (current === null || best === null || best <= 0) return null;
+  const shortfall = Math.max(0, (best - current) / best);
+  return Math.max(0, 100 - (shortfall / PROJECTED_SHORTFALL_RED) * 100);
+}
+
+/** One figure in the summary's top row: its label over its value. */
+function SummaryFigure({ label, value, title, colour, negative }: { label: string; value: string; title: string; colour?: string; negative?: boolean }) {
+  return (
+    <div className="squad-summary-figure" title={title}>
+      <span className="squad-summary-label">{label}</span>
+      <span className={`squad-summary-value num${negative ? " value-negative" : ""}`} style={colour ? { color: colour } : undefined}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * The summary's top row (<squad_summary>): Projected Points and the
+ * captain's share of it, then Squad Value and Bank.
+ */
+function SummaryFigures({
   starters,
-  bench,
   captainId,
   expectationByPlayerId,
   source,
   gameweek,
+  bestPicks,
+  validation,
+  budgetHint,
+  marketValue,
 }: {
   starters: NormalizedPlayer[];
-  bench: NormalizedPlayer[];
   captainId: number | null;
   expectationByPlayerId: Map<number, GameweekExpectation | null>;
   source: PointsSource;
   gameweek: number | null;
+  /** Best Draft's starters and captain for the same gameweek and source; null when it can't run. */
+  bestPicks: { starters: NormalizedPlayer[]; captainId: number | null } | null;
+  validation: SquadValidation;
+  budgetHint: string;
+  marketValue: number;
 }) {
-  const p = projectedPoints(starters, bench, captainId, expectationByPlayerId, source);
+  const p = projectedPoints(starters, captainId, expectationByPlayerId, source);
+  const best = bestPicks ? projectedPoints(bestPicks.starters, bestPicks.captainId, expectationByPlayerId, source).total : null;
+  const score = projectedPointsScore(p.total, best);
   const sourceName = SOURCE_NAME[source];
-  const hint =
+  const projectedHint =
     gameweek === null
       ? "No gameweek left to pick for this season"
       : starters.length === 0
         ? "No starting XI yet: start players to see their projected points"
         : p.total === null
           ? `No total yet: ${p.missing.length > 0 ? `${p.missing.join(", ")} ${p.missing.length === 1 ? "has" : "have"} no ${sourceName} figure for GW${gameweek}` : "the figures are still loading"}`
-          : `The starting XI's Exp. Pts (${sourceName}) for GW${gameweek}, the captain's counted twice. Changes with the gameweek arrows and the Source toggle.`;
-  // The same tiles as Squad Value and Bank, two by two: the total, then what makes it up.
+          : `The starting XI's Exp. Pts (${sourceName}) for GW${gameweek}, the captain's counted twice.${
+              best !== null ? ` Best Draft would make it ${fmtDecimal(best, 1)}: green at that, red the further short of it.` : ""
+            }`;
+  // To the tenth, as budgetLeftText does.
+  const tenths = Math.round(validation.budgetRemaining * 10);
+  const sellingDiffers = Math.round(validation.budgetUsed * 10) !== Math.round(marketValue * 10);
+  const valueHint = `Squad Value ${fmtPrice(marketValue)}: the squad's players at today's prices, as FPL shows it.${
+    sellingDiffers ? ` Against the budget they count ${fmtPrice(validation.budgetUsed)}: a player you've held since the import counts at his selling price, as FPL keeps half of each rise.` : ""
+  }`;
   return (
-    <div className="projected-box" title={hint}>
-      <div className="stat-tile">
-        <span className="stat-tile-label">
-          Projected Points · {gameweek !== null ? `GW${gameweek}` : DASH} · {source === "fpl" ? "FPL" : "Model"}
-        </span>
-        <span className="stat-tile-value num">{p.total !== null ? fmtDecimal(p.total, 1) : DASH}</span>
-      </div>
-      <div className="stat-tile">
-        <span className="stat-tile-label">Starters</span>
-        <span className="stat-tile-value num">
-          {starters.length}/{SQUAD_RULES.startingXISize}
-        </span>
-      </div>
-      <div className="stat-tile">
-        <span className="stat-tile-label">{p.captain ? `Captain · ${p.captain.name}` : "Captain"}</span>
-        <span className="stat-tile-value num">{p.captain ? fmtDecimal(p.captain.points, 1) : DASH}</span>
-      </div>
-      <div className="stat-tile">
-        <span className="stat-tile-label">Bench</span>
-        <span className="stat-tile-value num">{p.bench !== null ? fmtDecimal(p.bench, 1) : DASH}</span>
-      </div>
+    <div className="squad-summary-figures">
+      <SummaryFigure label="Projected Points" value={p.total !== null ? fmtDecimal(p.total, 1) : DASH} title={projectedHint} colour={percentileColour(score)} />
+      <SummaryFigure
+        label={p.captain ? `Captain · ${p.captain.name}` : "Captain"}
+        value={p.captain ? fmtDecimal(p.captain.points, 1) : DASH}
+        title={p.captain ? `${p.captain.name}'s Exp. Pts (${sourceName}), doubled as captain` : "No captain yet"}
+      />
+      <SummaryFigure label="Squad Value" value={fmtPrice(marketValue)} title={valueHint} />
+      <SummaryFigure
+        label="Bank"
+        value={tenths < 0 ? `−${fmtPrice(-tenths / 10)}` : fmtPrice(Math.max(0, tenths) / 10)}
+        title={`${budgetLeftText(validation.budgetRemaining)} of ${fmtPrice(validation.budget)}. ${budgetHint}`}
+        negative={tenths < 0}
+      />
     </div>
   );
 }
@@ -565,10 +574,15 @@ export function SquadPitch({
     return { id: p.id, position: p.position, points: g?.[pointsSource] ?? null, playing: (g?.fixtures.length ?? 0) > 0 };
   });
   const draftBlocker = gameweek === null ? "No gameweek left to pick for this season" : bestDraftBlocker(candidates);
+  const draftPicks = draftBlocker === null ? bestDraft(candidates, { startingXI: starters.map((p) => p.id), captainId, viceCaptainId }) : null;
   const handleBestDraft = () => {
-    const picks = bestDraft(candidates, { startingXI: starters.map((p) => p.id), captainId, viceCaptainId });
-    if (picks) onBestDraft(picks);
+    if (draftPicks) onBestDraft(draftPicks);
   };
+  // <projected_points_colour>: what Best Draft's picks would score, to colour Projected Points against.
+  const squadById = new Map([...starters, ...benchPlayers].map((p) => [p.id, p]));
+  const bestPicks = draftPicks
+    ? { starters: draftPicks.startingXI.map((id) => squadById.get(id)).filter((p): p is NormalizedPlayer => !!p), captainId: draftPicks.captainId }
+    : null;
 
   const card = (p: NormalizedPlayer, zone: "pitch" | "bench") => (
     <PlayerCard
@@ -598,140 +612,142 @@ export function SquadPitch({
     ...openSlots.bench.filter((b) => b === pos).map(() => ({ position: pos, player: null })),
   ]);
 
-  // Above the pitch (the squad's name is the page's section heading), two
-  // columns: the squad's figures, then the gameweek and what the kits
-  // highlight; beside them its buttons, with Projected Points underneath at
-  // the buttons' width.
+  // <squad_summary>: one card above the pitch's own (the squad's name is
+  // the page's section heading, its picker under it): the squad's figures
+  // along the top; under a rule, what the kits highlight and the points
+  // source, then the buttons with the gameweek at the far end.
   return (
     <div className={`squad-pitch${hasSquad ? "" : " is-disabled"}`} ref={rootRef} aria-disabled={!hasSquad || undefined}>
-      {/* Left: the squad's figures and the pitch's controls. Right: its buttons with Projected Points under them, the
-          same width (<projected_points>). */}
-      <div className="pitch-view-top">
-        <div className="pitch-view-top-main">
-          <SquadTiles validation={squadValidation} budgetHint={budgetHint} marketValue={squadMarketValue([...starters, ...benchPlayers])} />
-          {squadValidation.clubViolations.length > 0 && (
-            <div className="banner error">
-              Over {SQUAD_RULES.maxPerClub} from one club: {squadValidation.clubViolations.map((v) => `${v.teamName} ${v.count}/${SQUAD_RULES.maxPerClub}`).join(", ")}
+      <div className="card squad-summary">
+        <SummaryFigures
+          starters={starters}
+          captainId={captainId}
+          expectationByPlayerId={expectationByPlayerId}
+          source={pointsSource}
+          gameweek={gameweek}
+          bestPicks={bestPicks}
+          validation={squadValidation}
+          budgetHint={budgetHint}
+          marketValue={squadMarketValue([...starters, ...benchPlayers])}
+        />
+        <div className="squad-summary-controls">
+          <div className="squad-summary-row">
+            <SegmentedControl label="Highlight" hideLabel options={KIT_VIEW_OPTIONS} value={view} onChange={setView} />
+            {/* Always shown: Projected Points and Best Draft follow it whatever the kits highlight. */}
+            <SegmentedControl label="Source" inlineLabel options={SOURCE_OPTIONS} value={pointsSource} onChange={setPointsSource} />
+            {view === "price" && <SegmentedControl label="Price" inlineLabel options={PRICE_VIEW_OPTIONS} value={priceView} onChange={setPriceView} />}
+          </div>
+          <div className="squad-summary-row">
+            <div className="pitch-view-actions">
+              <button
+                type="button"
+                className={`btn${captainPickMode === "captain" ? " active" : ""}`}
+                aria-pressed={captainPickMode === "captain"}
+                onClick={() => onCaptainTileClick("captain")}
+                title="Click, then click a starting player to make them captain"
+              >
+                Captain
+              </button>
+              <button
+                type="button"
+                className={`btn${captainPickMode === "viceCaptain" ? " active" : ""}`}
+                aria-pressed={captainPickMode === "viceCaptain"}
+                onClick={() => onCaptainTileClick("viceCaptain")}
+                title="Click, then click a starting player to make them vice-captain"
+              >
+                Vice-Captain
+              </button>
+              <button type="button" className="btn" onClick={onClearSquad} title={`Remove every player from ${squadName || "this squad"}`}>
+                Clear Draft
+              </button>
+              <button
+                type="button"
+                className="btn primary"
+                onClick={handleBestDraft}
+                disabled={draftBlocker !== null}
+                title={draftBlocker ?? `Pick the starting XI, captain and vice-captain with the most Exp. Pts (${SOURCE_NAME[pointsSource]}) in GW${gameweek}, in a formation FPL allows`}
+              >
+                Best Draft
+              </button>
             </div>
-          )}
-          <div className="pitch-controls">
             <GameweekArrows
-              label="Gameweek"
               gameweeks={gameweeks}
               value={gameweek}
               onChange={onGameweekChange}
               describe={(eventId) => `Points Prediction, Minutes, Projected Points and Best Draft are for GW${eventId}`}
             />
-            <SegmentedControl label="Highlight" options={KIT_VIEW_OPTIONS} value={view} onChange={setView} />
-            {/* Always shown: Projected Points and Best Draft follow it whatever the kits highlight. */}
-            <SegmentedControl label="Source" options={SOURCE_OPTIONS} value={pointsSource} onChange={setPointsSource} />
-            {view === "price" && <SegmentedControl label="Price" options={PRICE_VIEW_OPTIONS} value={priceView} onChange={setPriceView} />}
           </div>
         </div>
-        <div className="pitch-view-side">
-          <div className="pitch-view-actions">
-            <button
-              type="button"
-              className={`btn${captainPickMode === "captain" ? " active" : ""}`}
-              aria-pressed={captainPickMode === "captain"}
-              onClick={() => onCaptainTileClick("captain")}
-              title="Click, then click a starting player to make them captain"
-            >
-              Captain
-            </button>
-            <button
-              type="button"
-              className={`btn${captainPickMode === "viceCaptain" ? " active" : ""}`}
-              aria-pressed={captainPickMode === "viceCaptain"}
-              onClick={() => onCaptainTileClick("viceCaptain")}
-              title="Click, then click a starting player to make them vice-captain"
-            >
-              Vice-Captain
-            </button>
-            <button type="button" className="btn" onClick={onClearSquad} title={`Remove every player from ${squadName || "this squad"}`}>
-              Clear Draft
-            </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={handleBestDraft}
-              disabled={draftBlocker !== null}
-              title={draftBlocker ?? `Pick the starting XI, captain and vice-captain with the most Exp. Pts (${SOURCE_NAME[pointsSource]}) in GW${gameweek}, in a formation FPL allows`}
-            >
-              Best Draft
-            </button>
+      </div>
+
+      <div className="card">
+        {squadValidation.clubViolations.length > 0 && (
+          <div className="banner error">
+            Over {SQUAD_RULES.maxPerClub} from one club: {squadValidation.clubViolations.map((v) => `${v.teamName} ${v.count}/${SQUAD_RULES.maxPerClub}`).join(", ")}
           </div>
-          <ProjectedPointsBox
-            starters={starters}
-            bench={benchPlayers}
-            captainId={captainId}
-            expectationByPlayerId={expectationByPlayerId}
-            source={pointsSource}
-            gameweek={gameweek}
-          />
+        )}
+        {warning && <div className="banner error">{warning}</div>}
+
+        <div
+          className={`pitch ${pitchDragOver ? "drag-over" : ""}`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setPitchDragOver(true);
+          }}
+          onDragLeave={() => setPitchDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setPitchDragOver(false);
+            const draggedId = Number(e.dataTransfer.getData("text/plain"));
+            if (draggedId) onAddToPitch(draggedId);
+          }}
+        >
+          <PitchMarkings />
+          {PITCH_ROW_ORDER.map((pos) => {
+            const players = positionGroups[pos];
+            const open = openSlots.pitch[pos];
+            if (players.length === 0 && open === 0) return null;
+            return (
+              <div className="pitch-row" key={pos}>
+                {players.map((p) => card(p, "pitch"))}
+                {Array.from({ length: open }, (_, i) => (
+                  <OpenSlot key={`open-${i}`} position={pos} disabled={!hasSquad} onAdd={onAddSlot} />
+                ))}
+              </div>
+            );
+          })}
         </div>
-      </div>
-      {warning && <div className="banner error">{warning}</div>}
 
-      <div
-        className={`pitch ${pitchDragOver ? "drag-over" : ""}`}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setPitchDragOver(true);
-        }}
-        onDragLeave={() => setPitchDragOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setPitchDragOver(false);
-          const draggedId = Number(e.dataTransfer.getData("text/plain"));
-          if (draggedId) onAddToPitch(draggedId);
-        }}
-      >
-        <PitchMarkings />
-        {PITCH_ROW_ORDER.map((pos) => {
-          const players = positionGroups[pos];
-          const open = openSlots.pitch[pos];
-          if (players.length === 0 && open === 0) return null;
-          return (
-            <div className="pitch-row" key={pos}>
-              {players.map((p) => card(p, "pitch"))}
-              {Array.from({ length: open }, (_, i) => (
-                <OpenSlot key={`open-${i}`} position={pos} disabled={!hasSquad} onAdd={onAddSlot} />
-              ))}
-            </div>
-          );
-        })}
-      </div>
-
-      <div
-        className={`bench-strip ${benchDragOver ? "drag-over" : ""}`}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setBenchDragOver(true);
-        }}
-        onDragLeave={() => setBenchDragOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setBenchDragOver(false);
-          const draggedId = Number(e.dataTransfer.getData("text/plain"));
-          if (draggedId) onBench(draggedId);
-        }}
-      >
-        <div className="bench-label">Bench</div>
-        <div className="bench-row">
-          {benchPlaces.map((place, i) => (
-            <div className={`bench-slot${place.player ? "" : " is-open"}`} key={place.player?.id ?? `open-${place.position}-${i}`}>
-              <span className="bench-slot-position">
-                <PositionBadge position={place.position} />
-              </span>
-              {place.player ? card(place.player, "bench") : <OpenSlot position={place.position} disabled={!hasSquad} onAdd={onAddSlot} />}
-            </div>
-          ))}
-          {benchPlaces.length === 0 && (
-            <p className="page-subtitle" style={{ margin: 0 }}>
-              No bench players.
-            </p>
-          )}
+        <div
+          className={`bench-strip ${benchDragOver ? "drag-over" : ""}`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setBenchDragOver(true);
+          }}
+          onDragLeave={() => setBenchDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setBenchDragOver(false);
+            const draggedId = Number(e.dataTransfer.getData("text/plain"));
+            if (draggedId) onBench(draggedId);
+          }}
+        >
+          <div className="bench-label">Bench</div>
+          <div className="bench-row">
+            {benchPlaces.map((place, i) => (
+              <div className={`bench-slot${place.player ? "" : " is-open"}`} key={place.player?.id ?? `open-${place.position}-${i}`}>
+                <span className="bench-slot-position">
+                  <PositionBadge position={place.position} />
+                </span>
+                {place.player ? card(place.player, "bench") : <OpenSlot position={place.position} disabled={!hasSquad} onAdd={onAddSlot} />}
+              </div>
+            ))}
+            {benchPlaces.length === 0 && (
+              <p className="page-subtitle" style={{ margin: 0 }}>
+                No bench players.
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>
