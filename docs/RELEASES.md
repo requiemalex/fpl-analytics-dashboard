@@ -5,6 +5,10 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.123.1 · 30 Oct 2026
+
+- Team Building: summary card's toggles, buttons and gameweek on one row
+
 ## v1.123.0 · 30 Oct 2026
 
 - Team Building: redesigned squad header, squad picker under the heading, formation warning removed
