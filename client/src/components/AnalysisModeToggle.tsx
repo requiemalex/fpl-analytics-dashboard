@@ -108,7 +108,7 @@ export function AnalysisModeToggle({
   floorActive?: boolean;
   /** Set on team views: Current Season club figures are summed from every player's matches, so a skipped player matters there too (audit 2026-10-18 M4). */
   clubFigures?: boolean;
-  /** Space below it: less where it sits straight over the columns it drives (<view_picker_over_columns>). */
+  /** Space below it: less where it sits straight over the table (Add Players). */
   marginBottom?: number;
 }) {
   const { historicStatus, historicErrorMessage, historicSkippedPlayerIds, historicFetchSkippedPlayerIds, refreshHistoricData, historicRefreshing } = useAppState();

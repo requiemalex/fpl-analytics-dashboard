@@ -4156,3 +4156,13 @@ tiles/graphs only:
   the Columns picker's headings and narrows to those named; a statistic's
   name alone puts it first.
 - **Last commit with it:** `ff4ad87`.
+
+### Add Players' Data View picker over its columns (replaced 2026-10-30)
+- **What it did:** in Team Building's Add Players the Data View picker was
+  lined up over the first column it changes (`<view_picker_over_columns>`),
+  measured from that header (`data-view-start`) and moved on resize, re-fit
+  and every sideways scroll.
+- **Why it went:** the owner found it sliding about the dialog as the
+  table scrolled sideways, and asked for it back at the far left under the
+  toolbar, fixed.
+- **Last commit with it:** `9df61b7`.

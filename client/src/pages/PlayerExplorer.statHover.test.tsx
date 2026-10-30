@@ -105,7 +105,6 @@ describe("Player Explorer — the always-live block ends at the divider (Next 5 
     const first = headers(container)[position + 2];
     expect(headerText(first)).toBe("Points");
     expect(first.classList.contains("column-group-divider")).toBe(true);
-    expect(first.hasAttribute("data-view-start")).toBe(true);
   });
 
   it("without Next 5 Fixtures the divider sits right after Position", () => {

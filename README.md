@@ -2057,11 +2057,10 @@ New Squad makes or imports one; the "No squad loaded" note sits above it.
   (`<shared_player_table>`, above), starting with Next 5 Fixtures and
   Player Explorer's default columns (Understat's included), the squad left out, and an **Add**
   on each row (greyed, with the reason as its hover, when a squad rule
-  stops him). Its Data View picker sits under the toolbar, straight over
-  the first column it changes (`<view_picker_over_columns>`, the owner's
-  call, 2026-10-26): measured from that header (`data-view-start`), kept
-  in step on resize, re-fit and sideways scroll, held inside the table.
-  Player Explorer's page keeps the picker top left, as every other page. Its own Predictive columns come first: the two Exp. Pts and
+  stops him). Its Data View picker sits under the toolbar at the left, fixed
+  (it doesn't move as the table scrolls sideways; owner's call,
+  2026-10-30). Player Explorer's page keeps the picker top left, as every
+  other page. Its own Predictive columns come first: the two Exp. Pts and
   Exp. Mins, coloured by rank within the position with no minutes floor.
   It replaced the Add Players section (`docs/HISTORY.md`).
 - **Exp. Pts horizon** (`<points_horizon>`, `horizonTotal` in

@@ -663,26 +663,6 @@ export function PlayerExplorerTable({
     const leadShare = leadCount > 0 ? Math.floor((available * leadCount) / (leadCount + visibleColumns.length)) : 0;
     if (leadCount > 0) leadCols.fitToBox(leadShare);
     fitToBox(available - leadShare);
-    measureViewStart();
-  }
-
-  // <view_picker_over_columns>: in a dialog (Team Building's Add Players)
-  // the Data View picker sits straight above the first column it changes —
-  // the one after the always-live block's divider (the owner's call,
-  // 2026-10-26) — so it reads as the control for those columns. Measured
-  // from the header, kept in step on resize, re-fit and sideways scroll,
-  // and held inside the table's width.
-  const viewPickerRef = useRef<HTMLDivElement>(null);
-  const [viewStart, setViewStart] = useState(0);
-  function measureViewStart() {
-    if (variant !== "panel") return;
-    const container = tableWrapRef.current;
-    const start = container?.querySelector<HTMLElement>("th[data-view-start]");
-    if (!container) return;
-    const picker = viewPickerRef.current?.querySelector<HTMLElement>(".data-view-picker");
-    const room = container.clientWidth - (picker?.offsetWidth ?? 0);
-    const left = start ? start.getBoundingClientRect().left - container.getBoundingClientRect().left : 0;
-    setViewStart(Math.round(Math.max(0, Math.min(left, room))));
   }
 
   // Saved views (<explorer_views>): snapshots of the Explorer's own
@@ -768,15 +748,6 @@ export function PlayerExplorerTable({
     return () => window.removeEventListener("resize", onResize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // The Data View picker follows its column when the table scrolls sideways (<view_picker_over_columns>).
-  useEffect(() => {
-    const wrap = tableWrapRef.current;
-    if (variant !== "panel" || !wrap) return;
-    wrap.addEventListener("scroll", measureViewStart, { passive: true });
-    return () => wrap.removeEventListener("scroll", measureViewStart);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [variant]);
 
   // The user-configurable columns the Data View drives, after the divider.
   // Team/Position never appear here — they're part of the fixed
@@ -996,7 +967,6 @@ export function PlayerExplorerTable({
                   columnKey={key}
                   label={columnLabel(c)}
                   className={className}
-                  dataViewStart={idx === 0}
                   title={columnHints.get(key) ?? c.label}
                   layout={headerLayout}
                   width={width}
@@ -1213,9 +1183,7 @@ export function PlayerExplorerTable({
       {notice}
 
       {variant === "panel" && (
-        <div ref={viewPickerRef} style={{ marginLeft: viewStart }}>
-          <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} marginBottom={8} />
-        </div>
+        <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} marginBottom={8} />
       )}
 
       <div className={variant === "page" ? "page-fill-body" : "explorer-panel-body"}>{table}</div>
