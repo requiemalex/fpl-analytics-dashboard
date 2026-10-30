@@ -5,6 +5,11 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.122.1 · 30 Oct 2026
+
+- Player Explorer and Add Players scroll, sort and switch Data View without lag: the table draws only the rows in view
+- Add Players' Data View picker stays put at the left, under the toolbar, instead of sliding with the table
+
 ## v1.122.0 · 30 Oct 2026
 
 - Help: guides narrow from the first letter typed, one Statistics guide lists every statistic, and 46 more guides (icons, top bar, finding players, fixtures, profiles, Team Building)
