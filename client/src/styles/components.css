@@ -1048,9 +1048,10 @@ select:focus {
 }
 
 /* <squad_summary>: the card above the pitch's. Its figures along the top,
-   each after a hairline; under a rule, what the kits highlight and the
-   points source, then the buttons with the gameweek at the far end. Fixed
-   gaps at every width; on a narrow window the rows wrap. */
+   each after a hairline; under a rule, one row: what the kits highlight and
+   the points source, then at the far end the buttons and the gameweek.
+   Fixed gaps at every width; on a narrow window the far end wraps under,
+   still to the right. */
 .squad-summary {
   margin-bottom: var(--space-4);
   padding: 0;
@@ -1085,23 +1086,19 @@ select:focus {
 }
 .squad-summary-controls {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-6);
   padding: var(--space-4) var(--space-5);
   border-top: 1px solid var(--border);
 }
-.squad-summary-row {
+.squad-summary-end {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3) var(--space-6);
-}
-.squad-summary-row:first-child {
-  justify-content: flex-start;
-}
-.squad-summary-row .segmented.gameweek-arrows {
-  align-self: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-left: auto;
 }
 .pitch-view-actions {
   display: flex;

@@ -1972,12 +1972,13 @@ starting XI short of 11 or a line under its minimum.
   against the budget can be less — an import's players still held count
   at their selling prices, FPL keeping half of each rise — and its hover
   gives that figure where it differs) and **Bank** (the budget left, as
-  FPL's is). Under a rule: what the kits highlight (no label shown) and
-  **Source** (its label to the left); then the Captain, Vice-Captain and
-  Clear Draft buttons (the app's standard `.btn`, green while armed) and
-  **Best Draft** (the primary `.btn.primary`), with the gameweek arrows
-  (no label shown) at the far end of that row. Rows wrap on a narrow
-  window; the gaps are fixed. A club-limit breach is a banner at the top
+  FPL's is). Under a rule, one row: what the kits highlight (no label
+  shown) and **Source** (its label to the left); then, pushed to the far
+  end, the Captain, Vice-Captain and Clear Draft buttons (the app's
+  standard `.btn`, green while armed), **Best Draft** (the primary
+  `.btn.primary`) and the gameweek arrows (no label shown) last (owner's
+  call 2026-10-30: two rows wasted height). On a narrow window that far
+  end wraps under the toggles, still to the right; the gaps are fixed. A club-limit breach is a banner at the top
   of the pitch's card. The bench is a row of slots, goalkeeper
   first, each labelled with its position (no bench order: the app has
   none).

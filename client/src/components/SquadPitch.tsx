@@ -631,13 +631,11 @@ export function SquadPitch({
           marketValue={squadMarketValue([...starters, ...benchPlayers])}
         />
         <div className="squad-summary-controls">
-          <div className="squad-summary-row">
-            <SegmentedControl label="Highlight" hideLabel options={KIT_VIEW_OPTIONS} value={view} onChange={setView} />
-            {/* Always shown: Projected Points and Best Draft follow it whatever the kits highlight. */}
-            <SegmentedControl label="Source" inlineLabel options={SOURCE_OPTIONS} value={pointsSource} onChange={setPointsSource} />
-            {view === "price" && <SegmentedControl label="Price" inlineLabel options={PRICE_VIEW_OPTIONS} value={priceView} onChange={setPriceView} />}
-          </div>
-          <div className="squad-summary-row">
+          <SegmentedControl label="Highlight" hideLabel options={KIT_VIEW_OPTIONS} value={view} onChange={setView} />
+          {/* Always shown: Projected Points and Best Draft follow it whatever the kits highlight. */}
+          <SegmentedControl label="Source" inlineLabel options={SOURCE_OPTIONS} value={pointsSource} onChange={setPointsSource} />
+          {view === "price" && <SegmentedControl label="Price" inlineLabel options={PRICE_VIEW_OPTIONS} value={priceView} onChange={setPriceView} />}
+          <div className="squad-summary-end">
             <div className="pitch-view-actions">
               <button
                 type="button"

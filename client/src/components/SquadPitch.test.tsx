@@ -202,13 +202,14 @@ describe("<squad_summary> the card above the pitch", () => {
     expect(getByRole("group", { name: "Gameweek" })).toBeTruthy();
   });
 
-  it("has the buttons first and the gameweek arrows after them, under the toggles", () => {
+  it("has the toggles, then the buttons and the gameweek arrows at the far end, all on one row", () => {
     const { container } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
-    const rows = container.querySelectorAll(".squad-summary-controls > .squad-summary-row");
-    expect(rows).toHaveLength(2);
-    expect(rows[0].querySelector('[role="radiogroup"]')).not.toBeNull();
-    expect([...rows[1].children].map((c) => c.className)).toEqual(["pitch-view-actions", "field"]);
-    expect(rows[1].querySelector(".gameweek-arrows")).not.toBeNull();
+    const row = container.querySelector(".squad-summary-controls")!;
+    expect(row.querySelectorAll(".squad-summary-row")).toHaveLength(0);
+    expect([...row.children].map((c) => c.className)).toEqual(["field", "field field-inline", "squad-summary-end"]);
+    const end = row.querySelector(".squad-summary-end")!;
+    expect([...end.children].map((c) => c.className)).toEqual(["pitch-view-actions", "field"]);
+    expect(end.lastElementChild!.querySelector(".gameweek-arrows")).not.toBeNull();
   });
 });
 
