@@ -5,6 +5,11 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.124.0 · 31 Oct 2026
+
+- Set-piece duties as gold, silver and bronze icons after a player's name (replacing the Pen Order, FK Order and Corner Order columns); new Understat figures: shots, goals and xG inside and outside the box, chances created and xA from corners and set pieces, headed xG from corners and from crosses; clearer names and hovers for the set-piece figures
+- Help: 16 more guides — live gameweeks, pre-season, Dashboard limits and unavailable cards, saved views that load partly, Match Logs that don't add up, purchase prices, an import's budget, chips, Locked/Calibrating prices, how accurate predictions are, installing, updates, players leaving FPL, and Understat's club xG
+
 ## v1.123.1 · 30 Oct 2026
 
 - Team Building: summary card's toggles, buttons and gameweek on one row
