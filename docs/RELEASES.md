@@ -5,6 +5,11 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.125.2 · 31 Oct 2026
+
+- CLAUDE.md: new Understat figures are published at once (the sync runs on push) and every install reads changed files straight away; check the run and the files before calling one done
+- Player Explorer and Add Players: the Player header's filter menu opens to the right, wide and tall enough to show every section, instead of being cut off at the table's left edge
+
 ## v1.125.1 · 31 Oct 2026
 
 - Understat: new figures reach the app as soon as they're published — the sync runs straight away when its code changes, and the app reads again any season file a sync rewrote (completed seasons included) instead of keeping its copy up to 12 hours
