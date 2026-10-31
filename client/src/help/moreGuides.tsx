@@ -2,6 +2,7 @@ import React from "react";
 import { AnalysisModeIcon } from "../components/AnalysisModeIcon";
 import {
   CalendarIcon,
+  CloseIcon,
   ColumnsIcon,
   ComparativeColourIcon,
   CreateViewIcon,
@@ -22,6 +23,9 @@ import { NOTEPAD_KEY } from "../components/Notepad";
 import { PositionBadge } from "../components/primitives";
 import { FplSourceIcon } from "../components/SourceToggle";
 import { fdrColor } from "../metrics/fixtureTicker";
+import { MAX_DASHBOARD_GRAPHS } from "../state/useDashboardGraphs";
+import { MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE } from "../state/useSavedDashboardViews";
+import { MAX_SUMMARY_TILES } from "../state/useSummaryTiles";
 import { SQUAD_RULES } from "../types/team";
 import { TOPIC } from "./topics";
 import type { HelpGuide } from "./types";
@@ -29,7 +33,9 @@ import { Chips, ColourScale, Figures, Flow, IconKey, Key, Label, Note, Points, S
 
 /**
  * <help_guides>, second set: the icons, the top bar, how to find players,
- * fixtures and gameweeks, and the details of each page. Same rules as the
+ * fixtures and gameweeks, the details of each page, and the edge cases
+ * people run into (limits, notices, chips, installing, updates, players
+ * leaving FPL). Same rules as the
  * first set (help/guides.tsx): a one-line answer, a visual, a few short
  * points, and many search words.
  */
@@ -428,6 +434,57 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
       </>
     ),
   },
+  {
+    id: "live-gameweek",
+    topic: TOPIC.fixtures,
+    title: "During a gameweek",
+    answer: "Players' figures count a match from kick-off; club figures wait until FPL confirms it, hours after full time.",
+    pages: ["player-explorer", "team-explorer", "team-building"],
+    keywords: [
+      "live gameweek", "during the gameweek", "matches in progress", "in progress", "in play", "live match", "kick off", "kicked off",
+      "full time", "confirmed", "league table behind", "table not updated", "club figures behind", "points not updated",
+      "why hasn't it updated", "a round behind", "this weekend", "today's games", "live points", "match day",
+    ],
+    related: ["updates", "team-explorer"],
+    body: (
+      <>
+        <Terms
+          rows={[
+            ["Players' totals", "include a match from kick-off"],
+            ["League table, club figures", "once FPL confirms it, then within the hour"],
+            ["Team Building", "predictions skip a match that has kicked off"],
+            ["Match Log", "only matches that have kicked off"],
+          ]}
+        />
+        <Note>Player figures refresh every 10 minutes.</Note>
+      </>
+    ),
+  },
+  {
+    id: "pre-season",
+    topic: TOPIC.fixtures,
+    title: "Before the season starts",
+    answer: "Current Season shows \"—\" for everyone until the first match; the other Data Views have figures.",
+    pages: ALL_PAGES,
+    keywords: [
+      "pre-season", "preseason", "pre season", "summer", "before the season", "season hasn't started", "no matches yet", "gameweek 1",
+      "gw1", "start of season", "early season", "all dashes", "everything blank", "current season empty", "off season", "close season",
+      "first gameweek", "august", "new season starts", "season start",
+    ],
+    related: ["data-views", "stopwatch"],
+    body: (
+      <>
+        <IconKey
+          rows={[
+            { icon: <AnalysisModeIcon mode="live" size={16} />, label: "Current Season:", text: "\"—\" until a club has played" },
+            { icon: <AnalysisModeIcon mode="lastSeason" size={16} />, label: "Last Completed Season:", text: "full figures" },
+            { icon: <AnalysisModeIcon mode="historicAverage" size={16} />, label: "Historic Average:", text: "full figures" },
+          ]}
+        />
+        <Points items={["The top bar reads Pre-season until a gameweek is under way.", "Early on, the minutes floor is 90, growing each gameweek."]} />
+      </>
+    ),
+  },
 
   // ---------- Dashboard ----------
   {
@@ -497,6 +554,60 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
       </>
     ),
   },
+  {
+    id: "dashboard-limits",
+    topic: TOPIC.dashboard,
+    title: "Dashboard limits",
+    answer: `Up to ${MAX_SUMMARY_TILES} tiles and ${MAX_DASHBOARD_GRAPHS} graphs, Players and Teams counted together, and ${MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE} views each.`,
+    pages: ["dashboard"],
+    keywords: [
+      "limit", "limits", "maximum", "max", "add another tile", "another tile", "another graph", "can't add tile", "cannot add tile", "can't add graph", "too many tiles", "too many graphs",
+      "how many tiles", "how many graphs", "20 tiles", "10 graphs", "5 views", "view limit", "no more tiles", "remove one first",
+      "push you past", "name taken", "same name",
+    ],
+    related: ["dashboard-views", "dashboard-tiles"],
+    body: (
+      <>
+        <Figures
+          items={[
+            { value: String(MAX_SUMMARY_TILES), label: "tiles" },
+            { value: String(MAX_DASHBOARD_GRAPHS), label: "graphs" },
+            { value: String(MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE), label: "views each for Players and Teams" },
+          ]}
+        />
+        <Points
+          items={[
+            "Tiles and graphs count the open Players and Teams views together: remove one from either to add another.",
+            "Starter is one of the views. Each view needs its own name.",
+          ]}
+        />
+      </>
+    ),
+  },
+  {
+    id: "unavailable-card",
+    topic: TOPIC.dashboard,
+    title: "An unavailable tile or card",
+    answer: "Its statistic no longer exists, or comes from a source that's switched off. The bin removes it.",
+    pages: ["dashboard", "player-comparison"],
+    keywords: [
+      "unavailable", "unavailable tile", "unavailable graph", "unavailable card", "no longer available", "statistic no longer available",
+      "switched off", "second data source", "broken tile", "empty tile", "tile disappeared", "old tile", "can't edit tile", "remove tile",
+      "stopped working", "understat off", "after update", "broken card", "broken graph", "dead tile",
+    ],
+    related: ["dashboard-views", "comparison-build"],
+    body: (
+      <>
+        <Terms
+          rows={[
+            ["\"Statistic no longer available\"", "the app doesn't have it any more"],
+            ["\"Second data source switched off\"", "it works again when the source is back"],
+          ]}
+        />
+        <IconKey rows={[{ icon: <TrashIcon />, label: "Bin", text: "remove it, after you confirm" }]} />
+      </>
+    ),
+  },
 
   // ---------- Player & Team Explorer ----------
   {
@@ -518,6 +629,33 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
           ["TOT", "Spurs"],
         ]}
       />
+    ),
+  },
+  {
+    id: "view-notice",
+    topic: TOPIC.tables,
+    title: "A saved view didn't load everything",
+    answer: "A note above the table names what can't be shown now; the saved view itself keeps it all.",
+    pages: ["player-explorer", "team-explorer", "team-building"],
+    keywords: [
+      "loaded without", "loaded without a column", "didn't load everything", "can't be shown now", "view notice", "banner above table", "column gone", "filter gone", "saved view changed",
+      "view incomplete", "view not loading", "part of view", "club no longer in league", "relegated club filter", "understat switched off",
+      "dismiss", "amber banner", "notice", "saved view broken", "lost filter", "missing filter", "view missing column",
+    ],
+    related: ["saved-views", "left-fpl"],
+    body: (
+      <>
+        <Label>Left out</Label>
+        <Terms
+          rows={[
+            ["A column", "this version doesn't have"],
+            ["A Team filter", "on a club no longer in the league"],
+            ["An Understat column or ⇄", "while Understat is off, with its filter"],
+          ]}
+        />
+        <IconKey rows={[{ icon: <CloseIcon size={14} />, label: "Dismiss", text: "the note" }]} />
+        <Note>Saving over the view would drop those parts for good.</Note>
+      </>
     ),
   },
 
@@ -672,6 +810,27 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
     ],
     related: ["data-views", "dash"],
     body: <Note>A new arrival has no Last Completed Season or Historic Average; Current Season has his figures.</Note>,
+  },
+  {
+    id: "match-record-check",
+    topic: TOPIC.profiles,
+    title: "A past season's Match Log doesn't add up",
+    answer: "A note above it gives both totals: the archive its matches come from is missing part of that season.",
+    keywords: [
+      "doesn't add up", "does not add up", "totals wrong", "match log wrong", "minutes don't match", "points don't match", "missing match",
+      "missing game", "archive", "season total", "fpl total", "shortfall", "blue banner", "info banner", "match record", "falls short",
+      "totals short", "past season totals", "incomplete season", "before 2016",
+    ],
+    related: ["match-log", "points-history"],
+    body: (
+      <Points
+        items={[
+          "FPL keeps no match-by-match record of past seasons, so the gap can't be filled.",
+          "Points History's bar is FPL's own season total.",
+          "Before 2016/17 there are no matches: FPL's season totals show instead.",
+        ]}
+      />
+    ),
   },
 
   // ---------- Player Comparison ----------
@@ -863,6 +1022,128 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
       />
     ),
   },
+  {
+    id: "purchase-prices",
+    topic: TOPIC.building,
+    title: "Purchase prices",
+    answer: "What each player cost: that day's price if added here, or worked out from your FPL transfers if imported.",
+    pages: ["team-building"],
+    keywords: [
+      "purchase price", "bought for", "bought at", "what i paid", "paid", "pay", "how much did i pay", "cost", "buying price", "original price", "price paid",
+      "purchase", "dash purchase price", "missing purchase price", "unknown price", "transfer prices", "import prices", "sell price wrong",
+      "selling price wrong", "joined late", "started late", "season start price",
+    ],
+    related: ["sell-price", "imported-budget"],
+    body: (
+      <>
+        <Terms
+          rows={[
+            ["Added in Scoutline", "his price that day"],
+            ["Imported, bought by transfer", "that transfer's price"],
+            ["Imported, held since GW1", "his price at the season's start"],
+            ["Imported, team started later", "today's price if it hasn't moved; otherwise \"—\""],
+          ]}
+        />
+        <Note>Highlight → Price → Purchase shows them; hover a "—" for why. A new season clears them.</Note>
+      </>
+    ),
+  },
+  {
+    id: "imported-budget",
+    topic: TOPIC.building,
+    title: "Budget of an imported squad",
+    answer: "Your FPL bank plus what each imported player sells for, so an unchanged import has FPL's bank left.",
+    pages: ["team-building"],
+    keywords: [
+      "imported budget", "import budget", "bank different", "bank wrong", "bank doesn't match", "bank doesnt match fpl", "budget wrong",
+      "how much can i spend", "spending money", "remaining budget", "fpl bank", "same as fpl", "budget after import", "not 100m",
+      "more than 100m", "less than 100m", "import again", "budget hover", "available money", "different budget",
+    ],
+    related: ["sell-price", "purchase-prices"],
+    body: (
+      <>
+        <Flow steps={["FPL bank", "+ each player's selling price", "budget"]} />
+        <Terms
+          rows={[
+            ["Kept", "counts at his selling price"],
+            ["Added here", "counts at today's price"],
+            ["Removed", "his selling price goes back"],
+          ]}
+        />
+        <Note>A squad built from scratch has £{SQUAD_RULES.budget.toFixed(0)}m. If the budget's hover says to import again, do.</Note>
+      </>
+    ),
+  },
+  {
+    id: "chip-weeks",
+    topic: TOPIC.building,
+    title: "Chips: Free Hit, Bench Boost, Triple Captain",
+    answer: "Free Hit imports that week's temporary squad; Bench Boost imports the first 11 as the starting XI.",
+    pages: ["team-building"],
+    keywords: [
+      "chip", "chips", "free hit", "bench boost", "triple captain", "wildcard chip", "chip week", "chip used", "temporary squad",
+      "free hit squad", "import free hit", "import bench boost", "chip history", "which chips", "chips left", "chips used", "bench points",
+      "captain tripled", "after free hit", "squad goes back",
+    ],
+    related: ["import-team", "projected-points"],
+    body: (
+      <>
+        <Terms
+          rows={[
+            ["Free Hit", "that week's squad: import again after it for your own"],
+            ["Bench Boost", "first 11 picks start, the rest on the bench"],
+            ["Triple Captain", "Projected Points still doubles the captain"],
+          ]}
+        />
+        <Note>No figure counts a chip, and the chips you've used aren't shown.</Note>
+      </>
+    ),
+  },
+  {
+    id: "price-locked",
+    topic: TOPIC.building,
+    title: "Locked or Calibrating price",
+    answer: "FPL has frozen his price for now (Locked) or is still settling his progress (Calibrating).",
+    pages: ["team-building"],
+    keywords: [
+      "locked", "price locked", "locked price", "calibrating", "calibration", "price calibrating", "frozen price", "price frozen",
+      "no progress", "progress missing", "locked until", "price change locked", "no price change", "won't change", "progress locked",
+      "price status", "why locked", "lock date", "frozen", "settling",
+    ],
+    related: ["price-changes"],
+    body: (
+      <>
+        <Terms
+          rows={[
+            ["Locked", "no price change until the date in its hover"],
+            ["Calibrating", "FPL hasn't settled his progress yet"],
+          ]}
+        />
+        <Note>Both show in Highlight → Price → Progress, as FPL shows them.</Note>
+      </>
+    ),
+  },
+  {
+    id: "prediction-accuracy",
+    topic: TOPIC.building,
+    title: "How accurate are the predictions?",
+    answer: "A guide, not a promise: Model Predicted is typically about 2 points out, per player per match.",
+    pages: ["team-building"],
+    keywords: [
+      "accurate", "accuracy", "how accurate", "how good", "reliable", "trust", "trust predictions", "wrong prediction", "prediction wrong",
+      "miss", "tested", "backtest", "proven", "evidence", "how good is the model", "can i trust", "better than fpl", "confidence",
+      "model quality", "limitations",
+    ],
+    related: ["expected-points", "expected-minutes"],
+    body: (
+      <>
+        <Figures items={[{ value: "~2", label: "points typical miss, per player per match" }]} />
+        <Points items={["Proven on seasons it wasn't fitted on.", "Best at telling who will start; goals, clean sheets and bonus still fall as they do."]} />
+        <Label>It doesn't know</Label>
+        <Chips items={["injuries beyond the next round", "the manager's team sheet", "bench order", "automatic subs"]} />
+      </>
+    ),
+  },
 
   // ---------- The app ----------
   {
@@ -918,5 +1199,79 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
     ],
     related: ["saved-data"],
     body: <Note>Scoutline is independent: not affiliated with or endorsed by the Premier League.</Note>,
+  },
+  {
+    id: "install",
+    topic: TOPIC.app,
+    title: "Installing Scoutline",
+    answer: "Run the setup file; if Windows warns you, choose More info → Run anyway. Then accept the terms.",
+    keywords: [
+      "install", "installing", "installer", "setup", "setup file", "download app", "windows protected your pc", "smartscreen", "warning",
+      "run anyway", "more info", "unknown publisher", "unsigned", "is it safe", "first launch", "first time", "accept terms", "start menu",
+      "desktop shortcut", "won't open after install",
+    ],
+    related: ["update-ready", "about-legal"],
+    body: (
+      <>
+        <Steps
+          items={[
+            "Run the setup file.",
+            "\"Windows protected your PC\": More info → Run anyway. Scoutline isn't signed, so Windows doesn't know it yet.",
+            "Open Scoutline from the Start menu or desktop, and accept the terms.",
+          ]}
+        />
+        <Note>The installer doesn't open it at the end. Only one copy runs: opening it again brings it forward.</Note>
+      </>
+    ),
+  },
+  {
+    id: "update-ready",
+    topic: TOPIC.app,
+    title: "An update is ready",
+    answer: "Restart now to update straight away, or Later and it installs when you next close Scoutline.",
+    pages: ALL_PAGES,
+    keywords: [
+      "update ready", "update available", "new version available", "restart now", "later", "update dialog", "update popup",
+      "update message", "install update", "download update", "progress bar", "app closed itself", "app restarted", "closed by itself",
+      "update failed", "skip update", "postpone update", "when will it update", "update now", "reopen",
+    ],
+    related: ["updates", "install"],
+    body: (
+      <>
+        <Terms
+          rows={[
+            ["Restart now", "closes, installs with a progress bar, reopens"],
+            ["Later", "installs as you close it, then stays closed"],
+            ["Already closed", "installs the next time you open it"],
+          ]}
+        />
+        <Note>An open copy finds a new version within about 10 minutes. Your saved data stays.</Note>
+      </>
+    ),
+  },
+  {
+    id: "left-fpl",
+    topic: TOPIC.app,
+    title: "When a player or club leaves FPL",
+    answer: "Saved views and squads carry over each season; anyone no longer in FPL is dropped, and you're told.",
+    pages: ["dashboard", "team-building"],
+    keywords: [
+      "left fpl", "no longer in fpl", "left the league", "sold abroad", "left the premier league", "relegated", "relegation", "new season",
+      "player gone", "missing from squad", "squad banner", "tile renamed", "players no longer in fpl", "clubs no longer in fpl",
+      "club no longer in fpl", "saved player missing", "fpl id", "renumbered", "rollover", "player removed",
+    ],
+    related: ["saved-data", "view-notice"],
+    body: (
+      <>
+        <Terms
+          rows={[
+            ["Tile or graph", "drops them; with none left, its name adds \"(players no longer in FPL)\""],
+            ["Club filter", "back to all clubs, its name adding \"(club no longer in FPL)\""],
+            ["Squad", <>a banner names them; <TrashIcon /> removes them</>],
+          ]}
+        />
+        <Note>FPL renumbers everyone each summer; Scoutline follows each player and club across.</Note>
+      </>
+    ),
   },
 ];

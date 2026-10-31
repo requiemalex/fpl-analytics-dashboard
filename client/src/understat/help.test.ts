@@ -37,6 +37,8 @@ describe("Understat in Help", () => {
     ["player not matched", "understat-coverage"],
     ["violet title", "source-icons"],
     ["non penalty", "non-penalty"],
+    ["why is club xg lower than its players", "club-xg-per-chance"],
+    ["rebound", "club-xg-per-chance"],
     ["ppda", "statistics"],
     ["xgchain", "statistics"],
   ])("%s → %s", (question, id) => {

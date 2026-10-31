@@ -209,5 +209,18 @@ export function understatHelpGuides(icon: React.ReactNode): HelpGuide[] {
       related: ["understat", "set-pieces"],
       body: <Note>Compare NPxG with xG: the gap is his penalties.</Note>,
     },
+    {
+      id: "club-xg-per-chance",
+      topic: TOPIC,
+      title: "Club xG below its players' added up",
+      answer: "Understat counts a shot and its rebound as one chance, so a club's xG can be less than its players' total.",
+      keywords: [
+        "club xg", "team xg", "club xg lower", "players xg added up", "sum of players", "rebound", "rebounds", "second chance", "one chance",
+        "per chance", "xg per chance", "team total xg", "xg mismatch", "club vs players", "lower than players", "understat club xg",
+        "team xg wrong", "club xg wrong",
+      ],
+      related: ["understat", "club-figures"],
+      body: <Note>xG/Shot and the situation figures still count every shot on its own.</Note>,
+    },
   ];
 }
