@@ -83,6 +83,19 @@ No lint script. Playwright isn't installed but works via
   from kick-off until his minutes run out, a sub for his last minutes of a
   90). Anything new that needs a player's Understat xGC or shots faced uses
   these two, never its own version.
+  **New Understat figures show at once, everywhere** (owner's decision,
+  2026-10-31; `<file_versions>`): a figure the sync builds
+  (`server/src/understat/pipeline/`) exists in the app only once the sync
+  has rebuilt the published files, so never leave it to the 06:00 run.
+  Pushing a change to the sync's code runs the sync straight away
+  (`understat-sync.yml`'s push trigger; it can also be run by hand:
+  `gh workflow run understat-sync.yml`), rebuilding every season from the
+  stored files; status.json's `fileVersions` then make every install read
+  again each file that changed, completed seasons included (otherwise kept
+  12 hours), within about 30 minutes. After pushing such a change, check
+  the run succeeded and the files in `data/understat/app/` carry the new
+  field before telling me it's done. A new field the client reads is
+  optional in `understat/schema.ts` ("—" until the files have it).
 - **Inspect the live API, never assume a field's shape.** Field availability
   is detected at runtime (`normalize/fieldAvailability.ts`).
 - Never fabricate, substitute, or infer a metric when the real value is
