@@ -477,7 +477,7 @@ const FIRST_GUIDES: HelpGuide[] = [
     keywords: [
       "sort", "sorting", "order by", "highest", "lowest", "ascending", "descending", "reverse", "tiebreak", "tie break", "shift click",
       "filter", "filters", "filtering", "▾", "arrow", "greater than", "less than", "between", "budget", "max price", "under £",
-      "position filter", "team filter", "only defenders", "only midfielders",
+      "column filter", "filter a column",
     ],
     related: ["toolbar", "min-minutes"],
     body: (
@@ -598,7 +598,7 @@ const FIRST_GUIDES: HelpGuide[] = [
             ["Match Log", "each match of a season"],
           ]}
         />
-        <Note>For a club's players: Player Explorer, filtered by Team.</Note>
+        <Note>For a club's players: Player Explorer, ▾ on the Player header → Club.</Note>
       </>
     ),
   },

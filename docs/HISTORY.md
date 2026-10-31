@@ -4207,5 +4207,18 @@ tiles/graphs only:
   (`<set_piece_duties>`): one shape per duty, gold, silver or bronze for
   first, second or third choice, with a hover saying what it means for
   him. The table can no longer sort by them; filtering came back the same
-  day as the Player header's ▾ (`<set_piece_filter>`).
+  day as the Player header's ▾ (`<player_filter>`).
 - **Last commit with it:** `545b2cc`.
+
+### Player Explorer's Team and Position columns (replaced 2026-10-31)
+- **What it did:** two always-live columns after Own% and Price in Player
+  Explorer and Add Players: each player's club badge (click for its
+  profile) and position badge, sortable (clubs A–Z, positions in pitch
+  order) and filterable to one club or one position from a "Show only"
+  list.
+- **Why it went:** the owner's call: both already show under each name,
+  and sorting by club or position told nothing. Filtering moved to the
+  Player header's ▾ (`<player_filter>`), which picks several clubs or
+  positions at once, alongside Availability and set-piece duties. The CSV
+  export keeps Team and Position columns.
+- **Last commit with it:** `c0656ae`.

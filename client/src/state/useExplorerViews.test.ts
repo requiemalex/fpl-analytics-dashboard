@@ -66,13 +66,24 @@ describe("normalizeExplorerViewSettings", () => {
   });
 });
 
-describe("normalizeExplorerViewSettings: the set-piece duty filter (<set_piece_filter>)", () => {
-  it("keeps the duties this version knows, each once, and drops a filter left with none", () => {
+describe("the player filter in a saved view (<player_filter>)", () => {
+  it("keeps each section's values this version knows, each once, and drops a filter left with none", () => {
     const s = normalizeExplorerViewSettings({
-      columnFilters: { setPieceDuties: { duties: ["penalties:1", "penalties:1", "corners:3", "throwIns:1", 7] }, other: { duties: ["nonsense"] } },
+      columnFilters: {
+        player: { player: { positions: ["MID", "MID", "WB"], clubs: ["ARS"], availability: ["out", "maybe"], duties: ["penalties:1", "throwIns:1", 7] } },
+        other: { player: { positions: ["nonsense"] } },
+      },
     });
-    expect(s.columnFilters.setPieceDuties.duties).toEqual(["penalties:1", "corners:3"]);
+    expect(s.columnFilters.player.player).toEqual({ positions: ["MID"], clubs: ["ARS"], availability: ["out"], duties: ["penalties:1"] });
     expect(s.columnFilters.other).toBeUndefined();
+  });
+
+  it("leaves out a club no longer in the league and says so; a filter left empty goes", () => {
+    const settings = normalizeExplorerViewSettings({ columnFilters: { player: { player: { clubs: ["LEI", "ARS"] } }, gone: { player: { clubs: ["LEI"] } } } });
+    const { settings: applied, leftOut } = explorerViewToApply(settings, { ...CONTEXT, fixedKeys: new Set(["name", "player", "gone"]), clubOptions: ["ARS", "CHE"] });
+    expect(applied.columnFilters.player.player?.clubs).toEqual(["ARS"]);
+    expect(applied.columnFilters.gone).toBeUndefined();
+    expect(leftOut).toEqual(["the filter on LEI, no longer in the league", "the filter on LEI, no longer in the league"]);
   });
 });
 

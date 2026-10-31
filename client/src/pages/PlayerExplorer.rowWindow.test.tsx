@@ -172,14 +172,14 @@ describe("Player Explorer — only the rows in view are drawn (<row_window>)", (
     expect(rows.map((r) => r[0])).toEqual(NAMES);
   });
 
-  it("the widest undrawn cells sit in hidden stand-in rows, the fixed Ownership/Price/Team/Position cells included, so columns don't shift while scrolling", () => {
+  it("the widest undrawn cells sit in hidden stand-in rows, the fixed Ownership/Price cells included, so columns don't shift while scrolling", () => {
     const { container } = renderExplorer();
     const sizer = () => Array.from(container.querySelectorAll("tr.width-sizer-row"));
     expect(sizer().map((tr) => tr.querySelector(".name")?.textContent?.trim())).toContain(LONG_NAME);
     const row = sizer().find((tr) => tr.querySelector(".name")?.textContent?.trim() === LONG_NAME)!;
     expect(row.getAttribute("aria-hidden")).toBe("true");
-    // Player, then Ownership, Price, Team, Position: the same cells as his real row.
-    expect(row.querySelectorAll("td")).toHaveLength(5);
+    // Player, then Ownership and Price: the same cells as his real row.
+    expect(row.querySelectorAll("td")).toHaveLength(3);
     // Once he's in the window, his real row stands for itself.
     scrollTo(container, 130 * ROW - VIEWPORT);
     expect(rowNames(container)).toContain(LONG_NAME);

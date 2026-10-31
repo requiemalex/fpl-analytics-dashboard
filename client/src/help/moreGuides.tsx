@@ -305,7 +305,7 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
           ]}
         />
         <Label>Filter for them</Label>
-        <Steps items={["Click ▾ on the Player header.", "Pick the icons you want, or a duty's name for all three.", "Enter. Players with any of them show."]} />
+        <Steps items={["▾ on the Player header → Set-piece duty.", "Pick the icons you want, or a duty's name for all three.", "Enter. Players with any of them show."]} />
         <Points items={["Several duties, several icons. Hover one for what it means for him.", "FPL's lists today, so the same in every Data View."]} />
       </>
     ),
@@ -326,7 +326,7 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
     related: ["find-differentials", "sort-filter"],
     body: (
       <>
-        <Flow steps={["Position ▾", "Price ▾ ≤ your budget", "Mins ▾ ≥ 855", "sort Pts/£m"]} />
+        <Flow steps={["Player ▾ → a position", "Price ▾ ≤ your budget", "Mins ▾ ≥ 855", "sort Pts/£m"]} />
         <Note>Swap Pts/£m for xGI/Game to see who's getting chances, not just points.</Note>
       </>
     ),
@@ -362,7 +362,7 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
     related: ["xg-basics", "over-under"],
     body: (
       <>
-        <Flow steps={["Position ▾ MID, FWD", "Mins ▾ ≥ 855", "sort xGI/Game"]} />
+        <Flow steps={["Player ▾ → MID, FWD", "Mins ▾ ≥ 855", "sort xGI/Game"]} />
         <Points items={["Goals − xG below 0: chances that haven't gone in yet.", "A gold goal icon after his name: he's on penalties too."]} />
       </>
     ),
@@ -381,7 +381,7 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
     related: ["defensive-contributions", "fixture-forecast"],
     body: (
       <>
-        <Flow steps={["Position ▾ DEF", "Mins ▾ ≥ 855", "sort DC/Game or CS"]} />
+        <Flow steps={["Player ▾ → DEF", "Mins ▾ ≥ 855", "sort DC/Game or CS"]} />
         <Note>A club's Fixture Forecast gives its clean-sheet chance in each of its next five matches.</Note>
       </>
     ),
@@ -397,7 +397,7 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
       "cs", "xgc", "xgc/game", "best keeper", "cheap keeper", "which keeper", "penalty saves", "bench keeper", "rotation keepers",
     ],
     related: ["find-defenders", "fixture-forecast"],
-    body: <Flow steps={["Position ▾ GKP", "Mins ▾ ≥ 855", "sort Saves/Game or CS"]} />,
+    body: <Flow steps={["Player ▾ → GKP", "Mins ▾ ≥ 855", "sort Saves/Game or CS"]} />,
   },
 
   // ---------- Fixtures & gameweeks ----------
@@ -687,6 +687,33 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
         />
         <IconKey rows={[{ icon: <CloseIcon size={14} />, label: "Dismiss", text: "the note" }]} />
         <Note>Saving over the view would drop those parts for good.</Note>
+      </>
+    ),
+  },
+
+  {
+    id: "player-filter",
+    topic: TOPIC.tables,
+    title: "Filter by position, club or availability",
+    answer: "▾ on the Player header: pick positions, clubs, availability and set-piece duties. Several in one section: any of them.",
+    pages: ["player-explorer", "team-building"],
+    keywords: [
+      "filter position", "filter club", "filter team", "only defenders", "only midfielders", "only forwards", "only goalkeepers",
+      "position filter", "team filter", "club filter", "one club", "players from a club", "club's players", "hide injured", "injured",
+      "available only", "doubtful", "suspended", "out", "availability", "where is the team column", "where is the position column",
+      "team column gone", "position column gone", "mid and fwd", "several positions",
+    ],
+    related: ["set-pieces", "sort-filter"],
+    body: (
+      <>
+        <Chips items={["Position", "Club", "Availability", "Set-piece duty"]} />
+        <Points
+          items={[
+            "Several picks in one section: players with any of them. Picks in several sections: players matching all.",
+            "Each player's club and position are under his name.",
+            "A + on Team Building's pitch opens Add Players on that position.",
+          ]}
+        />
       </>
     ),
   },

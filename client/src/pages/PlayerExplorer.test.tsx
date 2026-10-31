@@ -14,8 +14,8 @@ const TEAMS = [makeTeam({ id: 1, shortName: "ARS", name: "Arsenal" }), makeTeam(
 const PLAYERS = [
   // 46 / £3.0m = 15.333… Pts/£m, shown as "15.3".
   makePlayer({ id: 1, name: "Zubimendi", position: "MID", teamId: 1, teamShortName: "ARS", totalPoints: 46, price: 3, penaltiesOrder: 2 }),
-  makePlayer({ id: 2, name: "Ødegaard", position: "MID", teamId: 1, teamShortName: "ARS", totalPoints: 30, price: 8, penaltiesOrder: 1, cornersOrder: 1 }),
-  makePlayer({ id: 3, name: "Ángel", position: "DEF", teamId: 2, teamShortName: "CHE", totalPoints: 20, price: 5, cornersOrder: 3, directFreekicksOrder: 4 }),
+  makePlayer({ id: 2, name: "Ødegaard", position: "MID", teamId: 1, teamShortName: "ARS", totalPoints: 30, price: 8, penaltiesOrder: 1, cornersOrder: 1, status: "i" }),
+  makePlayer({ id: 3, name: "Ángel", position: "DEF", teamId: 2, teamShortName: "CHE", totalPoints: 20, price: 5, cornersOrder: 3, directFreekicksOrder: 4, status: "d" }),
   makePlayer({ id: 4, name: "Bob", position: "FWD", teamId: 2, teamShortName: "CHE", totalPoints: 10, price: 6 }),
 ];
 
@@ -86,6 +86,14 @@ function applyNumericFilter(container: HTMLElement, label: string, field: 0 | 1 
   fireEvent.click(within(popover).getByRole("button", { name: "Enter" }));
 }
 
+/** Opens the Player header's ▾ (<player_filter>), clicks the named toggles, and Enter. */
+function filterPlayers(container: HTMLElement, clicks: string[]) {
+  fireEvent.click(header(container, "Player").querySelector("button.column-filter-icon")!);
+  const popover = container.querySelector<HTMLElement>(".column-filter-popover")!;
+  for (const name of clicks) fireEvent.click(within(popover).getByRole("button", { name }));
+  fireEvent.click(within(popover).getByRole("button", { name: "Enter" }));
+}
+
 function applyCategoryFilter(container: HTMLElement, label: string, value: string) {
   const popover = openColumnFilter(container, label);
   fireEvent.change(popover.querySelector("select")!, { target: { value } });
@@ -99,11 +107,14 @@ describe("Player Explorer — table basics", () => {
     expect(container.querySelector(".count-pill")?.textContent).toBe("4/4 Players");
   });
 
-  it("the Team column's filter shows only that club's players", () => {
+  it("no Team or Position column: both show under each name, and are filtered from the Player header's ▾", () => {
     const { container } = renderExplorer();
-    applyCategoryFilter(container, "Team", "CHE");
+    const labels = Array.from(container.querySelectorAll("table.data-table thead th")).map((th) => th.childNodes[0]?.textContent?.trim());
+    expect(labels).not.toContain("Team");
+    expect(labels).not.toContain("Position");
+    filterPlayers(container, ["Club: CHE"]);
     expect(rowNames(container)).toEqual(["Ángel", "Bob"]);
-    expect(header(container, "Team").querySelector("button.column-filter-icon")?.className).toContain("active");
+    expect(header(container, "Player").querySelector("button.column-filter-icon")?.className).toContain("active");
   });
 
   it("a numeric ≥ filter keeps only rows at or above the value", () => {
@@ -123,20 +134,24 @@ describe("Player Explorer — table basics", () => {
     fireEvent.click(getByRole("button", { name: /Export the visible columns/ }));
     const [, headers, rows] = vi.mocked(downloadCsv).mock.calls.at(-1)!;
     const screenHeaders = Array.from(container.querySelectorAll("table.data-table thead th")).map((th) => th.childNodes[0]?.textContent?.trim());
-    expect(headers).toEqual(screenHeaders);
+    // Team and Position show under each name rather than as columns; the export gives them their own, after Price.
+    const after = screenHeaders.indexOf("Price") + 1;
+    expect(headers).toEqual([...screenHeaders.slice(0, after), "Team", "Position", ...screenHeaders.slice(after)]);
     const firstRow = Array.from(container.querySelectorAll("table.data-table tbody tr:first-child td")).map((td, i) =>
       i === 0 ? td.querySelector(".name")?.textContent?.trim() : td.textContent?.trim(),
     );
-    expect(rows[0]).toEqual(firstRow);
+    expect(rows[0]).toEqual([...firstRow.slice(0, after), "ARS", "MID", ...firstRow.slice(after)]);
     expect(rows.map((r) => r[0])).toEqual(rowNames(container));
   });
 });
 
 describe("Player Explorer — findings from the 2026-09-25 audit", () => {
-  it("the Team column filter shows one club's players", () => {
+  it("the player filter's Club shows one club's players, or several", () => {
     const { container } = renderExplorer();
-    applyCategoryFilter(container, "Team", "CHE");
+    filterPlayers(container, ["Club: CHE"]);
     expect(rowNames(container)).toEqual(["Ángel", "Bob"]);
+    filterPlayers(container, ["Club: ARS"]);
+    expect(rowNames(container)).toEqual(["Zubimendi", "Ødegaard", "Ángel", "Bob"]);
   });
 
   it("M2: 'Equal to' matches a value typed exactly as the table displays it", () => {
@@ -209,10 +224,22 @@ describe("Player Explorer — phase 2 regression tests (2026-09-25 audit)", () =
     expect(rowNames(container)).toHaveLength(4);
   });
 
-  it("L4: Position sorts in pitch order (GKP, DEF, MID, FWD) on the first click", () => {
+  it("several positions at once (MID and FWD); sections combine (and a club)", () => {
     const { container } = renderExplorer();
-    fireEvent.click(header(container, "Position"));
-    expect(rowNames(container)).toEqual(["Ángel", "Zubimendi", "Ødegaard", "Bob"]);
+    filterPlayers(container, ["Position: MID", "Position: FWD"]);
+    expect(rowNames(container)).toEqual(["Zubimendi", "Ødegaard", "Bob"]);
+    filterPlayers(container, ["Club: CHE"]);
+    expect(rowNames(container)).toEqual(["Bob"]);
+  });
+
+  it("availability: available, doubtful or out", () => {
+    const { container } = renderExplorer();
+    filterPlayers(container, ["Availability: Out"]);
+    expect(rowNames(container)).toEqual(["Ødegaard"]);
+    filterPlayers(container, ["Availability: Out", "Availability: Doubtful"]);
+    expect(rowNames(container)).toEqual(["Ángel"]);
+    filterPlayers(container, ["Availability: Doubtful", "Availability: Available"]);
+    expect(rowNames(container)).toEqual(["Zubimendi", "Bob"]);
   });
 
   it("L9: each column's filter button has an accessible name", () => {
@@ -292,7 +319,7 @@ describe("Player Explorer — saved views (<explorer_views>)", () => {
     fireEvent.click(getByRole("button", { name: /^Columns/ }));
     fireEvent.click(within(container.querySelector<HTMLElement>(".popover")!).getByLabelText("Next 5 Fixtures"));
     fireEvent.click(getByRole("button", { name: /^Columns/ }));
-    applyCategoryFilter(container, "Team", "CHE");
+    filterPlayers(container, ["Club: CHE"]);
     fireEvent.click(header(container, "Points"));
     const savedHeaders = headerLabels(container);
     expect(rowNames(container)).toEqual(["Bob", "Ángel"]);
@@ -310,7 +337,19 @@ describe("Player Explorer — saved views (<explorer_views>)", () => {
     expect(headerLabels(container)).toEqual(savedHeaders);
     expect(rowNames(container)).toEqual(["Bob", "Ángel"]);
     expect(getByRole("button", { name: /Current Season/ }).getAttribute("aria-pressed")).toBe("true");
-    expect(header(container, "Team").querySelector("button.column-filter-icon")?.className).toContain("active");
+    expect(header(container, "Player").querySelector("button.column-filter-icon")?.className).toContain("active");
+  });
+
+  it("a view saved when Team and Position were columns: their filters load into the player filter", () => {
+    localStorage.setItem(
+      "scoutline:player-explorer:saved-views:v1",
+      JSON.stringify({ version: 1, data: [{ id: "v1", name: "Old", settings: { analysisMode: "live", visibleColumns: ["totalPoints"], columnFilters: { team: { category: "ARS" }, position: { category: "MID" } } } }] }),
+    );
+    const { container, getByRole } = renderExplorer();
+    fireEvent.click(getByRole("button", { name: /^Saved views/ }));
+    fireEvent.click(getByRole("button", { name: "Old" }));
+    expect(rowNames(container)).toEqual(["Zubimendi", "Ødegaard"]);
+    expect(header(container, "Player").querySelector("button.column-filter-icon")?.className).toContain("active");
   });
 
   it("leaves out a Team filter on a club no longer in the league, and says so", () => {
@@ -340,7 +379,7 @@ describe("Next 5 Fixtures", () => {
   });
 });
 
-describe("Player Explorer — set-piece duty filter (<set_piece_filter>)", () => {
+describe("Player Explorer — the player filter's set-piece duties (<player_filter>)", () => {
   afterEach(() => localStorage.clear());
 
   /** Opens the Player header's ▾, clicks the given cells (or a row's name), and Enter. */
@@ -353,7 +392,7 @@ describe("Player Explorer — set-piece duty filter (<set_piece_filter>)", () =>
 
   it("the Player header's ▾ says what it filters", () => {
     const { container } = renderExplorer();
-    expect(header(container, "Player").querySelector("button.column-filter-icon")?.getAttribute("aria-label")).toMatch(/^Filter by set-piece duty/);
+    expect(header(container, "Player").querySelector("button.column-filter-icon")?.getAttribute("aria-label")).toBe("Filter players by position, club, availability or set-piece duty");
   });
 
   it("shows the first-choice penalty takers only", () => {

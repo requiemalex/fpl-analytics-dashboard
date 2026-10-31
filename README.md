@@ -271,17 +271,34 @@ duty he has, none past third. Each icon's hover says what it means for
 him now ("Penalties: second choice for Arsenal. He takes the penalties
 … when the first choice is off the pitch."). They're in the shared
 player table's name cell (Player Explorer, Add Players); the width-sizer
-rows allow for them (`DUTY_ALLOWANCE_PX`). **Filtering by them**
-(`<set_piece_filter>`): the Player header has the ▾ every column has,
-opening a grid — a row per duty, its first, second and third choice as
-that duty's icon in gold, silver and bronze (dim until picked); click
-cells, or a duty's name for its whole row, then Enter. A player holding
-any picked cell shows. It's its own filter key (`setPieceDuties`, not
-"name"), so it saves in a saved view (player-explorer views store v2;
-`duties` on the filter, only values this version knows), clears with
-Clear filters and goes with Reset, like any column's filter. A saved view or Dashboard item
+rows allow for them (`DUTY_ALLOWANCE_PX`). They're filtered from the
+Player header's ▾ (below). A saved view or Dashboard item
 that used the old Pen Order / FK Order / Corner Order columns loads
 without them (the view's notice; an "unavailable" card).
+
+**The player filter** (`<player_filter>`, `components/playerFilter.ts`,
+`components/PlayerFilterPanel.tsx`; the owner's decision, 2026-10-31):
+who a player is, always today's, filtered from the ▾ on the Player
+header in Player Explorer and Add Players. Four sections of toggles, dim
+until picked: **Position** (the position badges), **Club** (today's
+clubs' badges), **Availability** (Available, Doubtful, Out: FPL's
+status, `a`; `d`; `i`/`s`/`n`/`u`, `availabilityGroup`) and
+**Set-piece duty** (a row per duty, its first, second and third choice
+as that duty's icon in gold, silver and bronze; a duty's name picks its
+whole row). Several picks in a section: a player holding any of them;
+picks in several sections: all of them. It replaced the **Team and
+Position columns**: both show under each name (the Player cell's meta
+line), and sorting by club or position told nothing, so the always-live
+block is now Own% and Price; the CSV export still has Team and Position
+columns after Price, as they're on screen. It's one filter key
+(`player`, not "name"), so it saves in a saved view (player-explorer
+views store v2: `player` on the filter, only values this version knows;
+a club no longer in the league is left out on load, with the notice), clears
+with Clear filters and goes with Reset. A view saved when Team and
+Position were columns has their filters folded into it on load
+(`foldIdentityFilters`). A "+" on Team Building's pitch opens Add Players
+with the filter's Position set to that place's (its other sections as
+left), so the Player ▾ shows it's on.
 
 ### Analysis modes
 
@@ -1567,7 +1584,7 @@ loads in Add Players and the other way round; a view keeps no lead
 column's sort or filter. Next 5 Fixtures sorts and filters by the five
 matches' average FPL difficulty, easiest first. It's always today's
 fixtures, so when shown it ends the always-live block — Own%, Price,
-Team, Position, Next 5 Fixtures — and the grey divider after it marks
+Next 5 Fixtures — and the grey divider after it marks
 where the Data View's columns start (the owner's call, 2026-10-26); it's
 never dragged among them, and a saved view's order for it is ignored. Search is
 accent- and order-insensitive with small-typo tolerance, splits the
@@ -1606,7 +1623,7 @@ mark so Excel on Windows reads £ and accented names correctly
   (it did at 1366–1440px before; audit 2026-10-23 in-app). It runs again when a
   drag ends, so widening one column narrows the others. It reads current
   columns through refs, so a once-registered window-resize listener stays
-  correct. Player Explorer measures its fixed Player/Own%/Price/Team/Position
+  correct. Player Explorer measures its fixed Player/Own%/Price
   block (hand-set widths win over squeezed ones) and fits a second time once
   the new widths have laid out.
 - Resizable tables (`.resizable-columns`: Player Explorer, Add Players) are
@@ -1640,7 +1657,7 @@ mark so Excel on Windows reads £ and accented names correctly
   list, `nextFiveByTeamId`), so moving the window, a filter popover or a
   sort doesn't redraw rows that haven't changed; the colour ranks come
   from the whole pool (`allRows`), so neither a sort nor a filter
-  recomputes them. The Player column and the fixed Own%/Price/Team/Position
+  recomputes them. The Player column and the fixed Own%/Price
   block are sized by the browser to their widest content, so the
   likeliest-widest undrawn cells (names, meta lines, Own% and Price
   figures, one player per club; each text's width measured once, and the

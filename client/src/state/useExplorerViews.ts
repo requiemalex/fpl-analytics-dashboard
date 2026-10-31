@@ -3,6 +3,7 @@ import { isAnalysisMode, type AnalysisMode } from "../metrics/resolvePlayerStats
 import type { ColumnSourceChoice } from "../extensions/externalStats";
 import { EMPTY_COLUMN_FILTER, isColumnFilterActive, type ColumnFilterSpec } from "./useColumnFilters";
 import { DUTY_FILTER_VALUES } from "../components/SetPieceDuties";
+import { EMPTY_PLAYER_FILTER, isPlayerFilterActive, type PlayerFilter } from "./useColumnFilters";
 import type { SortSpec } from "./useSortSpec";
 import { mapReadableEntries, type VersionedStore, usePersistentState } from "./persistentStorage";
 
@@ -11,7 +12,7 @@ const STORAGE_KEYS = {
   player: "scoutline:player-explorer:saved-views:v1",
   team: "scoutline:team-explorer:saved-views:v1",
 } as const;
-/** v2 (2026-10-31): a filter may hold set-piece duties (`duties`, <set_piece_filter>); a v1 view has none, and loads as it was. */
+/** v2 (2026-10-31): a filter may be the player filter (`player`, <player_filter>); a v1 view has none, and loads as it was (its Team and Position filters folded into it on load, foldIdentityFilters). */
 const STORAGE_VERSION = 2;
 
 export type ExplorerScope = keyof typeof STORAGE_KEYS;
@@ -51,6 +52,22 @@ const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((k): k is
 const numberOrNull = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 
+const POSITION_VALUES = ["GKP", "DEF", "MID", "FWD"];
+const AVAILABILITY_VALUES = ["available", "doubtful", "out"];
+
+/** <player_filter>: each section's values this version knows, each once (clubs are checked against today's league on load, explorerViewToApply). */
+function normalizePlayerFilter(raw: unknown): PlayerFilter | null {
+  if (!isRecord(raw)) return null;
+  const known = (v: unknown, values?: string[]) => [...new Set(strings(v).filter((x) => !values || values.includes(x)))];
+  const f: PlayerFilter = {
+    positions: known(raw.positions, POSITION_VALUES),
+    clubs: known(raw.clubs),
+    availability: known(raw.availability, AVAILABILITY_VALUES),
+    duties: known(raw.duties, DUTY_FILTER_VALUES),
+  };
+  return isPlayerFilterActive(f) ? f : null;
+}
+
 function normalizeFilter(raw: unknown): ColumnFilterSpec | null {
   if (!isRecord(raw)) return null;
   const spec: ColumnFilterSpec = {
@@ -60,9 +77,8 @@ function normalizeFilter(raw: unknown): ColumnFilterSpec | null {
     eq: numberOrNull(raw.eq),
     category: typeof raw.category === "string" ? raw.category : null,
   };
-  // Only duties this version knows, each once (<set_piece_filter>).
-  const duties = [...new Set(strings(raw.duties).filter((d) => DUTY_FILTER_VALUES.includes(d)))];
-  if (duties.length > 0) spec.duties = duties;
+  const player = normalizePlayerFilter(raw.player);
+  if (player) spec.player = player;
   return isColumnFilterActive(spec) ? spec : null;
 }
 
@@ -123,8 +139,10 @@ export interface ExplorerViewContext {
   fixedKeys: ReadonlySet<string>;
   /** Shown but neither sorted nor filtered (Next 5 Fixtures). */
   unsortableKeys?: ReadonlySet<string>;
-  /** A category column's choices now (Team: today's 20 clubs); a saved choice no longer among them is left out. */
+  /** A category column's choices now; a saved choice no longer among them is left out. */
   categoryOptions?: Record<string, readonly string[]>;
+  /** Today's clubs (short names), for the player filter's Club (<player_filter>); a saved club no longer among them is left out. */
+  clubOptions?: readonly string[];
   /** The mounted second source's id, or null with none. */
   externalSourceId: string | null;
   /** Whether a column has the ⇄ toggle now. */
@@ -164,6 +182,14 @@ export function explorerViewToApply(saved: ExplorerViewSettings, ctx: ExplorerVi
     const options = ctx.categoryOptions?.[key];
     if (spec.category !== null && options && !options.includes(spec.category)) {
       lostCategories.push(spec.category);
+      continue;
+    }
+    if (spec.player && ctx.clubOptions) {
+      const clubs = spec.player.clubs.filter((c) => ctx.clubOptions!.includes(c));
+      lostCategories.push(...spec.player.clubs.filter((c) => !clubs.includes(c)));
+      const player = { ...spec.player, clubs };
+      if (!isPlayerFilterActive(player)) continue;
+      columnFilters[key] = { ...spec, player };
       continue;
     }
     columnFilters[key] = spec;

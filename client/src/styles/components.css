@@ -3453,7 +3453,7 @@ kbd {
   margin-top: 6px;
 }
 
-/* <set_piece_filter>: the Player header's ▾ — a duty per row, its 1st/2nd/3rd as the duty's icon in gold, silver and bronze; dim until picked. */
+/* <player_filter>: its Set-piece duty section — a duty per row, its 1st/2nd/3rd as the duty's icon in gold, silver and bronze; dim until picked. */
 .duty-filter {
   display: grid;
   grid-template-columns: auto repeat(3, 30px);
@@ -3499,4 +3499,66 @@ kbd {
   opacity: 1;
   border-color: currentColor;
   background: var(--surface-hover);
+}
+
+/* <player_filter>: the Player header's ▾ — Position, Club, Availability and Set-piece duty, each a set of toggles, dim until picked. */
+.player-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 300px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+.player-filter-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.player-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.player-filter-clubs {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+}
+.filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 3px 4px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.45;
+}
+.filter-toggle:hover {
+  opacity: 0.75;
+}
+.filter-toggle.on {
+  opacity: 1;
+  border-color: var(--text-secondary);
+  background: var(--surface-hover);
+}
+.filter-toggle-text {
+  padding: 3px 8px;
+}
+.filter-toggle .availability-flag {
+  margin-left: 0;
+}
+/* Available has no flag in the table (only doubtful and out do): a hollow dot, never green. */
+.availability-flag.flag-available {
+  border: 1.5px solid var(--text-secondary);
 }

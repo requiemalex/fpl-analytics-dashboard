@@ -134,6 +134,26 @@ function TeamBadgeView({ teamId, shortName, onOpen }: { teamId: number; shortNam
   );
 }
 
+/** A club's badge as the table draws it, without opening anything: for a picker (the Player filter's clubs). */
+export function TeamBadgeLook({ teamId, shortName }: { teamId: number; shortName: string }) {
+  const { primary, secondary } = teamDisplayColors(teamId, shortName);
+  const identity = teamIdentityColor(teamId, shortName);
+  return (
+    <span className="badge team-badge" style={{ color: identity, background: `color-mix(in srgb, ${identity} 12%, transparent)` }}>
+      <span className="team-badge-swatch" style={{ background: `linear-gradient(180deg, ${primary} 50%, ${secondary} 50%)` }} />
+      {shortName}
+    </span>
+  );
+}
+
+/** <player_filter>: FPL's status as the filter groups it — available, doubtful, or out (injured, suspended, on loan, unavailable); null for a status FPL hasn't defined. */
+export function availabilityGroup(status: string): "available" | "doubtful" | "out" | null {
+  if (status === "a") return "available";
+  const info = AVAILABILITY_STATUS_INFO[status];
+  if (!info) return null;
+  return info.className === "flag-doubtful" ? "doubtful" : "out";
+}
+
 const AVAILABILITY_STATUS_INFO: Record<string, { label: string; className: string } | undefined> = {
   d: { label: "Doubtful", className: "flag-doubtful" },
   i: { label: "Injured", className: "flag-unavailable" },

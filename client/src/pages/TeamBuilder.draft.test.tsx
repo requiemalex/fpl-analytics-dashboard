@@ -156,6 +156,8 @@ describe("Team Building — the Add Players dialog (<add_players_dialog>)", () =
     // A forward's place lists forwards instead.
     openAddPlayers(utils, "forward");
     expect(addPlayersRows(container).map((r) => r.querySelector(".name")!.childNodes[0].textContent).sort()).toEqual(["P13", "P14", "P15"]);
+    // Through the player filter's Position (<player_filter>), so the Player header's ▾ shows it's on.
+    expect(backdrop().querySelector("thead th.sticky-col button.column-filter-icon")?.className).toContain("active");
     fireEvent.keyDown(document, { key: "Escape" });
     expect(backdrop().hidden).toBe(true);
 

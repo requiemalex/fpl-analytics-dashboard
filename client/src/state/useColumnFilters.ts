@@ -7,20 +7,41 @@ export interface ColumnFilterSpec {
   eq: number | null;
   /** Excel-style "show only this value" filter for a categorical column (Team, Position) — mutually exclusive with the three numeric fields above, which stay null when this is set. See ColumnFilterControl's `categoryOptions` prop for which columns use this. */
   category: string | null;
-  /**
-   * <set_piece_filter>: Player Explorer's set-piece duty filter (the ▾ on
-   * the Player header) — the duty-and-place cells picked ("penalties:1",
-   * "corners:2"…, `dutyFilterValue`); a row passes holding any of them.
-   * Null (or absent, in a filter saved before it existed) on every other
-   * column.
-   */
-  duties?: string[] | null;
+  /** <player_filter>: Player Explorer's filter on who a player is (the ▾ on the Player header). Absent on every other column. */
+  player?: PlayerFilter | null;
 }
 
-export const EMPTY_COLUMN_FILTER: ColumnFilterSpec = { lte: null, gte: null, eq: null, category: null, duties: null };
+/**
+ * <player_filter>: who a player is, always today's — the Player header's ▾
+ * in Player Explorer and Add Players (the owner's decision, 2026-10-31,
+ * replacing the Team and Position columns). Each section is what's picked
+ * in it; a player passes a section holding any of its picks, and must pass
+ * every section with picks. An empty section filters nothing.
+ */
+export interface PlayerFilter {
+  /** GKP, DEF, MID, FWD. */
+  positions: string[];
+  /** Club short names (ARS…). */
+  clubs: string[];
+  /** available, doubtful, out (playerFilterTokens). */
+  availability: string[];
+  /** A set-piece duty at a place on its list, "penalties:1" (dutyFilterValue). */
+  duties: string[];
+}
+
+export const EMPTY_PLAYER_FILTER: PlayerFilter = { positions: [], clubs: [], availability: [], duties: [] };
+
+/** Each section and the prefix of the row tokens it matches (playerFilterTokens). */
+export const PLAYER_FILTER_SECTIONS = { positions: "position", clubs: "club", availability: "availability", duties: "duty" } as const;
+
+export function isPlayerFilterActive(f: PlayerFilter | null | undefined): boolean {
+  return !!f && (Object.keys(PLAYER_FILTER_SECTIONS) as (keyof PlayerFilter)[]).some((k) => f[k].length > 0);
+}
+
+export const EMPTY_COLUMN_FILTER: ColumnFilterSpec = { lte: null, gte: null, eq: null, category: null, player: null };
 
 export function isColumnFilterActive(spec: ColumnFilterSpec | undefined): boolean {
-  return !!spec && (spec.lte !== null || spec.gte !== null || spec.eq !== null || spec.category !== null || (spec.duties?.length ?? 0) > 0);
+  return !!spec && (spec.lte !== null || spec.gte !== null || spec.eq !== null || spec.category !== null || isPlayerFilterActive(spec.player));
 }
 
 /** Why a filter can't be applied, if it can't: a range no value could ever fall inside. Enter is refused (and disabled) while this returns a reason, same as the Dashboard dialog's min/max price check. */
@@ -40,8 +61,15 @@ export function columnFilterProblem(spec: ColumnFilterSpec): string | undefined 
  */
 export function columnFilterPasses(value: number | string | null, spec: ColumnFilterSpec | undefined, decimals?: number): boolean {
   if (!isColumnFilterActive(spec)) return true;
-  // The row's value is its duties, "|"-joined (dutyFilterKey).
-  if (spec!.duties?.length) return typeof value === "string" && value.split("|").some((d) => spec!.duties!.includes(d));
+  // <player_filter>: the row's value is its tokens, "|"-joined ("position:MID|club:ARS|…", playerFilterTokens).
+  if (isPlayerFilterActive(spec!.player)) {
+    if (typeof value !== "string") return false;
+    const tokens = new Set(value.split("|"));
+    const f = spec!.player!;
+    return (Object.entries(PLAYER_FILTER_SECTIONS) as [keyof PlayerFilter, string][]).every(
+      ([section, prefix]) => f[section].length === 0 || f[section].some((v) => tokens.has(`${prefix}:${v}`)),
+    );
+  }
   if (spec!.category !== null) return value === spec!.category;
   if (typeof value !== "number") return false;
   const shown = decimals === undefined ? value : roundAsDisplayed(value, decimals);

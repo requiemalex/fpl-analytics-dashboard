@@ -90,12 +90,12 @@ describe("Player Explorer — every figure says what it is, then where it ranks 
 });
 
 describe("Player Explorer — the always-live block ends at the divider (Next 5 Fixtures included)", () => {
-  it("Next 5 Fixtures, when shown, sits straight after Position, and the divider moves to the right of it", () => {
+  it("Next 5 Fixtures, when shown, sits straight after Price, and the divider moves to the right of it", () => {
     const { container, getByRole } = renderCurrentSeason();
     fireEvent.click(getByRole("button", { name: /^Columns \(/ }));
     fireEvent.click(getByRole("checkbox", { name: "Next 5 Fixtures" }));
     const names = headers(container).map(headerText);
-    const position = names.indexOf("Position");
+    const position = names.indexOf("Price");
     expect(names[position + 1]).toBe("Next 5 Fixtures");
     const fixtures = headers(container)[position + 1];
     // Not a Data View column: no divider on it, and it can't be dragged among them.
@@ -107,10 +107,10 @@ describe("Player Explorer — the always-live block ends at the divider (Next 5 
     expect(first.classList.contains("column-group-divider")).toBe(true);
   });
 
-  it("without Next 5 Fixtures the divider sits right after Position", () => {
+  it("without Next 5 Fixtures the divider sits right after Price", () => {
     const { container } = renderCurrentSeason();
     const names = headers(container).map(headerText);
-    const next = headers(container)[names.indexOf("Position") + 1];
+    const next = headers(container)[names.indexOf("Price") + 1];
     expect(headerText(next)).toBe("Points");
     expect(next.classList.contains("column-group-divider")).toBe(true);
   });

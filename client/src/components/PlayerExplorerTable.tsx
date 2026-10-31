@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { useColumnCustomization } from "../state/useColumnCustomization";
 import { useSortSpec, compareSortValues, sortWithinColumns, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
-import { EMPTY_COLUMN_FILTER, isColumnFilterActive, useColumnFilters } from "../state/useColumnFilters";
+import { EMPTY_COLUMN_FILTER, isColumnFilterActive, isPlayerFilterActive, useColumnFilters } from "../state/useColumnFilters";
 import { useComparativeColour } from "../state/comparativeColour";
 import { ColumnHeader } from "./ColumnHeader";
 import { clubRankHint, columnHint, noPercentileHint, playerColumnHint, playerRankHint, statHover } from "./hoverText";
@@ -20,7 +20,8 @@ import { colourDirection, fixtureDifficultyRanks, positionRanks, rankDirection, 
 import { downloadCsv } from "../utils/csvExport";
 import { filterBySearch } from "../utils/playerSearch";
 import { useEscapeLayer } from "../state/useEscapeLayer";
-import { SetPieceDutyIcons, dutyFilterKey, setPieceDuties } from "./SetPieceDuties";
+import { SetPieceDutyIcons, setPieceDuties } from "./SetPieceDuties";
+import { PLAYER_FILTER_KEY, foldIdentityFilters, playerFilterOf, playerFilterSpec, playerFilterTokens } from "./playerFilter";
 import { ColumnFilterControl } from "./ColumnFilterControl";
 import { HideSmallSamplesButton, isSmallSample, MinutesFloorBadge, RowSmallSampleBadge, smallSamplesShownNote, userMinimumNote } from "./MinutesFloorBadge";
 import { fixedFloorMinutes } from "../metrics/fixedMinutesFloor";
@@ -58,61 +59,38 @@ const GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "ADVAN
  */
 export const FIXTURES_COLUMN_KEY = "fixtures";
 /**
- * Team and Position used to be dropdown criteria in the bar above the table
- * (FiltersBar) plus part of the Player column's meta line — both replaced by
- * these two sortable/filterable table columns instead (see the Add Tile
- * modal / other pages for where Team/Position dropdown criteria still make
- * sense; this page just doesn't need both a dropdown AND a column doing the
- * same job). Not PLAYER_COLUMNS entries (categorical, not numeric — a
- * min/max comparative tint would be meaningless for a team name or
- * position), so like Fixtures they're handled as special string keys, but
- * ARE sortable and filterable (via a "show only" dropdown rather than the
- * numeric lte/gte/eq inputs; see ColumnFilterControl's categoryOptions).
- * Always the player's live team/position, never a per-analysis-mode figure
- * — same red "always live" header styling as Ownership/Price
- * (isStaticColumn), on by default.
+ * Team and Position appear under each name (the Player cell's meta line);
+ * they were columns until 2026-10-31, when the owner moved filtering them
+ * into the Player header's ▾ (<player_filter>): sorting by club or position
+ * told nothing. They're still in the CSV export, as they're on screen.
  */
 const TEAM_COLUMN_KEY = "team";
 const POSITION_COLUMN_KEY = "position";
-/** Team/Position's own key type — narrower than SpecialColumnKey below, so IDENTITY_COLUMNS (which never contains "fixtures") type-narrows fully after excluding just these two. */
-type IdentityColumnKey = typeof TEAM_COLUMN_KEY | typeof POSITION_COLUMN_KEY;
-/** The broader union — every special string key across the whole page — used only by columnLabel/cellValue, which handle all three and are shared by both the identity block and the flexible columns. */
-type SpecialColumnKey = typeof FIXTURES_COLUMN_KEY | IdentityColumnKey;
-const POSITION_OPTIONS: Position[] = ["GKP", "DEF", "MID", "FWD"];
+/** The page's special string keys: used only by columnLabel/cellValue (the CSV export, and Next 5 Fixtures' header). */
+type SpecialColumnKey = typeof FIXTURES_COLUMN_KEY | typeof TEAM_COLUMN_KEY | typeof POSITION_COLUMN_KEY;
 
 /**
- * Ownership, Price, Team, Position — a fixed, non-toggleable, non-reorderable
- * block that always renders immediately after the sticky Player column (and
- * a host's lead columns), in this exact order, separated from the
- * user-configurable columns by a grey divider (see the `column-group-divider`
- * class below). Ownership and Price are real PLAYER_COLUMNS entries
- * (columnByKey below is a lookup, not a redefinition); Team/Position are the
- * same special string keys used elsewhere here. Excluded from the default
- * columns, the column picker popover, and the reorder/toggle machinery
- * entirely — still sortable (click header), filterable (numeric for
- * Ownership/Price, category dropdown for Team/Position), and individually
- * resizable, just never removable or draggable out of place.
+ * Ownership and Price — a fixed, non-toggleable, non-reorderable block
+ * that always renders immediately after the sticky Player column (and a
+ * host's lead columns), separated from the user-configurable columns by a
+ * grey divider (see the `column-group-divider` class below). Real
+ * PLAYER_COLUMNS entries (columnByKey below is a lookup, not a
+ * redefinition), excluded from the default columns, the column picker and
+ * the reorder/toggle machinery — still sortable, filterable and resizable.
  */
-const IDENTITY_COLUMNS: (PlayerColumn | IdentityColumnKey)[] = [columnByKey("ownership")!, columnByKey("price")!, TEAM_COLUMN_KEY, POSITION_COLUMN_KEY];
-const FIXED_COLUMN_KEYS = new Set<string>(["ownership", "price", TEAM_COLUMN_KEY, POSITION_COLUMN_KEY]);
+const IDENTITY_COLUMNS: PlayerColumn[] = [columnByKey("ownership")!, columnByKey("price")!];
+const FIXED_COLUMN_KEYS = new Set<string>(IDENTITY_COLUMNS.map((c) => c.key));
 
 /** Next 5 Fixtures needs room for five fixture chips plus their average; an equal share of the table (about 72px at 1600px wide) showed only two. */
 const EXPLORER_MIN_COLUMN_WIDTHS: Record<string, number> = { [FIXTURES_COLUMN_KEY]: 190 };
 /** Position sorts in pitch order, not alphabetically: the first (descending) click gives GKP, DEF, MID, FWD. */
-const POSITION_SORT_RANK: Record<Position, number> = { GKP: 4, DEF: 3, MID: 2, FWD: 1 };
 
 export const EXPLORER_DEFAULT_SORT: SortSpec[] = [{ key: "totalPoints", direction: "desc" }];
 
 /** Player Explorer's default visible-column order for the user-configurable columns only — Ownership/Price/Team/Position are never part of it (see IDENTITY_COLUMNS above). A host can start from its own (`defaultVisibleColumns`). */
 export const EXPLORER_DEFAULT_VISIBLE_COLUMNS = ["totalPoints", "pointsPerGame", "goals", "assists", "pointsPerMillion", "xG", "xA", "xGI", "minutes"];
 /** Always on screen, so never in a saved view's visibleColumns: the player name and the fixed block. */
-/**
- * <set_piece_filter>: the set-piece duty filter's key, the ▾ on the Player
- * header (not a column: the duties are icons after the name). Kept apart
- * from "name" so it saves, clears and resets like any column's filter.
- */
-const SET_PIECE_FILTER_KEY = "setPieceDuties";
-const EXPLORER_ALWAYS_SHOWN_KEYS = new Set<string>(["name", SET_PIECE_FILTER_KEY, ...FIXED_COLUMN_KEYS]);
+const EXPLORER_ALWAYS_SHOWN_KEYS = new Set<string>(["name", PLAYER_FILTER_KEY, ...FIXED_COLUMN_KEYS]);
 /** Every column sorts now (Next 5 Fixtures by its average); kept for explorerViewToApply's contract. */
 const EXPLORER_UNSORTABLE_KEYS = new Set<string>();
 
@@ -197,17 +175,10 @@ function IdentityCells({
   return (
     <>
       {IDENTITY_COLUMNS.map((c, idx) => {
-        const width = columnWidths[typeof c === "string" ? c : c.key];
+        const width = columnWidths[c.key];
         const isFirst = idx === 0;
         const style = { ...widthStyle(width), ...(isFirst ? { paddingLeft: 6 } : {}) };
         const className = isFirst ? "column-group-divider" : undefined;
-        if (c === TEAM_COLUMN_KEY || c === POSITION_COLUMN_KEY) {
-          return (
-            <td key={c} className={className} style={style}>
-              {c === TEAM_COLUMN_KEY ? <TeamBadge teamId={player.teamId} shortName={player.teamShortName} /> : <PositionBadge position={player.position} />}
-            </td>
-          );
-        }
         return (
           <td
             key={c.key}
@@ -460,12 +431,10 @@ function useWidthSizerRows(filteredRows: ExplorerRowData[], sortedRows: Explorer
       width: estimateTextWidth(`${fmtPercent(player.ownership)} · ${fmtPrice(player.price)} ${player.teamShortName} ${player.position}`, metaFont),
     }));
     const byFigure = IDENTITY_COLUMNS.flatMap((c) =>
-      typeof c === "string"
-        ? []
-        : topIds(
-            filteredRows.map(({ player, derived }) => ({ id: player.id, width: estimateTextWidth(cellText(c, player, derived), figureFont) })),
-            SIZER_CANDIDATES_BY_FIGURE,
-          ),
+      topIds(
+        filteredRows.map(({ player, derived }) => ({ id: player.id, width: estimateTextWidth(cellText(c, player, derived), figureFont) })),
+        SIZER_CANDIDATES_BY_FIGURE,
+      ),
     );
     const byClub = new Map<number, number>();
     for (const { player } of filteredRows) if (!byClub.has(player.teamId)) byClub.set(player.teamId, player.id);
@@ -614,15 +583,7 @@ export function PlayerExplorerTable({
   const [showColumnPopover, setShowColumnPopover] = useState(false);
   // <natural_first_click>: names and clubs A to Z, Position in pitch order (its first, descending, click), a lower-is-better figure (fixture difficulty included) lowest first.
   const { sort, setSort, handleHeaderClick } = useSortSpec(EXPLORER_DEFAULT_SORT, (key) =>
-    key === "name" || key === TEAM_COLUMN_KEY || key === FIXTURES_COLUMN_KEY
-      ? "asc"
-      : key === POSITION_COLUMN_KEY
-        ? "desc"
-        : leadByKey.has(key)
-          ? "desc"
-          : lookupColumn(key)?.higherIsBetter === false
-            ? "asc"
-            : "desc",
+    key === "name" || key === FIXTURES_COLUMN_KEY ? "asc" : leadByKey.has(key) ? "desc" : lookupColumn(key)?.higherIsBetter === false ? "asc" : "desc",
   );
 
   const {
@@ -678,9 +639,7 @@ export function PlayerExplorerTable({
   // can never resolve a column's value differently.
   function getRowValue(row: { player: NormalizedPlayer; derived: PlayerDerivedMetrics }, key: string): number | string | null {
     if (key === "name") return row.player.name;
-    if (key === SET_PIECE_FILTER_KEY) return dutyFilterKey(row.player);
-    if (key === TEAM_COLUMN_KEY) return row.player.teamShortName;
-    if (key === POSITION_COLUMN_KEY) return row.player.position;
+    if (key === PLAYER_FILTER_KEY) return playerFilterTokens(row.player);
     if (key === FIXTURES_COLUMN_KEY) return averageFixtureDifficulty((fixturesByTeamId.get(row.player.teamId) ?? NO_FIXTURES).slice(0, 5));
     const lead = leadByKey.get(key);
     if (lead) return lead.value(row.player.id);
@@ -689,7 +648,6 @@ export function PlayerExplorerTable({
   }
 
   function getSortValue(row: { player: NormalizedPlayer; derived: PlayerDerivedMetrics }, key: string): number | string | null {
-    if (key === POSITION_COLUMN_KEY) return POSITION_SORT_RANK[row.player.position];
     return getRowValue(row, key);
   }
 
@@ -698,15 +656,14 @@ export function PlayerExplorerTable({
     return leadByKey.get(key)?.decimals ?? lookupColumn(key)?.decimals;
   }
 
-  // Every team currently in the pool, alphabetical by short name — the
-  // Team column's "show only" filter dropdown options. Built from `teams`
-  // rather than `rows` so the option list doesn't shrink as other filters
-  // narrow the visible rows.
-  const teamCategoryOptions = useMemo(
+  // Every club in the league today, alphabetical by short name — the
+  // player filter's clubs (<player_filter>). From the teams rather than the
+  // rows, so the list doesn't shrink as other filters narrow the rows.
+  const clubOptions = useMemo(
     () =>
       Array.from(teamsById.values())
-        .map((t) => t.shortName)
-        .sort((a, b) => a.localeCompare(b)),
+        .map((t) => ({ teamId: t.id, shortName: t.shortName }))
+        .sort((a, b) => a.shortName.localeCompare(b.shortName)),
     [teamsById],
   );
 
@@ -788,11 +745,11 @@ export function PlayerExplorerTable({
   }
 
   function loadView(view: ExplorerView) {
-    const { settings, leftOut } = explorerViewToApply(view.settings, {
+    const { settings, leftOut } = explorerViewToApply(foldIdentityFilters(view.settings), {
       isKnownColumn: (key) => key === FIXTURES_COLUMN_KEY || !!(columnByKey(key) ?? extOnlyByKey.get(key)),
       fixedKeys: EXPLORER_ALWAYS_SHOWN_KEYS,
       unsortableKeys: EXPLORER_UNSORTABLE_KEYS,
-      categoryOptions: { [TEAM_COLUMN_KEY]: teamCategoryOptions, [POSITION_COLUMN_KEY]: POSITION_OPTIONS },
+      clubOptions: clubOptions.map((c) => c.shortName),
       externalSourceId: ext?.id ?? null,
       canSwitchSource: (key) => !!extColumns?.alternates[key],
       defaultSort: EXPLORER_DEFAULT_SORT,
@@ -816,8 +773,10 @@ export function PlayerExplorerTable({
   const { setColumnFilter } = columnFiltersState;
   useEffect(() => {
     if (!openRequest) return;
-    if (openRequest.position) setColumnFilter(POSITION_COLUMN_KEY, { ...EMPTY_COLUMN_FILTER, category: openRequest.position });
-    else clearFilter(POSITION_COLUMN_KEY);
+    // The player filter's Position only; its other sections stay as left.
+    const f = { ...playerFilterOf(columnFiltersState.columnFilters), positions: openRequest.position ? [openRequest.position] : [] };
+    if (isPlayerFilterActive(f)) setColumnFilter(PLAYER_FILTER_KEY, playerFilterSpec(f));
+    else clearFilter(PLAYER_FILTER_KEY);
     setSearch("");
     // After the dialog has taken focus (its own effect runs after this one).
     const frame = requestAnimationFrame(() => searchRef.current?.focus({ preventScroll: true }));
@@ -884,7 +843,6 @@ export function PlayerExplorerTable({
   const columnRanks = useMemo(() => {
     const ranks: ColumnRanks = new Map();
     for (const c of [...IDENTITY_COLUMNS, ...columnsInOrder]) {
-      if (typeof c === "string") continue;
       const higherIsBetter = rankDirection(c);
       if (higherIsBetter === null) continue;
       ranks.set(
@@ -910,7 +868,7 @@ export function PlayerExplorerTable({
   // What each shown column is, once per column: its header's hover and the first line of its cells' (<stat_hover>).
   const columnHints = useMemo(() => {
     const hints: ColumnHints = new Map();
-    for (const c of IDENTITY_COLUMNS) if (typeof c !== "string") hints.set(c.key, playerColumnHint(c));
+    for (const c of IDENTITY_COLUMNS) hints.set(c.key, playerColumnHint(c));
     for (const c of columnsInOrder) hints.set(c.key, playerColumnHint(c, { sourceLabel: ext && c.sourceId === ext.id ? ext.label : undefined }));
     for (const c of leadColumnsInOrder) hints.set(c.key, columnHint(c.label, { hint: c.hint }));
     return hints;
@@ -970,7 +928,8 @@ export function PlayerExplorerTable({
   // so the export is never a surprise relative to the table it was taken from.
   function handleExportCsv() {
     const exportLabel = (c: PlayerColumn) => (ext && c.sourceId === ext.id ? externalLabel(ext, columnLabel(c)) : columnLabel(c));
-    const liveBlock: (PlayerColumn | SpecialColumnKey)[] = [...IDENTITY_COLUMNS, ...(showFixtures ? [FIXTURES_COLUMN_KEY as SpecialColumnKey] : [])];
+    // Team and Position as they show under each name, then Next 5 Fixtures if shown.
+    const liveBlock: (PlayerColumn | SpecialColumnKey)[] = [...IDENTITY_COLUMNS, TEAM_COLUMN_KEY, POSITION_COLUMN_KEY, ...(showFixtures ? [FIXTURES_COLUMN_KEY as SpecialColumnKey] : [])];
     const headers = ["Player", ...leadColumnsInOrder.map((c) => c.label), ...liveBlock.map(columnLabel), ...columnsInOrder.map(exportLabel)];
     const csvRows = sortedRows.map(({ player, derived }) => {
       const leadCells = leadColumnsInOrder.map((c) => fmtDecimal(c.value(player.id), c.decimals));
@@ -981,7 +940,7 @@ export function PlayerExplorerTable({
     downloadCsv(`${csvName}-${analysisMode}-${new Date().toISOString().slice(0, 10)}.csv`, headers, csvRows);
   }
 
-  const dutyFilterActive = isColumnFilterActive(columnFiltersState.columnFilters[SET_PIECE_FILTER_KEY]);
+  const playerFilterActive = isColumnFilterActive(columnFiltersState.columnFilters[PLAYER_FILTER_KEY]);
   const columnCount = 1 + leadColumnsInOrder.length + IDENTITY_COLUMNS.length + (showFixtures ? 1 : 0) + columnsInOrder.length;
   const table = (
     <div className="table-wrap windowed-rows" ref={tableWrapRef}>
@@ -998,15 +957,19 @@ export function PlayerExplorerTable({
               Player
               {nameSort && <span className="sort-indicator">{nameSort.direction === "asc" ? "↑" : "↓"}</span>}
               <ColumnFilterControl
-                isOpen={columnFiltersState.openFilterKey === SET_PIECE_FILTER_KEY}
-                isActive={dutyFilterActive}
+                isOpen={columnFiltersState.openFilterKey === PLAYER_FILTER_KEY}
+                isActive={playerFilterActive}
                 filterDraft={columnFiltersState.filterDraft}
-                onOpen={() => columnFiltersState.openFilter(SET_PIECE_FILTER_KEY)}
+                onOpen={() => columnFiltersState.openFilter(PLAYER_FILTER_KEY)}
                 onCancel={columnFiltersState.cancelFilter}
                 onConfirm={columnFiltersState.confirmFilter}
                 onDraftChange={columnFiltersState.setFilterDraft}
-                dutyGrid
-                iconLabel={dutyFilterActive ? "Filtered by set-piece duty. Click to edit" : "Filter by set-piece duty: penalty, free-kick and corner takers"}
+                playerFilter={{ clubs: clubOptions }}
+                iconLabel={
+                  playerFilterActive
+                    ? "Players filtered by position, club, availability or set-piece duty. Click to edit"
+                    : "Filter players by position, club, availability or set-piece duty"
+                }
               />
             </th>
             {leadColumnsInOrder.map((c) => (
@@ -1024,11 +987,10 @@ export function PlayerExplorerTable({
               />
             ))}
             {IDENTITY_COLUMNS.map((c, idx) => {
-              const key = typeof c === "string" ? c : c.key;
+              const key = c.key;
               const label = columnLabel(c);
               const sortEntry = sort.find((s) => s.key === key);
               const width = columnWidths[key];
-              const categoryOptions = c === TEAM_COLUMN_KEY ? teamCategoryOptions : c === POSITION_COLUMN_KEY ? POSITION_OPTIONS : undefined;
               // A second grey divider separates the sticky Player column (and any lead columns) from this
               // whole identity block — distinct from the one between this block
               // and the user-configurable columns further along.
@@ -1039,13 +1001,7 @@ export function PlayerExplorerTable({
                   columnKey={key}
                   label={label}
                   className={isFirst ? "col-static column-group-divider" : "col-static"}
-                  title={
-                    typeof c === "string"
-                      ? c === TEAM_COLUMN_KEY
-                        ? "Team: his club. Click a badge for the club's profile."
-                        : "Position: his FPL position."
-                      : (columnHints.get(c.key) ?? c.label)
-                  }
+                  title={columnHints.get(c.key) ?? c.label}
                   layout={headerLayout}
                   width={width}
                   // Unless hand-set, 1px means "as narrow as its content": without it
@@ -1057,7 +1013,6 @@ export function PlayerExplorerTable({
                   sortDirection={sortEntry?.direction}
                   onSort={(shiftKey) => handleHeaderClick(key, shiftKey)}
                   filters={columnFiltersState}
-                  categoryOptions={categoryOptions}
                   style={{ paddingLeft: isFirst ? 6 : undefined }}
                 />
               );
