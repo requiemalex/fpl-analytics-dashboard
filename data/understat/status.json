@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAt": "2026-10-26T12:37:23.265Z",
+  "generatedAt": "2026-10-31T01:46:33.468Z",
   "liveSeason": "2026/27",
   "seasons": [
     "2016/17",
@@ -21,5 +21,29 @@
     "confirmed": 593,
     "held": 0,
     "disputed": 0
+  },
+  "fileVersions": {
+    "app/2016-17.json": "aa65568db6c69852",
+    "app/2017-18.json": "50f4016fb6c149fb",
+    "app/2018-19.json": "2446db046bf4f892",
+    "app/2019-20.json": "4fab22f8d569695b",
+    "app/2020-21.json": "7b228bf3bce06264",
+    "app/2021-22.json": "a46d9798af219cb4",
+    "app/2022-23.json": "691a82ee6bb46cf0",
+    "app/2023-24.json": "2f6e5a566a275cc5",
+    "app/2024-25.json": "49a546a8acf2912e",
+    "app/2025-26.json": "f366ac11d8e36554",
+    "app/2026-27.json": "a8c00f045cf02507",
+    "app/profile/2016-17.json": "948a9af1da0d4cee",
+    "app/profile/2017-18.json": "0560a50d14a6c4ab",
+    "app/profile/2018-19.json": "f0300d99738f48b0",
+    "app/profile/2019-20.json": "80d2f7d248487332",
+    "app/profile/2020-21.json": "bbee1ba64c1f24f6",
+    "app/profile/2021-22.json": "08891757691c9d29",
+    "app/profile/2022-23.json": "8e6db351e4e43beb",
+    "app/profile/2023-24.json": "3dcbf932e945849d",
+    "app/profile/2024-25.json": "69b26332379f19fc",
+    "app/profile/2025-26.json": "cfb168ab3d7478cf",
+    "app/profile/2026-27.json": "c95974675d9354df"
   }
 }
