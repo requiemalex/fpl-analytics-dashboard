@@ -5,6 +5,11 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.125.0 · 31 Oct 2026
+
+- Player Explorer and Add Players: the Player header's filter now picks positions, clubs, availability and set-piece duties (several at once); the Team and Position columns are gone, as both show under each name
+- Player Explorer and Add Players: filter by set-piece duty from a ▾ on the Player header (penalties, direct free kicks and corners; first, second or third choice), saved with saved views
+
 ## v1.124.0 · 31 Oct 2026
 
 - Set-piece duties as gold, silver and bronze icons after a player's name (replacing the Pen Order, FK Order and Corner Order columns); new Understat figures: shots, goals and xG inside and outside the box, chances created and xA from corners and set pieces, headed xG from corners and from crosses; clearer names and hovers for the set-piece figures
