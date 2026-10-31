@@ -121,3 +121,25 @@ describe("Understat at launch (<disk_copies>, Efficiency C)", () => {
     expect(liveReads()).toBe(after);
   });
 });
+
+describe("a saved copy under an old fingerprint (<file_versions>)", () => {
+  it("a relaunch reads a completed season again when the sync has rewritten it, and only that one", async () => {
+    const { fileVersion } = await import("./fileVersion.js");
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const rel = (s: string) => `app/${s.replace("/", "-")}.json`;
+    const versions = () => Object.fromEntries(SEASONS.map((s) => [rel(s), fileVersion(remote.files.get(rel(s)))]));
+    remote.files.set("status.json", { ...status("2026-10-23T06:10:00Z"), fileVersions: versions() });
+    at("09:00");
+    await matchesIncluded(await launch());
+    // The sync rewrites 2025/26 (new figures) and nothing else.
+    remote.files.set(rel("2025/26"), seasonFile("2025/26", 71));
+    remote.files.set("status.json", { ...status("2026-10-23T09:10:00Z"), fileVersions: versions() });
+    remote.reads.length = 0;
+    // Status (30 minutes) has run out, so the sync is seen; the completed seasons' copies have 12 hours left.
+    at("09:35");
+    const body = (await (await fetch(`${await launch()}/api/understat`)).json()) as { data: { seasons: Record<string, { matchesIncluded: number }> } };
+    expect(body.data.seasons["2025/26"].matchesIncluded).toBe(71);
+    // The live season by its own 30 minutes; of the completed ones, only the one the sync rewrote.
+    expect(remote.reads.filter((r) => r.startsWith("app/")).sort()).toEqual([rel("2025/26"), rel("2026/27")]);
+  });
+});

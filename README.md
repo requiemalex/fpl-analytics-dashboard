@@ -195,8 +195,18 @@ updated):
   (status.json's `generatedAt`), the live season's profile figures already
   loaded are asked for again, once; a completed season's never. The server
   likewise re-reads a cached live-season file read under an older sync
-  (`readUnderSync`), so a fresh status never comes with a stale file. The app
-  never contacts understat.com — only the daily sync job does — so none of
+  (`readUnderSync`), so a fresh status never comes with a stale file. And
+  **any file a sync changed, a completed season's included**, is read again
+  as soon as the new status arrives (`<file_versions>`,
+  `server/src/understat/fileVersion.ts`): status.json lists each app
+  file's fingerprint (`fileVersions`, by path), and a copy held under
+  another — in memory, or put back from disk at launch — is fetched again,
+  whatever its cache time. Before this, a completed season rewritten by a
+  sync (new figures added for every season, as on 2026-10-31) kept its old
+  copy up to 12 hours. A status written before it has no fingerprints, and
+  the old rules apply. So new figures reach an open app within about 30
+  minutes of a sync (the status's cache time), plus the hourly check. The
+  app never contacts understat.com — only the sync job does — so none of
   this adds requests to Understat itself.
 Each TTL runs from when the upstream request **started**, not from when a
 slow response arrived (`TtlCache.set`), so the client's 10-minute poll lands
@@ -609,7 +619,11 @@ The app never contacts understat.com; installed copies read the committed
 files, so new data needs no release. `npm run dev` reads `data/understat/`
 from disk instead (`server/src/index.ts`).
 
-**The sync** (`.github/workflows/understat-sync.yml`, daily 06:00 UTC; the
+**The sync** (`.github/workflows/understat-sync.yml`, daily 06:00 UTC,
+and at once whenever a push to master changes the sync's code — what the
+season summaries hold — so a new figure is published straight away, every
+season included, not at the next 06:00 (the owner's decision, 2026-10-31);
+it can also be started by hand from the Actions tab; the
 pipeline is `server/src/understat/pipeline/`, dependency-free) runs, in order:
 
 1. **Off-switch:** `data/understat/control.json` `"enabled": false` stops
@@ -2506,7 +2520,7 @@ Five GitHub workflows run without anyone starting them:
 | Workflow | When | What | Alerts the owner |
 |---|---|---|---|
 | `club-history-archive.yml` | Tue & Fri 05:00 UTC | Archives the live season's club history; releases at season end | On the 2nd failure in a row (a missed run loses nothing) |
-| `understat-sync.yml` | Daily 06:00 UTC | Syncs Understat data (see "Understat"); fetches FPL's live record to check it against | At once for a changed format, a failed check, or data it couldn't commit or push; on the 2nd failure in a row for a block or blip; plus held/disputed links and Understat running late |
+| `understat-sync.yml` | Daily 06:00 UTC, and on a push that changes the sync's code | Syncs Understat data (see "Understat"); fetches FPL's live record to check it against | At once for a changed format, a failed check, or data it couldn't commit or push; on the 2nd failure in a row for a block or blip; plus held/disputed links and Understat running late |
 | `fpl-availability.yml` | Hourly | Records FPL's availability news for the next deadline (`<availability_record>`, below) | On the 2nd failure in a row (the next run records the news as it then stands) |
 | `release.yml` | On a `v*` tag | Builds and publishes the desktop app | At once (installed apps would stop updating) |
 | `watchdog.yml` | Mondays 07:00 UTC | Checks the three scheduled jobs are switched on and succeeded recently (Understat within 2 days, archive within 5, availability within 1), and the latest release didn't fail | When any of that is wrong |

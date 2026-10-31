@@ -367,6 +367,13 @@ export interface UnderstatStatus {
   /** FPL fixtures finished more than a day ago that Understat doesn't have yet: fixture id -> date first noticed missing. */
   missingFixtures: Record<string, string>;
   links: { confirmed: number; held: number; disputed: number };
+  /**
+   * <file_versions> (../fileVersion.ts): each app file's fingerprint, by
+   * path ("app/2025-26.json", "app/profile/2025-26.json"), so the app reads
+   * again any file a sync changed, a completed season's included. A change
+   * in any of them is a change of status, so `generatedAt` moves with it.
+   */
+  fileVersions: Record<string, string>;
 }
 
 /** Hand-edited switch (data/understat/control.json); the sync job never writes it. */

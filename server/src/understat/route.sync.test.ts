@@ -71,3 +71,52 @@ describe("Understat live files follow the sync", () => {
     expect(profileReads()).toBe(2);
   });
 });
+
+describe("Understat files follow their fingerprints (<file_versions>)", () => {
+  const COMPLETED = "app/2025-26.json";
+  const seasonFile = (marker: number) => ({ schema: 1, season: "2025/26", complete: true, matchesIncluded: marker, latestMatchDate: null, players: {}, clubs: {} });
+  const liveFile = { schema: 1, season: "2026/27", complete: false, matchesIncluded: 70, latestMatchDate: null, players: {}, clubs: {} };
+  const statusWith = (generatedAt: string, completedVersion: string) => ({
+    generatedAt,
+    liveSeason: "2026/27",
+    seasons: ["2025/26", "2026/27"],
+    latestMatchDate: null,
+    missingFixtures: {},
+    fileVersions: { [COMPLETED]: completedVersion },
+  });
+
+  // A day of its own: the route's cache is shared, and the test above leaves files cached on the 19th.
+  const at = (time: string) => vi.setSystemTime(new Date(`2026-10-25T${time}:00Z`));
+
+  it("a completed season rewritten by a sync is read again with the next status, not after its 12 hours; an unchanged one isn't", async () => {
+    const { fileVersion } = await import("./fileVersion.js");
+    vi.useFakeTimers({ toFake: ["Date"] });
+    remote.files.set("control.json", { enabled: true });
+    remote.files.set(COMPLETED, seasonFile(380));
+    remote.files.set("app/2026-27.json", liveFile);
+    remote.files.set("status.json", statusWith("2026-10-18T06:10:00Z", fileVersion(seasonFile(380))));
+    const base = await start();
+    const marker = async () => {
+      const body = (await (await fetch(`${base}/api/understat`)).json()) as { data: { seasons: Record<string, { matchesIncluded: number }> } };
+      return body.data.seasons["2025/26"].matchesIncluded;
+    };
+    const completedReads = () => remote.reads.filter((r) => r === COMPLETED).length;
+
+    at("05:00");
+    expect(await marker()).toBe(380);
+    // A sync that changed nothing in it: status re-read at 05:31, the season still not.
+    remote.files.set("status.json", statusWith("2026-10-19T06:10:00Z", fileVersion(seasonFile(380))));
+    at("05:31");
+    expect(await marker()).toBe(380);
+    expect(completedReads()).toBe(1);
+    // A sync that rewrote it (new figures): read again as soon as that status arrives.
+    remote.files.set(COMPLETED, seasonFile(381));
+    remote.files.set("status.json", statusWith("2026-10-20T06:10:00Z", fileVersion(seasonFile(381))));
+    at("06:02");
+    expect(await marker()).toBe(381);
+    expect(completedReads()).toBe(2);
+    at("06:10");
+    expect(await marker()).toBe(381);
+    expect(completedReads()).toBe(2);
+  });
+});

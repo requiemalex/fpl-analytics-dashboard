@@ -23,6 +23,7 @@ import { Router } from "express";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TtlCache } from "../cache.js";
+import { fileVersion } from "./fileVersion.js";
 import { cachedFetch, type ProxyResult } from "../proxy.js";
 import { restoreDiskCopy } from "../diskCopies.js";
 import { onPitchWindow, wasOnPitch, type OnPitch } from "./onPitch.js";
@@ -40,6 +41,8 @@ interface StatusLike {
   seasons: string[];
   /** When the sync wrote this status — it changes with every sync that publishes. */
   generatedAt?: string;
+  /** <file_versions>: each app file's fingerprint, by path ("app/2025-26.json"). Absent from a status written before 2026-10-31. */
+  fileVersions?: Record<string, string>;
 }
 
 type Source = "live" | "cache" | "stale-cache";
@@ -58,7 +61,14 @@ export function createUnderstatRouter(options: { localDir?: string } = {}): Rout
    */
   const readUnderSync = new Map<string, string>();
 
-  async function load(rel: string, ttlMs: number, sync?: string): Promise<ProxyResult<unknown>> {
+  /**
+   * `version`: the file's fingerprint in the current status (<file_versions>).
+   * A copy held under another (in memory, or put back from disk) is read
+   * again, whatever its cache time: completed seasons included, which
+   * otherwise keep a copy 12 hours. Without one (an older status), the
+   * live season falls back to `sync`, as before.
+   */
+  async function load(rel: string, ttlMs: number, sync?: string, version?: string): Promise<ProxyResult<unknown>> {
     if (options.localDir) {
       const path = join(options.localDir, rel);
       if (!existsSync(path)) return { ok: false, error: `${rel} not found`, status: 404 };
@@ -66,7 +76,11 @@ export function createUnderstatRouter(options: { localDir?: string } = {}): Rout
     }
     const persistAs = `understat/${rel}`;
     let stale = false;
-    if (sync !== undefined) {
+    if (version !== undefined) {
+      restoreDiskCopy(cache, rel, persistAs, ttlMs);
+      const held = cache.getStale(rel);
+      stale = held !== undefined && fileVersion(held.value) !== version;
+    } else if (sync !== undefined) {
       restoreDiskCopy(cache, rel, persistAs, ttlMs);
       const readUnder = readUnderSync.get(rel);
       const fetchedAt = cache.getStale(rel)?.fetchedAt;
@@ -95,7 +109,8 @@ export function createUnderstatRouter(options: { localDir?: string } = {}): Rout
     const files = await Promise.all(
       wanted.map((season) => {
         const live = season === s.liveSeason;
-        return load(`app/${season.replace("/", "-")}.json`, live ? LIVE_TTL_MS : COMPLETED_TTL_MS, live ? s.generatedAt : undefined);
+        const rel = `app/${season.replace("/", "-")}.json`;
+        return load(rel, live ? LIVE_TTL_MS : COMPLETED_TTL_MS, live ? s.generatedAt : undefined, s.fileVersions?.[rel]);
       }),
     );
     const seasons: Record<string, unknown> = {};
@@ -146,7 +161,9 @@ export function createUnderstatRouter(options: { localDir?: string } = {}): Rout
       }
       const live = status.ok ? (status.data as StatusLike).liveSeason.replace("/", "-") === season : true;
       const sync = status.ok && live ? (status.data as StatusLike).generatedAt : undefined;
-      const file = await load(`app/profile/${season}.json`, live ? LIVE_TTL_MS : COMPLETED_TTL_MS, sync);
+      const rel = `app/profile/${season}.json`;
+      const version = status.ok ? (status.data as StatusLike).fileVersions?.[rel] : undefined;
+      const file = await load(rel, live ? LIVE_TTL_MS : COMPLETED_TTL_MS, sync, version);
       if (!file.ok) {
         if (file.status === 404) {
           res.json({ data: { enabled: true, available: false }, meta: { source: "live", fetchedAt: Date.now() } });

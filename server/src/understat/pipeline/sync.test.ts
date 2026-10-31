@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { writeSeasonLedger } from "../../clubHistory/ledgerFiles.js";
 import type { LedgerRow } from "../../clubHistory/types.js";
+import { fileVersion } from "../fileVersion.js";
 import { runSync } from "./sync.js";
 import { UnderstatBlockedError, type UnderstatClient } from "./understatApi.js";
 import type { AppProfileFile, UsLeague, UsMatch, UsTeamSeason } from "./types.js";
@@ -122,6 +123,14 @@ describe("runSync", () => {
     expect(season.players["1001"]).toMatchObject({ goals: 2, shots: 3, shotsOnTarget: 3, minutes: 90 });
     expect(season.clubs["11"]).toMatchObject({ understatTeamId: "71", played: 1, shots: 3, shotsAgainst: 1, pts: 3 });
     expect(JSON.parse(readFileSync(join(understatRoot, "status.json"), "utf8"))).toMatchObject({ liveSeason: "2026/27", seasons: ["2026/27"] });
+  });
+
+  it("lists each app file's fingerprint in the status (<file_versions>), as the app reads the file back", async () => {
+    await sync(fakeClient());
+    const status = JSON.parse(readFileSync(join(understatRoot, "status.json"), "utf8"));
+    for (const rel of ["app/2026-27.json", "app/profile/2026-27.json"]) {
+      expect(status.fileVersions[rel], rel).toBe(fileVersion(JSON.parse(readFileSync(join(understatRoot, rel), "utf8"))));
+    }
   });
 
   it("writes the profiles' per-match file: positions, shots, result chances and formations, by FPL fixture", async () => {

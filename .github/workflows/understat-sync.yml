@@ -19,6 +19,20 @@ name: Understat sync
 on:
   schedule:
     - cron: "0 6 * * *" # daily 06:00 UTC — after the night's matches have settled on Understat
+  # A change to what the sync builds (a new figure in the season summaries)
+  # runs it at once, so the new figures reach the app now rather than at the
+  # next 06:00 (the owner's decision, 2026-10-31). Each run rebuilds every
+  # season from the stored files; the app then reads again each file whose
+  # fingerprint changed (<file_versions>). Tests alone don't trigger it, and
+  # the job's own data commits can't (GITHUB_TOKEN pushes start no runs).
+  push:
+    branches: [master]
+    paths:
+      - "server/src/understat/pipeline/**"
+      - "server/src/understat/onPitch.ts"
+      - "server/src/understat/fileVersion.ts"
+      - "scripts/understat/**"
+      - "!**/*.test.ts"
   workflow_dispatch:
     inputs:
       max_new_seasons:

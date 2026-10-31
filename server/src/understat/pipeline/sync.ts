@@ -24,6 +24,7 @@
  */
 import { readSeasonLedger, type SeasonLedger } from "../../clubHistory/ledgerFiles.js";
 import type { LedgerRow } from "../../clubHistory/types.js";
+import { fileVersion } from "../fileVersion.js";
 import { buildAppSeason } from "./aggregate.js";
 import { checkAgainstFpl, checkSeasonInternally } from "./checks.js";
 import {
@@ -34,6 +35,7 @@ import {
   readOverrides,
   readSeasonData,
   readStatus,
+  seasonFolder,
   writeAppProfile,
   writeAppSeason,
   writeFormations,
@@ -359,8 +361,16 @@ export async function runSync(opts: SyncOptions): Promise<SyncReport> {
     ensureOverridesFile(opts.understatRoot);
     for (const f of formationsToWrite) writeFormations(opts.understatRoot, f.season, f.rows);
     const appFiles: AppSeasonFile[] = processed.map((p) => buildAppSeason(p.data, links, p.complete, new Set(p.matchByFixture.values())));
-    for (const f of appFiles) writeAppSeason(opts.understatRoot, f);
-    for (const p of processed) writeAppProfile(opts.understatRoot, buildProfileSeason(p.data, links, p.matchByFixture, p.formations));
+    const fileVersions: Record<string, string> = {};
+    for (const f of appFiles) {
+      writeAppSeason(opts.understatRoot, f);
+      fileVersions[`app/${seasonFolder(f.season)}.json`] = fileVersion(f);
+    }
+    for (const p of processed) {
+      const profile = buildProfileSeason(p.data, links, p.matchByFixture, p.formations);
+      writeAppProfile(opts.understatRoot, profile);
+      fileVersions[`app/profile/${seasonFolder(p.data.season)}.json`] = fileVersion(profile);
+    }
 
     const counts = { confirmed: 0, held: 0, disputed: 0 };
     for (const l of links.values()) counts[l.status] += 1;
@@ -373,6 +383,7 @@ export async function runSync(opts: SyncOptions): Promise<SyncReport> {
       latestMatchDate: live?.latestMatchDate ?? null,
       missingFixtures,
       links: counts,
+      fileVersions,
     };
     const sameAsBefore = previousStatus && JSON.stringify({ ...previousStatus, generatedAt: "" }) === JSON.stringify({ ...status, generatedAt: "" });
     writeStatus(opts.understatRoot, sameAsBefore ? previousStatus! : status);
