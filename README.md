@@ -271,7 +271,15 @@ duty he has, none past third. Each icon's hover says what it means for
 him now ("Penalties: second choice for Arsenal. He takes the penalties
 … when the first choice is off the pitch."). They're in the shared
 player table's name cell (Player Explorer, Add Players); the width-sizer
-rows allow for them (`DUTY_ALLOWANCE_PX`). A saved view or Dashboard item
+rows allow for them (`DUTY_ALLOWANCE_PX`). **Filtering by them**
+(`<set_piece_filter>`): the Player header has the ▾ every column has,
+opening a grid — a row per duty, its first, second and third choice as
+that duty's icon in gold, silver and bronze (dim until picked); click
+cells, or a duty's name for its whole row, then Enter. A player holding
+any picked cell shows. It's its own filter key (`setPieceDuties`, not
+"name"), so it saves in a saved view (player-explorer views store v2;
+`duties` on the filter, only values this version knows), clears with
+Clear filters and goes with Reset, like any column's filter. A saved view or Dashboard item
 that used the old Pen Order / FK Order / Corner Order columns loads
 without them (the view's notice; an "unavailable" card).
 

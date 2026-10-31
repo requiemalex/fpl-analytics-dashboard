@@ -279,7 +279,7 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
     keywords: [
       "penalty", "penalties", "penalty taker", "pen taker", "on pens", "pen order", "free kick", "free kicks", "fk order", "corner",
       "corners", "corner order", "set piece", "set pieces", "set piece taker", "who takes penalties", "first choice", "duty", "duties",
-      "dead ball", "spot kick", "gold icon", "silver icon", "bronze icon", "medal", "icon next to name", "goal icon", "flag icon", "wall icon",
+      "dead ball", "spot kick", "filter penalty takers", "filter set piece takers", "gold icon", "silver icon", "bronze icon", "medal", "icon next to name", "goal icon", "flag icon", "wall icon",
     ],
     related: ["today-only", "icons"],
     body: (
@@ -304,6 +304,8 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
             </>,
           ]}
         />
+        <Label>Filter for them</Label>
+        <Steps items={["Click ▾ on the Player header.", "Pick the icons you want, or a duty's name for all three.", "Enter. Players with any of them show."]} />
         <Points items={["Several duties, several icons. Hover one for what it means for him.", "FPL's lists today, so the same in every Data View."]} />
       </>
     ),

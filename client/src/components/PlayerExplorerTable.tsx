@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { useColumnCustomization } from "../state/useColumnCustomization";
 import { useSortSpec, compareSortValues, sortWithinColumns, sortWithoutHiddenColumn, type SortSpec } from "../state/useSortSpec";
-import { EMPTY_COLUMN_FILTER, useColumnFilters } from "../state/useColumnFilters";
+import { EMPTY_COLUMN_FILTER, isColumnFilterActive, useColumnFilters } from "../state/useColumnFilters";
 import { useComparativeColour } from "../state/comparativeColour";
 import { ColumnHeader } from "./ColumnHeader";
 import { clubRankHint, columnHint, noPercentileHint, playerColumnHint, playerRankHint, statHover } from "./hoverText";
@@ -20,7 +20,8 @@ import { colourDirection, fixtureDifficultyRanks, positionRanks, rankDirection, 
 import { downloadCsv } from "../utils/csvExport";
 import { filterBySearch } from "../utils/playerSearch";
 import { useEscapeLayer } from "../state/useEscapeLayer";
-import { SetPieceDutyIcons, setPieceDuties } from "./SetPieceDuties";
+import { SetPieceDutyIcons, dutyFilterKey, setPieceDuties } from "./SetPieceDuties";
+import { ColumnFilterControl } from "./ColumnFilterControl";
 import { HideSmallSamplesButton, isSmallSample, MinutesFloorBadge, RowSmallSampleBadge, smallSamplesShownNote, userMinimumNote } from "./MinutesFloorBadge";
 import { fixedFloorMinutes } from "../metrics/fixedMinutesFloor";
 import type { ColumnFilterSpec } from "../state/useColumnFilters";
@@ -105,7 +106,13 @@ export const EXPLORER_DEFAULT_SORT: SortSpec[] = [{ key: "totalPoints", directio
 /** Player Explorer's default visible-column order for the user-configurable columns only — Ownership/Price/Team/Position are never part of it (see IDENTITY_COLUMNS above). A host can start from its own (`defaultVisibleColumns`). */
 export const EXPLORER_DEFAULT_VISIBLE_COLUMNS = ["totalPoints", "pointsPerGame", "goals", "assists", "pointsPerMillion", "xG", "xA", "xGI", "minutes"];
 /** Always on screen, so never in a saved view's visibleColumns: the player name and the fixed block. */
-const EXPLORER_ALWAYS_SHOWN_KEYS = new Set<string>(["name", ...FIXED_COLUMN_KEYS]);
+/**
+ * <set_piece_filter>: the set-piece duty filter's key, the ▾ on the Player
+ * header (not a column: the duties are icons after the name). Kept apart
+ * from "name" so it saves, clears and resets like any column's filter.
+ */
+const SET_PIECE_FILTER_KEY = "setPieceDuties";
+const EXPLORER_ALWAYS_SHOWN_KEYS = new Set<string>(["name", SET_PIECE_FILTER_KEY, ...FIXED_COLUMN_KEYS]);
 /** Every column sorts now (Next 5 Fixtures by its average); kept for explorerViewToApply's contract. */
 const EXPLORER_UNSORTABLE_KEYS = new Set<string>();
 
@@ -671,6 +678,7 @@ export function PlayerExplorerTable({
   // can never resolve a column's value differently.
   function getRowValue(row: { player: NormalizedPlayer; derived: PlayerDerivedMetrics }, key: string): number | string | null {
     if (key === "name") return row.player.name;
+    if (key === SET_PIECE_FILTER_KEY) return dutyFilterKey(row.player);
     if (key === TEAM_COLUMN_KEY) return row.player.teamShortName;
     if (key === POSITION_COLUMN_KEY) return row.player.position;
     if (key === FIXTURES_COLUMN_KEY) return averageFixtureDifficulty((fixturesByTeamId.get(row.player.teamId) ?? NO_FIXTURES).slice(0, 5));
@@ -973,6 +981,7 @@ export function PlayerExplorerTable({
     downloadCsv(`${csvName}-${analysisMode}-${new Date().toISOString().slice(0, 10)}.csv`, headers, csvRows);
   }
 
+  const dutyFilterActive = isColumnFilterActive(columnFiltersState.columnFilters[SET_PIECE_FILTER_KEY]);
   const columnCount = 1 + leadColumnsInOrder.length + IDENTITY_COLUMNS.length + (showFixtures ? 1 : 0) + columnsInOrder.length;
   const table = (
     <div className="table-wrap windowed-rows" ref={tableWrapRef}>
@@ -988,6 +997,17 @@ export function PlayerExplorerTable({
             >
               Player
               {nameSort && <span className="sort-indicator">{nameSort.direction === "asc" ? "↑" : "↓"}</span>}
+              <ColumnFilterControl
+                isOpen={columnFiltersState.openFilterKey === SET_PIECE_FILTER_KEY}
+                isActive={dutyFilterActive}
+                filterDraft={columnFiltersState.filterDraft}
+                onOpen={() => columnFiltersState.openFilter(SET_PIECE_FILTER_KEY)}
+                onCancel={columnFiltersState.cancelFilter}
+                onConfirm={columnFiltersState.confirmFilter}
+                onDraftChange={columnFiltersState.setFilterDraft}
+                dutyGrid
+                iconLabel={dutyFilterActive ? "Filtered by set-piece duty. Click to edit" : "Filter by set-piece duty: penalty, free-kick and corner takers"}
+              />
             </th>
             {leadColumnsInOrder.map((c) => (
               <ColumnHeader

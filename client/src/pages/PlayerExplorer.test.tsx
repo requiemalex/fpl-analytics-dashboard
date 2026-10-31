@@ -13,9 +13,9 @@ import { downloadCsv } from "../utils/csvExport";
 const TEAMS = [makeTeam({ id: 1, shortName: "ARS", name: "Arsenal" }), makeTeam({ id: 2, shortName: "CHE", name: "Chelsea" })];
 const PLAYERS = [
   // 46 / £3.0m = 15.333… Pts/£m, shown as "15.3".
-  makePlayer({ id: 1, name: "Zubimendi", position: "MID", teamId: 1, teamShortName: "ARS", totalPoints: 46, price: 3 }),
-  makePlayer({ id: 2, name: "Ødegaard", position: "MID", teamId: 1, teamShortName: "ARS", totalPoints: 30, price: 8 }),
-  makePlayer({ id: 3, name: "Ángel", position: "DEF", teamId: 2, teamShortName: "CHE", totalPoints: 20, price: 5 }),
+  makePlayer({ id: 1, name: "Zubimendi", position: "MID", teamId: 1, teamShortName: "ARS", totalPoints: 46, price: 3, penaltiesOrder: 2 }),
+  makePlayer({ id: 2, name: "Ødegaard", position: "MID", teamId: 1, teamShortName: "ARS", totalPoints: 30, price: 8, penaltiesOrder: 1, cornersOrder: 1 }),
+  makePlayer({ id: 3, name: "Ángel", position: "DEF", teamId: 2, teamShortName: "CHE", totalPoints: 20, price: 5, cornersOrder: 3, directFreekicksOrder: 4 }),
   makePlayer({ id: 4, name: "Bob", position: "FWD", teamId: 2, teamShortName: "CHE", totalPoints: 10, price: 6 }),
 ];
 
@@ -337,5 +337,59 @@ describe("Next 5 Fixtures", () => {
     fireEvent.click(header(container, "Next 5 Fixtures"));
     expect(rowNames(container).slice(0, 2).sort()).toEqual(["Bob", "Ángel"]);
     expect(rowNames(container).slice(2).sort()).toEqual(["Zubimendi", "Ødegaard"]);
+  });
+});
+
+describe("Player Explorer — set-piece duty filter (<set_piece_filter>)", () => {
+  afterEach(() => localStorage.clear());
+
+  /** Opens the Player header's ▾, clicks the given cells (or a row's name), and Enter. */
+  function filterDuties(container: HTMLElement, clicks: string[]) {
+    fireEvent.click(header(container, "Player").querySelector("button.column-filter-icon")!);
+    const popover = container.querySelector<HTMLElement>(".column-filter-popover")!;
+    for (const name of clicks) fireEvent.click(within(popover).getByRole("button", { name }));
+    fireEvent.click(within(popover).getByRole("button", { name: "Enter" }));
+  }
+
+  it("the Player header's ▾ says what it filters", () => {
+    const { container } = renderExplorer();
+    expect(header(container, "Player").querySelector("button.column-filter-icon")?.getAttribute("aria-label")).toMatch(/^Filter by set-piece duty/);
+  });
+
+  it("shows the first-choice penalty takers only", () => {
+    const { container } = renderExplorer();
+    filterDuties(container, ["Penalties: first choice"]);
+    expect(rowNames(container)).toEqual(["Ødegaard"]);
+    expect(header(container, "Player").querySelector("button.column-filter-icon")?.className).toContain("active");
+  });
+
+  it("a row's name picks every taker of that duty; picked cells add up (any of them)", () => {
+    const { container } = renderExplorer();
+    filterDuties(container, ["Penalties: pick all three"]);
+    expect(rowNames(container)).toEqual(["Zubimendi", "Ødegaard"]);
+    filterDuties(container, ["Corners and indirect free kicks: third choice"]);
+    expect(rowNames(container)).toEqual(["Zubimendi", "Ødegaard", "Ángel"]);
+  });
+
+  it("past third on a list is no duty; nothing picked is no filter", () => {
+    const { container } = renderExplorer();
+    filterDuties(container, ["Direct free kicks: first choice", "Direct free kicks: second choice", "Direct free kicks: third choice"]);
+    expect(container.querySelector(".empty-state h3")?.textContent).toBe("No players match your filters");
+    filterDuties(container, ["Direct free kicks: clear all three"]);
+    expect(rowNames(container)).toEqual(["Zubimendi", "Ødegaard", "Ángel", "Bob"]);
+  });
+
+  it("is saved in a saved view, and cleared with the other filters", () => {
+    const { container, getByRole, getByLabelText } = renderExplorer();
+    filterDuties(container, ["Penalties: second choice"]);
+    fireEvent.click(getByRole("button", { name: /^Saved views/ }));
+    fireEvent.click(getByRole("button", { name: "Save current view" }));
+    fireEvent.change(getByLabelText("Name"), { target: { value: "Pens" } });
+    fireEvent.keyDown(getByLabelText("Name"), { key: "Enter" });
+    fireEvent.click(getByRole("button", { name: /^Clear every filter/ }));
+    expect(rowNames(container)).toEqual(["Zubimendi", "Ødegaard", "Ángel", "Bob"]);
+    fireEvent.click(getByRole("button", { name: /^Saved views/ }));
+    fireEvent.click(getByRole("button", { name: "Pens" }));
+    expect(rowNames(container)).toEqual(["Zubimendi"]);
   });
 });

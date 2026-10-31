@@ -1,7 +1,8 @@
 import { useCallback } from "react";
 import { isAnalysisMode, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import type { ColumnSourceChoice } from "../extensions/externalStats";
-import { EMPTY_COLUMN_FILTER, type ColumnFilterSpec } from "./useColumnFilters";
+import { EMPTY_COLUMN_FILTER, isColumnFilterActive, type ColumnFilterSpec } from "./useColumnFilters";
+import { DUTY_FILTER_VALUES } from "../components/SetPieceDuties";
 import type { SortSpec } from "./useSortSpec";
 import { mapReadableEntries, type VersionedStore, usePersistentState } from "./persistentStorage";
 
@@ -10,7 +11,8 @@ const STORAGE_KEYS = {
   player: "scoutline:player-explorer:saved-views:v1",
   team: "scoutline:team-explorer:saved-views:v1",
 } as const;
-const STORAGE_VERSION = 1;
+/** v2 (2026-10-31): a filter may hold set-piece duties (`duties`, <set_piece_filter>); a v1 view has none, and loads as it was. */
+const STORAGE_VERSION = 2;
 
 export type ExplorerScope = keyof typeof STORAGE_KEYS;
 
@@ -58,7 +60,10 @@ function normalizeFilter(raw: unknown): ColumnFilterSpec | null {
     eq: numberOrNull(raw.eq),
     category: typeof raw.category === "string" ? raw.category : null,
   };
-  return spec.lte === null && spec.gte === null && spec.eq === null && spec.category === null ? null : spec;
+  // Only duties this version knows, each once (<set_piece_filter>).
+  const duties = [...new Set(strings(raw.duties).filter((d) => DUTY_FILTER_VALUES.includes(d)))];
+  if (duties.length > 0) spec.duties = duties;
+  return isColumnFilterActive(spec) ? spec : null;
 }
 
 /** Saved settings in the current shape: anything unreadable is dropped field by field, so a damaged entry still loads what it can. */

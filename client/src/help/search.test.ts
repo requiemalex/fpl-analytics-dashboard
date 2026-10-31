@@ -59,6 +59,7 @@ const QUESTIONS: [string, string][] = [
   ["who takes penalties", "set-pieces"],
   ["what does the gold icon mean", "set-pieces"],
   ["corner taker icon", "set-pieces"],
+  ["filter penalty takers", "set-pieces"],
   ["stats", "statistics"],
   ["glossary", "statistics"],
   // Finding players

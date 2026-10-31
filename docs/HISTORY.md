@@ -4206,5 +4206,6 @@ tiles/graphs only:
   The same lists are now icons after the player's name
   (`<set_piece_duties>`): one shape per duty, gold, silver or bronze for
   first, second or third choice, with a hover saying what it means for
-  him. The table can no longer sort or filter by them.
+  him. The table can no longer sort by them; filtering came back the same
+  day as the Player header's ▾ (`<set_piece_filter>`).
 - **Last commit with it:** `545b2cc`.

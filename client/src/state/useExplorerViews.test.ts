@@ -66,6 +66,16 @@ describe("normalizeExplorerViewSettings", () => {
   });
 });
 
+describe("normalizeExplorerViewSettings: the set-piece duty filter (<set_piece_filter>)", () => {
+  it("keeps the duties this version knows, each once, and drops a filter left with none", () => {
+    const s = normalizeExplorerViewSettings({
+      columnFilters: { setPieceDuties: { duties: ["penalties:1", "penalties:1", "corners:3", "throwIns:1", 7] }, other: { duties: ["nonsense"] } },
+    });
+    expect(s.columnFilters.setPieceDuties.duties).toEqual(["penalties:1", "corners:3"]);
+    expect(s.columnFilters.other).toBeUndefined();
+  });
+});
+
 describe("explorerViewToApply (<explorer_view_load>)", () => {
   it("applies a view this page can show in full, saying nothing", () => {
     const whole = { ...SAVED, columnFilters: { goals: SAVED.columnFilters.goals } };

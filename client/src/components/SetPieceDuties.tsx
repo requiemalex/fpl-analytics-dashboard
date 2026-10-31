@@ -21,7 +21,22 @@ export interface DutyBadge {
 }
 
 /** In the order the icons are drawn. */
-const DUTIES: SetPieceDuty[] = ["penalties", "directFreekicks", "corners"];
+export const DUTIES: SetPieceDuty[] = ["penalties", "directFreekicks", "corners"];
+
+/** <set_piece_filter>: one duty at one place on its list, as the filter stores it ("penalties:1"). */
+export function dutyFilterValue(duty: SetPieceDuty, order: 1 | 2 | 3): string {
+  return `${duty}:${order}`;
+}
+
+/** Every value dutyFilterValue can give: what a saved filter may hold. */
+export const DUTY_FILTER_VALUES: string[] = DUTIES.flatMap((d) => ([1, 2, 3] as const).map((o) => dutyFilterValue(d, o)));
+
+/** A player's duties as the filter reads them, "|"-joined; "" with none. */
+export function dutyFilterKey(p: NormalizedPlayer): string {
+  return setPieceDuties(p)
+    .map((b) => dutyFilterValue(b.duty, b.order))
+    .join("|");
+}
 
 const ORDER_OF: Record<SetPieceDuty, (p: NormalizedPlayer) => number | null> = {
   penalties: (p) => p.penaltiesOrder,
@@ -43,7 +58,12 @@ const WHAT: Record<SetPieceDuty, { name: string; does: string }> = {
   corners: { name: "Corners and indirect free kicks", does: "delivers them: extra chances to set up goals" },
 };
 
-const CHOICE = ["first", "second", "third"] as const;
+/** A duty's name, as its hover and the filter give it. */
+export function dutyName(duty: SetPieceDuty): string {
+  return WHAT[duty].name;
+}
+
+export const CHOICE = ["first", "second", "third"] as const;
 const WHEN = ["whenever he's on the pitch", "when the first choice is off the pitch", "when the two ahead of him are off the pitch"] as const;
 
 /** The hover: the duty, his place on the list, and what that means for him now. */

@@ -7,12 +7,20 @@ export interface ColumnFilterSpec {
   eq: number | null;
   /** Excel-style "show only this value" filter for a categorical column (Team, Position) — mutually exclusive with the three numeric fields above, which stay null when this is set. See ColumnFilterControl's `categoryOptions` prop for which columns use this. */
   category: string | null;
+  /**
+   * <set_piece_filter>: Player Explorer's set-piece duty filter (the ▾ on
+   * the Player header) — the duty-and-place cells picked ("penalties:1",
+   * "corners:2"…, `dutyFilterValue`); a row passes holding any of them.
+   * Null (or absent, in a filter saved before it existed) on every other
+   * column.
+   */
+  duties?: string[] | null;
 }
 
-export const EMPTY_COLUMN_FILTER: ColumnFilterSpec = { lte: null, gte: null, eq: null, category: null };
+export const EMPTY_COLUMN_FILTER: ColumnFilterSpec = { lte: null, gte: null, eq: null, category: null, duties: null };
 
 export function isColumnFilterActive(spec: ColumnFilterSpec | undefined): boolean {
-  return !!spec && (spec.lte !== null || spec.gte !== null || spec.eq !== null || spec.category !== null);
+  return !!spec && (spec.lte !== null || spec.gte !== null || spec.eq !== null || spec.category !== null || (spec.duties?.length ?? 0) > 0);
 }
 
 /** Why a filter can't be applied, if it can't: a range no value could ever fall inside. Enter is refused (and disabled) while this returns a reason, same as the Dashboard dialog's min/max price check. */
@@ -32,6 +40,8 @@ export function columnFilterProblem(spec: ColumnFilterSpec): string | undefined 
  */
 export function columnFilterPasses(value: number | string | null, spec: ColumnFilterSpec | undefined, decimals?: number): boolean {
   if (!isColumnFilterActive(spec)) return true;
+  // The row's value is its duties, "|"-joined (dutyFilterKey).
+  if (spec!.duties?.length) return typeof value === "string" && value.split("|").some((d) => spec!.duties!.includes(d));
   if (spec!.category !== null) return value === spec!.category;
   if (typeof value !== "number") return false;
   const shown = decimals === undefined ? value : roundAsDisplayed(value, decimals);

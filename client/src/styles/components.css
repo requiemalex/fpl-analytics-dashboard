@@ -3452,3 +3452,51 @@ kbd {
 .terms-summary li + li {
   margin-top: 6px;
 }
+
+/* <set_piece_filter>: the Player header's ▾ — a duty per row, its 1st/2nd/3rd as the duty's icon in gold, silver and bronze; dim until picked. */
+.duty-filter {
+  display: grid;
+  grid-template-columns: auto repeat(3, 30px);
+  gap: 4px 6px;
+  align-items: center;
+  margin-bottom: 4px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+.duty-filter-head {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.duty-filter-row {
+  background: none;
+  border: none;
+  padding: 2px 4px 2px 0;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+.duty-filter-row:hover {
+  color: var(--text-primary);
+}
+.duty-filter-cell {
+  justify-content: center;
+  align-items: center;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: none;
+  cursor: pointer;
+  opacity: 0.35;
+}
+.duty-filter-cell:hover {
+  opacity: 0.7;
+}
+.duty-filter-cell.on {
+  opacity: 1;
+  border-color: currentColor;
+  background: var(--surface-hover);
+}
