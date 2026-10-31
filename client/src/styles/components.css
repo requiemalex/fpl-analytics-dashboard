@@ -3562,3 +3562,14 @@ kbd {
 .availability-flag.flag-available {
   border: 1.5px solid var(--text-secondary);
 }
+
+/* <player_filter>: the Player header is the table's first column, so its menu opens rightwards (every other ▾ opens leftwards from its column's edge, which here ran off the table), wide enough for five clubs a row and tall enough to show every section without scrolling. */
+.popover.player-filter-popover {
+  left: 0;
+  right: auto;
+  width: 380px;
+  max-height: 560px;
+}
+.player-filter-popover .player-filter {
+  min-width: 0;
+}

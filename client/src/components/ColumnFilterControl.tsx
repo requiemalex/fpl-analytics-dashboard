@@ -54,7 +54,7 @@ export function ColumnFilterControl({
       </button>
       {isOpen && (
         <div
-          className="popover column-filter-popover"
+          className={`popover column-filter-popover${playerFilter ? " player-filter-popover" : ""}`}
           draggable={false}
           onClick={(e) => e.stopPropagation()}
           onDragStart={(e) => e.stopPropagation()}
