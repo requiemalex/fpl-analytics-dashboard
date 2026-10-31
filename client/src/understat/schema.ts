@@ -20,7 +20,12 @@ const shotDetail = z.object({
   blocked: z.number(),
   assisted: z.number(),
   lastActions: z.object({ Cross: slice, Throughball: slice, TakeOn: slice, Rebound: slice }),
+  /** <shot_location>: inside the box (penalties included) or outside. Optional: added 2026-10-31, "—" until the next sync. */
+  location: z.object({ box: slice, outside: slice }).optional(),
+  /** Headed shots after a corner, and straight from an open-play cross. Optional, as `location`. */
+  headers: z.object({ corner: slice, openPlayCross: slice }).optional(),
 });
+const created = z.object({ chances: z.number(), xA: z.number() });
 
 export const usPlayerSchema = z.object({
   understatId: z.string(),
@@ -49,6 +54,12 @@ export const usPlayerSchema = z.object({
    * added it: that season's Shots Faced have no colour until it does.
    */
   facing: z.object({ shots: z.number(), shotsOnTarget: z.number(), situations, complete: z.boolean() }).nullish(),
+  /**
+   * <created_by_situation> (server pipeline/types.ts): chances he set up
+   * after corners and after any set piece. Null in a season file written
+   * before the sync added it (2026-10-31): "—" until it does.
+   */
+  created: z.object({ corner: created, setPiece: created, complete: z.boolean() }).nullish(),
 });
 
 export const usClubSchema = z.object({

@@ -82,3 +82,61 @@ describe("buildAppSeason: shots faced while on the pitch (<shots_faced_on_pitch>
     expect(short.players["503"].facing.complete).toBe(false);
   });
 });
+
+describe("buildAppSeason: inside or outside the box (<shot_location>) and headers", () => {
+  // The box: within 16.5 m of the goal line and 20.16 m of the middle. x runs to the goal, y across.
+  const at = (n: number, x: number, y: number, extra: Partial<UsShot> = {}) => shot(n, { x, y, ...extra });
+  const located = [
+    at(1, 0.9, 0.5, { result: "Goal", xG: 0.4 }), // 10.5 m out, central: inside
+    at(2, 0.885, 0.5, { situation: "Penalty", xG: 0.76 }), // the spot (12 m): inside, penalties included
+    at(3, 1 - 16.5 / 105, 0.5), // on the box's front line: inside, as the shot map has it
+    at(4, 0.8, 0.5, { xG: 0.05 }), // 21 m out: outside
+    at(5, 0.95, 0.05), // level with the box but out wide: outside
+    at(6, 0.95, 0.5, { shotType: "Head", situation: "FromCorner", lastAction: "Aerial", xG: 0.2 }),
+    at(7, 0.95, 0.5, { shotType: "Head", situation: "OpenPlay", lastAction: "Cross", xG: 0.15 }),
+    // A header from a cross after a corner is a corner header, not an open-play cross.
+    at(8, 0.95, 0.5, { shotType: "Head", situation: "FromCorner", lastAction: "Cross", xG: 0.1 }),
+  ];
+  const file = buildAppSeason({ ...data, appearances: [{ ...appearance, shots: 8 }], shots: located }, new Map([[500, link]]), true, new Set(["m1"]));
+
+  it("every shot is inside or outside, penalties inside", () => {
+    const { box, outside } = file.players["500"].shotDetail.location;
+    expect(box).toEqual({ shots: 6, goals: 1, xG: 1.71 });
+    expect(outside.shots).toBe(2);
+    expect(box.shots + outside.shots).toBe(file.players["500"].shots);
+    expect(file.clubs["1"].shotDetailFor.location.box.shots).toBe(6);
+    expect(file.clubs["2"].shotDetailAgainst.location.outside.shots).toBe(2);
+  });
+
+  it("headers after corners, and headers straight from an open-play cross", () => {
+    const { headers } = file.players["500"].shotDetail;
+    expect(headers.corner).toEqual({ shots: 2, goals: 0, xG: 0.3 });
+    expect(headers.openPlayCross).toEqual({ shots: 1, goals: 0, xG: 0.15 });
+  });
+});
+
+describe("buildAppSeason: chances created by situation (<created_by_situation>)", () => {
+  // u1's shots are set up by "B" (u2 on the same side); the away side's by "C".
+  const setUp = (n: number, situation: string, xG: number, assistedBy = "B") => shot(n, { playerId: "u1", situation, xG, assistedBy });
+  const created = [setUp(1, "FromCorner", 0.3), setUp(2, "SetPiece", 0.2), setUp(3, "OpenPlay", 0.1), setUp(4, "FromCorner", 0.05, "")];
+  const b = { ...appearance, playerId: "u2", playerName: "B", goals: 0, shots: 0, xA: 0.6 } as UsAppearance;
+  const links = new Map([
+    [500, link],
+    [502, { ...link, fplCode: 502, understatId: "u2" }],
+  ]);
+  const build = (appearances: UsAppearance[]) =>
+    buildAppSeason({ ...data, appearances: [{ ...appearance, shots: 4 }, ...appearances], shots: created }, links, true, new Set(["m1"]));
+
+  it("counts the shots he set up after corners, and after any set piece", () => {
+    const c = build([b]).players["502"].created;
+    expect(c.corner).toEqual({ chances: 1, xA: 0.3 });
+    expect(c.setPiece).toEqual({ chances: 2, xA: 0.5 });
+    expect(c.complete).toBe(true);
+  });
+
+  it("not complete when his matched shots don't add up to his line-up xA (never an undercount)", () => {
+    expect(build([{ ...b, xA: 0.9 }]).players["502"].created.complete).toBe(false);
+    // Two "B"s on one side: neither can be credited, so the one linked isn't complete.
+    expect(build([b, { ...b, playerId: "u7" }]).players["502"].created.complete).toBe(false);
+  });
+});

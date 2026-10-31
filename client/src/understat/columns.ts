@@ -22,8 +22,15 @@
  * figures from the line-ups (xG, xA, key passes…) are unaffected.
  *
  * Shot detail (woodwork, blocked and assisted shots, shots by the action
- * before them) is "—" for a season file written before the sync added it
- * (UsShotDetail), as well as under <incomplete_shot_list>.
+ * before them, inside or outside the box, headers after corners and
+ * crosses) is "—" for a season file written before the sync added it
+ * (UsShotDetail), as well as under <incomplete_shot_list>; so are the
+ * chances a player set up by situation (<created_by_situation>), and
+ * those also where his matched chances don't add up to his xA.
+ *
+ * <shot_location>: the box is the shot maps' (server
+ * pipeline/shotLocation.ts), penalties inside (the owner's decision,
+ * 2026-10-31), so Inside + Outside is every shot.
  *
  * <club_xg_is_per_chance>: Understat's club xG (and xGA, NPxG) counts a
  * shot and its rebound as one chance, so it can be lower than the sum of
@@ -45,6 +52,9 @@ export const UNDERSTAT_SOURCE_ID = "understat";
 
 type PT = UsPlayerTotals;
 type CT = UsClubTotals;
+type Location = NonNullable<UsShotDetail["location"]>;
+type Headers = NonNullable<UsShotDetail["headers"]>;
+type Created = NonNullable<UsPlayerTotals["created"]>;
 
 const setPieceOf = (s: PT["situations"]) => ({
   shots: s.FromCorner.shots + s.SetPiece.shots + s.DirectFreekick.shots,
@@ -97,6 +107,11 @@ export function understatPlayerColumns(lookup: (p: NormalizedPlayer) => UsPlayer
   const fromDetail = (get: (d: UsShotDetail, r: UsPlayerResolved) => number | null) =>
     fromShots((r) => (r.totals.shotDetail ? get(r.totals.shotDetail, r) : null));
   const detailTotal = (f: (d: UsShotDetail) => number) => fromDetail((d, r) => perSeason(r, f(d)));
+  /** <shot_location>: inside the box (penalties included) or outside; "—" in a season file written before the sync added it. */
+  const located = (f: (l: Location) => number) => fromDetail((d, r) => (d.location ? perSeason(r, f(d.location)) : null));
+  const headed = (f: (h: Headers) => number) => fromDetail((d, r) => (d.headers ? perSeason(r, f(d.headers)) : null));
+  /** <created_by_situation>: "—" where it's missing, or where his matched chances don't add up to his xA. */
+  const createdTotal = (f: (c: Created) => number) => (r: UsPlayerResolved) => (r.totals.created?.complete ? perSeason(r, f(r.totals.created)) : null);
   const perMillion = (f: (t: PT) => number) => (r: UsPlayerResolved, p: NormalizedPlayer) => ratio(perSeason(r, f(r.totals)), p.price);
   const xGI = (t: PT) => t.xG + t.xA;
   const npxGI = (t: PT) => t.npxG + t.xA;
@@ -151,6 +166,20 @@ export function understatPlayerColumns(lookup: (p: NormalizedPlayer) => UsPlayer
           col("us.headedShots", "Headed Shots", fromShots(total((t) => t.bodyParts.Head.shots)), fmt(0)),
           col("us.headedGoals", "Headed Goals", fromShots(total((t) => t.bodyParts.Head.goals)), fmt(0), few),
           col("us.headedXG", "Headed xG", fromShots(total((t) => t.bodyParts.Head.xG)), fmt(2)),
+          col("us.headedCornerXG", "Headed xG from Corners", headed((h) => h.corner.xG), fmt(2)),
+          col("us.headedCrossXG", "Headed xG from Crosses", headed((h) => h.openPlayCross.xG), fmt(2)),
+        ],
+      },
+      {
+        heading: "Understat · Shot Location",
+        columns: [
+          col("us.boxShots", "Shots Inside Box", located((l) => l.box.shots), fmt(0)),
+          col("us.outsideBoxShots", "Shots Outside Box", located((l) => l.outside.shots), fmt(0)),
+          col("us.boxShotPct", "Inside-Box Shot %", fromDetail((d) => (d.location ? ratio(d.location.box.shots, d.location.box.shots + d.location.outside.shots, 100) : null)), pct, { noColour: true }),
+          col("us.boxGoals", "Goals Inside Box", located((l) => l.box.goals), fmt(0), few),
+          col("us.outsideBoxGoals", "Goals Outside Box", located((l) => l.outside.goals), fmt(0), few),
+          col("us.boxXG", "xG Inside Box", located((l) => l.box.xG), fmt(2)),
+          col("us.outsideBoxXG", "xG Outside Box", located((l) => l.outside.xG), fmt(2)),
         ],
       },
       {
@@ -163,13 +192,13 @@ export function understatPlayerColumns(lookup: (p: NormalizedPlayer) => UsPlayer
           col("us.setPieceXG", "Set-Piece xG", fromShots(total((t) => setPieceOf(t.situations).xG)), fmt(2)),
           col("us.setPieceGoals", "Set-Piece Goals", fromShots(total((t) => setPieceOf(t.situations).goals)), fmt(0), few),
           col("us.cornerXG", "Corner xG", fromShots(total((t) => t.situations.FromCorner.xG)), fmt(2)),
-          col("us.freeKickXG", "Free-Kick xG", fromShots(total((t) => t.situations.DirectFreekick.xG)), fmt(2)),
+          col("us.freeKickXG", "Direct Free-Kick xG", fromShots(total((t) => t.situations.DirectFreekick.xG)), fmt(2)),
           col("us.penaltiesTaken", "Penalties Taken", fromShots(total((t) => t.situations.Penalty.shots)), fmt(0), few),
           col("us.penaltyXG", "Penalty xG", fromShots(total((t) => t.situations.Penalty.xG)), fmt(2)),
           col("us.penaltyGoals", "Penalty Goals", fromShots(total((t) => t.situations.Penalty.goals)), fmt(0), few),
           col(
             "us.setPieceShare",
-            "Set-Piece xG %",
+            "Set-Piece Share of xG",
             fromShots((r) => ratio(setPieceOf(r.totals.situations).xG, shotXGOf(r.totals.situations) - r.totals.situations.Penalty.xG, 100)),
             pct,
             { noColour: true },
@@ -196,6 +225,10 @@ export function understatPlayerColumns(lookup: (p: NormalizedPlayer) => UsPlayer
           col("us.keyPasses", "Key Passes", total((t) => t.keyPasses), fmt(0)),
           col("us.keyPassesPerGame", "Key Passes/Game", perGameOf((t) => t.keyPasses), fmt(2)),
           col("us.xAPerKeyPass", "xA/Key Pass", (r) => ratio(r.totals.xA, r.totals.keyPasses), fmt(2)),
+          col("us.cornerChances", "Corner Chances Created", createdTotal((c) => c.corner.chances), fmt(0)),
+          col("us.cornerXA", "Corner xA", createdTotal((c) => c.corner.xA), fmt(2)),
+          col("us.setPieceChances", "Set-Piece Chances Created", createdTotal((c) => c.setPiece.chances), fmt(0)),
+          col("us.setPieceXA", "Set-Piece xA", createdTotal((c) => c.setPiece.xA), fmt(2)),
           col("us.npxGI", "NPxGI", fromShots(total(npxGI)), fmt(2)),
           col("us.npxGIPerGame", "NPxGI/Game", fromShots(perGameOf(npxGI)), fmt(2)),
           col("us.xGChain", "xGChain", total((t) => t.xGChain), fmt(2)),
@@ -241,6 +274,11 @@ export function understatTeamColumns(teamsById: Map<number, NormalizedTeam>, loo
     forShots((r) => (r.totals.shotDetailFor ? perSeason(r, f(r.totals.shotDetailFor)) : null));
   const againstDetail = (f: (d: UsShotDetail) => number) =>
     againstShots((r) => (r.totals.shotDetailAgainst ? perSeason(r, f(r.totals.shotDetailAgainst)) : null));
+  /** <shot_location>, the club's shots or its opponents': "—" in a season file written before the sync added it. */
+  const forLocated = (f: (l: Location) => number) => forShots((r) => (r.totals.shotDetailFor?.location ? perSeason(r, f(r.totals.shotDetailFor.location)) : null));
+  const againstLocated = (f: (l: Location) => number) =>
+    againstShots((r) => (r.totals.shotDetailAgainst?.location ? perSeason(r, f(r.totals.shotDetailAgainst.location)) : null));
+  const boxShare = (l: Location) => ratio(l.box.shots, l.box.shots + l.outside.shots, 100);
   const setPieceGoals = (s: CT["situationsFor"]) => s.FromCorner.goals + s.SetPiece.goals + s.DirectFreekick.goals;
   const whole = fmt(0);
 
@@ -293,6 +331,20 @@ export function understatTeamColumns(teamsById: Map<number, NormalizedTeam>, loo
           col("us.woodworkAgainst", "Woodwork Against", againstDetail((d) => d.woodwork), whole, { higherIsBetter: false }),
           col("us.crossShotsAgainst", "Cross Shots Against", againstDetail((d) => d.lastActions.Cross.shots), whole, { higherIsBetter: false }),
           col("us.penaltiesConceded", "Penalties Conceded", againstShots(total((t) => t.situationsAgainst.Penalty.shots)), whole, { ...few, higherIsBetter: false }),
+        ],
+      },
+      {
+        heading: "Understat · Shot Location",
+        columns: [
+          col("us.boxShots", "Shots Inside Box", forLocated((l) => l.box.shots), whole),
+          col("us.outsideBoxShots", "Shots Outside Box", forLocated((l) => l.outside.shots), whole),
+          col("us.boxShotPct", "Inside-Box Shot %", forShots((r) => (r.totals.shotDetailFor?.location ? boxShare(r.totals.shotDetailFor.location) : null)), pct, { noColour: true }),
+          col("us.boxXG", "xG Inside Box", forLocated((l) => l.box.xG), fmt(2)),
+          col("us.outsideBoxXG", "xG Outside Box", forLocated((l) => l.outside.xG), fmt(2)),
+          col("us.boxShotsAgainst", "Shots Inside Box Against", againstLocated((l) => l.box.shots), whole, { higherIsBetter: false }),
+          col("us.outsideBoxShotsAgainst", "Shots Outside Box Against", againstLocated((l) => l.outside.shots), whole, { higherIsBetter: false }),
+          col("us.boxXGA", "xGA Inside Box", againstLocated((l) => l.box.xG), fmt(2), { higherIsBetter: false }),
+          col("us.outsideBoxXGA", "xGA Outside Box", againstLocated((l) => l.outside.xG), fmt(2), { higherIsBetter: false }),
         ],
       },
       {

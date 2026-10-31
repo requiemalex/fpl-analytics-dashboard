@@ -4194,3 +4194,17 @@ tiles/graphs only:
   the end. Starters, the bench's total and the Highlight and Gameweek
   labels were judged to add nothing (the pitch shows the XI and bench).
 - **Last commit with it:** `980549b`.
+
+### Pen Order, FK Order and Corner Order columns (replaced 2026-10-31)
+- **What it did:** three always-live Player Explorer (and Add Players)
+  columns, also offered to Dashboard tiles and graphs: a player's place on
+  his club's penalty, direct free-kick and corner/indirect free-kick lists
+  (FPL's `penalties_order`, `direct_freekicks_order`,
+  `corners_and_indirect_freekicks_order`), "—" when not listed. Sorting
+  Pen Order put first choices first.
+- **Why it went:** the owner found a raw order column counter-productive.
+  The same lists are now icons after the player's name
+  (`<set_piece_duties>`): one shape per duty, gold, silver or bronze for
+  first, second or third choice, with a hover saying what it means for
+  him. The table can no longer sort or filter by them.
+- **Last commit with it:** `545b2cc`.

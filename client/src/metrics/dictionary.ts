@@ -474,8 +474,8 @@ export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
     derived: false,
     formula: null,
     units: "rank at his club (1 = first choice)",
-    caveats: "FPL's own published set-piece order for the player's club today, whatever the Data View: FPL keeps no history of it. Lower is better.",
-    availabilityNote: "— when he isn't on his club's list.",
+    caveats: "FPL's own published set-piece order for the player's club today, whatever the Data View: FPL keeps no history of it. Shown as an icon after his name, not a column (<set_piece_duties>, components/SetPieceDuties.tsx): gold first choice, silver second, bronze third.",
+    availabilityNote: "No icon when he isn't in his club's first three."
   }),
   directFreekicksOrder: def({
     displayName: "Direct Free-Kick Order",
@@ -487,7 +487,7 @@ export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
     formula: null,
     units: "rank at his club (1 = first choice)",
     caveats: "As Penalty Order, for direct free kicks.",
-    availabilityNote: "— when he isn't on his club's list.",
+    availabilityNote: "No icon when he isn't in his club's first three."
   }),
   cornersOrder: def({
     displayName: "Corners & Indirect Free-Kick Order",
@@ -499,7 +499,7 @@ export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
     formula: null,
     units: "rank at his club (1 = first choice)",
     caveats: "As Penalty Order, for corners and indirect free kicks.",
-    availabilityNote: "— when he isn't on his club's list.",
+    availabilityNote: "No icon when he isn't in his club's first three."
   }),
   pointsPerMillion: def({
     displayName: "Points / \u00a3m",

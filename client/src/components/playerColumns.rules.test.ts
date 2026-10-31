@@ -71,7 +71,7 @@ describe("<whole_numbers>: whole wherever a whole number still tells players apa
 
   it("leaves rates and always-live columns alone", () => {
     expect(columnForMode(col("xG"), "historicAverage")).toBe(col("xG"));
-    expect(columnForMode(col("penaltiesOrder"), "historicAverage")).toBe(col("penaltiesOrder"));
+    expect(columnForMode(col("price"), "historicAverage")).toBe(col("price"));
   });
 
   it("is the same column object each time, so rows don't redraw for nothing", () => {

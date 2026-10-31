@@ -39,6 +39,11 @@ describe("Understat in Help", () => {
     ["non penalty", "non-penalty"],
     ["why is club xg lower than its players", "club-xg-per-chance"],
     ["rebound", "club-xg-per-chance"],
+    ["shots outside the box", "shot-location"],
+    ["where does he shoot from", "shot-location"],
+    ["what is set piece xg", "set-piece-figures"],
+    ["how many corners does he take", "set-piece-figures"],
+    ["his deliveries from corners", "set-piece-figures"],
     ["ppda", "statistics"],
     ["xgchain", "statistics"],
   ])("%s → %s", (question, id) => {

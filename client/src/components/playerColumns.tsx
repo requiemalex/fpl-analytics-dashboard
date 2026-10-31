@@ -241,9 +241,6 @@ export const PLAYER_COLUMNS: PlayerColumn[] = [
   { key: "clearancesBlocksInterceptions", label: "CBI", group: "ADVANCED", metricKey: "clearancesBlocksInterceptions", getValue: (p) => p.clearancesBlocksInterceptions, ...num(0) },
   { key: "recoveries", label: "Recoveries", group: "ADVANCED", metricKey: "recoveries", getValue: (p) => p.recoveries, ...num(0) },
   // Set-piece duties: today's order at his club (1 = first choice), whatever the Data View.
-  { key: "penaltiesOrder", label: "Pen Order", group: "ADVANCED", metricKey: "penaltiesOrder", getValue: (p) => p.penaltiesOrder, ...num(0), higherIsBetter: false, varies: false },
-  { key: "directFreekicksOrder", label: "FK Order", group: "ADVANCED", metricKey: "directFreekicksOrder", getValue: (p) => p.directFreekicksOrder, ...num(0), higherIsBetter: false, varies: false },
-  { key: "cornersOrder", label: "Corner Order", group: "ADVANCED", metricKey: "cornersOrder", getValue: (p) => p.cornersOrder, ...num(0), higherIsBetter: false, varies: false },
   { key: "price", label: "Price", group: "ADVANCED", metricKey: "price", getValue: (p) => p.price, format: (v) => fmtPrice(v), decimals: 1, higherIsBetter: false, varies: false },
   {
     key: "ownership",

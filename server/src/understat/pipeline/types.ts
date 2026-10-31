@@ -191,6 +191,16 @@ export interface ShotDetail {
   /** Shots with a named assisting team-mate. */
   assisted: number;
   lastActions: Record<ShotLastAction, ShotSlice>;
+  /** <shot_location> (shotLocation.ts): inside the penalty area, penalties included, or outside it. Every shot is in one. */
+  location: { box: ShotSlice; outside: ShotSlice };
+  /** Headed shots after a corner (any delivery, Understat's "FromCorner"), and headed shots straight from a cross in open play. */
+  headers: { corner: ShotSlice; openPlayCross: ShotSlice };
+}
+
+/** Chances a player set up: shots team-mates took from his pass, and their xG (his xA). */
+export interface CreatedSlice {
+  chances: number;
+  xA: number;
 }
 
 export interface PlayerSeasonTotals {
@@ -228,6 +238,15 @@ export interface PlayerSeasonTotals {
    * for one of those opponents is short (<incomplete_shot_list>).
    */
   facing: { shots: number; shotsOnTarget: number; situations: Record<ShotSituation, ShotSlice>; complete: boolean };
+  /**
+   * <created_by_situation>: the chances he set up after a corner, and after
+   * any set piece (corners, free kicks). A shot names its assister by name,
+   * matched to his side's line-up in that match. `complete` false when, in
+   * one of his matches, the shots matched to him don't add up to his
+   * line-up xA (a name shared on one side, or a short shot list): his
+   * figures are then "—", never an undercount.
+   */
+  created: { corner: CreatedSlice; setPiece: CreatedSlice; complete: boolean };
 }
 
 export interface ClubSeasonTotals {

@@ -26,6 +26,7 @@ import type {
 } from "./types.js";
 import type { SeasonData } from "./files.js";
 import { onPitchWindow, wasOnPitch, type OnPitch } from "../onPitch.js";
+import { isInsideBox } from "./shotLocation.js";
 
 const round = (v: number, dp = 4) => Math.round(v * 10 ** dp) / 10 ** dp;
 const emptySlice = (): ShotSlice => ({ shots: 0, goals: 0, xG: 0 });
@@ -42,14 +43,36 @@ function roundSlices<K extends string>(r: Record<K, ShotSlice>): Record<K, ShotS
   return r;
 }
 
-const emptyDetail = (): ShotDetail => ({ woodwork: 0, blocked: 0, assisted: 0, lastActions: slices(SHOT_LAST_ACTIONS) });
+const emptyDetail = (): ShotDetail => ({
+  woodwork: 0,
+  blocked: 0,
+  assisted: 0,
+  lastActions: slices(SHOT_LAST_ACTIONS),
+  location: { box: emptySlice(), outside: emptySlice() },
+  headers: { corner: emptySlice(), openPlayCross: emptySlice() },
+});
 
 function addShotDetail(d: ShotDetail, s: UsShot) {
   if (s.result === "ShotOnPost") d.woodwork += 1;
   if (s.result === "BlockedShot") d.blocked += 1;
   if (s.assistedBy !== "") d.assisted += 1;
   if ((SHOT_LAST_ACTIONS as readonly string[]).includes(s.lastAction)) addShot(d.lastActions[s.lastAction as ShotLastAction], s);
+  addShot(isInsideBox(s) ? d.location.box : d.location.outside, s);
+  if (s.shotType === "Head") {
+    if (s.situation === "FromCorner") addShot(d.headers.corner, s);
+    else if (s.situation === "OpenPlay" && s.lastAction === "Cross") addShot(d.headers.openPlayCross, s);
+  }
 }
+
+function roundDetail(d: ShotDetail) {
+  roundSlices(d.lastActions);
+  roundSlices(d.location);
+  roundSlices(d.headers);
+}
+
+const emptyCreated = (): PlayerSeasonTotals["created"] => ({ corner: { chances: 0, xA: 0 }, setPiece: { chances: 0, xA: 0 }, complete: true });
+/** How far a match's rebuilt xA may sit from the line-up's (Understat's own rounding). */
+const XA_TOLERANCE = 0.01;
 
 /** Own goals are listed among Understat's shots but aren't the shooter's attempt at his own goal — they count for nobody's shots. */
 const isRealShot = (s: UsShot) => s.result !== "OwnGoal";
@@ -107,6 +130,7 @@ export function buildAppSeason(data: SeasonData, links: Map<number, PlayerLink>,
       shotDetail: emptyDetail(),
       shotsComplete: !shortPlayers.has(understatId),
       facing: { shots: 0, shotsOnTarget: 0, situations: slices(SHOT_SITUATIONS), complete: true },
+      created: emptyCreated(),
     };
     return players[code];
   };
@@ -151,12 +175,43 @@ export function buildAppSeason(data: SeasonData, links: Map<number, PlayerLink>,
       if ((SHOT_SITUATIONS as readonly string[]).includes(s.situation)) addShot(t.facing.situations[s.situation as ShotSituation], s);
     }
   }
+  // <created_by_situation>: a shot names its assister, matched to his side's line-up that match (null where two share the name).
+  const assisterId = new Map<string, string | null>();
+  for (const a of appearances) {
+    const key = `${a.matchId}|${a.side}|${a.playerName}`;
+    assisterId.set(key, assisterId.has(key) ? null : a.playerId);
+  }
+  const rebuiltXA = new Map<string, number>();
+  for (const s of shots) {
+    if (s.assistedBy === "") continue;
+    const id = assisterId.get(`${s.matchId}|${s.side}|${s.assistedBy}`);
+    if (!id) continue;
+    rebuiltXA.set(`${s.matchId}|${id}`, (rebuiltXA.get(`${s.matchId}|${id}`) ?? 0) + s.xG);
+    const t = totalsFor(id);
+    if (!t) continue;
+    for (const [slice, counts] of [
+      [t.created.corner, s.situation === "FromCorner"],
+      [t.created.setPiece, s.situation !== "OpenPlay"],
+    ] as const) {
+      if (!counts) continue;
+      slice.chances += 1;
+      slice.xA += s.xG;
+    }
+  }
+  // Every match's matched shots must add up to his line-up xA, or the split would be an undercount.
+  for (const a of appearances) {
+    if (a.minutes <= 0) continue;
+    const t = totalsFor(a.playerId);
+    if (t && Math.abs((rebuiltXA.get(`${a.matchId}|${a.playerId}`) ?? 0) - a.xA) > XA_TOLERANCE) t.created.complete = false;
+  }
   for (const t of Object.values(players)) {
     roundSlices(t.facing.situations);
     for (const k of ["xG", "xA", "npxG", "xGChain", "xGBuildup"] as const) t[k] = round(t[k]);
     roundSlices(t.situations);
     roundSlices(t.bodyParts);
-    roundSlices(t.shotDetail.lastActions);
+    roundDetail(t.shotDetail);
+    t.created.corner.xA = round(t.created.corner.xA);
+    t.created.setPiece.xA = round(t.created.setPiece.xA);
   }
 
   // --- clubs ---
@@ -260,8 +315,8 @@ export function buildAppSeason(data: SeasonData, links: Map<number, PlayerLink>,
     for (const k of ["xG", "xGA", "npxG", "npxGA", "xPts", "xA"] as const) c[k] = round(c[k]);
     roundSlices(c.situationsFor);
     roundSlices(c.situationsAgainst);
-    roundSlices(c.shotDetailFor.lastActions);
-    roundSlices(c.shotDetailAgainst.lastActions);
+    roundDetail(c.shotDetailFor);
+    roundDetail(c.shotDetailAgainst);
   }
 
   const resultDates = data.matches.filter((m) => resultMatchIds.has(m.id)).map((m) => m.datetime.slice(0, 10));

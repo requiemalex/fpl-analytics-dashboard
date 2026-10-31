@@ -210,6 +210,50 @@ export function understatHelpGuides(icon: React.ReactNode): HelpGuide[] {
       body: <Note>Compare NPxG with xG: the gap is his penalties.</Note>,
     },
     {
+      id: "shot-location",
+      topic: TOPIC,
+      title: "Shots inside or outside the box",
+      answer: "Where his shots come from: inside the penalty area (penalties included) or outside it. Together, every shot.",
+      keywords: [
+        "inside the box", "outside the box", "inside box", "outside box", "in the box", "box shots", "penalty area", "shot location",
+        "where does he shoot", "long range", "long shots", "distance", "shots inside box", "shots outside box", "xg inside box",
+        "xg outside box", "inside box %", "box %", "goals outside box", "shooting position",
+      ],
+      related: ["shot-maps", "set-piece-figures"],
+      body: (
+        <>
+          <Chips items={["Shots", "Goals", "xG", "Inside-Box Shot %"]} />
+          <Points items={["Counted from where each shot was taken, on the shot maps' box.", "Clubs have them too, for their shots and the shots they face."]} />
+          <Note>Understat's own website can put a shot right on the line on the other side of it, about 1 in 100.</Note>
+        </>
+      ),
+    },
+    {
+      id: "set-piece-figures",
+      topic: TOPIC,
+      title: "Set-piece and header figures",
+      answer: "xG is the shots he took, xA the chances he set up: Corner xG is his shots after corners, Corner xA his deliveries.",
+      keywords: [
+        "set piece xg", "set-piece xg", "corner xg", "corner xa", "set piece xa", "corner chances", "chances from corners", "corners taken",
+        "corner taker", "how many corners", "deliveries", "delivery", "free kick xg", "direct free kick", "headed xg", "headers", "headed xg from corners",
+        "headed xg from crosses", "aerial threat", "penalty xg", "what is set piece xg", "dead balls",
+      ],
+      related: ["set-pieces", "shot-location"],
+      body: (
+        <Terms
+          rows={[
+            ["Set-Piece xG", "his shots after corners and free kicks, penalties left out"],
+            ["Corner xG", "his shots after corners"],
+            ["Corner xA", "chances he set up after corners"],
+            ["Corner Chances Created", "how many: the nearest to corners taken, which no source counts"],
+            ["Headed xG from Corners", "his headers after corners"],
+            ["Headed xG from Crosses", "his headers from open-play crosses"],
+            ["Penalty xG", "0.76 a penalty, whoever takes it"],
+          ]}
+        />
+      ),
+    },
+    {
       id: "club-xg-per-chance",
       topic: TOPIC,
       title: "Club xG below its players' added up",

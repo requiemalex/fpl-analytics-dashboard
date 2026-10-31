@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { understatPlayerColumns, understatTeamColumns } from "./columns";
-import type { UsClubResolved, UsPlayerResolved } from "./resolve";
+import { sumPlayerSeasons, type UsClubResolved, type UsPlayerResolved } from "./resolve";
 import type { UsClubTotals, UsPlayerTotals } from "./schema";
 import type { TeamAggregate } from "../metrics/teamStats";
 import type { PlayerDerivedMetrics } from "../metrics/playerMetrics";
@@ -137,5 +137,49 @@ describe("Understat shot detail (woodwork, blocked, assisted, shot type)", () =>
   });
   it("<incomplete_shot_list>: —", () => {
     expect(playerValue("us.woodwork", { totals: { ...totals, shotDetail: detail, shotsComplete: false }, seasons: 1 })).toBeNull();
+  });
+});
+
+describe("Understat: inside or outside the box, headers after corners and crosses, chances created by situation", () => {
+  const lastActions = { Cross: slice(), Throughball: slice(), TakeOn: slice(), Rebound: slice() };
+  const detail = {
+    woodwork: 0, blocked: 0, assisted: 0, lastActions,
+    location: { box: slice(45, 11, 9.4), outside: slice(15, 1, 1.2) },
+    headers: { corner: slice(3, 1, 0.5), openPlayCross: slice(2, 0, 0.3) },
+  };
+  const created = { corner: { chances: 12, xA: 1.4 }, setPiece: { chances: 15, xA: 1.7 }, complete: true };
+  const full: UsPlayerResolved = { totals: { ...totals, shotDetail: detail, created }, seasons: 1 };
+
+  it("inside + outside is every shot; the share is of all his shots", () => {
+    expect(playerValue("us.boxShots", full)).toBe(45);
+    expect(playerValue("us.outsideBoxShots", full)).toBe(15);
+    expect(playerValue("us.boxShotPct", full)).toBeCloseTo(75, 10);
+    expect(playerValue("us.boxGoals", full)).toBe(11);
+    expect(playerValue("us.outsideBoxXG", full)).toBeCloseTo(1.2, 10);
+  });
+
+  it("headers after corners and from open-play crosses; chances he set up after corners and set pieces", () => {
+    expect(playerValue("us.headedCornerXG", full)).toBeCloseTo(0.5, 10);
+    expect(playerValue("us.headedCrossXG", full)).toBeCloseTo(0.3, 10);
+    expect(playerValue("us.cornerChances", full)).toBe(12);
+    expect(playerValue("us.cornerXA", full)).toBeCloseTo(1.4, 10);
+    expect(playerValue("us.setPieceXA", full)).toBeCloseTo(1.7, 10);
+  });
+
+  it("— (never 0) in a season file from before the sync added them, and for chances that don't add up to his xA", () => {
+    const old: UsPlayerResolved = { totals: { ...totals, shotDetail: { woodwork: 0, blocked: 0, assisted: 0, lastActions }, created: null }, seasons: 1 };
+    for (const key of ["us.boxShots", "us.boxShotPct", "us.headedCornerXG", "us.cornerXA", "us.setPieceChances"]) expect(playerValue(key, old), key).toBeNull();
+    const unsure: UsPlayerResolved = { totals: { ...totals, shotDetail: detail, created: { ...created, complete: false } }, seasons: 1 };
+    expect(playerValue("us.cornerChances", unsure)).toBeNull();
+  });
+
+  it("over several seasons, a season without them makes the sum unknown, never a part-count", () => {
+    const withIt = { ...totals, shotDetail: detail, created };
+    const two = sumPlayerSeasons([withIt, withIt])!;
+    expect(playerValue("us.boxShots", two)).toBe(45);
+    expect(playerValue("us.cornerXA", two)).toBeCloseTo(1.4, 10);
+    const mixed = sumPlayerSeasons([withIt, { ...totals, shotDetail: { woodwork: 0, blocked: 0, assisted: 0, lastActions }, created: null }])!;
+    expect(playerValue("us.boxShots", mixed)).toBeNull();
+    expect(playerValue("us.cornerXA", mixed)).toBeNull();
   });
 });

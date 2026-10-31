@@ -57,6 +57,8 @@ const QUESTIONS: [string, string][] = [
   ["how do defenders get 2 points", "defensive-contributions"],
   ["how does bonus work", "bonus-bps"],
   ["who takes penalties", "set-pieces"],
+  ["what does the gold icon mean", "set-pieces"],
+  ["corner taker icon", "set-pieces"],
   ["stats", "statistics"],
   ["glossary", "statistics"],
   // Finding players

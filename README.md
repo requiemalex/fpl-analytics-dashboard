@@ -261,9 +261,19 @@ every analysis mode — including the Price column and everything derived
 from price, such as Points/£m (`<price_always_live>`,
 `resolvePlayerStats.ts`). The one exception is the profile's Match Log
 heading, which shows a past season's start and end price.
-FPL's Form and its set-piece taker orders (Pen Order, FK Order, Corner
-Order: 1 = first choice at his club, "—" when not listed) are always live
-too: FPL keeps no history of them.
+FPL's Form and its set-piece taker orders are always live too: FPL keeps
+no history of them. The orders aren't columns but **icons after the
+player's name** (`<set_piece_duties>`, `components/SetPieceDuties.tsx`;
+the owner's decision, 2026-10-31): a goal for penalties, a wall for
+direct free kicks, a corner flag for corners and indirect free kicks, gold
+for his club's first choice, silver second, bronze third, one icon per
+duty he has, none past third. Each icon's hover says what it means for
+him now ("Penalties: second choice for Arsenal. He takes the penalties
+… when the first choice is off the pitch."). They're in the shared
+player table's name cell (Player Explorer, Add Players); the width-sizer
+rows allow for them (`DUTY_ALLOWANCE_PX`). A saved view or Dashboard item
+that used the old Pen Order / FK Order / Corner Order columns loads
+without them (the view's notice; an "unavailable" card).
 
 ### Analysis modes
 
@@ -675,7 +685,25 @@ reaches all seasons at the next run without re-downloading anything. The
 summary's shot detail (`shotDetail`: woodwork, blocked, assisted, and
 shots by the action before them: cross, through ball, dribble, rebound)
 was added on 2026-10-18; a summary written before then has none, and the
-app shows "—" for those figures (never 0) until the next run. Each
+app shows "—" for those figures (never 0) until the next run. Added to it
+on 2026-10-31 (the same "—" until the next run): **`location`**, shots,
+goals and xG inside the penalty area (penalties included, the owner's
+decision) and outside it (`<shot_location>`,
+`pipeline/shotLocation.ts`: the shot maps' own box, so the two always
+agree, `client/src/understat/shotLocation.test.ts`), every shot in one;
+and **`headers`**, headed shots after a corner (Understat's
+`FromCorner`) and headed shots straight from an open-play cross. Each
+player also has **`created`** (`<created_by_situation>`): the chances he
+set up after a corner and after any set piece (corners, free kicks), and
+their xG (his xA). A shot names its assister, matched to his side's
+line-up in that match; tested on every stored season, 2016/17–2025/26,
+every name matched exactly one player and the matched shots added up to
+Understat's own xA in every player-match but one (the short shot list of
+`<incomplete_shot_list>`). Where a player's don't add up in a match
+(a name shared on one side, a short list), `complete` is false and his
+figures are "—", never an undercount. Neither source records corners
+taken: Corner Chances Created (corners he set up that became shots) is
+the nearest. Each
 player's `facing` (added 2026-10-21) is his club's opponents' shots while
 he was on the pitch (`server/src/understat/onPitch.ts`, the same rule as
 the profile route's shots faced): shots, on target, by situation, and
@@ -711,10 +739,18 @@ without it leaves that season's Shots Faced uncoloured.
   So a player's FPL figures are in three groups, the same in every
   picker, trend graphs included: **Output** (Pts/£m there too),
   **Underlying** (the xG/£m rates and G+A − xGI there too) and
-  **Advanced** (minutes, starts, the always-live Price, Own% and
-  set-piece orders, and in the Columns picker Next 5 Fixtures; a trend
-  graph's Season-End Price). Understat's Apps is in "Understat · Creating
-  & Involvement". Team Building's Add Players is Player Explorer's own table
+  **Advanced** (minutes, starts, the always-live Price and Own%, and in
+  the Columns picker Next 5 Fixtures; a trend graph's Season-End Price).
+  Understat's Apps is in "Understat · Creating & Involvement", with the
+  chances he set up after corners and set pieces (Corner and Set-Piece
+  Chances Created, Corner and Set-Piece xA); its inside/outside-box
+  figures have their own heading, "Understat · Shot Location" (players:
+  shots, goals and xG each way and Inside-Box Shot %; clubs: shots, xG and
+  the share, plus the same against), and its headers after corners and
+  open-play crosses sit beside Headed xG in "Understat · Shooting". Names
+  and hovers say exactly what each measures: xG is a player's own shots,
+  xA the chances he set up (Corner xG his shots after corners, Corner xA
+  his deliveries). Team Building's Add Players is Player Explorer's own table
   (`<shared_player_table>`), so its headers and pickers are the same; its
   Predictive columns (the app's own forecasts, not a Data View's figures)
   stay plain. A
@@ -1079,12 +1115,16 @@ without it leaves that season's Shots Faced uncoloured.
 ### Not included yet
 
 - **Understat's own shot-zone figures** (six-yard box / box / outside):
-  Understat publishes them per player only on individual player pages, and
-  they can't be reproduced exactly from shot coordinates (tested: 6 of
-  about 700 shots differ), so they wait for an upgrade that fetches those
-  pages. The shot maps' zones are the app's own, worked out from each
-  shot's coordinates on the pitch markings (`shotZones`), so a shot right
-  on a line can sit in the zone next to the one Understat's count has it in.
+  Understat publishes them per player only on individual player pages,
+  and they can't be reproduced exactly from shot coordinates (tested: 6 of
+  about 700 shots differ). The owner chose (2026-10-31) to count inside
+  and outside the box from the coordinates instead (`<shot_location>`,
+  the Shot Location columns), on the shot maps' own zones (`shotZones`),
+  so a shot right on a line can sit on the other side of it from
+  Understat's own count.
+- **Corners taken:** neither FPL nor Understat records them (Understat has
+  shots only). Corner Chances Created and FPL's corner list (the flag
+  icon) are the nearest.
 - Match xG timelines: later.
 - **Pre-match forecasts:** Understat's win/draw/loss figures exist only for
   matches already played (worked out from the shots), so there's nothing

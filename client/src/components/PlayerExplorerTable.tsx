@@ -20,6 +20,7 @@ import { colourDirection, fixtureDifficultyRanks, positionRanks, rankDirection, 
 import { downloadCsv } from "../utils/csvExport";
 import { filterBySearch } from "../utils/playerSearch";
 import { useEscapeLayer } from "../state/useEscapeLayer";
+import { SetPieceDutyIcons, setPieceDuties } from "./SetPieceDuties";
 import { HideSmallSamplesButton, isSmallSample, MinutesFloorBadge, RowSmallSampleBadge, smallSamplesShownNote, userMinimumNote } from "./MinutesFloorBadge";
 import { fixedFloorMinutes } from "../metrics/fixedMinutesFloor";
 import type { ColumnFilterSpec } from "../state/useColumnFilters";
@@ -236,6 +237,7 @@ function PlayerCell({
       <div className="player-name-cell">
         <span className={`name ${availabilityTextClass(player.status)}`} {...(onOpen ? pressable(() => onOpen(player.id), `View ${player.name}'s profile`) : {})}>
           {player.name}
+          <SetPieceDutyIcons player={player} />
           <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />
           <RowSmallSampleBadge minutes={player.minutes} mode={mode} />
         </span>
@@ -379,6 +381,8 @@ const SIZER_CANDIDATES_BY_META = 10;
 const SIZER_CANDIDATES_BY_FIGURE = 3;
 /** Rough allowance for the availability flag after a flagged player's name — only used to rank candidates, never to size anything. */
 const FLAG_ALLOWANCE_PX = 14;
+/** And for each set-piece duty icon after his name (<set_piece_duties>). */
+const DUTY_ALLOWANCE_PX = 14;
 
 let measureContext: CanvasRenderingContext2D | null | undefined;
 /** The font last set on measureContext (the canvas reports it back reworded, so it's kept here). */
@@ -442,7 +446,7 @@ function useWidthSizerRows(filteredRows: ExplorerRowData[], sortedRows: Explorer
     const figureFont = `12.5px ${mono}`;
     const byName = filteredRows.map(({ player }) => ({
       id: player.id,
-      width: estimateTextWidth(player.name, nameFont) + (player.status !== "a" ? FLAG_ALLOWANCE_PX : 0),
+      width: estimateTextWidth(player.name, nameFont) + (player.status !== "a" ? FLAG_ALLOWANCE_PX : 0) + setPieceDuties(player).length * DUTY_ALLOWANCE_PX,
     }));
     const byMeta = filteredRows.map(({ player }) => ({
       id: player.id,

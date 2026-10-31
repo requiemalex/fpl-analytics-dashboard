@@ -139,11 +139,14 @@ describe("per Data View", () => {
 });
 
 describe("the columns", () => {
+  it("the set-piece orders are icons after the name (<set_piece_duties>), not columns", () => {
+    for (const key of ["penaltiesOrder", "directFreekicksOrder", "cornersOrder"]) expect(columnByKey(key), key).toBeUndefined();
+  });
   it("every Player column has a metric definition (the User Guide's Metric reference)", () => {
     for (const c of PLAYER_COLUMNS) expect(METRIC_DICTIONARY[c.metricKey ?? c.key], c.key).toBeDefined();
   });
-  it("form and the set-piece orders are 'always live'; the rest follow the Data View", () => {
-    for (const key of ["form", "penaltiesOrder", "directFreekicksOrder", "cornersOrder"]) expect(isStaticColumn(columnByKey(key)!), key).toBe(true);
+  it("form is 'always live'; the rest follow the Data View", () => {
+    expect(isStaticColumn(columnByKey("form")!)).toBe(true);
     for (const key of ["saves", "savesPerGame", "penaltiesSaved", "goalsConceded", "goalsConcededPerGame", "yellowCards", "redCards", "influence", "creativity", "threat", "tackles", "clearancesBlocksInterceptions", "recoveries"]) {
       expect(isStaticColumn(columnByKey(key)!), key).toBe(false);
     }

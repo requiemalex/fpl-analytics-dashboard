@@ -40,12 +40,37 @@ const zeroDetail = (): UsShotDetail => ({
   blocked: 0,
   assisted: 0,
   lastActions: Object.fromEntries(LAST_ACTIONS.map((k) => [k, zeroSlice()])) as UsShotDetail["lastActions"],
+  location: { box: zeroSlice(), outside: zeroSlice() },
+  headers: { corner: zeroSlice(), openPlayCross: zeroSlice() },
 });
 
 /** Unknown if either side is (a season file from before the sync added it), so a sum never passes for the whole. */
+function both<T>(a: T | undefined, b: T | undefined, add: (a: T, b: T) => T): T | undefined {
+  return a && b ? add(a, b) : undefined;
+}
+
 function addDetail(a: UsShotDetail | undefined, b: UsShotDetail | undefined): UsShotDetail | undefined {
   if (!a || !b) return undefined;
-  return { woodwork: a.woodwork + b.woodwork, blocked: a.blocked + b.blocked, assisted: a.assisted + b.assisted, lastActions: addSlices(a.lastActions, b.lastActions) };
+  return {
+    woodwork: a.woodwork + b.woodwork,
+    blocked: a.blocked + b.blocked,
+    assisted: a.assisted + b.assisted,
+    lastActions: addSlices(a.lastActions, b.lastActions),
+    location: both(a.location, b.location, addSlices),
+    headers: both(a.headers, b.headers, addSlices),
+  };
+}
+
+type Created = NonNullable<UsPlayerTotals["created"]>;
+const zeroCreated = (): Created => ({ corner: { chances: 0, xA: 0 }, setPiece: { chances: 0, xA: 0 }, complete: true });
+const addCreatedSlice = (a: Created["corner"], b: Created["corner"]) => ({ chances: a.chances + b.chances, xA: a.xA + b.xA });
+
+function addCreated(a: UsPlayerTotals["created"], b: UsPlayerTotals["created"]): UsPlayerTotals["created"] {
+  return both(a ?? undefined, b ?? undefined, (x, y) => ({
+    corner: addCreatedSlice(x.corner, y.corner),
+    setPiece: addCreatedSlice(x.setPiece, y.setPiece),
+    complete: x.complete && y.complete,
+  }));
 }
 
 function zeroPlayer(): UsPlayerTotals {
@@ -69,6 +94,7 @@ function zeroPlayer(): UsPlayerTotals {
     shotDetail: zeroDetail(),
     shotsComplete: true,
     facing: { shots: 0, shotsOnTarget: 0, situations: Object.fromEntries(SITUATIONS.map((k) => [k, zeroSlice()])) as UsPlayerTotals["situations"], complete: true },
+    created: zeroCreated(),
   };
 }
 
@@ -105,6 +131,7 @@ function addPlayers(a: UsPlayerTotals, b: UsPlayerTotals): UsPlayerTotals {
     shotDetail: addDetail(a.shotDetail, b.shotDetail),
     shotsComplete: a.shotsComplete && b.shotsComplete,
     facing: addFacing(a.facing, b.facing),
+    created: addCreated(a.created, b.created),
   };
 }
 

@@ -21,6 +21,7 @@ import {
 import { HideSmallSamplesIcon, MinutesFloorIcon } from "../components/MinutesFloorBadge";
 import { NOTEPAD_KEY } from "../components/Notepad";
 import { PositionBadge } from "../components/primitives";
+import { DutyIcon, type SetPieceDuty } from "../components/SetPieceDuties";
 import { FplSourceIcon } from "../components/SourceToggle";
 import { fdrColor } from "../metrics/fixtureTicker";
 import { MAX_DASHBOARD_GRAPHS } from "../state/useDashboardGraphs";
@@ -45,6 +46,15 @@ const ALL_PAGES: HelpGuide["pages"] = ["dashboard", "player-explorer", "team-exp
 /** The top bar's data dot, as drawn. */
 function Dot({ tone }: { tone: "live" | "stale" | "error" }) {
   return <span className={`status-dot ${tone}`} />;
+}
+
+/** A set-piece duty icon, as it shows after a player's name. */
+function Duty({ duty, order }: { duty: SetPieceDuty; order: 1 | 2 | 3 }) {
+  return (
+    <span className={`duty-icon duty-${order}`}>
+      <DutyIcon duty={duty} />
+    </span>
+  );
 }
 
 /** FPL's difficulty 1–5 as the fixture chips colour it. */
@@ -86,6 +96,7 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
           { icon: <MinutesFloorIcon size={15} />, tone: "amber", label: "Stopwatch:", text: "under the minutes floor" },
           { icon: <HideSmallSamplesIcon size={15} />, label: "Hide:", text: "leave those players out" },
           { icon: <FplSourceIcon size={15} />, tone: "green", label: "Football:", text: "FPL's figures" },
+          { icon: <Duty duty="penalties" order={1} />, label: "Goal, wall, flag:", text: "penalty, free-kick, corner duty (gold, silver, bronze)" },
           { icon: <ResetIcon />, label: "Reset", text: "a table" },
           { icon: <ColumnsIcon />, label: "Columns", text: "to show" },
           { icon: <FilterIcon />, label: "Clear filters", text: "" },
@@ -263,18 +274,37 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
     id: "set-pieces",
     topic: TOPIC.numbers,
     title: "Penalty and set-piece takers",
-    answer: "Pen Order, FK Order and Corner Order: his place on the club's list, 1 being first choice.",
+    answer: "Icons after a player's name: gold if he's his club's first choice, silver second, bronze third.",
     pages: ["player-explorer", "team-building"],
     keywords: [
       "penalty", "penalties", "penalty taker", "pen taker", "on pens", "pen order", "free kick", "free kicks", "fk order", "corner",
-      "corners", "corner order", "set piece", "set pieces", "set piece taker", "who takes penalties", "first choice", "duty",
-      "dead ball", "spot kick",
+      "corners", "corner order", "set piece", "set pieces", "set piece taker", "who takes penalties", "first choice", "duty", "duties",
+      "dead ball", "spot kick", "gold icon", "silver icon", "bronze icon", "medal", "icon next to name", "goal icon", "flag icon", "wall icon",
     ],
-    related: ["today-only", "columns"],
+    related: ["today-only", "icons"],
     body: (
       <>
-        <Steps items={[<>Add the columns with <ColumnsIcon /> Columns.</>, "Sort Pen Order: first choices come first."]} />
-        <Note>FPL keeps today's lists only, so they're the same in every Data View.</Note>
+        <IconKey
+          rows={[
+            { icon: <Duty duty="penalties" order={1} />, label: "Goal:", text: "penalties" },
+            { icon: <Duty duty="directFreekicks" order={1} />, label: "Wall:", text: "direct free kicks" },
+            { icon: <Duty duty="corners" order={1} />, label: "Flag:", text: "corners and indirect free kicks" },
+          ]}
+        />
+        <Chips
+          items={[
+            <>
+              <Duty duty="penalties" order={1} /> first choice
+            </>,
+            <>
+              <Duty duty="penalties" order={2} /> second
+            </>,
+            <>
+              <Duty duty="penalties" order={3} /> third
+            </>,
+          ]}
+        />
+        <Points items={["Several duties, several icons. Hover one for what it means for him.", "FPL's lists today, so the same in every Data View."]} />
       </>
     ),
   },
@@ -331,7 +361,7 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
     body: (
       <>
         <Flow steps={["Position ▾ MID, FWD", "Mins ▾ ≥ 855", "sort xGI/Game"]} />
-        <Points items={["Goals − xG below 0: chances that haven't gone in yet.", "Pen Order 1 adds penalties on top."]} />
+        <Points items={["Goals − xG below 0: chances that haven't gone in yet.", "A gold goal icon after his name: he's on penalties too."]} />
       </>
     ),
   },

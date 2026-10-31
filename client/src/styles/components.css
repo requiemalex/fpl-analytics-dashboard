@@ -623,6 +623,27 @@ select:focus {
 }
 
 /* ---------- Availability flag ---------- */
+/* <set_piece_duties>: his penalty, free-kick and corner duties after his name, coloured by his place on the list. */
+.duty-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 5px;
+  vertical-align: -1px;
+}
+.duty-icon {
+  display: inline-flex;
+  cursor: help;
+}
+.duty-icon.duty-1 {
+  color: var(--duty-gold);
+}
+.duty-icon.duty-2 {
+  color: var(--duty-silver);
+}
+.duty-icon.duty-3 {
+  color: var(--duty-bronze);
+}
 .availability-flag {
   display: inline-block;
   width: 7px;

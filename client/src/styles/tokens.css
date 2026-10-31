@@ -41,6 +41,13 @@
   --series-4: #e8ede9;
   --series-5: #8a9a91;
 
+  /* Set-piece duties (<set_piece_duties>): a player's place on his club's
+     penalty, free-kick or corner list, as medals — gold first choice,
+     silver second, bronze third. Never green or red. */
+  --duty-gold: #e2b93b;
+  --duty-silver: #c3ccc7;
+  --duty-bronze: #c4804c;
+
   /* Position colours — reverted to this app's original red/green/blue/
      yellow set (the same hues as the semantic accent tokens above,
      though kept as their own dedicated values here rather than aliased
