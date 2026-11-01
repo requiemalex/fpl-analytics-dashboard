@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAt": "2026-10-31T01:46:33.468Z",
+  "generatedAt": "2026-11-01T12:59:13.715Z",
   "liveSeason": "2026/27",
   "seasons": [
     "2016/17",
@@ -44,6 +44,6 @@
     "app/profile/2023-24.json": "3dcbf932e945849d",
     "app/profile/2024-25.json": "69b26332379f19fc",
     "app/profile/2025-26.json": "cfb168ab3d7478cf",
-    "app/profile/2026-27.json": "c95974675d9354df"
+    "app/profile/2026-27.json": "5019f69d97c6ebc9"
   }
 }
