@@ -1,4 +1,5 @@
 import { REQUEST_TIMEOUT_MS, RETRY_POLICY } from "./config.js";
+import { describeFetchError } from "./fetchError.js";
 
 export class UpstreamError extends Error {
   status: number | null;
@@ -81,7 +82,7 @@ export async function fetchJson<T>(url: string): Promise<T> {
         err instanceof UpstreamError
           ? err
           : new UpstreamError(
-              isTimeout ? `Request to ${url} timed out after ${REQUEST_TIMEOUT_MS}ms` : `Network error fetching ${url}: ${(err as Error).message}`,
+              isTimeout ? `Request to ${url} timed out after ${REQUEST_TIMEOUT_MS}ms` : `Network error fetching ${url}: ${describeFetchError(err)}`,
               null,
               isTimeout,
             );

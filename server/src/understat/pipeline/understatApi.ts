@@ -3,7 +3,9 @@
  * (scripts/understat/sync.ts), never by the app. Polite by design: one
  * request at a time with a pause between them, an honest User-Agent, and a
  * hard stop (UnderstatBlockedError) the moment Understat refuses us, so a
- * block never turns into a hammering retry loop.
+ * block never turns into a hammering retry loop. No answer at all, or a
+ * server error, after every attempt is UnderstatUnreachableError, naming
+ * what was asked for and each attempt's time and reason.
  *
  * Every response is shape-checked here (parseLeague/parseMatch) before
  * anything else sees it: a changed format is UnderstatFormatError, which
@@ -12,6 +14,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { attemptsFailed, describeFetchError, utcTime } from "../../fetchError.js";
 import type { UsAppearance, UsFormation, UsLeague, UsMatch, UsMatchSummary, UsShot, UsTeamMatch, UsTeamSeason } from "./types.js";
 
 const BASE = "https://understat.com";
@@ -22,6 +25,14 @@ export class UnderstatBlockedError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "UnderstatBlockedError";
+  }
+}
+
+/** Understat didn't answer (no connection, timed out, dropped) or its server failed (HTTP 5xx), on every attempt — usually Understat being down for a while. */
+export class UnderstatUnreachableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UnderstatUnreachableError";
   }
 }
 
@@ -57,6 +68,8 @@ export interface UnderstatClient {
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+/** 2026 → "2026/27". */
+export const seasonName = (startYear: number) => `${startYear}/${String((startYear + 1) % 100).padStart(2, "0")}`;
 
 export function createUnderstatClient(options: UnderstatClientOptions = {}): UnderstatClient {
   const delayMs = options.delayMs ?? 800;
@@ -67,10 +80,11 @@ export function createUnderstatClient(options: UnderstatClientOptions = {}): Und
 
   const cachePath = (path: string) => (options.cacheDir ? join(options.cacheDir, `${path.replace(/[^A-Za-z0-9]+/g, "_")}.json`) : null);
 
-  async function getJson(path: string, opts: FetchOptions = {}): Promise<unknown> {
+  /** `what` names the request in plain words for any error ("the 2026/27 season data"). */
+  async function getJson(path: string, what: string, opts: FetchOptions = {}): Promise<unknown> {
     const cached = cachePath(path);
     if (cached && !opts.fresh && existsSync(cached)) return JSON.parse(readFileSync(cached, "utf8"));
-    const data = await request(path);
+    const data = await request(path, `Understat's ${what} (${path})`);
     if (cached) {
       mkdirSync(options.cacheDir!, { recursive: true });
       writeFileSync(cached, JSON.stringify(data));
@@ -78,55 +92,66 @@ export function createUnderstatClient(options: UnderstatClientOptions = {}): Und
     return data;
   }
 
-  async function request(path: string): Promise<unknown> {
-    let lastError: unknown;
+  async function request(path: string, where: string): Promise<unknown> {
+    // One line per failed attempt, so the error says when and why each failed.
+    const failures: string[] = [];
+    let refused = false;
+    let otherHttpError = false;
     for (let attempt = 0; attempt < attempts; attempt++) {
       const wait = lastRequestAt + delayMs * (attempt + 1) - Date.now();
       if (wait > 0) await sleep(wait);
       lastRequestAt = Date.now();
       count += 1;
+      const at = utcTime();
       let res: Response;
+      let text: string;
       try {
         res = await fetch(`${BASE}${path}`, {
           headers: { "User-Agent": USER_AGENT, "X-Requested-With": "XMLHttpRequest", Accept: "application/json" },
           signal: AbortSignal.timeout(timeoutMs),
         });
+        // Inside the try: the time limit covers reading the reply too.
+        text = await res.text();
       } catch (err) {
-        lastError = err;
+        failures.push(`${at}: ${describeFetchError(err, { timeoutMs })}`);
         continue;
       }
       if (res.status === 403 || res.status === 429) {
-        lastError = new UnderstatBlockedError(`${path}: Understat answered HTTP ${res.status} (refused)`);
+        refused = true;
+        failures.push(`${at}: Understat answered HTTP ${res.status} (refused)`);
         await sleep(delayMs * 5 * (attempt + 1));
         continue;
       }
       if (!res.ok) {
-        lastError = new Error(`${path}: HTTP ${res.status}`);
+        if (res.status < 500) otherHttpError = true;
+        failures.push(`${at}: HTTP ${res.status}${res.status >= 500 ? " (Understat's server had a problem)" : ""}`);
         continue;
       }
-      const text = await res.text();
       if (text.trimStart().startsWith("<")) {
-        throw new UnderstatBlockedError(`${path}: Understat sent a web page instead of data (likely a block or challenge page)`);
+        throw new UnderstatBlockedError(`${where}: Understat sent a web page instead of data (likely a block or challenge page)`);
       }
       try {
         return JSON.parse(text);
       } catch {
-        throw new UnderstatFormatError(`${path}: response isn't valid JSON`);
+        throw new UnderstatFormatError(`${where}: response isn't valid JSON`);
       }
     }
-    throw lastError;
+    const message = attemptsFailed(where, failures);
+    if (refused) throw new UnderstatBlockedError(message);
+    if (otherHttpError) throw new Error(message);
+    throw new UnderstatUnreachableError(message);
   }
 
   return {
     async league(year, opts) {
-      return parseLeague(await getJson(`/getLeagueData/EPL/${year}`, opts), year);
+      return parseLeague(await getJson(`/getLeagueData/EPL/${year}`, `${seasonName(year)} season data`, opts), year);
     },
     async match(matchId, opts) {
-      return parseMatch(await getJson(`/getMatchData/${matchId}`, opts), matchId);
+      return parseMatch(await getJson(`/getMatchData/${matchId}`, `match ${matchId}`, opts), matchId);
     },
     async team(title, teamId, year, opts) {
       // Understat's team pages are named by title, spaces as underscores ("Manchester_United").
-      return parseTeam(await getJson(`/getTeamData/${encodeURIComponent(title.replace(/ /g, "_"))}/${year}`, opts), teamId, year);
+      return parseTeam(await getJson(`/getTeamData/${encodeURIComponent(title.replace(/ /g, "_"))}/${year}`, `${title} ${seasonName(year)} team page`, opts), teamId, year);
     },
     requestCount: () => count,
   };

@@ -6,7 +6,7 @@ import { writeSeasonLedger } from "../../clubHistory/ledgerFiles.js";
 import type { LedgerRow } from "../../clubHistory/types.js";
 import { fileVersion } from "../fileVersion.js";
 import { runSync } from "./sync.js";
-import { UnderstatBlockedError, type UnderstatClient } from "./understatApi.js";
+import { UnderstatBlockedError, UnderstatUnreachableError, type UnderstatClient } from "./understatApi.js";
 import type { AppProfileFile, UsLeague, UsMatch, UsTeamSeason } from "./types.js";
 
 // One live-season match, Home 2-1 Away, two players a side.
@@ -203,6 +203,20 @@ describe("runSync", () => {
     );
     expect(report.ok).toBe(false);
     expect(report.failure?.kind).toBe("blocked");
+    expect(existsSync(join(understatRoot, "links.csv"))).toBe(false);
+  });
+
+  it("stops, writes nothing and says what it was fetching when Understat doesn't answer", async () => {
+    const message = "Understat's 2026/27 season data (/getLeagueData/EPL/2026): no usable answer after 3 attempts:\n  - attempt 1 at 15:19:02 UTC: couldn't connect in time";
+    const report = await sync(
+      fakeClient({
+        league: async () => {
+          throw new UnderstatUnreachableError(message);
+        },
+      }),
+    );
+    expect(report.ok).toBe(false);
+    expect(report.failure).toEqual({ kind: "unreachable", message });
     expect(existsSync(join(understatRoot, "links.csv"))).toBe(false);
   });
 

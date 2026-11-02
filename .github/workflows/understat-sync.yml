@@ -12,9 +12,14 @@ name: Understat sync
 #    or the data failed an accuracy check) and for anything the run lists as
 #    needing attention (a disputed player link, a player unlinked for two
 #    weeks, Understat two days behind);
-#  - for a refusal/blip (blocked, couldn't connect) only on the second
+#  - for a refusal/blip (blocked, or a site unreachable) only on the second
 #    failure in a row — a one-off retries itself tomorrow;
 #  - and closed, with a "resolved" comment, by the next clean run.
+#
+# Diagnosing a failed run: the run's page shows the outcome (the job
+# summary): what failed, what was being fetched, each attempt's time and
+# reason, and, if a site didn't answer, whether understat.com and FPL
+# answered a moment later.
 
 on:
   schedule:
@@ -104,10 +109,12 @@ jobs:
           if [ "$COMMIT_OUTCOME" = "failure" ] && [ -f "$report" ]; then
             jq '.ok = false | .failure = {kind: "error", message: "The sync ran, but committing or pushing its data to the repository failed, so nothing was published."}' "$report" > "$report.tmp" && mv "$report.tmp" "$report"
             printf 'The daily Understat sync ran, but its data could not be committed or pushed, so installed apps did not get it.\n\n**What to do**\n- Open Claude Code in this project and say: *Look at the open "Understat" GitHub issue and fix it.*\n' > "$RUNNER_TEMP/alert.md"
+            printf '\n## Commit or push FAILED — nothing was published\nThe "Commit if anything changed" step in the log has the error.\n' >> "$GITHUB_STEP_SUMMARY"
           fi
           if [ ! -f "$report" ]; then
             echo '{"ok":false,"failure":{"kind":"error","message":"The sync step crashed before writing its report"},"attention":[]}' > "$report"
             printf 'The daily Understat sync crashed before it could report.\n\n**What to do**\n- Open Claude Code in this project and say: *Look at the open "Understat" GitHub issue and fix it.*\n' > "$RUNNER_TEMP/alert.md"
+            printf '## Understat sync CRASHED before writing its report\nThe "Sync Understat" step in the log has the error.\n' >> "$GITHUB_STEP_SUMMARY"
           fi
           ok=$(jq -r '.ok' "$report")
           kind=$(jq -r '.failure.kind // ""' "$report")

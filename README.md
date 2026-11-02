@@ -638,7 +638,10 @@ pipeline is `server/src/understat/pipeline/`, dependency-free) runs, in order:
    (20 team pages each). Every reply is shape-checked; a team page whose
    matches aren't that club's is a format failure. A refusal (HTTP 403/429,
    or a web page where data should be) stops the run at once
-   (`UnderstatBlockedError`), as does a changed format.
+   (`UnderstatBlockedError`), as does a changed format. No answer (a
+   connection that times out, is refused or drops) or a server error
+   (HTTP 5xx) on all 3 attempts stops it as **unreachable**
+   (`UnderstatUnreachableError`).
 3. **Pair clubs and fixtures by result, not name** (`pairing.ts`): venue,
    opponent and score. Last season's pairings seed it, and every one is
    re-checked. Any disagreeing score stops the run. The live season pairs
@@ -694,6 +697,19 @@ what to do). It is raised:
 - only on the second failure in a row for a refusal or a blip;
 - straight away if the run passed but its data couldn't be committed or
   pushed (nothing was published).
+
+**Diagnosing a failed run:** the run's GitHub Actions page shows its
+outcome (the job summary), and the alert's "Technical details" carry the
+same text. A failure names what was being fetched, in words and as the
+URL ("Understat's 2026/27 season data (/getLeagueData/EPL/2026)"), with
+each attempt's time and reason. Node reports every network failure as a
+bare "fetch failed"; `server/src/fetchError.ts` unwraps it into the real
+reason (address lookup, refused, dropped, timed out, certificate), and the
+FPL fetches the jobs share (`scripts/club-history/liveLedger.ts`) and the
+app's own FPL client use the same wording. After an unreachable failure,
+the sync checks once more whether understat.com and FPL answer at all:
+Understat failing while FPL answers means Understat is down, and both
+failing points at GitHub's network.
 
 While it stays open, its text is refreshed silently (no daily emails). The
 next clean run closes it with a "resolved" comment.
@@ -2612,7 +2628,7 @@ Five GitHub workflows run without anyone starting them:
 | Workflow | When | What | Alerts the owner |
 |---|---|---|---|
 | `club-history-archive.yml` | Tue & Fri 05:00 UTC | Archives the live season's club history; releases at season end | On the 2nd failure in a row (a missed run loses nothing) |
-| `understat-sync.yml` | Daily 06:00 UTC, and on a push that changes the sync's code | Syncs Understat data (see "Understat"); fetches FPL's live record to check it against | At once for a changed format, a failed check, or data it couldn't commit or push; on the 2nd failure in a row for a block or blip; plus held/disputed links and Understat running late |
+| `understat-sync.yml` | Daily 06:00 UTC, and on a push that changes the sync's code | Syncs Understat data (see "Understat"); fetches FPL's live record to check it against | At once for a changed format, a failed check, or data it couldn't commit or push; on the 2nd failure in a row for a block or an unreachable site; plus held/disputed links and Understat running late |
 | `fpl-availability.yml` | Hourly | Records FPL's availability news for the next deadline (`<availability_record>`, below) | On the 2nd failure in a row (the next run records the news as it then stands) |
 | `release.yml` | On a `v*` tag | Builds and publishes the desktop app | At once (installed apps would stop updating) |
 | `watchdog.yml` | Mondays 07:00 UTC | Checks the three scheduled jobs are switched on and succeeded recently (Understat within 2 days, archive within 5, availability within 1), and the latest release didn't fail | When any of that is wrong |

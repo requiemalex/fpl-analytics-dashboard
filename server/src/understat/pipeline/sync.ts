@@ -47,7 +47,7 @@ import {
 import { linkSeason, type FplPlayerSeason, type UsPlayerSeason } from "./matcher.js";
 import { pairClubsAndFixtures } from "./pairing.js";
 import { buildProfileSeason } from "./profile.js";
-import { UnderstatBlockedError, UnderstatFormatError, type UnderstatClient } from "./understatApi.js";
+import { seasonName, UnderstatBlockedError, UnderstatFormatError, UnderstatUnreachableError, type UnderstatClient } from "./understatApi.js";
 import type { FplName } from "./names.js";
 import type { AppSeasonFile, UnderstatStatus, UsFormation, UsTeamMatch } from "./types.js";
 
@@ -61,7 +61,8 @@ const MISSING_ALERT_DAYS = 2;
 const MAX_LINK_CHANGE_SHARE = 0.05;
 const MATCHES_PER_SEASON = 380;
 
-export type FailureKind = "blocked" | "format" | "checks" | "error";
+/** blocked: Understat refused us. unreachable: no answer or a server error (usually a site being down). */
+export type FailureKind = "blocked" | "unreachable" | "format" | "checks" | "error";
 
 export interface SyncReport {
   ok: boolean;
@@ -88,7 +89,6 @@ export interface SyncOptions {
 }
 
 const startYear = (season: string) => parseInt(season.slice(0, 4), 10);
-const seasonName = (year: number) => `${year}/${String((year + 1) % 100).padStart(2, "0")}`;
 const daysBetween = (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000);
 
 function liveSeasonFrom(bootstrap: unknown): string | null {
@@ -411,7 +411,8 @@ export async function runSync(opts: SyncOptions): Promise<SyncReport> {
   } catch (err) {
     report.ok = false;
     const message = err instanceof Error ? err.message : String(err);
-    const kind: FailureKind = err instanceof UnderstatBlockedError ? "blocked" : err instanceof UnderstatFormatError ? "format" : "error";
+    const kind: FailureKind =
+      err instanceof UnderstatBlockedError ? "blocked" : err instanceof UnderstatUnreachableError ? "unreachable" : err instanceof UnderstatFormatError ? "format" : "error";
     report.failure = { kind, message: errors.length > 0 ? `${message}\n${errors.join("\n")}` : message };
     return report;
   }

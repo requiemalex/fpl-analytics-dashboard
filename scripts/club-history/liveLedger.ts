@@ -8,6 +8,7 @@
  * them (audit 2026-10-18 H3).
  */
 import { mergeArchivedRows } from "../../server/src/clubHistory/archive.js";
+import { attemptsFailed, describeFetchError, utcTime } from "../../server/src/fetchError.js";
 import { readSeasonLedger, type SeasonLedger } from "../../server/src/clubHistory/ledgerFiles.js";
 import { fixturesFromOfficial, ledgerRowsFromOfficial, seasonNameFromBootstrap, teamsFromBootstrap } from "../../server/src/clubHistory/official.js";
 
@@ -16,19 +17,21 @@ const CONCURRENCY = 8;
 /** More than this share of element-summary requests failing means the API is having a bad day — use nothing rather than a patchy record. */
 const MAX_FAILURE_SHARE = 0.05;
 
+/** Throws, after the last attempt, an error naming the URL and each attempt's time and reason. */
 export async function getJson(url: string, userAgent: string, attempts = 4): Promise<unknown> {
-  let lastError: unknown;
+  const failures: string[] = [];
   for (let i = 0; i < attempts; i++) {
+    const at = utcTime();
     try {
       const res = await fetch(url, { headers: { "User-Agent": userAgent } });
       if (res.ok) return await res.json();
-      lastError = new Error(`${url}: HTTP ${res.status}`);
+      failures.push(`${at}: HTTP ${res.status}`);
     } catch (err) {
-      lastError = err;
+      failures.push(`${at}: ${describeFetchError(err)}`);
     }
     await new Promise((r) => setTimeout(r, 1000 * 2 ** i));
   }
-  throw lastError;
+  throw new Error(attemptsFailed(url, failures));
 }
 
 export interface LiveLedgerResult {
@@ -48,6 +51,7 @@ export async function fetchLiveLedger(bootstrap: unknown, archiveRoot: string, u
   const elementIds = ((bootstrap as { elements?: { id: number }[] }).elements ?? []).map((e) => e.id);
   const historyByElement = new Map<number, unknown[]>();
   const failed: number[] = [];
+  let firstFailure = "";
   let next = 0;
   await Promise.all(
     Array.from({ length: CONCURRENCY }, async () => {
@@ -56,14 +60,16 @@ export async function fetchLiveLedger(bootstrap: unknown, archiveRoot: string, u
         try {
           const summary = (await getJson(`${FPL_API}/element-summary/${id}/`, userAgent)) as { history?: unknown[] };
           historyByElement.set(id, summary.history ?? []);
-        } catch {
+        } catch (err) {
           failed.push(id);
+          firstFailure ||= err instanceof Error ? err.message : String(err);
         }
       }
     }),
   );
   if (failed.length > elementIds.length * MAX_FAILURE_SHARE) {
-    throw new Error(`${failed.length}/${elementIds.length} element-summary requests failed — not using a partial record`);
+    throw new Error(`${failed.length}/${elementIds.length} element-summary requests failed — not using a partial record. The first:
+${firstFailure}`);
   }
 
   const fresh = ledgerRowsFromOfficial(bootstrap, fixtures, historyByElement);
