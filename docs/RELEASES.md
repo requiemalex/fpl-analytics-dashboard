@@ -5,6 +5,11 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.126.0 · 2 Nov 2026
+
+- Help: new guides for when an imported team updates, why Add is greyed out, uninstalling, and Mac/phone/web; the squad guides no longer say the club limit never blocks
+- Team Building: a squad imported from an FPL team ID now updates itself to the team's latest picks after each deadline, and says who came in and out
+
 ## v1.125.2 · 31 Oct 2026
 
 - CLAUDE.md: new Understat figures are published at once (the sync runs on push) and every install reads changed files straight away; check the run and the files before calling one done
