@@ -757,7 +757,7 @@ const FIRST_GUIDES: HelpGuide[] = [
       "import", "import team", "team id", "fpl id", "id", "my team", "my squad", "entry", "load my team", "get my team", "bring in my team",
       "new squad", "connect", "link account", "sync", "real team", "login", "sign in",
     ],
-    related: ["build-squad", "sell-price"],
+    related: ["import-sync", "build-squad", "sell-price"],
     body: (
       <>
         <Steps
@@ -795,7 +795,7 @@ const FIRST_GUIDES: HelpGuide[] = [
           items={[
             "Add puts him in the XI if there's a legal place, otherwise on the bench.",
             "Drag one card onto another to swap them. Hover a card to remove him.",
-            "Over budget or over 3 per club: a warning, never a block.",
+            "Over budget: a warning, never a block. A full position or club greys out Add.",
           ]}
         />
       </>

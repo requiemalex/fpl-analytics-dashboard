@@ -1055,7 +1055,7 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
         />
         <Label>Starting XI</Label>
         <Chips items={[`${XI.GKP.min} GKP`, `${XI.DEF.min}–${XI.DEF.max} DEF`, `${XI.MID.min}–${XI.MID.max} MID`, `${XI.FWD.min}–${XI.FWD.max} FWD`]} />
-        <Note>Over budget or a club's limit shows a warning; a short XI shows as open + places. Nothing stops you.</Note>
+        <Note>Add is greyed out when a rule would break. Over budget turns the Bank red but never stops you; a short XI shows as open + places.</Note>
       </>
     ),
   },
@@ -1130,6 +1130,59 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
           ]}
         />
         <Note>A squad built from scratch has £{SQUAD_RULES.budget.toFixed(0)}m. If the budget's hover says to import again, do.</Note>
+      </>
+    ),
+  },
+  {
+    id: "import-sync",
+    topic: TOPIC.building,
+    title: "When your imported team updates",
+    answer: "After each deadline: Scoutline reads your FPL team again and shows the transfers you made for that gameweek.",
+    pages: ["team-building"],
+    keywords: [
+      "old team", "still old team", "shows my old team", "team not updated", "squad not updated", "out of date", "outdated", "not up to date",
+      "made a transfer", "transfer not showing", "transfers not showing", "my transfers", "update my team", "refresh my team", "reimport",
+      "re-import", "import again", "sync", "synced", "keep up to date", "squad changed", "team changed", "my changes gone", "changes lost",
+      "who came in", "after the deadline", "before the deadline", "wrong team", "latest team",
+    ],
+    related: ["import-team", "gameweeks"],
+    body: (
+      <>
+        <Flow steps={["transfer in FPL", "deadline passes", "Scoutline opens or refreshes", "squad updated"]} />
+        <Points
+          items={[
+            "FPL keeps your transfers private until the deadline, so a change for the next gameweek shows once it passes.",
+            "The update replaces the squad with your FPL team; changes made to it in Scoutline go. Its name stays.",
+            "Team Building says who came in and out.",
+          ]}
+        />
+        <Note>Scoutline only reads FPL. Make your transfers in FPL itself.</Note>
+      </>
+    ),
+  },
+  {
+    id: "cant-add",
+    topic: TOPIC.building,
+    title: "Why can't I add this player?",
+    answer: "Add is greyed out when FPL's rules wouldn't allow him. Hover it for the reason.",
+    pages: ["team-building"],
+    keywords: [
+      "can't add", "cannot add", "cant add player", "can't add this player", "why can't i add", "unable to add", "add won't work", "add greyed out", "add disabled", "add button grey", "won't add", "can't drag",
+      "slots full", "position full", "squad full", "15/15", "already in squad", "max per club", "3 per club", "too many from one club",
+      "club limit", "three players", "blocked", "not allowed",
+    ],
+    related: ["squad-rules", "plan-transfer"],
+    body: (
+      <>
+        <Terms
+          rows={[
+            ["Already in squad", "he's in it"],
+            [`Squad full (${SQUAD_RULES.squadSize}/${SQUAD_RULES.squadSize})`, "remove someone first"],
+            ["Slots full", `already ${SQUAD.GKP} GKP, ${SQUAD.DEF} DEF, ${SQUAD.MID} MID or ${SQUAD.FWD} FWD`],
+            [`Max ${SQUAD_RULES.maxPerClub} per club`, `${SQUAD_RULES.maxPerClub} from his club already`],
+          ]}
+        />
+        <Note>The budget never stops you: going over turns the Bank red.</Note>
       </>
     ),
   },
@@ -1307,6 +1360,45 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
         <Note>An open copy finds a new version within about 10 minutes. Your saved data stays.</Note>
       </>
     ),
+  },
+  {
+    id: "uninstall",
+    topic: TOPIC.app,
+    title: "Uninstalling Scoutline",
+    answer: "Windows Settings → Apps → Installed apps → Scoutline → Uninstall. Your saved data stays unless you delete it.",
+    keywords: [
+      "uninstall", "uninstalling", "remove scoutline", "delete scoutline", "delete the app", "remove app", "get rid of", "add or remove programs",
+      "installed apps", "delete my data", "delete saved data", "wipe", "clear everything", "reset everything", "start again", "fresh start",
+      "factory reset", "reinstall", "remove from computer", "free up space",
+    ],
+    related: ["saved-data", "install"],
+    body: (
+      <>
+        <Steps
+          items={[
+            "Settings → Apps → Installed apps, or right-click Scoutline in the Start menu.",
+            "Scoutline → Uninstall.",
+            <>
+              To remove your saved data too, delete this folder after uninstalling:
+              <div className="help-url">%APPDATA%\FPL Analytics Dashboard</div>
+            </>,
+          ]}
+        />
+        <Note>Kept, the saved data comes back if you install again.</Note>
+      </>
+    ),
+  },
+  {
+    id: "platforms",
+    topic: TOPIC.app,
+    title: "Mac, phone or browser",
+    answer: "Scoutline is a Windows app only: there's no Mac, phone or web version.",
+    keywords: [
+      "mac", "macbook", "macos", "apple", "iphone", "ipad", "android", "phone", "mobile", "tablet", "app store", "browser", "website",
+      "web version", "online", "linux", "chromebook", "other devices", "windows only", "which computers", "system requirements",
+    ],
+    related: ["install", "saved-data"],
+    body: <Note>Windows 10 or 11. Saved data stays on the computer it was made on.</Note>,
   },
   {
     id: "left-fpl",
