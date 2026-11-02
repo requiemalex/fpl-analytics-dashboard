@@ -1,6 +1,6 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import type { SavedSquad } from "../types/team";
-import { mapReadableEntries, type VersionedStore, usePersistentState } from "./persistentStorage";
+import { loadVersioned, mapReadableEntries, saveVersioned, type VersionedStore, usePersistentState } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:saved-squads:v1";
 /**
@@ -81,6 +81,28 @@ const SAVED_SQUADS_STORE: VersionedStore<SavedSquad[]> = {
   },
 };
 
+type SquadsChange = (squads: SavedSquad[]) => SavedSquad[];
+const changeListeners = new Set<(change: SquadsChange) => void>();
+
+/** The saved squads as stored, for code outside Team Building (<imported_squad_sync>). */
+export function loadSavedSquads(): SavedSquad[] {
+  return loadVersioned(STORAGE_KEY, SAVED_SQUADS_STORE);
+}
+
+/**
+ * Changes the saved squads from outside Team Building (<imported_squad_sync>):
+ * through Team Building's own state while it's open, so its edits and this
+ * never overwrite each other, else straight in storage, which it reads when
+ * it next opens.
+ */
+export function changeSavedSquads(change: SquadsChange): void {
+  if (changeListeners.size > 0) {
+    for (const listener of changeListeners) listener(change);
+    return;
+  }
+  saveVersioned(STORAGE_KEY, STORAGE_VERSION, change(loadSavedSquads()));
+}
+
 /** Hard cap on saved squads — purely a UI/localStorage-hygiene limit, not an FPL rule. */
 export const MAX_SAVED_SQUADS = 5;
 
@@ -106,6 +128,13 @@ export interface UseSavedSquads {
 export function useSavedSquads(): UseSavedSquads {
   const [squads, setSquads] = usePersistentState(STORAGE_KEY, SAVED_SQUADS_STORE);
 
+  useEffect(() => {
+    const listener = (change: SquadsChange) => setSquads(change);
+    changeListeners.add(listener);
+    return () => {
+      changeListeners.delete(listener);
+    };
+  }, [setSquads]);
 
   const upsert = useCallback((squad: SavedSquad) => {
     setSquads((prev) => {

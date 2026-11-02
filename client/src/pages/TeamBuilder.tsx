@@ -13,8 +13,8 @@ import { fplOfficialForFixture, fplSeasonRate } from "../metrics/expectedPoints"
 import { modelClubRatings, modelForFixture, playerEvidence } from "../metrics/pointsModelLive";
 import { clubSeasonsAsShown } from "../metrics/teamStats";
 import { expectationForGameweek, horizonTotal, upcomingGameweeks, type Horizon, type PointsSource } from "../metrics/gameweekExpectations";
-import { fetchEntryTeam, fetchEntryHistory, fetchEntryPicks, ApiRequestError } from "../api/client";
-import { normalizeEntryImport } from "../normalize/normalizeEntryImport";
+import { ApiRequestError } from "../api/client";
+import { describeImportedSquadUpdate, importFplTeam, keepPurchases, subscribeImportedSquadUpdates, takeImportedSquadUpdates } from "../state/fplTeamImport";
 import { getUpcomingFixtures, firstPickableEventId, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { SquadPitch, type PitchColourRanks } from "../components/SquadPitch";
 import type { DraftPicks } from "../metrics/bestDraft";
@@ -65,11 +65,6 @@ function purchaseUnknownHint(squad: SavedSquad | null): string {
   return squad?.importedFrom
     ? "Purchase price not known: this team started after GW1 and his price has moved since, and FPL's public data doesn't keep what it was the day the team was picked."
     : "Purchase price not known: he was added before Scoutline kept purchase prices. Remove him and add him again to record today's.";
-}
-
-/** <purchase_prices> kept only for the players `keep` lets through. */
-function keepPurchases(prices: Record<number, number>, keep: (id: number) => boolean): Record<number, number> {
-  return Object.fromEntries(Object.entries(prices).filter(([id]) => keep(Number(id))));
 }
 
 export function TeamBuilder() {
@@ -133,6 +128,17 @@ export function TeamBuilder() {
   const active = squads.find((s) => s.id === activeId) ?? null;
 
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
+
+  // <imported_squad_sync>: an imported squad brought up to date from FPL,
+  // here or before this page opened, is said once.
+  useEffect(() => {
+    const show = () => {
+      const updates = takeImportedSquadUpdates();
+      if (updates.length > 0) setWarning(updates.map((u) => describeImportedSquadUpdate(u, playersById)).join(" "));
+    };
+    show();
+    return subscribeImportedSquadUpdates(show);
+  }, [playersById]);
 
   // <purchase_prices> for an import saved before they were kept, or whose
   // prices didn't load: loaded from FPL once per session when it's opened,
@@ -207,17 +213,8 @@ export function TeamBuilder() {
       setImportStatus("loading");
       setImportError(null);
       try {
-        const teamResult = await fetchEntryTeam(teamId);
         const fallbackEvent = gameweekState?.kind === "current" || gameweekState?.kind === "last-completed" ? gameweekState.event.id : 1;
-        const eventId = teamResult.data.current_event ?? fallbackEvent;
-        const [historyResult, picksResult] = await Promise.all([fetchEntryHistory(teamId), fetchEntryPicks(teamId, eventId)]);
-        const { squad, warnings } = normalizeEntryImport(teamResult.data, historyResult.data, picksResult.data, eventId, playersById);
-        // <purchase_prices>: nice to have, so a failure doesn't stop the import (they load the next time the squad is opened).
-        const prices = await loadImportedPurchasePrices(teamId, eventId, playersById).catch(() => null);
-        if (prices && squad.importedFrom) {
-          squad.importedFrom.purchasePrices = prices.purchasePrices;
-          squad.purchasePrices = keepPurchases(prices.purchasePrices, (id) => squad.playerIds.includes(id));
-        }
+        const { squad, warnings } = await importFplTeam(teamId, fallbackEvent, playersById);
         upsert(squad);
         setActiveId(squad.id);
         setShowNewSquadModal(false);

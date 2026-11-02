@@ -2002,7 +2002,23 @@ then, its players at today's prices when imported plus the bank
 FPL no longer lists, or a squad saved before store version 2): the £100m
 applies, and the budget's hover text says to import again. A new season's
 rollover drops the selling-price budget (the import was last season's
-team; FPL's team ids are per season too). Going over
+team; FPL's team ids are per season too).
+**An imported squad keeps up with its FPL team** (`<imported_squad_sync>`,
+`syncImportedSquads` in `state/fplTeamImport.ts`): after every live data
+load (start-up and the 10-minute poll), a squad imported before the app's
+current gameweek is read again from FPL, and once FPL shows a later
+gameweek for that team its picks, armbands, bank, chips and purchase prices
+replace the squad's (its name and place in the list stay; changes made to
+it in Scoutline go). Team Building says so once, naming who came in and
+out. A squad already on the current gameweek costs no request: FPL
+publishes a team's picks only after that gameweek's deadline (the next
+gameweek's picks are "not found" until then, and the endpoint with a
+team's pending changes needs the manager's own login), so a transfer made
+for the next gameweek reaches Scoutline once its deadline passes. A failed
+request leaves the squad as it was until the next load. Changes from
+outside Team Building go through `changeSavedSquads`
+(`state/useSavedSquads.ts`): into the page's own state while it's open,
+else straight into storage. Going over
 is a warning ("£2.1m over"), never a block. **Add** starts a player while
 the XI still has a legal place for him (`<add_to_xi>`, `fitsStartingXI`),
 otherwise benches him; dragging moves anyone between pitch and bench.

@@ -13,6 +13,7 @@ import { buildAllHistoricProfiles, type HistoricPlayerProfile } from "../metrics
 import { skippedRecordCount } from "../validation/schema";
 import { liveSeasonName, rolloverSavedIds } from "./seasonIdRollover";
 import { setFinishedGameweeks } from "./seasonProgress";
+import { syncImportedSquads } from "./fplTeamImport";
 import type { NormalizedPlayer, NormalizedTeam, NormalizedFixture, NormalizedEvent, GameweekState, ChipWindow, PlayerSeasonHistory, ClubSeason, SeasonMatch } from "../types/normalized";
 import type { AdvancedFieldAvailability } from "../normalize/fieldAvailability";
 
@@ -297,6 +298,14 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     }, POLL_INTERVAL_MS);
     return () => clearInterval(id);
   }, [load]);
+
+  // <imported_squad_sync>: after every live load (start-up and the poll
+  // above), squads imported from an FPL team ID catch up with the team.
+  useEffect(() => {
+    if (liveDataVersion.count === 0 || !gameweekState || gameweekState.kind === "pre-season") return;
+    void syncImportedSquads(gameweekState.event.id, new Map(playersRef.current.map((p) => [p.id, p])));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveDataVersion]);
 
   // Fetched at most once per session, shared by every page via this
   // context — never re-fetched per page. Gated behind real demand: each
