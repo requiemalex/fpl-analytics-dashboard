@@ -16,6 +16,10 @@ import {
   ResetIcon,
   SavedViewsIcon,
   TrashIcon,
+  ArmbandIcon,
+  BestDraftIcon,
+  ClearDraftIcon,
+  GameweekSummaryIcon,
   TrendLineIcon,
 } from "../components/IconToolbar";
 import { HideSmallSamplesIcon, MinutesFloorIcon } from "../components/MinutesFloorBadge";
@@ -84,7 +88,7 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
     keywords: [
       "icons", "icon", "symbols", "symbol", "buttons", "button", "what does this button do", "what is this icon", "key", "legend",
       "toolbar", "pencil", "bin", "trash", "plus", "magnifying glass", "palette", "notepad icon", "football", "trophy", "pulse", "bars",
-      "funnel", "download", "reset", "arrows",
+      "funnel", "download", "reset", "arrows", "armband", "spark", "eraser",
     ],
     related: ["top-bar", "toolbar"],
     body: (
@@ -106,6 +110,10 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
           { icon: <EditIcon />, label: "Edit", text: "" },
           { icon: <TrashIcon />, label: "Delete", text: "(asks first)" },
           { icon: <TrendLineIcon />, label: "Trend line", text: "on a graph" },
+          { icon: <ArmbandIcon letter="C" />, label: "Captain", text: "then a starter (V: vice-captain)" },
+          { icon: <BestDraftIcon />, label: "Best Draft", text: "" },
+          { icon: <ClearDraftIcon />, label: "Clear Draft", text: "(asks first)" },
+          { icon: <GameweekSummaryIcon />, label: "Gameweek Summary", text: "" },
           { icon: <NotepadIcon />, label: "Notepad", text: `(or ${NOTEPAD_KEY})` },
           { icon: <ComparativeColourIcon />, label: "Colours", text: "on or off" },
           { icon: <HelpIcon />, label: "Help", text: "this panel" },
@@ -1189,12 +1197,12 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
     id: "gameweek-log",
     topic: TOPIC.building,
     title: "Gameweek Log",
-    answer: "Under the pitch: how the squad has scored each gameweek, beside every FPL manager's average and highest.",
+    answer: "Under the pitch: how the squad did in each gameweek against every FPL manager who played it.",
     pages: ["team-building"],
     keywords: [
       "gameweek log", "log", "history", "past gameweeks", "previous gameweeks", "my points", "points history of my team", "how did i do",
-      "team performance", "performance", "season so far", "rank", "overall rank", "gameweek rank", "hits", "transfer hits", "bench points",
-      "points on bench", "average score", "highest score", "track my team", "record", "recorded", "how has my team done", "each week",
+      "team performance", "performance", "rank", "gameweek rank", "hits", "transfer hits", "bench points",
+      "points on bench", "average score", "highest score", "track my team", "record", "recorded", "green points", "red points", "frozen", "how has my team done", "each week",
       "week by week", "every week", "my team each week", "points left on my bench", "left on bench", "left on the bench",
     ],
     related: ["gameweek-summary", "import-team"],
@@ -1206,10 +1214,15 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
             ["Squad built here", "scored from what it was at each deadline since it was made"],
           ]}
         />
+        <Label>Points' colour, against that gameweek</Label>
+        <ColourScale low="0" mid="The average" high="The highest" />
         <Points
           items={[
-            "A squad built here is scored as FPL would: automatic substitutions, the vice-captain if the captain didn't play. No chips.",
-            "\"Live\" marks a gameweek still being played.",
+            "Each gameweek on its own: nothing is added up across them.",
+            "A squad built here is frozen at each deadline and scored as FPL would: automatic substitutions, the vice-captain if the captain didn't play. No chips.",
+            <>
+              <GameweekSummaryIcon /> opens the Gameweek Summary. \"Live\" marks a gameweek still being played.
+            </>,
           ]}
         />
       </>
@@ -1231,31 +1244,17 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
       <>
         <Terms
           rows={[
-            ["Points", "this gameweek and to date, against the average"],
+            ["Points", "against every manager's average and highest that gameweek, and an import's rank"],
             ["Captaincy", "your captain, FPL's most captained, the top scorer: each one's points doubled"],
             ["Chips", "share of managers who played each this gameweek, and the share yet to play it this half"],
           ]}
         />
-        <Note>FPL only publishes its single most-captained player, so there's no top five.</Note>
-      </>
-    ),
-  },
-  {
-    id: "price-movers",
-    topic: TOPIC.building,
-    title: "Who has risen or fallen this gameweek",
-    answer: "Team Building's Price Changes: every price that has moved since the gameweek's deadline.",
-    pages: ["team-building"],
-    keywords: [
-      "risers", "fallers", "price changes this week", "price changes this gameweek", "who has risen", "who has fallen", "who went up",
-      "who went down", "price risers", "price fallers", "risen", "fallen", "changed price", "price moves", "price movers", "since the deadline",
-      "price change list", "price changes button", "went up in price", "dropped in price",
-    ],
-    related: ["price-changes", "sell-price"],
-    body: (
-      <>
-        <Steps items={["Price Changes, at the top of Team Building.", "Risers or Fallers, then a position."]} />
-        <Note>FPL keeps no dated record of past changes, so it covers this gameweek only.</Note>
+        <Points
+          items={[
+            "One gameweek at a time: squads start in different gameweeks, so nothing is added up across them.",
+            "FPL only publishes its single most-captained player, so there's no top five.",
+          ]}
+        />
       </>
     ),
   },

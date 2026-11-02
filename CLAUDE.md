@@ -163,11 +163,14 @@ No lint script. Playwright isn't installed but works via
   The top bar's palette switch turns every such colour off at once
   (`<comparative_colour_switch>`): paint by rank only through
   `percentileTint` / `percentileColour`, never a colour of your own.
-  Two exceptions, the owner's calls: FPL's price Progress on Team
+  Three exceptions, the owner's calls: FPL's price Progress on Team
   Building's pitch is coloured by the figure itself, grey to full
   green/red at ±100%, as FPL shows it (`<price_progress>`, 2026-10-26);
   Team Building's Projected Points is coloured by how close it is to
-  Best Draft's total (`<projected_points_colour>`, 2026-10-30). Both
+  Best Draft's total (`<projected_points_colour>`, 2026-10-30); a squad's
+  gameweek points (Gameweek Log and Summary) are coloured against every
+  FPL manager that gameweek, grey at the average, toward green at the
+  highest and red at 0 (`<gameweek_points_colour>`, 2026-11-02). All
   still go through `percentileTint`/`percentileColour`.
   Never use green or red as a series or decoration colour (one exception,
   the owner's choice: the green "line" in the Scoutline logo).

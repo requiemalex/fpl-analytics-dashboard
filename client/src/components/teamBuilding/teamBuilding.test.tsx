@@ -4,13 +4,13 @@ import { MemoryRouter } from "react-router-dom";
 import { cleanup, fireEvent, render as renderBare, renderHook, waitFor } from "@testing-library/react";
 import { GameweekLogTable } from "./GameweekLogTable";
 import { GameweekSummary } from "./GameweekSummary";
-import { PriceChanges, priceMovers } from "./PriceChanges";
 import { resetEventLiveCache, useGameweekLog, type GameweekLog, type GameweekLogRow } from "../../state/useGameweekLog";
 import { makePlayer } from "../../test/fixtures";
+import { percentileTint } from "../../utils/colorScale";
 import type { ChipWindow, EventSummary, NormalizedEvent } from "../../types/normalized";
 import type { SavedSquad } from "../../types/team";
 
-// <gameweek_log>, <gameweek_summary>, <price_changes_week>
+// <gameweek_log>, <gameweek_summary>
 
 const fetchEventLiveMock = vi.fn();
 const fetchEntryPicksMock = vi.fn();
@@ -61,7 +61,7 @@ const row = (o: Partial<GameweekLogRow>): GameweekLogRow => ({
   transfers: 1,
   transferCost: 4,
   rank: 12345,
-  overallRank: 56789,
+  rankedCount: 1000000,
   chip: null,
   captain: null,
   ...o,
@@ -71,16 +71,25 @@ const playersById = new Map(players.map((p) => [p.id, p]));
 const live = (points: Record<number, number>) => ({ data: Object.entries(points).map(([id, p]) => ({ id: Number(id), stats: { total_points: p, minutes: 90 } })) });
 
 describe("GameweekLogTable", () => {
-  it("an import shows FPL's columns, newest first, with Totals and Average", () => {
+  it("an import shows FPL's columns for each gameweek, newest first, and nothing added up across them", () => {
     const log: GameweekLog = { status: "ready", source: "fpl", rows: [row({ event: 9, points: 40, transferCost: 0, chip: "bboost" }), row({ event: 8 })], error: null };
     const { container } = render(<GameweekLogTable log={log} playersById={playersById} onViewProfile={() => {}} />);
-    expect([...container.querySelectorAll("thead th")].map((h) => h.textContent)).toEqual(["GW", "Points", "Average", "Highest", "Bench", "Transfers", "Hits", "GW Rank", "Overall Rank", "Chip"]);
+    expect([...container.querySelectorAll("thead th")].map((h) => h.textContent)).toEqual(["GW", "Points", "Average", "Highest", "Bench", "GW Rank", "Transfers", "Hits", "Chip"]);
     const body = [...container.querySelectorAll("tbody tr")].map((r) => [...r.querySelectorAll("td")].map((c) => c.textContent));
-    expect(body[0]).toEqual(["9", "40", "52", "120", "6", "1", "0", "12,345", "56,789", "Bench Boost"]);
-    expect(body[1][6]).toBe("−4");
-    const foot = [...container.querySelectorAll("tfoot tr")].map((r) => [...r.querySelectorAll("td")].map((c) => c.textContent));
-    expect(foot[0]).toEqual(["Totals", "104", "104", "", "12", "2", "−4", "", "", ""]);
-    expect(foot[1]).toEqual(["Average", "52", "52", "", "6", "1", "", "", "", ""]);
+    expect(body[0]).toEqual(["9", "40", "52", "120", "6", "12,345", "1", "0", "Bench Boost"]);
+    expect(body[1][7]).toBe("−4");
+    expect(container.querySelector("tfoot")).toBeNull();
+  });
+
+  it("<gameweek_points_colour> tints points against the gameweek's average and highest, and the rank by its place among managers", () => {
+    const log: GameweekLog = { status: "ready", source: "fpl", rows: [row({ points: 120, average: 50, highest: 120, rank: 1 })], error: null };
+    const { container } = render(<GameweekLogTable log={log} playersById={playersById} onViewProfile={() => {}} />);
+    const cells = container.querySelectorAll<HTMLElement>("tbody td");
+    // The browser writes the colour its own way (spaces, trailing zeros): compare the numbers.
+    const plain = (c: string | null | undefined) => (c ?? "").replace(/ /g, "").replace(/(\.\d*?)0+\)/, "$1)");
+    expect(plain(cells[1].style.background)).toBe(plain(percentileTint(100)));
+    expect(plain(cells[5].style.background)).toBe(plain(percentileTint(100)));
+    expect(cells[2].style.background).toBe("");
   });
 
   it("a squad built here shows its captain instead, and no transfers or ranks", () => {
@@ -120,7 +129,7 @@ describe("useGameweekLog", () => {
     const squad = { id: "i", importedFrom: { teamId: 77 }, gameweekLog: [] } as unknown as SavedSquad;
     const { result } = renderHook(() => useGameweekLog(squad, [event(8)], players, 1));
     await waitFor(() => expect(result.current.status).toBe("ready"));
-    expect(result.current.rows).toEqual([expect.objectContaining({ event: 8, points: 64, chip: "wildcard", transferCost: 4, overallRank: 20 })]);
+    expect(result.current.rows).toEqual([expect.objectContaining({ event: 8, points: 64, chip: "wildcard", transferCost: 4, rank: 10, rankedCount: 1000 })]);
   });
 });
 
@@ -132,7 +141,7 @@ describe("GameweekSummary", () => {
     { chip: "3xc", half: 1, startEvent: 1, stopEvent: 19 },
   ];
 
-  it("sets the squad against the average, names the captaincy with what each returned, and says where the chips stand", async () => {
+  it("sets the gameweek against the average and highest, names the captaincy with what each returned, and says where the chips stand", async () => {
     fetchEventLiveMock.mockResolvedValue(live({ 1: 7, 2: 4, 3: 15 }));
     const rows = [row({ event: 8, points: 60, average: 50, captain: { id: 1, points: 14 } }), row({ event: 9, points: 64, average: 52, captain: { id: 1, points: 14 } })];
     const { container, getByText } = render(
@@ -149,8 +158,10 @@ describe("GameweekSummary", () => {
       />,
     );
     expect(getByText("Gameweek 9")).toBeTruthy();
-    expect([...container.querySelectorAll(".gw-points-diff")].map((d) => d.textContent)).toEqual(["+12 v average", "+22 v average"]);
-    expect(getByText("Since GW8")).toBeTruthy();
+    // One gameweek only: no total to date.
+    expect([...container.querySelectorAll(".gw-points-diff")].map((d) => d.textContent)).toEqual(["+12 v average"]);
+    expect([...container.querySelectorAll(".gw-bar-row")].map((r) => r.textContent)).toEqual(["This squad64", "Average52", "Highest120"]);
+    expect(container.textContent).not.toMatch(/to date|Since GW/);
     await waitFor(() => expect(container.querySelectorAll(".gw-lines-captaincy .gw-line:not(.gw-line-head)")[1].textContent).toContain("8"));
     const captaincy = [...container.querySelectorAll(".gw-lines-captaincy .gw-line:not(.gw-line-head)")].map((l) => l.textContent);
     expect(captaincy).toEqual(["Your captainSakaTMMID14", "Most captainedHaalandTMFWD8", "Top scorerPalmerTMMID30"]);
@@ -167,27 +178,5 @@ describe("GameweekSummary", () => {
     );
     fireEvent.click(getByRole("button", { name: "Previous gameweek" }));
     expect(getByText("Gameweek 8")).toBeTruthy();
-  });
-});
-
-describe("PriceChanges", () => {
-  const movers = [
-    makePlayer({ id: 1, position: "MID", name: "Up Small", price: 6, costChangeEvent: 0.1 }),
-    makePlayer({ id: 2, position: "FWD", name: "Up Dear", price: 9, costChangeEvent: 0.1 }),
-    makePlayer({ id: 3, position: "DEF", name: "Down", price: 5, costChangeEvent: -0.1 }),
-    makePlayer({ id: 4, position: "DEF", name: "Still", price: 5, costChangeEvent: 0 }),
-  ];
-
-  it("lists risers dearest first and fallers apart, filtered by position", () => {
-    expect(priceMovers(movers, "rise").map((p) => p.name)).toEqual(["Up Dear", "Up Small"]);
-    const { container, getByRole } = render(<PriceChanges open onClose={() => {}} players={movers} gameweek={9} onViewProfile={() => {}} />);
-    const names = () => [...container.querySelectorAll(".gw-player-name")].map((n) => n.textContent);
-    expect(names()).toEqual(["Up Dear", "Up Small"]);
-    expect(container.textContent).toContain("Since the GW9 deadline");
-    fireEvent.click(getByRole("radio", { name: "Prices down since the deadline" }));
-    expect(names()).toEqual(["Down"]);
-    expect(container.querySelector(".gw-lines-prices .gw-line:not(.gw-line-head)")!.textContent).toContain("−£0.1m");
-    fireEvent.click(getByRole("radio", { name: "Forwards" }));
-    expect(container.textContent).toContain("No falls yet.");
   });
 });

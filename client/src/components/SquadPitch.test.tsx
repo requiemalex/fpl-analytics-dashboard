@@ -122,8 +122,8 @@ describe("<kit_view> Highlight", () => {
     expect(figure()).toBe("—");
     fireEvent.click(getByRole("radio", { name: /^Price:/ }));
     expect(figure()).toBe("£7.5m");
-    // Each highlight shows only its own toggle: Price's replaces Source.
-    expect(queryByRole("radiogroup", { name: "Source" })).toBeNull();
+    // Price adds its own toggle; Source stays in Projected Points' box whatever the highlight.
+    expect(getByRole("radiogroup", { name: "Source" }).closest(".squad-summary-figure.is-split")).not.toBeNull();
     expect(getByRole("radiogroup", { name: "Price" })).toBeTruthy();
     fireEvent.click(getByRole("radio", { name: /^Expected minutes/ }));
     expect(queryByRole("radiogroup", { name: "Price" })).toBeNull();
@@ -131,7 +131,7 @@ describe("<kit_view> Highlight", () => {
     expect(figure()).toBeUndefined();
     expect([...container.querySelectorAll(".pitch-card .pitch-card-fixture")].map((c) => c.textContent)).toEqual(["BUR", "WOL"]);
     expect(getByRole("radiogroup", { name: "Fixtures" })).toBeTruthy();
-    expect(queryByRole("radiogroup", { name: "Source" })).toBeNull();
+    expect(queryByRole("radiogroup", { name: "Price" })).toBeNull();
   });
 
   it("<fixture_odds> Fixtures → Odds: a defender reads his club's clean-sheet chance, a forward its goals expected, each tinted by rank", () => {
@@ -171,16 +171,19 @@ describe("<kit_view> Highlight", () => {
 describe("the squad's actions", () => {
   it("an armed Captain button is green, with no instructions under the pitch controls", () => {
     const { container, getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })], [], vi.fn(), null, true, "captain");
-    expect(getByRole("button", { name: "Captain" }).className).toBe("btn active");
+    expect(getByRole("button", { name: "Captain" }).className).toBe("chip chip-icon active");
+    expect(getByRole("button", { name: "Captain" }).getAttribute("aria-pressed")).toBe("true");
     expect(container.textContent).not.toMatch(/Click a starting player/);
   });
 
-  it("Captain, Vice-Captain and Clear Draft are the app's standard buttons; Best Draft its primary one", () => {
+  it("are icons, as every other section's actions are, each saying what it does on hover", () => {
     const { getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
-    for (const name of ["Captain", "Vice-Captain", "Clear Draft"]) {
-      expect(getByRole("button", { name }).className).toBe("btn");
+    for (const name of ["Captain", "Vice-Captain", "Clear Draft", "Best Draft"]) {
+      const button = getByRole("button", { name });
+      expect(button.className).toBe("chip chip-icon");
+      expect(button.textContent).toBe(name === "Captain" ? "C" : name === "Vice-Captain" ? "V" : "");
+      expect(button.getAttribute("title")).toBeTruthy();
     }
-    expect(getByRole("button", { name: "Best Draft" }).className).toBe("btn primary");
   });
 });
 
@@ -220,9 +223,12 @@ describe("<squad_summary> the card above the pitch", () => {
     expect([...container.querySelectorAll(".squad-summary-figure .squad-summary-label")].map((l) => l.textContent)).toEqual(["Projected Points", "Captain", "Squad Value", "Bank"]);
   });
 
-  it("names the Source toggle beside it, but shows no Highlight or Gameweek label", () => {
+  it("puts the Source toggle, unlabelled, in Projected Points' box, and shows no Highlight or Gameweek label", () => {
     const { container, getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
-    expect([...container.querySelectorAll(".squad-summary .field-label")].map((l) => l.textContent)).toEqual(["Source"]);
+    expect([...container.querySelectorAll(".squad-summary .field-label")].map((l) => l.textContent)).toEqual([]);
+    const box = container.querySelector(".squad-summary-figure.is-split")!;
+    expect(box.querySelector(".squad-summary-label")!.textContent).toBe("Projected Points");
+    expect(box.contains(getByRole("radiogroup", { name: "Source" }))).toBe(true);
     // Still named for screen readers.
     expect(getByRole("radiogroup", { name: "Highlight" })).toBeTruthy();
     expect(getByRole("group", { name: "Gameweek" })).toBeTruthy();
@@ -232,9 +238,9 @@ describe("<squad_summary> the card above the pitch", () => {
     const { container } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
     const row = container.querySelector(".squad-summary-controls")!;
     expect(row.querySelectorAll(".squad-summary-row")).toHaveLength(0);
-    expect([...row.children].map((c) => c.className)).toEqual(["field", "field field-inline", "squad-summary-end"]);
+    expect([...row.children].map((c) => c.className)).toEqual(["field", "squad-summary-end"]);
     const end = row.querySelector(".squad-summary-end")!;
-    expect([...end.children].map((c) => c.className)).toEqual(["pitch-view-actions", "field"]);
+    expect([...end.children].map((c) => c.className)).toEqual(["icon-toolbar pitch-view-actions", "field"]);
     expect(end.lastElementChild!.querySelector(".gameweek-arrows")).not.toBeNull();
   });
 });
@@ -403,9 +409,9 @@ describe("<best_draft> Best Draft", () => {
     // The bench goalkeeper (2) and third forward (15) are better than their starters.
     const { xi, bench, expectations } = fullSquad([2, 5, 3, 3, 3, 3, 1, 4, 4, 4, 4, 1, 6, 2, 7]);
     const { container, getByRole } = renderPitch(xi, bench, vi.fn(), null, true, null, [9], { expectations, onBestDraft });
-    expect([...container.querySelectorAll(".pitch-view-actions button")].map((b) => b.textContent)).toEqual(["Captain", "Vice-Captain", "Clear Draft", "Best Draft"]);
+    expect([...container.querySelectorAll(".pitch-view-actions button")].map((b) => b.getAttribute("aria-label"))).toEqual(["Captain", "Vice-Captain", "Clear Draft", "Best Draft"]);
     const button = getByRole("button", { name: "Best Draft" });
-    expect(button.getAttribute("title")).toBe("Pick the starting XI, captain and vice-captain with the most Exp. Pts (FPL Official) in GW9, in a formation FPL allows");
+    expect(button.getAttribute("title")).toBe("Best Draft: pick the starting XI, captain and vice-captain with the most Exp. Pts (FPL Official) in GW9, in a formation FPL allows");
     fireEvent.click(button);
     const picks = onBestDraft.mock.calls[0][0] as { startingXI: number[]; captainId: number; viceCaptainId: number };
     expect([...picks.startingXI].sort((a, b) => a - b)).toEqual([2, 3, 4, 5, 6, 8, 9, 10, 11, 13, 15]);
@@ -453,7 +459,7 @@ describe("<projected_points> projectedPoints", () => {
   it("leads the squad's figures, the captain's doubled figure beside it, following the Source toggle", () => {
     const { container, getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })], [], vi.fn(), 1);
     const figures = () =>
-      [...container.querySelectorAll(".squad-summary-figure")]
+      [...container.querySelectorAll(".squad-summary-figures > .squad-summary-figure")]
         .slice(0, 2)
         .map((t) => `${t.querySelector(".squad-summary-label")!.textContent}: ${t.querySelector(".squad-summary-value")!.textContent}`);
     expect(figures()).toEqual(["Projected Points: 8.4", "Captain · Player 1: 8.4"]);

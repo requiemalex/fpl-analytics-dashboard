@@ -1,45 +1,71 @@
 import React, { useEffect, useRef, useState } from "react";
-import { CHIP_NAME, chipStandings, pointsToDate } from "../../metrics/gameweekSummary";
+import { CHIP_NAME, chipStandings, pointsAgainstGameweek, rankPercentile } from "../../metrics/gameweekSummary";
 import { loadEventLive, loadImportCaptain, type GameweekLogRow } from "../../state/useGameweekLog";
 import { useDialogFocus } from "../../state/useDialogFocus";
 import { useEscapeLayer } from "../../state/useEscapeLayer";
 import type { ChipWindow, NormalizedEvent, NormalizedPlayer } from "../../types/normalized";
+import { percentileColour } from "../../utils/colorScale";
 import { DASH, fmtNumber, fmtPercent, fmtSigned } from "../../utils/format";
+import { percentileHint, statHover } from "../hoverText";
 import { CloseIcon } from "../IconToolbar";
 import { GameweekArrows } from "../MenuControls";
 import { PlayerLine } from "./PlayerLine";
 
 /**
  * <gameweek_summary>: one gameweek of the active squad's Gameweek Log
- * (<gameweek_log>) beside every FPL manager: its points against the
- * average that gameweek and to date; the captaincy (the squad's captain,
+ * (<gameweek_log>) beside every FPL manager who played that gameweek,
+ * never added up across gameweeks (the owner's call, 2026-11-02): its
+ * points against the average and highest, coloured by them
+ * (<gameweek_points_colour>), and an import's rank; the captaincy (the squad's captain,
  * FPL's most-captained player and the gameweek's top scorer, each with
  * what he returned as captain); and where each chip stands. ‹ › steps
  * through the log's gameweeks.
  */
 
-/** One figure against the average as a pair of bars on a shared scale. */
-function PointsPair({ label, labelTitle, yours, average, averageTitle }: { label: string; labelTitle: string; yours: number; average: number | null; averageTitle: string }) {
-  const max = Math.max(yours, average ?? 0, 1);
-  const diff = average === null ? null : yours - average;
+/** One bar on the gameweek's scale (its highest score). */
+function Bar({ label, value, max, fill, title, colour }: { label: string; value: number | null; max: number; fill: string; title: string; colour?: string }) {
+  return (
+    <div className="gw-bar-row" title={title}>
+      <span className="gw-bar-label">{label}</span>
+      <span className="gw-bar-track">{value !== null && <span className={`gw-bar-fill ${fill}`} style={{ width: `${Math.max(0, Math.min(1, value / max)) * 100}%` }} />}</span>
+      <span className="num gw-bar-value" style={colour ? { color: colour } : undefined}>
+        {fmtNumber(value)}
+      </span>
+    </div>
+  );
+}
+
+/** The squad's gameweek against every manager who played it: its points beside the average and highest, and an import's rank. */
+function GameweekPoints({ row }: { row: GameweekLogRow }) {
+  const max = Math.max(row.highest ?? 0, row.points, row.average ?? 0, 1);
+  const diff = row.average === null ? null : row.points - row.average;
+  const score = pointsAgainstGameweek(row.points, row.average, row.highest);
+  const rankScore = rankPercentile(row.rank, row.rankedCount);
   return (
     <div className="gw-points">
       <div className="gw-points-head">
-        <span title={labelTitle}>{label}</span>
+        <span title="Points before any transfer cost">This gameweek</span>
         {diff !== null && <span className="num gw-points-diff">{fmtSigned(diff, 0)} v average</span>}
       </div>
-      <div className="gw-bar-row" title={`${label}: ${fmtNumber(yours)} points`}>
-        <span className="gw-bar-label">This squad</span>
-        <span className="gw-bar-track">
-          <span className="gw-bar-fill is-squad" style={{ width: `${(yours / max) * 100}%` }} />
-        </span>
-        <span className="num gw-bar-value">{fmtNumber(yours)}</span>
-      </div>
-      <div className="gw-bar-row" title={averageTitle}>
-        <span className="gw-bar-label">Average</span>
-        <span className="gw-bar-track">{average !== null && <span className="gw-bar-fill is-average" style={{ width: `${(average / max) * 100}%` }} />}</span>
-        <span className="num gw-bar-value">{fmtNumber(average)}</span>
-      </div>
+      <Bar
+        label="This squad"
+        value={row.points}
+        max={max}
+        fill="is-squad"
+        colour={percentileColour(score)}
+        title={`${fmtNumber(row.points)} points: greener the nearer the gameweek's highest, redder the nearer 0, grey at the average`}
+      />
+      <Bar label="Average" value={row.average} max={max} fill="is-average" title="Every FPL manager's average that gameweek" />
+      <Bar label="Highest" value={row.highest} max={max} fill="is-average" title="The highest score of any FPL manager that gameweek" />
+      {row.rank !== null && (
+        <div className="gw-points-rank" title={statHover(`Rank ${fmtNumber(row.rank)} of the ${fmtNumber(row.rankedCount)} managers ranked that gameweek.`, percentileHint(rankScore, "FPL managers that gameweek"))}>
+          <span className="gw-bar-label">GW rank</span>
+          <span className="num" style={{ color: percentileColour(rankScore) }}>
+            {fmtNumber(row.rank)}
+          </span>
+          <span className="gw-bar-label">of {fmtNumber(row.rankedCount)}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -102,8 +128,6 @@ export function GameweekSummary({
 
   if (!open) return null;
   const summary = event?.summary;
-  const toDate = gw === null ? null : pointsToDate(rows, gw);
-  const firstEvent = gameweeks[0] ?? null;
   const captain = importTeamId !== null ? importCaptain : (row?.captain ?? null);
   const returned = (id: number | null | undefined) => (id == null || !live ? null : (live.get(id)?.points ?? 0) * 2);
   const captaincy: { role: string; title: string; id: number | null | undefined; points: number | null }[] = [
@@ -138,26 +162,13 @@ export function GameweekSummary({
           </button>
         </div>
 
-        {row === null || toDate === null ? (
+        {row === null ? (
           <p className="page-subtitle">No gameweek played yet.</p>
         ) : (
           <>
             <section className="gw-section">
               <h3 className="card-title">Points</h3>
-              <PointsPair
-                label="This gameweek"
-                labelTitle="Points before any transfer cost"
-                yours={row.points}
-                average={row.average}
-                averageTitle={`Every FPL manager's average: ${fmtNumber(row.average)}. Highest: ${fmtNumber(row.highest)}`}
-              />
-              <PointsPair
-                label={toDate.from === firstEvent && importTeamId !== null ? "Season to date" : `Since GW${toDate.from}`}
-                labelTitle={`This squad's ${toDate.count} gameweek${toDate.count === 1 ? "" : "s"} in the log up to GW${gw}, before transfer costs`}
-                yours={toDate.yours}
-                average={toDate.average}
-                averageTitle={`Every FPL manager's average over the same ${toDate.count} gameweek${toDate.count === 1 ? "" : "s"}, added up`}
-              />
+              <GameweekPoints row={row} />
             </section>
 
             <section className="gw-section gw-lines-captaincy">

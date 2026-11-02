@@ -12,7 +12,8 @@ import type { SavedSquad } from "../types/team";
  * started); a squad built in Scoutline's is scored from its records at
  * each deadline (state/gameweekRecords.ts, scoreRecord) against FPL's
  * gameweek data, so it has no transfers or ranks. Each row also carries
- * every manager's average and highest score that gameweek.
+ * every manager's average and highest score that gameweek. Every figure
+ * is one gameweek's, never a running total (the owner's call, 2026-11-02).
  */
 export interface GameweekLogRow {
   event: number;
@@ -23,11 +24,12 @@ export interface GameweekLogRow {
   benchPoints: number | null;
   average: number | null;
   highest: number | null;
+  /** Managers ranked that gameweek, which its rank is among. */
+  rankedCount: number | null;
   /** Import only, from FPL; null for a squad built here. */
   transfers: number | null;
   transferCost: number | null;
   rank: number | null;
-  overallRank: number | null;
   chip: ChipWindow["chip"] | null;
   /** A squad built here: who scored double and what he returned. An import's is loaded with the Gameweek Summary (loadImportCaptain). */
   captain: { id: number; points: number } | null;
@@ -107,7 +109,7 @@ export function useGameweekLog(squad: SavedSquad | null, events: NormalizedEvent
     };
     const common = (id: number) => {
       const e = eventById.get(id);
-      return { finished: e?.finished ?? false, average: e?.summary?.averageScore ?? null, highest: e?.summary?.highestScore ?? null };
+      return { finished: e?.finished ?? false, average: e?.summary?.averageScore ?? null, highest: e?.summary?.highestScore ?? null, rankedCount: e?.summary?.rankedCount ?? null };
     };
 
     const build: Promise<GameweekLog> =
@@ -125,7 +127,6 @@ export function useGameweekLog(squad: SavedSquad | null, events: NormalizedEvent
                   transfers: gw.event_transfers ?? null,
                   transferCost: gw.event_transfers_cost ?? null,
                   rank: gw.rank ?? null,
-                  overallRank: gw.overall_rank ?? null,
                   chip: chipByEvent.get(gw.event) ?? null,
                   captain: null,
                 }),
@@ -148,7 +149,6 @@ export function useGameweekLog(squad: SavedSquad | null, events: NormalizedEvent
                   transfers: null,
                   transferCost: null,
                   rank: null,
-                  overallRank: null,
                   chip: null,
                   captain: score.captainId === null || score.captainPoints === null ? null : { id: score.captainId, points: score.captainPoints },
                 };

@@ -3,7 +3,7 @@ import type { NormalizedPlayer } from "../../types/normalized";
 import { availabilityTextClass, PositionBadge, pressable, TeamBadge } from "../primitives";
 
 /**
- * A player in the Gameweek Log, Gameweek Summary and Price Changes: his
+ * A player in the Gameweek Log and Gameweek Summary: his
  * name (opening his profile, as everywhere), then his club pill and
  * position, as the player tables' name cell shows them. `fallbackId` names
  * a player FPL no longer lists.

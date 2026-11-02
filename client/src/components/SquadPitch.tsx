@@ -5,7 +5,7 @@ import { sellingPrice } from "../metrics/squadPrices";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass, pressable } from "./primitives";
 import { PitchMarkings } from "./PitchMarkings";
 import { Kit } from "./Kit";
-import { CloseIcon, PlusIcon } from "./IconToolbar";
+import { ArmbandIcon, BestDraftIcon, ClearDraftIcon, CloseIcon, IconChipButton, PlusIcon } from "./IconToolbar";
 import { GameweekArrows, SegmentedControl, type SegmentOption } from "./MenuControls";
 import { fmtDate, fmtPrice, fmtPercent, fmtDecimal, DASH } from "../utils/format";
 import { fdrColor, type UpcomingFixture } from "../metrics/fixtureTicker";
@@ -220,13 +220,17 @@ function SummaryFigure({ label, value, title, colour, negative }: { label: strin
 
 /**
  * The summary's top row (<squad_summary>): Projected Points and the
- * captain's share of it, then Squad Value and Bank.
+ * captain's share of it, then Squad Value and Bank. The Exp. Pts source
+ * toggle sits in Projected Points' own box, beside the figure: Points
+ * Prediction, Projected Points, the captain's figure and Best Draft all
+ * follow it, whatever the kits highlight (the owner's call, 2026-11-02).
  */
 function SummaryFigures({
   starters,
   captainId,
   expectationByPlayerId,
   source,
+  onSourceChange,
   gameweek,
   bestPicks,
   validation,
@@ -237,6 +241,7 @@ function SummaryFigures({
   captainId: number | null;
   expectationByPlayerId: Map<number, GameweekExpectation | null>;
   source: PointsSource;
+  onSourceChange: (source: PointsSource) => void;
   gameweek: number | null;
   /** Best Draft's starters and captain for the same gameweek and source; null when it can't run. */
   bestPicks: { starters: NormalizedPlayer[]; captainId: number | null } | null;
@@ -266,7 +271,10 @@ function SummaryFigures({
   }`;
   return (
     <div className="squad-summary-figures">
-      <SummaryFigure label="Projected Points" value={p.total !== null ? fmtDecimal(p.total, 1) : DASH} title={projectedHint} colour={percentileColour(score)} />
+      <div className="squad-summary-figure is-split">
+        <SummaryFigure label="Projected Points" value={p.total !== null ? fmtDecimal(p.total, 1) : DASH} title={projectedHint} colour={percentileColour(score)} />
+        <SegmentedControl label="Source" hideLabel options={SOURCE_OPTIONS} value={source} onChange={onSourceChange} />
+      </div>
       <SummaryFigure
         label={p.captain ? `Captain · ${p.captain.name}` : "Captain"}
         value={p.captain ? fmtDecimal(p.captain.points, 1) : DASH}
@@ -691,6 +699,7 @@ export function SquadPitch({
           captainId={captainId}
           expectationByPlayerId={expectationByPlayerId}
           source={pointsSource}
+          onSourceChange={setPointsSource}
           gameweek={gameweek}
           bestPicks={bestPicks}
           validation={squadValidation}
@@ -699,42 +708,37 @@ export function SquadPitch({
         />
         <div className="squad-summary-controls">
           <SegmentedControl label="Highlight" hideLabel options={KIT_VIEW_OPTIONS} value={view} onChange={setView} />
-          {/* Each highlight's own toggle, beside it only (<kit_view>). Projected Points and Best Draft keep the Source last picked. */}
+          {/* Each highlight's own toggle, beside it only (<kit_view>); Points Prediction's source is in Projected Points' box. */}
           {view === "fixtures" && <SegmentedControl label="Fixtures" inlineLabel options={FIXTURES_VIEW_OPTIONS} value={fixturesView} onChange={setFixturesView} />}
           {view === "price" && <SegmentedControl label="Price" inlineLabel options={PRICE_VIEW_OPTIONS} value={priceView} onChange={setPriceView} />}
-          {view === "points" && <SegmentedControl label="Source" inlineLabel options={SOURCE_OPTIONS} value={pointsSource} onChange={setPointsSource} />}
           <div className="squad-summary-end">
-            <div className="pitch-view-actions">
-              <button
-                type="button"
-                className={`btn${captainPickMode === "captain" ? " active" : ""}`}
-                aria-pressed={captainPickMode === "captain"}
+            {/* The squad's actions as icons, as every other section's are (the owner's call, 2026-11-02). */}
+            <div className="icon-toolbar pitch-view-actions">
+              <IconChipButton
+                icon={<ArmbandIcon letter="C" />}
+                label="Captain"
+                title="Captain: click, then click a starting player to give him the armband"
+                pressed={captainPickMode === "captain"}
                 onClick={() => onCaptainTileClick("captain")}
-                title="Click, then click a starting player to make them captain"
-              >
-                Captain
-              </button>
-              <button
-                type="button"
-                className={`btn${captainPickMode === "viceCaptain" ? " active" : ""}`}
-                aria-pressed={captainPickMode === "viceCaptain"}
+              />
+              <IconChipButton
+                icon={<ArmbandIcon letter="V" />}
+                label="Vice-Captain"
+                title="Vice-Captain: click, then click a starting player to make him vice-captain"
+                pressed={captainPickMode === "viceCaptain"}
                 onClick={() => onCaptainTileClick("viceCaptain")}
-                title="Click, then click a starting player to make them vice-captain"
-              >
-                Vice-Captain
-              </button>
-              <button type="button" className="btn" onClick={onClearSquad} title={`Remove every player from ${squadName || "this squad"}`}>
-                Clear Draft
-              </button>
-              <button
-                type="button"
-                className="btn primary"
+              />
+              <IconChipButton icon={<ClearDraftIcon />} label="Clear Draft" title={`Clear Draft: remove every player from ${squadName || "this squad"}`} onClick={onClearSquad} />
+              <IconChipButton
+                icon={<BestDraftIcon />}
+                label="Best Draft"
+                title={
+                  draftBlocker ??
+                  `Best Draft: pick the starting XI, captain and vice-captain with the most Exp. Pts (${SOURCE_NAME[pointsSource]}) in GW${gameweek}, in a formation FPL allows`
+                }
                 onClick={handleBestDraft}
                 disabled={draftBlocker !== null}
-                title={draftBlocker ?? `Pick the starting XI, captain and vice-captain with the most Exp. Pts (${SOURCE_NAME[pointsSource]}) in GW${gameweek}, in a formation FPL allows`}
-              >
-                Best Draft
-              </button>
+              />
             </div>
             <GameweekArrows
               gameweeks={gameweeks}

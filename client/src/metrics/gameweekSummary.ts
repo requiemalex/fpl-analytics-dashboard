@@ -4,7 +4,10 @@ import type { ChipWindow, NormalizedEvent } from "../types/normalized";
  * <gameweek_summary>: Team Building's Gameweek Summary, from what FPL
  * publishes about each gameweek across every manager (its average and
  * highest score, its most-captained player and top scorer, how many played
- * each chip) beside the squad's own Gameweek Log (<gameweek_log>).
+ * each chip) beside the squad's own Gameweek Log (<gameweek_log>). One
+ * gameweek at a time, never added up across them: squads start in
+ * different gameweeks, so a total to date compares unlike things (the
+ * owner's call, 2026-11-02).
  */
 
 export const CHIP_ORDER: ChipWindow["chip"][] = ["wildcard", "freehit", "bboost", "3xc"];
@@ -51,14 +54,21 @@ export function chipStandings(event: number, events: readonly NormalizedEvent[],
   });
 }
 
-/** The squad's points over its log up to and including `event`, beside every manager's average over the same gameweeks (null if any is missing). */
-export function pointsToDate(rows: readonly { event: number; points: number; average: number | null }[], event: number): { yours: number; average: number | null; from: number | null; count: number } {
-  const upTo = rows.filter((r) => r.event <= event);
-  const average = upTo.every((r) => r.average !== null) ? upTo.reduce((s, r) => s + (r.average as number), 0) : null;
-  return {
-    yours: upTo.reduce((s, r) => s + r.points, 0),
-    average: upTo.length > 0 ? average : null,
-    from: upTo.length > 0 ? Math.min(...upTo.map((r) => r.event)) : null,
-    count: upTo.length,
-  };
+/**
+ * <gameweek_points_colour>: a squad's gameweek points against every FPL
+ * manager that gameweek, as a 0–100 score for the shared colour scale
+ * (the owner's call, 2026-11-02: the comparison is other managers). Grey
+ * at the gameweek's average; toward full green at its highest score and
+ * toward full red at 0. Null when FPL hasn't sent the average and highest.
+ */
+export function pointsAgainstGameweek(points: number, average: number | null, highest: number | null): number | null {
+  if (average === null || highest === null || average <= 0) return null;
+  if (points >= average) return highest > average ? Math.min(100, 50 + (50 * (points - average)) / (highest - average)) : 50;
+  return Math.max(0, (50 * points) / average);
+}
+
+/** A gameweek rank as a percentile among the managers ranked that gameweek: the top rank near 100, the last near 0. */
+export function rankPercentile(rank: number | null, rankedCount: number | null): number | null {
+  if (rank === null || rankedCount === null || rankedCount <= 0 || rank < 1) return null;
+  return Math.max(0, Math.min(100, 100 * (1 - (rank - 1) / rankedCount)));
 }

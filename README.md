@@ -1334,13 +1334,17 @@ goals expected each way (`<points_model>`).
   - Player Comparison's per-player colours and the Dashboard's charts use
     neither green nor red, so nothing reads as better or worse by its
     series colour.
-  - **Two exceptions, the owner's calls:** FPL's price
+  - **Three exceptions, the owner's calls:** FPL's price
     Progress and Predicted Progress on Team Building's pitch
     (`<price_progress>`, 2026-10-26) are coloured by the figure itself, as FPL's own
     Price Changes page does: grey at 0 to full green at +100% (a rise) and
     full red at −100% (a drop); and Team Building's Projected Points
     (`<projected_points_colour>`, 2026-10-30) is coloured by how close it
-    is to Best Draft's total. They still go through `percentileTint` /
+    is to Best Draft's total; and a squad's gameweek points in the
+    Gameweek Log and Summary (`<gameweek_points_colour>`, 2026-11-02) are
+    coloured against every FPL manager that gameweek: grey at the average,
+    toward full green at the highest score, toward full red at 0. They
+    still go through `percentileTint` /
     `percentileColour` (the figure placed on its 0–100 scale), so the
     switch below turns them off with the rest.
   - **One switch turns it all off** (`<comparative_colour_switch>`,
@@ -2058,12 +2062,10 @@ starting XI short of 11 or a line under its minimum.
   Team Profile ranks a fixture, with the opponent in its hover.
   **Points Prediction** is the player's Exp. Pts for the gameweek the
   pitch's arrows pick (a double's two matches added up, "—" for a blank),
-  from the source its FPL/Model toggle picks. **Minutes** is his Exp.
-  Mins for that gameweek (below). **Price** has its own toggle
-  (`<price_view>`, below). Each toggle shows only beside its own
-  highlight (the owner's call, 2026-11-02), so Projected Points and Best
-  Draft keep the Source last picked while another highlight is on. The
-  switches are per page, like every view switch. The squad's name (no formation or player count) is the section
+  from the source the FPL/Model toggle in Projected Points' box picks.
+  **Minutes** is his Exp. Mins for that gameweek (below). **Price** has
+  its own toggle (`<price_view>`, below). Fixtures' and Price's toggles
+  show only beside their own highlight. The switches are per page, like every view switch. The squad's name (no formation or player count) is the section
   heading, the shared `SectionHeading` with a shirt icon, as the
   Dashboard's and Player Comparison's sections have ("Squad" with none
   loaded); the squad picker (above) sits under it.
@@ -2076,12 +2078,18 @@ starting XI short of 11 or a line under its minimum.
   against the budget can be less — an import's players still held count
   at their selling prices, FPL keeping half of each rise — and its hover
   gives that figure where it differs) and **Bank** (the budget left, as
-  FPL's is). Under a rule, one row: what the kits highlight (no label
-  shown) and **Source** (its label to the left); then, pushed to the far
-  end, the Captain, Vice-Captain and Clear Draft buttons (the app's
-  standard `.btn`, green while armed), **Best Draft** (the primary
-  `.btn.primary`) and the gameweek arrows (no label shown) last (owner's
-  call 2026-10-30: two rows wasted height). On a narrow window that far
+  FPL's is). **The Exp. Pts source** (FPL / Model, no label) sits in
+  Projected Points' own box, to the right of the figure, as the one
+  switch that Points Prediction, Projected Points, the captain's figure
+  and Best Draft all follow (the owner's call, 2026-11-02: a toggle shown
+  only with one highlight hid what so much depends on). Under a rule, one
+  row: what the kits highlight (no label shown) and its own toggle, if it
+  has one; then, pushed to the far end, the squad's actions as icons in
+  one `.icon-toolbar`, as every other section's are (the owner's call,
+  2026-11-02): Captain and Vice-Captain (armbands, green while armed),
+  Clear Draft (an eraser) and Best Draft (a spark), each named in its
+  hover; and the gameweek arrows (no label shown) last (owner's call
+  2026-10-30: two rows wasted height). On a narrow window that far
   end wraps under the toggles, still to the right; the gaps are fixed. A club-limit breach is a banner at the top
   of the pitch's card. The bench is a row of slots, goalkeeper
   first, each labelled with its position (no bench order: the app has
@@ -2096,8 +2104,8 @@ starting XI short of 11 or a line under its minimum.
   (`<points_horizon>`), and Exp. Mins and Next 5 Fixtures don't move.
 - **Projected Points** (`<projected_points>`, `projectedPoints` in
   `components/SquadPitch.tsx`) — the summary card's first figure: the
-  starting XI's Exp. Pts for the pitch's gameweek from the Source toggle's
-  figure, the captain's counted twice as FPL scores him. A starter with no
+  starting XI's Exp. Pts for the pitch's gameweek from the source toggle
+  beside it, the captain's counted twice as FPL scores him. A starter with no
   match that gameweek adds 0; one with a match but no figure leaves "—"
   (never a part-count, `<partial_totals>`), and the hover names him.
   **Coloured against Best Draft** (`<projected_points_colour>`,
@@ -2177,21 +2185,31 @@ starting XI short of 11 or a line under its minimum.
 - **Gameweek Log** (`<gameweek_log>`, `state/useGameweekLog.ts`,
   `components/teamBuilding/GameweekLogTable.tsx`) — under the pitch, once
   the active squad has a gameweek to show: one row per gameweek whose
-  deadline has passed, newest first, with Totals and Average as every Match
-  Log has. Each row has the squad's points (before any transfer cost), every
-  FPL manager's average and highest that gameweek (bootstrap's
-  `average_entry_score`/`highest_score`) and the points left on the bench.
-  **An import** reads FPL's own history for the team (`entry/{id}/history/`:
-  every gameweek since it started, not only since the import) and adds its
-  transfers, hits, gameweek and overall rank and chip. **A squad built in
-  Scoutline** is scored from what it was at each deadline
-  (`SavedSquad.gameweekLog`, saved-squads store version 5;
-  `state/gameweekRecords.ts`): a squad's state at a deadline is its state as
-  last changed before it, so it's recorded exactly when the app loads (a
-  squad unchanged since a deadline) and just before a change (the squad
-  being changed, for every deadline since its last change); a deadline
-  before it was made can't be known and isn't recorded. Each record is
-  scored against FPL's `event/{gw}/live/` (`scoreRecord`,
+  deadline has passed, newest first. **Each gameweek on its own, against
+  every FPL manager who played it; nothing added up across gameweeks**
+  (no totals, averages to date or overall rank: the owner's call,
+  2026-11-02, as squads start in different gameweeks, so a figure to date
+  compares unlike things). Each row has the squad's points (before any
+  transfer cost), every FPL manager's average and highest that gameweek
+  (bootstrap's `average_entry_score`/`highest_score`) and the points left
+  on the bench. **Points are coloured against the gameweek**
+  (`<gameweek_points_colour>`, `pointsAgainstGameweek` in
+  `metrics/gameweekSummary.ts`, the owner's call 2026-11-02: the
+  comparison is other managers): grey at the average, toward full green
+  at the gameweek's highest score and toward full red at 0, through
+  `percentileTint`/`percentileColour` so the palette switch turns it off.
+  **An import** reads FPL's own history for the team
+  (`entry/{id}/history/`) and adds its gameweek rank, coloured by its
+  place among the managers ranked that gameweek (`rankPercentile`,
+  `ranked_count`), its transfers, hits and chip. **A squad built in
+  Scoutline** is frozen as it stood at each deadline: the squad that
+  played that gameweek (`SavedSquad.gameweekLog`, saved-squads store
+  version 5; `state/gameweekRecords.ts`). A squad's state at a deadline is
+  its state as last changed before it, so it's recorded exactly when the
+  app loads (a squad unchanged since a deadline) and just before a change
+  (the squad being changed, for every deadline since its last change); a
+  deadline before it was made can't be known and isn't recorded. Each
+  record is scored against FPL's `event/{gw}/live/` (`scoreRecord`,
   `metrics/gameweekScore.ts`) as FPL scores a team: once the gameweek is
   finished, each starter who didn't play is replaced by the first benched
   player who did and keeps the XI legal (a goalkeeper only by the
@@ -2199,33 +2217,26 @@ starting XI short of 11 or a line under its minimum.
   bench has no order of its own), and the vice-captain doubles if the
   captain didn't play; until then, the XI as picked, the row marked live.
   Its Captain column says who doubled. No chips (Scoutline can't play
-  them), so it has no transfers, ranks or chip. Checked against real teams
-  (2026-11-02): every gameweek without a chip scored exactly FPL's points.
-  No colour: a manager's points have no pool to rank in. A new season
-  clears the records (`seasonIdRollover`).
+  them), and no rank (FPL ranks only its own teams). Checked against real
+  teams (2026-11-02): every gameweek without a chip scored exactly FPL's
+  points. A new season clears the records (`seasonIdRollover`).
 - **Gameweek Summary** (`<gameweek_summary>`,
   `components/teamBuilding/GameweekSummary.tsx`, `metrics/gameweekSummary.ts`)
-  — a panel from the page header's button, on the log's latest gameweek,
-  its arrows stepping through the rest: **Points** (the gameweek's and the
-  total to date, each as a bar beside every manager's average on one
-  scale, in series colours; "Season to date" for an import's full history,
-  "Since GW n" for a squad built here), **Captaincy** (the squad's captain,
-  from its record or for an import its FPL picks, whoever FPL counted more
-  than once; FPL's most-captained player, `most_captained`; and the
-  gameweek's top scorer, `top_element_info`; each with what he returned as
-  captain) and **Chips** (each chip's plays that gameweek, `chip_plays`, as
-  a share of the managers ranked, `ranked_count`, and the share still to
-  play it this half of the season: 1 − every play since its window opened
-  ÷ those managers, each manager holding one per window; the squad's own
-  chip tagged). FPL publishes only the single most-captained player, not a
+  — a panel from the Gameweek Log's icon, on the log's latest gameweek,
+  its arrows stepping through the rest; one gameweek at a time, as the log
+  is: **Points** (the squad's beside every manager's average and highest
+  as bars on that gameweek's scale, the squad's figure coloured as in the
+  log; an import's gameweek rank of the managers ranked), **Captaincy**
+  (the squad's captain, from its record or for an import its FPL picks,
+  whoever FPL counted more than once; FPL's most-captained player,
+  `most_captained`; and the gameweek's top scorer, `top_element_info`;
+  each with what he returned as captain) and **Chips** (where the whole
+  game stood that gameweek: each chip's plays, `chip_plays`, as a share of
+  the managers ranked, `ranked_count`, and the share yet to play it this
+  half of the season: 1 − every play since its window opened ÷ those
+  managers, each manager holding one per window; the squad's own chip
+  tagged). FPL publishes only the single most-captained player, not a
   captaincy table, so there's no top five.
-- **Price Changes** (`<price_changes_week>`,
-  `components/teamBuilding/PriceChanges.tsx`) — a panel from the page
-  header's button: every player whose price has risen or fallen since the
-  current gameweek's deadline (FPL's `cost_change_event`), risers and
-  fallers apart and by position, biggest change first, then dearest. FPL
-  keeps no dated record of price changes, so it shows this gameweek only
-  and not the day of each.
 - **Open places** (`<open_slots>`, `openSquadSlots` in
   `metrics/squadRules.ts`) — every place the squad is still short of
   (2 GKP, 5 DEF, 5 MID, 3 FWD) is a "+": the XI's open places take them

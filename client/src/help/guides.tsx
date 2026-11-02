@@ -10,6 +10,8 @@ import {
   NotepadIcon,
   PlusIcon,
   ResetIcon,
+  ArmbandIcon,
+  BestDraftIcon,
   SavedViewsIcon,
   TrashIcon,
   TrendLineIcon,
@@ -831,7 +833,7 @@ const FIRST_GUIDES: HelpGuide[] = [
     id: "expected-points",
     topic: TOPIC.building,
     title: "Expected Points: FPL or Model",
-    answer: "Two separate predictions, never blended. The Source toggle picks which one the pitch uses.",
+    answer: "Two separate predictions, never blended. FPL / Model, beside Projected Points, picks which one the pitch uses.",
     pages: ["team-building"],
     keywords: [
       "projection", "projections", "expected score", "xp model",
@@ -849,7 +851,7 @@ const FIRST_GUIDES: HelpGuide[] = [
         />
         <Points
           items={[
-            "Source shows beside Points Prediction; Projected Points and Best Draft use the one last picked.",
+            "Points Prediction, Projected Points, the captain's figure and Best Draft all follow it.",
             "Hover either figure for how it adds up.",
             "A double gameweek adds both matches; a blank one shows \"—\".",
           ]}
@@ -891,7 +893,15 @@ const FIRST_GUIDES: HelpGuide[] = [
     related: ["expected-points", "build-squad"],
     body: (
       <>
-        <Steps items={["Choose FPL or Model with Source.", "Pick the gameweek with ‹ ›.", "Click Best Draft — or Captain, then a starter, to choose yourself."]} />
+        <Steps
+          items={[
+            "Choose FPL or Model beside Projected Points.",
+            "Pick the gameweek with ‹ ›.",
+            <>
+              <BestDraftIcon /> Best Draft, or <ArmbandIcon letter="C" /> then a starter to choose yourself.
+            </>,
+          ]}
+        />
         <Note>Only formations FPL allows. It saves one XI for the squad, not one per gameweek.</Note>
       </>
     ),

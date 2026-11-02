@@ -1099,6 +1099,16 @@ select:focus {
 .squad-summary-figure + .squad-summary-figure {
   border-left: 1px solid var(--border);
 }
+/* Projected Points with the Exp. Pts source toggle beside it, in one box: the figure left, the toggle right. */
+.squad-summary-figure.is-split {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.squad-summary-figure.is-split > .squad-summary-figure {
+  padding: 0;
+}
 .squad-summary-label {
   font-size: 12.5px;
   color: var(--text-secondary);
@@ -2133,6 +2143,11 @@ select:focus {
 .icon-toolbar .chip:hover {
   background: var(--surface-hover);
   color: var(--text-primary);
+}
+/* A switch-like icon (Team Building's Captain while picking): on, as .chip.active is anywhere. */
+.icon-toolbar .chip.active {
+  color: var(--text-primary);
+  background: var(--accent-positive-dim);
 }
 /* Bigger than the base .chip-icon (28px, used elsewhere by Dashboard's
    view controls) so these table-toolbar icons read more clearly. */
@@ -3581,9 +3596,9 @@ kbd {
   min-width: 0;
 }
 
-/* ---------- Gameweek Summary and Price Changes (<gameweek_summary>, <price_changes_week>) ----------
-   Panels over Team Building, under the profile takeover (z-index 40) as
-   Add Players is, so a name clicked in one opens his profile on top. */
+/* ---------- Gameweek Summary (<gameweek_summary>) ----------
+   A panel over Team Building, under the profile takeover (z-index 40) as
+   Add Players is, so a name clicked in it opens his profile on top. */
 .gw-backdrop {
   position: fixed;
   inset: 0;
@@ -3619,12 +3634,6 @@ kbd {
   font-size: 12.5px;
   color: var(--text-secondary);
 }
-.gw-panel-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  margin-bottom: var(--space-4);
-}
 .gw-section {
   padding: var(--space-4) 0;
   border-top: 1px solid var(--border);
@@ -3649,6 +3658,14 @@ kbd {
   font-size: 12px;
   font-weight: 500;
   color: var(--text-secondary);
+}
+.gw-points-rank {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: 13px;
+  font-weight: 600;
 }
 .gw-bar-row {
   display: grid;
@@ -3686,7 +3703,7 @@ kbd {
   text-align: right;
   color: var(--text-primary);
 }
-/* A labelled row of figures: captaincy, chips, price changes. Each section sets its columns, its head row too. */
+/* A labelled row of figures: captaincy, chips. Each section sets its columns, its head row too. */
 .gw-line {
   display: grid;
   align-items: center;
@@ -3713,9 +3730,6 @@ kbd {
 }
 .gw-lines-chips .gw-line {
   grid-template-columns: 140px 64px 1fr;
-}
-.gw-lines-prices .gw-line {
-  grid-template-columns: 1fr 72px 72px;
 }
 .gw-line-label {
   display: flex;
@@ -3776,9 +3790,4 @@ kbd {
   display: inline-flex;
   align-items: center;
   gap: var(--space-3);
-}
-.page-header-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
 }

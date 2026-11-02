@@ -19,7 +19,7 @@ import { importFplTeam, keepPurchases } from "../state/fplTeamImport";
 import { getUpcomingFixtures, firstPickableEventId, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { SquadPitch, type PitchColourRanks } from "../components/SquadPitch";
 import type { DraftPicks } from "../metrics/bestDraft";
-import { IconChipButton, CloseIcon, TrashIcon } from "../components/IconToolbar";
+import { IconChipButton, CloseIcon, GameweekSummaryIcon, TrashIcon } from "../components/IconToolbar";
 import { fmtPrice } from "../utils/format";
 import { rankWithinGroups } from "../metrics/comparativeColour";
 import type { NormalizedPlayer, Position } from "../types/normalized";
@@ -30,7 +30,6 @@ import { SectionHeading } from "../components/SectionHeading";
 import { SquadPicker } from "../components/SquadPicker";
 import { GameweekLogTable } from "../components/teamBuilding/GameweekLogTable";
 import { GameweekSummary } from "../components/teamBuilding/GameweekSummary";
-import { PriceChanges } from "../components/teamBuilding/PriceChanges";
 import { useGameweekLog } from "../state/useGameweekLog";
 
 /** How long a rejected drag's warning message stays visible before clearing itself. */
@@ -119,9 +118,8 @@ export function TeamBuilder() {
   const [importStatus, setImportStatus] = useState<"idle" | "loading" | "error">("idle");
   const [importError, setImportError] = useState<string | null>(null);
   const addPanelRef = useRef<HTMLDivElement>(null);
-  // <gameweek_summary>, <price_changes_week>: panels from the page's header.
+  // <gameweek_summary>: a panel from the Gameweek Log's icon.
   const [summaryOpen, setSummaryOpen] = useState(false);
-  const [pricesOpen, setPricesOpen] = useState(false);
 
   // Keep activeId pointing at a real squad even after a delete/first-load.
   useEffect(() => {
@@ -721,26 +719,6 @@ export function TeamBuilder() {
         <div>
           <h1>Team Building</h1>
         </div>
-        <div className="page-header-actions">
-          <button
-            type="button"
-            className="btn"
-            onClick={() => setSummaryOpen(true)}
-            disabled={gameweekLog.rows.length === 0}
-            title={
-              gameweekLog.rows.length > 0
-                ? "This squad's gameweek against every FPL manager: points, captaincy and chips"
-                : active?.importedFrom
-                  ? "No gameweek played yet for this team"
-                  : "No gameweek recorded yet: a squad built here is scored from the first deadline after it's made"
-            }
-          >
-            Gameweek Summary
-          </button>
-          <button type="button" className="btn" onClick={() => setPricesOpen(true)} title="Every FPL price that has risen or fallen since the gameweek's deadline">
-            Price Changes
-          </button>
-        </div>
       </div>
       <GameweekSummary
         open={summaryOpen}
@@ -751,13 +729,6 @@ export function TeamBuilder() {
         chipWindows={chips}
         importTeamId={active?.importedFrom?.teamId ?? null}
         playersById={playersById}
-        onViewProfile={handleViewProfile}
-      />
-      <PriceChanges
-        open={pricesOpen}
-        onClose={() => setPricesOpen(false)}
-        players={players}
-        gameweek={gameweekState && gameweekState.kind !== "pre-season" ? gameweekState.event.id : null}
         onViewProfile={handleViewProfile}
       />
 
@@ -935,6 +906,15 @@ export function TeamBuilder() {
       {(gameweekLog.rows.length > 0 || gameweekLog.status === "error") && (
         <>
           <SectionHeading icon="log">Gameweek Log</SectionHeading>
+          <div className="chip-row" style={{ marginBottom: 12 }}>
+            <IconChipButton
+              icon={<GameweekSummaryIcon />}
+              label="Gameweek Summary"
+              title="Gameweek Summary: one gameweek of this squad against every FPL manager (points, captaincy, chips)"
+              onClick={() => setSummaryOpen(true)}
+              disabled={gameweekLog.rows.length === 0}
+            />
+          </div>
           {gameweekLog.error && <div className="banner error">Couldn't load the Gameweek Log. {gameweekLog.error}</div>}
           {gameweekLog.rows.length > 0 && (
             <div className="card" style={{ marginBottom: 24 }}>

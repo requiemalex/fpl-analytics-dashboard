@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { chipStandings, pointsToDate } from "./gameweekSummary";
+import { chipStandings, pointsAgainstGameweek, rankPercentile } from "./gameweekSummary";
 import type { ChipWindow, EventSummary, NormalizedEvent } from "../types/normalized";
 
 // <gameweek_summary>
@@ -41,14 +41,25 @@ describe("chipStandings", () => {
   });
 });
 
-describe("pointsToDate", () => {
-  it("adds the squad's points and the average over the same gameweeks, up to the one shown", () => {
-    const rows = [
-      { event: 4, points: 60, average: 50 },
-      { event: 5, points: 40, average: 45 },
-      { event: 6, points: 70, average: 55 },
-    ];
-    expect(pointsToDate(rows, 5)).toEqual({ yours: 100, average: 95, from: 4, count: 2 });
-    expect(pointsToDate([...rows, { event: 7, points: 1, average: null }], 7).average).toBeNull();
+describe("pointsAgainstGameweek (<gameweek_points_colour>)", () => {
+  it("is neutral at the average, full green at the highest, full red at 0", () => {
+    expect(pointsAgainstGameweek(50, 50, 120)).toBe(50);
+    expect(pointsAgainstGameweek(120, 50, 120)).toBe(100);
+    expect(pointsAgainstGameweek(85, 50, 120)).toBe(75);
+    expect(pointsAgainstGameweek(25, 50, 120)).toBe(25);
+    expect(pointsAgainstGameweek(0, 50, 120)).toBe(0);
+    expect(pointsAgainstGameweek(-4, 50, 120)).toBe(0);
+  });
+  it("has no colour without FPL's average and highest", () => {
+    expect(pointsAgainstGameweek(60, null, 120)).toBeNull();
+    expect(pointsAgainstGameweek(60, 50, null)).toBeNull();
+  });
+});
+
+describe("rankPercentile", () => {
+  it("puts the top rank at 100 and the last near 0", () => {
+    expect(rankPercentile(1, 1000)).toBe(100);
+    expect(rankPercentile(501, 1000)).toBe(50);
+    expect(rankPercentile(null, 1000)).toBeNull();
   });
 });

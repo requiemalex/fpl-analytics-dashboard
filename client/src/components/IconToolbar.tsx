@@ -226,6 +226,50 @@ export function SavedViewsIcon({ size = 17 }: { size?: number }) {
   );
 }
 
+/** An armband with its letter: Team Building's Captain (C) and Vice-Captain (V), drawn as the pitch's armbands read. */
+export function ArmbandIcon({ letter }: { letter: "C" | "V" }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="1.8" y="3.3" width="12.4" height="9.4" rx="2.2" stroke="currentColor" strokeWidth="1.3" />
+      <text x="8" y="10.9" textAnchor="middle" fontSize="7.6" fontWeight="700" fill="currentColor" fontFamily="inherit">
+        {letter}
+      </text>
+    </svg>
+  );
+}
+
+/** An eraser wiping a line clean: Clear Draft, every player off the squad. */
+export function ClearDraftIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M9.6 2.6 13.4 6.4a1 1 0 0 1 0 1.4L8 13.2H5.2L2.6 10.6a1 1 0 0 1 0-1.4l5.6-6.6a1 1 0 0 1 1.4 0Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M5.6 6.4l4 4" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M8 13.2h5.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** A four-point spark: Best Draft, the XI and armbands picked for you. */
+export function BestDraftIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M7 1.8 8.3 5.7l3.9 1.3-3.9 1.3L7 12.2 5.7 8.3 1.8 7l3.9-1.3L7 1.8Z" stroke="currentColor" strokeWidth="1.25" strokeLinejoin="round" />
+      <path d="M12.4 10.2l.6 1.8 1.8.6-1.8.6-.6 1.8-.6-1.8-1.8-.6 1.8-.6.6-1.8Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** Two bars side by side over a baseline: the Gameweek Summary, the squad against every manager. */
+export function GameweekSummaryIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="3.2" y="4" width="3.6" height="8.6" rx="0.8" stroke="currentColor" strokeWidth="1.25" />
+      <rect x="9.2" y="7" width="3.6" height="5.6" rx="0.8" stroke="currentColor" strokeWidth="1.25" />
+      <path d="M1.8 14.2h12.4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 /** A floppy disk — save what's on screen over a saved Explorer view. */
 export function SaveIcon() {
   return (
@@ -277,18 +321,32 @@ export function CardEditRemoveButtons({
 export function IconChipButton({
   icon,
   label,
+  title,
   badge,
   onClick,
   disabled,
+  pressed,
 }: {
   icon: React.ReactNode;
+  /** Its name; also its hover unless `title` says more. */
   label: string;
+  title?: string;
   badge?: number;
   onClick: () => void;
   disabled?: boolean;
+  /** A switch-like button (Team Building's Captain): on shows as `.chip.active`. */
+  pressed?: boolean;
 }) {
   return (
-    <button type="button" className="chip chip-icon" title={label} aria-label={label} onClick={onClick} disabled={disabled}>
+    <button
+      type="button"
+      className={`chip chip-icon${pressed ? " active" : ""}`}
+      title={title ?? label}
+      aria-label={label}
+      aria-pressed={pressed}
+      onClick={onClick}
+      disabled={disabled}
+    >
       {icon}
       {badge !== undefined && <span className="chip-icon-badge">{badge}</span>}
     </button>
