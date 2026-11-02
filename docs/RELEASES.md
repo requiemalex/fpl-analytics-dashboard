@@ -5,6 +5,11 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.128.0 · 2 Nov 2026
+
+- Team Building: Transfers and Chips beside Squad Value and Bank (free transfers, hits, confirm, chips played and left), the Gameweek Log moved into a redesigned Gameweek Summary panel with overall rank, the pitch's switches as icons, the captain shown with his name, ownership, price, club and position, and Odds chips that show each opponent and what the figure is
+- Understat sync: a failed run now says what it was fetching, when and why each attempt failed, and whether Understat and FPL answer at all, on the run's page and in the alert
+
 ## v1.127.0 · 2 Nov 2026
 
 - Team Building: the FPL/Model source sits in Projected Points' box, the squad's actions are icons, Price Changes is gone, and the Gameweek Log and Summary show each gameweek on its own against every FPL manager, points coloured against that gameweek's average and highest
