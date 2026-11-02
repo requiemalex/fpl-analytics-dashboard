@@ -11,10 +11,11 @@ import { loadImportedPurchasePrices } from "../state/importedPurchasePrices";
 import { validateSquad, canAddPlayer, fitsStartingXI, openSquadSlots } from "../metrics/squadRules";
 import { fplOfficialForFixture, fplSeasonRate } from "../metrics/expectedPoints";
 import { modelClubRatings, modelForFixture, playerEvidence } from "../metrics/pointsModelLive";
+import { fixtureOddsByTeam } from "../metrics/fixtureOdds";
 import { clubSeasonsAsShown } from "../metrics/teamStats";
 import { expectationForGameweek, horizonTotal, upcomingGameweeks, type Horizon, type PointsSource } from "../metrics/gameweekExpectations";
 import { ApiRequestError } from "../api/client";
-import { describeImportedSquadUpdate, importFplTeam, keepPurchases, subscribeImportedSquadUpdates, takeImportedSquadUpdates } from "../state/fplTeamImport";
+import { importFplTeam, keepPurchases } from "../state/fplTeamImport";
 import { getUpcomingFixtures, firstPickableEventId, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { SquadPitch, type PitchColourRanks } from "../components/SquadPitch";
 import type { DraftPicks } from "../metrics/bestDraft";
@@ -128,17 +129,6 @@ export function TeamBuilder() {
   const active = squads.find((s) => s.id === activeId) ?? null;
 
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
-
-  // <imported_squad_sync>: an imported squad brought up to date from FPL,
-  // here or before this page opened, is said once.
-  useEffect(() => {
-    const show = () => {
-      const updates = takeImportedSquadUpdates();
-      if (updates.length > 0) setWarning(updates.map((u) => describeImportedSquadUpdate(u, playersById)).join(" "));
-    };
-    show();
-    return subscribeImportedSquadUpdates(show);
-  }, [playersById]);
 
   // <purchase_prices> for an import saved before they were kept, or whose
   // prices didn't load: loaded from FPL once per session when it's opened,
@@ -560,6 +550,8 @@ export function TeamBuilder() {
       ),
     [clubSeasons, historicReferenceSeason, currentSeasonHasStarted, historicFetchSkippedPlayerIds],
   );
+  // <fixture_odds>: each club's Fixture Forecast for its next five, for the pitch's Fixtures → Odds.
+  const fixtureOddsByTeamId = useMemo(() => fixtureOddsByTeam(fixturesByTeamId, teamsById, clubRatings), [fixturesByTeamId, teamsById, clubRatings]);
   /** Model Predicted for one of a player's upcoming matches (<points_model>), from his evidence (<points_model_evidence>). */
   const modelFor = useCallback(
     (evidence: ReturnType<typeof playerEvidence>, teamId: number, fixture: UpcomingFixture) =>
@@ -872,6 +864,7 @@ export function TeamBuilder() {
           purchaseUnknownHint={purchaseUnknownHint(active)}
           colourRanks={pitchColourRanks}
           fixturesByTeamId={fixturesByTeamId}
+          fixtureOddsByTeamId={fixtureOddsByTeamId}
           captainPickMode={captainPickMode}
           onCaptainTileClick={handleCaptainTileClick}
           onPlayerCardClick={handlePlayerCardClick}

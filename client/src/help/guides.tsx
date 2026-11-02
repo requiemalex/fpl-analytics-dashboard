@@ -811,12 +811,14 @@ const FIRST_GUIDES: HelpGuide[] = [
       "pitch view", "what does the shirt say", "figure on shirt", "kit view",
       "highlight", "shirt", "shirts", "kit", "nameplate", "card", "fixtures", "gameweek arrows", "‹ ›", "next gameweek",
       "owned", "ownership", "points prediction", "show fixtures", "what's on the shirt", "change gameweek",
+      "odds", "games", "clean sheet odds", "clean sheet chance", "goal odds", "fixture odds",
     ],
     related: ["expected-points", "price-changes"],
     body: (
       <Terms
         rows={[
-          ["Fixtures", "his next five, coloured by FPL difficulty"],
+          ["Fixtures → Games", "his next five, coloured by FPL difficulty"],
+          ["Fixtures → Odds", "his club's clean-sheet chance (GK, DEF) or goals expected (MID, FWD) in each"],
           ["Price", "today's, purchase, sell, or price progress"],
           ["Owned", "share of FPL managers who own him"],
           ["Minutes", "expected minutes"],
@@ -845,7 +847,13 @@ const FIRST_GUIDES: HelpGuide[] = [
             { title: "Model Predicted", inputs: ["chance of starting", "usual minutes", "scoring rates", "Fixture Forecast"], result: "Exp. Pts (Model)" },
           ]}
         />
-        <Points items={["Hover either figure for how it adds up.", "A double gameweek adds both matches; a blank one shows \"—\"."]} />
+        <Points
+          items={[
+            "Source shows beside Points Prediction; Projected Points and Best Draft use the one last picked.",
+            "Hover either figure for how it adds up.",
+            "A double gameweek adds both matches; a blank one shows \"—\".",
+          ]}
+        />
       </>
     ),
   },

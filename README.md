@@ -2009,8 +2009,8 @@ load (start-up and the 10-minute poll), a squad imported before the app's
 current gameweek is read again from FPL, and once FPL shows a later
 gameweek for that team its picks, armbands, bank, chips and purchase prices
 replace the squad's (its name and place in the list stay; changes made to
-it in Scoutline go). Team Building says so once, naming who came in and
-out. A squad already on the current gameweek costs no request: FPL
+it in Scoutline go). Nothing announces it (the owner's call, 2026-11-02:
+the manager made the changes). A squad already on the current gameweek costs no request: FPL
 publishes a team's picks only after that gameweek's deadline (the next
 gameweek's picks are "not found" until then, and the endpoint with a
 team's pending changes needs the manager's own login), so a transfer made
@@ -2047,14 +2047,22 @@ starting XI short of 11 or a line under its minimum.
   kit, a dark nameplate: the name, then **one** figure, picked with
   **Highlight** (`<kit_view>`: Fixtures, Price, Owned, Minutes, Points Prediction,
   coloured as before), with no fixture beside it; **Fixtures** shows the
-  next five FDR-coloured chips instead. **Points Prediction** is the
-  player's Exp. Pts for the gameweek the pitch's arrows pick (a double's
-  two matches added up, "—" for a blank), from the source its FPL/Model
-  toggle picks (always shown: Projected Points and Best Draft follow it
-  too, whatever the kits highlight). **Minutes** is his Exp.
+  next five matches instead, as its own toggle picks (`<fixture_odds>`,
+  `metrics/fixtureOdds.ts`): **Games**, the opponents as FDR-coloured
+  chips, or **Odds**, each match's Fixture Forecast (`<fixture_forecast>`)
+  from his club's side: a goalkeeper's or defender's club's chance of a
+  clean sheet, a midfielder's or forward's club's goals expected. Club
+  odds, the Team Profile's figures, never a player's own; each chip
+  tinted by its rank among every club's fixtures in the same five, as the
+  Team Profile ranks a fixture, with the opponent in its hover.
+  **Points Prediction** is the player's Exp. Pts for the gameweek the
+  pitch's arrows pick (a double's two matches added up, "—" for a blank),
+  from the source its FPL/Model toggle picks. **Minutes** is his Exp.
   Mins for that gameweek (below). **Price** has its own toggle
-  (`<price_view>`, below). The switches are per page, like every view
-  switch. The squad's name (no formation or player count) is the section
+  (`<price_view>`, below). Each toggle shows only beside its own
+  highlight (the owner's call, 2026-11-02), so Projected Points and Best
+  Draft keep the Source last picked while another highlight is on. The
+  switches are per page, like every view switch. The squad's name (no formation or player count) is the section
   heading, the shared `SectionHeading` with a shirt icon, as the
   Dashboard's and Player Comparison's sections have ("Squad" with none
   loaded); the squad picker (above) sits under it.

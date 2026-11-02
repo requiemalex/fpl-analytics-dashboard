@@ -9,6 +9,7 @@ import type { UpcomingFixture } from "../metrics/fixtureTicker";
 import type { GameweekExpectation } from "../metrics/gameweekExpectations";
 import type { ModelBreakdown } from "../metrics/pointsModel";
 import type { FplBreakdown } from "../metrics/expectedPoints";
+import type { FixtureOdds } from "../metrics/fixtureOdds";
 
 afterEach(cleanup);
 
@@ -38,6 +39,7 @@ function renderPitch(
     onBestDraft?: (picks: unknown) => void;
     purchasePrices?: Record<number, number>;
     colourRanks?: PitchColourRanks;
+    odds?: Map<number, Map<number, FixtureOdds | null>>;
   } = {},
 ) {
   const squad = [...xi, ...bench];
@@ -59,6 +61,7 @@ function renderPitch(
       purchaseUnknownHint="Purchase price not known"
       colourRanks={extra.colourRanks ?? {}}
       fixturesByTeamId={new Map([[1, [fixture(1, "BUR", true), fixture(2, "WOL", false, 4)]]])}
+      fixtureOddsByTeamId={extra.odds ?? new Map()}
       captainPickMode={captainPickMode}
       onCaptainTileClick={() => {}}
       onPlayerCardClick={() => {}}
@@ -119,14 +122,37 @@ describe("<kit_view> Highlight", () => {
     expect(figure()).toBe("—");
     fireEvent.click(getByRole("radio", { name: /^Price:/ }));
     expect(figure()).toBe("£7.5m");
-    // The Source toggle stays (Projected Points and Best Draft follow it in every view); Price adds its own.
-    expect(getByRole("radiogroup", { name: "Source" })).toBeTruthy();
+    // Each highlight shows only its own toggle: Price's replaces Source.
+    expect(queryByRole("radiogroup", { name: "Source" })).toBeNull();
     expect(getByRole("radiogroup", { name: "Price" })).toBeTruthy();
     fireEvent.click(getByRole("radio", { name: /^Expected minutes/ }));
     expect(queryByRole("radiogroup", { name: "Price" })).toBeNull();
     fireEvent.click(getByRole("radio", { name: /next five matches/ }));
     expect(figure()).toBeUndefined();
     expect([...container.querySelectorAll(".pitch-card .pitch-card-fixture")].map((c) => c.textContent)).toEqual(["BUR", "WOL"]);
+    expect(getByRole("radiogroup", { name: "Fixtures" })).toBeTruthy();
+    expect(queryByRole("radiogroup", { name: "Source" })).toBeNull();
+  });
+
+  it("<fixture_odds> Fixtures → Odds: a defender reads his club's clean-sheet chance, a forward its goals expected, each tinted by rank", () => {
+    const forecast = (cleanSheet: number, goalsFor: number) => ({ goalsFor, goalsAgainst: 1, cleanSheet, scores: 0.7, win: 0.4, draw: 0.3, loss: 0.3 });
+    const odds = new Map([
+      [
+        1,
+        new Map<number, FixtureOdds | null>([
+          [1, { forecast: forecast(0.34, 1.57), rank: { cleanSheet: 90, goalsFor: 80 } }],
+          [2, null],
+        ]),
+      ],
+    ]);
+    const { container, getByRole } = renderPitch([makePlayer({ id: 1, position: "DEF" }), makePlayer({ id: 2, position: "FWD" })], [], vi.fn(), null, true, null, undefined, { odds });
+    fireEvent.click(getByRole("radio", { name: /next five matches/ }));
+    fireEvent.click(getByRole("radio", { name: /Fixture Forecast/ }));
+    const chips = (id: number) => [...container.querySelectorAll(".pitch-card")].find((c) => c.textContent?.includes(`Player ${id}`))!.querySelectorAll(".pitch-card-fixture");
+    expect([...chips(1)].map((c) => c.textContent)).toEqual(["34%", "—"]);
+    expect([...chips(2)].map((c) => c.textContent)).toEqual(["1.6", "—"]);
+    expect((chips(1)[0] as HTMLElement).style.background.replace(/ /g, "")).toBe(percentileTint(90)!.replace(/ /g, ""));
+    expect(chips(1)[0].getAttribute("title")).toBe("BUR at home: 34% chance of a clean sheet for his club (Fixture Forecast).\n90th percentile of every club's upcoming fixtures: top 10%");
   });
 
   it("lists Points Prediction last", () => {

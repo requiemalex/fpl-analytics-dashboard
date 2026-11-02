@@ -47,8 +47,6 @@ export interface ImportedSquadUpdate {
 
 /** Team ids with a gameweek, `${teamId}:${event}`, already checked this session, so a team FPL hasn't moved on yet isn't asked again every poll. */
 const checked = new Set<string>();
-let pending: ImportedSquadUpdate[] = [];
-const noticeListeners = new Set<() => void>();
 
 /**
  * <imported_squad_sync>: keeps each squad loaded from an FPL team ID in
@@ -56,7 +54,8 @@ const noticeListeners = new Set<() => void>();
  * background poll): a squad imported before the app's current gameweek is
  * read again from FPL, and if FPL now shows a later gameweek its picks,
  * captaincy, bank, chips and purchase prices replace the squad's (its name
- * stays). A squad already on the current gameweek costs no request: FPL
+ * stays), quietly: the manager made those changes, so nothing announces
+ * them. A squad already on the current gameweek costs no request: FPL
  * only shows a team's picks once that gameweek's deadline has passed, so
  * a transfer made for the next one can't be read until then. A failed
  * request leaves the squad as it was and is tried again on the next load.
@@ -88,37 +87,10 @@ export async function syncImportedSquads(currentEvent: number, playersById: Map<
       checked.delete(key);
     }
   }
-  if (updates.length > 0) {
-    pending = [...pending, ...updates];
-    for (const listener of noticeListeners) listener();
-  }
   return updates;
 }
 
-/** Updates not yet shown to the user, emptied as they're taken (Team Building shows them). */
-export function takeImportedSquadUpdates(): ImportedSquadUpdate[] {
-  const taken = pending;
-  pending = [];
-  return taken;
-}
-
-export function subscribeImportedSquadUpdates(listener: () => void): () => void {
-  noticeListeners.add(listener);
-  return () => noticeListeners.delete(listener);
-}
-
-/** "Eze Peasy now shows FPL's Gameweek 9 team: Saka in, Rice out." A wildcard's worth of changes is counted, not listed. */
-export function describeImportedSquadUpdate(update: ImportedSquadUpdate, playersById: ReadonlyMap<number, NormalizedPlayer>): string {
-  const head = `${update.squadName} now shows FPL's Gameweek ${update.event} team`;
-  const changed = update.playersIn.length;
-  if (changed === 0) return `${head}.`;
-  if (changed > 3) return `${head}: ${changed} players changed.`;
-  const names = (ids: number[]) => ids.map((id) => playersById.get(id)?.name ?? `player ${id}`).join(", ");
-  return `${head}: ${names(update.playersIn)} in, ${names(update.playersOut)} out.`;
-}
-
-/** For tests: forget what this session has checked and not yet shown. */
+/** For tests: forget what this session has checked. */
 export function resetImportedSquadSync(): void {
   checked.clear();
-  pending = [];
 }

@@ -13,7 +13,8 @@ import { percentileColour, percentileTint } from "../utils/colorScale";
 import { SQUAD_RULES } from "../types/team";
 import type { OpenSlots, SquadValidation } from "../metrics/squadRules";
 import type { NormalizedPlayer, Position } from "../types/normalized";
-import { fixtureHint, fplGameweekHint, minutesGameweekHint, modelGameweekHint, playerRankHint, statHover } from "./hoverText";
+import { oddsFigureFor, type FixtureOdds } from "../metrics/fixtureOdds";
+import { fixtureHint, fplGameweekHint, minutesGameweekHint, modelGameweekHint, percentileHint, playerRankHint, statHover } from "./hoverText";
 
 const PITCH_ROW_ORDER: Position[] = ["FWD", "MID", "DEF", "GKP"];
 const COMPOSITION_ORDER: Position[] = ["GKP", "DEF", "MID", "FWD"];
@@ -31,12 +32,15 @@ const POSITION_NOUN: Record<Position, [string, string]> = {
  * (<gameweek_arrows>; a double's two matches added up): Points from the
  * source its FPL/Model toggle picks, Minutes the Model's expected minutes
  * (<expected_minutes>). Price shows the figure its own toggle picks
- * (<price_view>). Fixtures shows the next five matches instead.
+ * (<price_view>). Fixtures shows the next five matches instead, as its
+ * own toggle picks (<fixture_odds>): Games, the opponents coloured by FPL
+ * difficulty, or Odds, the club's Fixture Forecast for each. Each toggle
+ * shows only beside its own highlight.
  */
 export type KitView = "fixtures" | "points" | "price" | "ownership" | "minutes";
 
 const KIT_VIEW_OPTIONS: SegmentOption<KitView>[] = [
-  { value: "fixtures", label: "Fixtures", title: "Each player's next five matches, coloured by FPL difficulty" },
+  { value: "fixtures", label: "Fixtures", title: "Each player's next five matches: the opponents or the club's odds, as the toggle beside picks" },
   { value: "price", label: "Price", title: "Price: today's, his selling price, his purchase price or its change, as the toggle beside picks" },
   { value: "ownership", label: "Owned", title: "Share of FPL managers who own him" },
   { value: "minutes", label: "Minutes", title: "Expected minutes: how long Scoutline's model expects him to play in the gameweek picked" },
@@ -49,6 +53,18 @@ const SOURCE_OPTIONS: SegmentOption<PointsSource>[] = [
   { value: "model", label: "Model", title: "Exp. Pts (Model Predicted): Scoutline's own estimate, for Points Prediction, Projected Points and Best Draft" },
 ];
 const SOURCE_NAME: Record<PointsSource, string> = { fpl: "FPL Official", model: "Model Predicted" };
+
+/** <fixture_odds>: what the Fixtures highlight shows for each match. */
+export type FixturesView = "games" | "odds";
+
+const FIXTURES_VIEW_OPTIONS: SegmentOption<FixturesView>[] = [
+  { value: "games", label: "Games", title: "Who he plays, coloured by FPL difficulty" },
+  {
+    value: "odds",
+    label: "Odds",
+    title: "Scoutline's Fixture Forecast for his club: a goalkeeper's or defender's chance of a clean sheet, a midfielder's or forward's goals expected",
+  },
+];
 
 /** <price_view>: which price figure the Price highlight shows. */
 export type PriceView = "current" | "purchase" | "sell" | "progress" | "predicted";
@@ -70,16 +86,55 @@ const PRICE_DEFINITION: Record<PriceView, string> = {
   predicted: "Predicted Progress: where FPL expects his progress to be at the next price update.",
 };
 
-/** The next five matches as FPL-difficulty chips. */
-function FixtureTicker({ fixtures }: { fixtures: UpcomingFixture[] }) {
+/** One match's odds chip (<fixture_odds>): the club figure his position reads, tinted by its rank among every club's fixtures. */
+function OddsChip({ fixture, odds, position }: { fixture: UpcomingFixture; odds: FixtureOdds | null; position: Position }) {
+  const figure = oddsFigureFor(position);
+  const where = `${fixture.opponentShortName} ${fixture.isHome ? "at home" : "away"}`;
+  if (!odds) {
+    return (
+      <span className="pitch-card-fixture is-odds" title={`${where}: no forecast yet (club records still loading)`}>
+        {DASH}
+      </span>
+    );
+  }
+  const value = odds.forecast[figure];
+  const text = figure === "cleanSheet" ? fmtPercent(value * 100, 0) : fmtDecimal(value, 1);
+  const definition =
+    figure === "cleanSheet"
+      ? `${where}: ${text} chance of a clean sheet for his club (Fixture Forecast).`
+      : `${where}: his club can expect ${fmtDecimal(value, 2)} goals (Fixture Forecast).`;
+  const rank = odds.rank[figure];
+  return (
+    <span className="pitch-card-fixture is-odds" style={{ background: percentileTint(rank) }} title={statHover(definition, percentileHint(rank, "every club's upcoming fixtures"))}>
+      {text}
+    </span>
+  );
+}
+
+/** The next five matches: FPL-difficulty chips (Games), or the club's odds for each (Odds, <fixture_odds>). */
+function FixtureTicker({
+  fixtures,
+  view,
+  odds,
+  position,
+}: {
+  fixtures: UpcomingFixture[];
+  view: FixturesView;
+  odds: Map<number, FixtureOdds | null> | undefined;
+  position: Position;
+}) {
   if (fixtures.length === 0) return <span className="value-muted">{DASH}</span>;
   return (
     <div className="pitch-card-fixtures">
-      {fixtures.map((f) => (
-        <span key={f.fixtureId} className="pitch-card-fixture" style={{ background: fdrColor(f.difficulty) }} title={fixtureHint(f)}>
-          {f.opponentShortName.slice(0, 3)}
-        </span>
-      ))}
+      {fixtures.map((f) =>
+        view === "odds" ? (
+          <OddsChip key={f.fixtureId} fixture={f} odds={odds?.get(f.fixtureId) ?? null} position={position} />
+        ) : (
+          <span key={f.fixtureId} className="pitch-card-fixture" style={{ background: fdrColor(f.difficulty) }} title={fixtureHint(f)}>
+            {f.opponentShortName.slice(0, 3)}
+          </span>
+        ),
+      )}
     </div>
   );
 }
@@ -315,6 +370,8 @@ function PlayerCard({
   view,
   pointsSource,
   priceView,
+  fixturesView,
+  odds,
   isCaptain,
   isViceCaptain,
   isPickable,
@@ -335,6 +392,10 @@ function PlayerCard({
   pointsSource: PointsSource;
   /** Which price Price shows. */
   priceView: PriceView;
+  /** What Fixtures shows (<fixture_odds>). */
+  fixturesView: FixturesView;
+  /** His club's odds for each of his next five, by fixture id. */
+  odds: Map<number, FixtureOdds | null> | undefined;
   isCaptain: boolean;
   isViceCaptain: boolean;
   isPickable: boolean;
@@ -461,7 +522,7 @@ function PlayerCard({
             </span>
           </div>
         ) : (
-          <FixtureTicker fixtures={fixtures} />
+          <FixtureTicker fixtures={fixtures} view={fixturesView} odds={odds} position={player.position} />
         )}
       </div>
     </div>
@@ -497,6 +558,7 @@ export function SquadPitch({
   purchaseUnknownHint,
   colourRanks,
   fixturesByTeamId,
+  fixtureOddsByTeamId,
   captainPickMode,
   onCaptainTileClick,
   onPlayerCardClick,
@@ -534,6 +596,8 @@ export function SquadPitch({
   /** Every player's ranks for the cards' figures, from the whole player pool (<comparative_colouring>). */
   colourRanks: PitchColourRanks;
   fixturesByTeamId: Map<number, UpcomingFixture[]>;
+  /** Each club's odds for its next five (<fixture_odds>): Fixtures → Odds. */
+  fixtureOddsByTeamId: Map<number, Map<number, FixtureOdds | null>>;
   captainPickMode: "captain" | "viceCaptain" | null;
   onCaptainTileClick: (role: "captain" | "viceCaptain") => void;
   onPlayerCardClick: (playerId: number) => void;
@@ -560,6 +624,7 @@ export function SquadPitch({
   const [view, setView] = useState<KitView>("points");
   const [pointsSource, setPointsSource] = useState<PointsSource>("fpl");
   const [priceView, setPriceView] = useState<PriceView>("current");
+  const [fixturesView, setFixturesView] = useState<FixturesView>("games");
   // With no squad the tile is inert: greyed out, and nothing on it can be
   // clicked, focused or dropped on. React 18 has no `inert` prop.
   const rootRef = useRef<HTMLDivElement>(null);
@@ -592,6 +657,8 @@ export function SquadPitch({
       view={view}
       pointsSource={pointsSource}
       priceView={priceView}
+      fixturesView={fixturesView}
+      odds={fixtureOddsByTeamId.get(p.teamId)}
       isCaptain={zone === "pitch" && p.id === captainId}
       isViceCaptain={zone === "pitch" && p.id === viceCaptainId}
       isPickable={zone === "pitch" && captainPickMode !== null}
@@ -632,9 +699,10 @@ export function SquadPitch({
         />
         <div className="squad-summary-controls">
           <SegmentedControl label="Highlight" hideLabel options={KIT_VIEW_OPTIONS} value={view} onChange={setView} />
-          {/* Always shown: Projected Points and Best Draft follow it whatever the kits highlight. */}
-          <SegmentedControl label="Source" inlineLabel options={SOURCE_OPTIONS} value={pointsSource} onChange={setPointsSource} />
+          {/* Each highlight's own toggle, beside it only (<kit_view>). Projected Points and Best Draft keep the Source last picked. */}
+          {view === "fixtures" && <SegmentedControl label="Fixtures" inlineLabel options={FIXTURES_VIEW_OPTIONS} value={fixturesView} onChange={setFixturesView} />}
           {view === "price" && <SegmentedControl label="Price" inlineLabel options={PRICE_VIEW_OPTIONS} value={priceView} onChange={setPriceView} />}
+          {view === "points" && <SegmentedControl label="Source" inlineLabel options={SOURCE_OPTIONS} value={pointsSource} onChange={setPointsSource} />}
           <div className="squad-summary-end">
             <div className="pitch-view-actions">
               <button

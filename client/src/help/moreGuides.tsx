@@ -1153,7 +1153,6 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
           items={[
             "FPL keeps your transfers private until the deadline, so a change for the next gameweek shows once it passes.",
             "The update replaces the squad with your FPL team; changes made to it in Scoutline go. Its name stays.",
-            "Team Building says who came in and out.",
           ]}
         />
         <Note>Scoutline only reads FPL. Make your transfers in FPL itself.</Note>

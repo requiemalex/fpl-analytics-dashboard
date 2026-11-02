@@ -950,6 +950,13 @@ select:focus {
   white-space: nowrap;
   overflow: hidden;
 }
+/* <fixture_odds>: a figure on the card's own surface, tinted by its rank like any other figure. */
+.pitch-card-fixture.is-odds {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--surface-raised);
+}
 
 /* <open_slots>: an empty place — a dashed "+" and its position, on the
    pitch and on the bench alike. */

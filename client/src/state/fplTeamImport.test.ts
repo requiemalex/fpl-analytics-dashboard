@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { describeImportedSquadUpdate, resetImportedSquadSync, syncImportedSquads, takeImportedSquadUpdates } from "./fplTeamImport";
+import { resetImportedSquadSync, syncImportedSquads } from "./fplTeamImport";
 import { loadSavedSquads, useSavedSquads } from "./useSavedSquads";
 import { makePlayer } from "../test/fixtures";
 import type { SavedSquad } from "../types/team";
@@ -74,9 +74,6 @@ describe("imported squad sync (<imported_squad_sync>)", () => {
     expect(squad.captainId).toBe(5);
     expect(squad.importedFrom).toMatchObject({ teamId: 77, asOfEvent: 9, bank: 0.8, playerIds: GW9_IDS, purchasePrices: { 16: 6.3 } });
     expect(updates).toEqual([{ squadName: "My renamed squad", event: 9, playersIn: [16], playersOut: [15] }]);
-    expect(describeImportedSquadUpdate(updates[0], players)).toBe("My renamed squad now shows FPL's Gameweek 9 team: Saka in, Rice out.");
-    expect(takeImportedSquadUpdates()).toEqual(updates);
-    expect(takeImportedSquadUpdates()).toEqual([]);
   });
 
   it("a squad already on the current gameweek isn't asked about: FPL hides the next gameweek's picks until its deadline", async () => {
@@ -120,9 +117,5 @@ describe("imported squad sync (<imported_squad_sync>)", () => {
     await syncImportedSquads(9, players);
     await waitFor(() => expect(result.current.squads[0].playerIds).toEqual(GW9_IDS));
     expect(loadSavedSquads()[0].playerIds).toEqual(GW9_IDS);
-  });
-
-  it("names a wildcard's worth of changes by count", () => {
-    expect(describeImportedSquadUpdate({ squadName: "S", event: 9, playersIn: [1, 2, 3, 4], playersOut: [5, 6, 7, 8] }, players)).toBe("S now shows FPL's Gameweek 9 team: 4 players changed.");
   });
 });

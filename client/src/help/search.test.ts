@@ -183,6 +183,7 @@ const QUESTIONS: [string, string][] = [
   ["windows protected your pc", "install"],
   ["how do i install it", "install"],
   ["how do i uninstall scoutline", "uninstall"],
+  ["clean sheet odds on the pitch", "pitch-highlight"],
   ["delete all my saved data", "uninstall"],
   ["is there a mac version", "platforms"],
   ["can i use it on my phone", "platforms"],
