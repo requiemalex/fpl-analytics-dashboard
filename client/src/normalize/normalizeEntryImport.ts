@@ -30,6 +30,9 @@ function importedBudget(playerIds: number[], pickCount: number, bankTenths: numb
  * warnings so the rest of a mostly-good import still lands. Its purchase
  * prices (<purchase_prices>) are loaded separately
  * (state/importedPurchasePrices.ts): null here until they are.
+ * `picksEvent`, when the picks are another gameweek's than `eventId` (the
+ * gameweek before a Free Hit, whose squad is the team's again once it's
+ * played: fplTeamImport.ts), is the gameweek whose bank goes with them.
  */
 export function normalizeEntryImport(
   team: RawEntryTeam,
@@ -37,13 +40,14 @@ export function normalizeEntryImport(
   picks: RawEntryPicks,
   eventId: number,
   livePlayersById: Map<number, NormalizedPlayer>,
+  picksEvent = eventId,
 ): EntryImportResult {
   const warnings: string[] = [];
   const squad = createBlankSquad(team.name?.trim() || `Imported Team ${team.id}`);
 
   const rawPicks = picks.picks ?? [];
   if (rawPicks.length === 0) {
-    warnings.push(`FPL returned no picks for Gameweek ${eventId}. The team may not have been entered yet that week.`);
+    warnings.push(`FPL returned no picks for Gameweek ${picksEvent}. The team may not have been entered yet that week.`);
   }
 
   for (const pick of rawPicks) {
@@ -80,7 +84,7 @@ export function normalizeEntryImport(
   }
   squad.usedChips = usedChips;
 
-  const latestGw = (history.current ?? []).slice().sort((a, b) => b.event - a.event)[0];
+  const latestGw = (history.current ?? []).find((gw) => gw.event === picksEvent) ?? (history.current ?? []).slice().sort((a, b) => b.event - a.event)[0];
   // Unknown, not £0.0m, if FPL sends neither (audit 2026-10-18 L4).
   const bankTenths = latestGw?.bank ?? team.last_deadline_bank ?? null;
 

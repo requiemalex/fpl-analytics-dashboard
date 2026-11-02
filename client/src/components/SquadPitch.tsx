@@ -5,7 +5,32 @@ import { sellingPrice } from "../metrics/squadPrices";
 import { PositionBadge, AvailabilityFlag, availabilityTextClass, pressable } from "./primitives";
 import { PitchMarkings } from "./PitchMarkings";
 import { Kit } from "./Kit";
-import { ArmbandIcon, BestDraftIcon, ClearDraftIcon, CloseIcon, IconChipButton, PlusIcon } from "./IconToolbar";
+import {
+  ArmbandIcon,
+  BestDraftIcon,
+  CalendarIcon,
+  ClearDraftIcon,
+  CleanSheetIcon,
+  ClockIcon,
+  CloseIcon,
+  ForecastIcon,
+  GameweekSummaryIcon,
+  GamesIcon,
+  GoalsExpectedIcon,
+  IconChipButton,
+  ModelIcon,
+  OddsIcon,
+  OwnershipIcon,
+  PlusIcon,
+  PriceIcon,
+  PriceTagIcon,
+  ProgressIcon,
+  PurchaseIcon,
+  SellIcon,
+} from "./IconToolbar";
+import { FplSourceIcon } from "./SourceToggle";
+import { PlayerNameCell } from "./PlayerNameCell";
+import type { ChipName } from "../types/team";
 import { GameweekArrows, SegmentedControl, type SegmentOption } from "./MenuControls";
 import { fmtDate, fmtPrice, fmtPercent, fmtDecimal, DASH } from "../utils/format";
 import { fdrColor, type UpcomingFixture } from "../metrics/fixtureTicker";
@@ -35,22 +60,27 @@ const POSITION_NOUN: Record<Position, [string, string]> = {
  * (<price_view>). Fixtures shows the next five matches instead, as its
  * own toggle picks (<fixture_odds>): Games, the opponents coloured by FPL
  * difficulty, or Odds, the club's Fixture Forecast for each. Each toggle
- * shows only beside its own highlight.
+ * shows only beside its own highlight. Every switch is icons, each named in
+ * its hover, as the page's actions are (the owner's call, 2026-11-02).
  */
 export type KitView = "fixtures" | "points" | "price" | "ownership" | "minutes";
 
 const KIT_VIEW_OPTIONS: SegmentOption<KitView>[] = [
-  { value: "fixtures", label: "Fixtures", title: "Each player's next five matches: the opponents or the club's odds, as the toggle beside picks" },
-  { value: "price", label: "Price", title: "Price: today's, his selling price, his purchase price or its change, as the toggle beside picks" },
-  { value: "ownership", label: "Owned", title: "Share of FPL managers who own him" },
-  { value: "minutes", label: "Minutes", title: "Expected minutes: how long Scoutline's model expects him to play in the gameweek picked" },
-  { value: "points", label: "Points Prediction", title: "Expected points for the gameweek picked (a double's two matches added up): FPL's official figure or Scoutline's model, as the toggle beside picks" },
+  { value: "fixtures", icon: <CalendarIcon size={16} />, title: "Fixtures: each player's next five matches, the opponents or his club's odds in each, as the toggle beside picks" },
+  { value: "price", icon: <PriceIcon />, title: "Price: today's, his selling price, his purchase price or its progress toward a change, as the toggle beside picks" },
+  { value: "ownership", icon: <OwnershipIcon />, title: "Owned: share of FPL managers who own him" },
+  { value: "minutes", icon: <ClockIcon />, title: "Expected minutes: how long Scoutline's model expects him to play in the gameweek picked" },
+  {
+    value: "points",
+    icon: <ForecastIcon />,
+    title: "Points Prediction: expected points for the gameweek picked (a double's two matches added up), from the FPL or Model source beside Projected Points",
+  },
 ];
 
 /** FPL Official or Model Predicted: Points Prediction's source, and Best Draft's. */
 const SOURCE_OPTIONS: SegmentOption<PointsSource>[] = [
-  { value: "fpl", label: "FPL", title: "Exp. Pts (FPL Official), for Points Prediction, Projected Points and Best Draft" },
-  { value: "model", label: "Model", title: "Exp. Pts (Model Predicted): Scoutline's own estimate, for Points Prediction, Projected Points and Best Draft" },
+  { value: "fpl", icon: <FplSourceIcon size={16} />, title: "Exp. Pts (FPL Official), for Points Prediction, Projected Points and Best Draft" },
+  { value: "model", icon: <ModelIcon />, title: "Exp. Pts (Model Predicted): Scoutline's own estimate, for Points Prediction, Projected Points and Best Draft" },
 ];
 const SOURCE_NAME: Record<PointsSource, string> = { fpl: "FPL Official", model: "Model Predicted" };
 
@@ -58,11 +88,12 @@ const SOURCE_NAME: Record<PointsSource, string> = { fpl: "FPL Official", model: 
 export type FixturesView = "games" | "odds";
 
 const FIXTURES_VIEW_OPTIONS: SegmentOption<FixturesView>[] = [
-  { value: "games", label: "Games", title: "Who he plays, coloured by FPL difficulty" },
+  { value: "games", icon: <GamesIcon />, title: "Games: who he plays in each of his next five, coloured by FPL difficulty" },
   {
     value: "odds",
-    label: "Odds",
-    title: "Scoutline's Fixture Forecast for his club: a goalkeeper's or defender's chance of a clean sheet, a midfielder's or forward's goals expected",
+    icon: <OddsIcon />,
+    title:
+      "Odds: Scoutline's Fixture Forecast for his club in each of his next five, under each opponent — a goalkeeper's or defender's chance of a clean sheet (shield), a midfielder's or forward's goals expected (ball)",
   },
 ];
 
@@ -70,11 +101,11 @@ const FIXTURES_VIEW_OPTIONS: SegmentOption<FixturesView>[] = [
 export type PriceView = "current" | "purchase" | "sell" | "progress" | "predicted";
 
 const PRICE_VIEW_OPTIONS: SegmentOption<PriceView>[] = [
-  { value: "current", label: "Current", title: "Today's price" },
-  { value: "purchase", label: "Purchase", title: "Purchase price: what he cost when he joined this squad" },
-  { value: "sell", label: "Sell", title: "Selling price: what FPL would pay for him, his purchase price plus half of any rise since (rounded down to £0.1m), or today's price after a fall" },
-  { value: "progress", label: "Progress", title: "Progress: FPL's own figure for how far he is toward his next price change, + toward a rise, − toward a drop (100% is the threshold)" },
-  { value: "predicted", label: "Predicted Progress", title: "Predicted Progress: where FPL expects his progress to be at the next price update" },
+  { value: "current", icon: <PriceTagIcon />, title: "Current: today's price" },
+  { value: "purchase", icon: <PurchaseIcon />, title: "Purchase price: what he cost when he joined this squad" },
+  { value: "sell", icon: <SellIcon />, title: "Selling price: what FPL would pay for him, his purchase price plus half of any rise since (rounded down to £0.1m), or today's price after a fall" },
+  { value: "progress", icon: <ProgressIcon />, title: "Progress: FPL's own figure for how far he is toward his next price change, + toward a rise, − toward a drop (100% is the threshold)" },
+  { value: "predicted", icon: <ProgressIcon predicted />, title: "Predicted Progress: where FPL expects his progress to be at the next price update" },
 ];
 
 /** What each price figure is: the first line of its hover on a card (<stat_hover>). */
@@ -86,14 +117,20 @@ const PRICE_DEFINITION: Record<PriceView, string> = {
   predicted: "Predicted Progress: where FPL expects his progress to be at the next price update.",
 };
 
-/** One match's odds chip (<fixture_odds>): the club figure his position reads, tinted by its rank among every club's fixtures. */
+/**
+ * One match's odds chip (<fixture_odds>): the opponent over the club
+ * figure his position reads, so each reads as that match's, tinted by its
+ * rank among every club's fixtures.
+ */
 function OddsChip({ fixture, odds, position }: { fixture: UpcomingFixture; odds: FixtureOdds | null; position: Position }) {
   const figure = oddsFigureFor(position);
   const where = `${fixture.opponentShortName} ${fixture.isHome ? "at home" : "away"}`;
+  const opponent = <span className="pitch-card-fixture-opponent">{fixture.opponentShortName.slice(0, 3)}</span>;
   if (!odds) {
     return (
       <span className="pitch-card-fixture is-odds" title={`${where}: no forecast yet (club records still loading)`}>
-        {DASH}
+        {opponent}
+        <span className="pitch-card-fixture-value">{DASH}</span>
       </span>
     );
   }
@@ -106,12 +143,19 @@ function OddsChip({ fixture, odds, position }: { fixture: UpcomingFixture; odds:
   const rank = odds.rank[figure];
   return (
     <span className="pitch-card-fixture is-odds" style={{ background: percentileTint(rank) }} title={statHover(definition, percentileHint(rank, "every club's upcoming fixtures"))}>
-      {text}
+      {opponent}
+      <span className="pitch-card-fixture-value">{text}</span>
     </span>
   );
 }
 
-/** The next five matches: FPL-difficulty chips (Games), or the club's odds for each (Odds, <fixture_odds>). */
+/** What a position's odds chips show (<fixture_odds>): its icon, leading the row, and its name for the hover. */
+const ODDS_KIND = {
+  cleanSheet: { icon: <CleanSheetIcon size={11} />, title: "Clean sheet chance: his club's, in each of his next five" },
+  goalsFor: { icon: <GoalsExpectedIcon size={11} />, title: "Goals expected: his club's, in each of his next five" },
+};
+
+/** The next five matches: FPL-difficulty chips (Games), or the club's odds for each (Odds, <fixture_odds>), led by what they are. */
 function FixtureTicker({
   fixtures,
   view,
@@ -124,8 +168,14 @@ function FixtureTicker({
   position: Position;
 }) {
   if (fixtures.length === 0) return <span className="value-muted">{DASH}</span>;
+  const kind = view === "odds" ? ODDS_KIND[oddsFigureFor(position)] : null;
   return (
-    <div className="pitch-card-fixtures">
+    <div className={`pitch-card-fixtures${kind ? " is-odds" : ""}`}>
+      {kind && (
+        <span className="pitch-card-odds-kind" title={kind.title} aria-label={kind.title} role="img">
+          {kind.icon}
+        </span>
+      )}
       {fixtures.map((f) =>
         view === "odds" ? (
           <OddsChip key={f.fixtureId} fixture={f} odds={odds?.get(f.fixtureId) ?? null} position={position} />
@@ -158,10 +208,16 @@ export function squadMarketValue(players: readonly Pick<NormalizedPlayer, "price
   return players.reduce((sum, p) => sum + Math.round(p.price * 10), 0) / 10;
 }
 
+/** <squad_chips>: how a chip played this gameweek counts in Projected Points, as FPL scores it: the captain's multiplier, and whether the bench counts. */
+export function chipScoring(chip: ChipName | null): { captainMultiplier: number; benchCounts: boolean } {
+  return { captainMultiplier: chip === "3xc" ? 3 : 2, benchCounts: chip === "bboost" };
+}
+
 /**
  * <projected_points>: the starting XI's Exp. Pts for the pitch's gameweek
- * from its source, the captain's counted twice, as FPL scores them. A
- * starter with no match that gameweek adds 0; one with a match but no
+ * from its source, the captain's counted twice (three times under Triple
+ * Captain), as FPL scores them; under Bench Boost the bench counts too. A
+ * player with no match that gameweek adds 0; one with a match but no
  * figure leaves the total unknown, never part-counted. Null with no
  * starter, or no gameweek left.
  */
@@ -170,19 +226,20 @@ export function projectedPoints(
   captainId: number | null,
   expectationByPlayerId: Map<number, GameweekExpectation | null>,
   source: PointsSource,
-): { total: number | null; missing: string[]; captain: { name: string; points: number } | null } {
+  chip: { captainMultiplier: number; bench: readonly NormalizedPlayer[] } = { captainMultiplier: 2, bench: [] },
+): { total: number | null; missing: string[]; captain: { id: number; name: string; points: number } | null } {
   const missing: string[] = [];
   let total = 0;
-  let captain: { name: string; points: number } | null = null;
-  for (const p of starters) {
+  let captain: { id: number; name: string; points: number } | null = null;
+  for (const p of [...starters, ...chip.bench]) {
     const g = expectationByPlayerId.get(p.id) ?? null;
     const value = g === null ? null : g.fixtures.length === 0 ? 0 : g[source];
     if (value === null) {
       missing.push(p.name);
       continue;
     }
-    const counted = p.id === captainId ? value * 2 : value;
-    if (p.id === captainId) captain = { name: p.name, points: counted };
+    const counted = p.id === captainId ? value * chip.captainMultiplier : value;
+    if (p.id === captainId) captain = { id: p.id, name: p.name, points: counted };
     total += counted;
   }
   return { total: starters.length > 0 && missing.length === 0 ? total : null, missing, captain };
@@ -220,13 +277,17 @@ function SummaryFigure({ label, value, title, colour, negative }: { label: strin
 
 /**
  * The summary's top row (<squad_summary>): Projected Points and the
- * captain's share of it, then Squad Value and Bank. The Exp. Pts source
- * toggle sits in Projected Points' own box, beside the figure: Points
- * Prediction, Projected Points, the captain's figure and Best Draft all
- * follow it, whatever the kits highlight (the owner's call, 2026-11-02).
+ * captain's share of it, then Squad Value, Bank, and the squad's transfers
+ * and chips (<squad_transfers>, <squad_chips>: `planning`, from Team
+ * Building). The Exp. Pts source toggle sits in Projected Points' own box,
+ * beside the figure: Points Prediction, Projected Points, the captain's
+ * figure and Best Draft all follow it, whatever the kits highlight (the
+ * owner's call, 2026-11-02). The captain is shown as the Explorers' Player
+ * column shows a player (PlayerNameCell), his figure beside him.
  */
 function SummaryFigures({
   starters,
+  bench,
   captainId,
   expectationByPlayerId,
   source,
@@ -236,21 +297,37 @@ function SummaryFigures({
   validation,
   budgetHint,
   marketValue,
+  chip,
+  planning,
+  onViewProfile,
 }: {
   starters: NormalizedPlayer[];
+  bench: NormalizedPlayer[];
   captainId: number | null;
   expectationByPlayerId: Map<number, GameweekExpectation | null>;
   source: PointsSource;
   onSourceChange: (source: PointsSource) => void;
   gameweek: number | null;
-  /** Best Draft's starters and captain for the same gameweek and source; null when it can't run. */
-  bestPicks: { starters: NormalizedPlayer[]; captainId: number | null } | null;
+  /** Best Draft's starters, bench and captain for the same gameweek and source; null when it can't run. */
+  bestPicks: { starters: NormalizedPlayer[]; bench: NormalizedPlayer[]; captainId: number | null } | null;
   validation: SquadValidation;
   budgetHint: string;
   marketValue: number;
+  /** The chip played for the pitch's gameweek, if any (<squad_chips>). */
+  chip: ChipName | null;
+  planning: React.ReactNode;
+  onViewProfile: (id: number) => void;
 }) {
-  const p = projectedPoints(starters, captainId, expectationByPlayerId, source);
-  const best = bestPicks ? projectedPoints(bestPicks.starters, bestPicks.captainId, expectationByPlayerId, source).total : null;
+  const scoring = chipScoring(chip);
+  const p = projectedPoints(starters, captainId, expectationByPlayerId, source, { captainMultiplier: scoring.captainMultiplier, bench: scoring.benchCounts ? bench : [] });
+  const best = bestPicks
+    ? projectedPoints(bestPicks.starters, bestPicks.captainId, expectationByPlayerId, source, {
+        captainMultiplier: scoring.captainMultiplier,
+        bench: scoring.benchCounts ? bestPicks.bench : [],
+      }).total
+    : null;
+  const counted = `${scoring.benchCounts ? "The whole squad's" : "The starting XI's"} Exp. Pts (${SOURCE_NAME[source]}) for GW${gameweek}, the captain's counted ${scoring.captainMultiplier === 3 ? "three times (Triple Captain)" : "twice"}${scoring.benchCounts ? " (Bench Boost)" : ""}`;
+  const captainPlayer = p.captain ? starters.find((s) => s.id === p.captain!.id) : undefined;
   const score = projectedPointsScore(p.total, best);
   const sourceName = SOURCE_NAME[source];
   const projectedHint =
@@ -260,9 +337,7 @@ function SummaryFigures({
         ? "No starting XI yet: start players to see their projected points"
         : p.total === null
           ? `No total yet: ${p.missing.length > 0 ? `${p.missing.join(", ")} ${p.missing.length === 1 ? "has" : "have"} no ${sourceName} figure for GW${gameweek}` : "the figures are still loading"}`
-          : `The starting XI's Exp. Pts (${sourceName}) for GW${gameweek}, the captain's counted twice.${
-              best !== null ? ` Best Draft would make it ${fmtDecimal(best, 1)}: green at that, red the further short of it.` : ""
-            }`;
+          : `${counted}, before any transfer's hit.${best !== null ? ` Best Draft would make it ${fmtDecimal(best, 1)}: green at that, red the further short of it.` : ""}`;
   // To the tenth, as budgetLeftText does.
   const tenths = Math.round(validation.budgetRemaining * 10);
   const sellingDiffers = Math.round(validation.budgetUsed * 10) !== Math.round(marketValue * 10);
@@ -275,11 +350,22 @@ function SummaryFigures({
         <SummaryFigure label="Projected Points" value={p.total !== null ? fmtDecimal(p.total, 1) : DASH} title={projectedHint} colour={percentileColour(score)} />
         <SegmentedControl label="Source" hideLabel options={SOURCE_OPTIONS} value={source} onChange={onSourceChange} />
       </div>
-      <SummaryFigure
-        label={p.captain ? `Captain · ${p.captain.name}` : "Captain"}
-        value={p.captain ? fmtDecimal(p.captain.points, 1) : DASH}
-        title={p.captain ? `${p.captain.name}'s Exp. Pts (${sourceName}), doubled as captain` : "No captain yet"}
-      />
+      <div className="squad-summary-figure is-captain">
+        <span className="squad-summary-label">Captain</span>
+        <div className="squad-summary-captain">
+          <span
+            className="squad-summary-value num"
+            title={
+              p.captain
+                ? `${p.captain.name}'s Exp. Pts (${sourceName}) for GW${gameweek}, ${scoring.captainMultiplier === 3 ? "tripled (Triple Captain)" : "doubled as captain"}`
+                : "No captain yet: pick one with the armband icon"
+            }
+          >
+            {p.captain ? fmtDecimal(p.captain.points, 1) : DASH}
+          </span>
+          {captainPlayer && <PlayerNameCell player={captainPlayer} onOpen={onViewProfile} />}
+        </div>
+      </div>
       <SummaryFigure label="Squad Value" value={fmtPrice(marketValue)} title={valueHint} />
       <SummaryFigure
         label="Bank"
@@ -287,6 +373,7 @@ function SummaryFigures({
         title={`${budgetLeftText(validation.budgetRemaining)} of ${fmtPrice(validation.budget)}. ${budgetHint}`}
         negative={tenths < 0}
       />
+      {planning}
     </div>
   );
 }
@@ -376,6 +463,7 @@ function PlayerCard({
   player,
   zone,
   view,
+  captainMultiplier,
   pointsSource,
   priceView,
   fixturesView,
@@ -396,6 +484,8 @@ function PlayerCard({
   player: NormalizedPlayer;
   zone: "pitch" | "bench";
   view: KitView;
+  /** The captain's multiplier: 2, or 3 under Triple Captain (<squad_chips>). */
+  captainMultiplier: number;
   /** Which Exp. Pts Points Prediction shows. */
   pointsSource: PointsSource;
   /** Which price Price shows. */
@@ -425,8 +515,9 @@ function PlayerCard({
   const [isDragOver, setIsDragOver] = useState(false);
   const expectedPoints = gameweek?.fpl ?? null;
   const modelPredicted = gameweek?.model ?? null;
-  const displayPoints = expectedPoints !== null && isCaptain ? expectedPoints * 2 : expectedPoints;
-  const displayModelPredicted = modelPredicted !== null && isCaptain ? modelPredicted * 2 : modelPredicted;
+  const displayPoints = expectedPoints !== null && isCaptain ? expectedPoints * captainMultiplier : expectedPoints;
+  const displayModelPredicted = modelPredicted !== null && isCaptain ? modelPredicted * captainMultiplier : modelPredicted;
+  const captaincy = isCaptain ? captainMultiplier : false;
   const expectedMinutes = gameweek?.expectedMinutes ?? null;
   /** A figure's hover (<stat_hover>): what it is, his figure explained, then his percentile within his position. */
   const definition =
@@ -445,13 +536,13 @@ function PlayerCard({
     view === "points" && pointsSource === "fpl"
       ? {
           text: displayPoints !== null ? fmtDecimal(displayPoints, 1) : DASH,
-          title: fplGameweekHint(gameweek, isCaptain),
+          title: fplGameweekHint(gameweek, captaincy),
           rank: ranks.points,
         }
       : view === "points"
         ? {
             text: displayModelPredicted !== null ? fmtDecimal(displayModelPredicted, 1) : DASH,
-            title: modelGameweekHint(gameweek, isCaptain),
+            title: modelGameweekHint(gameweek, captaincy),
             rank: ranks.model,
           }
         : view === "price"
@@ -578,6 +669,10 @@ export function SquadPitch({
   onAddSlot,
   onClearSquad,
   onBestDraft,
+  onOpenSummary,
+  summaryBlocker,
+  chip,
+  planning,
   warning,
   hasSquad,
   budgetHint,
@@ -619,6 +714,14 @@ export function SquadPitch({
   onClearSquad: () => void;
   /** <best_draft>: the starting XI and armbands to put in place. */
   onBestDraft: (picks: DraftPicks) => void;
+  /** <gameweek_summary>: opens the Gameweek Summary and Log. */
+  onOpenSummary?: () => void;
+  /** Why the Gameweek Summary can't open yet (no gameweek played); null when it can. */
+  summaryBlocker?: string | null;
+  /** <squad_chips>: the chip played for the pitch's gameweek, if any: Projected Points, the captain's figures and Best Draft's total count it. */
+  chip?: ChipName | null;
+  /** <squad_transfers>, <squad_chips>: the Transfers and Chips figures, after Bank. */
+  planning?: React.ReactNode;
   /** A rejected drag/drop shows its reason here briefly (e.g. a club-limit breach). */
   warning: string | null;
   /** False before any squad exists: the whole tile is greyed out and nothing on it can be used, so no player can be added until New Squad makes one. */
@@ -654,8 +757,14 @@ export function SquadPitch({
   // <projected_points_colour>: what Best Draft's picks would score, to colour Projected Points against.
   const squadById = new Map([...starters, ...benchPlayers].map((p) => [p.id, p]));
   const bestPicks = draftPicks
-    ? { starters: draftPicks.startingXI.map((id) => squadById.get(id)).filter((p): p is NormalizedPlayer => !!p), captainId: draftPicks.captainId }
+    ? {
+        starters: draftPicks.startingXI.map((id) => squadById.get(id)).filter((p): p is NormalizedPlayer => !!p),
+        bench: [...starters, ...benchPlayers].filter((p) => !draftPicks.startingXI.includes(p.id)),
+        captainId: draftPicks.captainId,
+      }
     : null;
+  const activeChip = chip ?? null;
+  const { captainMultiplier } = chipScoring(activeChip);
 
   const card = (p: NormalizedPlayer, zone: "pitch" | "bench") => (
     <PlayerCard
@@ -663,6 +772,7 @@ export function SquadPitch({
       player={p}
       zone={zone}
       view={view}
+      captainMultiplier={captainMultiplier}
       pointsSource={pointsSource}
       priceView={priceView}
       fixturesView={fixturesView}
@@ -696,6 +806,7 @@ export function SquadPitch({
       <div className="card squad-summary">
         <SummaryFigures
           starters={starters}
+          bench={benchPlayers}
           captainId={captainId}
           expectationByPlayerId={expectationByPlayerId}
           source={pointsSource}
@@ -705,12 +816,17 @@ export function SquadPitch({
           validation={squadValidation}
           budgetHint={budgetHint}
           marketValue={squadMarketValue([...starters, ...benchPlayers])}
+          chip={activeChip}
+          planning={planning}
+          onViewProfile={onViewProfile}
         />
         <div className="squad-summary-controls">
-          <SegmentedControl label="Highlight" hideLabel options={KIT_VIEW_OPTIONS} value={view} onChange={setView} />
-          {/* Each highlight's own toggle, beside it only (<kit_view>); Points Prediction's source is in Projected Points' box. */}
-          {view === "fixtures" && <SegmentedControl label="Fixtures" inlineLabel options={FIXTURES_VIEW_OPTIONS} value={fixturesView} onChange={setFixturesView} />}
-          {view === "price" && <SegmentedControl label="Price" inlineLabel options={PRICE_VIEW_OPTIONS} value={priceView} onChange={setPriceView} />}
+          <div className="squad-summary-highlight">
+            <SegmentedControl label="Highlight" hideLabel options={KIT_VIEW_OPTIONS} value={view} onChange={setView} />
+            {/* Each highlight's own toggle, beside it only (<kit_view>); Points Prediction's source is in Projected Points' box. */}
+            {view === "fixtures" && <SegmentedControl label="Fixtures" hideLabel options={FIXTURES_VIEW_OPTIONS} value={fixturesView} onChange={setFixturesView} />}
+            {view === "price" && <SegmentedControl label="Price" hideLabel options={PRICE_VIEW_OPTIONS} value={priceView} onChange={setPriceView} />}
+          </div>
           <div className="squad-summary-end">
             {/* The squad's actions as icons, as every other section's are (the owner's call, 2026-11-02). */}
             <div className="icon-toolbar pitch-view-actions">
@@ -739,6 +855,15 @@ export function SquadPitch({
                 onClick={handleBestDraft}
                 disabled={draftBlocker !== null}
               />
+              {onOpenSummary && (
+                <IconChipButton
+                  icon={<GameweekSummaryIcon />}
+                  label="Gameweek Summary"
+                  title={summaryBlocker ?? "Gameweek Summary: each gameweek this squad has played against every FPL manager, and the Gameweek Log of them all"}
+                  onClick={onOpenSummary}
+                  disabled={!!summaryBlocker}
+                />
+              )}
             </div>
             <GameweekArrows
               gameweeks={gameweeks}

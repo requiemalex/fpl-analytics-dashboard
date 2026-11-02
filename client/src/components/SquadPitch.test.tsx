@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import React from "react";
+import { MemoryRouter } from "react-router-dom";
+import { cleanup, fireEvent, render as renderBare } from "@testing-library/react";
 import { SquadPitch, projectedPoints, projectedPointsScore, type PitchColourRanks } from "./SquadPitch";
 import { percentileTint } from "../utils/colorScale";
 import { openSquadSlots, validateSquad } from "../metrics/squadRules";
@@ -12,6 +14,8 @@ import type { FplBreakdown } from "../metrics/expectedPoints";
 import type { FixtureOdds } from "../metrics/fixtureOdds";
 
 afterEach(cleanup);
+/** The captain's club pill opens a club's profile through the router. */
+const render = (ui: React.ReactElement) => renderBare(<MemoryRouter>{ui}</MemoryRouter>);
 
 const fixture = (id: number, opponent: string, isHome: boolean, difficulty = 2, eventId = 9): UpcomingFixture => ({ fixtureId: id, eventId, opponentTeamId: 99, opponentShortName: opponent, isHome, difficulty });
 
@@ -40,6 +44,10 @@ function renderPitch(
     purchasePrices?: Record<number, number>;
     colourRanks?: PitchColourRanks;
     odds?: Map<number, Map<number, FixtureOdds | null>>;
+    chip?: "wildcard" | "freehit" | "bboost" | "3xc" | null;
+    planning?: React.ReactNode;
+    onOpenSummary?: () => void;
+    summaryBlocker?: string | null;
   } = {},
 ) {
   const squad = [...xi, ...bench];
@@ -73,6 +81,10 @@ function renderPitch(
       onAddSlot={onAddSlot}
       onClearSquad={() => {}}
       onBestDraft={extra.onBestDraft ?? (() => {})}
+      chip={extra.chip}
+      planning={extra.planning}
+      onOpenSummary={extra.onOpenSummary}
+      summaryBlocker={extra.summaryBlocker}
       warning={null}
       hasSquad={hasSquad}
       budgetHint=""
@@ -149,16 +161,37 @@ describe("<kit_view> Highlight", () => {
     fireEvent.click(getByRole("radio", { name: /next five matches/ }));
     fireEvent.click(getByRole("radio", { name: /Fixture Forecast/ }));
     const chips = (id: number) => [...container.querySelectorAll(".pitch-card")].find((c) => c.textContent?.includes(`Player ${id}`))!.querySelectorAll(".pitch-card-fixture");
-    expect([...chips(1)].map((c) => c.textContent)).toEqual(["34%", "—"]);
-    expect([...chips(2)].map((c) => c.textContent)).toEqual(["1.6", "—"]);
+    // Each match's opponent over its figure, so each reads as that match's.
+    expect([...chips(1)].map((c) => c.textContent)).toEqual(["BUR34%", "WOL—"]);
+    expect([...chips(2)].map((c) => c.textContent)).toEqual(["BUR1.6", "WOL—"]);
+    expect(chips(1)[0].querySelector(".pitch-card-fixture-opponent")!.textContent).toBe("BUR");
+    expect(chips(1)[0].querySelector(".pitch-card-fixture-value")!.textContent).toBe("34%");
+    // The row is led by what its figures are.
+    const kind = (id: number) => chips(id)[0].parentElement!.querySelector(".pitch-card-odds-kind")!.getAttribute("aria-label");
+    expect(kind(1)).toBe("Clean sheet chance: his club's, in each of his next five");
+    expect(kind(2)).toBe("Goals expected: his club's, in each of his next five");
     expect((chips(1)[0] as HTMLElement).style.background.replace(/ /g, "")).toBe(percentileTint(90)!.replace(/ /g, ""));
     expect(chips(1)[0].getAttribute("title")).toBe("BUR at home: 34% chance of a clean sheet for his club (Fixture Forecast).\n90th percentile of every club's upcoming fixtures: top 10%");
   });
 
-  it("lists Points Prediction last", () => {
+  it("is icons, each named in its hover, Points Prediction last", () => {
     const { getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
-    const labels = [...getByRole("radiogroup", { name: "Highlight" }).querySelectorAll("button")].map((b) => b.textContent);
-    expect(labels).toEqual(["Fixtures", "Price", "Owned", "Minutes", "Points Prediction"]);
+    const buttons = [...getByRole("radiogroup", { name: "Highlight" }).querySelectorAll("button")];
+    expect(buttons.map((b) => b.textContent)).toEqual(["", "", "", "", ""]);
+    expect(buttons.every((b) => b.querySelector("svg") && b.getAttribute("title") === b.getAttribute("aria-label"))).toBe(true);
+    expect(buttons.map((b) => b.getAttribute("title")!.split(":")[0])).toEqual(["Fixtures", "Price", "Owned", "Expected minutes", "Points Prediction"]);
+  });
+
+  it("shows the Source toggle as icons, and the Fixtures toggle beside Fixtures only, as icons too", () => {
+    const { getByRole, queryByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
+    const source = [...getByRole("radiogroup", { name: "Source" }).querySelectorAll("button")];
+    expect(source.map((b) => b.textContent)).toEqual(["", ""]);
+    expect(source.map((b) => b.getAttribute("title"))).toEqual([expect.stringMatching(/^Exp\. Pts \(FPL Official\)/), expect.stringMatching(/^Exp\. Pts \(Model Predicted\)/)]);
+    expect(queryByRole("radiogroup", { name: "Fixtures" })).toBeNull();
+    fireEvent.click(getByRole("radio", { name: /^Fixtures:/ }));
+    const fixtures = [...getByRole("radiogroup", { name: "Fixtures" }).querySelectorAll("button")];
+    expect(fixtures.map((b) => b.getAttribute("title")!.split(":")[0])).toEqual(["Games", "Odds"]);
+    expect(fixtures.map((b) => b.textContent)).toEqual(["", ""]);
   });
 
   it("has no Match switch", () => {
@@ -223,6 +256,39 @@ describe("<squad_summary> the card above the pitch", () => {
     expect([...container.querySelectorAll(".squad-summary-figure .squad-summary-label")].map((l) => l.textContent)).toEqual(["Projected Points", "Captain", "Squad Value", "Bank"]);
   });
 
+  it("puts Team Building's Transfers and Chips figures after Bank", () => {
+    const planning = (
+      <>
+        <div className="squad-summary-figure">
+          <span className="squad-summary-label">Transfers</span>
+        </div>
+        <div className="squad-summary-figure">
+          <span className="squad-summary-label">Chips</span>
+        </div>
+      </>
+    );
+    const { container } = renderPitch([makePlayer({ id: 1, position: "MID" })], [], vi.fn(), null, true, null, undefined, { planning });
+    expect([...container.querySelectorAll(".squad-summary-figures > .squad-summary-figure > .squad-summary-label")].map((l) => l.textContent)).toEqual([
+      "Captain",
+      "Squad Value",
+      "Bank",
+      "Transfers",
+      "Chips",
+    ]);
+  });
+
+  it("opens the Gameweek Summary from its icon, greyed out saying why until there's a gameweek to show", () => {
+    const onOpenSummary = vi.fn();
+    const blocked = renderPitch([makePlayer({ id: 1, position: "MID" })], [], vi.fn(), null, true, null, undefined, { onOpenSummary, summaryBlocker: "Not yet" });
+    const button = blocked.getByRole("button", { name: "Gameweek Summary" });
+    expect(button).toHaveProperty("disabled", true);
+    expect(button.getAttribute("title")).toBe("Not yet");
+    cleanup();
+    const ready = renderPitch([makePlayer({ id: 1, position: "MID" })], [], vi.fn(), null, true, null, undefined, { onOpenSummary, summaryBlocker: null });
+    fireEvent.click(ready.getByRole("button", { name: "Gameweek Summary" }));
+    expect(onOpenSummary).toHaveBeenCalledTimes(1);
+  });
+
   it("puts the Source toggle, unlabelled, in Projected Points' box, and shows no Highlight or Gameweek label", () => {
     const { container, getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
     expect([...container.querySelectorAll(".squad-summary .field-label")].map((l) => l.textContent)).toEqual([]);
@@ -238,7 +304,7 @@ describe("<squad_summary> the card above the pitch", () => {
     const { container } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
     const row = container.querySelector(".squad-summary-controls")!;
     expect(row.querySelectorAll(".squad-summary-row")).toHaveLength(0);
-    expect([...row.children].map((c) => c.className)).toEqual(["field", "squad-summary-end"]);
+    expect([...row.children].map((c) => c.className)).toEqual(["squad-summary-highlight", "squad-summary-end"]);
     const end = row.querySelector(".squad-summary-end")!;
     expect([...end.children].map((c) => c.className)).toEqual(["icon-toolbar pitch-view-actions", "field"]);
     expect(end.lastElementChild!.querySelector(".gameweek-arrows")).not.toBeNull();
@@ -334,7 +400,9 @@ describe("<price_view> Price", () => {
   it("toggles between today's price, the purchase price and the selling price", () => {
     const { container, getByRole } = priced();
     fireEvent.click(getByRole("radio", { name: /^Price:/ }));
-    expect([...getByRole("radiogroup", { name: "Price" }).querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Current", "Purchase", "Sell", "Progress", "Predicted Progress"]);
+    const options = [...getByRole("radiogroup", { name: "Price" }).querySelectorAll("button")];
+    expect(options.map((b) => b.textContent)).toEqual(["", "", "", "", ""]);
+    expect(options.map((b) => b.getAttribute("title")!.split(":")[0])).toEqual(["Current", "Purchase price", "Selling price", "Progress", "Predicted Progress"]);
     // Forward (id 2) first, then the midfielder (id 1), then the bench defender (id 3).
     expect(figures(container).map((f) => f.text)).toEqual(["£7.1m", "£7.9m", "£4.5m"]);
     fireEvent.click(getByRole("radio", { name: /^Selling price/ }));
@@ -448,8 +516,25 @@ describe("<projected_points> projectedPoints", () => {
     ]);
     const p = projectedPoints(xi, 1, figures, "fpl");
     expect(p.total).toBe(10.5);
-    expect(p.captain).toEqual({ name: "A", points: 8 });
+    expect(p.captain).toEqual({ id: 1, name: "A", points: 8 });
   });
+  it("<squad_chips> counts the captain three times under Triple Captain, and the bench under Bench Boost", () => {
+    const figures = new Map([
+      [1, gw(4)],
+      [2, gw(1)],
+      [3, gw(2.5)],
+    ]);
+    expect(projectedPoints(xi, 1, figures, "fpl", { captainMultiplier: 3, bench: [] }).total).toBe(15.5);
+    expect(projectedPoints(xi.slice(0, 2), 1, figures, "fpl", { captainMultiplier: 2, bench: [xi[2]] }).total).toBe(11.5);
+  });
+
+  it("shows Triple Captain on the captain's figure and card", () => {
+    const { container } = renderPitch([makePlayer({ id: 1, position: "MID" })], [], vi.fn(), 1, true, null, undefined, { chip: "3xc" });
+    expect(container.querySelector(".squad-summary-captain .squad-summary-value")!.textContent).toBe("12.6");
+    expect(container.querySelector(".pitch-card .pitch-card-figure")!.textContent).toBe("12.6");
+    expect(container.querySelector(".pitch-card .pitch-card-figure")!.getAttribute("title")).toContain("(captain ×3)");
+  });
+
   it("has no total while a starter with a match has no figure, and names him", () => {
     const p = projectedPoints(xi, null, new Map([[1, gw(4)], [2, gw(null)], [3, gw(1)]]), "fpl");
     expect(p.total).toBeNull();
@@ -462,7 +547,11 @@ describe("<projected_points> projectedPoints", () => {
       [...container.querySelectorAll(".squad-summary-figures > .squad-summary-figure")]
         .slice(0, 2)
         .map((t) => `${t.querySelector(".squad-summary-label")!.textContent}: ${t.querySelector(".squad-summary-value")!.textContent}`);
-    expect(figures()).toEqual(["Projected Points: 8.4", "Captain · Player 1: 8.4"]);
+    expect(figures()).toEqual(["Projected Points: 8.4", "Captain: 8.4"]);
+    // The captain as the Explorers' Player column shows him: name, then ownership · price, club and position.
+    const captain = container.querySelector(".squad-summary-captain .player-name-cell")!;
+    expect(captain.querySelector(".name")!.textContent).toContain("Player 1");
+    expect(captain.querySelector(".meta")!.textContent).toMatch(/% · £.*MID$/);
     fireEvent.click(getByRole("radiogroup", { name: "Source" }).querySelector<HTMLElement>('[aria-label^="Exp. Pts (Model"]')!);
     expect(figures()[0]).toBe("Projected Points: —");
   });

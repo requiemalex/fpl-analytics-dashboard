@@ -950,12 +950,34 @@ select:focus {
   white-space: nowrap;
   overflow: hidden;
 }
-/* <fixture_odds>: a figure on the card's own surface, tinted by its rank like any other figure. */
+/* <fixture_odds>: each match's opponent over its figure, on the card's own
+   surface, tinted by its rank like any other figure; the row led by what
+   the figures are (a shield: clean sheet chance; a ball: goals expected). */
+.pitch-card-fixtures.is-odds {
+  align-items: stretch;
+}
+.pitch-card-odds-kind {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: var(--text-secondary);
+}
 .pitch-card-fixture.is-odds {
-  font-family: var(--font-mono);
-  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 0 1px;
   color: var(--text-primary);
   background: var(--surface-raised);
+}
+.pitch-card-fixture-opponent {
+  font-size: 7px;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+}
+.pitch-card-fixture-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
 }
 
 /* <open_slots>: an empty place — a dashed "+" and its position, on the
@@ -1084,22 +1106,187 @@ select:focus {
   margin-bottom: var(--space-4);
   padding: 0;
 }
+/* Six figures in one row, none narrower than its content: Projected Points
+   and Captain wider, for the source toggle and the captain beside their
+   figures. On a window too narrow for that, three to a row (fixed gaps
+   either way). */
 .squad-summary-figures {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: minmax(max-content, 1.3fr) minmax(max-content, 1.6fr) repeat(4, minmax(max-content, 1fr));
+  row-gap: var(--space-5);
   padding: var(--space-5) 0;
 }
 .squad-summary-figure {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   min-width: 0;
-  padding: 0 var(--space-6);
+  padding: 0 var(--space-5);
 }
-.squad-summary-figure + .squad-summary-figure {
+.squad-summary-figures > .squad-summary-figure + .squad-summary-figure {
   border-left: 1px solid var(--border);
 }
-/* Projected Points with the Exp. Pts source toggle beside it, in one box: the figure left, the toggle right. */
+@media (max-width: 1440px) {
+  .squad-summary-figures {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .squad-summary-figures > .squad-summary-figure:nth-child(3n + 1) {
+    border-left: none;
+  }
+}
+/* Transfers and Chips (<squad_transfers>, <squad_chips>): the figure is a
+   button opening its menu. */
+.squad-summary-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.squad-summary-figure > .squad-summary-button {
+  padding: 0;
+}
+.squad-summary-button:hover .squad-summary-label {
+  color: var(--text-primary);
+}
+.squad-summary-value svg {
+  display: block;
+}
+.squad-summary-hit {
+  margin-left: var(--space-2);
+  font-size: 15px;
+  color: var(--accent-negative);
+}
+.squad-summary-value:has(.squad-summary-hit) {
+  display: flex;
+  align-items: baseline;
+}
+.squad-chip-icons {
+  display: flex;
+  gap: var(--space-2);
+  min-height: 31px;
+  align-items: center;
+}
+.squad-chip-icon {
+  display: grid;
+  place-items: center;
+  color: var(--text-primary);
+}
+.squad-chip-icon.is-spent {
+  color: var(--text-muted);
+  opacity: 0.45;
+}
+.squad-chip-icon.is-playing {
+  color: var(--accent-positive);
+}
+/* The captain's figure with him beside it, as the Explorers show a player. */
+.squad-summary-captain {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  overflow: hidden;
+}
+.squad-summary-captain .player-name-cell {
+  min-width: 0;
+}
+.squad-summary-captain .player-name-cell .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The Highlight switch and its own toggle, side by side. */
+.squad-summary-highlight {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* The Transfers and Chips menus. */
+.planning-popover {
+  left: var(--space-5);
+  right: auto;
+  width: 320px;
+  max-height: none;
+  cursor: default;
+}
+/* The last figure's (Chips, at the card's right edge) opens leftward. */
+.squad-summary-figures > .squad-summary-figure:last-child > .planning-popover {
+  left: auto;
+  right: var(--space-5);
+}
+.planning-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.planning-row-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.planning-figures {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.planning-moves {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: var(--space-3);
+}
+.planning-move {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 12.5px;
+}
+.planning-move-dir {
+  flex: 0 0 28px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.planning-popover .dialog-actions {
+  margin-top: var(--space-3);
+}
+.planning-empty {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+.planning-chip {
+  display: grid;
+  grid-template-columns: 136px 1fr auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px 0;
+}
+.planning-chip-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.planning-chip-play:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.planning-chip-state {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+.popover label.planning-chip-used {
+  gap: 4px;
+  font-size: 11.5px;
+}
+/* Projected Points with the Exp. Pts source toggle beside it, in one box: the figure left, the toggle right; Transfers with its confirm tick. */
 .squad-summary-figure.is-split {
   flex-direction: row;
   align-items: center;
@@ -3596,9 +3783,11 @@ kbd {
   min-width: 0;
 }
 
-/* ---------- Gameweek Summary (<gameweek_summary>) ----------
+/* ---------- Gameweek Summary and Log (<gameweek_summary>) ----------
    A panel over Team Building, under the profile takeover (z-index 40) as
-   Add Players is, so a name clicked in it opens his profile on top. */
+   Add Players is, so a name clicked in it opens his profile on top. Made of
+   the app's own parts: the profiles' Summary tiles, compact tables, and a
+   switch at its foot between the Summary and the Log. */
 .gw-backdrop {
   position: fixed;
   inset: 0;
@@ -3610,10 +3799,10 @@ kbd {
   background: rgba(4, 7, 5, 0.6);
 }
 .gw-panel {
+  display: flex;
+  flex-direction: column;
   width: min(560px, 100%);
   max-height: 88vh;
-  overflow-y: auto;
-  padding: var(--space-5) var(--space-6) var(--space-6);
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
@@ -3624,7 +3813,8 @@ kbd {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  margin-bottom: var(--space-4);
+  padding: var(--space-5) var(--space-6) var(--space-4);
+  border-bottom: 1px solid var(--border);
 }
 .gw-panel-heading {
   flex: 1;
@@ -3634,123 +3824,42 @@ kbd {
   font-size: 12.5px;
   color: var(--text-secondary);
 }
-.gw-section {
-  padding: var(--space-4) 0;
+.gw-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-2) var(--space-6) var(--space-4);
+}
+.gw-panel-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-3) var(--space-6);
   border-top: 1px solid var(--border);
 }
-.gw-section .card-title {
-  margin-bottom: var(--space-3);
+.gw-view-switch {
+  gap: 2px;
+  width: auto;
+  padding: 5px 10px;
 }
-/* Points: the squad's figure against the average, as bars on one scale. */
-.gw-points + .gw-points {
-  margin-top: var(--space-4);
+.gw-section {
+  padding-top: var(--space-4);
 }
-.gw-points-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: var(--space-2);
-}
-.gw-points-diff {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-secondary);
-}
-.gw-points-rank {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
+.gw-section + .gw-section {
   margin-top: var(--space-2);
-  font-size: 13px;
-  font-weight: 600;
 }
-.gw-bar-row {
-  display: grid;
-  grid-template-columns: 84px 1fr 44px;
-  align-items: center;
-  gap: var(--space-3);
-  padding: 3px 0;
+/* The tables fill the panel; their first column names the row. */
+.gw-table {
+  width: 100%;
 }
-.gw-bar-label {
-  font-size: 12px;
+.gw-table-label {
+  text-align: left;
+  font-family: var(--font-body);
   color: var(--text-secondary);
 }
-.gw-bar-track {
-  height: 6px;
-  border-radius: 3px;
-  background: var(--surface-raised);
-  overflow: hidden;
-}
-.gw-bar-fill {
-  display: block;
-  height: 100%;
-  border-radius: 3px;
-}
-/* Series colours, never green or red (<comparative_colouring>): the squad in the first series colour, the average in the neutral one. */
-.gw-bar-fill.is-squad {
-  background: var(--series-1);
-}
-.gw-bar-fill.is-average,
-.gw-bar-fill.is-neutral {
-  background: var(--series-5);
-}
-.gw-bar-value {
-  font-size: 13px;
-  font-weight: 600;
-  text-align: right;
-  color: var(--text-primary);
-}
-/* A labelled row of figures: captaincy, chips. Each section sets its columns, its head row too. */
-.gw-line {
-  display: grid;
-  align-items: center;
-  gap: var(--space-3);
-  padding: 6px 0;
-  font-size: 13px;
-}
-.gw-line + .gw-line {
-  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
-}
-.gw-line-head {
-  padding-top: 0;
-  font-size: 10.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  font-weight: 600;
-}
-.gw-line-head > span:not(:first-child) {
-  text-align: right;
-}
-.gw-lines-captaincy .gw-line {
-  grid-template-columns: 110px 1fr 64px;
-}
-.gw-lines-chips .gw-line {
-  grid-template-columns: 140px 64px 1fr;
-}
-.gw-line-label {
-  display: flex;
+.gw-chip-name {
+  display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  color: var(--text-secondary);
-}
-.gw-line-main {
-  min-width: 0;
-}
-.gw-line-value,
-.gw-chip-week {
-  text-align: right;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-.gw-chip-left {
-  display: grid;
-  grid-template-columns: 1fr 44px;
-  align-items: center;
-  gap: var(--space-3);
 }
 .gw-chip-yours {
   font-size: 10px;
@@ -3768,6 +3877,7 @@ kbd {
 }
 /* No colour of its own, so a doubtful or unavailable player's name keeps its warning colour. */
 .gw-player-name {
+  font-family: var(--font-body);
   font-weight: 600;
   cursor: pointer;
   overflow: hidden;
@@ -3777,17 +3887,20 @@ kbd {
 .gw-player-name:hover {
   text-decoration: underline;
 }
-
-/* ---------- Gameweek Log (<gameweek_log>) ---------- */
+/* The Log: a row opens its gameweek's Summary. */
+.gw-log-table {
+  width: 100%;
+}
+.gw-log-row {
+  cursor: pointer;
+}
+.gw-log-row:hover td {
+  box-shadow: inset 0 0 0 9999px rgba(255, 255, 255, 0.04);
+}
 .gw-log-live {
   margin-left: 6px;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-muted);
-}
-.gw-log-captain {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-3);
 }

@@ -8,7 +8,7 @@ import React from "react";
  * as one set with the app's chip buttons.
  */
 
-export type SectionIcon = "squad" | "players" | "views" | "tiles" | "graphs" | "radar" | "outputs" | "trends" | "log";
+export type SectionIcon = "squad" | "players" | "views" | "tiles" | "graphs" | "radar" | "outputs" | "trends";
 
 const ICONS: Record<SectionIcon, React.ReactNode> = {
   // A shirt: sleeves out from a round collar.
@@ -70,15 +70,6 @@ const ICONS: Record<SectionIcon, React.ReactNode> = {
     <>
       <path d="M2.5 2v12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
       <path d="M5 4.5h8.5M5 8h5.5M5 11.5h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </>
-  ),
-  // A log: rows, each with its gameweek dot.
-  log: (
-    <>
-      <circle cx="3.2" cy="4" r="1.1" fill="currentColor" />
-      <circle cx="3.2" cy="8" r="1.1" fill="currentColor" />
-      <circle cx="3.2" cy="12" r="1.1" fill="currentColor" />
-      <path d="M6.2 4h7.6M6.2 8h7.6M6.2 12h7.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
     </>
   ),
   // Trending-up arrow.

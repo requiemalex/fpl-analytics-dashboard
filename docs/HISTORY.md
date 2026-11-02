@@ -4222,3 +4222,22 @@ tiles/graphs only:
   positions at once, alongside Availability and set-piece duties. The CSV
   export keeps Team and Position columns.
 - **Last commit with it:** `c0656ae`.
+
+### Team Building's Gameweek Log section and the first Gameweek Summary (replaced 2026-11-02)
+- **What it did:** a "Gameweek Log" section under the pitch
+  (`components/teamBuilding/GameweekLogTable.tsx`): one row per gameweek
+  the squad had played, with its points, every manager's average and
+  highest, the bench, and for an import its gameweek rank, transfers, hits
+  and chip (a squad built here showed its captain instead), and an icon
+  opening the Gameweek Summary. That panel showed the gameweek's points as
+  bars against the average and highest, the gameweek rank, and its
+  captaincy and chips as grid rows.
+- **Why it went:** the owner's call: the section said little on its own,
+  and the panel's design didn't match the rest of the app. The log is now
+  the Summary panel's second view (its foot's arrow switches them), cut to
+  each gameweek's points, gameweek rank and overall rank; the panel is
+  built from the profiles' Summary tiles and compact tables, its rank left
+  to the log; and the transfers moved to the summary card's own Transfers
+  figure (`<squad_transfers>`), beside Squad Value and Bank. The Summary
+  icon sits with the pitch's actions.
+- **Last commit with it:** `2405569`.

@@ -40,6 +40,7 @@ function importedSquad(asOfEvent: number): SavedSquad {
     viceCaptainId: 4,
     purchasePrices: { 15: 6 },
     usedChips: [],
+    transfers: null,
     gameweekLog: [],
     importedFrom: { teamId: 77, teamName: "Eze Peasy", managerName: "A Manager", asOfEvent, bank: 1.1, budget: 103.8, playerIds: GW8_IDS, purchasePrices: { 15: 6 } },
   };
@@ -75,6 +76,33 @@ describe("imported squad sync (<imported_squad_sync>)", () => {
     expect(squad.captainId).toBe(5);
     expect(squad.importedFrom).toMatchObject({ teamId: 77, asOfEvent: 9, bank: 0.8, playerIds: GW9_IDS, purchasePrices: { 16: 6.3 } });
     expect(updates).toEqual([{ squadName: "My renamed squad", event: 9, playersIn: [16], playersOut: [15] }]);
+    // <squad_transfers>: the next gameweek's, from FPL's history of the team (its first gameweek: one after it), counted from its picks.
+    expect(squad.transfers).toEqual(expect.objectContaining({ event: 10, free: 1, made: 0, baseIds: GW9_IDS, chip: null }));
+  });
+
+  it("after a Free Hit, takes the picks from the gameweek before it: the squad the team goes back to", async () => {
+    seed([importedSquad(8)]);
+    fplShows(9);
+    fetchEntryHistoryMock.mockResolvedValue({
+      data: {
+        current: [
+          { event: 8, bank: 5 },
+          { event: 9, bank: 30 },
+        ],
+        chips: [{ name: "freehit", event: 9 }],
+      },
+    });
+    fetchEntryPicksMock.mockImplementation(async (_team: number, event: number) => ({
+      data: { picks: (event === 8 ? GW8_IDS : GW9_IDS).map((element, i) => ({ element, position: i + 1, is_captain: element === 6, is_vice_captain: element === 3 })) },
+    }));
+    await syncImportedSquads(9, players);
+    const [squad] = loadSavedSquads();
+    expect(fetchEntryPicksMock).toHaveBeenCalledWith(77, 8);
+    expect(squad.playerIds).toEqual(GW8_IDS);
+    expect(squad.captainId).toBe(6);
+    // GW8's bank, which the Free Hit's goes back to; still on GW9 for the next sync.
+    expect(squad.importedFrom).toMatchObject({ asOfEvent: 9, bank: 0.5 });
+    expect(squad.usedChips).toEqual([{ chip: "freehit", event: 9 }]);
   });
 
   it("a squad already on the current gameweek isn't asked about: FPL hides the next gameweek's picks until its deadline", async () => {

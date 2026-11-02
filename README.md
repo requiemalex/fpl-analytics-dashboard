@@ -2001,8 +2001,9 @@ named constant with its reasoning), and Model Predicted is a **fitted model**, p
 seasons it wasn't fitted on (below). The page has no analysis-mode
 toggle; Add Players (Player Explorer's table) has its own Data View. Squads (`useSavedSquads`,
 max 5) are created blank or imported by FPL team ID (positions 1–11 are the
-starting XI, also in a Bench Boost week; a Free Hit week imports that week's
-temporary squad). Squad rules
+starting XI, also in a Bench Boost week; after a Free Hit week it imports
+the gameweek before's picks and bank, the squad the team goes back to:
+`ownPicksEvent` in `state/fplTeamImport.ts`). Squad rules
 (`metrics/squadRules.ts`) always use live price and club. The budget is
 FPL's £100m for a squad built from scratch; an imported squad has its own
 (`<imported_budget>`, `squadMoney` in `metrics/squadPrices.ts`): what FPL
@@ -2028,9 +2029,9 @@ team; FPL's team ids are per season too).
 `syncImportedSquads` in `state/fplTeamImport.ts`): after every live data
 load (start-up and the 10-minute poll), a squad imported before the app's
 current gameweek is read again from FPL, and once FPL shows a later
-gameweek for that team its picks, armbands, bank, chips and purchase prices
-replace the squad's (its name and place in the list stay; changes made to
-it in Scoutline go). Nothing announces it (the owner's call, 2026-11-02:
+gameweek for that team its picks, armbands, bank, chips, transfers and
+purchase prices replace the squad's (its name and place in the list stay;
+changes made to it in Scoutline go). Nothing announces it (the owner's call, 2026-11-02:
 the manager made the changes). A squad already on the current gameweek costs no request: FPL
 publishes a team's picks only after that gameweek's deadline (the next
 gameweek's picks are "not found" until then, and the endpoint with a
@@ -2067,7 +2068,13 @@ starting XI short of 11 or a line under its minimum.
   Formations section draws the same kit and nameplate. Under the
   kit, a dark nameplate: the name, then **one** figure, picked with
   **Highlight** (`<kit_view>`: Fixtures, Price, Owned, Minutes, Points Prediction,
-  coloured as before), with no fixture beside it; **Fixtures** shows the
+  coloured as before), with no fixture beside it. **Every switch on the
+  card is icons** (the owner's call, 2026-11-02, as the page's actions
+  are), each named in its hover (`title` + `aria-label`): Highlight
+  (calendar, coin, pie, clock, forecast line), the Exp. Pts source (FPL's
+  football, the model's linked nodes), Fixtures' Games/Odds (a chip strip,
+  a percent sign) and Price's five (tag, bag, coins leaving, a meter, a
+  meter dashed on). **Fixtures** shows the
   next five matches instead, as its own toggle picks (`<fixture_odds>`,
   `metrics/fixtureOdds.ts`): **Games**, the opponents as FDR-coloured
   chips, or **Odds**, each match's Fixture Forecast (`<fixture_forecast>`)
@@ -2075,7 +2082,11 @@ starting XI short of 11 or a line under its minimum.
   clean sheet, a midfielder's or forward's club's goals expected. Club
   odds, the Team Profile's figures, never a player's own; each chip
   tinted by its rank among every club's fixtures in the same five, as the
-  Team Profile ranks a fixture, with the opponent in its hover.
+  Team Profile ranks a fixture. So each reads as one match's figure, an
+  Odds chip shows its opponent over the figure, and the row is led by
+  what the figures are: a shield (clean sheet chance) or a ball in flight
+  (goals expected), named in its hover (the owner's call, 2026-11-02: bare
+  figures didn't say what they were).
   **Points Prediction** is the player's Exp. Pts for the gameweek the
   pitch's arrows pick (a double's two matches added up, "—" for a blank),
   from the source the FPL/Model toggle in Projected Points' box picks.
@@ -2087,14 +2098,19 @@ starting XI short of 11 or a line under its minimum.
   loaded); the squad picker (above) sits under it.
 - **The summary card** (`<squad_summary>`, `SummaryFigures` in
   `components/SquadPitch.tsx`) — its own card above the pitch's. Along the
-  top, four figures, each after a hairline: **Projected Points** (below),
-  **Captain** (named in the label: his Exp. Pts, doubled), **Squad Value**
+  top, six figures, each after a hairline (in one row; three to a row on
+  a window under 1440px): **Projected Points** (below),
+  **Captain** (his Exp. Pts, doubled, and beside it the captain as the
+  Explorers' Player column shows a player, `PlayerNameCell`: name with his
+  set-piece and availability icons, then ownership · price, club and
+  position; the owner's call 2026-11-02), **Squad Value**
   (`<squad_value>`, `squadMarketValue`: FPL's own figure, the squad's
   players at today's prices, the owner's call 2026-10-26. What they count
   against the budget can be less — an import's players still held count
   at their selling prices, FPL keeping half of each rise — and its hover
-  gives that figure where it differs) and **Bank** (the budget left, as
-  FPL's is). **The Exp. Pts source** (FPL / Model, no label) sits in
+  gives that figure where it differs), **Bank** (the budget left, as
+  FPL's is), **Transfers** and **Chips** (`<squad_transfers>`,
+  `<squad_chips>`, below). **The Exp. Pts source** (FPL / Model, no label) sits in
   Projected Points' own box, to the right of the figure, as the one
   switch that Points Prediction, Projected Points, the captain's figure
   and Best Draft all follow (the owner's call, 2026-11-02: a toggle shown
@@ -2103,8 +2119,10 @@ starting XI short of 11 or a line under its minimum.
   has one; then, pushed to the far end, the squad's actions as icons in
   one `.icon-toolbar`, as every other section's are (the owner's call,
   2026-11-02): Captain and Vice-Captain (armbands, green while armed),
-  Clear Draft (an eraser) and Best Draft (a spark), each named in its
-  hover; and the gameweek arrows (no label shown) last (owner's call
+  Clear Draft (an eraser), Best Draft (a spark) and Gameweek Summary (two
+  bars: the Summary and Log panel, below; greyed out, saying why, until
+  the squad has played a gameweek), each named in its hover; and the
+  gameweek arrows (no label shown) last (owner's call
   2026-10-30: two rows wasted height). On a narrow window that far
   end wraps under the toggles, still to the right; the gaps are fixed. A club-limit breach is a banner at the top
   of the pitch's card. The bench is a row of slots, goalkeeper
@@ -2198,27 +2216,83 @@ starting XI short of 11 or a line under its minimum.
   imports the squad, without purchase prices (they load next time). A
   new season's rollover drops them (they were paid at last season's
   prices).
-- **Gameweek Log** (`<gameweek_log>`, `state/useGameweekLog.ts`,
-  `components/teamBuilding/GameweekLogTable.tsx`) — under the pitch, once
-  the active squad has a gameweek to show: one row per gameweek whose
-  deadline has passed, newest first. **Each gameweek on its own, against
-  every FPL manager who played it; nothing added up across gameweeks**
-  (no totals, averages to date or overall rank: the owner's call,
-  2026-11-02, as squads start in different gameweeks, so a figure to date
-  compares unlike things). Each row has the squad's points (before any
-  transfer cost), every FPL manager's average and highest that gameweek
-  (bootstrap's `average_entry_score`/`highest_score`) and the points left
-  on the bench. **Points are coloured against the gameweek**
+- **Transfers** (`<squad_transfers>`, `metrics/squadTransfers.ts`,
+  `components/teamBuilding/SquadPlanning.tsx`) — the summary card's fifth
+  figure: the free transfers left for the gameweek open for picks (an
+  infinity sign, drawn, when every transfer is free), and the hit in red
+  once they're past; it opens a menu with the free transfers, those
+  confirmed and pending, the hit, and who's out and in. FPL's rules
+  (2026/27, checked 2026-11-02): a team's first gameweek is unlimited;
+  after it one free transfer a gameweek, unused ones banked up to five
+  (bootstrap's `max_extra_free_transfers`, 4, plus the week's one), each
+  past them −4; a Wildcard or Free Hit makes the gameweek's transfers free
+  and keeps the bank as it was, adding none. Kept per squad as its
+  **transfer window** (`SavedSquad.transfers`, saved-squads store version
+  6): the gameweek, its free transfers, those confirmed, the squad at the
+  last confirm (pending transfers are the players bought since) and at
+  the gameweek's start (what a Free Hit puts back), and its chip. The tick
+  beside the figure **confirms**, as FPL's own confirm: the pending ones
+  count from then on, so undoing one later is another transfer. **A squad
+  built here** starts unlimited (its first gameweek) and its free
+  transfers can be set by hand in the menu (∞, 0–5), tracking from the
+  squad as it stands; at each deadline (`recordPassedDeadlines`,
+  `state/gameweekRecords.ts`, the same moments the Gameweek Log records
+  it) the gameweek's transfers, confirmed and pending, are counted into
+  its record with their hit, its chip is spent, a Free Hit's squad goes
+  back, and the next gameweek opens with its free transfers by the rules
+  (one that didn't play its first gameweek stays unlimited). A change
+  made to a copy read before a deadline keeps what that deadline rolled
+  on (`withDeadlinesOf`). **An import's** free transfers are worked out
+  from FPL's history of the team (`freeTransfersFromHistory`: FPL's public
+  data doesn't send them, and the endpoint that does needs the manager's
+  login), its rules played through every gameweek since the team started
+  and corrected wherever the history says more: a hit means the free ones
+  were the transfers less the hits; more transfers than counted with no
+  hit, at least that many were free. Checked on three public teams' GW1–9
+  (2026-11-02). Its planned changes count from the players it was imported
+  with; after the next deadline its update from FPL replaces them all. An
+  import saved before version 6 has its transfers read from FPL the first
+  time it's opened each session (`loadImportTransfers`).
+- **Chips** (`<squad_chips>`, `chipStatuses`) — the sixth figure: each
+  chip's icon (a card with a star, a lightning bolt, a bench with an arrow
+  up, an armband with a 3), dimmed once spent this half of the season, green
+  while played; its menu plays one for the gameweek open for picks or
+  cancels it. One of each per half (bootstrap's `chips` windows: no
+  Wildcard or Free Hit in GW1), one a gameweek, and no Free Hit the
+  gameweek after one (GW19 then GW20). An import's spent chips are FPL's
+  (`usedChips`); a squad built here's are those it played here, spent at the
+  deadline, and those ticked **Used** by hand (`{ event: null, half }`). A
+  chip played counts where FPL counts it: on the pitch's gameweek when
+  it's the one open for picks, Triple Captain counts the captain three
+  times in Projected Points, the captain's figure and his card, and Bench
+  Boost counts the bench in Projected Points (and Best Draft's total, for
+  its colour); in a squad built here's Gameweek Log, Bench Boost scores all
+  fifteen (no substitutions, nothing left on the bench, as FPL shows it)
+  and Triple Captain the captain three times.
+- **Gameweek Log** (`<gameweek_log>`, `state/useGameweekLog.ts`) — a view
+  of the Gameweek Summary panel (below), not a section of the page any more
+  (the owner's call, 2026-11-02): one row per gameweek whose deadline has
+  passed, newest first, with the squad's points (before any transfer
+  cost) and an import's gameweek rank and **overall rank** after it (FPL's
+  own `rank`/`overall_rank`, both coloured by their place among the
+  managers ranked that gameweek, `rankPercentile`; the owner asked for the
+  overall rank, 2026-11-02). A squad built here has no rank columns: FPL
+  ranks only its own teams. A row opens that gameweek's Summary. **Every
+  other figure is one gameweek's, against every FPL manager who played
+  it; nothing added up across gameweeks** (no totals or averages to date:
+  the owner's call, 2026-11-02, as squads start in different gameweeks,
+  so a figure to date compares unlike things). Each row also carries every
+  FPL manager's average and highest that gameweek (bootstrap's
+  `average_entry_score`/`highest_score`), the points left on the bench, and
+  the transfers, hits and chip, which the Summary shows. **Points are coloured against the gameweek**
   (`<gameweek_points_colour>`, `pointsAgainstGameweek` in
   `metrics/gameweekSummary.ts`, the owner's call 2026-11-02: the
   comparison is other managers): grey at the average, toward full green
   at the gameweek's highest score and toward full red at 0, through
   `percentileTint`/`percentileColour` so the palette switch turns it off.
   **An import** reads FPL's own history for the team
-  (`entry/{id}/history/`) and adds its gameweek rank, coloured by its
-  place among the managers ranked that gameweek (`rankPercentile`,
-  `ranked_count`), its transfers, hits and chip. **A squad built in
-  Scoutline** is frozen as it stood at each deadline: the squad that
+  (`entry/{id}/history/`): its ranks, transfers, hits and chip. **A squad
+  built in Scoutline** is frozen as it stood at each deadline: the squad that
   played that gameweek (`SavedSquad.gameweekLog`, saved-squads store
   version 5; `state/gameweekRecords.ts`). A squad's state at a deadline is
   its state as last changed before it, so it's recorded exactly when the
@@ -2231,18 +2305,24 @@ starting XI short of 11 or a line under its minimum.
   player who did and keeps the XI legal (a goalkeeper only by the
   goalkeeper; the bench in the order the pitch shows it, as Scoutline's
   bench has no order of its own), and the vice-captain doubles if the
-  captain didn't play; until then, the XI as picked, the row marked live.
-  Its Captain column says who doubled. No chips (Scoutline can't play
-  them), and no rank (FPL ranks only its own teams). Checked against real
+  captain didn't play; until then, the XI as picked, the row marked live;
+  a chip played here counts as FPL counts it (Chips, above). Its record
+  carries the gameweek's transfers and hit from Scoutline's transfer
+  window (none before the squad had one); no rank (FPL ranks only its own
+  teams). Checked against real
   teams (2026-11-02): every gameweek without a chip scored exactly FPL's
   points. A new season clears the records (`seasonIdRollover`).
 - **Gameweek Summary** (`<gameweek_summary>`,
   `components/teamBuilding/GameweekSummary.tsx`, `metrics/gameweekSummary.ts`)
-  — a panel from the Gameweek Log's icon, on the log's latest gameweek,
-  its arrows stepping through the rest; one gameweek at a time, as the log
-  is: **Points** (the squad's beside every manager's average and highest
-  as bars on that gameweek's scale, the squad's figure coloured as in the
-  log; an import's gameweek rank of the managers ranked), **Captaincy**
+  — a panel from the pitch's Gameweek Summary icon, in two views switched
+  with the arrow button at its foot: the Summary, on the log's latest
+  gameweek, its arrows stepping through the rest, and the Gameweek Log
+  (above). Rebuilt from the app's own parts (the owner's call, 2026-11-02:
+  the first design didn't match the rest of the app): the profiles'
+  Summary tiles and compact tables, no bars. One gameweek at a time, as
+  the log is: **Points** (six tiles: the squad's points, tinted as in the
+  log, every manager's average and highest, the bench, the transfers and
+  the hit; the gameweek rank is the Log's alone), **Captaincy**
   (the squad's captain, from its record or for an import its FPL picks,
   whoever FPL counted more than once; FPL's most-captained player,
   `most_captained`; and the gameweek's top scorer, `top_element_info`;
@@ -2251,8 +2331,8 @@ starting XI short of 11 or a line under its minimum.
   the managers ranked, `ranked_count`, and the share yet to play it this
   half of the season: 1 − every play since its window opened ÷ those
   managers, each manager holding one per window; the squad's own chip
-  tagged). FPL publishes only the single most-captained player, not a
-  captaincy table, so there's no top five.
+  tagged), each a compact table. FPL publishes only the single
+  most-captained player, not a captaincy table, so there's no top five.
 - **Open places** (`<open_slots>`, `openSquadSlots` in
   `metrics/squadRules.ts`) — every place the squad is still short of
   (2 GKP, 5 DEF, 5 MID, 3 FWD) is a "+": the XI's open places take them
@@ -2590,7 +2670,14 @@ changes still work for the session; they just don't persist.
   A squad's Gameweek Log records (`gameweekLog`, version 5) keep only
   numbers and one record per gameweek; a squad saved before version 5 has
   none, and the deadlines passed since it last changed are recorded the
-  next time the app loads (`<gameweek_log>`). A new season clears them.
+  next time the app loads (`<gameweek_log>`). Its transfer window
+  (`transfers`, version 6) is checked field by field and dropped if it
+  can't be read; a record's transfers, hit and chip, and a spent chip's
+  gameweek or half, likewise. A squad saved before version 6 has no window:
+  one built here is unlimited until it plays a gameweek or its free
+  transfers are set; an import's are read from FPL when it's next opened
+  (`<squad_transfers>`). A new season clears the records, the window and
+  the spent chips.
 - **FPL renumbers players and clubs every summer** (`id` is per season; the
   permanent identity is `code`). The id ledger records, for the season the
   saved ids belong to, every id's code. When the app first loads a new
@@ -2812,8 +2899,12 @@ time it's opened, before the app appears; an open one finds it within about
   no figure uses it any more (Model Predicted reads the Fixture Forecast).
 - Restarting the server clears its in-memory cache (cheap — the API is the
   source of truth).
-- Imported squads store chip usage (`usedChips`), but no page shows it at
-  the moment.
+- An import's free transfers are worked out from FPL's history of the
+  team (`<squad_transfers>`): a one-off extra FPL gives every manager (as
+  in 2025/26's top-up to five) shows only once the team uses more than
+  counted, and transfers made on FPL for the next gameweek can't be seen
+  until its deadline. A squad built here has no gameweek or overall rank:
+  FPL ranks only its own teams.
 - Club figures count only matches FPL has marked `finished`, hours after
   full time, while players' Current Season totals include a match from
   kick-off; during a gameweek the league table and club totals run a round

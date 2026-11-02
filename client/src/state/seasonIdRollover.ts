@@ -136,6 +136,9 @@ function remapSquad(raw: unknown, player: Translate, counts: { players: { n: num
   if ("purchasePrices" in squad) squad.purchasePrices = {};
   // <gameweek_log>: last season's gameweeks, numbered as this season's will be, so they go.
   if ("gameweekLog" in squad) squad.gameweekLog = [];
+  // <squad_transfers>, <squad_chips>: last season's gameweek and chips; this season starts afresh.
+  if ("transfers" in squad) squad.transfers = null;
+  if ("usedChips" in squad) squad.usedChips = [];
   // Its import was last season's team (FPL's team ids are per season too): its selling-price budget goes with it.
   if (squad.importedFrom && typeof squad.importedFrom === "object") squad.importedFrom = { ...(squad.importedFrom as Record<string, unknown>), playerIds: null, purchasePrices: {} };
   return squad;

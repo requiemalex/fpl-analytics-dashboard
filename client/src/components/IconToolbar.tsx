@@ -226,10 +226,10 @@ export function SavedViewsIcon({ size = 17 }: { size?: number }) {
   );
 }
 
-/** An armband with its letter: Team Building's Captain (C) and Vice-Captain (V), drawn as the pitch's armbands read. */
-export function ArmbandIcon({ letter }: { letter: "C" | "V" }) {
+/** An armband with its letter: Team Building's Captain (C) and Vice-Captain (V), drawn as the pitch's armbands read; with a 3, the Triple Captain chip. */
+export function ArmbandIcon({ letter, size = 16 }: { letter: "C" | "V" | "3"; size?: number }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
       <rect x="1.8" y="3.3" width="12.4" height="9.4" rx="2.2" stroke="currentColor" strokeWidth="1.3" />
       <text x="8" y="10.9" textAnchor="middle" fontSize="7.6" fontWeight="700" fill="currentColor" fontFamily="inherit">
         {letter}
@@ -268,6 +268,191 @@ export function GameweekSummaryIcon() {
       <path d="M1.8 14.2h12.4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
     </svg>
   );
+}
+
+/** Rows, each with its gameweek dot: the Gameweek Log. */
+export function GameweekLogIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="3.2" cy="4" r="1.1" fill="currentColor" />
+      <circle cx="3.2" cy="8" r="1.1" fill="currentColor" />
+      <circle cx="3.2" cy="12" r="1.1" fill="currentColor" />
+      <path d="M6.2 4h7.6M6.2 8h7.6M6.2 12h7.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** A tick: confirm (Team Building's transfers). */
+export function ConfirmIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M3 8.4 6.4 11.6 13 4.6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** A coin with a pound sign: a player's price (Team Building's Highlight → Price). */
+export function PriceIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="8" cy="8" r="6.2" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M9.9 5.6a1.9 1.9 0 0 0-3.6.8v4.8M5.4 8.6h3.4M5.4 11.2h5.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** A pie with a slice out: the share of FPL managers who own a player (Highlight → Owned). */
+export function OwnershipIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M7 2.6a5.6 5.6 0 1 0 6.4 6.4H7Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M9.2 1.4a5.6 5.6 0 0 1 5.4 5.4H9.2Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** Three linked nodes: Scoutline's own points model (Exp. Pts, Model Predicted). */
+export function ModelIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M4 11.6 7.6 4.4 12 11.4Z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
+      <circle cx="7.6" cy="4.4" r="2.1" fill="currentColor" />
+      <circle cx="4" cy="11.6" r="2.1" fill="currentColor" />
+      <circle cx="12" cy="11.4" r="2.1" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** A strip of fixture chips: who a player plays (Fixtures → Games). */
+export function GamesIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="1.4" y="5" width="3.6" height="6" rx="0.9" fill="currentColor" />
+      <rect x="6.2" y="5" width="3.6" height="6" rx="0.9" stroke="currentColor" strokeWidth="1.2" />
+      <rect x="11" y="5" width="3.6" height="6" rx="0.9" fill="currentColor" fillOpacity="0.45" />
+    </svg>
+  );
+}
+
+/** A percent sign: each match's forecast odds (Fixtures → Odds). */
+export function OddsIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M12.6 3.4 3.4 12.6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <circle cx="4.6" cy="4.6" r="2" stroke="currentColor" strokeWidth="1.3" />
+      <circle cx="11.4" cy="11.4" r="2" stroke="currentColor" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
+/** A shield with a tick: a club's chance of a clean sheet (Fixtures → Odds, for goalkeepers and defenders). */
+export function CleanSheetIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M8 1.8 13 3.6v4c0 3.1-2.1 5.3-5 6.6-2.9-1.3-5-3.5-5-6.6v-4Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M5.6 7.9 7.3 9.6l3.1-3.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** A ball in flight, streaks behind it: the goals a club can expect (Fixtures → Odds, for midfielders and forwards). */
+export function GoalsExpectedIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="10.4" cy="8" r="3.8" stroke="currentColor" strokeWidth="1.3" />
+      <circle cx="10.4" cy="8" r="1.2" fill="currentColor" />
+      <path d="M1.6 5.6h3.2M1 8h3.2M1.6 10.4h3.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** A price tag: today's price (Price → Current). */
+export function PriceTagIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M2 3.2a1.2 1.2 0 0 1 1.2-1.2h4.3l6.5 6.5-5.5 5.5L2 7.5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      <circle cx="5.2" cy="5.2" r="1.1" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** A bag: what a player cost when he joined the squad (Price → Purchase). */
+export function PurchaseIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M3 5.4h10l-.8 8.2H3.8Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M5.8 5.4V4.2a2.2 2.2 0 0 1 4.4 0v1.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Coins with an arrow leaving: what FPL would pay for a player (Price → Sell). */
+export function SellIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <ellipse cx="6" cy="11.6" rx="4.2" ry="1.8" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M1.8 11.6V9c0-1 1.9-1.8 4.2-1.8s4.2.8 4.2 1.8v2.6" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M10.4 5.2h4M12.6 3l2 2.2-2 2.2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** A meter part filled, the threshold at its end: FPL's price change progress (Price → Progress); dashed on toward it, the predicted progress. */
+export function ProgressIcon({ predicted = false, size = 16 }: { predicted?: boolean; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="1.6" y="5.6" width="11.4" height="4.8" rx="1.2" stroke="currentColor" strokeWidth="1.2" />
+      <rect x="3" y="7" width="4.8" height="2" rx="0.5" fill="currentColor" />
+      {predicted && <path d="M8.8 8h3" stroke="currentColor" strokeWidth="2" strokeDasharray="1 0.9" />}
+      <path d="M14.6 3.4v9.2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** A card with a star: the Wildcard chip. */
+export function WildcardIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="3" y="1.8" width="10" height="12.4" rx="1.4" stroke="currentColor" strokeWidth="1.3" />
+      <path d="m8 5 .9 1.9 2 .3-1.5 1.4.4 2L8 9.6l-1.8 1 .4-2-1.5-1.4 2-.3Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** A lightning bolt: the Free Hit chip, a squad for one gameweek. */
+export function FreeHitIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M9.4 1.6 3.6 9h4l-1 5.4L12.4 7h-4Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** A bench with an arrow up: the Bench Boost chip. */
+export function BenchBoostIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M1.8 10.4h12.4M3.4 10.4v3.4M12.6 10.4v3.4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M8 8V2.2M5.6 4.6 8 2.2l2.4 2.4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** An infinity loop, drawn rather than typed (no font need carry the sign): unlimited transfers. */
+export function InfinityIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M8 8c-1.4-1.9-2.5-2.8-3.8-2.8a2.8 2.8 0 0 0 0 5.6C5.5 10.8 6.6 9.9 8 8Zm0 0c1.4 1.9 2.5 2.8 3.8 2.8a2.8 2.8 0 0 0 0-5.6C10.5 5.2 9.4 6.1 8 8Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** Each chip's icon, by FPL's chip name. */
+export function ChipIcon({ chip, size = 16 }: { chip: "wildcard" | "freehit" | "bboost" | "3xc"; size?: number }) {
+  if (chip === "wildcard") return <WildcardIcon size={size} />;
+  if (chip === "freehit") return <FreeHitIcon size={size} />;
+  if (chip === "bboost") return <BenchBoostIcon size={size} />;
+  return <ArmbandIcon letter="3" size={size} />;
 }
 
 /** A floppy disk — save what's on screen over a saved Explorer view. */

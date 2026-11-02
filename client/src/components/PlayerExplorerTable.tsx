@@ -11,7 +11,7 @@ import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/p
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { getUpcomingFixtures, formatFixturesForCsv, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { AnalysisModeToggle } from "./AnalysisModeToggle";
-import { PositionBadge, TeamBadge, TeamProfileOpener, withTeamProfile, AvailabilityFlag, availabilityTextClass, FixtureChips, pressable } from "./primitives";
+import { TeamProfileOpener, withTeamProfile, FixtureChips } from "./primitives";
 import { PLAYER_COLUMNS, cellText, columnApplies, columnByKey, columnForMode, isStaticColumn, rankValue, type ColumnGroup, type PlayerColumn } from "./playerColumns";
 import { IconChipButton, ResetIcon, ColumnsIcon, FilterIcon, DownloadIcon, ForecastIcon } from "./IconToolbar";
 import { fmtDecimal, fmtPercent, fmtPrice } from "../utils/format";
@@ -20,7 +20,8 @@ import { colourDirection, fixtureDifficultyRanks, positionRanks, rankDirection, 
 import { downloadCsv } from "../utils/csvExport";
 import { filterBySearch } from "../utils/playerSearch";
 import { useEscapeLayer } from "../state/useEscapeLayer";
-import { SetPieceDutyIcons, setPieceDuties } from "./SetPieceDuties";
+import { setPieceDuties } from "./SetPieceDuties";
+import { PlayerNameCell } from "./PlayerNameCell";
 import { PLAYER_FILTER_KEY, foldIdentityFilters, playerFilterOf, playerFilterSpec, playerFilterTokens } from "./playerFilter";
 import { ColumnFilterControl } from "./ColumnFilterControl";
 import { HideSmallSamplesButton, isSmallSample, MinutesFloorBadge, RowSmallSampleBadge, smallSamplesShownNote, userMinimumNote } from "./MinutesFloorBadge";
@@ -212,20 +213,7 @@ function PlayerCell({
 }) {
   return (
     <td className="sticky-col">
-      <div className="player-name-cell">
-        <span className={`name ${availabilityTextClass(player.status)}`} {...(onOpen ? pressable(() => onOpen(player.id), `View ${player.name}'s profile`) : {})}>
-          {player.name}
-          <SetPieceDutyIcons player={player} />
-          <AvailabilityFlag status={player.status} news={player.news} chanceOfPlayingNextRound={player.chanceOfPlayingNextRound} />
-          <RowSmallSampleBadge minutes={player.minutes} mode={mode} />
-        </span>
-        <span className="meta">
-          <span title={metaHints?.ownership}>{fmtPercent(player.ownership)}</span> · <span title={metaHints?.price}>{fmtPrice(player.price)}</span>
-          <TeamBadge teamId={player.teamId} shortName={player.teamShortName} />
-          <PositionBadge position={player.position} />
-          {action}
-        </span>
-      </div>
+      <PlayerNameCell player={player} onOpen={onOpen} badge={<RowSmallSampleBadge minutes={player.minutes} mode={mode} />} action={action} metaHints={metaHints} />
     </td>
   );
 }

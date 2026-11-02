@@ -121,8 +121,9 @@ export function versusText(f: UpcomingFixture | undefined): string {
  * 0.1", then his chance of starting and what the figure leans on. The
  * model's workings are in the README, not here.
  */
-export function modelBreakdownHint(b: ModelBreakdown, fixture: UpcomingFixture | undefined, captain = false): string {
-  const scale = captain ? 2 : 1;
+/** `captain`: true for the captain (×2), or the multiplier itself (3 under Triple Captain). */
+export function modelBreakdownHint(b: ModelBreakdown, fixture: UpcomingFixture | undefined, captain: boolean | number = false): string {
+  const scale = captainScale(captain);
   const parts: [string, number][] = [
     ["appearance", b.appearance],
     ["goals", b.goals],
@@ -141,11 +142,16 @@ export function modelBreakdownHint(b: ModelBreakdown, fixture: UpcomingFixture |
     .filter(([, v]) => v * scale <= -0.05)
     .map(([name, v]) => ` − ${name} ${fmtDecimal(-v * scale, 1)}`)
     .join("");
-  const head = `Scoutline's model${versusText(fixture)}${captain ? " (captain ×2)" : ""}: ${fmtDecimal(b.total * scale, 1)} pts`;
+  const head = `Scoutline's model${versusText(fixture)}${scale > 1 ? ` (captain ×${scale})` : ""}: ${fmtDecimal(b.total * scale, 1)} pts`;
   const sum = shown.length > 0 ? ` = ${shown.join(" + ")}${lost}` : "";
   const playing = `. ${fmtPercent(b.startChance * 100, 0)} chance of starting, about ${Math.round(b.expectedMinutes)} minutes expected`;
   const notes = b.notes.length > 0 ? `; ${b.notes.join("; ")}` : "";
   return `${head}${sum}${playing}${notes}`;
+}
+
+/** A captain flag as its multiplier: true is ×2, a number is itself, false ×1. */
+function captainScale(captain: boolean | number): number {
+  return typeof captain === "number" ? captain : captain ? 2 : 1;
 }
 
 /** " v BUR (H) and v WOL (A)": a gameweek's matches (two in a double). */
@@ -167,8 +173,9 @@ function gameweekGapHint(g: GameweekExpectation | null): string | undefined {
  * counting 20%; +10% for FPL difficulty 2". The difficulty part is left out
  * at 3 (no change), the chance of playing at 100%.
  */
-export function fplBreakdownHint(b: FplBreakdown, fixture: UpcomingFixture | undefined, captain = false): string {
-  const head = `FPL figures${versusText(fixture)}${captain ? " (captain ×2)" : ""}: ${fmtDecimal(b.total * (captain ? 2 : 1), 1)} pts`;
+export function fplBreakdownHint(b: FplBreakdown, fixture: UpcomingFixture | undefined, captain: boolean | number = false): string {
+  const scale = captainScale(captain);
+  const head = `FPL figures${versusText(fixture)}${scale > 1 ? ` (captain ×${scale})` : ""}: ${fmtDecimal(b.total * scale, 1)} pts`;
   const parts =
     b.seasonRate === null
       ? [`FPL's own expected points (his form) alone: no season record of his to go on yet`]
@@ -183,7 +190,7 @@ export function fplBreakdownHint(b: FplBreakdown, fixture: UpcomingFixture | und
 }
 
 /** An FPL Official figure for one gameweek: each match's breakdown (fplBreakdownHint), one line each in a double. */
-export function fplGameweekHint(g: GameweekExpectation | null, captain = false): string {
+export function fplGameweekHint(g: GameweekExpectation | null, captain: boolean | number = false): string {
   const gap = gameweekGapHint(g);
   if (gap || g === null) return gap ?? "";
   if (g.fplBreakdowns === null) return `FPL has no expected points for him in GW${g.eventId}`;
@@ -191,7 +198,7 @@ export function fplGameweekHint(g: GameweekExpectation | null, captain = false):
 }
 
 /** A Model Predicted figure for one gameweek: each match's breakdown (modelBreakdownHint), one line each in a double. */
-export function modelGameweekHint(g: GameweekExpectation | null, captain = false): string {
+export function modelGameweekHint(g: GameweekExpectation | null, captain: boolean | number = false): string {
   const gap = gameweekGapHint(g);
   if (gap || g === null) return gap ?? "";
   if (g.modelBreakdowns === null) return "Scoutline's model has no figure: it needs his availability news, his matches this season and both clubs' records, and one of them isn't there";

@@ -56,6 +56,20 @@ describe("scoreRecord", () => {
     expect(s.points).toBe(9 * 2);
   });
 
+  it("<squad_chips> Bench Boost scores all fifteen, no substitutions, nothing left on the bench", () => {
+    const s = scoreRecord(record({ chip: "bboost" }), live({ 1: { minutes: 0, points: 0 }, 12: { points: 6 } }), positionOf, true);
+    // 14 who played at 2 (the keeper 12 at 6), the captain's 2 again.
+    expect(s.points).toBe(13 * 2 + 6 + 2);
+    expect(s.benchPoints).toBe(0);
+    expect(s.subs).toEqual([]);
+  });
+
+  it("<squad_chips> Triple Captain counts the captain three times", () => {
+    const s = scoreRecord(record({ chip: "3xc" }), live({ 10: { points: 10 } }), positionOf, true);
+    expect(s.points).toBe(10 * 2 + 10 * 3);
+    expect(s.captainPoints).toBe(30);
+  });
+
   it("a player missing from FPL's data counts as not having played", () => {
     const partial = live();
     partial.delete(11);

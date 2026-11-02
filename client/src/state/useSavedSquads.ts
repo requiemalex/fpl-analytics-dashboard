@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from "react";
-import type { GameweekRecord, SavedSquad } from "../types/team";
-import { recordPassedDeadlines, withRecordsOf } from "./gameweekRecords";
+import { KNOWN_CHIPS } from "../normalize/normalizeChips";
+import type { ChipName, GameweekRecord, SavedSquad, SquadSnapshot, TransferWindow, UsedChip } from "../types/team";
+import { recordPassedDeadlines, withDeadlinesOf } from "./gameweekRecords";
 import { loadVersioned, mapReadableEntries, saveVersioned, type VersionedStore, usePersistentState } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:saved-squads:v1";
@@ -9,8 +10,9 @@ const STORAGE_KEY = "fpl-dashboard:saved-squads:v1";
  * 3: `purchasePrices` (<purchase_prices>); an earlier squad gets none, so its purchase and selling prices show "—" until it's imported again or a player is re-added.
  * 4: an import's `importedFrom.playerIds` and `importedFrom.purchasePrices` (<imported_budget>); an earlier import gets null for both, and Team Building loads them from FPL the next time it's opened.
  * 5: `gameweekLog` (<gameweek_log>); an earlier squad gets none, and the deadlines passed since it was last changed are recorded the next time the app loads.
+ * 6: `transfers` (<squad_transfers>, <squad_chips>), a record's transfers, hits and chip, and a chip marked used by hand's `half`; an earlier squad gets none: one built here has unlimited transfers until it plays a gameweek or they're set, an import's are read from FPL the next time it's opened.
  */
-const STORAGE_VERSION = 5;
+const STORAGE_VERSION = 6;
 
 const ids = (v: unknown): number[] => (Array.isArray(v) ? v.filter((id): id is number => typeof id === "number" && Number.isFinite(id)) : []);
 const idOrNull = (v: unknown, allowed: number[]): number | null => (typeof v === "number" && allowed.includes(v) ? v : null);
@@ -37,7 +39,8 @@ export function normalizeSavedSquad(raw: Record<string, unknown>): SavedSquad | 
     captainId: idOrNull(raw.captainId, startingXI),
     viceCaptainId: idOrNull(raw.viceCaptainId, startingXI),
     purchasePrices: normalizePurchasePrices(raw.purchasePrices, playerIds),
-    usedChips: Array.isArray(raw.usedChips) ? (raw.usedChips as SavedSquad["usedChips"]) : [],
+    usedChips: normalizeUsedChips(raw.usedChips),
+    transfers: normalizeTransfers(raw.transfers),
     gameweekLog: normalizeGameweekLog(raw.gameweekLog),
     importedFrom: normalizeImportedFrom(raw.importedFrom),
   };
@@ -53,9 +56,57 @@ function normalizeGameweekLog(raw: unknown): GameweekRecord[] {
     if (typeof rec.event !== "number" || !Number.isInteger(rec.event) || byEvent.has(rec.event)) continue;
     const playerIds = [...new Set(ids(rec.playerIds))];
     const startingXI = [...new Set(ids(rec.startingXI))].filter((id) => playerIds.includes(id));
-    byEvent.set(rec.event, { event: rec.event, playerIds, startingXI, captainId: idOrNull(rec.captainId, startingXI), viceCaptainId: idOrNull(rec.viceCaptainId, startingXI) });
+    const record: GameweekRecord = { event: rec.event, playerIds, startingXI, captainId: idOrNull(rec.captainId, startingXI), viceCaptainId: idOrNull(rec.viceCaptainId, startingXI) };
+    // <squad_transfers>: a record from version 6 on may carry its gameweek's transfers, hits and chip.
+    const transfers = count(rec.transfers);
+    const transferCost = count(rec.transferCost);
+    if (transfers !== null && transferCost !== null) Object.assign(record, { transfers, transferCost });
+    const chip = chipOrNull(rec.chip);
+    if (chip) record.chip = chip;
+    byEvent.set(rec.event, record);
   }
   return [...byEvent.values()].sort((a, b) => a.event - b.event);
+}
+
+/** A whole number of 0 or more, else null. */
+const count = (v: unknown): number | null => (typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null);
+const chipOrNull = (v: unknown): ChipName | null => (typeof v === "string" && KNOWN_CHIPS.includes(v as ChipName) ? (v as ChipName) : null);
+
+/** <squad_chips>: each spent chip a known chip with a gameweek or, marked used by hand, a half. */
+function normalizeUsedChips(raw: unknown): UsedChip[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((u): UsedChip[] => {
+    if (!u || typeof u !== "object") return [];
+    const r = u as Record<string, unknown>;
+    const chip = chipOrNull(r.chip);
+    if (!chip) return [];
+    const event = typeof r.event === "number" && Number.isInteger(r.event) ? r.event : null;
+    const half = r.half === 1 || r.half === 2 ? r.half : undefined;
+    if (event === null && half === undefined) return [];
+    return [half === undefined ? { chip, event } : { chip, event, half }];
+  });
+}
+
+/** <squad_transfers>: the window checked field by field; null (none kept yet) when it can't be read, as before version 6. */
+function normalizeTransfers(raw: unknown): TransferWindow | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const event = count(r.event);
+  const made = count(r.made);
+  if (event === null || made === null || !r.start || typeof r.start !== "object") return null;
+  const free = r.free === null ? null : count(r.free);
+  if (free === null && r.free !== null) return null;
+  const st = r.start as Record<string, unknown>;
+  const startIds = [...new Set(ids(st.playerIds))];
+  const startXI = [...new Set(ids(st.startingXI))].filter((id) => startIds.includes(id));
+  const start: SquadSnapshot = {
+    playerIds: startIds,
+    startingXI: startXI,
+    captainId: idOrNull(st.captainId, startXI),
+    viceCaptainId: idOrNull(st.viceCaptainId, startXI),
+    purchasePrices: normalizePurchasePrices(st.purchasePrices, startIds),
+  };
+  return { event, free, made, baseIds: [...new Set(ids(r.baseIds))], start, chip: chipOrNull(r.chip) };
 }
 
 const numberOrNull = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
@@ -166,13 +217,13 @@ export function useSavedSquads(): UseSavedSquads {
     };
   }, [setSquads]);
 
-  // <gameweek_log>: before a change, the squad as it stood is recorded for any deadline passed since it last changed.
+  // <gameweek_log>: before a change, the squad as it stood is recorded for any deadline passed since it last changed, and its transfers rolled on (<squad_transfers>).
   const upsert = useCallback((squad: SavedSquad) => {
     setSquads((prev) => {
       const idx = prev.findIndex((s) => s.id === squad.id);
       if (idx === -1) return [...prev, { ...squad, updatedAt: Date.now() }];
       const next = [...prev];
-      next[idx] = { ...withRecordsOf(squad, recordPassedDeadlines(prev[idx])), updatedAt: Date.now() };
+      next[idx] = { ...withDeadlinesOf(squad, recordPassedDeadlines(prev[idx]), prev[idx]), updatedAt: Date.now() };
       return next;
     });
   }, []);

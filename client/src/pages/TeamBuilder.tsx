@@ -15,11 +15,13 @@ import { fixtureOddsByTeam } from "../metrics/fixtureOdds";
 import { clubSeasonsAsShown } from "../metrics/teamStats";
 import { expectationForGameweek, horizonTotal, upcomingGameweeks, type Horizon, type PointsSource } from "../metrics/gameweekExpectations";
 import { ApiRequestError } from "../api/client";
-import { importFplTeam, keepPurchases } from "../state/fplTeamImport";
+import { importFplTeam, keepPurchases, loadImportTransfers } from "../state/fplTeamImport";
+import { chipStatuses, confirmTransfers, playChip, setFreeTransfers, transferStanding } from "../metrics/squadTransfers";
+import type { ChipName } from "../types/team";
 import { getUpcomingFixtures, firstPickableEventId, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { SquadPitch, type PitchColourRanks } from "../components/SquadPitch";
 import type { DraftPicks } from "../metrics/bestDraft";
-import { IconChipButton, CloseIcon, GameweekSummaryIcon, TrashIcon } from "../components/IconToolbar";
+import { IconChipButton, CloseIcon, TrashIcon } from "../components/IconToolbar";
 import { fmtPrice } from "../utils/format";
 import { rankWithinGroups } from "../metrics/comparativeColour";
 import type { NormalizedPlayer, Position } from "../types/normalized";
@@ -28,8 +30,8 @@ import { EXPLORER_DEFAULT_VISIBLE_COLUMNS, FIXTURES_COLUMN_KEY, PlayerExplorerTa
 import { HorizonPicker } from "../components/HorizonPicker";
 import { SectionHeading } from "../components/SectionHeading";
 import { SquadPicker } from "../components/SquadPicker";
-import { GameweekLogTable } from "../components/teamBuilding/GameweekLogTable";
 import { GameweekSummary } from "../components/teamBuilding/GameweekSummary";
+import { ChipsFigure, TransfersFigure } from "../components/teamBuilding/SquadPlanning";
 import { useGameweekLog } from "../state/useGameweekLog";
 
 /** How long a rejected drag's warning message stays visible before clearing itself. */
@@ -118,7 +120,7 @@ export function TeamBuilder() {
   const [importStatus, setImportStatus] = useState<"idle" | "loading" | "error">("idle");
   const [importError, setImportError] = useState<string | null>(null);
   const addPanelRef = useRef<HTMLDivElement>(null);
-  // <gameweek_summary>: a panel from the Gameweek Log's icon.
+  // <gameweek_summary>: the Gameweek Summary and Log, a panel from the pitch's icon.
   const [summaryOpen, setSummaryOpen] = useState(false);
 
   // Keep activeId pointing at a real squad even after a delete/first-load.
@@ -162,6 +164,19 @@ export function TeamBuilder() {
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active?.id, active?.importedFrom?.purchasePrices, playersById, update]);
+
+  // <squad_transfers> for an import saved before they were kept: read from FPL once per session when it's opened.
+  const transferLoadsTried = useRef(new Set<string>());
+  useEffect(() => {
+    const imported = active?.importedFrom;
+    const upcoming = firstPickableEventId(events);
+    if (!active || !imported || active.transfers !== null || upcoming === null || transferLoadsTried.current.has(active.id)) return;
+    transferLoadsTried.current.add(active.id);
+    loadImportTransfers(imported.teamId, active, upcoming)
+      .then((transfers) => update(active.id, (s) => (s.importedFrom && s.transfers === null ? { ...s, transfers } : s)))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active?.id, active?.transfers, events, update]);
 
   function updateActive(mutator: (s: SavedSquad) => SavedSquad) {
     if (!active) return;
@@ -213,7 +228,7 @@ export function TeamBuilder() {
       setImportError(null);
       try {
         const fallbackEvent = gameweekState?.kind === "current" || gameweekState?.kind === "last-completed" ? gameweekState.event.id : 1;
-        const { squad, warnings } = await importFplTeam(teamId, fallbackEvent, playersById);
+        const { squad, warnings } = await importFplTeam(teamId, fallbackEvent, playersById, { upcomingEvent: firstPickableEventId(events) });
         upsert(squad);
         setActiveId(squad.id);
         setShowNewSquadModal(false);
@@ -417,6 +432,17 @@ export function TeamBuilder() {
 
   function handleSetViceCaptain(playerId: number | null) {
     updateActive((s) => ({ ...s, viceCaptainId: playerId, captainId: s.captainId === playerId ? null : s.captainId }));
+  }
+
+  /** <squad_chips>: marks a chip used (or not) this half of the season by hand, for a squad built here. */
+  function handleMarkChipUsed(chip: ChipName, used: boolean) {
+    const upcoming = firstPickableEventId(events);
+    const window = upcoming === null ? undefined : chips.find((w) => w.chip === chip && w.startEvent <= upcoming && upcoming <= w.stopEvent);
+    if (!window) return;
+    updateActive((s) => ({
+      ...s,
+      usedChips: used ? [...s.usedChips, { chip, event: null, half: window.half }] : s.usedChips.filter((u) => !(u.chip === chip && u.event === null && u.half === window.half)),
+    }));
   }
 
   /** <best_draft>: puts the best XI and armbands for the pitch's gameweek in place (the pitch works them out). */
@@ -688,6 +714,11 @@ export function TeamBuilder() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [players, pitchExpectations, active?.purchasePrices, active?.playerIds]);
 
+  // <squad_transfers>, <squad_chips>: where the squad's transfers and chips stand for the gameweek open for picks.
+  const transfers = active ? transferStanding(active, fromEventId) : null;
+  const playingChip = active?.transfers && active.transfers.event === fromEventId ? active.transfers.chip : null;
+  const chipList = useMemo(() => chipStatuses(active?.usedChips ?? [], chips, fromEventId, playingChip), [active?.usedChips, chips, fromEventId, playingChip]);
+
   // Add Players' Add (<add_players_dialog>): the reason it's disabled is its hover text.
   const handleAddRef = useRef(handleAdd);
   handleAddRef.current = handleAdd;
@@ -724,7 +755,7 @@ export function TeamBuilder() {
         open={summaryOpen}
         onClose={() => setSummaryOpen(false)}
         squadName={active ? squadTitle(active) : ""}
-        rows={gameweekLog.rows}
+        log={gameweekLog}
         events={events}
         chipWindows={chips}
         importTeamId={active?.importedFrom?.teamId ?? null}
@@ -896,33 +927,41 @@ export function TeamBuilder() {
           onAddSlot={handleAddSlot}
           onClearSquad={() => setConfirmClear(true)}
           onBestDraft={handleBestDraft}
+          onOpenSummary={() => setSummaryOpen(true)}
+          summaryBlocker={
+            gameweekLog.rows.length > 0 || gameweekLog.status === "error"
+              ? null
+              : gameweekLog.status === "loading"
+                ? "Gameweek Summary: loading this squad's gameweeks"
+                : "Gameweek Summary: this squad hasn't played a gameweek yet (one built here is recorded from its first deadline)"
+          }
+          chip={pitchGameweek !== null && pitchGameweek === fromEventId ? playingChip : null}
+          planning={
+            active && (
+              <>
+                <TransfersFigure
+                  standing={transfers}
+                  isImport={!!active.importedFrom}
+                  playersById={playersById}
+                  onConfirm={() => updateActive(confirmTransfers)}
+                  onSetFree={(free) => fromEventId !== null && updateActive((s) => setFreeTransfers(s, fromEventId, free))}
+                  onViewProfile={handleViewProfile}
+                />
+                <ChipsFigure
+                  statuses={chipList}
+                  event={fromEventId}
+                  isImport={!!active.importedFrom}
+                  onPlay={(chip) => fromEventId !== null && updateActive((s) => playChip(s, fromEventId, chip))}
+                  onMarkUsed={handleMarkChipUsed}
+                />
+              </>
+            )
+          }
           hasSquad={!!active}
           budgetHint={budgetHint(active, money)}
           warning={warning}
         />
       </div>
-
-      {/* <gameweek_log>: only once the squad has a gameweek to show. */}
-      {(gameweekLog.rows.length > 0 || gameweekLog.status === "error") && (
-        <>
-          <SectionHeading icon="log">Gameweek Log</SectionHeading>
-          <div className="chip-row" style={{ marginBottom: 12 }}>
-            <IconChipButton
-              icon={<GameweekSummaryIcon />}
-              label="Gameweek Summary"
-              title="Gameweek Summary: one gameweek of this squad against every FPL manager (points, captaincy, chips)"
-              onClick={() => setSummaryOpen(true)}
-              disabled={gameweekLog.rows.length === 0}
-            />
-          </div>
-          {gameweekLog.error && <div className="banner error">Couldn't load the Gameweek Log. {gameweekLog.error}</div>}
-          {gameweekLog.rows.length > 0 && (
-            <div className="card" style={{ marginBottom: 24 }}>
-              <GameweekLogTable log={gameweekLog} playersById={playersById} onViewProfile={handleViewProfile} />
-            </div>
-          )}
-        </>
-      )}
 
       {active && (
         // <add_players_dialog>: hidden, not unmounted, while closed (see addOpen).

@@ -1,8 +1,9 @@
 import { fetchEntryHistory, fetchEntryPicks, fetchEntryTeam } from "../api/client";
+import { freeTransfersFromHistory } from "../metrics/squadTransfers";
 import { normalizeEntryImport } from "../normalize/normalizeEntryImport";
-import type { RawEntryTeam } from "../types/raw";
+import type { RawEntryHistory, RawEntryTeam } from "../types/raw";
 import type { NormalizedPlayer } from "../types/normalized";
-import type { SavedSquad } from "../types/team";
+import { snapshotOf, type SavedSquad, type TransferWindow } from "../types/team";
 import { loadImportedPurchasePrices } from "./importedPurchasePrices";
 import { changeSavedSquads, loadSavedSquads } from "./useSavedSquads";
 
@@ -12,24 +13,61 @@ export function keepPurchases(prices: Record<number, number>, keep: (id: number)
 }
 
 /**
+ * <squad_transfers>: an import's transfers for the gameweek after the one
+ * FPL last shows (`event`): its free transfers from FPL's history of it
+ * (freeTransfersFromHistory), counted from the players it was imported
+ * with. A team yet to play its first gameweek has unlimited ones.
+ */
+export function importTransferWindow(history: RawEntryHistory, squad: SavedSquad, event: number): TransferWindow {
+  const base = squad.importedFrom?.playerIds ?? squad.playerIds;
+  return { event, free: freeTransfersFromHistory(history), made: 0, baseIds: [...base], start: snapshotOf(squad), chip: null };
+}
+
+/**
+ * <squad_transfers> for an import saved before they were kept: read from
+ * FPL's history of the team, for the gameweek after the latest it shows
+ * (`upcomingEvent` for a team yet to play one). Throws if FPL can't be read.
+ */
+export async function loadImportTransfers(teamId: number, squad: SavedSquad, upcomingEvent: number): Promise<TransferWindow> {
+  const history = (await fetchEntryHistory(teamId)).data;
+  const latest = Math.max(0, ...(history.current ?? []).map((gw) => gw.event));
+  return importTransferWindow(history, squad, latest > 0 ? latest + 1 : upcomingEvent);
+}
+
+/** The gameweek whose picks are the team's own after `eventId`: the one before, when `eventId` was a Free Hit (its squad lasts that gameweek); else `eventId`. */
+export function ownPicksEvent(history: RawEntryHistory, eventId: number, startedEvent: number | undefined): number {
+  const freeHit = (history.chips ?? []).some((c) => c.event === eventId && c.name.toLowerCase() === "freehit");
+  return freeHit && eventId > (startedEvent ?? 1) ? eventId - 1 : eventId;
+}
+
+/**
  * A real FPL team as a squad: its picks in the latest gameweek FPL shows
- * (the team's `current_event`, else `fallbackEvent`), its chips and bank
- * (normalizeEntryImport), and its purchase prices (<purchase_prices>),
- * which are nice to have, so a failure there doesn't stop the import (they
- * load the next time the squad is opened). `team` saves a request when the
- * caller already has it. Throws if FPL can't be read.
+ * (the team's `current_event`, else `fallbackEvent`) — or, when that was a
+ * Free Hit, the gameweek's before, the squad it goes back to — its chips
+ * and bank (normalizeEntryImport), its transfers for the next gameweek
+ * (<squad_transfers>), and its purchase prices (<purchase_prices>), which
+ * are nice to have, so a failure there doesn't stop the import (they load
+ * the next time the squad is opened). `team` saves a request when the
+ * caller already has it; `upcomingEvent` is the gameweek open for picks,
+ * for a team yet to play (one that has is always on the gameweek after
+ * its latest). Throws if FPL can't be read.
  */
 export async function importFplTeam(
   teamId: number,
   fallbackEvent: number,
   playersById: Map<number, NormalizedPlayer>,
-  team?: RawEntryTeam,
+  options: { team?: RawEntryTeam; upcomingEvent?: number | null } = {},
 ): Promise<{ squad: SavedSquad; warnings: string[] }> {
-  const teamData = team ?? (await fetchEntryTeam(teamId)).data;
+  const teamData = options.team ?? (await fetchEntryTeam(teamId)).data;
   const eventId = teamData.current_event ?? fallbackEvent;
-  const [historyResult, picksResult] = await Promise.all([fetchEntryHistory(teamId), fetchEntryPicks(teamId, eventId)]);
-  const { squad, warnings } = normalizeEntryImport(teamData, historyResult.data, picksResult.data, eventId, playersById);
-  const prices = await loadImportedPurchasePrices(teamId, eventId, playersById).catch(() => null);
+  const [historyResult, latestPicks] = await Promise.all([fetchEntryHistory(teamId), fetchEntryPicks(teamId, eventId)]);
+  const history = historyResult.data;
+  const picksEvent = ownPicksEvent(history, eventId, teamData.started_event);
+  const picks = picksEvent === eventId ? latestPicks.data : (await fetchEntryPicks(teamId, picksEvent)).data;
+  const { squad, warnings } = normalizeEntryImport(teamData, history, picks, eventId, playersById, picksEvent);
+  const transfersEvent = teamData.current_event !== null ? teamData.current_event + 1 : (options.upcomingEvent ?? null);
+  if (transfersEvent !== null) squad.transfers = importTransferWindow(history, squad, transfersEvent);
+  const prices = await loadImportedPurchasePrices(teamId, picksEvent, playersById).catch(() => null);
   if (prices && squad.importedFrom) {
     squad.importedFrom.purchasePrices = prices.purchasePrices;
     squad.purchasePrices = keepPurchases(prices.purchasePrices, (id) => squad.playerIds.includes(id));
@@ -53,7 +91,7 @@ const checked = new Set<string>();
  * step with that team. Run on every live data load (app start and the
  * background poll): a squad imported before the app's current gameweek is
  * read again from FPL, and if FPL now shows a later gameweek its picks,
- * captaincy, bank, chips and purchase prices replace the squad's (its name
+ * captaincy, bank, chips, transfers and purchase prices replace the squad's (its name
  * stays), quietly: the manager made those changes, so nothing announces
  * them. A squad already on the current gameweek costs no request: FPL
  * only shows a team's picks once that gameweek's deadline has passed, so
@@ -70,7 +108,7 @@ export async function syncImportedSquads(currentEvent: number, playersById: Map<
     try {
       const team = (await fetchEntryTeam(imported.teamId)).data;
       if ((team.current_event ?? 0) <= imported.asOfEvent) continue;
-      const { squad: fresh } = await importFplTeam(imported.teamId, currentEvent, playersById, team);
+      const { squad: fresh } = await importFplTeam(imported.teamId, currentEvent, playersById, { team, upcomingEvent: currentEvent + 1 });
       // Only the squad as it was checked: one deleted or re-imported meanwhile is left alone.
       const stillBehind = (s: SavedSquad) => s.id === old.id && s.importedFrom?.teamId === imported.teamId && s.importedFrom.asOfEvent === imported.asOfEvent;
       const current = loadSavedSquads().find(stillBehind);

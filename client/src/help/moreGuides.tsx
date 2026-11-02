@@ -20,6 +20,10 @@ import {
   BestDraftIcon,
   ClearDraftIcon,
   GameweekSummaryIcon,
+  GameweekLogIcon,
+  ChipIcon,
+  ConfirmIcon,
+  InfinityIcon,
   TrendLineIcon,
 } from "../components/IconToolbar";
 import { HideSmallSamplesIcon, MinutesFloorIcon } from "../components/MinutesFloorBadge";
@@ -88,7 +92,7 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
     keywords: [
       "icons", "icon", "symbols", "symbol", "buttons", "button", "what does this button do", "what is this icon", "key", "legend",
       "toolbar", "pencil", "bin", "trash", "plus", "magnifying glass", "palette", "notepad icon", "football", "trophy", "pulse", "bars",
-      "funnel", "download", "reset", "arrows", "armband", "spark", "eraser",
+      "funnel", "download", "reset", "arrows", "armband", "spark", "eraser", "tick", "infinity", "lightning", "star card",
     ],
     related: ["top-bar", "toolbar"],
     body: (
@@ -114,6 +118,9 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
           { icon: <BestDraftIcon />, label: "Best Draft", text: "" },
           { icon: <ClearDraftIcon />, label: "Clear Draft", text: "(asks first)" },
           { icon: <GameweekSummaryIcon />, label: "Gameweek Summary", text: "" },
+          { icon: <GameweekLogIcon />, label: "Gameweek Log", text: "(at the Summary's foot)" },
+          { icon: <ConfirmIcon />, label: "Confirm transfers", text: "" },
+          { icon: <InfinityIcon />, label: "Unlimited", text: "transfers" },
           { icon: <NotepadIcon />, label: "Notepad", text: `(or ${NOTEPAD_KEY})` },
           { icon: <ComparativeColourIcon />, label: "Colours", text: "on or off" },
           { icon: <HelpIcon />, label: "Help", text: "this panel" },
@@ -993,7 +1000,7 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
     id: "projected-points",
     topic: TOPIC.building,
     title: "Projected Points",
-    answer: "Your starting XI's Expected Points for the gameweek shown, the captain counted twice.",
+    answer: "Your starting XI's Expected Points for the gameweek shown, the captain counted twice (three times under Triple Captain).",
     pages: ["team-building"],
     keywords: [
       "projected points", "projected", "team points", "total points", "squad points", "how many points", "my score", "predicted score",
@@ -1007,9 +1014,12 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
         <Terms
           rows={[
             ["Projected Points", "the XI's Expected Points, captain doubled"],
-            ["Captain", "his points, already doubled"],
+            ["Captain", "his points, already doubled, and who he is"],
+            ["Triple Captain", "the captain counted three times"],
+            ["Bench Boost", "the bench counts too"],
           ]}
         />
+        <Note>Before any hit: the Transfers figure shows that.</Note>
         <Label>Its colour, against Best Draft's total</Label>
         <ColourScale low="A fifth short" mid="A tenth short" high="Best Draft's" />
       </>
@@ -1078,15 +1088,53 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
       "who to bring in", "transfer planner", "free transfer", "hit", "-4", "upgrade", "downgrade", "funds", "money for transfer",
       "can i afford", "afford", "planning",
     ],
-    related: ["sell-price", "add-players"],
+    related: ["free-transfers", "sell-price", "add-players"],
     body: (
       <Steps
         items={[
           "Hover his shirt and remove him: his selling price goes back in the Bank.",
           "Click the + left in his place.",
           "Sort by Exp. Pts over 3–5 gameweeks and Add.",
+          <>
+            Transfers shows what's left, and any hit. <ConfirmIcon /> confirms them.
+          </>,
         ]}
       />
+    ),
+  },
+  {
+    id: "free-transfers",
+    topic: TOPIC.building,
+    title: "Transfers: free ones and hits",
+    answer: "Beside Bank: the free transfers you have left this gameweek, and the hit once you're past them.",
+    pages: ["team-building"],
+    keywords: [
+      "free transfers", "free transfer", "how many transfers", "transfers left", "transfers remaining", "banked transfers", "rolled transfers",
+      "roll a transfer", "save a transfer", "hit", "hits", "-4", "minus 4", "points hit", "take a hit", "confirm", "confirm transfers", "tick",
+      "unlimited transfers", "infinity", "first gameweek", "set my free transfers", "track transfers", "transfer count", "how many free transfers do i have",
+    ],
+    related: ["plan-transfer", "chip-weeks"],
+    body: (
+      <>
+        <Terms
+          rows={[
+            ["Imported squad", "worked out from FPL's history of your team"],
+            ["Squad built here", "unlimited its first gameweek; set yours in the menu"],
+          ]}
+        />
+        <Points
+          items={[
+            "One free a gameweek, up to 5 saved. Each one past them: −4.",
+            <>
+              <ConfirmIcon /> confirms: undoing one afterwards is another transfer, as in FPL.
+            </>,
+            <>
+              <InfinityIcon /> means every transfer is free (first gameweek, Wildcard, Free Hit).
+            </>,
+            "Counted at the deadline, then the next gameweek's free ones start.",
+          ]}
+        />
+      </>
     ),
   },
   {
@@ -1197,32 +1245,36 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
     id: "gameweek-log",
     topic: TOPIC.building,
     title: "Gameweek Log",
-    answer: "Under the pitch: how the squad did in each gameweek against every FPL manager who played it.",
+    answer: "In the Gameweek Summary, from its foot's arrow: each gameweek's points, gameweek rank and overall rank.",
     pages: ["team-building"],
     keywords: [
       "gameweek log", "log", "history", "past gameweeks", "previous gameweeks", "my points", "points history of my team", "how did i do",
       "team performance", "performance", "rank", "gameweek rank", "hits", "transfer hits", "bench points",
       "points on bench", "average score", "highest score", "track my team", "record", "recorded", "green points", "red points", "frozen", "how has my team done", "each week",
-      "week by week", "every week", "my team each week", "points left on my bench", "left on bench", "left on the bench",
+      "week by week", "every week", "my team each week", "against the average", "each gameweek", "overall rank", "my overall rank", "rank history", "where am i ranked",
     ],
     related: ["gameweek-summary", "import-team"],
     body: (
       <>
+        <IconKey
+          rows={[
+            { icon: <GameweekSummaryIcon />, label: "Gameweek Summary", text: "beside Best Draft opens it" },
+            { icon: <GameweekLogIcon />, label: "Gameweek Log", text: "at its foot switches to the log" },
+          ]}
+        />
         <Terms
           rows={[
-            ["Imported squad", "FPL's own history: points, transfers, hits, ranks, chips"],
-            ["Squad built here", "scored from what it was at each deadline since it was made"],
+            ["Imported squad", "points, gameweek rank, overall rank: FPL's own"],
+            ["Squad built here", "points, scored from each deadline; FPL ranks only its own teams"],
           ]}
         />
         <Label>Points' colour, against that gameweek</Label>
         <ColourScale low="0" mid="The average" high="The highest" />
         <Points
           items={[
-            "Each gameweek on its own: nothing is added up across them.",
-            "A squad built here is frozen at each deadline and scored as FPL would: automatic substitutions, the vice-captain if the captain didn't play. No chips.",
-            <>
-              <GameweekSummaryIcon /> opens the Gameweek Summary. \"Live\" marks a gameweek still being played.
-            </>,
+            "Click a gameweek for its Summary.",
+            "A squad built here is frozen at each deadline and scored as FPL would: automatic substitutions, the vice-captain, and its chips.",
+            '"Live" marks a gameweek still being played.',
           ]}
         />
       </>
@@ -1232,19 +1284,20 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
     id: "gameweek-summary",
     topic: TOPIC.building,
     title: "Gameweek Summary",
-    answer: "One gameweek of your squad against every FPL manager: points, captaincy and chips.",
+    answer: "One gameweek of your squad against every FPL manager: points, captaincy and chips. Beside Best Draft.",
     pages: ["team-building"],
     keywords: [
       "gameweek summary", "summary", "weekly summary", "gameweek review", "vs average", "versus average", "above average", "below average",
       "average manager", "most captained", "popular captain", "top captains", "captaincy", "top scorer", "best captain", "chips played",
-      "chips left", "chips remaining", "how many wildcards", "chip usage", "still to play",
+      "chips left", "chips remaining", "how many wildcards", "chip usage", "still to play", "points left on my bench", "left on bench",
+      "left on the bench", "bench points", "my hits that week",
     ],
     related: ["gameweek-log", "chip-weeks"],
     body: (
       <>
         <Terms
           rows={[
-            ["Points", "against every manager's average and highest that gameweek, and an import's rank"],
+            ["Points", "against every manager's average and highest that gameweek, the bench, transfers and hits"],
             ["Captaincy", "your captain, FPL's most captained, the top scorer: each one's points doubled"],
             ["Chips", "share of managers who played each this gameweek, and the share yet to play it this half"],
           ]}
@@ -1253,6 +1306,9 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
           items={[
             "One gameweek at a time: squads start in different gameweeks, so nothing is added up across them.",
             "FPL only publishes its single most-captained player, so there's no top five.",
+            <>
+              Ranks are in the Gameweek Log: <GameweekLogIcon /> at its foot.
+            </>,
           ]}
         />
       </>
@@ -1261,25 +1317,34 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
   {
     id: "chip-weeks",
     topic: TOPIC.building,
-    title: "Chips: Free Hit, Bench Boost, Triple Captain",
-    answer: "Free Hit imports that week's temporary squad; Bench Boost imports the first 11 as the starting XI.",
+    title: "Chips: Wildcard, Free Hit, Bench Boost, Triple Captain",
+    answer: "Beside Transfers: the chips left this half of the season. Click to play one this gameweek.",
     pages: ["team-building"],
     keywords: [
       "chip", "chips", "free hit", "bench boost", "triple captain", "wildcard chip", "chip week", "chip used", "temporary squad",
       "free hit squad", "import free hit", "import bench boost", "chip history", "which chips", "chips left", "chips used", "bench points",
-      "captain tripled", "after free hit", "squad goes back",
+      "captain tripled", "after free hit", "squad goes back", "play a chip", "use my wildcard", "chips i have", "mark chip used",
+      "which chips have i used",
     ],
-    related: ["import-team", "projected-points"],
+    related: ["free-transfers", "build-squad", "projected-points"],
     body: (
       <>
-        <Terms
+        <IconKey
           rows={[
-            ["Free Hit", "that week's squad: import again after it for your own"],
-            ["Bench Boost", "first 11 picks start, the rest on the bench"],
-            ["Triple Captain", "Projected Points still doubles the captain"],
+            { icon: <ChipIcon chip="wildcard" />, label: "Wildcard:", text: "every transfer free this gameweek" },
+            { icon: <ChipIcon chip="freehit" />, label: "Free Hit:", text: "every transfer free; the squad goes back after" },
+            { icon: <ChipIcon chip="bboost" />, label: "Bench Boost:", text: "the bench counts too" },
+            { icon: <ChipIcon chip="3xc" />, label: "Triple Captain:", text: "the captain counts three times" },
           ]}
         />
-        <Note>No figure counts a chip, and the chips you've used aren't shown.</Note>
+        <Points
+          items={[
+            "Dimmed: used this half. Green: played this gameweek.",
+            "One of each per half, one a gameweek.",
+            "Imported squad: FPL's. Squad built here: tick Used for any already played.",
+            "After a Free Hit, an import shows the squad it goes back to.",
+          ]}
+        />
       </>
     ),
   },

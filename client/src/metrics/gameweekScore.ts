@@ -8,13 +8,13 @@ export interface LivePlayerGameweek {
 }
 
 export interface RecordedScore {
-  /** The XI's points after substitutions, the captain's counted twice. */
+  /** The XI's points after substitutions, the captain's counted twice (three times under Triple Captain; every player's under Bench Boost). */
   points: number;
-  /** The points of those left on the bench. */
+  /** The points of those left on the bench (0 under Bench Boost, as FPL shows it: they all count). */
   benchPoints: number;
   /** Who scored double: the captain, or the vice-captain if the captain didn't play; null with neither. */
   captainId: number | null;
-  /** His points, doubled. */
+  /** His points, doubled (tripled under Triple Captain). */
   captainPoints: number | null;
   /** Automatic substitutions made, each starter who didn't play and who came on for him. */
   subs: { outId: number; inId: number }[];
@@ -32,7 +32,9 @@ const POSITION_ORDER: Position[] = ["GKP", "DEF", "MID", "FWD"];
  * (a goalkeeper only by the goalkeeper), the bench in the order the pitch
  * shows it (goalkeeper, then defenders, midfielders, forwards: Scoutline's
  * bench has no order of its own), and if the captain didn't play the
- * vice-captain scores double. Before then it's the XI as picked.
+ * vice-captain scores double. Before then it's the XI as picked. A chip
+ * played here (<squad_chips>) counts as FPL counts it: Bench Boost scores
+ * all fifteen (no substitutions), Triple Captain the captain three times.
  */
 export function scoreRecord(
   record: GameweekRecord,
@@ -48,7 +50,8 @@ export function scoreRecord(
     .sort((a, b) => POSITION_ORDER.indexOf(positionOf(a) ?? "FWD") - POSITION_ORDER.indexOf(positionOf(b) ?? "FWD"));
   const subs: RecordedScore["subs"] = [];
 
-  if (finished) {
+  const benchBoost = record.chip === "bboost";
+  if (finished && !benchBoost) {
     const counts = (ids: number[]) => {
       const c: Record<Position, number> = { GKP: 0, DEF: 0, MID: 0, FWD: 0 };
       for (const id of ids) {
@@ -84,11 +87,13 @@ export function scoreRecord(
         : viceIn && finished && played(record.viceCaptainId!)
           ? record.viceCaptainId
           : null;
+  const multiplier = record.chip === "3xc" ? 3 : 2;
   const xiPoints = xi.reduce((sum, id) => sum + pointsOf(id), 0);
-  const captainPoints = captainId === null ? null : pointsOf(captainId) * 2;
+  const benchPoints = bench.reduce((sum, id) => sum + pointsOf(id), 0);
+  const captainPoints = captainId === null ? null : pointsOf(captainId) * multiplier;
   return {
-    points: xiPoints + (captainId === null ? 0 : pointsOf(captainId)),
-    benchPoints: bench.reduce((sum, id) => sum + pointsOf(id), 0),
+    points: xiPoints + (benchBoost ? benchPoints : 0) + (captainId === null ? 0 : pointsOf(captainId) * (multiplier - 1)),
+    benchPoints: benchBoost ? 0 : benchPoints,
     captainId,
     captainPoints,
     subs,

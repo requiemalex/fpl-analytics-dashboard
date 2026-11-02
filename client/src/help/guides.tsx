@@ -15,7 +15,18 @@ import {
   SavedViewsIcon,
   TrashIcon,
   TrendLineIcon,
+  CalendarIcon,
+  ClockIcon,
+  CleanSheetIcon,
+  ForecastIcon,
+  GamesIcon,
+  GoalsExpectedIcon,
+  ModelIcon,
+  OddsIcon,
+  OwnershipIcon,
+  PriceIcon,
 } from "../components/IconToolbar";
+import { FplSourceIcon } from "../components/SourceToggle";
 import { HideSmallSamplesIcon, MinutesFloorIcon } from "../components/MinutesFloorBadge";
 import { NOTEPAD_KEY } from "../components/Notepad";
 import { DataHealth } from "./DataHealth";
@@ -813,36 +824,50 @@ const FIRST_GUIDES: HelpGuide[] = [
       "pitch view", "what does the shirt say", "figure on shirt", "kit view",
       "highlight", "shirt", "shirts", "kit", "nameplate", "card", "fixtures", "gameweek arrows", "‹ ›", "next gameweek",
       "owned", "ownership", "points prediction", "show fixtures", "what's on the shirt", "change gameweek",
-      "odds", "games", "clean sheet odds", "clean sheet chance", "goal odds", "fixture odds",
+      "odds", "games", "clean sheet odds", "clean sheet chance", "goal odds", "fixture odds", "goals expected", "expected goals per game",
+      "what do the percentages mean", "shield", "ball", "icons above the pitch", "highlight icons",
     ],
     related: ["expected-points", "price-changes"],
     body: (
-      <Terms
-        rows={[
-          ["Fixtures → Games", "his next five, coloured by FPL difficulty"],
-          ["Fixtures → Odds", "his club's clean-sheet chance (GK, DEF) or goals expected (MID, FWD) in each"],
-          ["Price", "today's, purchase, sell, or price progress"],
-          ["Owned", "share of FPL managers who own him"],
-          ["Minutes", "expected minutes"],
-          ["Points Prediction", "Expected Points (captain doubled)"],
-        ]}
-      />
+      <>
+        <IconKey
+          rows={[
+            { icon: <CalendarIcon size={16} />, label: "Fixtures", text: "his next five" },
+            { icon: <GamesIcon />, label: "→ Games:", text: "opponents, coloured by FPL difficulty" },
+            { icon: <OddsIcon />, label: "→ Odds:", text: "each opponent over his club's figure in that match" },
+            { icon: <CleanSheetIcon />, label: "Shield:", text: "clean sheet chance (GK, DEF)" },
+            { icon: <GoalsExpectedIcon />, label: "Ball:", text: "goals expected (MID, FWD)" },
+            { icon: <PriceIcon />, label: "Price", text: "today's, purchase, sell or progress" },
+            { icon: <OwnershipIcon />, label: "Owned", text: "share of managers who own him" },
+            { icon: <ClockIcon />, label: "Minutes", text: "expected minutes" },
+            { icon: <ForecastIcon />, label: "Points Prediction", text: "Expected Points (captain doubled)" },
+          ]}
+        />
+        <Note>Hover any icon for its name.</Note>
+      </>
     ),
   },
   {
     id: "expected-points",
     topic: TOPIC.building,
     title: "Expected Points: FPL or Model",
-    answer: "Two separate predictions, never blended. FPL / Model, beside Projected Points, picks which one the pitch uses.",
+    answer: "Two separate predictions, never blended: the football (FPL) or the dots (Model) beside Projected Points picks one.",
     pages: ["team-building"],
     keywords: [
       "projection", "projections", "expected score", "xp model",
       "expected points", "exp pts", "xp", "xpts", "prediction", "predicted", "predict", "model", "model predicted", "fpl official",
       "projected", "projected points", "source", "source toggle", "points prediction", "how many points", "forecast points", "next gameweek points",
+      "football icon", "dots icon", "nodes",
     ],
     related: ["expected-minutes", "best-draft"],
     body: (
       <>
+        <IconKey
+          rows={[
+            { icon: <FplSourceIcon size={16} />, label: "FPL Official", text: "" },
+            { icon: <ModelIcon />, label: "Model Predicted", text: "" },
+          ]}
+        />
         <TwoWays
           ways={[
             { title: "FPL Official", inputs: ["points a match", "xG & xA", "a little form", "fixture difficulty", "chance of playing"], result: "Exp. Pts (FPL)" },
@@ -895,7 +920,7 @@ const FIRST_GUIDES: HelpGuide[] = [
       <>
         <Steps
           items={[
-            "Choose FPL or Model beside Projected Points.",
+            "Choose FPL (the football) or Model (the linked dots) beside Projected Points.",
             "Pick the gameweek with ‹ ›.",
             <>
               <BestDraftIcon /> Best Draft, or <ArmbandIcon letter="C" /> then a starter to choose yourself.

@@ -1,71 +1,110 @@
 import React, { useEffect, useRef, useState } from "react";
 import { CHIP_NAME, chipStandings, pointsAgainstGameweek, rankPercentile } from "../../metrics/gameweekSummary";
-import { loadEventLive, loadImportCaptain, type GameweekLogRow } from "../../state/useGameweekLog";
+import { loadEventLive, loadImportCaptain, type GameweekLog, type GameweekLogRow } from "../../state/useGameweekLog";
 import { useDialogFocus } from "../../state/useDialogFocus";
 import { useEscapeLayer } from "../../state/useEscapeLayer";
 import type { ChipWindow, NormalizedEvent, NormalizedPlayer } from "../../types/normalized";
-import { percentileColour } from "../../utils/colorScale";
+import { percentileTint } from "../../utils/colorScale";
 import { DASH, fmtNumber, fmtPercent, fmtSigned } from "../../utils/format";
 import { percentileHint, statHover } from "../hoverText";
-import { CloseIcon } from "../IconToolbar";
+import { ChevronIcon, ChipIcon, CloseIcon, GameweekLogIcon, GameweekSummaryIcon } from "../IconToolbar";
 import { GameweekArrows } from "../MenuControls";
+import { StatTile } from "../playerProfile/ProfileSummary";
+import { pressable } from "../primitives";
 import { PlayerLine } from "./PlayerLine";
 
 /**
- * <gameweek_summary>: one gameweek of the active squad's Gameweek Log
- * (<gameweek_log>) beside every FPL manager who played that gameweek,
- * never added up across gameweeks (the owner's call, 2026-11-02): its
- * points against the average and highest, coloured by them
- * (<gameweek_points_colour>), and an import's rank; the captaincy (the squad's captain,
- * FPL's most-captained player and the gameweek's top scorer, each with
- * what he returned as captain); and where each chip stands. ‹ › steps
- * through the log's gameweeks.
+ * <gameweek_summary>: Team Building's gameweek panel, from the pitch's
+ * Gameweek Summary icon, in two views switched with the arrow at its foot.
+ *
+ * **Summary**: one gameweek of the active squad (<gameweek_log>) beside
+ * every FPL manager who played it, never added up across gameweeks (the
+ * owner's call, 2026-11-02): its points, coloured against the gameweek's
+ * average and highest (<gameweek_points_colour>), with those two, the bench
+ * and its transfers and hits, as the profiles' Summary tiles; the
+ * captaincy (the squad's captain, FPL's most-captained player and the
+ * gameweek's top scorer, each with what he returned as captain); and where
+ * each chip stands across the game. ‹ › steps through the log's gameweeks.
+ *
+ * **Gameweek Log**: every gameweek the squad has played, newest first: its
+ * points, and an import's gameweek rank and overall rank after it (FPL's
+ * own; FPL ranks only its own teams, so a squad built here has none). A
+ * row opens that gameweek's Summary. Ranks live only here, points in both.
  */
 
-/** One bar on the gameweek's scale (its highest score). */
-function Bar({ label, value, max, fill, title, colour }: { label: string; value: number | null; max: number; fill: string; title: string; colour?: string }) {
+type View = "summary" | "log";
+
+/** The gameweek's points and transfers, as tiles: points coloured against every manager that gameweek. */
+function PointsTiles({ row }: { row: GameweekLogRow }) {
+  const diff = row.average === null ? null : row.points - row.average;
+  const score = pointsAgainstGameweek(row.points, row.average, row.highest);
+  const hitTitle = "Points paid for transfers past the free ones";
   return (
-    <div className="gw-bar-row" title={title}>
-      <span className="gw-bar-label">{label}</span>
-      <span className="gw-bar-track">{value !== null && <span className={`gw-bar-fill ${fill}`} style={{ width: `${Math.max(0, Math.min(1, value / max)) * 100}%` }} />}</span>
-      <span className="num gw-bar-value" style={colour ? { color: colour } : undefined}>
-        {fmtNumber(value)}
-      </span>
+    <div className="summary-tiles gw-tiles">
+      <StatTile
+        label="Points"
+        value={fmtNumber(row.points)}
+        percentile={score}
+        title={`${fmtNumber(row.points)} points, before any transfer's hit${diff !== null ? ` (${fmtSigned(diff, 0)} v the average)` : ""}: greener the nearer the gameweek's highest, redder the nearer 0, grey at the average`}
+      />
+      <StatTile label="Average" value={fmtNumber(row.average)} title="Every FPL manager's average that gameweek" />
+      <StatTile label="Highest" value={fmtNumber(row.highest)} title="The highest score of any FPL manager that gameweek" />
+      <StatTile label="Bench" value={fmtNumber(row.benchPoints)} title="Points left on the bench (none under Bench Boost: they all count)" />
+      <StatTile label="Transfers" value={fmtNumber(row.transfers)} title="Transfers made for the gameweek (FPL counts none under a Wildcard or Free Hit)" />
+      <StatTile label="Hits" value={row.transferCost ? `−${fmtNumber(row.transferCost)}` : fmtNumber(row.transferCost)} title={hitTitle} />
     </div>
   );
 }
 
-/** The squad's gameweek against every manager who played it: its points beside the average and highest, and an import's rank. */
-function GameweekPoints({ row }: { row: GameweekLogRow }) {
-  const max = Math.max(row.highest ?? 0, row.points, row.average ?? 0, 1);
-  const diff = row.average === null ? null : row.points - row.average;
-  const score = pointsAgainstGameweek(row.points, row.average, row.highest);
-  const rankScore = rankPercentile(row.rank, row.rankedCount);
+/** The Gameweek Log view: one row per gameweek played, newest first, each opening its Summary. */
+function LogTable({ log, onPick }: { log: GameweekLog; onPick: (event: number) => void }) {
+  const ranked = log.source === "fpl";
+  const rankCell = (rank: number | null, of: number | null, what: string) => {
+    const score = rankPercentile(rank, of);
+    return (
+      <td style={{ background: percentileTint(score) }} title={rank === null ? `FPL hasn't ranked it yet` : statHover(`${what} ${fmtNumber(rank)} of ${fmtNumber(of)} managers.`, percentileHint(score, "FPL managers"))}>
+        {fmtNumber(rank)}
+      </td>
+    );
+  };
   return (
-    <div className="gw-points">
-      <div className="gw-points-head">
-        <span title="Points before any transfer cost">This gameweek</span>
-        {diff !== null && <span className="num gw-points-diff">{fmtSigned(diff, 0)} v average</span>}
-      </div>
-      <Bar
-        label="This squad"
-        value={row.points}
-        max={max}
-        fill="is-squad"
-        colour={percentileColour(score)}
-        title={`${fmtNumber(row.points)} points: greener the nearer the gameweek's highest, redder the nearer 0, grey at the average`}
-      />
-      <Bar label="Average" value={row.average} max={max} fill="is-average" title="Every FPL manager's average that gameweek" />
-      <Bar label="Highest" value={row.highest} max={max} fill="is-average" title="The highest score of any FPL manager that gameweek" />
-      {row.rank !== null && (
-        <div className="gw-points-rank" title={statHover(`Rank ${fmtNumber(row.rank)} of the ${fmtNumber(row.rankedCount)} managers ranked that gameweek.`, percentileHint(rankScore, "FPL managers that gameweek"))}>
-          <span className="gw-bar-label">GW rank</span>
-          <span className="num" style={{ color: percentileColour(rankScore) }}>
-            {fmtNumber(row.rank)}
-          </span>
-          <span className="gw-bar-label">of {fmtNumber(row.rankedCount)}</span>
-        </div>
-      )}
+    <div className="table-wrap">
+      <table className="data-table compact gw-log-table" aria-label="Gameweek Log">
+        <thead>
+          <tr>
+            <th style={{ textAlign: "left" }} title="Gameweek: click a row for its Summary">
+              GW
+            </th>
+            <th className="column-group-divider" title="The gameweek's points, before any transfer's hit">
+              Points
+            </th>
+            {ranked && <th title="The gameweek's rank among every FPL manager">GW Rank</th>}
+            {ranked && <th title="The team's overall rank after the gameweek">Overall Rank</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {log.rows.map((r) => {
+            const score = pointsAgainstGameweek(r.points, r.average, r.highest);
+            return (
+              <tr key={r.event} className="gw-log-row" {...pressable(() => onPick(r.event), `Gameweek ${r.event}'s Summary`)}>
+                <td style={{ textAlign: "left" }} title={r.finished ? `Gameweek ${r.event}: click for its Summary` : `Gameweek ${r.event}, still being played: its figures can change`}>
+                  {r.event}
+                  {!r.finished && <span className="gw-log-live">live</span>}
+                </td>
+                <td
+                  className="column-group-divider"
+                  style={{ background: percentileTint(score) }}
+                  title={`${fmtNumber(r.points)} points against every FPL manager's ${fmtNumber(r.average)} average and ${fmtNumber(r.highest)} highest: greener toward the highest, redder toward 0`}
+                >
+                  {fmtNumber(r.points)}
+                </td>
+                {ranked && rankCell(r.rank, r.rankedCount, "Gameweek rank")}
+                {ranked && rankCell(r.overallRank, r.rankedCount, "Overall rank")}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -74,7 +113,7 @@ export function GameweekSummary({
   open,
   onClose,
   squadName,
-  rows,
+  log,
   events,
   chipWindows,
   importTeamId,
@@ -84,8 +123,8 @@ export function GameweekSummary({
   open: boolean;
   onClose: () => void;
   squadName: string;
-  /** The Gameweek Log's rows, any order. */
-  rows: GameweekLogRow[];
+  /** The squad's Gameweek Log (<gameweek_log>). */
+  log: GameweekLog;
   events: NormalizedEvent[];
   chipWindows: ChipWindow[];
   /** An import's FPL team id, to read its captain; null for a squad built here (its rows carry the captain). */
@@ -96,12 +135,17 @@ export function GameweekSummary({
   const panelRef = useRef<HTMLDivElement>(null);
   useEscapeLayer(open, onClose);
   useDialogFocus(open, panelRef);
+  const rows = log.rows;
   const gameweeks = rows.map((r) => r.event).sort((a, b) => a - b);
+  const [view, setView] = useState<View>("summary");
   const [shown, setShown] = useState<number | null>(null);
-  // Opens on the latest gameweek; keeps the one picked while it's still in the log.
+  // Opens on the latest gameweek's Summary; keeps the one picked while it's still in the log.
   const gw = shown !== null && gameweeks.includes(shown) ? shown : (gameweeks[gameweeks.length - 1] ?? null);
   useEffect(() => {
-    if (!open) setShown(null);
+    if (!open) {
+      setShown(null);
+      setView("summary");
+    }
   }, [open]);
 
   const row = rows.find((r) => r.event === gw) ?? null;
@@ -109,7 +153,7 @@ export function GameweekSummary({
   const [live, setLive] = useState<Map<number, { points: number }> | null>(null);
   const [importCaptain, setImportCaptain] = useState<{ id: number; points: number } | null | undefined>(undefined);
   useEffect(() => {
-    if (!open || !event) return;
+    if (!open || !event || view !== "summary") return;
     let cancelled = false;
     setLive(null);
     setImportCaptain(undefined);
@@ -124,7 +168,7 @@ export function GameweekSummary({
     return () => {
       cancelled = true;
     };
-  }, [open, event, importTeamId]);
+  }, [open, event, importTeamId, view]);
 
   if (!open) return null;
   const summary = event?.summary;
@@ -142,6 +186,10 @@ export function GameweekSummary({
   ];
   const chips = gw === null ? [] : chipStandings(gw, events, chipWindows);
   const managers = summary?.rankedCount ?? null;
+  const showSummary = (e: number) => {
+    setShown(e);
+    setView("summary");
+  };
 
   return (
     <div className="gw-backdrop" onClick={onClose}>
@@ -149,80 +197,121 @@ export function GameweekSummary({
         <div className="gw-panel-head">
           <div className="gw-panel-heading">
             <div className="dialog-title" id="gw-summary-title">
-              {gw === null ? "Gameweek Summary" : `Gameweek ${gw}`}
+              {view === "log" ? "Gameweek Log" : gw === null ? "Gameweek Summary" : `Gameweek ${gw}`}
             </div>
             <div className="gw-panel-sub">
               {squadName}
-              {row && !row.finished ? " · still being played" : ""}
+              {view === "summary" && row && !row.finished ? " · still being played" : ""}
             </div>
           </div>
-          <GameweekArrows gameweeks={gameweeks} value={gw} onChange={setShown} describe={(e) => `The summary for GW${e}`} />
-          <button type="button" className="add-players-close" onClick={onClose} title="Close Gameweek Summary" aria-label="Close Gameweek Summary">
+          {view === "summary" && <GameweekArrows gameweeks={gameweeks} value={gw} onChange={setShown} describe={(e) => `The Summary for GW${e}`} />}
+          <button type="button" className="add-players-close" onClick={onClose} title="Close" aria-label="Close the Gameweek Summary">
             <CloseIcon />
           </button>
         </div>
 
-        {row === null ? (
-          <p className="page-subtitle">No gameweek played yet.</p>
-        ) : (
-          <>
-            <section className="gw-section">
-              <h3 className="card-title">Points</h3>
-              <GameweekPoints row={row} />
-            </section>
+        <div className="gw-panel-body">
+          {log.error && <div className="banner error">Couldn't load the Gameweek Log. {log.error}</div>}
+          {view === "log" ? (
+            rows.length > 0 ? (
+              <LogTable log={log} onPick={showSummary} />
+            ) : (
+              <p className="page-subtitle">No gameweek played yet.</p>
+            )
+          ) : row === null ? (
+            <p className="page-subtitle">No gameweek played yet.</p>
+          ) : (
+            <>
+              <section className="gw-section">
+                <div className="stat-group-title">Points</div>
+                <PointsTiles row={row} />
+              </section>
 
-            <section className="gw-section gw-lines-captaincy">
-              <h3 className="card-title">Captaincy</h3>
-              <div className="gw-line gw-line-head">
-                <span />
-                <span />
-                <span title="His points, doubled as captain">Returned</span>
-              </div>
-              {captaincy.map((c) => (
-                <div className="gw-line" key={c.role}>
-                  <span className="gw-line-label" title={c.title}>
-                    {c.role}
-                  </span>
-                  <span className="gw-line-main">
-                    {c.id === undefined ? <span className="value-muted">Loading…</span> : c.id === null ? DASH : <PlayerLine player={playersById.get(c.id)} fallbackId={c.id} onViewProfile={onViewProfile} />}
-                  </span>
-                  <span className="num gw-line-value">{fmtNumber(c.points)}</span>
-                </div>
-              ))}
-            </section>
+              <section className="gw-section">
+                <div className="stat-group-title">Captaincy</div>
+                <table className="data-table compact gw-table" aria-label="Captaincy">
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: "left" }} />
+                      <th style={{ textAlign: "left" }}>Player</th>
+                      <th title="His points, doubled as captain">Returned</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {captaincy.map((c) => (
+                      <tr key={c.role}>
+                        <td className="gw-table-label" title={c.title}>
+                          {c.role}
+                        </td>
+                        <td style={{ textAlign: "left" }}>
+                          {c.id === undefined ? <span className="value-muted">Loading…</span> : c.id === null ? DASH : <PlayerLine player={playersById.get(c.id)} fallbackId={c.id} onViewProfile={onViewProfile} />}
+                        </td>
+                        <td>{fmtNumber(c.points)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
 
-            <section className="gw-section gw-lines-chips">
-              <h3 className="card-title">Chips</h3>
-              <div className="gw-line gw-line-head">
-                <span />
-                <span title="Share of FPL managers who played it this gameweek">This GW</span>
-                <span title="Share of FPL managers still holding it for this half of the season">Still to play</span>
-              </div>
-              {chips.map((c) => (
-                <div className="gw-line" key={c.chip}>
-                  <span className="gw-line-label">
-                    {CHIP_NAME[c.chip]}
-                    {row.chip === c.chip && (
-                      <span className="gw-chip-yours" title="This squad played it this gameweek">
-                        Yours
-                      </span>
-                    )}
-                  </span>
-                  <span
-                    className="num gw-chip-week"
-                    title={c.inWindow ? `${fmtNumber(c.playedThisWeek)} of ${fmtNumber(managers)} managers played it` : "Can't be played this gameweek"}
-                  >
-                    {c.shareThisWeek === null ? DASH : fmtPercent(c.shareThisWeek * 100, 1)}
-                  </span>
-                  <span className="gw-chip-left" title={c.inWindow ? "Every manager has one per half of the season: the share yet to play it" : "Can't be played this gameweek"}>
-                    <span className="gw-bar-track">{c.stillToPlay !== null && <span className="gw-bar-fill is-neutral" style={{ width: `${c.stillToPlay * 100}%` }} />}</span>
-                    <span className="num gw-bar-value">{c.stillToPlay === null ? DASH : fmtPercent(c.stillToPlay * 100, 0)}</span>
-                  </span>
-                </div>
-              ))}
-            </section>
-          </>
-        )}
+              <section className="gw-section">
+                <div className="stat-group-title">Chips</div>
+                <table className="data-table compact gw-table" aria-label="Chips">
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: "left" }}>Chip</th>
+                      <th title="Share of FPL managers who played it this gameweek">This GW</th>
+                      <th title="Share of FPL managers still holding it for this half of the season">Still to play</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {chips.map((c) => (
+                      <tr key={c.chip}>
+                        <td className="gw-table-label">
+                          <span className="gw-chip-name">
+                            <ChipIcon chip={c.chip} size={14} />
+                            {CHIP_NAME[c.chip]}
+                            {row.chip === c.chip && (
+                              <span className="gw-chip-yours" title="This squad played it this gameweek">
+                                Yours
+                              </span>
+                            )}
+                          </span>
+                        </td>
+                        <td title={c.inWindow ? `${fmtNumber(c.playedThisWeek)} of ${fmtNumber(managers)} managers played it` : "Can't be played this gameweek"}>
+                          {c.shareThisWeek === null ? DASH : fmtPercent(c.shareThisWeek * 100, 1)}
+                        </td>
+                        <td title={c.inWindow ? "Every manager has one per half of the season: the share yet to play it" : "Can't be played this gameweek"}>
+                          {c.stillToPlay === null ? DASH : fmtPercent(c.stillToPlay * 100, 0)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
+            </>
+          )}
+        </div>
+
+        {/* The switch between the two views (the owner's call, 2026-11-02). */}
+        <div className="gw-panel-foot">
+          {view === "summary" ? (
+            <button type="button" className="chip chip-icon gw-view-switch" title="Gameweek Log: every gameweek's points and ranks" aria-label="Show the Gameweek Log" onClick={() => setView("log")}>
+              <GameweekLogIcon />
+              <ChevronIcon direction="right" size={12} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="chip chip-icon gw-view-switch"
+              title={gw === null ? "Back to the Gameweek Summary" : `Back to GW${gw}'s Summary`}
+              aria-label="Show the Gameweek Summary"
+              onClick={() => setView("summary")}
+            >
+              <ChevronIcon direction="left" size={12} />
+              <GameweekSummaryIcon />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
