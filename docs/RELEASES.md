@@ -5,6 +5,10 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.129.0 · 2 Nov 2026
+
+- Team Building: Reset Draft puts a squad back as it was after the last deadline, chips the squad has played show "Used" in the Gameweek Summary from that gameweek on, the Gameweek Log is laid out like the profiles' Match Logs with a Chip column, "Top scorer" reads "Top scoring captain", and no label anywhere splits mid-word any more
+
 ## v1.128.0 · 2 Nov 2026
 
 - Team Building: Transfers and Chips beside Squad Value and Bank (free transfers, hits, confirm, chips played and left), the Gameweek Log moved into a redesigned Gameweek Summary panel with overall rank, the pitch's switches as icons, the captain shown with his name, ownership, price, club and position, and Odds chips that show each opponent and what the figure is
