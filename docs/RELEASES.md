@@ -5,6 +5,12 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.127.0 · 2 Nov 2026
+
+- Team Building: the FPL/Model source sits in Projected Points' box, the squad's actions are icons, Price Changes is gone, and the Gameweek Log and Summary show each gameweek on its own against every FPL manager, points coloured against that gameweek's average and highest
+- Team Building: a Gameweek Log of how the squad has scored each week (an import's from FPL, a squad built here recorded at each deadline), a Gameweek Summary (points against the average, captaincy, chips) and a Price Changes panel of this gameweek's risers and fallers
+- Team Building: Fixtures gets a Games/Odds toggle (Odds shows each match's club clean-sheet chance or goals expected), each highlight shows only its own toggle, and an imported squad updates without a notice
+
 ## v1.126.0 · 2 Nov 2026
 
 - Help: new guides for when an imported team updates, why Add is greyed out, uninstalling, and Mac/phone/web; the squad guides no longer say the club limit never blocks
