@@ -54,6 +54,16 @@ export interface RawEvent {
   is_current: boolean;
   is_next: boolean;
   data_checked: boolean;
+  /** <gameweek_summary>: every manager's figures for the gameweek; null or missing until FPL has them. */
+  average_entry_score?: number | null;
+  highest_score?: number | null;
+  /** Managers ranked that gameweek. */
+  ranked_count?: number | null;
+  most_captained?: number | null;
+  most_vice_captained?: number | null;
+  top_element_info?: { id: number; points: number } | null;
+  /** How many managers played each chip that gameweek. */
+  chip_plays?: { chip_name: string; num_played: number }[] | null;
 }
 
 /**
@@ -432,6 +442,18 @@ export interface RawEntryHistoryGw {
   event_transfers?: number;
   event_transfers_cost?: number;
   points_on_bench?: number;
+  /** The gameweek's points before any transfer cost (<gameweek_log>). */
+  points?: number | null;
+  total_points?: number | null;
+  /** Gameweek rank and overall rank; null until FPL ranks the gameweek. */
+  rank?: number | null;
+  overall_rank?: number | null;
+}
+
+/** event/{id}/live/ (<gameweek_log>): one player's gameweek, a double's matches added up. */
+export interface RawEventLiveElement {
+  id: number;
+  stats: { total_points: number; minutes: number };
 }
 
 export interface RawEntryChipUsage {

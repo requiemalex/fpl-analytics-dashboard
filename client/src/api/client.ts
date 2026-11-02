@@ -1,6 +1,6 @@
 import type { PlayerPastMatch, PlayerSeasonPeer } from "../types/normalized";
-import type { ApiEnvelope, RawBootstrapStatic, RawElementSummary, RawFixture, RawHistoricBulk, RawEntryTeam, RawEntryHistory, RawEntryPicks, RawEntryTransfer } from "../types/raw";
-import { elementSummarySchema, fixturesSchema, historicBulkSchema, playerSeasonsSchema, entryTeamSchema, entryHistorySchema, entryPicksSchema, entryTransfersSchema, validate, parseBootstrapStatic } from "../validation/schema";
+import type { ApiEnvelope, RawBootstrapStatic, RawElementSummary, RawFixture, RawHistoricBulk, RawEntryTeam, RawEntryHistory, RawEntryPicks, RawEntryTransfer, RawEventLiveElement } from "../types/raw";
+import { elementSummarySchema, fixturesSchema, historicBulkSchema, playerSeasonsSchema, entryTeamSchema, entryHistorySchema, entryPicksSchema, entryTransfersSchema, eventLiveSchema, validate, parseBootstrapStatic } from "../validation/schema";
 
 export class ApiRequestError extends Error {
   status: number;
@@ -124,4 +124,11 @@ export async function fetchEntryTransfers(teamId: number): Promise<FetchResult<R
   const envelope = await getEnvelope<unknown>(`/api/entry/${teamId}/transfers`);
   const data = validate(entryTransfersSchema, envelope.data, "entry transfers") as unknown as RawEntryTransfer[];
   return { data, source: envelope.meta.source, fetchedAt: envelope.meta.fetchedAt };
+}
+
+/** Every player's points and minutes in one gameweek, a double's matches added up (<gameweek_log>). */
+export async function fetchEventLive(eventId: number): Promise<FetchResult<RawEventLiveElement[]>> {
+  const envelope = await getEnvelope<unknown>(`/api/event/${eventId}/live`);
+  const data = validate(eventLiveSchema, envelope.data, "gameweek live") as unknown as { elements: RawEventLiveElement[] };
+  return { data: data.elements, source: envelope.meta.source, fetchedAt: envelope.meta.fetchedAt };
 }

@@ -163,6 +163,7 @@ top bar's Notepad and Help panels.
 | `element-summary/{id}/` | One player's gameweek history — fetched lazily when a profile opens | 30 min |
 | `historic-bulk` (app's own) | Every player's `history_past` plus this season's club data, built server-side from hundreds of `element-summary` calls | 30 min |
 | `entry/{id}/`, `entry/{id}/history/`, `entry/{id}/event/{gw}/picks/`, `entry/{id}/transfers/` | Team Building's FPL team import (read-only, unauthenticated; transfers for purchase prices) | 2 min |
+| `event/{gw}/live/` | Every player's points and minutes in one gameweek: Team Building's Gameweek Log and Gameweek Summary (`<gameweek_log>`); kept for the session once the gameweek is finished | 10 min |
 | `understat` (app's own) | Understat season summaries, from this repo's `data/understat/` on GitHub (from disk under `npm run dev`) — never understat.com | 30 min; completed seasons 12 h |
 | `understat/profile/{player|club}/{code}/{season}` (app's own) | One player's or club's Understat detail for one season (positions, shots, a player's shots faced while on the pitch, result chances, formations, starting XIs), sliced server-side from `app/profile/<season>.json` | as `understat` |
 | `player-seasons/{code}` (app's own) | One player's match rows for every completed season (the profile's past-season Match Log), bundled with the server | none needed |
@@ -2173,6 +2174,58 @@ starting XI short of 11 or a line under its minimum.
   imports the squad, without purchase prices (they load next time). A
   new season's rollover drops them (they were paid at last season's
   prices).
+- **Gameweek Log** (`<gameweek_log>`, `state/useGameweekLog.ts`,
+  `components/teamBuilding/GameweekLogTable.tsx`) — under the pitch, once
+  the active squad has a gameweek to show: one row per gameweek whose
+  deadline has passed, newest first, with Totals and Average as every Match
+  Log has. Each row has the squad's points (before any transfer cost), every
+  FPL manager's average and highest that gameweek (bootstrap's
+  `average_entry_score`/`highest_score`) and the points left on the bench.
+  **An import** reads FPL's own history for the team (`entry/{id}/history/`:
+  every gameweek since it started, not only since the import) and adds its
+  transfers, hits, gameweek and overall rank and chip. **A squad built in
+  Scoutline** is scored from what it was at each deadline
+  (`SavedSquad.gameweekLog`, saved-squads store version 5;
+  `state/gameweekRecords.ts`): a squad's state at a deadline is its state as
+  last changed before it, so it's recorded exactly when the app loads (a
+  squad unchanged since a deadline) and just before a change (the squad
+  being changed, for every deadline since its last change); a deadline
+  before it was made can't be known and isn't recorded. Each record is
+  scored against FPL's `event/{gw}/live/` (`scoreRecord`,
+  `metrics/gameweekScore.ts`) as FPL scores a team: once the gameweek is
+  finished, each starter who didn't play is replaced by the first benched
+  player who did and keeps the XI legal (a goalkeeper only by the
+  goalkeeper; the bench in the order the pitch shows it, as Scoutline's
+  bench has no order of its own), and the vice-captain doubles if the
+  captain didn't play; until then, the XI as picked, the row marked live.
+  Its Captain column says who doubled. No chips (Scoutline can't play
+  them), so it has no transfers, ranks or chip. Checked against real teams
+  (2026-11-02): every gameweek without a chip scored exactly FPL's points.
+  No colour: a manager's points have no pool to rank in. A new season
+  clears the records (`seasonIdRollover`).
+- **Gameweek Summary** (`<gameweek_summary>`,
+  `components/teamBuilding/GameweekSummary.tsx`, `metrics/gameweekSummary.ts`)
+  — a panel from the page header's button, on the log's latest gameweek,
+  its arrows stepping through the rest: **Points** (the gameweek's and the
+  total to date, each as a bar beside every manager's average on one
+  scale, in series colours; "Season to date" for an import's full history,
+  "Since GW n" for a squad built here), **Captaincy** (the squad's captain,
+  from its record or for an import its FPL picks, whoever FPL counted more
+  than once; FPL's most-captained player, `most_captained`; and the
+  gameweek's top scorer, `top_element_info`; each with what he returned as
+  captain) and **Chips** (each chip's plays that gameweek, `chip_plays`, as
+  a share of the managers ranked, `ranked_count`, and the share still to
+  play it this half of the season: 1 − every play since its window opened
+  ÷ those managers, each manager holding one per window; the squad's own
+  chip tagged). FPL publishes only the single most-captained player, not a
+  captaincy table, so there's no top five.
+- **Price Changes** (`<price_changes_week>`,
+  `components/teamBuilding/PriceChanges.tsx`) — a panel from the page
+  header's button: every player whose price has risen or fallen since the
+  current gameweek's deadline (FPL's `cost_change_event`), risers and
+  fallers apart and by position, biggest change first, then dearest. FPL
+  keeps no dated record of price changes, so it shows this gameweek only
+  and not the day of each.
 - **Open places** (`<open_slots>`, `openSquadSlots` in
   `metrics/squadRules.ts`) — every place the squad is still short of
   (2 GKP, 5 DEF, 5 MID, 3 FWD) is a "+": the XI's open places take them
@@ -2507,6 +2560,10 @@ changes still work for the session; they just don't persist.
   keep only numbers, the XI and the armbands only players in the squad, and
   a squad with no id is skipped. Team Building flags any saved id FPL no
   longer lists (a banner with a remove icon); such an id holds no XI place.
+  A squad's Gameweek Log records (`gameweekLog`, version 5) keep only
+  numbers and one record per gameweek; a squad saved before version 5 has
+  none, and the deadlines passed since it last changed are recorded the
+  next time the app loads (`<gameweek_log>`). A new season clears them.
 - **FPL renumbers players and clubs every summer** (`id` is per season; the
   permanent identity is `code`). The id ledger records, for the season the
   saved ids belong to, every id's code. When the app first loads a new

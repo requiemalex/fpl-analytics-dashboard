@@ -15,6 +15,8 @@ const PLAYERS = POS.map((position, i) => makePlayer({ id: i + 1, name: `P${i + 1
 
 vi.mock("../state/AppStateContext", () => ({
   useAppState: () => ({
+    chips: [],
+    liveDataVersion: { count: 1, forced: false },
     players: PLAYERS,
     teams: TEAMS,
     teamsById: new Map(TEAMS.map((t) => [t.id, t])),

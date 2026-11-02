@@ -73,6 +73,14 @@ export const eventSchema = z
     is_previous: z.boolean(),
     is_current: z.boolean(),
     is_next: z.boolean(),
+    // <gameweek_summary>: the gameweek's figures for every manager, null until FPL has them.
+    average_entry_score: z.number().nullable().optional(),
+    highest_score: z.number().nullable().optional(),
+    ranked_count: z.number().nullable().optional(),
+    most_captained: z.number().nullable().optional(),
+    most_vice_captained: z.number().nullable().optional(),
+    top_element_info: z.object({ id: z.number(), points: z.number() }).nullable().optional(),
+    chip_plays: z.array(z.object({ chip_name: z.string(), num_played: z.number() })).nullable().optional(),
   })
   .passthrough();
 
@@ -440,6 +448,10 @@ export const entryHistoryGwSchema = z
     event_transfers: z.number().optional(),
     event_transfers_cost: z.number().optional(),
     points_on_bench: z.number().optional(),
+    points: z.number().nullable().optional(),
+    total_points: z.number().nullable().optional(),
+    rank: z.number().nullable().optional(),
+    overall_rank: z.number().nullable().optional(),
   })
   .passthrough();
 
@@ -466,6 +478,15 @@ export const entryPicksSchema = z
   .object({
     active_chip: z.string().nullable().optional(),
     picks: z.array(entryPickSchema).optional().default([]),
+  })
+  .passthrough();
+
+/** event/{id}/live/ (<gameweek_log>): each player's gameweek points and minutes. */
+export const eventLiveSchema = z
+  .object({
+    elements: z.array(
+      z.object({ id: z.number(), stats: z.object({ total_points: z.number(), minutes: z.number() }).passthrough() }).passthrough(),
+    ),
   })
   .passthrough();
 

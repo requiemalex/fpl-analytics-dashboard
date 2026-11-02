@@ -14,6 +14,8 @@ import { skippedRecordCount } from "../validation/schema";
 import { liveSeasonName, rolloverSavedIds } from "./seasonIdRollover";
 import { setFinishedGameweeks } from "./seasonProgress";
 import { syncImportedSquads } from "./fplTeamImport";
+import { setGameweekDeadlines } from "./gameweekRecords";
+import { recordSavedSquadDeadlines } from "./useSavedSquads";
 import type { NormalizedPlayer, NormalizedTeam, NormalizedFixture, NormalizedEvent, GameweekState, ChipWindow, PlayerSeasonHistory, ClubSeason, SeasonMatch } from "../types/normalized";
 import type { AdvancedFieldAvailability } from "../normalize/fieldAvailability";
 
@@ -207,6 +209,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
         }
       }
       setLiveSeason(season);
+      // Before any page reads a saved squad: what a squad was at each deadline is recorded against these (<gameweek_log>).
+      setGameweekDeadlines(normalizedEvents);
       // Before the players: Current Season's minutes floor grows with this (<fixed_minutes_floor>).
       setFinishedGameweeks(normalizedEvents.filter((e) => e.finished).length);
       setPlayers(normalizedPlayers);
@@ -302,7 +306,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   // <imported_squad_sync>: after every live load (start-up and the poll
   // above), squads imported from an FPL team ID catch up with the team.
   useEffect(() => {
-    if (liveDataVersion.count === 0 || !gameweekState || gameweekState.kind === "pre-season") return;
+    if (liveDataVersion.count === 0) return;
+    // <gameweek_log>: squads built here, as they stood at each deadline passed.
+    recordSavedSquadDeadlines();
+    if (!gameweekState || gameweekState.kind === "pre-season") return;
     void syncImportedSquads(gameweekState.event.id, new Map(playersRef.current.map((p) => [p.id, p])));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [liveDataVersion]);

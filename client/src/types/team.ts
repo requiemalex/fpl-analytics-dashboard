@@ -31,6 +31,15 @@ export interface UsedChip {
   event: number | null;
 }
 
+/** <gameweek_log>: one squad as it stood at one gameweek's deadline. */
+export interface GameweekRecord {
+  event: number;
+  playerIds: number[];
+  startingXI: number[];
+  captainId: number | null;
+  viceCaptainId: number | null;
+}
+
 export interface SavedSquad {
   id: string;
   name: string;
@@ -50,6 +59,12 @@ export interface SavedSquad {
    * have it, or the squad was saved before these were kept) shows "—".
    */
   purchasePrices: Record<number, number>;
+  /**
+   * <gameweek_log>: a squad built in Scoutline, as it stood at each deadline
+   * passed since it was made (state/gameweekRecords.ts), so its Gameweek Log
+   * can score it. Empty for an import: FPL keeps its history.
+   */
+  gameweekLog: GameweekRecord[];
   /** Chips already spent, from an FPL import. Empty for a squad built from scratch. Stored, but no page shows it at the moment. */
   usedChips: UsedChip[];
   /** Set when this squad was loaded from a real FPL team ID rather than built from scratch — its own bank/value at the time of import, and which team ID/gameweek it came from, purely for display ("Loaded from Team 1234567, GW3") and re-sync. Null for a from-scratch squad. */
@@ -93,6 +108,7 @@ export function createBlankSquad(name: string): SavedSquad {
     viceCaptainId: null,
     purchasePrices: {},
     usedChips: [],
+    gameweekLog: [],
     importedFrom: null,
   };
 }

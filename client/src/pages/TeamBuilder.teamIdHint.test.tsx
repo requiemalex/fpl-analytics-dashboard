@@ -9,6 +9,8 @@ import { TeamBuilder } from "./TeamBuilder";
 
 vi.mock("../state/AppStateContext", () => ({
   useAppState: () => ({
+    chips: [],
+    liveDataVersion: { count: 1, forced: false },
     players: [],
     teams: [],
     teamsById: new Map(),

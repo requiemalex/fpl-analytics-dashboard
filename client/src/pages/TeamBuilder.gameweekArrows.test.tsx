@@ -41,6 +41,8 @@ const FIXTURES = [match(1, 1, 1, 3, 3), match(2, 1, 2, 4, 3), match(3, 2, 1, 4, 
 
 vi.mock("../state/AppStateContext", () => ({
   useAppState: () => ({
+    chips: [],
+    liveDataVersion: { count: 1, forced: false },
     players: PLAYERS,
     teams: TEAMS,
     teamsById: new Map(TEAMS.map((t) => [t.id, t])),

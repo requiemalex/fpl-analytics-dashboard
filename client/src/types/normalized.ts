@@ -169,6 +169,21 @@ export interface NormalizedEvent {
   isCurrent: boolean;
   isNext: boolean;
   isPrevious: boolean;
+  /** <gameweek_summary>: every manager's figures for the gameweek, from FPL; missing in data made before they were read. */
+  summary?: EventSummary;
+}
+
+/** <gameweek_summary>: what FPL publishes about a gameweek across every manager; each null until FPL has it. */
+export interface EventSummary {
+  averageScore: number | null;
+  highestScore: number | null;
+  /** Managers ranked that gameweek. */
+  rankedCount: number | null;
+  mostCaptainedId: number | null;
+  mostViceCaptainedId: number | null;
+  topScorer: { id: number; points: number } | null;
+  /** Managers who played each chip that gameweek; a chip FPL didn't list is missing. */
+  chipPlays: Partial<Record<ChipWindow["chip"], number>>;
 }
 
 export type GameweekState =

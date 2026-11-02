@@ -134,6 +134,8 @@ function remapSquad(raw: unknown, player: Translate, counts: { players: { n: num
     if (typeof squad[key] === "number") squad[key] = player(squad[key] as number);
   }
   if ("purchasePrices" in squad) squad.purchasePrices = {};
+  // <gameweek_log>: last season's gameweeks, numbered as this season's will be, so they go.
+  if ("gameweekLog" in squad) squad.gameweekLog = [];
   // Its import was last season's team (FPL's team ids are per season too): its selling-price budget goes with it.
   if (squad.importedFrom && typeof squad.importedFrom === "object") squad.importedFrom = { ...(squad.importedFrom as Record<string, unknown>), playerIds: null, purchasePrices: {} };
   return squad;

@@ -1,5 +1,25 @@
 import type { RawEvent } from "../types/raw";
-import type { GameweekState, NormalizedEvent, NormalizedFixture } from "../types/normalized";
+import type { ChipWindow, EventSummary, GameweekState, NormalizedEvent, NormalizedFixture } from "../types/normalized";
+
+const CHIPS: ChipWindow["chip"][] = ["wildcard", "freehit", "bboost", "3xc"];
+
+/** <gameweek_summary>: FPL's figures for the gameweek across every manager, each null until it has them. */
+function eventSummary(e: RawEvent): EventSummary {
+  const chipPlays: EventSummary["chipPlays"] = {};
+  for (const c of e.chip_plays ?? []) {
+    const chip = c.chip_name.toLowerCase() as ChipWindow["chip"];
+    if (CHIPS.includes(chip)) chipPlays[chip] = c.num_played;
+  }
+  return {
+    averageScore: e.average_entry_score ?? null,
+    highestScore: e.highest_score ?? null,
+    rankedCount: e.ranked_count ?? null,
+    mostCaptainedId: e.most_captained ?? null,
+    mostViceCaptainedId: e.most_vice_captained ?? null,
+    topScorer: e.top_element_info ?? null,
+    chipPlays,
+  };
+}
 
 function toNormalizedEvent(e: RawEvent): NormalizedEvent {
   return {
@@ -10,6 +30,7 @@ function toNormalizedEvent(e: RawEvent): NormalizedEvent {
     isCurrent: e.is_current,
     isNext: e.is_next,
     isPrevious: e.is_previous,
+    summary: eventSummary(e),
   };
 }
 

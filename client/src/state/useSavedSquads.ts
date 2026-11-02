@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from "react";
-import type { SavedSquad } from "../types/team";
+import type { GameweekRecord, SavedSquad } from "../types/team";
+import { recordPassedDeadlines, withRecordsOf } from "./gameweekRecords";
 import { loadVersioned, mapReadableEntries, saveVersioned, type VersionedStore, usePersistentState } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:saved-squads:v1";
@@ -7,8 +8,9 @@ const STORAGE_KEY = "fpl-dashboard:saved-squads:v1";
  * 2: an import's `importedFrom.budget` (<imported_budget>); a version-1 import gets null, so the £100m it had still applies.
  * 3: `purchasePrices` (<purchase_prices>); an earlier squad gets none, so its purchase and selling prices show "—" until it's imported again or a player is re-added.
  * 4: an import's `importedFrom.playerIds` and `importedFrom.purchasePrices` (<imported_budget>); an earlier import gets null for both, and Team Building loads them from FPL the next time it's opened.
+ * 5: `gameweekLog` (<gameweek_log>); an earlier squad gets none, and the deadlines passed since it was last changed are recorded the next time the app loads.
  */
-const STORAGE_VERSION = 4;
+const STORAGE_VERSION = 5;
 
 const ids = (v: unknown): number[] => (Array.isArray(v) ? v.filter((id): id is number => typeof id === "number" && Number.isFinite(id)) : []);
 const idOrNull = (v: unknown, allowed: number[]): number | null => (typeof v === "number" && allowed.includes(v) ? v : null);
@@ -36,8 +38,24 @@ export function normalizeSavedSquad(raw: Record<string, unknown>): SavedSquad | 
     viceCaptainId: idOrNull(raw.viceCaptainId, startingXI),
     purchasePrices: normalizePurchasePrices(raw.purchasePrices, playerIds),
     usedChips: Array.isArray(raw.usedChips) ? (raw.usedChips as SavedSquad["usedChips"]) : [],
+    gameweekLog: normalizeGameweekLog(raw.gameweekLog),
     importedFrom: normalizeImportedFrom(raw.importedFrom),
   };
+}
+
+/** <gameweek_log>: each record checked, one per gameweek, in gameweek order; none for a squad saved before version 5. */
+function normalizeGameweekLog(raw: unknown): GameweekRecord[] {
+  if (!Array.isArray(raw)) return [];
+  const byEvent = new Map<number, GameweekRecord>();
+  for (const r of raw) {
+    if (!r || typeof r !== "object") continue;
+    const rec = r as Record<string, unknown>;
+    if (typeof rec.event !== "number" || !Number.isInteger(rec.event) || byEvent.has(rec.event)) continue;
+    const playerIds = [...new Set(ids(rec.playerIds))];
+    const startingXI = [...new Set(ids(rec.startingXI))].filter((id) => playerIds.includes(id));
+    byEvent.set(rec.event, { event: rec.event, playerIds, startingXI, captainId: idOrNull(rec.captainId, startingXI), viceCaptainId: idOrNull(rec.viceCaptainId, startingXI) });
+  }
+  return [...byEvent.values()].sort((a, b) => a.event - b.event);
 }
 
 const numberOrNull = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
@@ -103,6 +121,18 @@ export function changeSavedSquads(change: SquadsChange): void {
   saveVersioned(STORAGE_KEY, STORAGE_VERSION, change(loadSavedSquads()));
 }
 
+/**
+ * <gameweek_log>: on every live load, each squad unchanged since a deadline
+ * passed is recorded as it stands for it; nothing changes when there's
+ * nothing new, and when it last changed stays as it was.
+ */
+export function recordSavedSquadDeadlines(now = Date.now()): void {
+  changeSavedSquads((squads) => {
+    const next = squads.map((s) => recordPassedDeadlines(s, now));
+    return next.some((s, i) => s !== squads[i]) ? next : squads;
+  });
+}
+
 /** Hard cap on saved squads — purely a UI/localStorage-hygiene limit, not an FPL rule. */
 export const MAX_SAVED_SQUADS = 5;
 
@@ -136,19 +166,19 @@ export function useSavedSquads(): UseSavedSquads {
     };
   }, [setSquads]);
 
+  // <gameweek_log>: before a change, the squad as it stood is recorded for any deadline passed since it last changed.
   const upsert = useCallback((squad: SavedSquad) => {
     setSquads((prev) => {
-      const updated: SavedSquad = { ...squad, updatedAt: Date.now() };
       const idx = prev.findIndex((s) => s.id === squad.id);
-      if (idx === -1) return [...prev, updated];
+      if (idx === -1) return [...prev, { ...squad, updatedAt: Date.now() }];
       const next = [...prev];
-      next[idx] = updated;
+      next[idx] = { ...withRecordsOf(squad, recordPassedDeadlines(prev[idx])), updatedAt: Date.now() };
       return next;
     });
   }, []);
 
   const update = useCallback((id: string, mutator: (squad: SavedSquad) => SavedSquad) => {
-    setSquads((prev) => prev.map((s) => (s.id === id ? { ...mutator(s), updatedAt: Date.now() } : s)));
+    setSquads((prev) => prev.map((s) => (s.id === id ? { ...mutator(recordPassedDeadlines(s)), updatedAt: Date.now() } : s)));
   }, []);
 
   const remove = useCallback((id: string) => {

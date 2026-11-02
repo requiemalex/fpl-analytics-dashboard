@@ -32,6 +32,8 @@ const PLAYERS = Array.from({ length: 130 }, (_, i) => {
 
 vi.mock("../state/AppStateContext", () => ({
   useAppState: () => ({
+    chips: [],
+    liveDataVersion: { count: 1, forced: false },
     players: PLAYERS,
     teams: TEAMS,
     teamsById: new Map(TEAMS.map((t) => [t.id, t])),

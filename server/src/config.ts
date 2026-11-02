@@ -38,6 +38,9 @@ export const CACHE_TTL_MS = {
   // Short: a real manager's bank/picks/chips can change the moment they
   // make a transfer, unlike the shared pool data above.
   entryImport: 2 * 60 * 1000, // 2 minutes
+  // A gameweek's points move with its matches and bonus, as the player data
+  // does; a finished one barely changes, but it's one request either way.
+  eventLive: 10 * 60 * 1000, // 10 minutes
 };
 
 /** Simultaneous element-summary requests when building the whole-pool historic dataset — a courtesy limit on the official API, not a hard requirement it imposes. */

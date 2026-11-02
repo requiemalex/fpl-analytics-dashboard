@@ -35,6 +35,8 @@ const CLUB_SEASONS = [clubSeason(101, 102, 2, 1), clubSeason(102, 101, 1, 2)];
 
 vi.mock("../state/AppStateContext", () => ({
   useAppState: () => ({
+    chips: [],
+    liveDataVersion: { count: 1, forced: false },
     players: PLAYERS,
     teams: TEAMS,
     teamsById: new Map(TEAMS.map((t) => [t.id, t])),

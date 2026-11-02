@@ -99,5 +99,7 @@ export const bootstrapCache = new TtlCache<unknown>();
 export const fixturesCache = new TtlCache<unknown>();
 export const elementSummaryCache = new TtlCache<unknown>();
 export const historicBulkCache = new TtlCache<unknown>();
+/** One entry per gameweek (<gameweek_log>): at most 38. */
+export const eventLiveCache = new TtlCache<unknown>(40);
 /** Real managers' team data — kept separate from the pool caches above, and much shorter-lived (see CACHE_TTL_MS.entryImport), since this reflects one person's live, changeable squad rather than shared, slower-moving league data. */
 export const entryImportCache = new TtlCache<unknown>();

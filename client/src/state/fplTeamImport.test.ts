@@ -40,6 +40,7 @@ function importedSquad(asOfEvent: number): SavedSquad {
     viceCaptainId: 4,
     purchasePrices: { 15: 6 },
     usedChips: [],
+    gameweekLog: [],
     importedFrom: { teamId: 77, teamName: "Eze Peasy", managerName: "A Manager", asOfEvent, bank: 1.1, budget: 103.8, playerIds: GW8_IDS, purchasePrices: { 15: 6 } },
   };
 }

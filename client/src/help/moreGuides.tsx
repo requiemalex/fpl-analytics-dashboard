@@ -1186,6 +1186,80 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
     ),
   },
   {
+    id: "gameweek-log",
+    topic: TOPIC.building,
+    title: "Gameweek Log",
+    answer: "Under the pitch: how the squad has scored each gameweek, beside every FPL manager's average and highest.",
+    pages: ["team-building"],
+    keywords: [
+      "gameweek log", "log", "history", "past gameweeks", "previous gameweeks", "my points", "points history of my team", "how did i do",
+      "team performance", "performance", "season so far", "rank", "overall rank", "gameweek rank", "hits", "transfer hits", "bench points",
+      "points on bench", "average score", "highest score", "track my team", "record", "recorded", "how has my team done", "each week",
+      "week by week", "every week", "my team each week", "points left on my bench", "left on bench", "left on the bench",
+    ],
+    related: ["gameweek-summary", "import-team"],
+    body: (
+      <>
+        <Terms
+          rows={[
+            ["Imported squad", "FPL's own history: points, transfers, hits, ranks, chips"],
+            ["Squad built here", "scored from what it was at each deadline since it was made"],
+          ]}
+        />
+        <Points
+          items={[
+            "A squad built here is scored as FPL would: automatic substitutions, the vice-captain if the captain didn't play. No chips.",
+            "\"Live\" marks a gameweek still being played.",
+          ]}
+        />
+      </>
+    ),
+  },
+  {
+    id: "gameweek-summary",
+    topic: TOPIC.building,
+    title: "Gameweek Summary",
+    answer: "One gameweek of your squad against every FPL manager: points, captaincy and chips.",
+    pages: ["team-building"],
+    keywords: [
+      "gameweek summary", "summary", "weekly summary", "gameweek review", "vs average", "versus average", "above average", "below average",
+      "average manager", "most captained", "popular captain", "top captains", "captaincy", "top scorer", "best captain", "chips played",
+      "chips left", "chips remaining", "how many wildcards", "chip usage", "still to play",
+    ],
+    related: ["gameweek-log", "chip-weeks"],
+    body: (
+      <>
+        <Terms
+          rows={[
+            ["Points", "this gameweek and to date, against the average"],
+            ["Captaincy", "your captain, FPL's most captained, the top scorer: each one's points doubled"],
+            ["Chips", "share of managers who played each this gameweek, and the share yet to play it this half"],
+          ]}
+        />
+        <Note>FPL only publishes its single most-captained player, so there's no top five.</Note>
+      </>
+    ),
+  },
+  {
+    id: "price-movers",
+    topic: TOPIC.building,
+    title: "Who has risen or fallen this gameweek",
+    answer: "Team Building's Price Changes: every price that has moved since the gameweek's deadline.",
+    pages: ["team-building"],
+    keywords: [
+      "risers", "fallers", "price changes this week", "price changes this gameweek", "who has risen", "who has fallen", "who went up",
+      "who went down", "price risers", "price fallers", "risen", "fallen", "changed price", "price moves", "price movers", "since the deadline",
+      "price change list", "price changes button", "went up in price", "dropped in price",
+    ],
+    related: ["price-changes", "sell-price"],
+    body: (
+      <>
+        <Steps items={["Price Changes, at the top of Team Building.", "Risers or Fallers, then a position."]} />
+        <Note>FPL keeps no dated record of past changes, so it covers this gameweek only.</Note>
+      </>
+    ),
+  },
+  {
     id: "chip-weeks",
     topic: TOPIC.building,
     title: "Chips: Free Hit, Bench Boost, Triple Captain",

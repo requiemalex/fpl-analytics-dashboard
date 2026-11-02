@@ -75,6 +75,34 @@ describe("normalizeEvents", () => {
       isCurrent: true,
       isNext: false,
       isPrevious: true,
+      // FPL hasn't sent this gameweek's figures for every manager: each unknown.
+      summary: { averageScore: null, highestScore: null, rankedCount: null, mostCaptainedId: null, mostViceCaptainedId: null, topScorer: null, chipPlays: {} },
+    });
+  });
+
+  it("<gameweek_summary> reads FPL's figures for every manager, keeping only the chips it knows", () => {
+    const raw = {
+      ...makeEvent({ id: 9 }),
+      average_entry_score: 42,
+      highest_score: 123,
+      ranked_count: 11162055,
+      most_captained: 411,
+      most_vice_captained: 1,
+      top_element_info: { id: 112, points: 15 },
+      chip_plays: [
+        { chip_name: "bboost", num_played: 107179 },
+        { chip_name: "wildcard", num_played: 333085 },
+        { chip_name: "newchip", num_played: 5 },
+      ],
+    };
+    expect(normalizeEvents([raw])[0].summary).toEqual({
+      averageScore: 42,
+      highestScore: 123,
+      rankedCount: 11162055,
+      mostCaptainedId: 411,
+      mostViceCaptainedId: 1,
+      topScorer: { id: 112, points: 15 },
+      chipPlays: { bboost: 107179, wildcard: 333085 },
     });
   });
 });
