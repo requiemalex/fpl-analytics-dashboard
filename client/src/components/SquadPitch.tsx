@@ -26,6 +26,7 @@ import {
   PriceTagIcon,
   ProgressIcon,
   PurchaseIcon,
+  ResetIcon,
   SellIcon,
 } from "./IconToolbar";
 import { FplSourceIcon } from "./SourceToggle";
@@ -668,6 +669,8 @@ export function SquadPitch({
   onRemove,
   onAddSlot,
   onClearSquad,
+  onResetDraft,
+  resetBlocker,
   onBestDraft,
   onOpenSummary,
   summaryBlocker,
@@ -712,6 +715,10 @@ export function SquadPitch({
   /** An open slot was picked: list that position in Add Players. */
   onAddSlot: (position: Position) => void;
   onClearSquad: () => void;
+  /** <reset_draft>: puts the squad back as it was after the last deadline. */
+  onResetDraft?: () => void;
+  /** Why Reset Draft can't run (nothing to go back to, or nothing changed); null when it can. */
+  resetBlocker?: string | null;
   /** <best_draft>: the starting XI and armbands to put in place. */
   onBestDraft: (picks: DraftPicks) => void;
   /** <gameweek_summary>: opens the Gameweek Summary and Log. */
@@ -845,6 +852,15 @@ export function SquadPitch({
                 onClick={() => onCaptainTileClick("viceCaptain")}
               />
               <IconChipButton icon={<ClearDraftIcon />} label="Clear Draft" title={`Clear Draft: remove every player from ${squadName || "this squad"}`} onClick={onClearSquad} />
+              {onResetDraft && (
+                <IconChipButton
+                  icon={<ResetIcon />}
+                  label="Reset Draft"
+                  title={resetBlocker ?? `Reset Draft: put ${squadName || "this squad"} back as it was after the last deadline, undoing every transfer and change since`}
+                  onClick={onResetDraft}
+                  disabled={!!resetBlocker}
+                />
+              )}
               <IconChipButton
                 icon={<BestDraftIcon />}
                 label="Best Draft"

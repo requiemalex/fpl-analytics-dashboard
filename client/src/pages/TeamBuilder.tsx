@@ -16,7 +16,7 @@ import { clubSeasonsAsShown } from "../metrics/teamStats";
 import { expectationForGameweek, horizonTotal, upcomingGameweeks, type Horizon, type PointsSource } from "../metrics/gameweekExpectations";
 import { ApiRequestError } from "../api/client";
 import { importFplTeam, keepPurchases, loadImportTransfers } from "../state/fplTeamImport";
-import { chipStatuses, confirmTransfers, playChip, setFreeTransfers, transferStanding } from "../metrics/squadTransfers";
+import { chipStatuses, confirmTransfers, playChip, resetDraft, resetDraftBlocker, setFreeTransfers, transferStanding } from "../metrics/squadTransfers";
 import type { ChipName } from "../types/team";
 import { getUpcomingFixtures, firstPickableEventId, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { SquadPitch, type PitchColourRanks } from "../components/SquadPitch";
@@ -116,6 +116,7 @@ export function TeamBuilder() {
   const [newSquadName, setNewSquadName] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
   const [importTeamIdInput, setImportTeamIdInput] = useState("");
   const [importStatus, setImportStatus] = useState<"idle" | "loading" | "error">("idle");
   const [importError, setImportError] = useState<string | null>(null);
@@ -187,6 +188,7 @@ export function TeamBuilder() {
   useEscapeLayer(showNewSquadModal, () => setShowNewSquadModal(false));
   useEscapeLayer(confirmDeleteId !== null, () => setConfirmDeleteId(null));
   useEscapeLayer(confirmClear, () => setConfirmClear(false));
+  useEscapeLayer(confirmReset, () => setConfirmReset(false));
   useEscapeLayer(addOpen, () => setAddOpen(false));
   useDialogFocus(addOpen, addPanelRef);
 
@@ -326,6 +328,12 @@ export function TeamBuilder() {
       viceCaptainId: null,
       purchasePrices: {},
     }));
+  }
+
+  /** <reset_draft>: after the person confirms, the squad as it was after the last deadline, every transfer since undone. */
+  function handleResetDraft() {
+    setConfirmReset(false);
+    updateActive(resetDraft);
   }
 
   /**
@@ -866,6 +874,30 @@ export function TeamBuilder() {
         </div>
       )}
 
+      {confirmReset && active && (
+        <div className="dialog-backdrop" onClick={() => setConfirmReset(false)}>
+          <div className="dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-title">Reset draft</div>
+            <p className="page-subtitle" style={{ marginTop: 0 }}>
+              Put "{active.name}" back as it was after the last deadline? Every transfer and change since is undone, confirmed ones too. This can't be undone.
+            </p>
+            <div className="dialog-actions">
+              <button type="button" className="btn" onClick={() => setConfirmReset(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn primary"
+                style={{ borderColor: "var(--accent-negative)", color: "var(--accent-negative)" }}
+                onClick={handleResetDraft}
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {!active && (
         <div className="empty-state">
           <h3>No squad loaded</h3>
@@ -926,6 +958,8 @@ export function TeamBuilder() {
           onRemove={handleRemovePlayer}
           onAddSlot={handleAddSlot}
           onClearSquad={() => setConfirmClear(true)}
+          onResetDraft={() => setConfirmReset(true)}
+          resetBlocker={active ? resetDraftBlocker(active, fromEventId) : "Reset Draft: no squad loaded"}
           onBestDraft={handleBestDraft}
           onOpenSummary={() => setSummaryOpen(true)}
           summaryBlocker={

@@ -6,6 +6,8 @@ import {
   nextFreeTransfers,
   pendingTransfers,
   playChip,
+  resetDraft,
+  resetDraftBlocker,
   setFreeTransfers,
   transferStanding,
 } from "./squadTransfers";
@@ -107,6 +109,37 @@ describe("confirm, set and play", () => {
     const out = playChip(squad([1, 2], null), 10, "3xc");
     expect(out.transfers).toEqual(expect.objectContaining({ event: 10, free: null, chip: "3xc" }));
     expect(playChip(out, 10, null).transfers?.chip).toBeNull();
+  });
+});
+
+describe("<reset_draft> resetDraft", () => {
+  const atDeadline = { playerIds: [1, 2, 3], startingXI: [1, 2], captainId: 1, viceCaptainId: 2, purchasePrices: { 1: 5, 2: 6, 3: 7 } };
+  const changed = (made: number): SavedSquad => ({
+    ...createBlankSquad("Draft"),
+    playerIds: [1, 4, 5],
+    startingXI: [4],
+    captainId: 4,
+    viceCaptainId: null,
+    purchasePrices: { 1: 5, 4: 8, 5: 9 },
+    transfers: { event: 10, free: 1, made, baseIds: [1, 4, 3], start: atDeadline, chip: "bboost" },
+  });
+
+  it("puts back the squad as it was at the deadline, undoing confirmed and pending transfers, the chip kept", () => {
+    const out = resetDraft(changed(1));
+    expect(snapshotOf(out)).toEqual(atDeadline);
+    expect(out.transfers).toEqual(expect.objectContaining({ made: 0, baseIds: [1, 2, 3], chip: "bboost", free: 1 }));
+    expect(transferStanding(out, 10)).toEqual(expect.objectContaining({ count: 0, cost: 0 }));
+  });
+
+  it("can run only once the squad has a deadline's squad to go back to, and has changed since", () => {
+    expect(resetDraftBlocker(changed(0), 10)).toBeNull();
+    expect(resetDraftBlocker(changed(0), 11)).toMatch(/nothing to go back to/);
+    expect(resetDraftBlocker(resetDraft(changed(1)), 10)).toMatch(/already as it was/);
+    // A confirmed transfer undone by hand is still a change: Reset puts its count back to 0.
+    expect(resetDraftBlocker({ ...resetDraft(changed(0)), transfers: { ...changed(1).transfers!, baseIds: [1, 2, 3] }, ...atDeadline }, 10)).toBeNull();
+    // A squad built here before its first deadline: every transfer free, nothing kept yet.
+    expect(resetDraftBlocker(squad([1, 2], null), 10)).toMatch(/nothing to go back to/);
+    expect(resetDraftBlocker(playChip(squad([1, 2], null), 10, "3xc"), 10)).toMatch(/nothing to go back to/);
   });
 });
 

@@ -149,6 +149,20 @@ file, `index.html` and the Electron pages, and fails on any other family,
 a hard-coded one, a fourth token, another font package or a web-font
 link; it also checks the update window's copy still matches the package.
 
+**Whole words** (`<whole_words>`, owner's rule 2026-11-02). No label,
+heading or figure is ever split in the middle of a word ("Confirme / d"):
+text wraps only between words, and a box holding a label is never
+narrower than its longest word. The tile grids (`.stat-tile-grid`,
+`.summary-grid`, `.summary-tiles`, `.planning-figures`) size their columns
+`minmax(min-content, 1fr)`, so a column is at least as wide as its longest
+word and shares out the rest. `overflow-wrap: break-word` (a word splits
+only when no line could ever hold it: a user's own very long squad or view
+name) is the most any text may do; a URL (`.help-url`) is the one thing
+that may break anywhere. `styles/wholeWords.test.ts` scans every client
+source file, `index.html` and the Electron pages, and fails on any rule
+that lets the browser split words (`overflow-wrap: anywhere`,
+`word-break: break-all`, `hyphens: auto` and their inline forms).
+
 **Pages:** Dashboard (`/`), Player Explorer (`/players`), Team Explorer (`/teams`),
 Player Comparison (`/player-comparison`), Team Building (`/team-building`),
 About & Legal (`/legal`), plus the player and team profile overlays and the
@@ -2044,8 +2058,16 @@ else straight into storage. Going over
 is a warning ("£2.1m over"), never a block. **Add** starts a player while
 the XI still has a legal place for him (`<add_to_xi>`, `fitsStartingXI`),
 otherwise benches him; dragging moves anyone between pitch and bench.
-**Clear Draft** asks first (there's no undo); **Best Draft** (below) doesn't,
-as it only rearranges the squad. Before any squad exists the
+**Clear Draft** asks first (there's no undo); **Reset Draft**
+(`<reset_draft>`, `resetDraft` in `metrics/squadTransfers.ts`) asks first
+too, then puts the squad back as it was after the last deadline: the
+players, XI, armbands and purchase prices its transfer window kept at the
+gameweek's start (`TransferWindow.start`, what a Free Hit puts back),
+every transfer since undone, confirmed ones included (`made` back to 0).
+The gameweek's chip stays: it's played or cancelled in Chips. It's greyed
+out, saying why, with nothing to go back to (a squad built here before
+its first deadline) or nothing changed since (`resetDraftBlocker`).
+**Best Draft** (below) doesn't ask, as it only rearranges the squad. Before any squad exists the
 whole Squad tile is greyed out and inert (`inert`, `.squad-pitch.is-disabled`):
 nothing on it can be clicked or dropped on, so no player can be added until
 New Squad makes or imports one; the "No squad loaded" note sits above it.
@@ -2119,7 +2141,8 @@ starting XI short of 11 or a line under its minimum.
   has one; then, pushed to the far end, the squad's actions as icons in
   one `.icon-toolbar`, as every other section's are (the owner's call,
   2026-11-02): Captain and Vice-Captain (armbands, green while armed),
-  Clear Draft (an eraser), Best Draft (a spark) and Gameweek Summary (two
+  Clear Draft (an eraser), Reset Draft (the app's Reset arrow, as the
+  Explorers' reset), Best Draft (a spark) and Gameweek Summary (two
   bars: the Summary and Log panel, below; greyed out, saying why, until
   the squad has played a gameweek), each named in its hover; and the
   gameweek arrows (no label shown) last (owner's call
@@ -2272,7 +2295,10 @@ starting XI short of 11 or a line under its minimum.
 - **Gameweek Log** (`<gameweek_log>`, `state/useGameweekLog.ts`) — a view
   of the Gameweek Summary panel (below), not a section of the page any more
   (the owner's call, 2026-11-02): one row per gameweek whose deadline has
-  passed, newest first, with the squad's points (before any transfer
+  passed, newest first, set out as the profiles' Match Logs are (the
+  owner's call, 2026-11-02: FPL's green headers, the gameweek and the chip
+  played that gameweek on the left in body text, a divider, then the
+  figures), with the squad's points (before any transfer
   cost) and an import's gameweek rank and **overall rank** after it (FPL's
   own `rank`/`overall_rank`, both coloured by their place among the
   managers ranked that gameweek, `rankPercentile`; the owner asked for the
@@ -2325,13 +2351,18 @@ starting XI short of 11 or a line under its minimum.
   the hit; the gameweek rank is the Log's alone), **Captaincy**
   (the squad's captain, from its record or for an import its FPL picks,
   whoever FPL counted more than once; FPL's most-captained player,
-  `most_captained`; and the gameweek's top scorer, `top_element_info`;
-  each with what he returned as captain) and **Chips** (where the whole
+  `most_captained`; and the gameweek's top scorer, `top_element_info`,
+  labelled "Top scoring captain" so the figure reads as his captain's
+  return; each with what he returned as captain) and **Chips** (where the whole
   game stood that gameweek: each chip's plays, `chip_plays`, as a share of
   the managers ranked, `ranked_count`, and the share yet to play it this
   half of the season: 1 − every play since its window opened ÷ those
-  managers, each manager holding one per window; the squad's own chip
-  tagged), each a compact table. FPL publishes only the single
+  managers, each manager holding one per window; a chip the squad has
+  played this half of the season tagged **Used** from that gameweek on,
+  its hover saying which gameweek (`<chip_used>`, `chipPlayedBy`, from the
+  log's chips; the owner's call, 2026-11-02, so the summaries show at a
+  glance which chips are gone; each chip comes back for the second half,
+  so the tag doesn't carry over), each a compact table. FPL publishes only the single
   most-captained player, not a captaincy table, so there's no top five.
 - **Open places** (`<open_slots>`, `openSquadSlots` in
   `metrics/squadRules.ts`) — every place the squad is still short of

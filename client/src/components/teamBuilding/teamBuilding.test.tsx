@@ -142,10 +142,27 @@ describe("GameweekSummary", () => {
     expect(container.textContent).not.toMatch(/to date|Since GW|GW rank/i);
     const captaincyRows = () => [...container.querySelectorAll('table[aria-label="Captaincy"] tbody tr')].map((l) => l.textContent);
     await waitFor(() => expect(captaincyRows()[1]).toContain("8"));
-    expect(captaincyRows()).toEqual(["Your captainSakaTMMID14", "Most captainedHaalandTMFWD8", "Top scorerPalmerTMMID30"]);
-    // Wildcard: 80 of 1000 played since its window opened at GW2 (10 a gameweek), 1% this week; this squad's own tagged.
+    expect(captaincyRows()).toEqual(["Your captainSakaTMMID14", "Most captainedHaalandTMFWD8", "Top scoring captainPalmerTMMID30"]);
+    // Wildcard: 80 of 1000 played since its window opened at GW2 (10 a gameweek), 1% this week; this squad's own marked Used.
     const wildcard = container.querySelector('table[aria-label="Chips"] tbody tr')!;
-    expect(wildcard.textContent).toBe("WildcardYours1.0%92%");
+    expect(wildcard.textContent).toBe("WildcardUsed1.0%92%");
+  });
+
+  it("<chip_used> marks a chip Used from the gameweek the squad played it, and not before", () => {
+    fetchEventLiveMock.mockResolvedValue(live({}));
+    const rows = [row({ event: 7 }), row({ event: 8, chip: "bboost" }), row({ event: 9 })];
+    const { container, getByRole } = render(
+      <GameweekSummary open onClose={() => {}} squadName="Draft" log={logOf(rows)} events={[7, 8, 9].map((id) => event(id))} chipWindows={windows} importTeamId={null} playersById={playersById} onViewProfile={() => {}} />,
+    );
+    const used = () => [...container.querySelectorAll('table[aria-label="Chips"] .gw-chip-used')].map((u) => [u.closest("tr")!.querySelector(".gw-chip-name")!.textContent, u.getAttribute("title")]);
+    expect(used()).toEqual([["Bench BoostUsed", "This squad played it in GW8"]]);
+    fireEvent.click(getByRole("button", { name: "Previous gameweek" }));
+    expect(used()).toEqual([["Bench BoostUsed", "This squad played it this gameweek"]]);
+    fireEvent.click(getByRole("button", { name: "Previous gameweek" }));
+    expect(used()).toEqual([]);
+    // The Log says which gameweek each chip was played in.
+    fireEvent.click(getByRole("button", { name: "Show the Gameweek Log" }));
+    expect([...container.querySelectorAll("tbody tr")].map((r) => r.querySelectorAll("td")[1].textContent)).toEqual(["", "Bench Boost", ""]);
   });
 
   it("colours the points tile against the gameweek, as the Log does", () => {
@@ -175,16 +192,18 @@ describe("GameweekSummary", () => {
     );
     fireEvent.click(getByRole("button", { name: "Show the Gameweek Log" }));
     expect(getByText("Gameweek Log")).toBeTruthy();
-    expect([...container.querySelectorAll("thead th")].map((h) => h.textContent)).toEqual(["GW", "Points", "GW Rank", "Overall Rank"]);
+    expect([...container.querySelectorAll("thead th")].map((h) => h.textContent)).toEqual(["GW", "Chip", "Points", "GW Rank", "Overall Rank"]);
+    // FPL's green headers, as the profiles' Match Logs have.
+    expect([...container.querySelectorAll("thead th")].every((h) => h.classList.contains("col-source-fpl"))).toBe(true);
     const body = [...container.querySelectorAll("tbody tr")].map((r) => [...r.querySelectorAll("td")].map((c) => c.textContent));
     expect(body).toEqual([
-      ["9", "40", "500", "600"],
-      ["8", "120", "1", "1"],
+      ["9", "", "40", "500", "600"],
+      ["8", "", "120", "1", "1"],
     ]);
     // Points against the gameweek; ranks by their place among the managers ranked.
     const cells = container.querySelectorAll<HTMLElement>("tbody tr:last-child td");
-    expect(plain(cells[1].style.background)).toBe(plain(percentileTint(100)));
     expect(plain(cells[2].style.background)).toBe(plain(percentileTint(100)));
+    expect(plain(cells[3].style.background)).toBe(plain(percentileTint(100)));
     fireEvent.click(getByRole("button", { name: "Gameweek 8's Summary" }));
     expect(getByText("Gameweek 8")).toBeTruthy();
     expect(getByRole("button", { name: "Show the Gameweek Log" })).toBeTruthy();
@@ -196,7 +215,7 @@ describe("GameweekSummary", () => {
       <GameweekSummary open onClose={() => {}} squadName="Draft" log={logOf([row({ rank: null, overallRank: null })])} events={[event(8)]} chipWindows={windows} importTeamId={null} playersById={playersById} onViewProfile={() => {}} />,
     );
     fireEvent.click(getByRole("button", { name: "Show the Gameweek Log" }));
-    expect([...container.querySelectorAll("thead th")].map((h) => h.textContent)).toEqual(["GW", "Points"]);
+    expect([...container.querySelectorAll("thead th")].map((h) => h.textContent)).toEqual(["GW", "Chip", "Points"]);
     fireEvent.click(getByRole("button", { name: "Show the Gameweek Summary" }));
     expect(container.querySelector(".gw-tiles")).toBeTruthy();
   });

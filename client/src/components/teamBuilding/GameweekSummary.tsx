@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { CHIP_NAME, chipStandings, pointsAgainstGameweek, rankPercentile } from "../../metrics/gameweekSummary";
+import { CHIP_NAME, chipPlayedBy, chipStandings, pointsAgainstGameweek, rankPercentile } from "../../metrics/gameweekSummary";
 import { loadEventLive, loadImportCaptain, type GameweekLog, type GameweekLogRow } from "../../state/useGameweekLog";
 import { useDialogFocus } from "../../state/useDialogFocus";
 import { useEscapeLayer } from "../../state/useEscapeLayer";
@@ -23,10 +23,14 @@ import { PlayerLine } from "./PlayerLine";
  * average and highest (<gameweek_points_colour>), with those two, the bench
  * and its transfers and hits, as the profiles' Summary tiles; the
  * captaincy (the squad's captain, FPL's most-captained player and the
- * gameweek's top scorer, each with what he returned as captain); and where
- * each chip stands across the game. ‹ › steps through the log's gameweeks.
+ * gameweek's top scorer, "Top scoring captain", each with what he returned
+ * as captain); and where each chip stands across the game, each the squad
+ * has played this half of the season marked Used from that gameweek on
+ * (<chip_used>). ‹ › steps through the log's gameweeks.
  *
- * **Gameweek Log**: every gameweek the squad has played, newest first: its
+ * **Gameweek Log**: every gameweek the squad has played, newest first, set
+ * out as the profiles' Match Logs are (FPL's green headers, the gameweek
+ * and the chip it played on the left, a divider, then the figures): its
  * points, and an import's gameweek rank and overall rank after it (FPL's
  * own; FPL ranks only its own teams, so a squad built here has none). A
  * row opens that gameweek's Summary. Ranks live only here, points in both.
@@ -72,14 +76,25 @@ function LogTable({ log, onPick }: { log: GameweekLog; onPick: (event: number) =
       <table className="data-table compact gw-log-table" aria-label="Gameweek Log">
         <thead>
           <tr>
-            <th style={{ textAlign: "left" }} title="Gameweek: click a row for its Summary">
+            <th className="col-source-fpl" style={{ textAlign: "left" }} title="Gameweek: click a row for its Summary">
               GW
             </th>
-            <th className="column-group-divider" title="The gameweek's points, before any transfer's hit">
+            <th className="col-source-fpl" style={{ textAlign: "left" }} title="The chip the squad played that gameweek, if any">
+              Chip
+            </th>
+            <th className="column-group-divider col-source-fpl" title="The gameweek's points, before any transfer's hit">
               Points
             </th>
-            {ranked && <th title="The gameweek's rank among every FPL manager">GW Rank</th>}
-            {ranked && <th title="The team's overall rank after the gameweek">Overall Rank</th>}
+            {ranked && (
+              <th className="col-source-fpl" title="The gameweek's rank among every FPL manager">
+                GW Rank
+              </th>
+            )}
+            {ranked && (
+              <th className="col-source-fpl" title="The team's overall rank after the gameweek">
+                Overall Rank
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -87,9 +102,17 @@ function LogTable({ log, onPick }: { log: GameweekLog; onPick: (event: number) =
             const score = pointsAgainstGameweek(r.points, r.average, r.highest);
             return (
               <tr key={r.event} className="gw-log-row" {...pressable(() => onPick(r.event), `Gameweek ${r.event}'s Summary`)}>
-                <td style={{ textAlign: "left" }} title={r.finished ? `Gameweek ${r.event}: click for its Summary` : `Gameweek ${r.event}, still being played: its figures can change`}>
+                <td style={{ textAlign: "left", fontFamily: "var(--font-body)" }} title={r.finished ? `Gameweek ${r.event}: click for its Summary` : `Gameweek ${r.event}, still being played: its figures can change`}>
                   {r.event}
                   {!r.finished && <span className="gw-log-live">live</span>}
+                </td>
+                <td style={{ textAlign: "left", fontFamily: "var(--font-body)" }}>
+                  {r.chip && (
+                    <span className="gw-chip-name">
+                      <ChipIcon chip={r.chip} size={14} />
+                      {CHIP_NAME[r.chip]}
+                    </span>
+                  )}
                 </td>
                 <td
                   className="column-group-divider"
@@ -182,7 +205,7 @@ export function GameweekSummary({
       points: captain?.points ?? null,
     },
     { role: "Most captained", title: "The player more FPL managers captained than any other", id: summary?.mostCaptainedId, points: returned(summary?.mostCaptainedId) },
-    { role: "Top scorer", title: "The gameweek's highest-scoring player: what he'd have returned as captain", id: summary?.topScorer?.id, points: summary?.topScorer ? summary.topScorer.points * 2 : null },
+    { role: "Top scoring captain", title: "The gameweek's highest-scoring player: what he'd have returned as captain", id: summary?.topScorer?.id, points: summary?.topScorer ? summary.topScorer.points * 2 : null },
   ];
   const chips = gw === null ? [] : chipStandings(gw, events, chipWindows);
   const managers = summary?.rankedCount ?? null;
@@ -270,11 +293,16 @@ export function GameweekSummary({
                           <span className="gw-chip-name">
                             <ChipIcon chip={c.chip} size={14} />
                             {CHIP_NAME[c.chip]}
-                            {row.chip === c.chip && (
-                              <span className="gw-chip-yours" title="This squad played it this gameweek">
-                                Yours
-                              </span>
-                            )}
+                            {(() => {
+                              const usedIn = chipPlayedBy(c.chip, row.event, rows, chipWindows);
+                              return (
+                                usedIn !== null && (
+                                  <span className="gw-chip-used" title={usedIn === row.event ? "This squad played it this gameweek" : `This squad played it in GW${usedIn}`}>
+                                    Used
+                                  </span>
+                                )
+                              );
+                            })()}
                           </span>
                         </td>
                         <td title={c.inWindow ? `${fmtNumber(c.playedThisWeek)} of ${fmtNumber(managers)} managers played it` : "Can't be played this gameweek"}>

@@ -141,3 +141,56 @@ describe("Team Building — no Gameweek Log section", () => {
     expect(getByRole("button", { name: "Gameweek Summary" })).toHaveProperty("disabled", true);
   });
 });
+
+describe("Team Building — Reset Draft (<reset_draft>)", () => {
+  it("sits between Clear Draft and Best Draft, asks first, then puts the squad back as it was after the last deadline", () => {
+    const start = { playerIds: IDS, startingXI: XI, captainId: 13, viceCaptainId: 14, purchasePrices: {} };
+    // P8 and P9 sold for Newcomer and Another since the deadline, one of them confirmed; Newcomer captained.
+    const now = IDS.map((id) => (id === 8 ? 16 : id === 9 ? 17 : id));
+    saveVersioned(STORE, 6, [
+      {
+        id: "s1",
+        name: "Test",
+        createdAt: 0,
+        updatedAt: 0,
+        playerIds: now,
+        startingXI: XI.map((id) => (id === 8 ? 16 : id === 9 ? 17 : id)),
+        captainId: 16,
+        viceCaptainId: 14,
+        purchasePrices: { 16: 5, 17: 5 },
+        usedChips: [],
+        transfers: { event: 1, free: 1, made: 1, baseIds: IDS.map((id) => (id === 8 ? 16 : id)), start, chip: null },
+        gameweekLog: [],
+        importedFrom: null,
+      },
+    ]);
+    const { container, getByRole, queryByText } = renderBuilder();
+    expect([...container.querySelectorAll(".pitch-view-actions button")].map((b) => b.getAttribute("aria-label"))).toEqual([
+      "Captain",
+      "Vice-Captain",
+      "Clear Draft",
+      "Reset Draft",
+      "Best Draft",
+      "Gameweek Summary",
+    ]);
+    const reset = getByRole("button", { name: "Reset Draft" });
+    expect(reset).toHaveProperty("disabled", false);
+    fireEvent.click(reset);
+    // Asks first: Cancel leaves the squad as it is.
+    fireEvent.click(getByRole("button", { name: "Cancel" }));
+    expect(stored().playerIds).toEqual(now);
+    fireEvent.click(reset);
+    fireEvent.click(getByRole("button", { name: "Reset" }));
+    expect(queryByText("Reset draft")).toBeNull();
+    expect(stored()).toEqual(expect.objectContaining({ ...start, transfers: expect.objectContaining({ made: 0, baseIds: IDS }) }));
+    // Nothing left to undo.
+    expect(getByRole("button", { name: "Reset Draft" })).toHaveProperty("disabled", true);
+  });
+
+  it("is greyed out for a squad built here before its first deadline", () => {
+    const { getByRole } = renderBuilder();
+    const reset = getByRole("button", { name: "Reset Draft" });
+    expect(reset).toHaveProperty("disabled", true);
+    expect(reset.getAttribute("title")).toMatch(/nothing to go back to yet/);
+  });
+});

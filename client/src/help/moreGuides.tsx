@@ -117,6 +117,7 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
           { icon: <ArmbandIcon letter="C" />, label: "Captain", text: "then a starter (V: vice-captain)" },
           { icon: <BestDraftIcon />, label: "Best Draft", text: "" },
           { icon: <ClearDraftIcon />, label: "Clear Draft", text: "(asks first)" },
+          { icon: <ResetIcon />, label: "Reset Draft", text: "back to the last deadline (asks first)" },
           { icon: <GameweekSummaryIcon />, label: "Gameweek Summary", text: "" },
           { icon: <GameweekLogIcon />, label: "Gameweek Log", text: "(at the Summary's foot)" },
           { icon: <ConfirmIcon />, label: "Confirm transfers", text: "" },
@@ -1266,6 +1267,7 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
           rows={[
             ["Imported squad", "points, gameweek rank, overall rank: FPL's own"],
             ["Squad built here", "points, scored from each deadline; FPL ranks only its own teams"],
+            ["Chip", "the chip played that gameweek"],
           ]}
         />
         <Label>Points' colour, against that gameweek</Label>
@@ -1288,7 +1290,8 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
     pages: ["team-building"],
     keywords: [
       "gameweek summary", "summary", "weekly summary", "gameweek review", "vs average", "versus average", "above average", "below average",
-      "average manager", "most captained", "popular captain", "top captains", "captaincy", "top scorer", "best captain", "chips played",
+      "average manager", "most captained", "popular captain", "top captains", "captaincy", "top scorer", "top scoring captain", "best captain", "chips played",
+      "used", "chips used", "which chips have i used", "when did i play my wildcard",
       "chips left", "chips remaining", "how many wildcards", "chip usage", "still to play", "points left on my bench", "left on bench",
       "left on the bench", "bench points", "my hits that week",
     ],
@@ -1298,8 +1301,9 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
         <Terms
           rows={[
             ["Points", "against every manager's average and highest that gameweek, the bench, transfers and hits"],
-            ["Captaincy", "your captain, FPL's most captained, the top scorer: each one's points doubled"],
+            ["Captaincy", "your captain, FPL's most captained, the top scoring captain: each one's points doubled"],
             ["Chips", "share of managers who played each this gameweek, and the share yet to play it this half"],
+            ["Used", "a chip your squad has played this half, from that gameweek on"],
           ]}
         />
         <Points
@@ -1309,6 +1313,31 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
             <>
               Ranks are in the Gameweek Log: <GameweekLogIcon /> at its foot.
             </>,
+          ]}
+        />
+      </>
+    ),
+  },
+  {
+    id: "reset-draft",
+    topic: TOPIC.building,
+    title: "Reset Draft",
+    answer: "Puts your squad back as it was after the last deadline, undoing every transfer since. Beside Clear Draft.",
+    pages: ["team-building"],
+    keywords: [
+      "reset draft", "reset", "undo", "undo transfers", "undo my transfers", "cancel transfers", "revert", "revert squad", "go back",
+      "start again", "start over", "back to the deadline", "last deadline", "saved squad", "last saved", "restore", "restore my team",
+      "reverse transfers", "take back transfers", "made a mistake", "put my team back", "discard changes", "undo changes",
+    ],
+    related: ["build-squad", "free-transfers"],
+    body: (
+      <>
+        <IconKey rows={[{ icon: <ResetIcon />, label: "Reset Draft", text: "asks first" }]} />
+        <Points
+          items={[
+            "Players, XI, captain and vice-captain go back to the last deadline.",
+            "Confirmed transfers are undone too; the gameweek's chip stays.",
+            "Greyed out until there's a deadline to go back to, or once nothing has changed.",
           ]}
         />
       </>

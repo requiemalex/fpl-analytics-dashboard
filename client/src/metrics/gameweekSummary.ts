@@ -55,6 +55,24 @@ export function chipStandings(event: number, events: readonly NormalizedEvent[],
 }
 
 /**
+ * <chip_used>: the gameweek the squad played `chip` in, at or before
+ * `event` and in the same window (half of the season) as it, from its
+ * Gameweek Log; null when it hasn't. Each chip comes back for the second
+ * half, so one played in the first isn't "used" in the second.
+ */
+export function chipPlayedBy(
+  chip: ChipWindow["chip"],
+  event: number,
+  rows: readonly { event: number; chip: ChipWindow["chip"] | null }[],
+  windows: readonly ChipWindow[],
+): number | null {
+  const window = windows.find((w) => w.chip === chip && w.startEvent <= event && event <= w.stopEvent);
+  if (!window) return null;
+  const played = rows.find((r) => r.chip === chip && r.event >= window.startEvent && r.event <= event);
+  return played ? played.event : null;
+}
+
+/**
  * <gameweek_points_colour>: a squad's gameweek points against every FPL
  * manager that gameweek, as a 0–100 score for the shared colour scale
  * (the owner's call, 2026-11-02: the comparison is other managers). Grey

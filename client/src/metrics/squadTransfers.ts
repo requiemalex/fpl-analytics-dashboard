@@ -119,6 +119,41 @@ export function confirmTransfers(squad: SavedSquad): SavedSquad {
 }
 
 /**
+ * <reset_draft>: the squad put back as it was at the gameweek's start (its
+ * window's `start`: the last deadline, or when its transfers began to be
+ * kept), with every transfer since undone, confirmed ones included. Its
+ * chip for the gameweek stays: that's played or cancelled in Chips. The
+ * same object with no window to go back to.
+ */
+export function resetDraft(squad: SavedSquad): SavedSquad {
+  const w = squad.transfers;
+  if (!w) return squad;
+  const s = w.start;
+  return {
+    ...squad,
+    playerIds: [...s.playerIds],
+    startingXI: [...s.startingXI],
+    captainId: s.captainId,
+    viceCaptainId: s.viceCaptainId,
+    purchasePrices: { ...s.purchasePrices },
+    transfers: { ...w, made: 0, baseIds: [...s.playerIds] },
+  };
+}
+
+/** Why Reset Draft can't run for `event` (the gameweek open for picks), in words; null when it can. */
+export function resetDraftBlocker(squad: SavedSquad, event: number | null): string | null {
+  const w = squad.transfers;
+  // A squad built here before its first deadline (every transfer free) has no deadline's squad to go back to.
+  if (event === null || !w || w.event !== event || (w.free === null && !squad.importedFrom))
+    return "Reset Draft: nothing to go back to yet (a squad built here is first kept at its first deadline)";
+  const s = w.start;
+  const same = (a: readonly number[], b: readonly number[]) => a.length === b.length && a.every((id) => b.includes(id));
+  const unchanged =
+    same(squad.playerIds, s.playerIds) && same(squad.startingXI, s.startingXI) && squad.captainId === s.captainId && squad.viceCaptainId === s.viceCaptainId && w.made === 0;
+  return unchanged ? "Reset Draft: the squad is already as it was after the last deadline" : null;
+}
+
+/**
  * Sets the free transfers a squad built here has for `event` (null:
  * unlimited): tracking starts from the squad as it stands, nothing made
  * yet. Its chip for the gameweek, and what a Free Hit would put back, stay.
