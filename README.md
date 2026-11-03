@@ -24,6 +24,8 @@ League. © 2026 the Scoutline developer, all rights reserved — see "Legal" bel
 | `DEPLOYMENT.md` | Desktop-app build, packaging, auto-update, and the retired web-hosting setup |
 | `docs/HISTORY.md` | How the app **used to** work — archived. Only for understanding or restoring something old |
 | `docs/audits/` | Audits: `strategy/` holds the reusable three-phase prompts, `results/` one dated folder per past run (index in `docs/audits/README.md`) |
+| `docs/playbooks/` | Other repeatable jobs, one prompt per command (`/release`, `/gameweek`, `/feature`, `/season`, `/rules-sweep`, `/help-refresh`, `/perf`, `/deps`, `/a11y`; index in `docs/playbooks/README.md`) |
+| `docs/features/` | One dated folder per feature built with `/feature`: spec, build and verify reports |
 | `CLAUDE.md` | Working rules for AI-assisted development |
 
 Keep this file describing the current app: when behaviour changes, edit the
