@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadSavedSquads, normalizeSavedSquad } from "./useSavedSquads";
+import { loadSavedSquads, normalizeSavedSquad, recordSavedSquadDeadlines } from "./useSavedSquads";
 import { squadBudget } from "../types/team";
 
 const base = { id: "squad-1", name: "Mine", createdAt: 1, updatedAt: 1, playerIds: [1, 2], startingXI: [1], captainId: 1, viceCaptainId: null, usedChips: [] };
@@ -60,6 +60,16 @@ describe("saved squads: a chip marked used by hand before halves were kept (<squ
 
   it("reaches the store: an unversioned saved squad loads with the chip", () => {
     localStorage.setItem("fpl-dashboard:saved-squads:v1", JSON.stringify([{ ...base, usedChips: chips }]));
+    expect(loadSavedSquads()[0].usedChips).toEqual([{ chip: "wildcard", event: 3 }, { chip: "bboost", event: null }]);
+    localStorage.clear();
+  });
+
+  // Audit 2026-11-03 phase 3 R1: every live load runs recordSavedSquadDeadlines,
+  // which writes the store back at version 6 with the chip still half-less, so
+  // the next read (Team Building's) drops it. Remove `.fails` once fixed.
+  it.fails("survives the app's first live load: a version-5 chip is still there after the deadline record writes the store back", () => {
+    localStorage.setItem("fpl-dashboard:saved-squads:v1", JSON.stringify({ version: 5, data: [{ ...base, usedChips: chips }] }));
+    recordSavedSquadDeadlines();
     expect(loadSavedSquads()[0].usedChips).toEqual([{ chip: "wildcard", event: 3 }, { chip: "bboost", event: null }]);
     localStorage.clear();
   });
