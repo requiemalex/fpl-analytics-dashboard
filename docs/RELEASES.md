@@ -5,6 +5,12 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.133.0 · 3 Nov 2026
+
+- Help: six new guides — injury and doubt flags, a player missing from a radar, the summary card above the pitch, setting the captain and vice-captain, the bench and automatic substitutions, and planning for later gameweeks
+- Keep only the big-project playbooks (feature, release, season); the gameweek, rules, Help, performance, dependency and accessibility ones are covered by a full audit or a plain request
+- Add playbooks for nine more repeatable jobs: release, gameweek check, feature, season change-over, rules sweep, Help refresh, performance, dependency updates and accessibility
+
 ## v1.132.0 · 3 Nov 2026
 
 - Audit 2026-11-03 full-app: second remediation report (R1–R8)
