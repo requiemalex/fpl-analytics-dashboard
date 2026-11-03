@@ -2,6 +2,7 @@ import { Router, type Response } from "express";
 import { cachedFetch, type ProxyResult } from "../proxy.js";
 import { entryImportCache } from "../cache.js";
 import { CACHE_TTL_MS, FPL_BASE_URL } from "../config.js";
+import { isValidTeamId } from "../teamId.js";
 
 /**
  * Proxies FPL's real-manager "entry" endpoints — confirmed live against
@@ -18,10 +19,6 @@ import { CACHE_TTL_MS, FPL_BASE_URL } from "../config.js";
  * crash or a silently wrong squad).
  */
 export const entryImportRouter = Router();
-
-function isValidId(raw: string): boolean {
-  return /^\d+$/.test(raw) && raw.length < 12; // guards against absurd input reaching the upstream API at all
-}
 
 async function handle(path: string, cacheKey: string, bypassCache: boolean) {
   return cachedFetch({
@@ -43,24 +40,25 @@ function respond(res: Response, result: ProxyResult<unknown>) {
 
 entryImportRouter.get("/entry/:teamId", async (req, res) => {
   const { teamId } = req.params;
-  if (!isValidId(teamId)) return res.status(400).json({ error: "Invalid team ID" });
+  if (!isValidTeamId(teamId)) return res.status(400).json({ error: "Invalid team ID" });
   respond(res, await handle(`/entry/${teamId}/`, `entry:${teamId}`, false));
 });
 
 entryImportRouter.get("/entry/:teamId/history", async (req, res) => {
   const { teamId } = req.params;
-  if (!isValidId(teamId)) return res.status(400).json({ error: "Invalid team ID" });
+  if (!isValidTeamId(teamId)) return res.status(400).json({ error: "Invalid team ID" });
   respond(res, await handle(`/entry/${teamId}/history/`, `entry-history:${teamId}`, false));
 });
 
 entryImportRouter.get("/entry/:teamId/transfers", async (req, res) => {
   const { teamId } = req.params;
-  if (!isValidId(teamId)) return res.status(400).json({ error: "Invalid team ID" });
+  if (!isValidTeamId(teamId)) return res.status(400).json({ error: "Invalid team ID" });
   respond(res, await handle(`/entry/${teamId}/transfers/`, `entry-transfers:${teamId}`, false));
 });
 
 entryImportRouter.get("/entry/:teamId/event/:eventId/picks", async (req, res) => {
   const { teamId, eventId } = req.params;
-  if (!isValidId(teamId) || !isValidId(eventId)) return res.status(400).json({ error: "Invalid team or gameweek ID" });
+  // A gameweek ID gets the same digits-only guard.
+  if (!isValidTeamId(teamId) || !isValidTeamId(eventId)) return res.status(400).json({ error: "Invalid team or gameweek ID" });
   respond(res, await handle(`/entry/${teamId}/event/${eventId}/picks/`, `entry-picks:${teamId}:${eventId}`, false));
 });

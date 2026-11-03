@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
-import { useSavedSquads, MAX_SAVED_SQUADS } from "../state/useSavedSquads";
+import { useSavedSquads, useActiveSquadId, MAX_SAVED_SQUADS } from "../state/useSavedSquads";
 import { useEscapeLayer } from "../state/useEscapeLayer";
 import { useDialogFocus } from "../state/useDialogFocus";
 import { SQUAD_RULES, createBlankSquad, type SavedSquad } from "../types/team";
@@ -9,7 +9,8 @@ import { sellingPrice, squadMoney } from "../metrics/squadPrices";
 import { loadImportedPurchasePrices } from "../state/importedPurchasePrices";
 import { validateSquad, canAddPlayer, fitsStartingXI, openSquadSlots } from "../metrics/squadRules";
 import { ApiRequestError } from "../api/client";
-import { importFplTeam, keepPurchases, loadImportTransfers } from "../state/fplTeamImport";
+import { importFplTeam, isValidFplTeamId, keepPurchases, loadImportTransfers } from "../state/fplTeamImport";
+import { MAX_NAME_LENGTH } from "../components/MenuControls";
 import { chipStatuses, confirmTransfers, playChip, resetDraft, resetDraftBlocker, setFreeTransfers, transferStanding, withStartPrices } from "../metrics/squadTransfers";
 import type { ChipName } from "../types/team";
 import { SquadPitch, type PitchColourRanks } from "../components/SquadPitch";
@@ -82,7 +83,8 @@ export function TeamBuilder() {
   }, [requestHistoricData]);
   const { squads, upsert, update, remove } = useSavedSquads();
   const [, setSearchParams] = useSearchParams();
-  const [activeId, setActiveId] = useState<string | null>(squads[0]?.id ?? null);
+  // <active_squad>: remembered across visits and reloads; one no longer saved falls back to the first squad.
+  const [storedActiveId, setActiveId] = useActiveSquadId();
   // <add_players_dialog>: Add Players is a dialog, opened from an open "+"
   // place (listing that position) and closed by its ×, Escape, a click
   // outside it, or adding a player. It stays mounted while closed, so its
@@ -102,13 +104,12 @@ export function TeamBuilder() {
   const [importStatus, setImportStatus] = useState<"idle" | "loading" | "error">("idle");
   const [importError, setImportError] = useState<string | null>(null);
   const addPanelRef = useRef<HTMLDivElement>(null);
+  // The New Squad import running now, if any: another Enter while it loads
+  // does nothing, and Cancel (or Escape, or a click outside) clears it so its
+  // result is dropped, never saved.
+  const importRunRef = useRef<symbol | null>(null);
   // <gameweek_summary>: the Gameweek Summary and Log, a panel from the pitch's icon.
   const [summaryOpen, setSummaryOpen] = useState(false);
-
-  // Keep activeId pointing at a real squad even after a delete/first-load.
-  useEffect(() => {
-    if (!squads.some((s) => s.id === activeId)) setActiveId(squads[0]?.id ?? null);
-  }, [squads, activeId]);
 
   // Auto-clears any drag-rejection warning after a few seconds.
   useEffect(() => {
@@ -117,7 +118,7 @@ export function TeamBuilder() {
     return () => clearTimeout(timer);
   }, [warning]);
 
-  const active = squads.find((s) => s.id === activeId) ?? null;
+  const active = squads.find((s) => s.id === storedActiveId) ?? squads[0] ?? null;
 
   const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
   // <gameweek_log>: how the active squad has scored, gameweek by gameweek.
@@ -167,7 +168,7 @@ export function TeamBuilder() {
   }
 
   // Escape closes the newest of these, as on every other page.
-  useEscapeLayer(showNewSquadModal, () => setShowNewSquadModal(false));
+  useEscapeLayer(showNewSquadModal, closeNewSquadModal);
   useEscapeLayer(confirmDeleteId !== null, () => setConfirmDeleteId(null));
   useEscapeLayer(confirmClear, () => setConfirmClear(false));
   useEscapeLayer(confirmReset, () => setConfirmReset(false));
@@ -184,6 +185,7 @@ export function TeamBuilder() {
   }
 
   function closeNewSquadModal() {
+    importRunRef.current = null;
     setShowNewSquadModal(false);
   }
 
@@ -194,6 +196,7 @@ export function TeamBuilder() {
    * and left in place shouldn't silently block that.
    */
   async function handleCreateOrImportSquad() {
+    if (importRunRef.current) return;
     if (squads.length >= MAX_SAVED_SQUADS) {
       setImportError(`You already have ${MAX_SAVED_SQUADS} saved squads, which is the maximum. Delete one first.`);
       setImportStatus("error");
@@ -202,17 +205,21 @@ export function TeamBuilder() {
     const trimmedTeamId = importTeamIdInput.trim();
     if (trimmedTeamId) {
       const teamId = Number(trimmedTeamId);
-      // Whole numbers only: "1.5" or "1e3" isn't a team ID, so it's caught here, not sent to FPL.
-      if (!/^\d+$/.test(trimmedTeamId) || teamId <= 0) {
+      // The server's rule (whole digits, under 12 of them): "1.5", "1e3" or 20 digits is caught here, not sent to FPL.
+      if (!isValidFplTeamId(trimmedTeamId)) {
         setImportError("Enter a valid FPL team ID: the number in your team's URL (fantasy.premierleague.com/entry/1234567/...).");
         setImportStatus("error");
         return;
       }
+      const run = Symbol("import");
+      importRunRef.current = run;
       setImportStatus("loading");
       setImportError(null);
       try {
         const fallbackEvent = gameweekState?.kind === "current" || gameweekState?.kind === "last-completed" ? gameweekState.event.id : 1;
         const { squad, warnings } = await importFplTeam(teamId, fallbackEvent, playersById, { upcomingEvent: firstPickableEventId(events) });
+        if (importRunRef.current !== run) return; // cancelled meanwhile
+        importRunRef.current = null;
         upsert(squad);
         setActiveId(squad.id);
         setShowNewSquadModal(false);
@@ -222,6 +229,8 @@ export function TeamBuilder() {
           console.warn("FPL team import warnings:", warnings);
         }
       } catch (err) {
+        if (importRunRef.current !== run) return; // cancelled meanwhile
+        importRunRef.current = null;
         setImportStatus("error");
         if (err instanceof ApiRequestError) {
           setImportError(err.status === 404 ? "No FPL team found with that ID." : `Couldn't load that team. ${describeLoadError(err)}`);
@@ -642,6 +651,7 @@ export function TeamBuilder() {
                 id="new-squad-name"
                 type="text"
                 placeholder="e.g. My Squad"
+                maxLength={MAX_NAME_LENGTH}
                 value={newSquadName}
                 onChange={(e) => setNewSquadName(e.target.value)}
                 onKeyDown={(e) => {

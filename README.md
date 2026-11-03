@@ -2130,7 +2130,15 @@ starting XI short of 11 or a line under its minimum.
   The box holds the open squad's name, typed over to rename it (saved as
   it changes; a blank name reads "Untitled squad"); its ▾ (or ↓ in the
   name) lists every saved squad to switch to. Before any squad exists only
-  New Squad shows, with Delete greyed out.
+  New Squad shows, with Delete greyed out. The open squad is remembered
+  (`<active_squad>`), as the Dashboard and Player Comparison remember their
+  picked view: leaving the page or reloading reopens it, and one since
+  deleted falls back to the first saved squad. In the New Squad dialog the
+  name is capped at 60 characters like every other name box; a team ID is
+  checked by the server's own rule (whole digits, fewer than 12) before
+  anything is sent; Enter pressed again while an import loads does nothing;
+  and Cancel (or Escape, or a click outside) mid-import drops its result, so
+  nothing is saved.
 
 - **The pitch** (`components/SquadPitch.tsx`) — each player is his club's
   kit (`<club_kit>`, `components/Kit.tsx`): body in the club's colour,
@@ -2717,6 +2725,7 @@ server storage. Each store wraps its data as `{ version, data }` via
 | `fpl-dashboard:comparison:views:v1` | `useComparisonViews` (views embed their cards) |
 | `fpl-dashboard:comparison:selected-view:v1` | `useComparisonViews` |
 | `fpl-dashboard:saved-squads:v1` | `useSavedSquads` |
+| `fpl-dashboard:saved-squads:active:v1` | `useActiveSquadId` in `useSavedSquads.ts` (the squad Team Building last had open, `<active_squad>`) |
 | `fpl-dashboard:notepad:v1` | `useNotepad` (tabs, their text, the active tab) |
 | `fpl-dashboard:id-ledger:v1` | `state/seasonIdRollover.ts` (the season the saved ids belong to, and each id's permanent code) |
 | `scoutline:terms-accepted:v1` | `components/TermsGate.tsx` (the terms version last accepted) |

@@ -7,6 +7,15 @@ import { snapshotOf, type SavedSquad, type TransferWindow } from "../types/team"
 import { loadImportedPurchasePrices } from "./importedPurchasePrices";
 import { changeSavedSquads, loadSavedSquads } from "./useSavedSquads";
 
+/**
+ * An FPL team ID the server will look up: the same rule as its isValidTeamId (server/src/teamId.ts)
+ * (whole digits, under 12 of them), and above 0. Anything else gets "Enter a
+ * valid FPL team ID" in the New Squad dialog, not a failed request.
+ */
+export function isValidFplTeamId(raw: string): boolean {
+  return /^\d+$/.test(raw) && raw.length < 12 && Number(raw) > 0;
+}
+
 /** <purchase_prices> kept only for the players `keep` lets through. */
 export function keepPurchases(prices: Record<number, number>, keep: (id: number) => boolean): Record<number, number> {
   return Object.fromEntries(Object.entries(prices).filter(([id]) => keep(Number(id))));

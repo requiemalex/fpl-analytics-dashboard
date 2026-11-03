@@ -14,6 +14,19 @@ const STORAGE_KEY = "fpl-dashboard:saved-squads:v1";
  */
 const STORAGE_VERSION = 6;
 
+/** <active_squad>: the squad Team Building last had open, kept the way the Dashboard and Player Comparison keep their picked view. */
+const ACTIVE_SQUAD_STORAGE_KEY = "fpl-dashboard:saved-squads:active:v1";
+const ACTIVE_SQUAD_STORE: VersionedStore<string | null> = {
+  version: 1,
+  fallback: null,
+  migrate: (data) => (typeof data === "string" ? data : null),
+};
+
+/** The remembered active squad's id; one no longer saved falls back to the first squad where it's read. */
+export function useActiveSquadId() {
+  return usePersistentState(ACTIVE_SQUAD_STORAGE_KEY, ACTIVE_SQUAD_STORE);
+}
+
 const ids = (v: unknown): number[] => (Array.isArray(v) ? v.filter((id): id is number => typeof id === "number" && Number.isFinite(id)) : []);
 const idOrNull = (v: unknown, allowed: number[]): number | null => (typeof v === "number" && allowed.includes(v) ? v : null);
 
