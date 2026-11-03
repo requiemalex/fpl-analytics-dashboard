@@ -2580,7 +2580,8 @@ button.points-history-col.is-selectable {
   cursor: pointer;
   border-radius: var(--radius-sm);
 }
-button.points-history-col.is-selectable:hover {
+/* Not the picked one: it keeps its <selected_state> fill on hover (audit 2026-11-03 phase 3 R2). */
+button.points-history-col.is-selectable:not(.is-selected):hover {
   background: var(--surface-hover);
 }
 button.points-history-col.is-selected {

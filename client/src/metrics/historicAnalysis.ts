@@ -102,7 +102,7 @@ export function buildHistoricPlayerProfile(seasons: PlayerSeasonHistory[], refer
   if (referenceSeasonName) {
     const cutoffYear = seasonStartYear(referenceSeasonName) - (HISTORIC_WINDOW_SEASONS - 1);
     allSeasonsInWindow = seasons.filter((s) => seasonStartYear(s.seasonName) >= cutoffYear).sort((a, b) => a.seasonName.localeCompare(b.seasonName));
-    qualifyingSeasons = allSeasonsInWindow.filter((s) => s.minutes >= MIN_QUALIFYING_SEASON_MINUTES);
+    qualifyingSeasons = allSeasonsInWindow.filter((s) => !isUnderMinimum(s.minutes, MIN_QUALIFYING_SEASON_MINUTES));
   }
 
   const floorSeasonsInWindow = allSeasonsInWindow.filter((s) => !isUnderMinimum(s.minutes, FIXED_FLOOR_MINUTES));

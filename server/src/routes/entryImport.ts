@@ -2,7 +2,7 @@ import { Router, type Response } from "express";
 import { cachedFetch, type ProxyResult } from "../proxy.js";
 import { entryImportCache } from "../cache.js";
 import { CACHE_TTL_MS, FPL_BASE_URL } from "../config.js";
-import { isValidTeamId } from "../teamId.js";
+import { canonicalId, isValidGameweekId, isValidTeamId } from "../teamId.js";
 
 /**
  * Proxies FPL's real-manager "entry" endpoints — confirmed live against
@@ -41,24 +41,27 @@ function respond(res: Response, result: ProxyResult<unknown>) {
 entryImportRouter.get("/entry/:teamId", async (req, res) => {
   const { teamId } = req.params;
   if (!isValidTeamId(teamId)) return res.status(400).json({ error: "Invalid team ID" });
-  respond(res, await handle(`/entry/${teamId}/`, `entry:${teamId}`, false));
+  const id = canonicalId(teamId);
+  respond(res, await handle(`/entry/${id}/`, `entry:${id}`, false));
 });
 
 entryImportRouter.get("/entry/:teamId/history", async (req, res) => {
   const { teamId } = req.params;
   if (!isValidTeamId(teamId)) return res.status(400).json({ error: "Invalid team ID" });
-  respond(res, await handle(`/entry/${teamId}/history/`, `entry-history:${teamId}`, false));
+  const id = canonicalId(teamId);
+  respond(res, await handle(`/entry/${id}/history/`, `entry-history:${id}`, false));
 });
 
 entryImportRouter.get("/entry/:teamId/transfers", async (req, res) => {
   const { teamId } = req.params;
   if (!isValidTeamId(teamId)) return res.status(400).json({ error: "Invalid team ID" });
-  respond(res, await handle(`/entry/${teamId}/transfers/`, `entry-transfers:${teamId}`, false));
+  const id = canonicalId(teamId);
+  respond(res, await handle(`/entry/${id}/transfers/`, `entry-transfers:${id}`, false));
 });
 
 entryImportRouter.get("/entry/:teamId/event/:eventId/picks", async (req, res) => {
   const { teamId, eventId } = req.params;
-  // A gameweek ID gets the same digits-only guard.
-  if (!isValidTeamId(teamId) || !isValidTeamId(eventId)) return res.status(400).json({ error: "Invalid team or gameweek ID" });
-  respond(res, await handle(`/entry/${teamId}/event/${eventId}/picks/`, `entry-picks:${teamId}:${eventId}`, false));
+  if (!isValidTeamId(teamId) || !isValidGameweekId(eventId)) return res.status(400).json({ error: "Invalid team or gameweek ID" });
+  const [id, event] = [canonicalId(teamId), canonicalId(eventId)];
+  respond(res, await handle(`/entry/${id}/event/${event}/picks/`, `entry-picks:${id}:${event}`, false));
 });

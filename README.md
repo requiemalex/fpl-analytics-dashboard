@@ -1351,7 +1351,9 @@ goals expected each way (`<points_model>`).
   minutes per match in the player's log (0-minute matches included; a
   double gameweek is two matches). ≥75% of 90 is a starter, 40–74%
   rotation, <40% fringe. A season with no minutes at all has no average:
-  "—" (`<no_minutes_no_figures>`).
+  "—" (`<no_minutes_no_figures>`). A cameo whose average rounds to 0 shows
+  "<1" (`fmtAverageMinutes`), here and in the Match Log's Average row, so
+  a player who did play never reads as one who didn't.
 - **Comparative colouring** (the owner's rule, 2026-10-19;
   `metrics/comparativeColour.ts`, `<comparative_colouring>`): one rule for
   green and red wherever a figure is shown — tables, Dashboard tiles,
@@ -1504,7 +1506,7 @@ goals expected each way (`<points_model>`).
   Threat, a club's FPL Pts/Game, DC/Game (a player's and a club's alike,
   its career trend included), every percentage but
   ownership, Understat's xPts and Pts − xPts, and a Match Log Average of
-  FPL points (a club's), DC (a club's) and BPS. Decimals stay only where
+  FPL points (a club's), DC (a club's and a player's) and BPS. Decimals stay only where
   a figure usually sits under 10, so rounding would blur real differences
   or show a misleading 0: xG figures (2), per-game and per-shot rates, PPG,
   Pts/£m, form, price, ownership, fixture difficulty and expected points —
@@ -1624,8 +1626,9 @@ a question in your own words (`<help_panel>`, `HelpPanel.tsx`).
   written on every load, so a blank one can't say whether it was picked, and
   has nothing to lose — while a My View with anything on it, Starter or a
   user's own view stays selected. The selection falls back to
-  My View, then Starter, whenever the stored one doesn't exist
-  (`resolveSelectedViewIds`). The tiles and graphs stores hold a working
+  Starter, then My View, whenever the stored one doesn't exist
+  (`resolveSelectedViewIds`), as a new install opens on Starter; deleting
+  the selected view picks its own fallback (below). The tiles and graphs stores hold a working
   copy, so the page records which view each scope's on-screen copy came
   from (`loadedViewIds`) and loads the selected view whenever they differ —
   first open, or the selection moving without a load, as when deleting the
@@ -2157,7 +2160,9 @@ starting XI short of 11 or a line under its minimum.
   picked view: leaving the page or reloading reopens it, and one since
   deleted falls back to the first saved squad. In the New Squad dialog the
   name is capped at 60 characters like every other name box; a team ID is
-  checked by the server's own rule (whole digits, fewer than 12) before
+  checked by the server's own rule (whole digits, fewer than 12, above 0;
+  `server/src/teamId.ts`, which also holds a gameweek to 1–38 and asks FPL
+  for an ID as its number, so `007` and `7` are one cache entry) before
   anything is sent; Enter pressed again while an import loads does nothing;
   and Cancel (or Escape, or a click outside) mid-import drops its result, so
   nothing is saved.

@@ -723,7 +723,7 @@ const FIRST_GUIDES: HelpGuide[] = [
             { colour: "--series-5", label: "5th" },
           ]}
         />
-        <Steps items={["Search for players and add them.", "Pick a view: Starter, or one you build with the + cards.", "Click a name for his profile."]} />
+        <Steps items={["Search for players and add them.", "Pick a view: Starter, ready-made, or My View or one you create, built with the + cards.", "Click a name for his profile."]} />
         <Note>A view keeps the layout, not the players. Up to 5 views, 4 cards per section.</Note>
       </>
     ),

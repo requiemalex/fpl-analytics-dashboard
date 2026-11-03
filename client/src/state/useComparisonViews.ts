@@ -209,8 +209,9 @@ export function useComparisonViews(): UseComparisonViews {
   const selectedView = useMemo(
     () =>
       views.find((v) => v.id === storedSelectedId) ??
-      views.find((v) => v.id === COMPARISON_MY_VIEW_ID) ??
+      // A selection that's gone opens Starter, as a new install does (audit 2026-11-03 phase 3 R5).
       views.find((v) => v.id === COMPARISON_STARTER_VIEW_ID) ??
+      views.find((v) => v.id === COMPARISON_MY_VIEW_ID) ??
       STARTER_VIEW,
     [views, storedSelectedId],
   );

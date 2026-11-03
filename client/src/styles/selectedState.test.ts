@@ -48,6 +48,42 @@ describe("<selected_state>: one look for anything picked", () => {
     });
   }
 
+  // Audit 2026-11-03 phase 3 R2: the picked Points History season went grey
+  // on hover, as its hover rule outranked the picked one. The picked look
+  // must win over any hover background on the same element.
+  it("a picked item keeps its fill on hover: no hover background on the same element outranks it", () => {
+    const rules = [...css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)].flatMap((m, index) =>
+      m[1].split(",").map((selector) => ({ selector: selector.trim(), body: m[2], index })),
+    );
+    const lastCompound = (selector: string) => selector.split(/\s+|>/).filter(Boolean).pop() ?? "";
+    const classes = (compound: string) => [...compound.replace(/:not\([^)]*\)/g, "").matchAll(/\.([\w-]+)/g)].map((m) => m[1]);
+    const specificity = (selector: string) => {
+      const ids = (selector.match(/#[\w-]+/g) ?? []).length;
+      const notInner = [...selector.matchAll(/:not\(([^)]*)\)/g)].map((m) => m[1]).join(" ");
+      const outer = selector.replace(/:not\([^)]*\)/g, "");
+      const cls = (outer.match(/\.[\w-]+|\[[^\]]+\]|:(?!:)[\w-]+/g) ?? []).length + (notInner.match(/\.[\w-]+|\[[^\]]+\]|:[\w-]+/g) ?? []).length;
+      const els = (outer.replace(/[.#:[][^\s>+~.#:[]*/g, " ").match(/(^|[\s>+~])[a-z][\w-]*/gi) ?? []).length;
+      return ids * 10000 + cls * 100 + els;
+    };
+    const picks = SELECTED.map((selector) => {
+      const compound = lastCompound(selector);
+      const pickedClass = classes(compound).pop()!;
+      return { selector, pickedClass, element: classes(compound).filter((c) => c !== pickedClass), index: rules.find((r) => r.selector === selector)!.index };
+    });
+    const offenders: string[] = [];
+    for (const r of rules) {
+      if (!r.selector.includes(":hover") || !/background/.test(r.body)) continue;
+      const compound = lastCompound(r.selector);
+      const mine = picks.filter((p) => p.element.length > 0 && p.element.every((c) => classes(compound).includes(c)) && !compound.includes(`:not(.${p.pickedClass})`));
+      if (mine.length === 0) continue;
+      // Fine when some picked rule for this element still wins: more specific, or as specific and later.
+      const h = specificity(r.selector);
+      const beaten = mine.some((p) => specificity(p.selector) > h || (specificity(p.selector) === h && p.index > r.index));
+      if (!beaten) offenders.push(`${r.selector} over ${mine.map((p) => p.selector).join(" / ")}`);
+    }
+    expect(offenders).toEqual([]);
+  });
+
   // Audit 2026-11-03 L3: an unused .btn.active carried a green border. No
   // picked/switched-on rule in any stylesheet may have a green edge.
   it("no picked or switched-on rule anywhere has a green border, outline or ring", () => {

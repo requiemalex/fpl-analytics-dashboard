@@ -28,7 +28,7 @@ import { PositionBadge } from "./primitives";
 import { columnByKey, columnForMode } from "./playerColumns";
 import { coverageNote } from "../metrics/partialTotals";
 import { rankAmong } from "../metrics/comparativeColour";
-import { fmtDecimal, fmtPrice, fmtPercent, fmtSigned, DASH } from "../utils/format";
+import { fmtAverageMinutes, fmtDecimal, fmtPrice, fmtPercent, fmtSigned, DASH } from "../utils/format";
 import { usePlayerPastSeasons } from "../state/usePlayerPastSeasons";
 import { useExternalProfiles, useExternalStats, type ExternalMatchColumn, type ProfileView } from "../extensions/externalStats";
 import { SourceToggle } from "./SourceToggle";
@@ -171,7 +171,8 @@ const LOG_VALUES: Record<string, { value: (r: MatchLogRow) => number | null; tot
   xgi: { value: (r) => r.xGI, totalDp: 2, averageDp: 2, peerTotal: "xGI", column: "xGI" },
   cs: { value: (r) => r.cleanSheets, totalDp: 0, averageDp: 2, peerTotal: "cleanSheets", column: "cleanSheets" },
   xgc: { value: (r) => r.xGC, totalDp: 2, averageDp: 2, peerTotal: "xGC", column: "xGC" },
-  dc: { value: (r) => r.dc, totalDp: 0, averageDp: 2, peerTotal: "dc", column: "defensiveContributions" },
+  // Whole, as a player's DC/Game is everywhere (<whole_numbers>; audit 2026-11-03 phase 3 R3).
+  dc: { value: (r) => r.dc, totalDp: 0, averageDp: 0, peerTotal: "dc", column: "defensiveContributions" },
   saves: { value: (r) => r.saves, totalDp: 0, averageDp: 2, peerTotal: "saves", column: "saves" },
   bps: { value: (r) => r.bps, totalDp: 0, averageDp: 0, peerTotal: "bps", column: "bps" },
 };
@@ -224,7 +225,7 @@ function logFooter(sums: Record<string, PartialSum | null>): {
   for (const [key, { totalDp, averageDp }] of Object.entries(LOG_VALUES)) {
     const s = sums[key];
     totalsByKey[key] = fmtDecimal(partialTotal(s), totalDp);
-    averagesByKey[key] = fmtDecimal(partialAverage(s), averageDp);
+    averagesByKey[key] = key === "min" ? fmtAverageMinutes(partialAverage(s)) : fmtDecimal(partialAverage(s), averageDp);
     coverageByKey[key] = coverageNote(s);
   }
   return { totalsByKey, averagesByKey, coverageByKey };
@@ -890,7 +891,7 @@ export function PlayerDetailOverlay() {
   const logFloor = pastLogSeason === null ? fixedFloorMinutes("live") : FIXED_FLOOR_MINUTES;
   const logMinutes = matchLog ? matchLog.rows.reduce((sum, r) => sum + r.minutes, 0) : null;
   const logSmallSampleNote =
-    logMinutes !== null && logMinutes < logFloor ? `Small sample: ${fmtDecimal(logMinutes, 0)} min this season, under the ${logFloor}-minute floor: its Totals and Average have no colours.` : null;
+    logMinutes !== null && isUnderMinimum(logMinutes, logFloor) ? `Small sample: ${fmtDecimal(logMinutes, 0)} min this season, under the ${logFloor}-minute floor: its Totals and Average have no colours.` : null;
 
   // A second source's columns for the shown season (Understat: his position in each match).
   const externalColumns =

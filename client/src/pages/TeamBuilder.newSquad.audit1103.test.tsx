@@ -129,9 +129,9 @@ describe("Team Building New Squad dialog (audit 2026-11-03)", () => {
     expect(utils.container.querySelector(".banner.error")?.textContent).toContain("Enter a valid FPL team ID");
   });
 
-  it("L5: the client's team ID check is the server's rule (plus above 0)", () => {
-    for (const raw of ["1", "1234567", "99999999999", "999999999999", "99999999999999999999", "0", "000", "1.5", "1e3", "-1", " 1", "", "abc"]) {
-      expect(isValidFplTeamId(raw), raw).toBe(serverIsValidTeamId(raw) && Number(raw) > 0);
+  it("L5: the client's team ID check is the server's rule", () => {
+    for (const raw of ["1", "1234567", "99999999999", "999999999999", "99999999999999999999", "0", "000", "00012345", "1.5", "1e3", "-1", " 1", "", "abc"]) {
+      expect(isValidFplTeamId(raw), raw).toBe(serverIsValidTeamId(raw));
     }
   });
 });

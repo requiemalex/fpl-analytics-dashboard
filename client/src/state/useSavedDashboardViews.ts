@@ -241,14 +241,17 @@ const SELECTED_VIEW_STORE: VersionedStore<SelectedViewIds> = {
 
 /**
  * The selection actually shown for each scope: the stored one while that
- * view exists in the scope, else My View, else the packaged Starter — so
- * the picker never points at a view that isn't there (one deleted, or a My
- * View there was no room to add).
+ * view exists in the scope, else Starter (the view a scope opens on), else
+ * My View — so the picker never points at a view that isn't there (one
+ * gone from the saved list, or a My View there was no room to add). Delete
+ * View picks its own fallback (deleteView, below). Audit 2026-11-03 phase 3
+ * R5: this fell to My View first, unlike a missing selection.
  */
 export function resolveSelectedViewIds(views: Pick<SavedDashboardView, "id" | "scope">[], stored: SelectedViewIds): SelectedViewIds {
   const pick = (scope: SummaryTileScope): string => {
     const inScope = views.filter((v) => v.scope === scope);
     if (inScope.some((v) => v.id === stored[scope])) return stored[scope];
+    if (inScope.some((v) => v.id === defaultViewIdForScope(scope))) return defaultViewIdForScope(scope);
     return inScope.some((v) => v.id === myViewIdForScope(scope)) ? myViewIdForScope(scope) : defaultViewIdForScope(scope);
   };
   const resolved = { player: pick("player"), team: pick("team") };

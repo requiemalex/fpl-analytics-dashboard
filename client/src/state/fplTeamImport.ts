@@ -8,8 +8,8 @@ import { loadImportedPurchasePrices } from "./importedPurchasePrices";
 import { changeSavedSquads, loadSavedSquads } from "./useSavedSquads";
 
 /**
- * An FPL team ID the server will look up: the same rule as its isValidTeamId (server/src/teamId.ts)
- * (whole digits, under 12 of them), and above 0. Anything else gets "Enter a
+ * An FPL team ID the server will look up: the same rule as its isValidTeamId (server/src/teamId.ts):
+ * whole digits, under 12 of them, above 0. Anything else gets "Enter a
  * valid FPL team ID" in the New Squad dialog, not a failed request.
  */
 export function isValidFplTeamId(raw: string): boolean {

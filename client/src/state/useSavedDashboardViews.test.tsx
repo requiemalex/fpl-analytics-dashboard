@@ -380,11 +380,13 @@ describe("resolveSelectedViewIds", () => {
     const stored = { player: "default-view-player", team: "default-view-team" };
     expect(resolveSelectedViewIds(views, stored)).toBe(stored);
   });
-  it("falls a missing selection back to My View, then to Starter", () => {
-    expect(resolveSelectedViewIds(views, { player: "gone", team: "gone" })).toEqual({ player: "my-view-player", team: "default-view-team" });
+  // Audit 2026-11-03 phase 3 R5: Starter first, as a new install opens on it.
+  it("falls a missing selection back to Starter, then to My View", () => {
+    expect(resolveSelectedViewIds(views, { player: "gone", team: "gone" })).toEqual({ player: "default-view-player", team: "default-view-team" });
+    expect(resolveSelectedViewIds(views.filter((v) => v.id !== "default-view-player"), { player: "gone", team: "gone" })).toEqual({ player: "my-view-player", team: "default-view-team" });
   });
   it("never picks a view from the other scope", () => {
-    expect(resolveSelectedViewIds(views, { player: "default-view-team", team: "my-view-player" })).toEqual({ player: "my-view-player", team: "default-view-team" });
+    expect(resolveSelectedViewIds(views, { player: "default-view-team", team: "my-view-player" })).toEqual({ player: "default-view-player", team: "default-view-team" });
   });
 });
 

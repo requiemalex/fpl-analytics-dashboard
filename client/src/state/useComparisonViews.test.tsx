@@ -93,10 +93,11 @@ describe("useComparisonViews", () => {
     expect(result.current.selectedView.elements[1].dataView).toBeNull();
   });
 
-  it("falls back to My View when the stored selection no longer exists", () => {
+  // Audit 2026-11-03 phase 3 R5: a selection that's gone opens Starter, as a new install does.
+  it("falls back to Starter when the stored selection no longer exists", () => {
     localStorage.setItem(SELECTED_KEY, JSON.stringify({ version: 1, data: "cmp-view-gone" }));
     const { result } = renderHook(() => useComparisonViews());
-    expect(result.current.selectedView.id).toBe(COMPARISON_MY_VIEW_ID);
+    expect(result.current.selectedView.id).toBe(COMPARISON_STARTER_VIEW_ID);
   });
 });
 

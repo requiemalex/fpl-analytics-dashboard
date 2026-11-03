@@ -35,6 +35,17 @@ export function fmtDecimal(n: number | null | undefined, decimals = 2): string {
   return fmtNumber(n, decimals);
 }
 
+/**
+ * An average of minutes per match, whole: "—" with no minutes to average
+ * (<no_minutes_no_figures>), and "<1" for a cameo whose average rounds to 0,
+ * so a player who did play never reads as one who didn't (audit 2026-11-03
+ * phase 3 R8).
+ */
+export function fmtAverageMinutes(n: number | null | undefined): string {
+  if (typeof n === "number" && n > 0 && n < 0.5) return "<1";
+  return fmtNumber(n, 0);
+}
+
 /** The number a cell formatted by fmtNumber/fmtDecimal shows at `decimals` places (same rounding), e.g. 15.3197 → 15.3 — so a column filter can compare what the user sees, not the hidden precision. */
 export function roundAsDisplayed(n: number, decimals: number): number {
   return Number(fixedDecimals(n, decimals, false));

@@ -1,4 +1,4 @@
-import { fmtDecimal, DASH } from "../../utils/format";
+import { fmtAverageMinutes, DASH } from "../../utils/format";
 import { statHover } from "../hoverText";
 
 /**
@@ -33,14 +33,14 @@ export function PlayingTimeIcon({ averageMinutes, matches, seasonName, rank }: {
   const tierLabel = tier === "high" ? "Regular starter" : tier === "medium" ? "Rotation risk" : "Fringe player";
   const radius = 22;
   const circumference = 2 * Math.PI * radius;
-  const hover = statHover(`${tierLabel}: ${fmtDecimal(averageMinutes, 0)} min average across ${matches} match${matches === 1 ? "" : "es"} ${when}`, rank);
+  const hover = statHover(`${tierLabel}: ${fmtAverageMinutes(averageMinutes)} min average across ${matches} match${matches === 1 ? "" : "es"} ${when}`, rank);
 
   return (
     <div className="playing-time-row">
       <div
         className={`playing-time-icon tier-${tier}`}
         title={hover}
-        aria-label={`${tierLabel}, averaging ${fmtDecimal(averageMinutes, 0)} minutes per match ${when}`}
+        aria-label={`${tierLabel}, averaging ${fmtAverageMinutes(averageMinutes)} minutes per match ${when}`}
       >
         <svg width="56" height="56" viewBox="0 0 56 56">
           <circle cx="28" cy="28" r={radius} fill="none" stroke="var(--border-strong)" strokeWidth="6" />
@@ -59,7 +59,7 @@ export function PlayingTimeIcon({ averageMinutes, matches, seasonName, rank }: {
       </div>
       <div className="playing-time-summary" title={hover}>
         <div>Matches: {matches}</div>
-        <div>Average Minutes Per Match: {fmtDecimal(averageMinutes, 0)}</div>
+        <div>Average Minutes Per Match: {fmtAverageMinutes(averageMinutes)}</div>
       </div>
     </div>
   );

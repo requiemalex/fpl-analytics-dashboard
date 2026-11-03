@@ -928,7 +928,7 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
     id: "comparison-build",
     topic: TOPIC.comparison,
     title: "Build a comparison view",
-    answer: "Click a + card in any section to add a radar, an Outputs list or a trend graph.",
+    answer: "On My View or a view you create, click a + card to add a radar, an Outputs list or a trend graph.",
     pages: ["player-comparison"],
     keywords: [
       "build view", "my view", "add card", "new card", "plus card", "edit card", "delete card", "remove card", "reorder cards", "drag cards",

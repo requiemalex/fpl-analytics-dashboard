@@ -48,14 +48,8 @@ describe("saved squads: an import's players and purchase prices (<imported_budge
 describe("saved squads: a chip marked used by hand before halves were kept (<squad_chips>, audit 2026-11-03 L9)", () => {
   const chips = [{ chip: "wildcard", event: 3 }, { chip: "bboost", event: null }];
 
-  it("keeps it from an unversioned or version-5 squad, as it was saved", () => {
-    for (const version of [null, 5]) {
-      expect(normalizeSavedSquad({ ...base, usedChips: chips }, version)?.usedChips).toEqual([{ chip: "wildcard", event: 3 }, { chip: "bboost", event: null }]);
-    }
-  });
-
-  it("from version 6 on, keeps one with a half and drops one with neither a gameweek nor a half", () => {
-    expect(normalizeSavedSquad({ ...base, usedChips: [...chips, { chip: "3xc", event: null, half: 2 }] }, 6)?.usedChips).toEqual([{ chip: "wildcard", event: 3 }, { chip: "3xc", event: null, half: 2 }]);
+  it("keeps it as it was saved, its half unknown, and keeps a chip with a half", () => {
+    expect(normalizeSavedSquad({ ...base, usedChips: [...chips, { chip: "3xc", event: null, half: 2 }] })?.usedChips).toEqual([{ chip: "wildcard", event: 3 }, { chip: "bboost", event: null }, { chip: "3xc", event: null, half: 2 }]);
   });
 
   it("reaches the store: an unversioned saved squad loads with the chip", () => {
@@ -65,10 +59,13 @@ describe("saved squads: a chip marked used by hand before halves were kept (<squ
   });
 
   // Audit 2026-11-03 phase 3 R1: every live load runs recordSavedSquadDeadlines,
-  // which writes the store back at version 6 with the chip still half-less, so
-  // the next read (Team Building's) drops it. Remove `.fails` once fixed.
-  it.fails("survives the app's first live load: a version-5 chip is still there after the deadline record writes the store back", () => {
+  // which writes the store back at the current version with the chip still
+  // half-less; the next read (Team Building's) must keep it.
+  it("survives the app's first live load: a version-5 chip is still there after the deadline record writes the store back", () => {
     localStorage.setItem("fpl-dashboard:saved-squads:v1", JSON.stringify({ version: 5, data: [{ ...base, usedChips: chips }] }));
+    recordSavedSquadDeadlines();
+    expect(JSON.parse(localStorage.getItem("fpl-dashboard:saved-squads:v1")!).version).toBe(6);
+    expect(loadSavedSquads()[0].usedChips).toEqual([{ chip: "wildcard", event: 3 }, { chip: "bboost", event: null }]);
     recordSavedSquadDeadlines();
     expect(loadSavedSquads()[0].usedChips).toEqual([{ chip: "wildcard", event: 3 }, { chip: "bboost", event: null }]);
     localStorage.clear();

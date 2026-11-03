@@ -285,6 +285,29 @@ describe("Player profile — Match Log", () => {
     expect(summary.textContent).toContain("Average Minutes Per Match: —");
   });
 
+  // Audit 2026-11-03 phase 3 R8: a cameo's average rounds to 0, which read as "never played".
+  it("a cameo whose average minutes rounds to 0 shows <1, in Playing Time and the Average row", () => {
+    setHistory([gw(1, { minutes: 1, totalPoints: 1 }), gw(2, { minutes: 0, totalPoints: 0 }), gw(3, { minutes: 0, totalPoints: 0 })]);
+    setApp([makePlayer({ id: 1, code: 500, name: "Saliba", position: "DEF", teamId: 1, teamName: "Arsenal", totalPoints: 1, minutes: 1 })]);
+    const { container } = renderPlayer();
+    expect(container.querySelector(".playing-time-summary")!.textContent).toContain("Average Minutes Per Match: <1");
+    const log = matchLog(container);
+    const headers = [...log.querySelectorAll("thead th")].map((th) => th.textContent);
+    const average = [...log.querySelectorAll("tfoot tr")[1].querySelectorAll("td")].map((td) => td.textContent);
+    expect(average[headers.indexOf("Minutes") - 2]).toBe("<1");
+  });
+
+  // Audit 2026-11-03 phase 3 R3: a player's DC per match is whole everywhere (L16), the Average row too.
+  it("the Average row's Defensive Contributions is whole, like DC/Game", () => {
+    setHistory([gw(1, { minutes: 90, defensiveContribution: 9 }), gw(2, { minutes: 90, defensiveContribution: 10 }), gw(3, { minutes: 90, defensiveContribution: 10 })]);
+    setApp([makePlayer({ id: 1, code: 500, name: "Saliba", position: "DEF", teamId: 1, teamName: "Arsenal", totalPoints: 6, minutes: 270 })]);
+    const { container } = renderPlayer();
+    const log = matchLog(container);
+    const headers = [...log.querySelectorAll("thead th")].map((th) => th.textContent);
+    const average = [...log.querySelectorAll("tfoot tr")[1].querySelectorAll("td")].map((td) => td.textContent);
+    expect(average[headers.indexOf("Defensive Contributions") - 2]).toBe("10");
+  });
+
   it("a player who did play keeps real 0s in Totals (only 0-minute seasons are —)", () => {
     setHistory([gw(1, { minutes: 90, totalPoints: 1, goals: 0 }), gw(2, { minutes: 0, totalPoints: 0 })]);
     setApp([makePlayer({ id: 1, code: 500, name: "Saliba", position: "DEF", teamId: 1, teamName: "Arsenal", totalPoints: 1, minutes: 90 })]);
