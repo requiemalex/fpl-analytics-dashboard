@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { isAnalysisMode, type AnalysisMode } from "../metrics/resolvePlayerStats";
-import { type VersionedStore, usePersistentState } from "./persistentStorage";
+import { loadVersioned, type VersionedStore, usePersistentState } from "./persistentStorage";
 
 const STORAGE_KEY = "fpl-dashboard:comparison:views:v1";
 /**
@@ -17,7 +17,16 @@ const STORAGE_KEY = "fpl-dashboard:comparison:views:v1";
  */
 const STORAGE_VERSION = 3;
 const SELECTED_VIEW_STORAGE_KEY = "fpl-dashboard:comparison:selected-view:v1";
-const SELECTED_VIEW_STORAGE_VERSION = 1;
+/**
+ * Bumped 1 -> 2 when Starter became the view the page opens on, with My View
+ * kept in the list beside it (audit 2026-11-03 M8, owner's decision, as on
+ * the Dashboard). The selection is written on every load, so a stored My
+ * View can't say whether the user picked it or just landed on it: one that
+ * is still blank (no cards) moves to Starter once, as it has nothing on it
+ * to lose; My View with cards on it, Starter, or a view of the user's own
+ * stays selected.
+ */
+const SELECTED_VIEW_STORAGE_VERSION = 2;
 
 /** radar: Charts section; outputs: Outputs section; trend: Trends section. */
 export type ComparisonElementKind = "radar" | "outputs" | "trend";
@@ -153,8 +162,15 @@ const VIEWS_STORE: VersionedStore<ComparisonView[]> = {
 
 const SELECTED_VIEW_STORE: VersionedStore<string> = {
   version: SELECTED_VIEW_STORAGE_VERSION,
-  fallback: COMPARISON_MY_VIEW_ID,
-  migrate: (data) => (typeof data === "string" ? data : null),
+  fallback: COMPARISON_STARTER_VIEW_ID,
+  migrate(data, storedVersion) {
+    if (typeof data !== "string") return null;
+    if ((storedVersion === null || storedVersion < 2) && data === COMPARISON_MY_VIEW_ID) {
+      const mine = loadVersioned(STORAGE_KEY, VIEWS_STORE).find((v) => v.id === COMPARISON_MY_VIEW_ID);
+      if (mine && mine.elements.length === 0) return COMPARISON_STARTER_VIEW_ID;
+    }
+    return data;
+  },
 };
 
 export type ElementSettings = Omit<ComparisonElementConfig, "id">;
@@ -180,8 +196,8 @@ export interface UseComparisonViews {
  * Player Comparison's views: named layouts of radar charts, Outputs panels
  * and trend graphs. The players compared are the page's own (its address),
  * not part of a view, so any view works for any players. "Starter" is
- * packaged and read-only, and applies the fixed minutes floor to every card; "My View" is seeded blank and selected on first
- * load; every other view is made blank with Create View. Edits save as they
+ * packaged and read-only, and applies the fixed minutes floor to every card; "My View" is seeded blank beside it to show how a
+ * view is built, and Starter is selected on first load; every other view is made blank with Create View. Edits save as they
  * happen — there's no separate Save step. localStorage only, like the
  * Dashboard's views.
  */

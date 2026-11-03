@@ -107,7 +107,7 @@ function storeDashboard(tiles: unknown[]) {
       ],
     }),
   );
-  localStorage.setItem("fpl-dashboard:dashboard:selected-view:v1", JSON.stringify({ version: 2, data: { player: "my-view-player", team: "my-view-team" } }));
+  localStorage.setItem("fpl-dashboard:dashboard:selected-view:v1", JSON.stringify({ version: 3, data: { player: "my-view-player", team: "my-view-team" } }));
 }
 
 function renderDashboard(source: ExternalStatsSource | null) {

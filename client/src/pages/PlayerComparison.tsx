@@ -178,13 +178,25 @@ function cardSourceControls(
   return <SourceMark items={items} toggle={ext && toggle ? { ...toggle, externalLabel: ext.label } : null} />;
 }
 
-function useComparisonIds(): [number[], (ids: number[]) => void] {
+/**
+ * The players in a typed or shared address, held to the same rules as the
+ * search box: whole ids, each once, at most MAX_COMPARE (audit 2026-10-18
+ * L9: a repeated id gave two cards one key, and a sixth player wrapped
+ * colours). Once the players have loaded (`playersById` not empty), an id
+ * that isn't one of them is dropped before the cut to MAX_COMPARE, so it
+ * can't take a real player's place (audit 2026-11-03 L6); until then every
+ * whole id is kept, so none is lost to the wait.
+ */
+export function parseComparisonIds(raw: string | null, playersById: ReadonlyMap<number, unknown>): number[] {
+  if (!raw) return [];
+  const whole = [...new Set(raw.split(",").filter((part) => part.trim() !== "").map(Number).filter((n) => Number.isInteger(n) && n > 0))];
+  const known = playersById.size > 0 ? whole.filter((id) => playersById.has(id)) : whole;
+  return known.slice(0, MAX_COMPARE);
+}
+
+function useComparisonIds(playersById: ReadonlyMap<number, unknown>): [number[], (ids: number[]) => void] {
   const [searchParams, setSearchParams] = useSearchParams();
-  const raw = searchParams.get("players");
-  // A typed or shared address is held to the same rules as the search box:
-  // whole ids, each once, at most MAX_COMPARE (audit 2026-10-18 L9: a
-  // repeated id gave two cards one key, and a sixth player wrapped colours).
-  const ids = raw ? [...new Set(raw.split(",").filter((part) => part.trim() !== "").map(Number).filter((n) => Number.isInteger(n) && n > 0))].slice(0, MAX_COMPARE) : [];
+  const ids = parseComparisonIds(searchParams.get("players"), playersById);
 
   const setIds = (newIds: number[]) => {
     setSearchParams((prev) => {
@@ -243,10 +255,10 @@ export function PlayerComparison() {
   useEffect(() => {
     requestHistoricData();
   }, [requestHistoricData]);
-  const [ids, setIds] = useComparisonIds();
+  const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
+  const [ids, setIds] = useComparisonIds(playersById);
   const [, setSearchParams] = useSearchParams();
 
-  const playersById = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
   // The page's one player list — every card compares these, each in the
   // colour of his place in the list.
   const compared: ComparedPlayer[] = useMemo(

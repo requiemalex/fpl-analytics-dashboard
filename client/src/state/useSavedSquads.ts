@@ -37,8 +37,10 @@ const idOrNull = (v: unknown, allowed: number[]): number | null => (typeof v ===
  * numbers; the starting XI and the armbands keep only players in the squad.
  * A squad saved before usedChips/importedFrom existed gets them defaulted
  * in, as before. Null (skipped) without an id, since nothing can select it.
+ * `storedVersion` is the store version it was saved under (null before the
+ * store had one), so each step applies only to the versions it was written for.
  */
-export function normalizeSavedSquad(raw: Record<string, unknown>): SavedSquad | null {
+export function normalizeSavedSquad(raw: Record<string, unknown>, storedVersion: number | null = STORAGE_VERSION): SavedSquad | null {
   if (typeof raw.id !== "string" || raw.id === "") return null;
   const playerIds = [...new Set(ids(raw.playerIds))];
   const startingXI = [...new Set(ids(raw.startingXI))].filter((id) => playerIds.includes(id));
@@ -52,7 +54,7 @@ export function normalizeSavedSquad(raw: Record<string, unknown>): SavedSquad | 
     captainId: idOrNull(raw.captainId, startingXI),
     viceCaptainId: idOrNull(raw.viceCaptainId, startingXI),
     purchasePrices: normalizePurchasePrices(raw.purchasePrices, playerIds),
-    usedChips: normalizeUsedChips(raw.usedChips),
+    usedChips: normalizeUsedChips(raw.usedChips, storedVersion),
     transfers: normalizeTransfers(raw.transfers),
     gameweekLog: normalizeGameweekLog(raw.gameweekLog),
     importedFrom: normalizeImportedFrom(raw.importedFrom),
@@ -85,8 +87,15 @@ function normalizeGameweekLog(raw: unknown): GameweekRecord[] {
 const count = (v: unknown): number | null => (typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null);
 const chipOrNull = (v: unknown): ChipName | null => (typeof v === "string" && KNOWN_CHIPS.includes(v as ChipName) ? (v as ChipName) : null);
 
-/** <squad_chips>: each spent chip a known chip with a gameweek or, marked used by hand, a half. */
-function normalizeUsedChips(raw: unknown): UsedChip[] {
+/**
+ * <squad_chips>: each spent chip a known chip with a gameweek or, marked used
+ * by hand, a half. A chip marked used by hand before halves were kept
+ * (version 5 and earlier) has neither, and is kept as it was saved, its half
+ * unknown, rather than dropped (audit 2026-11-03 L9); from version 6 one
+ * without either can't be read.
+ */
+function normalizeUsedChips(raw: unknown, storedVersion: number | null): UsedChip[] {
+  const beforeHalves = storedVersion === null || storedVersion < 6;
   if (!Array.isArray(raw)) return [];
   return raw.flatMap((u): UsedChip[] => {
     if (!u || typeof u !== "object") return [];
@@ -95,7 +104,7 @@ function normalizeUsedChips(raw: unknown): UsedChip[] {
     if (!chip) return [];
     const event = typeof r.event === "number" && Number.isInteger(r.event) ? r.event : null;
     const half = r.half === 1 || r.half === 2 ? r.half : undefined;
-    if (event === null && half === undefined) return [];
+    if (event === null && half === undefined) return beforeHalves ? [{ chip, event }] : [];
     return [half === undefined ? { chip, event } : { chip, event, half }];
   });
 }
@@ -157,9 +166,9 @@ function normalizeImportedFrom(raw: unknown): SavedSquad["importedFrom"] {
 const SAVED_SQUADS_STORE: VersionedStore<SavedSquad[]> = {
   version: STORAGE_VERSION,
   fallback: [],
-  migrate(data) {
+  migrate(data, storedVersion) {
     if (!Array.isArray(data)) return null;
-    return mapReadableEntries(data, normalizeSavedSquad);
+    return mapReadableEntries(data, (raw) => normalizeSavedSquad(raw, storedVersion));
   },
 };
 

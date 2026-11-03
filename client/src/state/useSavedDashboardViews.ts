@@ -59,7 +59,7 @@ export const MAX_SAVED_DASHBOARD_VIEWS_PER_SCOPE = 5;
 
 /** The packaged view's name. Its ids keep their original `default-view-*` form (from when it was called "Default"), so stored selections still find it. */
 export const STARTER_VIEW_NAME = "Starter";
-/** The blank, editable view each scope opens on for a new install. */
+/** The blank, editable view kept in each scope's list beside Starter, to show how a custom view is built (a new install opens on Starter). */
 export const MY_VIEW_NAME = "My View";
 
 /**
@@ -84,7 +84,7 @@ function myViewIdForScope(scope: SummaryTileScope): string {
   return `my-view-${scope}`;
 }
 
-/** A blank "My View" per scope — an ordinary view (editable, deletable), seeded so a new install opens on an empty, buildable dashboard. */
+/** A blank "My View" per scope — an ordinary view (editable, deletable), seeded so a new install has an empty, buildable view to pick beside Starter. */
 const MY_VIEWS: SavedDashboardView[] = (["player", "team"] as const).map((scope) => ({
   id: myViewIdForScope(scope),
   scope,
@@ -127,10 +127,22 @@ function defaultViewIdForScope(scope: SummaryTileScope): string {
 
 type SelectedViewIds = Record<SummaryTileScope, string>;
 
+/** A new install opens each scope on its Starter (audit 2026-11-03 M8, owner's decision); My View stays in the list beside it. */
 const DEFAULT_SELECTED_VIEW_IDS: SelectedViewIds = {
-  player: myViewIdForScope("player"),
-  team: myViewIdForScope("team"),
+  player: defaultViewIdForScope("player"),
+  team: defaultViewIdForScope("team"),
 };
+
+/**
+ * Whether a scope's My View is still the blank one seeded for it (no tiles,
+ * no graphs) in the views stored now. The selection is written on every
+ * load, so a stored My View selection can't say whether it was picked or
+ * just opened on by default; a blank one has nothing on it to keep.
+ */
+function isMyViewUntouched(scope: SummaryTileScope): boolean {
+  const mine = loadVersioned(STORAGE_KEY, SAVED_VIEWS_STORE).find((v) => v.id === myViewIdForScope(scope));
+  return !!mine && mine.tiles.length === 0 && mine.graphs.length === 0;
+}
 
 const SAVED_VIEWS_STORE: VersionedStore<SavedDashboardView[]> = {
   version: STORAGE_VERSION,
@@ -185,8 +197,16 @@ const SELECTED_VIEW_STORAGE_KEY = "fpl-dashboard:dashboard:selected-view:v1";
  * to its My View once, so an existing install also opens on a view it can
  * build; a scope on a view of the user's own stays there. If that scope has
  * no My View (no room for one), resolveSelectedViewIds falls it back.
+ *
+ * Bumped 2 -> 3 when Starter became the view each scope opens on again, with
+ * My View kept in the list beside it (audit 2026-11-03 M8, owner's
+ * decision). The selection is written on every load, so a stored My View
+ * can't say whether the user picked it or just landed on it: a scope on a
+ * still-blank My View (no tiles, no graphs) moves to Starter once, as it
+ * has nothing on it to lose; a scope on a My View with anything on it, on
+ * Starter, or on a view of the user's own stays where it is.
  */
-const SELECTED_VIEW_STORAGE_VERSION = 2;
+const SELECTED_VIEW_STORAGE_VERSION = 3;
 
 /**
  * Which saved view is currently picked in the dropdown, per scope — kept
@@ -194,8 +214,8 @@ const SELECTED_VIEW_STORAGE_VERSION = 2;
  * at", not saved-view data. Persisted so it survives a page reload or the
  * desktop app being closed and reopened: whichever view (Starter, My View or
  * a named one) a user leaves a scope on is the one they land back on. A new
- * install opens on My View. Self-heals like SAVED_VIEWS_STORE — a missing/
- * malformed scope key falls back to that scope's My View rather than
+ * install opens on Starter. Self-heals like SAVED_VIEWS_STORE — a missing/
+ * malformed scope key falls back to that scope's Starter rather than
  * failing the whole load.
  */
 const SELECTED_VIEW_STORE: VersionedStore<SelectedViewIds> = {
@@ -204,11 +224,16 @@ const SELECTED_VIEW_STORE: VersionedStore<SelectedViewIds> = {
   migrate(data, storedVersion) {
     if (!data || typeof data !== "object") return null;
     const raw = data as Partial<Record<SummaryTileScope, unknown>>;
-    const toMyView = storedVersion === null || storedVersion < 2;
+    const before = (version: number) => storedVersion === null || storedVersion < version;
     const pick = (scope: SummaryTileScope): string => {
-      const id = raw[scope];
-      if (typeof id !== "string") return DEFAULT_SELECTED_VIEW_IDS[scope];
-      return toMyView && id === defaultViewIdForScope(scope) ? myViewIdForScope(scope) : id;
+      const stored = raw[scope];
+      if (typeof stored !== "string") return DEFAULT_SELECTED_VIEW_IDS[scope];
+      let id = stored;
+      // Version 2: a scope on the packaged view moved to its My View.
+      if (before(2) && id === defaultViewIdForScope(scope)) id = myViewIdForScope(scope);
+      // Version 3: a scope on a still-blank My View moves to Starter.
+      if (before(3) && id === myViewIdForScope(scope) && isMyViewUntouched(scope)) id = defaultViewIdForScope(scope);
+      return id;
     };
     return { player: pick("player"), team: pick("team") };
   },

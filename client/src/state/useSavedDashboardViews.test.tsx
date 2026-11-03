@@ -202,9 +202,9 @@ describe("isDefaultSavedView", () => {
 describe("useSavedDashboardViews — selectedViewIds persistence (which view the dropdown shows per scope)", () => {
   const customPlayerView = { id: "view-custom-1", scope: "player", name: "Mine", tiles: [], graphs: [], updatedAt: 1 };
 
-  it("with nothing stored, opens both scopes on their blank My View", () => {
+  it("with nothing stored, opens both scopes on Starter and keeps a blank My View in the list", () => {
     const { result } = renderHook(() => useSavedDashboardViews());
-    expect(result.current.selectedViewIds).toEqual({ player: "my-view-player", team: "my-view-team" });
+    expect(result.current.selectedViewIds).toEqual({ player: "default-view-player", team: "default-view-team" });
     const myPlayerView = result.current.views.find((v) => v.id === "my-view-player");
     expect(myPlayerView).toMatchObject({ name: MY_VIEW_NAME, scope: "player", tiles: [], graphs: [] });
     expect(isDefaultSavedView(myPlayerView!)).toBe(false);
@@ -221,13 +221,13 @@ describe("useSavedDashboardViews — selectedViewIds persistence (which view the
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 5, data: [customPlayerView] }));
     localStorage.setItem(SELECTED_VIEW_STORAGE_KEY, JSON.stringify({ version: 1, data: { player: "view-custom-1", team: 42 } }));
     const { result } = renderHook(() => useSavedDashboardViews());
-    expect(result.current.selectedViewIds).toEqual({ player: "view-custom-1", team: "my-view-team" });
+    expect(result.current.selectedViewIds).toEqual({ player: "view-custom-1", team: "default-view-team" });
   });
 
   it("falls back to full defaults for genuinely unsalvageable data (not an object at all)", () => {
     localStorage.setItem(SELECTED_VIEW_STORAGE_KEY, JSON.stringify({ version: 1, data: "not an object" }));
     const { result } = renderHook(() => useSavedDashboardViews());
-    expect(result.current.selectedViewIds).toEqual({ player: "my-view-player", team: "my-view-team" });
+    expect(result.current.selectedViewIds).toEqual({ player: "default-view-player", team: "default-view-team" });
   });
 
   it("setSelectedViewId updates just that scope and persists it for the next mount", () => {
@@ -236,7 +236,7 @@ describe("useSavedDashboardViews — selectedViewIds persistence (which view the
     act(() => {
       result.current.setSelectedViewId("player", "view-custom-1");
     });
-    expect(result.current.selectedViewIds).toEqual({ player: "view-custom-1", team: "my-view-team" });
+    expect(result.current.selectedViewIds).toEqual({ player: "view-custom-1", team: "default-view-team" });
     unmount();
 
     const { result: reloaded } = renderHook(() => useSavedDashboardViews());
@@ -331,13 +331,13 @@ describe("useSavedDashboardViews — version 4 -> 5 (embedded tiles and graphs n
 });
 
 describe("useSavedDashboardViews — version 5 -> 6 (blank My View, packaged view renamed Starter)", () => {
-  it("adds a blank My View to each scope of an existing install and moves a scope on the packaged view to it", () => {
+  it("adds a blank My View to each scope of an existing install; a scope on the packaged view ends on Starter (selected-view v3 undoes v2's move while My View is blank)", () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 5, data: [{ id: "view-custom-1", scope: "player", name: "Mine", tiles: [], graphs: [], updatedAt: 1 }] }));
     localStorage.setItem(SELECTED_VIEW_STORAGE_KEY, JSON.stringify({ version: 1, data: { player: "view-custom-1", team: "default-view-team" } }));
     const { result } = renderHook(() => useSavedDashboardViews());
     expect(result.current.views.filter((v) => v.name === MY_VIEW_NAME).map((v) => v.id).sort()).toEqual(["my-view-player", "my-view-team"]);
-    // A scope on a view of the user's own stays there; one on the packaged view moves to My View.
-    expect(result.current.selectedViewIds).toEqual({ player: "view-custom-1", team: "my-view-team" });
+    // A scope on a view of the user's own stays there; one on the packaged view ends on Starter.
+    expect(result.current.selectedViewIds).toEqual({ player: "view-custom-1", team: "default-view-team" });
   });
 
   it("doesn't add a My View to a scope that already has a view by that name, or is at its view cap", () => {
@@ -385,5 +385,39 @@ describe("resolveSelectedViewIds", () => {
   });
   it("never picks a view from the other scope", () => {
     expect(resolveSelectedViewIds(views, { player: "default-view-team", team: "my-view-player" })).toEqual({ player: "my-view-player", team: "default-view-team" });
+  });
+});
+
+describe("useSavedDashboardViews — selected view version 2 -> 3 (open on Starter, audit 2026-11-03 M8)", () => {
+  const myPlayerView = (tiles: SummaryTileConfig[]) => ({ id: "my-view-player", scope: "player", name: MY_VIEW_NAME, tiles, graphs: [], updatedAt: 1 });
+  const myTeamView = { id: "my-view-team", scope: "team", name: MY_VIEW_NAME, tiles: [], graphs: [], updatedAt: 0 };
+  const custom = { id: "view-custom-1", scope: "team", name: "Mine", tiles: [], graphs: [], updatedAt: 1 };
+
+  it("moves a scope that landed on a still-blank My View to Starter, keeping My View in the list", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 7, data: [myPlayerView([]), myTeamView] }));
+    localStorage.setItem(SELECTED_VIEW_STORAGE_KEY, JSON.stringify({ version: 2, data: { player: "my-view-player", team: "my-view-team" } }));
+    const { result } = renderHook(() => useSavedDashboardViews());
+    expect(result.current.selectedViewIds).toEqual({ player: "default-view-player", team: "default-view-team" });
+    expect(result.current.views.filter((v) => v.name === MY_VIEW_NAME)).toHaveLength(2);
+  });
+
+  it("keeps a My View the user has put tiles on, a Starter, and a view of the user's own", () => {
+    const tile = DEFAULT_SUMMARY_TILES.find((t) => t.scope === "player")!;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 7, data: [myPlayerView([tile]), myTeamView, custom] }));
+    localStorage.setItem(SELECTED_VIEW_STORAGE_KEY, JSON.stringify({ version: 2, data: { player: "my-view-player", team: "view-custom-1" } }));
+    const { result, unmount } = renderHook(() => useSavedDashboardViews());
+    expect(result.current.selectedViewIds).toEqual({ player: "my-view-player", team: "view-custom-1" });
+    unmount();
+
+    localStorage.setItem(SELECTED_VIEW_STORAGE_KEY, JSON.stringify({ version: 2, data: { player: "default-view-player", team: "default-view-team" } }));
+    const { result: again } = renderHook(() => useSavedDashboardViews());
+    expect(again.current.selectedViewIds).toEqual({ player: "default-view-player", team: "default-view-team" });
+  });
+
+  it("runs once: a blank My View picked after upgrading stays selected", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 7, data: [myPlayerView([]), myTeamView] }));
+    localStorage.setItem(SELECTED_VIEW_STORAGE_KEY, JSON.stringify({ version: 3, data: { player: "my-view-player", team: "default-view-team" } }));
+    const { result } = renderHook(() => useSavedDashboardViews());
+    expect(result.current.selectedViewIds.player).toBe("my-view-player");
   });
 });

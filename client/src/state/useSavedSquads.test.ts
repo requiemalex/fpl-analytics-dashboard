@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeSavedSquad } from "./useSavedSquads";
+import { loadSavedSquads, normalizeSavedSquad } from "./useSavedSquads";
 import { squadBudget } from "../types/team";
 
 const base = { id: "squad-1", name: "Mine", createdAt: 1, updatedAt: 1, playerIds: [1, 2], startingXI: [1], captainId: 1, viceCaptainId: null, usedChips: [] };
@@ -42,5 +42,25 @@ describe("saved squads: an import's players and purchase prices (<imported_budge
   it("keeps them, a purchase price only for a player it was imported with", () => {
     const squad = normalizeSavedSquad({ ...base, importedFrom: { teamId: 7, bank: 0.1, budget: 100.1, playerIds: [1, 2, 9], purchasePrices: { 1: 7.4, 3: 5 } } });
     expect(squad?.importedFrom).toMatchObject({ playerIds: [1, 2, 9], purchasePrices: { 1: 7.4 } });
+  });
+});
+
+describe("saved squads: a chip marked used by hand before halves were kept (<squad_chips>, audit 2026-11-03 L9)", () => {
+  const chips = [{ chip: "wildcard", event: 3 }, { chip: "bboost", event: null }];
+
+  it("keeps it from an unversioned or version-5 squad, as it was saved", () => {
+    for (const version of [null, 5]) {
+      expect(normalizeSavedSquad({ ...base, usedChips: chips }, version)?.usedChips).toEqual([{ chip: "wildcard", event: 3 }, { chip: "bboost", event: null }]);
+    }
+  });
+
+  it("from version 6 on, keeps one with a half and drops one with neither a gameweek nor a half", () => {
+    expect(normalizeSavedSquad({ ...base, usedChips: [...chips, { chip: "3xc", event: null, half: 2 }] }, 6)?.usedChips).toEqual([{ chip: "wildcard", event: 3 }, { chip: "3xc", event: null, half: 2 }]);
+  });
+
+  it("reaches the store: an unversioned saved squad loads with the chip", () => {
+    localStorage.setItem("fpl-dashboard:saved-squads:v1", JSON.stringify([{ ...base, usedChips: chips }]));
+    expect(loadSavedSquads()[0].usedChips).toEqual([{ chip: "wildcard", event: 3 }, { chip: "bboost", event: null }]);
+    localStorage.clear();
   });
 });

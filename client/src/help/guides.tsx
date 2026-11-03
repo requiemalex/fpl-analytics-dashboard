@@ -364,7 +364,7 @@ const FIRST_GUIDES: HelpGuide[] = [
     id: "dashboard-views",
     topic: TOPIC.dashboard,
     title: "Dashboard views",
-    answer: "My View starts blank; Starter is a ready-made layout. Up to 5 views each for Players and Teams.",
+    answer: "Opens on Starter, a ready-made layout; My View starts blank. Up to 5 views each for Players and Teams.",
     pages: ["dashboard"],
     keywords: [
       "front page", "main page", "overview", "reset view", "rename view",

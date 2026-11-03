@@ -679,8 +679,8 @@ export function Dashboard() {
   // Which view each scope's on-screen tiles and graphs were loaded from
   // (null until the scope is first shown). The tiles and graphs stores keep
   // their own working copy, which can differ from the selected view: when
-  // the page first opens (a new install's working copy is the packaged set
-  // while the view it opens on, My View, is blank), and whenever the
+  // the page first opens on a view other than Starter (whose working copy
+  // may be another view's, or the packaged set), and whenever the
   // selection moves without a load, as when deleting the selected view
   // falls back to My View (audit 2026-10-18 C1). Loading the selected view
   // first, and holding the live-sync below until the on-screen copy is that

@@ -40,7 +40,7 @@ export interface UsedChip {
   chip: ChipName;
   /** Gameweek it was played, if known (always for an import or a chip played here); null when only marked used by hand. */
   event: number | null;
-  /** The half of the season (its chip window) a chip marked used by hand belongs to; absent when `event` says it. */
+  /** The half of the season (its chip window) a chip marked used by hand belongs to; absent when `event` says it, or for one marked by hand before halves were kept (saved squads version 5 and earlier), whose half isn't known. */
   half?: 1 | 2;
 }
 

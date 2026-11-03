@@ -13,11 +13,11 @@ const radar = { kind: "radar" as const, name: "Shape", dataView: "lastSeason" as
 const trend = { kind: "trend" as const, name: "Points", dataView: null, metricKeys: ["totalPoints"], minMinutes: 0 };
 
 describe("useComparisonViews", () => {
-  it("with nothing stored, has Starter and a blank My View, and opens on My View", () => {
+  it("with nothing stored, has Starter and a blank My View, and opens on Starter", () => {
     const { result } = renderHook(() => useComparisonViews());
     expect(result.current.views.map((v) => v.id)).toEqual([COMPARISON_STARTER_VIEW_ID, COMPARISON_MY_VIEW_ID]);
-    expect(result.current.selectedView.id).toBe(COMPARISON_MY_VIEW_ID);
-    expect(result.current.selectedView.elements).toEqual([]);
+    expect(result.current.selectedView.id).toBe(COMPARISON_STARTER_VIEW_ID);
+    expect(result.current.views.find((v) => v.id === COMPARISON_MY_VIEW_ID)?.elements).toEqual([]);
   });
 
   it("ships a Starter view with charts, outputs and trends", () => {
@@ -28,6 +28,8 @@ describe("useComparisonViews", () => {
 
   it("adds, edits and removes cards on the selected view, and keeps them for the next load", () => {
     const { result, unmount } = renderHook(() => useComparisonViews());
+    // A new install opens on the read-only Starter, so pick My View to edit (audit 2026-11-03 M8).
+    act(() => result.current.selectView(COMPARISON_MY_VIEW_ID));
     act(() => result.current.addElement(radar));
     const id = result.current.selectedView.elements[0].id;
     act(() => result.current.updateElement(id, { ...radar, name: "Renamed" }));
@@ -52,6 +54,7 @@ describe("useComparisonViews", () => {
 
   it("reorders only within one section", () => {
     const { result } = renderHook(() => useComparisonViews());
+    act(() => result.current.selectView(COMPARISON_MY_VIEW_ID));
     act(() => result.current.addElement(radar));
     act(() => result.current.addElement({ ...radar, name: "Second" }));
     act(() => result.current.addElement(trend));
@@ -117,5 +120,34 @@ describe("useComparisonViews — version 1 -> 2 (each card's own Min Minutes)", 
     localStorage.setItem(SELECTED_KEY, JSON.stringify({ version: 1, data: "cmp-view-1" }));
     const { result } = renderHook(() => useComparisonViews());
     expect(result.current.selectedView.elements.map((e) => e.minMinutes)).toEqual([0, 450]);
+  });
+});
+
+describe("useComparisonViews — selected view version 1 -> 2 (open on Starter, audit 2026-11-03 M8)", () => {
+  const myView = (elements: unknown[]) => ({ id: COMPARISON_MY_VIEW_ID, name: "My View", updatedAt: 1, elements });
+
+  it("moves a page that landed on a still-blank My View to Starter, keeping My View in the list", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 3, data: [myView([])] }));
+    localStorage.setItem(SELECTED_KEY, JSON.stringify({ version: 1, data: COMPARISON_MY_VIEW_ID }));
+    const { result } = renderHook(() => useComparisonViews());
+    expect(result.current.selectedView.id).toBe(COMPARISON_STARTER_VIEW_ID);
+    expect(result.current.views.map((v) => v.id)).toContain(COMPARISON_MY_VIEW_ID);
+  });
+
+  it("keeps a My View with cards on it, Starter, and a view of the user's own", () => {
+    for (const id of [COMPARISON_MY_VIEW_ID, COMPARISON_STARTER_VIEW_ID, "cmp-mine"]) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 3, data: [myView([{ ...radar, id: "el-1" }]), { id: "cmp-mine", name: "Mine", updatedAt: 1, elements: [] }] }));
+      localStorage.setItem(SELECTED_KEY, JSON.stringify({ version: 1, data: id }));
+      const { result, unmount } = renderHook(() => useComparisonViews());
+      expect(result.current.selectedView.id).toBe(id);
+      unmount();
+    }
+  });
+
+  it("runs once: a blank My View picked after upgrading stays selected", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 3, data: [myView([])] }));
+    localStorage.setItem(SELECTED_KEY, JSON.stringify({ version: 2, data: COMPARISON_MY_VIEW_ID }));
+    const { result } = renderHook(() => useComparisonViews());
+    expect(result.current.selectedView.id).toBe(COMPARISON_MY_VIEW_ID);
   });
 });

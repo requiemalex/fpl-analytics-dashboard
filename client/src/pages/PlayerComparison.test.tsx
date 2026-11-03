@@ -2,7 +2,7 @@ import React from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, fireEvent, cleanup, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { PlayerComparison } from "./PlayerComparison";
+import { PlayerComparison, parseComparisonIds } from "./PlayerComparison";
 import { makePlayer, makeSeason } from "../test/fixtures";
 
 const PLAYERS = vi.hoisted(() => [] as ReturnType<typeof makePlayer>[]);
@@ -56,10 +56,22 @@ function storeView(elements: unknown[]) {
 }
 
 describe("PlayerComparison", () => {
-  it("opens on the blank My View, with an Add card in each section", () => {
+  it("opens on Starter; the blank My View beside it has an Add card in each section", () => {
     const { getByLabelText, getByRole } = renderPage();
-    expect((getByLabelText("Comparison view") as HTMLSelectElement).value).toBe("comparison-my-view");
+    const picker = getByLabelText("Comparison view") as HTMLSelectElement;
+    expect(picker.value).toBe("comparison-starter");
+    fireEvent.change(picker, { target: { value: "comparison-my-view" } });
+    expect(picker.value).toBe("comparison-my-view");
     for (const noun of ["Radar Chart", "Outputs Panel", "Trend Graph"]) expect(getByRole("button", { name: `Add ${noun}` })).toBeTruthy();
+  });
+
+  it("drops unknown and invalid ids from the address before taking five, so none takes a real player's place (audit 2026-11-03 L6)", () => {
+    PLAYERS.push(makePlayer({ id: 5, name: "Fifth", position: "FWD", minutes: 500 }), makePlayer({ id: 6, name: "Sixth", position: "FWD", minutes: 500 }));
+    const { container } = renderPage("999999,1,0,abc,2,1,3,4,5,6");
+    expect(container.querySelectorAll(".cmp-player-tag")).toHaveLength(5);
+    expect(parseComparisonIds("999999,1,0,abc,2,1,3,4,5,6", new Map(PLAYERS.map((p) => [p.id, p])))).toEqual([1, 2, 3, 4, 5]);
+    // Before the players have loaded, every whole id is kept, so none is lost to the wait.
+    expect(parseComparisonIds("999999,1,0,abc,2", new Map())).toEqual([999999, 1, 2]);
   });
 
   it("shows each compared player's tag: ownership · price, club and position", () => {
@@ -73,6 +85,7 @@ describe("PlayerComparison", () => {
 
   it("builds an Outputs panel from the dialog: at least one statistic is required, a name is optional", () => {
     const { getByRole, getByLabelText, container } = renderPage("1,2");
+    fireEvent.change(getByLabelText("Comparison view"), { target: { value: "comparison-my-view" } });
     fireEvent.click(getByRole("button", { name: "Add Outputs Panel" }));
     const dialog = container.querySelector(".dialog") as HTMLElement;
     const save = within(dialog).getByRole("button", { name: "Add Outputs Panel" }) as HTMLButtonElement;

@@ -89,14 +89,15 @@ describe("Dashboard saved views — working copy vs saved views (audit 2026-10-1
     expect(JSON.parse(localStorage.getItem(TILES_KEY)!).data.map((t: { id: string }) => t.id)).toEqual(["foo-tile"]);
   });
 
-  it("an install upgraded from views v5 while on the packaged view opens on a blank My View, and My View stays blank", () => {
+  it("an install upgraded from views v5 while on the packaged view opens on Starter, and the added My View stays blank", () => {
     // v5 data: no My View yet; the user was on the packaged ("Default") view, whose tiles are the working copy.
     saveVersioned(VIEWS_KEY, 5, [starterPlayer, starterTeam]);
     saveVersioned(SELECTED_KEY, 1, { player: "default-view-player", team: "default-view-team" });
     saveVersioned(TILES_KEY, 6, DEFAULT_SUMMARY_TILES);
     saveVersioned(GRAPHS_KEY, 6, DEFAULT_DASHBOARD_GRAPHS);
     const { getByLabelText } = renderDashboard();
-    expect((getByLabelText("Saved view") as HTMLSelectElement).value).toBe("my-view-player");
+    // Starter again since audit 2026-11-03 M8 (selected-view v3).
+    expect((getByLabelText("Saved view") as HTMLSelectElement).value).toBe("default-view-player");
     const myView = storedViews().find((v) => v.id === "my-view-player")!;
     expect(myView.tiles).toEqual([]);
   });

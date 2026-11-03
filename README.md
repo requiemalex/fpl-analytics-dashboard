@@ -1607,10 +1607,15 @@ a question in your own words (`<help_panel>`, `HelpPanel.tsx`).
   mounted second source adds its own after them, on screen only
   (`withSourceStarterItems`; Understat's: <source_starter_items>). A default-id tile or graph can therefore only ever be an
   unmodified default, and Starter's cards aren't draggable. **My View**
-  (`my-view-*`) is seeded blank per scope and is what a new install opens
-  on; otherwise it's an ordinary view. Store v6 added it to existing
-  installs (unless the scope already had a "My View" or was full) and moved
-  a scope that was on the packaged view to it; the selection falls back to
+  (`my-view-*`) is seeded blank per scope and kept in the list beside
+  Starter, which is what a new install opens on; otherwise it's an ordinary
+  view. Store v6 added it to existing installs (unless the scope already had
+  a "My View" or was full) and selected-view v2 moved a scope that was on
+  the packaged view to it; selected-view v3 moves a scope on a still-blank
+  My View (no tiles, no graphs) back to Starter once — the selection is
+  written on every load, so a blank one can't say whether it was picked, and
+  has nothing to lose — while a My View with anything on it, Starter or a
+  user's own view stays selected. The selection falls back to
   My View, then Starter, whenever the stored one doesn't exist
   (`resolveSelectedViewIds`). The tiles and graphs stores hold a working
   copy, so the page records which view each scope's on-screen copy came
@@ -1898,7 +1903,8 @@ drops responses for a player no longer selected.
 
 **Player Comparison** (`pages/PlayerComparison.tsx`, `components/comparison/`)
 — one page-level list of up to 5 players (`?players=`, read as whole ids,
-each once, at most 5), compared by every
+each once, at most 5, an id that isn't a loaded player dropped before the
+cut so it can't take a real one's place), compared by every
 card in the selected view. Each player's colour is his place in the list
 (`seriesColors.ts`, `--series-*`: blue, gold, orange, white, grey — never
 green or red, which mean better and worse, nor a source's violet or rose).
@@ -1922,7 +1928,9 @@ green or red, which mean better and worse, nor a source's violet or rose).
   card goes at 4; a view saved with more under the old limit of 6 keeps
   them but can't add another. **Starter**
   (`comparison-starter`) is packaged, read-only and restored on every load;
-  **My View** is seeded blank and selected on first load. Edits save
+  **My View** is seeded blank beside it; Starter is selected on first load
+  (selected-view v2 moves a stored, still-blank My View to Starter once, as
+  on the Dashboard; My View with cards, Starter or a user's view stays). Edits save
   immediately; a stored card of an unknown kind is dropped, one with unknown
   metric keys shows as "unavailable" but can be removed.
 - Minimum minutes follow the Dashboard's split. On **Starter** every card
@@ -2348,7 +2356,9 @@ starting XI short of 11 or a line under its minimum.
   Wildcard or Free Hit in GW1), one a gameweek, and no Free Hit the
   gameweek after one (GW19 then GW20). An import's spent chips are FPL's
   (`usedChips`); a squad built here's are those it played here, spent at the
-  deadline, and those ticked **Used** by hand (`{ event: null, half }`). A
+  deadline, and those ticked **Used** by hand (`{ event: null, half }`; one
+  saved before halves were kept, version 5 and earlier, has no `half` and is
+  kept as saved, counted in neither half). A
   chip played counts where FPL counts it: on the pitch's gameweek when
   it's the one open for picks, Triple Captain counts the captain three
   times in Projected Points, the captain's figure and his card, and Bench
