@@ -5,6 +5,10 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.131.0 · 3 Nov 2026
+
+- Reset Draft on an imported squad now gives back FPL's bank (it was pricing risen players at today's price, leaving the bank short), and everything picked or switched on across the app has one look: filled soft green with no green outline, as the Dashboard's Players/Teams icons
+
 ## v1.130.0 · 3 Nov 2026
 
 - Player Explorer and Add Players now offer the same analysis: Predictive columns (Exp. Pts with their gameweek horizons, Exp. Mins, price Progress and Predicted Progress) in both, off by default in Player Explorer and kept in saved views; Next 5 Fixtures gets the pitch's Games/Odds switch and starts from the next deadline in both tables; the Data View sits above the toolbar in both; the pitch's Points Prediction and Minutes are now called Exp. Pts and Exp. Mins
