@@ -34,7 +34,7 @@ import {
 } from "../components/IconToolbar";
 import { HideSmallSamplesIcon, MinutesFloorIcon } from "../components/MinutesFloorBadge";
 import { NOTEPAD_KEY } from "../components/Notepad";
-import { PositionBadge } from "../components/primitives";
+import { AvailabilityFlag, PositionBadge } from "../components/primitives";
 import { DutyIcon, type SetPieceDuty } from "../components/SetPieceDuties";
 import { FplSourceIcon } from "../components/SourceToggle";
 import { fdrColor } from "../metrics/fixtureTicker";
@@ -337,6 +337,38 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
         <Label>Filter for them</Label>
         <Steps items={["▾ on the Player header → Set-piece duty.", "Pick the icons you want, or a duty's name for all three.", "Enter. Players with any of them show."]} />
         <Points items={["Several duties, several icons. Hover one for what it means for him.", "FPL's lists today, so the same in every Data View."]} />
+      </>
+    ),
+  },
+  {
+    id: "availability-flags",
+    topic: TOPIC.numbers,
+    title: "Injured, doubtful or suspended",
+    answer: "A dot after his name, and his name in its colour: gold if doubtful, red if out. Hover it for FPL's news.",
+    pages: ALL_PAGES,
+    keywords: [
+      "injured", "injury", "injuries", "injury news", "team news", "doubtful", "doubt", "suspended", "suspension", "banned", "red card",
+      "on loan", "unavailable", "out", "not available", "fit", "fitness", "knock", "chance of playing", "75%", "50%", "25%",
+      "dot after name", "red dot", "yellow dot", "gold dot", "orange dot", "coloured name", "name in red", "name in yellow",
+      "why is his name red", "why is his name yellow", "flag", "injury flag", "news", "return date", "when is he back",
+    ],
+    related: ["player-filter", "expected-minutes"],
+    body: (
+      <>
+        <IconKey
+          rows={[
+            { icon: <AvailabilityFlag status="d" news="" chanceOfPlayingNextRound={null} />, label: "Doubtful", text: "hover for his chance of playing next round" },
+            { icon: <AvailabilityFlag status="i" news="" chanceOfPlayingNextRound={null} />, label: "Out", text: "injured, suspended, on loan or unavailable" },
+          ]}
+        />
+        <Points
+          items={[
+            "No dot: available.",
+            "FPL's news is today's, so the same in every Data View.",
+            "FPL gives no return date: the predictions apply it to all five upcoming gameweeks.",
+            "▾ on the Player header → Availability to leave them out.",
+          ]}
+        />
       </>
     ),
   },
@@ -991,6 +1023,39 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
       />
     ),
   },
+  {
+    id: "comparison-missing",
+    topic: TOPIC.comparison,
+    title: "A player missing from a radar",
+    answer: "He's under that card's minimum minutes, or alone in his position with no one to rank against.",
+    pages: ["player-comparison"],
+    keywords: [
+      "missing from radar", "not on the radar", "not on radar", "isn't on the radar", "isn't he on the radar", "player missing", "player not showing", "not showing", "not drawn",
+      "radar empty", "no shape", "no line", "missing point", "missing axis", "gap on radar", "where is he", "disappeared",
+      "not bold", "never bold", "stopwatch marker", "marker at the end", "arrow at the end", "not enough minutes", "few minutes",
+      "why can't i see him", "only one player on radar", "empty radar",
+    ],
+    related: ["comparison-cards", "stopwatch"],
+    body: (
+      <>
+        <IconKey rows={[{ icon: <MinutesFloorIcon size={14} />, tone: "amber", label: "Under the card's minutes", text: "beside his name on that card" }]} />
+        <Terms
+          rows={[
+            ["Radar", "not drawn"],
+            ["Outputs", "a stopwatch for his marker; never bold, never sets the scale"],
+            ["Trends", "still plotted, the point a stopwatch"],
+          ]}
+        />
+        <Points
+          items={[
+            "Starter's cards use the fixed floor; on your own views, each card's own Min Minutes.",
+            "Alone in his position for that Data View: no point on that axis.",
+            "Try another Data View, or lower the card's Min Minutes.",
+          ]}
+        />
+      </>
+    ),
+  },
 
   // ---------- Team Building ----------
   {
@@ -1465,6 +1530,143 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
         <Points items={["Proven on seasons it wasn't fitted on.", "Best at telling who will start; goals, clean sheets and bonus still fall as they do."]} />
         <Label>It doesn't know</Label>
         <Chips items={["injuries beyond the next round", "the manager's team sheet", "bench order", "automatic subs"]} />
+      </>
+    ),
+  },
+  {
+    id: "summary-card",
+    topic: TOPIC.building,
+    title: "The summary card",
+    answer: "Above the pitch: six figures for your squad, then its highlight, actions and gameweek arrows.",
+    pages: ["team-building"],
+    keywords: [
+      "summary card", "squad summary", "top of the pitch", "above the pitch", "figures above the pitch", "numbers at the top",
+      "what do the numbers mean", "projected points", "captain", "squad value", "team value", "value", "bank", "money left", "itb",
+      "in the bank", "transfers", "chips", "overview", "at a glance", "icons above the pitch", "buttons above the pitch", "actions",
+    ],
+    related: ["projected-points", "captain-vice"],
+    body: (
+      <>
+        <Terms
+          rows={[
+            ["Projected Points", "the XI's Expected Points for the gameweek shown"],
+            ["Captain", "his Expected Points, doubled, and who he is"],
+            ["Squad Value", "every player at today's price"],
+            ["Bank", "the budget left"],
+            ["Transfers", "free ones left; a hit in red. Click for who's out and in"],
+            ["Chips", "left this half of the season. Click to play one"],
+          ]}
+        />
+        <IconKey
+          rows={[
+            { icon: <><ArmbandIcon letter="C" /><ArmbandIcon letter="V" /></>, label: "Captain, Vice-Captain", text: "" },
+            { icon: <ClearDraftIcon />, label: "Clear Draft", text: "" },
+            { icon: <ResetIcon />, label: "Reset Draft", text: "" },
+            { icon: <BestDraftIcon />, label: "Best Draft", text: "" },
+            { icon: <GameweekSummaryIcon />, label: "Gameweek Summary", text: "and Log" },
+            { icon: <><ChevronIcon direction="left" /><ChevronIcon direction="right" /></>, label: "Gameweek", text: "the pitch shows" },
+          ]}
+        />
+        <Note>Squad Value's hover gives what the squad counts against the budget, where that's less.</Note>
+      </>
+    ),
+  },
+  {
+    id: "captain-vice",
+    topic: TOPIC.building,
+    title: "Captain and vice-captain",
+    answer: "Click an armband above the pitch, then a starter. Or let Best Draft choose both.",
+    pages: ["team-building"],
+    keywords: [
+      "captain", "vice captain", "vice-captain", "vc", "armband", "c armband", "v armband", "set captain", "change captain",
+      "pick captain", "choose captain", "make captain", "remove captain", "remove armband", "take armband off", "no captain",
+      "captain on bench", "captain doubled", "double points", "captain didn't play", "captain not playing", "who gets the armband",
+      "can't make him captain", "bench captain",
+    ],
+    related: ["best-draft", "bench-subs"],
+    body: (
+      <>
+        <Steps
+          items={[
+            <>
+              <ArmbandIcon letter="C" /> Captain or <ArmbandIcon letter="V" /> Vice-Captain: green while it's waiting.
+            </>,
+            "Click a starter. A benched player can't take an armband.",
+          ]}
+        />
+        <Points
+          items={[
+            "Click the captain or vice-captain again to take the armband off.",
+            "One player can't hold both: the new armband moves off him.",
+            "Benching or removing him takes his armband off.",
+            "The captain counts twice in Projected Points; the vice-captain doubles when the captain doesn't play.",
+          ]}
+        />
+      </>
+    ),
+  },
+  {
+    id: "bench-subs",
+    topic: TOPIC.building,
+    title: "The bench and automatic substitutions",
+    answer: "The bench has no order. Predictions leave substitutions out; the Gameweek Log scores them as FPL does.",
+    pages: ["team-building"],
+    keywords: [
+      "bench", "bench order", "order the bench", "reorder bench", "first sub", "sub order", "subs", "substitutes", "substitution",
+      "substitutions", "automatic substitutions", "automatic subs", "auto subs", "autosubs", "auto sub", "didn't play", "no show",
+      "starter didn't play", "who comes in", "who replaces him", "bench points", "bench goalkeeper", "backup keeper", "sub keeper",
+      "vice captain doubles", "captain didn't play",
+    ],
+    related: ["captain-vice", "gameweek-log"],
+    body: (
+      <>
+        <Terms
+          rows={[
+            ["The bench", "four places, goalkeeper first, each labelled with its position"],
+            ["Predictions", "the XI only: no substitutions, the bench counts nothing (Bench Boost aside)"],
+            ["Gameweek Log", "a starter who didn't play is replaced by the first benched player who did, as the bench shows them"],
+          ]}
+        />
+        <Points
+          items={[
+            "Substitutions keep the XI in a formation FPL allows; only the goalkeeper replaces the goalkeeper.",
+            "The vice-captain doubles if the captain didn't play.",
+            "Until the gameweek is finished, the XI as picked, marked Live.",
+            "An imported squad's points are FPL's own, from your bench order there.",
+          ]}
+        />
+      </>
+    ),
+  },
+  {
+    id: "later-gameweeks",
+    topic: TOPIC.building,
+    title: "Plan for later gameweeks",
+    answer: "‹ › above the pitch steps through the next five gameweeks; the cards, Projected Points and Best Draft follow.",
+    pages: ["team-building"],
+    keywords: [
+      "later gameweeks", "future gameweeks", "next gameweek", "gameweek after next", "plan ahead", "planning", "look ahead",
+      "next few weeks", "next five gameweeks", "change gameweek", "gameweek arrows", "‹ ›", "arrows", "step forward",
+      "skip ahead", "upcoming", "long term", "which gameweek", "different gameweek", "gw+1", "gw+2",
+      "arrows greyed out",
+    ],
+    related: ["best-draft", "add-players"],
+    body: (
+      <>
+        <IconKey rows={[{ icon: <><ChevronIcon direction="left" /><ChevronIcon direction="right" /></>, label: "Previous / next gameweek", text: "greyed at either end" }]} />
+        <Terms
+          rows={[
+            ["Follow ‹ ›", "the cards' Exp. Pts and Exp. Mins, their colours, Projected Points, Best Draft"],
+            ["Add Players", "no arrows: each Exp. Pts heading adds up 1–5 gameweeks"],
+          ]}
+        />
+        <Points
+          items={[
+            "Starts on the next gameweek; near the season's end, only those left.",
+            "Best Draft for a later gameweek changes your one saved XI: there isn't one per gameweek.",
+            "A double gameweek adds both matches; a player with no match adds 0.",
+          ]}
+        />
       </>
     ),
   },
