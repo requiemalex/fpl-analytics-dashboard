@@ -1,85 +1,69 @@
 # Phase 2 — Remediation
 
-The input to this phase is a Phase 1 audit: `1-audit.md` in a run folder
-under `docs/audits/results/`. Use the run folder the owner names. If none is
-named, use the most recent one that has a `1-audit.md` but no
-`2-remediation.md`, and say which one you picked.
+Fix the confirmed findings of one audit run. Read `RULES.md` in this
+folder first.
 
-Start by reading, in order:
-- CLAUDE.md.
-- README.md (how the app works now; not docs/HISTORY.md).
-- That run's `1-audit.md`.
-- `git log` since the Phase 1 commit, and `git status`.
+Use the run folder the owner names; if none, the most recent one with a
+`1-audit.md` but no `2-remediation.md` (say which). Read CLAUDE.md once,
+that run's `1-audit.md` index and the details of the findings you're
+fixing, and `git log --oneline <phase 1 commit>..` plus `git status`.
+Owner decisions given in the request override the report.
 
-Don't rely on prior conversation history. This is a fresh session and those
-files are the source of truth.
+Being asked to run this prompt is the owner asking you to run the app (via
+the probes, or a one-off script per `TOOLKIT.md`) to confirm fixes.
 
-Your job is to fix the confirmed findings, using their IDs throughout.
+## Plan, then fix in batches
 
-## Permissions this prompt gives you
+1. **Plan (lead).** Group the findings into batches of up to ~5 that touch
+   the same files or rule, ordered Critical/High first, then Medium, Low,
+   then O (optimisation) only if the owner asked. V items are fixed only
+   once proven (they then get a new ID). Write the plan as a short list in
+   your reply, not a file.
+2. **Each batch in a fresh helper, one at a time** (batches share files, so
+   never in parallel). The brief: the findings' full text from `1-audit.md`,
+   the CLAUDE.md rules they touch (quoted), RULES.md, and the rules below.
+   The helper fixes, tests, commits ("Audit <date> <scope>: fix <IDs>"),
+   and replies with a few lines per finding: outcome, root cause, files,
+   test, evidence. It stops at 40 tool calls; anything unfinished comes
+   back to you as unfinished, never half-committed.
+3. **Check each batch (lead):** `npm run check` must pass before the next
+   batch starts; for anything a user sees, the probe or script that found
+   it must now come back clean (`npm run probe -- <probe> --pages=<page>`).
+   A batch that broke something goes back to a helper with the failure.
 
-Being asked to run this prompt is the owner asking you to run the app
-(`npm run dev`) and drive it with throwaway Playwright scripts outside the
-repo, to confirm fixes. Use a fresh browser context, and stop any server you
-started.
+## Rules for every fix
 
-## Rules
-
-- **Order:** Critical and High correctness defects first, then Medium, then
-  Low. Only move on to cosmetic or architectural work if the owner asked for
-  it.
-- **Needs verification (V) items:** don't fix one until you've proven it
-  yourself. It then gets a new ID in this report and in the audit's index
-  row.
-- **Fixes:** fix the root cause rather than adding a defensive patch on top.
-  Keep correct behaviour as it is. Prefer one shared source of truth over
-  duplicated calculations. Never substitute data for unavailable data. Keep
-  changes focused and don't add unrelated features.
-- **Tests:**
-  - Add a regression test for each fix where possible. It should fail on the
-    old code; check that it does.
-  - Turn any `it.fails`/`it.skip` test Phase 1 left for a finding into a
-    normal test once that finding is fixed.
-  - Never weaken, remove or rewrite a test just because the code fails it,
-    and never hard-code a value to pass one. If a test's expectation is
-    genuinely wrong because the intended behaviour changed, say why in the
-    report.
-- **Saved data:** any change to what a localStorage store holds needs a
-  `STORAGE_VERSION` bump and a `migrate()` step, and a check of the stores
-  that embed it (saved views embed tiles and graphs). Make sure the bump
-  doesn't re-run an earlier one-off migration step on data it wasn't written
-  for, and test both the old and the current version.
-- **Docs, per CLAUDE.md "Keeping docs current":**
-  - Update the affected README sections and the User Guide in place.
-  - Remove anything the fix makes untrue.
-  - Record anything removed or replaced in `docs/HISTORY.md`.
-- **Checks:** run the relevant tests after each group of fixes. At the end,
-  run `npm run build` and `npm test` in full; there's no lint script.
-- **Real app:** for anything a user sees, confirm the fix in the running app
-  with the same steps the audit used to reproduce it, and record the result.
-
-## For every finding, record
-
-ID; outcome (fixed / not fixed and why / not reproducible); root cause; files
-changed; test added or updated; evidence it's fixed (test output, before and
-after values, the app check). Don't mark a finding fixed without that
-evidence.
+- Fix the root cause, not a defensive patch on top. Prefer one shared
+  source of truth to duplicated calculations. Never substitute data for
+  unavailable data. Keep correct behaviour; add nothing unrelated.
+- Each fix gets a regression test that fails on the old code (check that
+  it does). Phase 1's `it.fails`/`it.skip` for that finding becomes a
+  normal test. Never weaken, remove or rewrite a test because the code
+  fails it, or hard-code a value to pass one; if an expectation is wrong
+  because the intended behaviour changed, say why in the report.
+- Saved data: a change to what a localStorage store holds needs a
+  `STORAGE_VERSION` bump and a `migrate()` step that runs only for the
+  versions it was written for; check stores that embed it (saved views
+  embed tiles and graphs); test old and current versions.
+- Docs per CLAUDE.md "Keeping docs current": README sections and Help in
+  place, nothing left untrue, removals in `docs/HISTORY.md`.
 
 ## Output
 
-Write `2-remediation.md` in the same run folder:
+When every batch is in: full `npm run check`, then `npm run probe --
+--quick` as a regression net. Write `2-remediation.md` once, in the run
+folder:
 
-1. **Plain-English summary first:** what was fixed, what wasn't and why, and
-   anything a user will notice changing.
-2. A table of every finding ID with its outcome and evidence.
-3. Details for any fix that needed a judgement call, such as a migration, a
-   changed test expectation or a behaviour change.
-4. Anything left open, for the owner to decide.
-5. The final `npm run build` and `npm test` results.
+1. **Plain-English summary first:** what was fixed, what wasn't and why,
+   what a user will notice.
+2. Table: every finding ID, outcome, evidence (test name, before/after
+   values, probe result). Nothing marked fixed without evidence.
+3. Judgement calls: migrations, changed test expectations, behaviour
+   changes.
+4. Left open for the owner.
+5. Final `npm run check` and quick probe results.
 
-Update the run's row in `docs/audits/README.md`.
-
-**Commit** the fixes, tests, docs and report ("Audit <date> <scope>: phase 2
-fixes"). Don't tag a release unless the owner asks in this session. Normally
-the release comes after Phase 3 finds no confirmed regressions. The release
-steps are in CLAUDE.md "Releasing".
+Update the run's row in `docs/audits/README.md`; commit the report and row
+("Audit <date> <scope>: phase 2 report"). No release unless the owner asks
+in this session; normally it follows a clean Phase 3. End with `npm run
+unreleased`'s output (CLAUDE.md "Releasing").

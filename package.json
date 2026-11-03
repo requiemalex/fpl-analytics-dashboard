@@ -15,6 +15,9 @@
     "build": "npm run build -w server && npm run build -w client",
     "start": "node server/dist/index.js",
     "test": "npm run test -w server && npm run test -w client && node --test \"electron/*.test.js\"",
+    "check": "tsx scripts/audit/check.ts",
+    "probe": "tsx scripts/audit/probe.ts",
+    "probe:selftest": "tsx scripts/audit/selftest.ts",
     "server": "npm run dev -w server",
     "client": "npm run dev -w client",
     "build:electron-server": "esbuild server/src/app.ts --bundle --platform=node --format=cjs --log-override:empty-import-meta=silent --outfile=server/dist/app.bundle.cjs",
@@ -35,7 +38,8 @@
     "concurrently": "^9.0.1",
     "electron": "^44.5.1",
     "electron-builder": "^25.1.8",
-    "esbuild": "^0.24.0"
+    "esbuild": "^0.24.0",
+    "playwright": "^1.64.1"
   },
   "engines": {
     "node": ">=18.18.0"

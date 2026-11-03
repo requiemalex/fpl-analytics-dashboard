@@ -28,3 +28,6 @@ npm-debug.log*
 .idea/
 .DS_Store
 Thumbs.db
+
+# Audit probe output (npm run probe): detail files and the dev-server log
+audit-output/

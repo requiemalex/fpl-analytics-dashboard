@@ -50,6 +50,8 @@ npm run dev      # server :4000 + client :5173 (Vite proxies /api/*) — open ht
 | `npm run server` / `npm run client` | One side only |
 | `npm run build` | Type-checks (`tsc`) and builds both — the main correctness check besides tests |
 | `npm test` | Vitest, server then client |
+| `npm run check` | Build + every test, reported in a few lines (failures only) |
+| `npm run probe` / `probe:selftest` | The built app under pressure in a fresh browser: every page, API failures, damaged saved data, seeded random use — see `docs/audits/strategy/TOOLKIT.md` |
 | `npm start` | Runs the production build (server also serves the built client) |
 | `npm run electron:start` | Builds and launches the desktop app locally |
 | `npm run electron:build` | Packages the Windows installer into `release/` |
@@ -2786,9 +2788,9 @@ history, and regression tests for past bugs. Coverage is partial —
 `expectedPoints.ts` and most of `TeamBuilder.tsx` are untested; Model
 Predicted is tested (`pointsModel.test.ts`, `TeamBuilder.model.test.tsx`)
 and backtested (`client/scripts/pointsModel/`). Beyond tests, verification is `npm run build` plus running the
-app. Playwright isn't installed, but it works via
-`npx playwright install chromium` plus a throwaway driver script (nothing
-committed).
+app: `npm run probe` drives the built app with Playwright (a dev
+dependency; `scripts/audit/`), and one-off driver scripts reuse its
+library from `audit-output/tmp/` (not committed).
 
 ## Automatic jobs and alerts
 

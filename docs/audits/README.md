@@ -15,9 +15,15 @@ full app.
 
 | Phase | Prompt | Does | Writes | Commits |
 |---|---|---|---|---|
-| 1 | `strategy/PHASE-1-FORENSIC-AUDIT-PROMPT.md` | Investigates and reports; no fixes (may add tests) | Creates `results/<YYYY-MM-DD>-<scope>/1-audit.md` | Report + tests, as the baseline |
-| 2 | `strategy/PHASE-2-REMEDIATION-PROMPT.md` | Fixes that run's confirmed findings | `2-remediation.md` | Fixes, tests, docs, report. No release unless asked |
+| 1 | `strategy/PHASE-1-FORENSIC-AUDIT-PROMPT.md` | Puts the app under pressure (probes), then helper missions: pressure, consistency, numbers, saved data, optimisation, docs. No fixes (may add tests) | Creates `results/<YYYY-MM-DD>-<scope>/1-audit.md` | Report + tests, as the baseline |
+| 2 | `strategy/PHASE-2-REMEDIATION-PROMPT.md` | Fixes that run's confirmed findings, in batches, each in a fresh helper | `2-remediation.md` | Each batch, then the report. No release unless asked |
 | 3 | `strategy/PHASE-3-ADVERSARIAL-REGRESSION-PROMPT.md` | Tries to break the fixes; report only | `3-regression.md` | Report. Recommends whether to release |
+
+Every phase follows `strategy/RULES.md` (how to work without burning usage;
+severity scale) and uses the commands in `strategy/TOOLKIT.md`:
+`npm run check` (build + all tests in a few lines), `npm run probe` (the
+built app under pressure in a fresh browser: every page, API failures,
+damaged saved data, a seeded "impatient user"), `npm run probe:selftest`.
 
 Phases 2 and 3 use the run folder you name, or else the most recent
 unfinished one. Every report opens with a plain-English summary.
@@ -30,11 +36,12 @@ unfinished one. Every report opens with a plain-English summary.
 | H | High |
 | M | Medium |
 | L | Low |
+| O | Optimisation (from 2026-11-03) |
 | V | Needs verification |
 | R | New in Phase 3 |
 
-The severity definitions are in the Phase 1 prompt. Older runs used their own
-ID schemes (C/M/L on 2026-09-21, D on 2026-09-24).
+The severity definitions are in `strategy/RULES.md`. Older runs used their
+own ID schemes (C/M/L on 2026-09-21, D on 2026-09-24).
 
 ## Past runs
 

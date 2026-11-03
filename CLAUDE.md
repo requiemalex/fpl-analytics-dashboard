@@ -34,9 +34,13 @@ npm install     # first time
 npm run dev     # server :4000 + client :5173
 npm run build   # type-checks both packages — a type error fails the build
 npm test        # Vitest, both workspaces, + electron/*.test.js (node --test); coverage is partial — extend it
+npm run check   # build + every test in a few lines (only failures shown); `-- <filter>` for a subset
+npm run probe   # the built app under pressure in a fresh browser (docs/audits/strategy/TOOLKIT.md)
 ```
-No lint script. Playwright isn't installed but works via
-`npx playwright install chromium` + a throwaway script (commit nothing).
+No lint script. Prefer `npm run check` to `npm run build` + `npm test`
+(same checks, ~80 KB less output). Playwright is a dev dependency;
+browser scripts reuse `scripts/audit/lib/`, and throwaway ones go in
+`audit-output/tmp/` (not committed).
 
 ## Data
 - The official FPL API is the only authoritative source. One approved,
@@ -310,13 +314,18 @@ Strategy and results are kept apart (index: `docs/audits/README.md`):
 
 Three phases, each in its own fresh session (never two in one conversation).
 Each takes an optional scope (a page or feature; default the full app):
-1. `PHASE-1-FORENSIC-AUDIT-PROMPT.md` — investigate and report only; commits
-   the report as the baseline.
+1. `PHASE-1-FORENSIC-AUDIT-PROMPT.md` — put the app under pressure and
+   report only; commits the report as the baseline.
 2. `PHASE-2-REMEDIATION-PROMPT.md` — fix that run's confirmed findings;
    commits, no release unless I ask.
 3. `PHASE-3-ADVERSARIAL-REGRESSION-PROMPT.md` — try to break the fixes; report
    only, and recommend whether to release.
 
-Asking you to run one of these prompts counts as asking you to run the app
-for it. When I ask for past audit results, read `docs/audits/README.md` and
+Every phase follows `strategy/RULES.md` first: machine checks
+(`npm run check`, `npm run probe`) before reading code, no whole-file reads
+of big files, no screenshots by default, a short lead conversation that
+delegates to helpers capped at 40 tool calls. The same rules apply to any
+other investigation or "test the app" request (owner's decision,
+2026-11-03: audits must not burn usage). Asking you to run one of these
+prompts counts as asking you to run the app for it. When I ask for past audit results, read `docs/audits/README.md` and
 `docs/audits/results/`, not the strategy folder.
