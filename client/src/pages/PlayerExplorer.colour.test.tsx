@@ -6,6 +6,7 @@ import { PlayerExplorer } from "./PlayerExplorer";
 import { makePlayer, makeTeam } from "../test/fixtures";
 import { percentileTint } from "../utils/colorScale";
 import { setComparativeColourOn } from "../state/comparativeColour";
+import { HELP_GUIDES } from "../help/guides";
 
 // <comparative_colouring> on Player Explorer (owner's decision, 2026-10-19):
 // a cell's colour is the player's rank within his position among the whole
@@ -153,5 +154,27 @@ describe("Player Explorer — <hide_small_samples>", () => {
     expect(rowMarks()).toBeGreaterThan(0);
     fireEvent.click(getByRole("button", { name: /^Hide the 7 players/ }));
     expect(rowMarks()).toBe(0);
+  });
+});
+
+// Audit 2026-11-03 L12/L13: Help's toolbar guide must list every icon the
+// Player Explorer toolbar shows (Hide included), in the same order, and its
+// Clear filters line must say what the button's hover says (Hide goes off too).
+describe("Player Explorer — the toolbar Help guide", () => {
+  it("has one row per toolbar icon, in the toolbar's order, and Clear filters says it turns Hide off", () => {
+    const { container } = renderCurrentSeason();
+    // The same icons (their drawing, whatever the size), in the same order.
+    const drawing = (el: Element | null | undefined) => el?.querySelector("svg")?.innerHTML ?? "";
+    const buttons = Array.from(container.querySelectorAll(".icon-toolbar > *")).map((el) => (el.matches("button") ? el : el.querySelector("button")));
+    const toolbar = buttons.map((b) => b?.getAttribute("aria-label") ?? "");
+    const icons = buttons.map(drawing);
+    cleanup();
+    const guide = HELP_GUIDES.find((g) => g.id === "toolbar")!;
+    const { container: help } = render(<>{guide.body}</>);
+    const rows = Array.from(help.querySelectorAll(".help-iconkey-row"));
+    expect(icons.every(Boolean)).toBe(true);
+    expect(rows.map((r) => drawing(r.querySelector(".help-icon-square")))).toEqual(icons);
+    expect(toolbar.find((l) => l.startsWith("Clear every filter"))).toMatch(/Hide$/);
+    expect(rows.find((r) => r.textContent?.startsWith("Clear filters"))?.textContent).toMatch(/turns Hide off/);
   });
 });

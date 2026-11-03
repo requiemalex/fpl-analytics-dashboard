@@ -1,6 +1,7 @@
 import React from "react";
 import { AnalysisModeIcon } from "../components/AnalysisModeIcon";
 import {
+  ChevronsIcon,
   ColumnsIcon,
   ComparativeColourIcon,
   CreateViewIcon,
@@ -108,7 +109,7 @@ const FIRST_GUIDES: HelpGuide[] = [
           items={[
             "Ranked against everyone in his position for that Data View, so filtering never changes a colour.",
             "Lower price and ownership count as better.",
-            "Games played, draws and style figures are never coloured.",
+            "A club's games played, draws and style figures are never coloured.",
           ]}
         />
         <IconKey
@@ -436,12 +437,12 @@ const FIRST_GUIDES: HelpGuide[] = [
     id: "toolbar",
     topic: TOPIC.tables,
     title: "The table toolbar",
-    answer: "Five icons above the table: reset, columns, clear filters, saved views and export.",
+    answer: "Icons above the table: reset, columns, clear filters, saved views, Hide (Player Explorer only) and export.",
     pages: TABLE_PAGES,
     keywords: [
       "toolbar icons", "top of table", "what are these icons", "table buttons",
       "toolbar", "icons", "buttons", "reset", "default", "start again", "columns", "clear filters", "clear", "saved views", "export",
-      "csv", "excel", "download", "spreadsheet", "export to file", "google sheets", "copy table", "funnel",
+      "csv", "excel", "download", "spreadsheet", "export to file", "google sheets", "copy table", "funnel", "hide",
     ],
     related: ["columns", "saved-views"],
     body: (
@@ -449,8 +450,9 @@ const FIRST_GUIDES: HelpGuide[] = [
         rows={[
           { icon: <ResetIcon />, label: "Reset:", text: "default columns, order and widths; no filters" },
           { icon: <ColumnsIcon />, label: "Columns:", text: "choose which show (type to find one)" },
-          { icon: <FilterIcon />, label: "Clear filters:", text: "empties the search and every filter" },
+          { icon: <FilterIcon />, label: "Clear filters:", text: "empties the search and every filter, and turns Hide off" },
           { icon: <SavedViewsIcon />, label: "Saved views:", text: "save or load a set-up" },
+          { icon: <HideSmallSamplesIcon size={15} />, label: "Hide:", text: "players under the minutes floor (Player Explorer only)" },
           { icon: <DownloadIcon />, label: "Export CSV:", text: "what's on screen, ready for Excel" },
         ]}
       />
@@ -984,7 +986,7 @@ const FIRST_GUIDES: HelpGuide[] = [
     answer: `Press ${NOTEPAD_KEY} on any page to jot notes; they save as you type.`,
     pages: ALL_PAGES,
     keywords: [
-      "notebook", "jot down", "write notes", "save notes", "notes tab", "keep notes", "note pad","notepad", "notes", "note", "jot", "write", "writing", "backtick", "`", "memo", "scratch", "tabs", "plan", "watchlist", "to do"],
+      "notebook", "jot down", "write notes", "save notes", "notes tab", "keep notes", "note pad","notepad", "notes", "note", "jot", "write", "writing", "backtick", "`", "memo", "scratch", "tabs", "plan", "watchlist", "to do", "expand", "full page", "bigger notepad"],
     related: ["updates"],
     body: (
       <>
@@ -999,6 +1001,7 @@ const FIRST_GUIDES: HelpGuide[] = [
             </>,
           ]}
         />
+        <IconKey rows={[{ icon: <ChevronsIcon direction="left" />, label: "Expand to full page", text: "(and back)" }]} />
         <Note>Up to 5 tabs. Double-click a tab to rename it. Saved on this computer only.</Note>
       </>
     ),

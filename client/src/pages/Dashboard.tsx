@@ -14,7 +14,7 @@ import { DEFAULT_FILTERS, type GlobalScoutingFilters } from "../state/scoutingFi
 import { DATA_VIEW_SEGMENTS } from "../components/AnalysisModeToggle";
 import { MAX_NAME_LENGTH, MenuGroupHeading, SegmentedControl, fplHeading, type SegmentOption } from "../components/MenuControls";
 import { FiltersBar } from "../components/FiltersBar";
-import { CardEditRemoveButtons, CreateViewIcon, FilterIcon, PlusIcon, TrashIcon, TrendLineIcon } from "../components/IconToolbar";
+import { CardEditRemoveButtons, CreateViewIcon, FilterIcon, PlayersViewIcon, PlusIcon, TeamsViewIcon, TrashIcon, TrendLineIcon } from "../components/IconToolbar";
 import { SectionHeading } from "../components/SectionHeading";
 import { PlayerSearch } from "../components/PlayerSearch";
 import { TeamPicker } from "../components/TeamPicker";
@@ -454,31 +454,6 @@ function timeProgressPercent(startISO: string, endISO: string): number | null {
   return Math.min(100, Math.max(0, ((Date.now() - start) / (end - start)) * 100));
 }
 
-/** Header view toggle: a two-person mark for "Players". */
-function PlayersViewIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <circle cx="6" cy="5.5" r="2.3" stroke="currentColor" strokeWidth="1.3" />
-      <path d="M1.6 14c0-2.4 2-4 4.4-4s4.4 1.6 4.4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-      <circle cx="11.6" cy="6.2" r="1.8" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M10.3 9.3c1.9-.2 3.7.9 4 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-/** Header view toggle — a club-badge/shield silhouette, pairing with PlayersViewIcon above for "Teams". */
-function TeamsViewIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path
-        d="M8 1.5 13.5 3.5V7.5C13.5 11 11.2 13.4 8 14.5C4.8 13.4 2.5 11 2.5 7.5V3.5L8 1.5Z"
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
 
 /** Add Player Tile's "Player Search" toggle icon — plain magnifying glass, paired with FilterIcon's funnel for "Filters". */
 function PlayerSearchIcon() {

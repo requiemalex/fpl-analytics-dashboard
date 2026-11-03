@@ -140,3 +140,20 @@ describe("Help (<help_panel>)", () => {
     expect(document.querySelector(".help-health")?.textContent).toContain("Defensive Contributions");
   });
 });
+
+// Audit 2026-11-03 L14: "What the icons mean" says it covers every icon, so
+// each icon button the app shows (named by its own hover text) needs a row.
+describe("Help — What the icons mean", () => {
+  it("has a row for every icon button in the app", async () => {
+    const { HELP_GUIDES } = await import("./guides");
+    const guide = HELP_GUIDES.find((g) => g.id === "icons")!;
+    const { container } = render(<>{guide.body}</>);
+    const labels = Array.from(container.querySelectorAll(".help-iconkey-row b")).map((b) => b.textContent?.replace(/:$/, "").trim());
+    const APP_ICONS = [
+      "Reset", "Columns", "Clear filters", "Saved views", "Hide:", "Export", "Create View", "Edit", "Delete", "Add", "New Squad", "Close",
+      "Trend line", "Players", "Teams", "Previous / next gameweek", "Captain", "Best Draft", "Clear Draft", "Reset Draft",
+      "Gameweek Summary", "Gameweek Log", "Confirm transfers", "Unlimited", "Notepad", "Expand to full page", "Colours", "Help",
+    ].map((l) => l.replace(/:$/, ""));
+    for (const icon of APP_ICONS) expect(labels, icon).toContain(icon);
+  });
+});

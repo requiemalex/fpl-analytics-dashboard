@@ -579,7 +579,8 @@ too.
   (`<league_points_follow_results>`) — so the line always adds up. League
   position stays a rounded mean, so two clubs can share a position; every
   count is whole (`<whole_numbers>`).
-- **Gaps:** club xG/xA/xGI/xGC (and per-player starts) exist from 2023/24;
+- **Gaps:** club xG/xA/xGI/xGC exist from 2023/24 (a player's starts and
+  expected stats from 2022/23, FPL's own season totals);
   club DC from 2025/26. FPL only started tracking starts and expected stats
   at 2022/23 GW16, and the archive carries 0 for earlier gameweeks, so the
   backfill stores those as `null` (`<untracked_expected_rounds>`) and any
@@ -1378,7 +1379,7 @@ goals expected each way (`<points_model>`).
     over-performance included (Goals − xG, Assists − xA, Pts − xPts).
     **Price and ownership are coloured, less is better** (cost efficiency,
     differential points). Never coloured (`noColour`, `colourDirection`):
-    games played, draws and style statistics (Set-Piece xG %, Assisted
+    a club's games played, draws and style statistics (Set-Piece xG %, Assisted
     Shots %, PPDA, Opp. PPDA). A player's own shots blocked count as worse.
   - Player Comparison's per-player colours and the Dashboard's charts use
     neither green nor red, so nothing reads as better or worse by its

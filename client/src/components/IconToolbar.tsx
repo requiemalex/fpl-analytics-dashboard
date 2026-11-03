@@ -172,6 +172,42 @@ export function ChevronIcon({ direction, size = 14 }: { direction: "left" | "rig
   );
 }
 
+/** Header view toggle: a two-person mark for "Players". */
+export function PlayersViewIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <circle cx="6" cy="5.5" r="2.3" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M1.6 14c0-2.4 2-4 4.4-4s4.4 1.6 4.4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <circle cx="11.6" cy="6.2" r="1.8" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M10.3 9.3c1.9-.2 3.7.9 4 3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Header view toggle — a club-badge/shield silhouette, pairing with PlayersViewIcon above for "Teams". */
+export function TeamsViewIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M8 1.5 13.5 3.5V7.5C13.5 11 11.2 13.4 8 14.5C4.8 13.4 2.5 11 2.5 7.5V3.5L8 1.5Z"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Double chevrons pointing left (widen the panel to fill the page) or right (shrink it back to the side). */
+export function ChevronsIcon({ direction }: { direction: "left" | "right" }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true" style={direction === "right" ? { transform: "scaleX(-1)" } : undefined}>
+      <polyline points="8,3.5 3.5,8 8,12.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points="12.5,3.5 8,8 12.5,12.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 /** A plus — the Add card at the end of a Dashboard or Player Comparison grid. */
 export function PlusIcon({ size = 14 }: { size?: number }) {
   return (

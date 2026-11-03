@@ -163,7 +163,7 @@ browser scripts reuse `scripts/audit/lib/`, and throwaway ones go in
   club's among all clubs. The fixed floor (a quarter of the minutes available) always
   applies to colour, on every page: under it, no colour and out of the
   pool. More is better (over-performance included); lower price and
-  ownership are better; played, draws and style stats are never coloured.
+  ownership are better; a club's played, draws and style stats are never coloured.
   The top bar's palette switch turns every such colour off at once
   (`<comparative_colour_switch>`): paint by rank only through
   `percentileTint` / `percentileColour`, never a colour of your own.
