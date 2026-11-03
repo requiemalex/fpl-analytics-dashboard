@@ -5,6 +5,23 @@ each version's commits since the one before. Written from git by
 `npm run release-notes` (`scripts/release/notes.ts`) as each release is
 made, so don't edit it by hand: the next release rewrites it.
 
+## v1.132.0 · 3 Nov 2026
+
+- Audit 2026-11-03 full-app: second remediation report (R1–R8)
+- Phase 3 audit fixes: an old saved squad keeps a chip marked used by hand; the picked Points History season stays green on hover; the Match Log's DC average is whole and a cameo's average minutes reads "<1"; a saved view that's gone opens Starter; the comparison Help no longer points at a + card Starter doesn't have; the server checks a team ID by the app's own rule (audit 2026-11-03 R1–R8)
+- Audit 2026-11-03 full-app: phase 3 report
+- The top bar's gameweek label reads the same way in every state: "Gameweek 9 finished" instead of "GW 9 · final" (audit 2026-11-03 L8, the owner's choice); the owner's later decisions on the phase 2 report recorded, keeping three switches' own look
+- Audit 2026-11-03 full-app: phase 2 report
+- Audit 2026-11-03 full-app: fix L12 L13 L14 L17 L18
+- Audit 2026-11-03 full-app: fix M7 L1 L10 L11
+- Audit 2026-11-03 full-app: fix M8 L9 L6
+- Audit 2026-11-03 full-app: fix M5 M6 L2 L3
+- Audit 2026-11-03 full-app: fix M1 L16
+- Audit 2026-11-03 full-app: fix M2 M3 M4 L4 L5
+- Audit 2026-11-03 full-app: owner's decisions on the phase 1 report
+- Audit 2026-11-03 full-app: phase 1 report
+- Audits now test the app hard for far less usage: new npm run check (build and every test in a few lines) and npm run probe (the built app under pressure in a fresh browser: every page, API failures, damaged saved data, a seeded impatient user), with leaner audit prompts that delegate to short helper missions
+
 ## v1.131.0 · 3 Nov 2026
 
 - Reset Draft on an imported squad now gives back FPL's bank (it was pricing risen players at today's price, leaving the bank short), and everything picked or switched on across the app has one look: filled soft green with no green outline, as the Dashboard's Players/Teams icons
