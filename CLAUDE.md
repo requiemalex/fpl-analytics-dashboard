@@ -332,10 +332,8 @@ other investigation or "test the app" request (owner's decision,
 prompts counts as asking you to run the app for it. When I ask for past audit results, read `docs/audits/README.md` and
 `docs/audits/results/`, not the strategy folder.
 
-**Playbooks** (`docs/playbooks/README.md`): other repeatable jobs, each a
-command I start — `/release`, `/gameweek`, `/feature`, `/season`,
-`/rules-sweep`, `/help-refresh`, `/perf`, `/deps`, `/a11y`. They follow
-`strategy/RULES.md` too. The review ones are focused audits: they write a
-`results/` run in the Phase 1 format, so `/audit 2` and `/audit 3` fix and
-check their findings. Features built with `/feature` keep their spec and
-reports in `docs/features/`.
+**Playbooks** (`docs/playbooks/README.md`): the other big repeatable jobs,
+each a command I start — `/feature`, `/release`, `/season`. They follow
+`strategy/RULES.md` too. `/season` writes a `results/` run in the Phase 1
+format, so `/audit 2` and `/audit 3` fix and check its findings. Features
+built with `/feature` keep their spec and reports in `docs/features/`.

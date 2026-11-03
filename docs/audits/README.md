@@ -28,8 +28,7 @@ damaged saved data, a seeded "impatient user"), `npm run probe:selftest`.
 Phases 2 and 3 use the run folder you name, or else the most recent
 unfinished one. Every report opens with a plain-English summary.
 
-**Focused audits** from `docs/playbooks/` (`/gameweek` with findings,
-`/season`, `/rules-sweep`, `/help-refresh`, `/perf`, `/a11y`) write a run
+**Season checks** (`/season`, `docs/playbooks/SEASON.md`) write a run
 folder here too, with a `1-audit.md` in the Phase 1 format and a row in
 "Past runs", so Phases 2 and 3 work on them unchanged.
 
