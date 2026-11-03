@@ -159,6 +159,8 @@ const QUESTIONS: [string, string][] = [
   ["can i afford", "plan-transfer"],
   ["how has my team done each week", "gameweek-log"],
   ["undo my transfers", "reset-draft"],
+  ["expected points column in player explorer", "predictive-columns"],
+  ["predictive columns", "predictive-columns"],
   ["revert my squad to the last deadline", "reset-draft"],
   ["what does used mean next to a chip in the summary", "gameweek-summary"],
   ["points left on my bench", "gameweek-summary"],

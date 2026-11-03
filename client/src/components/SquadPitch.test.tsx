@@ -115,7 +115,7 @@ describe("<open_slots> the pitch's empty places", () => {
 });
 
 /** What each card figure is: the first line of its hover (<stat_hover>). */
-const POINTS_FPL = "Points Prediction (FPL Official): expected points for the gameweek picked, a double's two matches added up.";
+const POINTS_FPL = "Exp. Pts (FPL Official): expected points for the gameweek picked, a double's two matches added up.";
 const MINUTES = "Minutes: how long Scoutline's model expects him to play in the gameweek picked.";
 const SELL = "Selling price: what FPL would pay for him, his purchase price plus half of any rise since (rounded down to £0.1m), or today's price after a fall.";
 const PROGRESS = "Progress: FPL's own figure for how far he is toward his next price change, + toward a rise, − toward a drop (100% is the threshold).";
@@ -125,7 +125,7 @@ describe("<kit_view> Highlight", () => {
   it("shows one figure for the next match, with no fixture beside it, and switches what it is", () => {
     const { container, getByRole, queryByRole } = renderPitch([makePlayer({ id: 1, position: "MID", price: 7.5 })]);
     const figure = () => container.querySelector(".pitch-card .pitch-card-figure")?.textContent;
-    // Points Prediction, FPL, by default.
+    // Exp. Pts, FPL, by default.
     expect(figure()).toBe("4.2");
     expect(container.querySelector(".pitch-card .pitch-card-match")).toBeNull();
     expect(container.querySelector(".pitch-card .pitch-card-figure")!.getAttribute("title")).toBe(`${POINTS_FPL}\nFPL figures v BUR (H): 4.2 pts. FPL's own expected points (his form) alone: no season record of his to go on yet`);
@@ -137,7 +137,7 @@ describe("<kit_view> Highlight", () => {
     // Price adds its own toggle; Source stays in Projected Points' box whatever the highlight.
     expect(getByRole("radiogroup", { name: "Source" }).closest(".squad-summary-figure.is-split")).not.toBeNull();
     expect(getByRole("radiogroup", { name: "Price" })).toBeTruthy();
-    fireEvent.click(getByRole("radio", { name: /^Expected minutes/ }));
+    fireEvent.click(getByRole("radio", { name: /^Exp. Mins/ }));
     expect(queryByRole("radiogroup", { name: "Price" })).toBeNull();
     fireEvent.click(getByRole("radio", { name: /next five matches/ }));
     expect(figure()).toBeUndefined();
@@ -174,12 +174,12 @@ describe("<kit_view> Highlight", () => {
     expect(chips(1)[0].getAttribute("title")).toBe("BUR at home: 34% chance of a clean sheet for his club (Fixture Forecast).\n90th percentile of every club's upcoming fixtures: top 10%");
   });
 
-  it("is icons, each named in its hover, Points Prediction last", () => {
+  it("is icons, each named in its hover, Exp. Pts last", () => {
     const { getByRole } = renderPitch([makePlayer({ id: 1, position: "MID" })]);
     const buttons = [...getByRole("radiogroup", { name: "Highlight" }).querySelectorAll("button")];
     expect(buttons.map((b) => b.textContent)).toEqual(["", "", "", "", ""]);
     expect(buttons.every((b) => b.querySelector("svg") && b.getAttribute("title") === b.getAttribute("aria-label"))).toBe(true);
-    expect(buttons.map((b) => b.getAttribute("title")!.split(":")[0])).toEqual(["Fixtures", "Price", "Owned", "Expected minutes", "Points Prediction"]);
+    expect(buttons.map((b) => b.getAttribute("title")!.split(":")[0])).toEqual(["Fixtures", "Price", "Owned", "Exp. Mins", "Exp. Pts"]);
   });
 
   it("shows the Source toggle as icons, and the Fixtures toggle beside Fixtures only, as icons too", () => {
@@ -344,7 +344,7 @@ describe("<gameweek_arrows> the pitch's gameweek", () => {
     expect(figure().getAttribute("title")).toBe(
       POINTS_FPL + "\nFPL figures v WOL (A): 6.1 pts. Season 7.2 a match (goals and assists partly as xG and xA), counting 80%; form 5.0 (FPL's own expected points), counting 20%; −10% for FPL difficulty 4; 75% chance of playing",
     );
-    fireEvent.click(getByRole("radio", { name: /^Expected minutes/ }));
+    fireEvent.click(getByRole("radio", { name: /^Exp. Mins/ }));
     // <whole_numbers>: minutes are whole.
     expect(figure().textContent).toBe("78");
     expect(figure().getAttribute("title")).toBe(`${MINUTES}\nAbout 78 minutes expected in GW10 v WOL (A): 88% chance of starting`);
@@ -369,7 +369,7 @@ describe("<expected_minutes> Minutes", () => {
         [2, blank],
       ]),
     });
-    fireEvent.click(getByRole("radio", { name: /^Expected minutes/ }));
+    fireEvent.click(getByRole("radio", { name: /^Exp. Mins/ }));
     // Forwards are drawn first.
     const [fwd, mid] = [...container.querySelectorAll(".pitch-card .pitch-card-figure")];
     expect(mid.textContent).toBe("142");
@@ -487,7 +487,7 @@ describe("<best_draft> Best Draft", () => {
     expect(picks.viceCaptainId).toBe(13);
   });
 
-  it("uses Points Prediction's source", () => {
+  it("uses the cards' Exp. Pts source", () => {
     const onBestDraft = vi.fn();
     const { xi, bench, expectations } = fullSquad([2, 5, 3, 3, 3, 3, 1, 4, 4, 4, 4, 1, 6, 2, 7]);
     const { getByRole } = renderPitch(xi, bench, vi.fn(), null, true, null, [9], { expectations, onBestDraft });

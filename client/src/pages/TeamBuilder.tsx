@@ -2,23 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAppState } from "../state/AppStateContext";
 import { useSavedSquads, MAX_SAVED_SQUADS } from "../state/useSavedSquads";
-import { horizonHint, minutesGameweekHint } from "../components/hoverText";
 import { useEscapeLayer } from "../state/useEscapeLayer";
 import { useDialogFocus } from "../state/useDialogFocus";
 import { SQUAD_RULES, createBlankSquad, type SavedSquad } from "../types/team";
 import { sellingPrice, squadMoney } from "../metrics/squadPrices";
 import { loadImportedPurchasePrices } from "../state/importedPurchasePrices";
 import { validateSquad, canAddPlayer, fitsStartingXI, openSquadSlots } from "../metrics/squadRules";
-import { fplOfficialForFixture, fplSeasonRate } from "../metrics/expectedPoints";
-import { modelClubRatings, modelForFixture, playerEvidence } from "../metrics/pointsModelLive";
-import { fixtureOddsByTeam } from "../metrics/fixtureOdds";
-import { clubSeasonsAsShown } from "../metrics/teamStats";
-import { expectationForGameweek, horizonTotal, upcomingGameweeks, type Horizon, type PointsSource } from "../metrics/gameweekExpectations";
 import { ApiRequestError } from "../api/client";
 import { importFplTeam, keepPurchases, loadImportTransfers } from "../state/fplTeamImport";
 import { chipStatuses, confirmTransfers, playChip, resetDraft, resetDraftBlocker, setFreeTransfers, transferStanding } from "../metrics/squadTransfers";
 import type { ChipName } from "../types/team";
-import { getUpcomingFixtures, firstPickableEventId, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { SquadPitch, type PitchColourRanks } from "../components/SquadPitch";
 import type { DraftPicks } from "../metrics/bestDraft";
 import { IconChipButton, CloseIcon, TrashIcon } from "../components/IconToolbar";
@@ -26,21 +19,21 @@ import { fmtPrice } from "../utils/format";
 import { rankWithinGroups } from "../metrics/comparativeColour";
 import type { NormalizedPlayer, Position } from "../types/normalized";
 import { describeLoadError } from "../api/errors";
-import { EXPLORER_DEFAULT_VISIBLE_COLUMNS, FIXTURES_COLUMN_KEY, PlayerExplorerTable, type ExplorerOpenRequest, type LeadColumn } from "../components/PlayerExplorerTable";
-import { HorizonPicker } from "../components/HorizonPicker";
+import { EXPLORER_DEFAULT_VISIBLE_COLUMNS, FIXTURES_COLUMN_KEY, PlayerExplorerTable, type ExplorerOpenRequest } from "../components/PlayerExplorerTable";
+import { ADD_PLAYERS_PREDICTIVE_COLUMNS } from "../components/predictiveColumns";
+import { usePlayerForecasts } from "../state/usePlayerForecasts";
 import { SectionHeading } from "../components/SectionHeading";
 import { SquadPicker } from "../components/SquadPicker";
 import { GameweekSummary } from "../components/teamBuilding/GameweekSummary";
 import { ChipsFigure, TransfersFigure } from "../components/teamBuilding/SquadPlanning";
 import { useGameweekLog } from "../state/useGameweekLog";
+import { firstPickableEventId } from "../metrics/fixtureTicker";
 
 /** How long a rejected drag's warning message stays visible before clearing itself. */
 const WARNING_DISPLAY_MS = 4000;
 /** Hover on "FPL team ID" wherever a squad can be imported: where to find it. */
 const TEAM_ID_HINT =
   "Your FPL team ID is the number in your team's web address: sign in at fantasy.premierleague.com, open the Points tab, and it's the number after /entry/ (e.g. fantasy.premierleague.com/entry/1234567/event/8).";
-/** How many of each club's next fixtures the Fixtures chips and column show. */
-const FIXTURE_TICKER_LENGTH = 5;
 /** The shared table's starting columns in Add Players (<shared_player_table>): Next 5 Fixtures, then Player Explorer's own defaults. */
 const ADD_PLAYERS_DEFAULT_COLUMNS = [FIXTURES_COLUMN_KEY, ...EXPLORER_DEFAULT_VISIBLE_COLUMNS];
 
@@ -78,18 +71,9 @@ export function TeamBuilder() {
     players,
     teams,
     teamsById,
-    fixtures,
     events,
-    historicProfiles,
-    historicStatus,
-    historicReferenceSeason,
-    historicFetchSkippedPlayerIds,
-    seasonMatchesByPlayerId,
-    clubSeasons,
-    currentSeasonHasStarted,
     gameweekState,
     requestHistoricData,
-    totalPlayers,
     chips,
     liveDataVersion,
   } = useAppState();
@@ -105,9 +89,6 @@ export function TeamBuilder() {
   // table keeps its Data View, columns, sort and filters between visits.
   const [addOpen, setAddOpen] = useState(false);
   const [addRequest, setAddRequest] = useState<ExplorerOpenRequest | null>(null);
-  // <points_horizon>: the gameweeks each Exp. Pts column adds up, from the next one.
-  const [fplHorizon, setFplHorizon] = useState<Horizon>(1);
-  const [modelHorizon, setModelHorizon] = useState<Horizon>(1);
   // The pitch's gameweek (<gameweek_arrows>), for its cards and Best Draft.
   const [pitchEventId, setPitchEventId] = useState<number | null>(null);
   const [captainPickMode, setCaptainPickMode] = useState<"captain" | "viceCaptain" | null>(null);
@@ -558,141 +539,20 @@ export function TeamBuilder() {
   const squadValidation = validateSquad(squadPlayers, money.budget, money.cost);
   const openSlots = openSquadSlots(squadPlayers, startingXIPlayers);
 
-  // Upcoming fixtures for every club (cheap — 20 clubs), reused below for
-  // every player's expected points and Add Players' Next 5 Fixtures,
-  // rather than recomputed per player. Memoized: an unmemoized Map gets a
-  // new identity every render even when nothing it's built from has
-  // changed, which would silently defeat the memoisation downstream.
-  // They start at the next gameweek still open for picks, the one FPL's
-  // ep_next describes, never a match already played (audit 2026-10-18 H1).
-  // Every club's upcoming fixtures through the last gameweek looked ahead
-  // to (a double can make that more than five), and the first five of them
-  // for the Fixtures chips and column.
-  const fromEventId = useMemo(() => firstPickableEventId(events), [events]);
-  // <upcoming_gameweeks>: GW9, GW10… by FPL's own numbering.
-  const gameweeks = useMemo(() => upcomingGameweeks(events), [events]);
-  const upcomingByTeamId = useMemo(() => {
-    const lastGameweek = gameweeks.at(-1) ?? null;
-    const map = new Map<number, UpcomingFixture[]>();
-    for (const team of teamsById.values()) {
-      const upcoming = getUpcomingFixtures(team.id, fixtures, teamsById, Infinity, fromEventId);
-      map.set(team.id, lastGameweek === null ? upcoming.slice(0, FIXTURE_TICKER_LENGTH) : upcoming.filter((f, i) => i < FIXTURE_TICKER_LENGTH || (f.eventId !== null && f.eventId <= lastGameweek)));
-    }
-    return map;
-  }, [teamsById, fixtures, fromEventId, gameweeks]);
-  const fixturesByTeamId = useMemo(() => new Map([...upcomingByTeamId].map(([id, list]) => [id, list.slice(0, FIXTURE_TICKER_LENGTH)])), [upcomingByTeamId]);
+  // <player_forecasts>: the fixtures, their odds and every player's Exp.
+  // Pts and Exp. Mins for each upcoming gameweek, worked out as Player
+  // Explorer works them out; the pitch reads its gameweek's, and Add
+  // Players is handed the same, so nothing is worked out twice.
+  const forecasts = usePlayerForecasts({ expectations: true });
+  const { fromEventId, gameweeks, fixturesByTeamId, fixtureOddsByTeamId, expectationsByPlayerId } = forecasts;
   const pitchGameweek = pitchEventId !== null && gameweeks.includes(pitchEventId) ? pitchEventId : (gameweeks[0] ?? null);
 
-  // Model Predicted's club ratings: the Fixture Forecast's, from the club
-  // records as the Team Profile shows them (<fixture_forecast>), fitted once
-  // for every player's matches.
-  const clubRatings = useMemo(
-    () =>
-      modelClubRatings(
-        clubSeasonsAsShown({ clubSeasons, referenceSeason: historicReferenceSeason, currentSeasonHasStarted, livePlayerSumsPartial: historicFetchSkippedPlayerIds.length > 0 }),
-      ),
-    [clubSeasons, historicReferenceSeason, currentSeasonHasStarted, historicFetchSkippedPlayerIds],
-  );
-  // <fixture_odds>: each club's Fixture Forecast for its next five, for the pitch's Fixtures → Odds.
-  const fixtureOddsByTeamId = useMemo(() => fixtureOddsByTeam(fixturesByTeamId, teamsById, clubRatings), [fixturesByTeamId, teamsById, clubRatings]);
-  /** Model Predicted for one of a player's upcoming matches (<points_model>), from his evidence (<points_model_evidence>). */
-  const modelFor = useCallback(
-    (evidence: ReturnType<typeof playerEvidence>, teamId: number, fixture: UpcomingFixture) =>
-      modelForFixture(evidence, clubRatings, teamsById.get(teamId)?.code ?? null, teamsById.get(fixture.opponentTeamId)?.code ?? null, fixture, fromEventId),
-    [clubRatings, teamsById, fromEventId],
-  );
-
-  // What Model Predicted knows about every player (<points_model_evidence>),
-  // worked out once for both gameweeks below.
-  const evidenceByPlayerId = useMemo(
-    () => new Map(players.map((p) => [p.id, playerEvidence(p, historicProfiles.get(p.id), seasonMatchesByPlayerId.get(p.id), historicReferenceSeason, totalPlayers)])),
-    [players, historicProfiles, seasonMatchesByPlayerId, historicReferenceSeason, totalPlayers],
-  );
-  // FPL Official's season part (<fpl_official>): his points per match he
-  // was registered for, from the same season matches Model Predicted reads.
-  const fplSeasonRateByPlayerId = useMemo(
-    () => new Map(players.map((p) => [p.id, fplSeasonRate(p, seasonMatchesByPlayerId.get(p.id)?.length)])),
-    [players, seasonMatchesByPlayerId],
-  );
-  // Every player's figures for each upcoming gameweek (<upcoming_gameweeks>),
-  // in order, his matches in each added up: FPL Official, from FPL's own
-  // figures (<fpl_official>, metrics/expectedPoints.ts), and Scoutline's
-  // own points model (<points_model>) with its expected minutes
-  // (<expected_minutes>). Not captain-doubled: SquadPitch doubles the
-  // captain's. Worked out once: the pitch reads its gameweek's, Add
-  // Players adds up as many as each Exp. Pts column's horizon asks for.
-  const expectationsByPlayerId = useMemo(
-    () =>
-      new Map(
-        players.map((p) => [
-          p.id,
-          gameweeks.map((eventId) =>
-            expectationForGameweek(
-              upcomingByTeamId.get(p.teamId) ?? [],
-              eventId,
-              (fixture, index) => fplOfficialForFixture(p, fixture, index, fplSeasonRateByPlayerId.get(p.id) ?? null),
-              (fixture) => modelFor(evidenceByPlayerId.get(p.id) ?? null, p.teamId, fixture),
-            ),
-          ),
-        ]),
-      ),
-    [players, gameweeks, upcomingByTeamId, fplSeasonRateByPlayerId, evidenceByPlayerId, modelFor],
-  );
   // Every player's figures for the gameweek the pitch's arrows pick: the
   // squad's cards show them, and their colours rank them among everyone.
   const pitchExpectations = useMemo(() => {
     const index = pitchGameweek === null ? -1 : gameweeks.indexOf(pitchGameweek);
     return new Map(players.map((p) => [p.id, index < 0 ? null : (expectationsByPlayerId.get(p.id)?.[index] ?? null)]));
   }, [players, gameweeks, pitchGameweek, expectationsByPlayerId]);
-
-  // Add Players' own columns (<shared_player_table> lead columns): the two
-  // Exp. Pts, each added up over its own horizon (<points_horizon>), and
-  // Exp. Mins, always the next gameweek's — who starts in five weeks'
-  // time can't be known now, so it doesn't move (the owner's call,
-  // 2026-10-26), as Next 5 Fixtures doesn't.
-  const leadColumns: LeadColumn[] = useMemo(() => {
-    const listFor = (id: number) => expectationsByPlayerId.get(id) ?? [];
-    const points = (key: string, label: string, source: PointsSource, horizon: Horizon, setHorizon: (h: Horizon) => void, hint: string): LeadColumn => {
-      const totals = new Map(players.map((p) => [p.id, horizonTotal(listFor(p.id), horizon, source)]));
-      return {
-        key,
-        label,
-        value: (id) => totals.get(id) ?? null,
-        decimals: 1,
-        hint: `${hint} Added up over the gameweeks picked on the header (${horizon === 1 ? "the next one" : `the next ${horizon}`}).`,
-        cellHint: (id) => horizonHint(listFor(id), horizon, source, totals.get(id) ?? null),
-        trailing: <HorizonPicker value={horizon} onChange={setHorizon} figure={label} />,
-      };
-    };
-    const nextMinutes = new Map(players.map((p) => [p.id, listFor(p.id)[0]?.expectedMinutes ?? null]));
-    return [
-      points(
-        "expFplOfficial",
-        "Exp. Pts (FPL Official)",
-        "fpl",
-        fplHorizon,
-        setFplHorizon,
-        "Expected points from FPL's own figures: his points a match this season, with goals and assists partly as xG and xA, and a little of his form (FPL's own expected points), adjusted for FPL's fixture difficulty and chance of playing. Hover a figure for its parts.",
-      ),
-      points(
-        "expModelPredicted",
-        "Exp. Pts (Model Predicted)",
-        "model",
-        modelHorizon,
-        setModelHorizon,
-        "Scoutline's own expected points: his chance of starting, his scoring rates and each match's forecast, through FPL's scoring rules. Hover a figure for its parts.",
-      ),
-      {
-        key: "expectedMinutes",
-        label: "Exp. Mins",
-        value: (id) => nextMinutes.get(id) ?? null,
-        // <whole_numbers>: minutes run to dozens.
-        decimals: 0,
-        hint: "The minutes Scoutline's model expects him to play in the next gameweek (a double gameweek's two matches added up): his chance of starting, from his recent starts, last season's, a return from an absence, managers selling him and FPL's injury and suspension news, and how long he usually plays. Always the next gameweek: who starts later can't be known yet.",
-        cellHint: (id) => minutesGameweekHint(listFor(id)[0] ?? null),
-      },
-    ];
-  }, [players, expectationsByPlayerId, fplHorizon, modelHorizon]);
 
   // The pitch cards' colours: the forward-looking figures ranked as the
   // Predictive columns rank them (Exp. Pts and Exp. Mins for the gameweek
@@ -1020,21 +880,14 @@ export function TeamBuilder() {
             <PlayerExplorerTable
               variant="panel"
               defaultVisibleColumns={ADD_PLAYERS_DEFAULT_COLUMNS}
-              leadColumns={leadColumns}
+              forecasts={forecasts}
+              defaultPredictiveColumns={ADD_PLAYERS_PREDICTIVE_COLUMNS}
               excludeIds={squadPlayerIdSet}
               playerAction={addAction}
-              fixturesByTeamId={fixturesByTeamId}
               visible={addOpen}
               openRequest={addRequest}
               searchInputId="picker-search"
               csvName="team-building-add-players"
-              notice={
-                historicStatus === "loading" && (
-                  <p className="page-subtitle" style={{ marginTop: 0, marginBottom: 12 }}>
-                    Still building historic data. Historic columns, Model Predicted and Exp. Mins will fill in shortly.
-                  </p>
-                )
-              }
             />
           </div>
         </div>

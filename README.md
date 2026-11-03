@@ -821,7 +821,7 @@ without it leaves that season's Shots Faced uncoloured.
   and hovers say exactly what each measures: xG is a player's own shots,
   xA the chances he set up (Corner xG his shots after corners, Corner xA
   his deliveries). Team Building's Add Players is Player Explorer's own table
-  (`<shared_player_table>`), so its headers and pickers are the same; its
+  (`<shared_player_table>`), so its headers and pickers are the same; the
   Predictive columns (the app's own forecasts, not a Data View's figures)
   stay plain. A
   small amber dot on an Understat header means its data is out of date or
@@ -1622,16 +1622,43 @@ the name column included, as a tiebreaker), and ≤/≥/= column filters
 shared engines. The whole table is shared too (`<shared_player_table>`,
 `components/PlayerExplorerTable.tsx`, the owner's request 2026-10-26):
 Player Explorer's page and Team Building's Add Players dialog are the
-same component — Data View, columns (Understat's and the ⇄ toggles
-included), filters, sort, Hide, saved views, export, headers and look. A
-host adds only what's its own, kept apart from the Explorer's: lead
-columns straight after Player (Team Building's Predictive group, its own
-group in the Columns picker, never in a saved view), an action on each
-row (Add), and players to leave out (the squad). Saved views are one
-store (`useExplorerViews("player")`), so a view saved in Player Explorer
-loads in Add Players and the other way round; a view keeps no lead
-column's sort or filter. Next 5 Fixtures sorts and filters by the five
-matches' average FPL difficulty, easiest first. It's always today's
+same component — Data View (above the toolbar in both), columns
+(Understat's and the ⇄ toggles included), the Predictive columns, Next 5
+Fixtures and its Games/Odds switch, filters, sort, Hide, saved views,
+export, headers and look: the same analysis can be done in either (the
+owner's call, 2026-11-02, after Add Players had forecasts the Explorer
+didn't). A host adds only what's its own: an action on each row (Add),
+players to leave out (the squad), its own starting columns, and the
+forecasts it already has (`forecasts`), so they aren't worked out twice.
+**Predictive columns** (`<predictive_columns>`,
+`components/predictiveColumns.tsx`) — Exp. Pts (FPL Official), Exp. Pts
+(Model Predicted), each with its gameweek horizon (`<points_horizon>`),
+Exp. Mins, and FPL's price-change **Progress** and **Predicted Progress**
+(`<price_progress>`, `metrics/priceProgress.ts`, the pitch's own reading):
+their own group, first in the Columns picker, drawn straight after
+Player. Off by default in Player Explorer; Add Players starts with the
+two Exp. Pts and Exp. Mins. Today's figures whatever the Data View,
+coloured by rank within the position with no minutes floor; Progress is
+coloured by the figure itself, as on the pitch (grey at 0, full green or
+red at ±100%; ranked for its hover only). Player Explorer works out every
+player's Exp. Pts and Exp. Mins only while one of those columns is shown.
+The pitch's purchase and selling prices stay the pitch's own: they exist
+only for a squad's players, whom Add Players leaves out (the owner's
+call, 2026-11-02). Saved views are one store (`useExplorerViews("player")`),
+so a view saved in Player Explorer loads in Add Players and the other way
+round, its Predictive columns, horizons and Games/Odds included. **Next 5
+Fixtures** is every club's next five from the next deadline
+(`<player_forecasts>`, `state/usePlayerForecasts.ts`), the same five the
+pitch shows, never a match of a gameweek already under way. Its header's
+Games/Odds switch (`<fixture_odds>`, `components/fixturesView.tsx`, the
+pitch's two icons) shows FDR-coloured opponents or his club's odds in
+each (a goalkeeper's or defender's clean sheet chance, a midfielder's or
+forward's goals expected, each tinted by its rank among every club's
+fixtures) with their average, tinted by the club's place among the
+clubs. Games sorts and filters by the five matches' average FPL
+difficulty, easiest first; Odds by the club's place among the clubs for
+the figure his position reads (0 to 100, best first), so goalkeepers and
+forwards sort together; switching clears its filter. It's always today's
 fixtures, so when shown it ends the always-live block — Own%, Price,
 Next 5 Fixtures — and the grey divider after it marks
 where the Data View's columns start (the owner's call, 2026-10-26); it's
@@ -1730,8 +1757,10 @@ mark so Excel on Windows reads £ and accented names correctly
   both Explorers, opens a menu of that page's saved views. "Save current
   view" names a snapshot of the Data View, the columns and their order,
   hand-set widths only (the rest fit the window on load, as after a drag),
-  the sort, every column filter, the search, the ⇄ choices and Player
-  Explorer's Hide. Clicking a view loads it; its save icon saves what's on
+  the sort, every column filter, the search, the ⇄ choices, Player
+  Explorer's Hide, and its Predictive columns, their horizons and Next 5
+  Fixtures' Games/Odds (`predictive`, store version 3; a view saved before
+  them leaves the Predictive columns as they are). Clicking a view loads it; its save icon saves what's on
   screen over it, its bin deletes it, each after a confirm. Up to 5 per
   Explorer (`MAX_EXPLORER_VIEWS`), names unique and at most 60 characters,
   the same checks and wording as Create View. Unlike the Dashboard's and
@@ -2089,7 +2118,7 @@ starting XI short of 11 or a line under its minimum.
   (`teamDisplayColors`); a goalkeeper's swaps them. The Team Profile's
   Formations section draws the same kit and nameplate. Under the
   kit, a dark nameplate: the name, then **one** figure, picked with
-  **Highlight** (`<kit_view>`: Fixtures, Price, Owned, Minutes, Points Prediction,
+  **Highlight** (`<kit_view>`: Fixtures, Price, Owned, Exp. Mins, Exp. Pts,
   coloured as before), with no fixture beside it. **Every switch on the
   card is icons** (the owner's call, 2026-11-02, as the page's actions
   are), each named in its hover (`title` + `aria-label`): Highlight
@@ -2109,10 +2138,12 @@ starting XI short of 11 or a line under its minimum.
   what the figures are: a shield (clean sheet chance) or a ball in flight
   (goals expected), named in its hover (the owner's call, 2026-11-02: bare
   figures didn't say what they were).
-  **Points Prediction** is the player's Exp. Pts for the gameweek the
+  **Exp. Pts** is the player's Exp. Pts for the gameweek the
   pitch's arrows pick (a double's two matches added up, "—" for a blank),
   from the source the FPL/Model toggle in Projected Points' box picks.
-  **Minutes** is his Exp. Mins for that gameweek (below). **Price** has
+  **Exp. Mins** is his Exp. Mins for that gameweek (below): the tables'
+  names for the same figures (the owner's call, 2026-11-02; the pitch
+  called them Points Prediction and Minutes until then). **Price** has
   its own toggle (`<price_view>`, below). Fixtures' and Price's toggles
   show only beside their own highlight. The switches are per page, like every view switch. The squad's name (no formation or player count) is the section
   heading, the shared `SectionHeading` with a shirt icon, as the
@@ -2134,7 +2165,7 @@ starting XI short of 11 or a line under its minimum.
   FPL's is), **Transfers** and **Chips** (`<squad_transfers>`,
   `<squad_chips>`, below). **The Exp. Pts source** (FPL / Model, no label) sits in
   Projected Points' own box, to the right of the figure, as the one
-  switch that Points Prediction, Projected Points, the captain's figure
+  switch that the cards' Exp. Pts, Projected Points, the captain's figure
   and Best Draft all follow (the owner's call, 2026-11-02: a toggle shown
   only with one highlight hid what so much depends on). Under a rule, one
   row: what the kits highlight (no label shown) and its own toggle, if it
@@ -2154,8 +2185,8 @@ starting XI short of 11 or a line under its minimum.
 - **Gameweek arrows** (`<gameweek_arrows>`, `GameweekArrows` in
   `components/MenuControls.tsx`) — ‹ GW10 › steps one gameweek at a time
   through the upcoming gameweeks (below), greyed at either end, "—" with
-  none left. Only the pitch has them (its cards' Points Prediction and
-  Minutes, their colours, Projected Points and Best Draft follow them),
+  none left. Only the pitch has them (its cards' Exp. Pts and Exp.
+  Mins, their colours, Projected Points and Best Draft follow them),
   per page, starting on the next gameweek. Add Players has none: its
   Exp. Pts columns each add up a number of gameweeks from the next one
   (`<points_horizon>`), and Exp. Mins and Next 5 Fixtures don't move.
@@ -2175,7 +2206,7 @@ starting XI short of 11 or a line under its minimum.
   Draft's total.
 - **Best Draft** (`<best_draft>`, `metrics/bestDraft.ts`) — sets the
   starting XI, captain and vice-captain with the most Exp. Pts for the
-  pitch's gameweek, from Points Prediction's source (FPL Official or
+  pitch's gameweek, from the cards' Exp. Pts source (FPL Official or
   Model Predicted, named in its hover), in a formation FPL allows (1 GKP,
   3–5 DEF, 2–5 MID, 1–3 FWD). Every legal formation is tried with each
   position's best players; the top figure in that XI captains and the
@@ -2391,9 +2422,11 @@ starting XI short of 11 or a line under its minimum.
   pitch's arrows pick, and their colours rank its figures among every
   player (`pitchExpectations`); Add Players adds them up (below). A match that has kicked off
   (FPL's `started`) is never upcoming, even before FPL marks it
-  `finished` hours after full time. The Fixtures chips and column are
-  still each club's next five matches; the Explorers' Next 5 Fixtures use
-  the kick-off rule only.
+  `finished` hours after full time. The Fixtures chips and Next 5
+  Fixtures, in both tables, are each club's next five from the next
+  deadline. All of it is worked out once, in `usePlayerForecasts`
+  (`<player_forecasts>`), for the pitch, Add Players and Player Explorer
+  alike.
 - **Add Players** (`<add_players_dialog>`) — a large dialog, not a section
   of the page: hidden until a "+" opens it, closed by its ×, Escape, a
   click outside it, or adding a player. It's hidden rather than removed
@@ -2404,11 +2437,11 @@ starting XI short of 11 or a line under its minimum.
   (`<shared_player_table>`, above), starting with Next 5 Fixtures and
   Player Explorer's default columns (Understat's included), the squad left out, and an **Add**
   on each row (greyed, with the reason as its hover, when a squad rule
-  stops him). Its Data View picker sits under the toolbar at the left, fixed
-  (it doesn't move as the table scrolls sideways; owner's call,
-  2026-10-30). Player Explorer's page keeps the picker top left, as every
-  other page. Its own Predictive columns come first: the two Exp. Pts and
-  Exp. Mins, coloured by rank within the position with no minutes floor.
+  stops him). Its Data View picker sits above the toolbar at the left, as
+  Player Explorer's does (the owner's call, 2026-11-02: the same table, the
+  same layout). Its Predictive columns start on: the two Exp. Pts and Exp.
+  Mins (`<predictive_columns>`, above), Progress and Predicted Progress one
+  tick away in Columns, as in Player Explorer.
   It replaced the Add Players section (`docs/HISTORY.md`).
 - **Exp. Pts horizon** (`<points_horizon>`, `horizonTotal` in
   `metrics/gameweekExpectations.ts`) — each Exp. Pts column's header has

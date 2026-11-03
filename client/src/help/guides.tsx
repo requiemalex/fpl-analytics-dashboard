@@ -839,8 +839,8 @@ const FIRST_GUIDES: HelpGuide[] = [
             { icon: <GoalsExpectedIcon />, label: "Ball:", text: "goals expected (MID, FWD)" },
             { icon: <PriceIcon />, label: "Price", text: "today's, purchase, sell or progress" },
             { icon: <OwnershipIcon />, label: "Owned", text: "share of managers who own him" },
-            { icon: <ClockIcon />, label: "Minutes", text: "expected minutes" },
-            { icon: <ForecastIcon />, label: "Points Prediction", text: "Expected Points (captain doubled)" },
+            { icon: <ClockIcon />, label: "Exp. Mins", text: "expected minutes" },
+            { icon: <ForecastIcon />, label: "Exp. Pts", text: "Expected Points (captain doubled)" },
           ]}
         />
         <Note>Hover any icon for its name.</Note>
@@ -852,7 +852,7 @@ const FIRST_GUIDES: HelpGuide[] = [
     topic: TOPIC.building,
     title: "Expected Points: FPL or Model",
     answer: "Two separate predictions, never blended: the football (FPL) or the dots (Model) beside Projected Points picks one.",
-    pages: ["team-building"],
+    pages: ["team-building", "player-explorer"],
     keywords: [
       "projection", "projections", "expected score", "xp model",
       "expected points", "exp pts", "xp", "xpts", "prediction", "predicted", "predict", "model", "model predicted", "fpl official",
@@ -876,7 +876,7 @@ const FIRST_GUIDES: HelpGuide[] = [
         />
         <Points
           items={[
-            "Points Prediction, Projected Points, the captain's figure and Best Draft all follow it.",
+            "The cards' Exp. Pts, Projected Points, the captain's figure and Best Draft all follow it.",
             "Hover either figure for how it adds up.",
             "A double gameweek adds both matches; a blank one shows \"—\".",
           ]}
@@ -960,7 +960,7 @@ const FIRST_GUIDES: HelpGuide[] = [
     topic: TOPIC.building,
     title: "Price changes",
     answer: "FPL's own progress toward a price rise (+) or drop (−); 100% is the threshold.",
-    pages: ["team-building"],
+    pages: ["team-building", "player-explorer"],
     keywords: [
       "price going up", "price going down", "value rise", "price fall",
       "price change", "price changes", "price rise", "price drop", "rise", "fall", "falling", "rising", "progress", "predicted progress",
@@ -971,7 +971,7 @@ const FIRST_GUIDES: HelpGuide[] = [
       <>
         <ColourScale low="−100%: drops" mid="0" high="+100%: rises" />
         <Steps items={["Highlight → Price.", "Price → Progress, or Predicted Progress (where FPL expects it at the next update)."]} />
-        <Note>Hover for FPL's own words, like "likely to rise".</Note>
+        <Note>Also columns in Player Explorer and Add Players: Columns → Predictive. Hover for FPL's own words, like "likely to rise".</Note>
       </>
     ),
   },

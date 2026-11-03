@@ -1038,6 +1038,49 @@ select:focus {
   padding: 2px 4px;
   white-space: nowrap;
 }
+/* <fixture_odds>: Next 5 Fixtures as Odds, each chip tinted by its rank (no tint: the cell's own surface). */
+.table-fixture-chip.is-odds {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  background: var(--surface-raised);
+}
+.table-odds-kind {
+  display: inline-flex;
+  color: var(--text-muted);
+}
+.table-fixtures-average {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  border-radius: 3px;
+}
+/* Games or Odds on Next 5 Fixtures' header: the pitch's two icons, small. */
+.fixtures-view-picker {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.fixtures-view-picker button {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 3px;
+  border: 0;
+  background: var(--surface-raised);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.fixtures-view-picker button svg {
+  width: 12px;
+  height: 12px;
+}
+.fixtures-view-picker button.on {
+  color: var(--accent-positive);
+  background: color-mix(in srgb, var(--accent-positive) 16%, var(--surface-raised));
+}
 .bench-strip {
   margin-top: 14px;
   padding: 12px;

@@ -12,8 +12,11 @@ const STORAGE_KEYS = {
   player: "scoutline:player-explorer:saved-views:v1",
   team: "scoutline:team-explorer:saved-views:v1",
 } as const;
-/** v2 (2026-10-31): a filter may be the player filter (`player`, <player_filter>); a v1 view has none, and loads as it was (its Team and Position filters folded into it on load, foldIdentityFilters). */
-const STORAGE_VERSION = 2;
+/**
+ * v2 (2026-10-31): a filter may be the player filter (`player`, <player_filter>); a v1 view has none, and loads as it was (its Team and Position filters folded into it on load, foldIdentityFilters).
+ * v3 (2026-11-03): a Player Explorer view may keep its Predictive columns (`predictive`, <predictive_columns>); a v2 view has none, and loading it leaves the Predictive columns as they are.
+ */
+const STORAGE_VERSION = 3;
 
 export type ExplorerScope = keyof typeof STORAGE_KEYS;
 
@@ -36,6 +39,20 @@ export interface ExplorerViewSettings {
   search: string;
   /** Player Explorer's Hide (<hide_small_samples>); always false for Team Explorer, which has none. */
   hideSmallSamples: boolean;
+  /**
+   * <predictive_columns>: Player Explorer's Predictive columns, in order,
+   * each Exp. Pts' horizon, and what Next 5 Fixtures shows (<fixture_odds>).
+   * Absent in a view saved before they were kept (and in Team Explorer's):
+   * loading it leaves them as they are. Their widths, sort and filters sit
+   * with every other column's.
+   */
+  predictive?: PredictiveViewSettings;
+}
+
+export interface PredictiveViewSettings {
+  columns: string[];
+  horizons: { fpl: number; model: number };
+  fixturesView: "games" | "odds";
 }
 
 export interface ExplorerView {
@@ -66,6 +83,18 @@ function normalizePlayerFilter(raw: unknown): PlayerFilter | null {
     duties: known(raw.duties, DUTY_FILTER_VALUES),
   };
   return isPlayerFilterActive(f) ? f : null;
+}
+
+const horizon = (v: unknown): number => (typeof v === "number" && Number.isInteger(v) && v >= 1 && v <= 5 ? v : 1);
+
+function normalizePredictive(raw: unknown): PredictiveViewSettings | undefined {
+  if (!isRecord(raw)) return undefined;
+  const horizons = isRecord(raw.horizons) ? raw.horizons : {};
+  return {
+    columns: [...new Set(strings(raw.columns))],
+    horizons: { fpl: horizon(horizons.fpl), model: horizon(horizons.model) },
+    fixturesView: raw.fixturesView === "odds" ? "odds" : "games",
+  };
 }
 
 function normalizeFilter(raw: unknown): ColumnFilterSpec | null {
@@ -115,6 +144,7 @@ export function normalizeExplorerViewSettings(raw: unknown): ExplorerViewSetting
     sourceChoice,
     search: typeof s.search === "string" ? s.search : "",
     hideSmallSamples: s.hideSmallSamples === true,
+    ...(normalizePredictive(s.predictive) ? { predictive: normalizePredictive(s.predictive) } : {}),
   };
 }
 
@@ -126,6 +156,7 @@ function normalizeExplorerView(raw: Record<string, unknown>): ExplorerView | nul
 const VIEWS_STORE: VersionedStore<ExplorerView[]> = {
   version: STORAGE_VERSION,
   fallback: [],
+  // Every version reads through the same normalising: a v1 or v2 view has no `predictive`, so it comes through without one (v3).
   migrate(data) {
     if (!Array.isArray(data)) return null;
     return mapReadableEntries(data, normalizeExplorerView);
@@ -148,6 +179,11 @@ export interface ExplorerViewContext {
   /** Whether a column has the ⇄ toggle now. */
   canSwitchSource: (key: string) => boolean;
   defaultSort: SortSpec[];
+  /**
+   * <predictive_columns>: the Predictive columns this page has (`known`) and
+   * those on screen now (`current`), which a view saved without any keeps.
+   */
+  predictive?: { known: ReadonlySet<string>; current: readonly string[] };
 }
 
 /**
@@ -163,8 +199,10 @@ export interface ExplorerViewContext {
 export function explorerViewToApply(saved: ExplorerViewSettings, ctx: ExplorerViewContext): { settings: ExplorerViewSettings; leftOut: string[] } {
   const configurable = saved.visibleColumns.filter((key) => !ctx.fixedKeys.has(key));
   const visibleColumns = configurable.filter(ctx.isKnownColumn);
-  const missingColumns = configurable.length - visibleColumns.length;
-  const onScreen = new Set([...ctx.fixedKeys, ...visibleColumns]);
+  const savedPredictive = ctx.predictive && saved.predictive ? saved.predictive.columns : [];
+  const predictiveColumns = ctx.predictive ? (saved.predictive ? savedPredictive.filter((key) => ctx.predictive!.known.has(key)) : [...ctx.predictive.current]) : [];
+  const missingColumns = configurable.length - visibleColumns.length + (savedPredictive.length - (saved.predictive ? predictiveColumns.length : 0));
+  const onScreen = new Set([...ctx.fixedKeys, ...visibleColumns, ...predictiveColumns]);
   const usable = (key: string) => onScreen.has(key) && !ctx.unsortableKeys?.has(key);
 
   const sourceChoice: ColumnSourceChoice = {};
@@ -205,7 +243,8 @@ export function explorerViewToApply(saved: ExplorerViewSettings, ctx: ExplorerVi
   for (const category of lostCategories) leftOut.push(`the filter on ${category}, no longer in the league`);
   if (lostSource.size > 0) leftOut.push(`${lostSource.size} column${lostSource.size === 1 ? "" : "s"} saved on another source, shown from FPL`);
 
-  return { settings: { ...saved, visibleColumns, columnWidths, sort, columnFilters, sourceChoice }, leftOut };
+  const predictive = saved.predictive && ctx.predictive ? { ...saved.predictive, columns: predictiveColumns } : undefined;
+  return { settings: { ...saved, visibleColumns, columnWidths, sort, columnFilters, sourceChoice, ...(predictive ? { predictive } : {}) }, leftOut };
 }
 
 export interface UseExplorerViews {

@@ -25,6 +25,8 @@ import {
   ConfirmIcon,
   InfinityIcon,
   TrendLineIcon,
+  ForecastIcon,
+  OddsIcon,
 } from "../components/IconToolbar";
 import { HideSmallSamplesIcon, MinutesFloorIcon } from "../components/MinutesFloorBadge";
 import { NOTEPAD_KEY } from "../components/Notepad";
@@ -434,7 +436,8 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
         <DifficultyScale />
         <Points
           items={[
-            "Player Explorer: turn on Next 5 Fixtures in Columns; it sorts by their average, easiest first.",
+            "Player Explorer and Add Players: turn on Next 5 Fixtures in Columns; it sorts by their average, easiest first.",
+            "Its heading switches Games or Odds, as the pitch's Fixtures does.",
             "Team Building: Highlight → Fixtures shows them on the shirts.",
             "Hover a chip for the opponent and home or away.",
           ]}
@@ -982,7 +985,7 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
     id: "add-players",
     topic: TOPIC.building,
     title: "Add Players",
-    answer: "Player Explorer's table with predictions first: click Add on a row to put him in your squad.",
+    answer: "Player Explorer's own table, Predictive columns on: click Add on a row to put him in your squad.",
     pages: ["team-building"],
     keywords: [
       "add players", "add player", "player list", "add a player", "pick a player", "replacement", "replace", "transfer in", "buy", "sign", "who to buy",
@@ -993,7 +996,38 @@ export const MORE_HELP_GUIDES: HelpGuide[] = [
     body: (
       <>
         <Steps items={["Click a + on the pitch: it opens for that position.", "Pick 1–5 gameweeks on an Exp. Pts heading to add them up.", "Click Add."]} />
-        <Note>Your squad is left out. Player Explorer's saved views load here too.</Note>
+        <Note>Your squad is left out. Player Explorer's saved views load here too, Predictive columns and all.</Note>
+      </>
+    ),
+  },
+  {
+    id: "predictive-columns",
+    topic: TOPIC.tables,
+    title: "Predictive columns",
+    answer: "Exp. Pts, Exp. Mins and price Progress as columns, in Player Explorer and Add Players alike: Columns → Predictive.",
+    pages: ["player-explorer", "team-building"],
+    keywords: [
+      "predictive", "predictive columns", "forecast", "forecasts", "predictions", "exp pts", "expected points column", "exp mins",
+      "expected minutes column", "progress", "predicted progress", "price change column", "future", "upcoming", "next gameweek",
+      "sort by expected points", "best picks", "who will score", "odds", "fixture odds", "clean sheet odds", "goals expected",
+      "same as add players", "player explorer predictions",
+    ],
+    related: ["expected-points", "price-changes", "add-players"],
+    body: (
+      <>
+        <IconKey
+          rows={[
+            { icon: <ForecastIcon />, label: "Predictive", text: "first group in Columns" },
+            { icon: <OddsIcon />, label: "Odds", text: "on Next 5 Fixtures' heading" },
+          ]}
+        />
+        <Points
+          items={[
+            "Off by default in Player Explorer; Exp. Pts and Exp. Mins start on in Add Players.",
+            "Pick 1–5 gameweeks on an Exp. Pts heading.",
+            "Saved views keep them.",
+          ]}
+        />
       </>
     ),
   },

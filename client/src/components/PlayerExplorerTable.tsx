@@ -9,7 +9,13 @@ import { ColumnHeader } from "./ColumnHeader";
 import { clubRankHint, columnHint, noPercentileHint, playerColumnHint, playerRankHint, statHover } from "./hoverText";
 import { getPlayerDerivedMetrics, type PlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
-import { getUpcomingFixtures, formatFixturesForCsv, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
+import { formatFixturesForCsv, averageFixtureDifficulty, type UpcomingFixture } from "../metrics/fixtureTicker";
+import { oddsFigureFor } from "../metrics/fixtureOdds";
+import type { FixtureOdds } from "../metrics/fixtureOdds";
+import type { Horizon, PointsSource } from "../metrics/gameweekExpectations";
+import { usePlayerForecasts, type PlayerForecasts } from "../state/usePlayerForecasts";
+import { DEFAULT_HORIZONS, EXPECTATION_KEYS, PREDICTIVE_COLUMN_KEYS, PREDICTIVE_MIN_WIDTHS, usePredictiveColumns, type PredictiveHorizons } from "./predictiveColumns";
+import { FixturesViewPicker, OddsChips, clubOddsAverages, formatOddsForCsv, type ClubOdds, type FixturesView } from "./fixturesView";
 import { AnalysisModeToggle } from "./AnalysisModeToggle";
 import { TeamProfileOpener, withTeamProfile, FixtureChips } from "./primitives";
 import { PLAYER_COLUMNS, cellText, columnApplies, columnByKey, columnForMode, isStaticColumn, rankValue, type ColumnGroup, type PlayerColumn } from "./playerColumns";
@@ -44,10 +50,13 @@ import { ExplorerViewNotice, ExplorerViewsMenu, explorerViewNote } from "./Explo
  * Players is the same table (the owner's request, 2026-10-26). A view
  * saved on either page is the one store (`useExplorerViews("player")`),
  * so analysis done in Player Explorer loads straight into Team Building.
- * What a host adds is kept apart from it: `leadColumns` (Team Building's
- * forward-looking figures, drawn straight after Player, with their own
- * group in the Columns picker and never part of a saved view), a
- * `playerAction` on each row (Add), and `excludeIds` (the squad).
+ * Both have the same Predictive columns (<predictive_columns>: Exp. Pts,
+ * Exp. Mins, price Progress), drawn straight after Player with their own
+ * group in the Columns picker, and the same Next 5 Fixtures with its
+ * Games/Odds switch (<fixture_odds>), all from the same forecasts
+ * (<player_forecasts>). What a host adds is kept apart: a `playerAction`
+ * on each row (Add), `excludeIds` (the squad), its own starting columns,
+ * and the forecasts it already has, so they aren't worked out twice.
  */
 
 const GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "ADVANCED"];
@@ -56,7 +65,8 @@ const GROUPS: ColumnGroup[] = ["ACTUAL OUTPUT", "UNDERLYING PERFORMANCE", "ADVAN
  * player's live team's upcoming fixtures, regardless of analysis mode — moving between seasons' fixtures wouldn't mean anything, same
  * reasoning as price/ownership staying live. So when shown it ends the always-live block, straight after Position and before the divider
  * where the Data View's figures start (the owner's call, 2026-10-26), never dragged in among them; the Columns picker still switches it
- * off. Sorts and filters by the five matches' average FPL difficulty (lower is easier, so first).
+ * off. Games sorts and filters by the five matches' average FPL difficulty (lower is easier, so first); Odds by his club's place among
+ * the clubs for the odds his position reads (<fixture_odds>), best first.
  */
 export const FIXTURES_COLUMN_KEY = "fixtures";
 /**
@@ -102,10 +112,11 @@ function minutesFilterMinimum(spec: ColumnFilterSpec | undefined): number | null
 }
 
 /**
- * A host's own column, drawn straight after Player (Team Building's Exp.
- * Pts and Exp. Mins). Its figure is the player's, whatever the Data View;
- * higher is better, coloured by rank within his position among every
- * player, with no minutes floor (forward-looking, <comparative_colouring>).
+ * A Predictive column (<predictive_columns>), drawn straight after Player.
+ * Its figure is the player's, whatever the Data View; higher is better,
+ * coloured by rank within his position among every player, with no
+ * minutes floor (forward-looking, <comparative_colouring>), unless it has
+ * a colour of its own (`tint`).
  */
 export interface LeadColumn {
   key: string;
@@ -119,15 +130,22 @@ export interface LeadColumn {
   hint: string;
   /** Cell hover: this player's figure explained (his rank follows it). */
   cellHint?: (playerId: number) => string | undefined;
-  /** After the header's sort arrow (Team Building's gameweek-horizon picker). */
+  /** After the header's sort arrow (Exp. Pts' gameweek-horizon picker). */
   trailing?: React.ReactNode;
+  /** A colour of its own on the shared 0–100 scale instead of its rank's (<price_progress>). */
+  tint?: (playerId: number) => number | undefined;
+  /** Ranked for its hover only, as a figure that's neither better nor worse. */
+  neutral?: boolean;
 }
 
 /** Per column key, each player's rank within his position (<comparative_colouring>). */
 type ColumnRanks = Map<string, Map<number, number>>;
 /** Per column key, what the column is: its header's hover and the first line of each cell's (<stat_hover>). */
 type ColumnHints = Map<string, string>;
-const FIXTURES_HINT = "Next 5 Fixtures: his club's next 5 matches, coloured by FPL difficulty, with their average. Sorts by the average, easiest first.";
+const FIXTURES_HINT: Record<FixturesView, string> = {
+  games: "Next 5 Fixtures: his club's next 5 matches from the next deadline, coloured by FPL difficulty, with their average. Sorts by the average, easiest first.",
+  odds: "Next 5 Fixtures, Odds: Scoutline's Fixture Forecast for his club in each of its next 5 matches from the next deadline (a goalkeeper's or defender's chance of a clean sheet, a midfielder's or forward's goals expected), with their average. Sorts and filters by his club's place among the clubs for that average (0 to 100), best first.",
+};
 /** His club's place among the clubs for its fixtures' average difficulty (<stat_hover>): "3rd of 20 clubs, easiest first". */
 function fixturesRankHint(ranks: Map<number, number>, teamId: number): string | undefined {
   const place = clubRankHint(ranks.get(teamId), ranks.size);
@@ -135,7 +153,7 @@ function fixturesRankHint(ranks: Map<number, number>, teamId: number): string | 
 }
 /** Shared empty list, so a team with no fixtures doesn't hand its rows a new array (and a re-render) every time. */
 const NO_FIXTURES: UpcomingFixture[] = [];
-const NO_LEAD_COLUMNS: LeadColumn[] = [];
+const NO_PREDICTIVE_COLUMNS: string[] = [];
 
 /** A neutral figure (never coloured) still has a rank, for its hover, but no tint. */
 function columnTint(ranks: ColumnRanks, player: NormalizedPlayer, c: PlayerColumn): string | undefined {
@@ -236,6 +254,10 @@ interface ExplorerRowProps {
   /** His club's next-fixtures difficulty colour and place among the clubs (a club figure, ranked among clubs). */
   fixturesTint: string | undefined;
   fixturesRank: string | undefined;
+  /** What Next 5 Fixtures shows, and with Odds, his club's odds for each match and their average (<fixture_odds>). */
+  fixturesView: FixturesView;
+  odds: Map<number, FixtureOdds | null> | undefined;
+  clubOdds: ClubOdds | undefined;
   onOpenPlayer: (playerId: number) => void;
   playerAction?: (player: NormalizedPlayer) => React.ReactNode;
 }
@@ -255,6 +277,9 @@ const ExplorerRow = React.memo(function ExplorerRow({
   fixtures,
   fixturesTint,
   fixturesRank,
+  fixturesView,
+  odds,
+  clubOdds,
   onOpenPlayer,
   playerAction,
 }: ExplorerRowProps) {
@@ -277,10 +302,12 @@ const ExplorerRow = React.memo(function ExplorerRow({
       />
       {leadColumns.map((c) => {
         // Forward-looking, so ranked with no floor: his figure explained, then his percentile.
-        const rank = playerRankHint(columnRanks.get(c.key)?.get(player.id), player.position);
+        const percentile = columnRanks.get(c.key)?.get(player.id);
+        const rank = playerRankHint(percentile, player.position, { neutral: c.neutral });
         const hint = [columnHints.get(c.key), c.cellHint?.(player.id), rank].filter(Boolean).join("\n");
+        const tint = c.tint ? percentileTint(c.tint(player.id)) : percentileTint(percentile);
         return (
-          <td key={c.key} style={{ ...widthStyle(leadWidths[c.key]), backgroundColor: percentileTint(columnRanks.get(c.key)?.get(player.id)) }} title={hint || undefined}>
+          <td key={c.key} style={{ ...widthStyle(leadWidths[c.key]), backgroundColor: tint }} title={hint || undefined}>
             {c.render ? c.render(player.id) : fmtDecimal(c.value(player.id), c.decimals)}
           </td>
         );
@@ -294,7 +321,11 @@ const ExplorerRow = React.memo(function ExplorerRow({
             ...(columnWidths[FIXTURES_COLUMN_KEY] ? { width: `${columnWidths[FIXTURES_COLUMN_KEY]}px`, maxWidth: `${columnWidths[FIXTURES_COLUMN_KEY]}px`, overflow: "hidden" } : {}),
           }}
         >
-          <FixtureChips fixtures={fixtures} avgTint={fixturesTint} avgRank={fixturesRank} />
+          {fixturesView === "odds" ? (
+            <OddsChips fixtures={fixtures} odds={odds} position={player.position} club={clubOdds} />
+          ) : (
+            <FixtureChips fixtures={fixtures} avgTint={fixturesTint} avgRank={fixturesRank} />
+          )}
         </td>
       )}
       {columnsInOrder.map((c, idx) => {
@@ -448,15 +479,14 @@ export interface PlayerExplorerTableProps {
   variant: "page" | "panel";
   /** The user-configurable columns shown at first and after Reset. */
   defaultVisibleColumns?: string[];
-  leadColumns?: LeadColumn[];
+  /** The Predictive columns shown at first and after Reset (<predictive_columns>): none in Player Explorer. */
+  defaultPredictiveColumns?: string[];
   /** Players the table leaves out (Team Building: the squad's). */
   excludeIds?: ReadonlySet<number>;
   /** Drawn at the end of each row's meta line (Team Building's Add). */
   playerAction?: (player: NormalizedPlayer) => React.ReactNode;
-  /** Each club's Next 5 Fixtures, where the host has its own (Team Building's start at the next deadline); otherwise the next five not yet kicked off. */
-  fixturesByTeamId?: Map<number, UpcomingFixture[]>;
-  /** Shown above the table (Team Building's "still building" note). */
-  notice?: React.ReactNode;
+  /** The forecasts, where the host already has them (Team Building's, <player_forecasts>); otherwise the table works out its own. */
+  forecasts?: PlayerForecasts;
   /** A dialog host: whether it's showing (the columns re-fit when it opens), and its latest open request. */
   visible?: boolean;
   openRequest?: ExplorerOpenRequest | null;
@@ -467,17 +497,16 @@ export interface PlayerExplorerTableProps {
 export function PlayerExplorerTable({
   variant,
   defaultVisibleColumns = EXPLORER_DEFAULT_VISIBLE_COLUMNS,
-  leadColumns = NO_LEAD_COLUMNS,
+  defaultPredictiveColumns = NO_PREDICTIVE_COLUMNS,
   excludeIds,
   playerAction,
-  fixturesByTeamId: hostFixturesByTeamId,
-  notice,
+  forecasts: hostForecasts,
   visible = true,
   openRequest = null,
   searchInputId,
   csvName,
 }: PlayerExplorerTableProps) {
-  const { players, teamsById, fixtures, advancedFieldAvailability, historicProfiles, historicStatus, currentSeasonHasStarted } = useAppState();
+  const { players, teamsById, advancedFieldAvailability, historicProfiles, historicStatus, currentSeasonHasStarted } = useAppState();
 
   // This table's own analysis mode, search and column filters — never
   // shared with any other page or table (see state/scoutingFilters.ts).
@@ -490,6 +519,20 @@ export function PlayerExplorerTable({
   const [hideSmallSamples, setHideSmallSamples] = useState(false);
 
   const columnFiltersState = useColumnFilters();
+
+  // <predictive_columns>: which are shown (their own set, so they can never
+  // be dragged in among the Data View's columns), each Exp. Pts' horizon,
+  // and what Next 5 Fixtures shows (<fixture_odds>), all this table's own.
+  const leadCols = useColumnCustomization(defaultPredictiveColumns, PREDICTIVE_MIN_WIDTHS, () => handleFitToBox());
+  const [horizons, setHorizons] = useState<PredictiveHorizons>(DEFAULT_HORIZONS);
+  const setHorizon = useCallback((source: PointsSource, h: Horizon) => setHorizons((prev) => ({ ...prev, [source]: h })), []);
+  const [fixturesView, setFixturesView] = useState<FixturesView>("games");
+  // <player_forecasts>: a host's, or this table's own, its costly parts only while a column shows them.
+  const forecasts = usePlayerForecasts(
+    { expectations: leadCols.visibleColumns.some((k) => EXPECTATION_KEYS.has(k)), odds: fixturesView === "odds" },
+    hostForecasts,
+  );
+  const leadColumns = usePredictiveColumns(players, forecasts, horizons, setHorizon);
   const leadByKey = useMemo(() => new Map(leadColumns.map((c) => [c.key, c])), [leadColumns]);
 
   // A second data source (Understat), when one is mounted: its own columns,
@@ -538,24 +581,15 @@ export function PlayerExplorerTable({
     for (const c of [...PLAYER_COLUMNS, ...extOnlyByKey.values()]) widths[c.key] = Math.max(widths[c.key] ?? 0, headerMinWidth(c.label));
     return widths;
   }, [extOnlyByKey]);
-  const leadMinWidths = useMemo(() => Object.fromEntries(leadColumns.map((c) => [c.key, headerMinWidth(c.label)])), [leadColumns]);
 
   const { resolved: resolvedPlayers } = useMemo(
     () => resolvePlayerStatsList(players, analysisMode, historicProfiles, currentSeasonHasStarted),
     [players, analysisMode, historicProfiles, currentSeasonHasStarted],
   );
 
-  // Cheap (20 clubs) but still memoized so it doesn't get a fresh Map
-  // identity (and silently defeat comparisons/CSV export downstream) on
-  // every render.
-  const ownFixturesByTeamId = useMemo(() => {
-    const map = new Map<number, UpcomingFixture[]>();
-    for (const team of teamsById.values()) {
-      map.set(team.id, getUpcomingFixtures(team.id, fixtures, teamsById));
-    }
-    return map;
-  }, [teamsById, fixtures]);
-  const fixturesByTeamId = hostFixturesByTeamId ?? ownFixturesByTeamId;
+  // Each club's next five from the next deadline, as Team Building's pitch has them (<player_forecasts>).
+  const { fixturesByTeamId, fixtureOddsByTeamId } = forecasts;
+  const clubOdds = useMemo(() => (fixturesView === "odds" ? clubOddsAverages(fixturesByTeamId, fixtureOddsByTeamId) : null), [fixturesView, fixturesByTeamId, fixtureOddsByTeamId]);
 
   // Derived metrics once per resolved player, before the search narrows
   // them — each row object then stays the same across searches, sorts and
@@ -570,9 +604,23 @@ export function PlayerExplorerTable({
 
   const [showColumnPopover, setShowColumnPopover] = useState(false);
   // <natural_first_click>: names and clubs A to Z, Position in pitch order (its first, descending, click), a lower-is-better figure (fixture difficulty included) lowest first.
+  const fixturesViewRef = useRef(fixturesView);
+  fixturesViewRef.current = fixturesView;
   const { sort, setSort, handleHeaderClick } = useSortSpec(EXPLORER_DEFAULT_SORT, (key) =>
-    key === "name" || key === FIXTURES_COLUMN_KEY ? "asc" : leadByKey.has(key) ? "desc" : lookupColumn(key)?.higherIsBetter === false ? "asc" : "desc",
+    key === "name" || (key === FIXTURES_COLUMN_KEY && fixturesViewRef.current === "games")
+      ? "asc"
+      : key === FIXTURES_COLUMN_KEY || PREDICTIVE_COLUMN_KEYS.includes(key)
+        ? "desc"
+        : lookupColumn(key)?.higherIsBetter === false
+          ? "asc"
+          : "desc",
   );
+  /** Games or Odds: its filter goes (the figures differ), and a sort on it turns to the new one's natural order (easiest first, best odds first). */
+  function changeFixturesView(view: FixturesView) {
+    setFixturesView(view);
+    columnFiltersState.clearFilter(FIXTURES_COLUMN_KEY);
+    setSort((prev) => prev.map((x) => (x.key === FIXTURES_COLUMN_KEY ? { ...x, direction: view === "games" ? "asc" : "desc" } : x)));
+  }
 
   const {
     visibleColumns,
@@ -589,12 +637,6 @@ export function PlayerExplorerTable({
     applyLayout,
   } = useColumnCustomization(defaultColumns, explorerMinWidths, () => handleFitToBox());
   const headerLayout = { dragOverKey, setDragOverKey, reorderColumn, resizingKey, startResize };
-  // The lead columns are their own set, so they can never be dragged in among the Explorer's (useColumnCustomization).
-  const leadCols = useColumnCustomization(
-    leadColumns.map((c) => c.key),
-    leadMinWidths,
-    () => handleFitToBox(),
-  );
   const columnPickerRef = useRef<HTMLDivElement>(null);
 
   // A filter or sort on a column the user hides goes with it — either would
@@ -628,7 +670,10 @@ export function PlayerExplorerTable({
   function getRowValue(row: { player: NormalizedPlayer; derived: PlayerDerivedMetrics }, key: string): number | string | null {
     if (key === "name") return row.player.name;
     if (key === PLAYER_FILTER_KEY) return playerFilterTokens(row.player);
-    if (key === FIXTURES_COLUMN_KEY) return averageFixtureDifficulty((fixturesByTeamId.get(row.player.teamId) ?? NO_FIXTURES).slice(0, 5));
+    if (key === FIXTURES_COLUMN_KEY) {
+      if (fixturesView === "odds") return clubOdds?.get(row.player.teamId)?.rank[oddsFigureFor(row.player.position)] ?? null;
+      return averageFixtureDifficulty((fixturesByTeamId.get(row.player.teamId) ?? NO_FIXTURES).slice(0, 5));
+    }
     const lead = leadByKey.get(key);
     if (lead) return lead.value(row.player.id);
     const col = lookupColumn(key);
@@ -640,7 +685,7 @@ export function PlayerExplorerTable({
   }
 
   function decimalsFor(key: string): number | undefined {
-    if (key === FIXTURES_COLUMN_KEY) return 1;
+    if (key === FIXTURES_COLUMN_KEY) return fixturesView === "odds" ? 0 : 1;
     return leadByKey.get(key)?.decimals ?? lookupColumn(key)?.decimals;
   }
 
@@ -658,7 +703,7 @@ export function PlayerExplorerTable({
   const columnFilteredRows = useMemo(
     () => rows.filter((r) => columnFiltersState.passesAllFilters((key) => getRowValue(r, key), decimalsFor)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [rows, columnFiltersState.columnFilters, lookupColumn, leadByKey, fixturesByTeamId],
+    [rows, columnFiltersState.columnFilters, lookupColumn, leadByKey, fixturesByTeamId, fixturesView, clubOdds],
   );
   // The rows under the minutes threshold (the amber stopwatch) among those the filters leave: what the Hide button
   // leaves out, and — while shown — what turns the stopwatches amber (<marker_follows_data>).
@@ -680,7 +725,7 @@ export function PlayerExplorerTable({
     });
     return arr;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredRows, sort, lookupColumn, leadByKey, fixturesByTeamId]);
+  }, [filteredRows, sort, lookupColumn, leadByKey, fixturesByTeamId, fixturesView, clubOdds]);
 
   /** Measures the sticky Player column and the fixed identity block (Ownership/Price/Team/Position), then shares what's left among the lead and user-configurable columns, the same width each. */
   function handleFitToBox() {
@@ -710,8 +755,8 @@ export function PlayerExplorerTable({
     fitToBox(available - leadShare);
   }
 
-  // Saved views (<explorer_views>): snapshots of the Explorer's own
-  // settings (never a host's lead columns), loaded only when picked.
+  // Saved views (<explorer_views>): snapshots of the table's settings, its
+  // Predictive columns included (<predictive_columns>), loaded only when picked.
   // `viewLoads` re-fits the columns after a load, which can bring new
   // hand-set widths without changing the column count.
   const explorerViews = useExplorerViews("player");
@@ -722,13 +767,14 @@ export function PlayerExplorerTable({
     return {
       analysisMode,
       visibleColumns,
-      columnWidths: manualWidths(),
-      sort: sort.filter((s) => !leadByKey.has(s.key)),
-      columnFilters: Object.fromEntries(Object.entries(columnFiltersState.columnFilters).filter(([key]) => !leadByKey.has(key))),
+      columnWidths: { ...manualWidths(), ...leadCols.manualWidths() },
+      sort,
+      columnFilters: columnFiltersState.columnFilters,
       // Only the columns switched away from FPL, the default.
       sourceChoice: Object.fromEntries(Object.entries(sourceChoice).filter(([, source]) => source !== FPL_SOURCE)),
       search,
       hideSmallSamples,
+      predictive: { columns: leadCols.visibleColumns, horizons, fixturesView },
     };
   }
 
@@ -741,13 +787,20 @@ export function PlayerExplorerTable({
       externalSourceId: ext?.id ?? null,
       canSwitchSource: (key) => !!extColumns?.alternates[key],
       defaultSort: EXPLORER_DEFAULT_SORT,
+      predictive: { known: new Set(PREDICTIVE_COLUMN_KEYS), current: leadCols.visibleColumns },
     });
-    // The lead columns' own filters stay: a view is the Explorer's part only.
-    const leadFilters = Object.fromEntries(Object.entries(columnFiltersState.columnFilters).filter(([key]) => leadByKey.has(key)));
+    // A view saved before the Predictive columns were kept leaves them, and their filters, as they are.
+    const keptPredictiveFilters = settings.predictive ? {} : Object.fromEntries(Object.entries(columnFiltersState.columnFilters).filter(([key]) => leadByKey.has(key)));
+    const isPredictive = (key: string) => leadByKey.has(key);
     setAnalysisMode(settings.analysisMode);
-    applyLayout(settings.visibleColumns, settings.columnWidths);
+    applyLayout(settings.visibleColumns, Object.fromEntries(Object.entries(settings.columnWidths).filter(([key]) => !isPredictive(key))));
+    if (settings.predictive) {
+      leadCols.applyLayout(settings.predictive.columns, Object.fromEntries(Object.entries(settings.columnWidths).filter(([key]) => isPredictive(key))));
+      setHorizons({ fpl: settings.predictive.horizons.fpl as Horizon, model: settings.predictive.horizons.model as Horizon });
+      setFixturesView(settings.predictive.fixturesView);
+    }
     setSort(settings.sort);
-    columnFiltersState.replaceAllFilters({ ...settings.columnFilters, ...leadFilters });
+    columnFiltersState.replaceAllFilters({ ...settings.columnFilters, ...keptPredictiveFilters });
     setSourceChoice(settings.sourceChoice);
     setSearch(settings.search);
     setHideSmallSamples(settings.hideSmallSamples);
@@ -895,7 +948,7 @@ export function PlayerExplorerTable({
 
   /** Shared by the table header and the CSV export, so the two can never label a column differently. */
   function columnLabel(c: PlayerColumn | SpecialColumnKey): string {
-    if (c === FIXTURES_COLUMN_KEY) return "Next 5 Fixtures";
+    if (c === FIXTURES_COLUMN_KEY) return fixturesView === "odds" ? "Next 5 Fixtures (Odds)" : "Next 5 Fixtures";
     if (c === TEAM_COLUMN_KEY) return "Team";
     if (c === POSITION_COLUMN_KEY) return "Position";
     return c.label;
@@ -903,7 +956,10 @@ export function PlayerExplorerTable({
 
   /** Shared by the CSV export for both the fixed identity block and the flexible columns. */
   function cellValue(c: PlayerColumn | SpecialColumnKey, player: NormalizedPlayer, derived: PlayerDerivedMetrics): string {
-    if (c === FIXTURES_COLUMN_KEY) return formatFixturesForCsv((fixturesByTeamId.get(player.teamId) ?? NO_FIXTURES).slice(0, 5));
+    if (c === FIXTURES_COLUMN_KEY) {
+      const list = (fixturesByTeamId.get(player.teamId) ?? NO_FIXTURES).slice(0, 5);
+      return fixturesView === "odds" ? formatOddsForCsv(list, fixtureOddsByTeamId.get(player.teamId), player.position, clubOdds?.get(player.teamId)) : formatFixturesForCsv(list);
+    }
     if (c === TEAM_COLUMN_KEY) return player.teamShortName;
     if (c === POSITION_COLUMN_KEY) return player.position;
     return cellText(c, player, derived);
@@ -920,7 +976,10 @@ export function PlayerExplorerTable({
     const liveBlock: (PlayerColumn | SpecialColumnKey)[] = [...IDENTITY_COLUMNS, TEAM_COLUMN_KEY, POSITION_COLUMN_KEY, ...(showFixtures ? [FIXTURES_COLUMN_KEY as SpecialColumnKey] : [])];
     const headers = ["Player", ...leadColumnsInOrder.map((c) => c.label), ...liveBlock.map(columnLabel), ...columnsInOrder.map(exportLabel)];
     const csvRows = sortedRows.map(({ player, derived }) => {
-      const leadCells = leadColumnsInOrder.map((c) => fmtDecimal(c.value(player.id), c.decimals));
+      const leadCells = leadColumnsInOrder.map((c) => {
+        const shown = c.render?.(player.id);
+        return typeof shown === "string" ? shown : fmtDecimal(c.value(player.id), c.decimals);
+      });
       const liveCells = liveBlock.map((c) => cellValue(c, player, derived));
       const cells = columnsInOrder.map((c) => cellValue(c, player, derived));
       return [player.name, ...leadCells, ...liveCells, ...cells];
@@ -1010,9 +1069,9 @@ export function PlayerExplorerTable({
               <ColumnHeader
                 key={FIXTURES_COLUMN_KEY}
                 columnKey={FIXTURES_COLUMN_KEY}
-                label={columnLabel(FIXTURES_COLUMN_KEY)}
+                label="Next 5 Fixtures"
                 className="col-static"
-                title={FIXTURES_HINT}
+                title={FIXTURES_HINT[fixturesView]}
                 layout={headerLayout}
                 width={columnWidths[FIXTURES_COLUMN_KEY]}
                 draggable={false}
@@ -1020,6 +1079,7 @@ export function PlayerExplorerTable({
                 onSort={(shiftKey) => handleHeaderClick(FIXTURES_COLUMN_KEY, shiftKey)}
                 filters={columnFiltersState}
                 style={{ textAlign: "left" }}
+                trailing={<FixturesViewPicker value={fixturesView} onChange={changeFixturesView} />}
               />
             )}
             {columnsInOrder.map((c, idx) => {
@@ -1108,6 +1168,9 @@ export function PlayerExplorerTable({
               fixtures={nextFiveByTeamId.get(player.teamId) ?? NO_FIXTURES}
               fixturesTint={percentileTint(fixtureRanks.get(player.teamId))}
               fixturesRank={fixturesRankHint(fixtureRanks, player.teamId)}
+              fixturesView={fixturesView}
+              odds={fixtureOddsByTeamId.get(player.teamId)}
+              clubOdds={clubOdds?.get(player.teamId)}
               onOpenPlayer={openPlayer}
               playerAction={playerAction}
             />
@@ -1135,7 +1198,8 @@ export function PlayerExplorerTable({
 
   return (
     <>
-      {variant === "page" && <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />}
+      {/* The Data View above the toolbar, in Player Explorer and Add Players alike. */}
+      <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} />
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
         <div className="icon-toolbar">
@@ -1145,7 +1209,9 @@ export function PlayerExplorerTable({
             onClick={() => {
               resetColumns();
               leadCols.resetColumns();
-              const keysAfterReset = new Set<string>(["name", ...FIXED_COLUMN_KEYS, ...defaultColumns, ...leadColumns.map((c) => c.key)]);
+              setHorizons(DEFAULT_HORIZONS);
+              setFixturesView("games");
+              const keysAfterReset = new Set<string>(["name", ...FIXED_COLUMN_KEYS, ...defaultColumns, ...defaultPredictiveColumns]);
               setSort((prev) => sortWithinColumns(prev, keysAfterReset, EXPLORER_DEFAULT_SORT));
               setSourceChoice({});
               setSearch("");
@@ -1163,21 +1229,19 @@ export function PlayerExplorerTable({
             />
             {showColumnPopover && (
               <ColumnsPopover style={{ left: 0, right: "auto" }}>
-                {leadColumns.length > 0 && (
-                  <div>
-                    <MenuGroupHeading group="Predictive" label="Predictive" icon={<ForecastIcon />} />
-                    {leadColumns.map((c) => (
-                      <label key={c.key}>
-                        <input
-                          type="checkbox"
-                          checked={leadCols.visibleColumns.includes(c.key)}
-                          onChange={() => handleToggleColumn(c.key, leadCols.toggleColumn, leadCols.visibleColumns)}
-                        />
-                        {c.label}
-                      </label>
-                    ))}
-                  </div>
-                )}
+                <div>
+                  <MenuGroupHeading group="Predictive" label="Predictive" icon={<ForecastIcon />} />
+                  {leadColumns.map((c) => (
+                    <label key={c.key}>
+                      <input
+                        type="checkbox"
+                        checked={leadCols.visibleColumns.includes(c.key)}
+                        onChange={() => handleToggleColumn(c.key, leadCols.toggleColumn, leadCols.visibleColumns)}
+                      />
+                      {c.label}
+                    </label>
+                  ))}
+                </div>
                 {/* Three kinds of heading, by source: green FPL only, the crossover colour for figures both sources have (⇄ on the header), then the second source's own. */}
                 {/* Ownership/Price/Team/Position aren't listed here at all — they're the fixed identity block (IDENTITY_COLUMNS), always shown, never toggleable. */}
                 {/* A heading with nothing under it (every figure in the crossover group) isn't shown; Next 5 Fixtures ends Advanced rather than heading a group of one. */}
@@ -1270,10 +1334,10 @@ export function PlayerExplorerTable({
           Defensive Contributions is not present on this build of the live API, so affected columns show "—".
         </div>
       )}
-      {notice}
-
-      {variant === "panel" && (
-        <AnalysisModeToggle mode={analysisMode} onChange={setAnalysisMode} marginBottom={8} />
+      {historicStatus === "loading" && (
+        <p className="page-subtitle" style={{ marginTop: 0, marginBottom: 12 }}>
+          Still building historic data. Historic columns, Model Predicted and Exp. Mins will fill in shortly.
+        </p>
       )}
 
       <div className={variant === "page" ? "page-fill-body" : "explorer-panel-body"}>

@@ -26,6 +26,11 @@ vi.mock("../state/AppStateContext", () => ({
     teams: TEAMS,
     teamsById: new Map(TEAMS.map((t) => [t.id, t])),
     fixtures: [],
+    events: [{ id: 1, isNext: true, deadlineTime: "2099-01-01T00:00:00Z" }],
+    clubSeasons: [],
+    historicReferenceSeason: null,
+    seasonMatchesByPlayerId: new Map(),
+    totalPlayers: 0,
     advancedFieldAvailability: null,
     historicProfiles: new Map(),
     historicStatus: "ready",
@@ -215,7 +220,10 @@ describe("Player Explorer with Understat mounted", () => {
     const { container, getByRole } = renderExplorer(fakeSource());
     fireEvent.click(getByRole("button", { name: /^Columns/ }));
     const popover = container.querySelector<HTMLElement>(".popover")!;
-    const headings = Array.from(popover.querySelectorAll<HTMLElement>(".menu-group-heading"));
+    const all = Array.from(popover.querySelectorAll<HTMLElement>(".menu-group-heading"));
+    // The Predictive group leads, as in Add Players (<predictive_columns>); the source groups follow it.
+    expect(all[0].textContent).toBe("Predictive");
+    const headings = all.slice(1);
     const crossover = headings.find((h) => h.textContent === "FPL & Understat")!;
     expect(crossover.classList.contains("col-source-crossover")).toBe(true);
     // Order: FPL headings, then the crossover heading, then Understat's.

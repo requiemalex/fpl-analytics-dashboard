@@ -10,16 +10,12 @@ import {
   BestDraftIcon,
   CalendarIcon,
   ClearDraftIcon,
-  CleanSheetIcon,
   ClockIcon,
   CloseIcon,
   ForecastIcon,
   GameweekSummaryIcon,
-  GamesIcon,
-  GoalsExpectedIcon,
   IconChipButton,
   ModelIcon,
-  OddsIcon,
   OwnershipIcon,
   PlusIcon,
   PriceIcon,
@@ -33,13 +29,15 @@ import { FplSourceIcon } from "./SourceToggle";
 import { PlayerNameCell } from "./PlayerNameCell";
 import type { ChipName } from "../types/team";
 import { GameweekArrows, SegmentedControl, type SegmentOption } from "./MenuControls";
-import { fmtDate, fmtPrice, fmtPercent, fmtDecimal, DASH } from "../utils/format";
+import { fmtPrice, fmtPercent, fmtDecimal, DASH } from "../utils/format";
 import { fdrColor, type UpcomingFixture } from "../metrics/fixtureTicker";
 import { percentileColour, percentileTint } from "../utils/colorScale";
 import { SQUAD_RULES } from "../types/team";
 import type { OpenSlots, SquadValidation } from "../metrics/squadRules";
 import type { NormalizedPlayer, Position } from "../types/normalized";
 import { oddsFigureFor, type FixtureOdds } from "../metrics/fixtureOdds";
+import { progressReading } from "../metrics/priceProgress";
+import { FIXTURES_VIEW_OPTIONS, ODDS_KIND, fmtOdds, oddsDefinition, type FixturesView } from "./fixturesView";
 import { fixtureHint, fplGameweekHint, minutesGameweekHint, modelGameweekHint, percentileHint, playerRankHint, statHover } from "./hoverText";
 
 const PITCH_ROW_ORDER: Position[] = ["FWD", "MID", "DEF", "GKP"];
@@ -53,7 +51,7 @@ const POSITION_NOUN: Record<Position, [string, string]> = {
 
 /**
  * <kit_view>: the one figure each kit's nameplate shows, picked with the
- * Highlight switch — rather than every figure at once. Points Prediction
+ * Highlight switch — rather than every figure at once. Exp. Pts
  * and Minutes are for the gameweek the pitch's arrows pick
  * (<gameweek_arrows>; a double's two matches added up): Points from the
  * source its FPL/Model toggle picks, Minutes the Model's expected minutes
@@ -70,33 +68,20 @@ const KIT_VIEW_OPTIONS: SegmentOption<KitView>[] = [
   { value: "fixtures", icon: <CalendarIcon size={16} />, title: "Fixtures: each player's next five matches, the opponents or his club's odds in each, as the toggle beside picks" },
   { value: "price", icon: <PriceIcon />, title: "Price: today's, his selling price, his purchase price or its progress toward a change, as the toggle beside picks" },
   { value: "ownership", icon: <OwnershipIcon />, title: "Owned: share of FPL managers who own him" },
-  { value: "minutes", icon: <ClockIcon />, title: "Expected minutes: how long Scoutline's model expects him to play in the gameweek picked" },
+  { value: "minutes", icon: <ClockIcon />, title: "Exp. Mins: how long Scoutline's model expects him to play in the gameweek picked" },
   {
     value: "points",
     icon: <ForecastIcon />,
-    title: "Points Prediction: expected points for the gameweek picked (a double's two matches added up), from the FPL or Model source beside Projected Points",
+    title: "Exp. Pts: expected points for the gameweek picked (a double's two matches added up), from the FPL or Model source beside Projected Points",
   },
 ];
 
-/** FPL Official or Model Predicted: Points Prediction's source, and Best Draft's. */
+/** FPL Official or Model Predicted: Exp. Pts' source, and Best Draft's. */
 const SOURCE_OPTIONS: SegmentOption<PointsSource>[] = [
-  { value: "fpl", icon: <FplSourceIcon size={16} />, title: "Exp. Pts (FPL Official), for Points Prediction, Projected Points and Best Draft" },
-  { value: "model", icon: <ModelIcon />, title: "Exp. Pts (Model Predicted): Scoutline's own estimate, for Points Prediction, Projected Points and Best Draft" },
+  { value: "fpl", icon: <FplSourceIcon size={16} />, title: "Exp. Pts (FPL Official), for the cards' Exp. Pts, Projected Points and Best Draft" },
+  { value: "model", icon: <ModelIcon />, title: "Exp. Pts (Model Predicted): Scoutline's own estimate, for the cards' Exp. Pts, Projected Points and Best Draft" },
 ];
 const SOURCE_NAME: Record<PointsSource, string> = { fpl: "FPL Official", model: "Model Predicted" };
-
-/** <fixture_odds>: what the Fixtures highlight shows for each match. */
-export type FixturesView = "games" | "odds";
-
-const FIXTURES_VIEW_OPTIONS: SegmentOption<FixturesView>[] = [
-  { value: "games", icon: <GamesIcon />, title: "Games: who he plays in each of his next five, coloured by FPL difficulty" },
-  {
-    value: "odds",
-    icon: <OddsIcon />,
-    title:
-      "Odds: Scoutline's Fixture Forecast for his club in each of his next five, under each opponent — a goalkeeper's or defender's chance of a clean sheet (shield), a midfielder's or forward's goals expected (ball)",
-  },
-];
 
 /** <price_view>: which price figure the Price highlight shows. */
 export type PriceView = "current" | "purchase" | "sell" | "progress" | "predicted";
@@ -136,11 +121,8 @@ function OddsChip({ fixture, odds, position }: { fixture: UpcomingFixture; odds:
     );
   }
   const value = odds.forecast[figure];
-  const text = figure === "cleanSheet" ? fmtPercent(value * 100, 0) : fmtDecimal(value, 1);
-  const definition =
-    figure === "cleanSheet"
-      ? `${where}: ${text} chance of a clean sheet for his club (Fixture Forecast).`
-      : `${where}: his club can expect ${fmtDecimal(value, 2)} goals (Fixture Forecast).`;
+  const text = fmtOdds(figure, value);
+  const definition = oddsDefinition(fixture, figure, value);
   const rank = odds.rank[figure];
   return (
     <span className="pitch-card-fixture is-odds" style={{ background: percentileTint(rank) }} title={statHover(definition, percentileHint(rank, "every club's upcoming fixtures"))}>
@@ -149,12 +131,6 @@ function OddsChip({ fixture, odds, position }: { fixture: UpcomingFixture; odds:
     </span>
   );
 }
-
-/** What a position's odds chips show (<fixture_odds>): its icon, leading the row, and its name for the hover. */
-const ODDS_KIND = {
-  cleanSheet: { icon: <CleanSheetIcon size={11} />, title: "Clean sheet chance: his club's, in each of his next five" },
-  goalsFor: { icon: <GoalsExpectedIcon size={11} />, title: "Goals expected: his club's, in each of his next five" },
-};
 
 /** The next five matches: FPL-difficulty chips (Games), or the club's odds for each (Odds, <fixture_odds>), led by what they are. */
 function FixtureTicker({
@@ -174,7 +150,7 @@ function FixtureTicker({
     <div className={`pitch-card-fixtures${kind ? " is-odds" : ""}`}>
       {kind && (
         <span className="pitch-card-odds-kind" title={kind.title} aria-label={kind.title} role="img">
-          {kind.icon}
+          {kind.icon(11)}
         </span>
       )}
       {fixtures.map((f) =>
@@ -281,7 +257,7 @@ function SummaryFigure({ label, value, title, colour, negative }: { label: strin
  * captain's share of it, then Squad Value, Bank, and the squad's transfers
  * and chips (<squad_transfers>, <squad_chips>: `planning`, from Team
  * Building). The Exp. Pts source toggle sits in Projected Points' own box,
- * beside the figure: Points Prediction, Projected Points, the captain's
+ * beside the figure: the cards' Exp. Pts, Projected Points, the captain's
  * figure and Best Draft all follow it, whatever the kits highlight (the
  * owner's call, 2026-11-02). The captain is shown as the Explorers' Player
  * column shows a player (PlayerNameCell), his figure beside him.
@@ -379,39 +355,11 @@ function SummaryFigures({
   );
 }
 
-/** FPL's own words for its next-update projection's likelihood, as its Price Changes page shows them. */
-const PROJECTION_STATUS: Record<number, string> = { 5: "very likely to rise", 4: "likely to rise", [-4]: "likely to drop", [-5]: "very likely to drop" };
-
-/** "+51.2%", "−105.0%": FPL's progress figures, to one decimal as FPL shows them (the 100% threshold makes 99.6 and 100.0 different things). */
-function fmtProgress(value: number): string {
-  return `${value > 0 ? "+" : value < 0 ? "−" : ""}${Math.abs(value).toFixed(1)}%`;
-}
-
-/**
- * <price_progress>: FPL's own Progress (`price_change_percent`) or Predicted
- * Progress (its projection for the next price update,
- * `price_change_projections[0]`), as FPL's Price Changes page reads them.
- * Coloured by the figure itself, not a rank (the owner's call, 2026-10-26):
- * grey at 0 to full green at +100% and full red at −100%, through the
- * shared scale so the palette switch turns it off with the rest. A locked
- * or calibrating price says so instead.
- */
+/** <price_progress>: Progress or Predicted Progress (metrics/priceProgress.ts), as the player tables read it; its hover still ranks it within his position, as a neutral figure: nearer a rise ranks higher (<stat_hover>). */
 function progressFigure(player: NormalizedPlayer, predicted: boolean, hoverRank: number | undefined): CardFigure {
-  const pc = player.priceChange;
-  const plain = (text: string, title: string) => ({ text, title, rank: undefined, tint: undefined });
-  if (!pc) return plain(DASH, "FPL hasn't sent his price change progress");
-  if (pc.lockedUntil) return plain("Locked", `FPL has locked his price until ${fmtDate(pc.lockedUntil)}`);
-  if (pc.calibrating) return plain("Calibrating", "FPL is still calibrating his price change progress");
-  const next = pc.projections.find((p) => p.offsetDays === 0) ?? null;
-  const status = next ? (PROJECTION_STATUS[next.likelihood] ?? "unlikely to change") : null;
-  const value = predicted ? (next?.projectedPercent ?? null) : pc.percent;
-  if (value === null) return plain(DASH, "FPL hasn't sent a prediction for him");
-  const towards = value >= 0 ? "a rise" : "a drop";
-  const title = predicted
-    ? `Predicted Progress ${fmtProgress(value)}: where FPL expects him to be toward ${towards} at the next price update${status ? `, ${status}` : ""}. Now ${fmtProgress(pc.percent)}.`
-    : `Progress ${fmtProgress(value)}: FPL's figure for how far he is toward ${towards} (100% is the threshold)${next ? `. Predicted at the next update: ${fmtProgress(next.projectedPercent)}, ${status}` : ""}.`;
-  // Its hover still ranks it within his position, as a neutral figure: nearer a rise ranks higher (<stat_hover>).
-  return { text: fmtProgress(value), title, rank: undefined, tint: Math.max(0, Math.min(100, 50 + value / 2)), hoverRank, neutral: true };
+  const r = progressReading(player, predicted);
+  if (r.value === null) return { text: r.text, title: r.title, rank: undefined, tint: undefined };
+  return { text: r.text, title: r.title, rank: undefined, tint: r.tint, hoverRank, neutral: true };
 }
 
 /** Every player's ranks for the pitch cards' figures (<comparative_colouring>). Purchase and selling prices rank a squad player's against everyone else's in his position at today's price. */
@@ -487,7 +435,7 @@ function PlayerCard({
   view: KitView;
   /** The captain's multiplier: 2, or 3 under Triple Captain (<squad_chips>). */
   captainMultiplier: number;
-  /** Which Exp. Pts Points Prediction shows. */
+  /** Which Exp. Pts the cards show. */
   pointsSource: PointsSource;
   /** Which price Price shows. */
   priceView: PriceView;
@@ -523,7 +471,7 @@ function PlayerCard({
   /** A figure's hover (<stat_hover>): what it is, his figure explained, then his percentile within his position. */
   const definition =
     view === "points"
-      ? `Points Prediction (${SOURCE_NAME[pointsSource]}): expected points for the gameweek picked, a double's two matches added up.`
+      ? `Exp. Pts (${SOURCE_NAME[pointsSource]}): expected points for the gameweek picked, a double's two matches added up.`
       : view === "price"
         ? PRICE_DEFINITION[priceView]
         : view === "ownership"
@@ -693,7 +641,7 @@ export function SquadPitch({
   /** The gameweek the arrows show (<gameweek_arrows>); null with none left. */
   gameweek: number | null;
   onGameweekChange: (eventId: number) => void;
-  /** Each squad player's figures for `gameweek`: Points Prediction, Minutes and Best Draft read them. */
+  /** Each squad player's figures for `gameweek`: Exp. Pts, Exp. Mins and Best Draft read them. */
   expectationByPlayerId: Map<number, GameweekExpectation | null>;
   /** £m paid for each player, by id (<purchase_prices>): Price's Sell and Purchase. */
   purchasePrices: Record<number, number>;
@@ -750,7 +698,7 @@ export function SquadPitch({
     rootRef.current?.toggleAttribute("inert", !hasSquad);
   }, [hasSquad]);
 
-  // <best_draft>: every squad player's figure for the gameweek shown, from Points Prediction's source.
+  // <best_draft>: every squad player's figure for the gameweek shown, from the cards' Exp. Pts source.
   const starters = COMPOSITION_ORDER.flatMap((pos) => positionGroups[pos]);
   const candidates = [...starters, ...benchPlayers].map((p) => {
     const g = expectationByPlayerId.get(p.id) ?? null;
@@ -830,7 +778,7 @@ export function SquadPitch({
         <div className="squad-summary-controls">
           <div className="squad-summary-highlight">
             <SegmentedControl label="Highlight" hideLabel options={KIT_VIEW_OPTIONS} value={view} onChange={setView} />
-            {/* Each highlight's own toggle, beside it only (<kit_view>); Points Prediction's source is in Projected Points' box. */}
+            {/* Each highlight's own toggle, beside it only (<kit_view>); Exp. Pts' source is in Projected Points' box. */}
             {view === "fixtures" && <SegmentedControl label="Fixtures" hideLabel options={FIXTURES_VIEW_OPTIONS} value={fixturesView} onChange={setFixturesView} />}
             {view === "price" && <SegmentedControl label="Price" hideLabel options={PRICE_VIEW_OPTIONS} value={priceView} onChange={setPriceView} />}
           </div>
@@ -885,7 +833,7 @@ export function SquadPitch({
               gameweeks={gameweeks}
               value={gameweek}
               onChange={onGameweekChange}
-              describe={(eventId) => `Points Prediction, Minutes, Projected Points and Best Draft are for GW${eventId}`}
+              describe={(eventId) => `Exp. Pts, Exp. Mins, Projected Points and Best Draft are for GW${eventId}`}
             />
           </div>
         </div>
