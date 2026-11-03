@@ -49,10 +49,9 @@ Behind the scenes:
 
 **Not fixed, and why:**
 
-- **Your calls, so left open:**
-  - L7: clamping loaded saved data to the limits would delete a user's
-    extra squads or tiles.
-  - L8: the gameweek label style is a choice.
+- **Your call, so left open:** L7. Clamping loaded saved data to the
+  limits would delete a user's extra squads or tiles. (L8 was decided after
+  the report and is fixed.)
 - **You ruled them not defects:** L15, V5, and the V8 colouring (its
   wording was fixed as L17).
 - **Not asked for:** O1–O4.
@@ -77,7 +76,7 @@ Behind the scenes:
 | L5 | Fixed (`46aae1f`) | The server's ID rule is in `server/src/teamId.ts`; the client matches it, and a test compares the two over 13 inputs. Built app: `99999999999999999999` now says "Enter a valid FPL team ID…" |
 | L6 | Fixed (`de51c11`) | `parseComparisonIds` drops unknown ids before taking 5. Test fails on the old code ("got 4"). Built app: `?players=999999,1,0,abc,2,1,3,4,5,6` shows 5 players (5/5) |
 | L7 | Left open | See §4 |
-| L8 | Left open | See §4 |
+| L8 | Fixed after the report, owner's choice ("Gameweek 9"; `owner-decisions.md`) | The last-completed label "GW 9 · final" now reads "Gameweek 9 finished", like the other finished state. `AppShell.stale.test.tsx` "the top bar's gameweek label has one style…" fails on the old code |
 | L9 | Fixed (`de51c11`) | `migrate` now reads the stored version. A pre-v6 `{chip, event:null}` is kept, with no half guessed. 2 of 3 new tests fail on the old code |
 | L10 | Fixed (`3c48e43`) | `fplOfficialPoints` in `metrics/dictionary.ts`, in README's wording. "every Predictive column's Exp. Pts / Exp. Mins has a metric definition" fails on the old code |
 | L11 | Fixed (`3c48e43`) | `computeExpPointsBreakdown` deleted (nothing imported it). `MIN_QUALIFYING_SEASON_MINUTES`/`qualifyingSeasons` are kept: only the frozen backtest baseline uses them (`client/scripts/pointsModel/legacyModel.ts`). Their comments are corrected; nothing on screen changes |
@@ -141,8 +140,8 @@ Behind the scenes:
 - **L7:** limits aren't applied to loaded saved data. Clamping on load would
   delete a user's extra squads or tiles. A warning without deleting anything
   is possible, if you want one.
-- **L8:** two gameweek label styles in the top bar ("GW 9 · final" vs
-  "Gameweek 9"). Pick one and it's a small change.
+- **L8:** decided after the report ("Gameweek 9") and fixed. See the
+  table above and `owner-decisions.md`.
 - **V2, more likely now:** an install from before saved views existed
   (tiles store v≤2, no views key) would still not show its old custom tiles.
   It now opens on Starter instead of a blank My View. This is from code
@@ -156,8 +155,9 @@ Behind the scenes:
   - `.filter-toggle.on` (the Player header's ▾ toggles, grey fill, grey
     border).
 
-  Whether the ⇄ toggle should stay violet, as the Understat colour, is your
-  call. Phase 3 or a later run can confirm the other two.
+  Decided after the report: the owner keeps all three as they are. They
+  are now recorded as exceptions in README `<selected_state>` and
+  CLAUDE.md.
 - O1–O4, if you want a lighter start-up.
 
 ## 5. Final check

@@ -74,7 +74,8 @@ function getGameweekInfo(gameweekState: ReturnType<typeof useAppState>["gameweek
     return { label: `Gameweek ${gameweekState.event.id}`, title: `Gameweek ${gameweekState.event.id} · in progress`, deadlineIso: null };
   }
   if (gameweekState.kind === "last-completed") {
-    return { label: `GW ${gameweekState.event.id} · final`, title: `Last completed: GW ${gameweekState.event.id}`, deadlineIso: null };
+    // One label style for every gameweek state (owner's choice, audit 2026-11-03 L8).
+    return { label: `Gameweek ${gameweekState.event.id} finished`, title: `Gameweek ${gameweekState.event.id} finished`, deadlineIso: null };
   }
   return { label: "Pre-season", title: "Pre-season / No active gameweek", deadlineIso: null };
 }

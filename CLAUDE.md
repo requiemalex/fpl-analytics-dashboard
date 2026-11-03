@@ -233,7 +233,9 @@ browser scripts reuse `scripts/audit/lib/`, and throwaway ones go in
   anything picked or switched on is filled soft green
   (`--accent-positive-dim`) with no green outline, as the Dashboard's
   Players/Teams icons are; never a colour of a component's own.
-  `client/src/styles/selectedState.test.ts` checks it.
+  `client/src/styles/selectedState.test.ts` checks it. Three owner-kept
+  exceptions (2026-11-03): the ⇄ FPL/Understat toggle, the duty filter
+  cells and the Player header's ▾ toggles keep their own look.
 - **Graceful degradation over crashes** — a bad field, unmatched player, or
   unknown value gives a warning, not a broken page.
 - **No inline explanatory captions.** Explanations go in Help only, not

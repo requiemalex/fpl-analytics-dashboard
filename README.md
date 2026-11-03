@@ -173,7 +173,11 @@ shared segmented switches (`SegmentedControl`: the pitch's Highlight and
 source, every view switch), the gameweek arrows, chips, the top bar's
 icons, the Data View picker, Next 5 Fixtures' Games/Odds, the side menu's
 current page, the open Notepad tab and the picked Points History season all
-follow it. A green border is for a focused text box only.
+follow it. A green border is for a focused text box only. Three switches
+keep their own look, the owner's call (2026-11-03): the FPL/Understat ⇄
+toggle (`.source-toggle.on`, Understat's violet), the duty filter cells
+(`.duty-filter-cell.on`) and the Player header's ▾ toggles
+(`.filter-toggle.on`), each a grey or violet fill, never green.
 `styles/selectedState.test.ts` checks each selected style, fails on any
 picked or switched-on rule in any stylesheet with a green border, outline or
 ring, and fails on a component colouring a selection inline.
