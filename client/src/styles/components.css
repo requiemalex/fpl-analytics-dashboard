@@ -2568,7 +2568,8 @@ select:focus {
   color: var(--accent-value);
 }
 /* Profiles: a column is a button picking the season the Match Log shows;
-   the picked one sits on a faint panel and its season label is bold. */
+   the picked one has the <selected_state> look (as .icon-toolbar .chip.active)
+   and its season label is bold. */
 button.points-history-col.is-selectable {
   appearance: none;
   background: none;
@@ -2583,8 +2584,8 @@ button.points-history-col.is-selectable:hover {
   background: var(--surface-hover);
 }
 button.points-history-col.is-selected {
-  background: var(--surface-hover);
-  box-shadow: inset 0 0 0 1px var(--border-strong);
+  color: var(--text-primary);
+  background: var(--accent-positive-dim);
 }
 button.points-history-col.is-selectable:focus-visible {
   outline: 2px solid var(--accent-focus);
@@ -3576,9 +3577,10 @@ button.help-card-head:hover .help-card-title {
 .notepad-tab:hover {
   color: var(--text-primary);
 }
+/* <selected_state>: the one look for anything picked, as .icon-toolbar .chip.active. */
 .notepad-tab.active {
   color: var(--text-primary);
-  border-bottom-color: var(--accent-positive);
+  background: var(--accent-positive-dim);
 }
 .notepad-tab-input {
   flex-shrink: 0;

@@ -87,10 +87,11 @@
   color: var(--text-primary);
 }
 
+/* <selected_state>: the one look for anything picked, as .icon-toolbar .chip.active.
+   The transparent left border stays so nothing shifts. */
 .nav-link.active {
-  background: var(--surface-hover);
+  background: var(--accent-positive-dim);
   color: var(--text-primary);
-  border-left-color: var(--accent-positive);
 }
 
 .nav-separator {
@@ -359,8 +360,7 @@
   opacity: 0.5;
   cursor: default;
 }
-.btn.primary,
-.btn.active {
+.btn.primary {
   background: var(--accent-positive-dim);
   border-color: var(--accent-positive);
   color: var(--text-primary);

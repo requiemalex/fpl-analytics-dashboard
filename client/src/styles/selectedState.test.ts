@@ -22,6 +22,9 @@ function rule(selector: string): string {
   return m[1];
 }
 
+/** A green border, outline or ring: never part of the selected look. */
+const GREEN_EDGE = /(border[a-z-]*|outline[a-z-]*|box-shadow):[^;]*var\(--accent-positive\)/;
+
 const SELECTED = [
   ".icon-toolbar .chip.active",
   ".chip.active",
@@ -29,6 +32,10 @@ const SELECTED = [
   ".topbar-icon-btn.active",
   ".data-view-mode.active",
   ".fixtures-view-picker button.on",
+  // Audit 2026-11-03 M5, M6, L2: these had a look of their own.
+  ".nav-link.active",
+  ".notepad-tab.active",
+  "button.points-history-col.is-selected",
 ];
 
 describe("<selected_state>: one look for anything picked", () => {
@@ -36,22 +43,30 @@ describe("<selected_state>: one look for anything picked", () => {
     it(`${selector}: filled soft green, no green outline`, () => {
       const body = rule(selector);
       expect(body).toMatch(/background:\s*var\(--accent-positive-dim\)/);
-      expect(body).not.toMatch(/border(-color)?:[^;]*var\(--accent-positive\)/);
+      expect(body).not.toMatch(GREEN_EDGE);
+      expect(body).not.toMatch(/box-shadow:/);
     });
   }
 
-  // Audit 2026-11-03: picked things that still have a look of their own.
-  for (const [id, selector] of [
-    ["M5", ".nav-link.active"],
-    ["M6", ".notepad-tab.active"],
-    ["L2", "button.points-history-col.is-selected"],
-  ] as const) {
-    it.fails(`${id} ${selector}: filled soft green, no green edge`, () => {
-      const body = rule(selector);
-      expect(body).toMatch(/background:\s*var\(--accent-positive-dim\)/);
-      expect(body).not.toMatch(/border[a-z-]*:[^;]*var\(--accent-positive\)/);
-    });
-  }
+  // Audit 2026-11-03 L3: an unused .btn.active carried a green border. No
+  // picked/switched-on rule in any stylesheet may have a green edge.
+  it("no picked or switched-on rule anywhere has a green border, outline or ring", () => {
+    const sheets = (dir: string): string[] =>
+      readdirSync(dir).flatMap((name) => {
+        const path = join(dir, name);
+        if (statSync(path).isDirectory()) return sheets(path);
+        return /\.css$/.test(name) ? [path] : [];
+      });
+    const PICKED = /\.(active|is-active|selected|is-selected|on|is-on)\b|aria-(pressed|selected)="true"|aria-current|:checked/;
+    const offenders: string[] = [];
+    for (const path of sheets(SRC)) {
+      const text = readFileSync(path, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+      for (const [, selector, body] of text.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        if (PICKED.test(selector) && GREEN_EDGE.test(body)) offenders.push(selector.trim());
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
 
   it("no component sets a selection's colour of its own inline", () => {
     const files = (dir: string): string[] =>

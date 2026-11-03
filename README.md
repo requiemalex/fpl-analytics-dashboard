@@ -171,10 +171,12 @@ Players/Teams icons do: filled soft green (`--accent-positive-dim`), no
 green outline, round options in a bordered box (`.icon-toolbar`). The
 shared segmented switches (`SegmentedControl`: the pitch's Highlight and
 source, every view switch), the gameweek arrows, chips, the top bar's
-icons, the Data View picker and Next 5 Fixtures' Games/Odds all follow it.
-A green border is for a focused text box only.
-`styles/selectedState.test.ts` checks each selected style and fails on a
-component colouring a selection inline.
+icons, the Data View picker, Next 5 Fixtures' Games/Odds, the side menu's
+current page, the open Notepad tab and the picked Points History season all
+follow it. A green border is for a focused text box only.
+`styles/selectedState.test.ts` checks each selected style, fails on any
+picked or switched-on rule in any stylesheet with a green border, outline or
+ring, and fails on a component colouring a selection inline.
 
 **Pages:** Dashboard (`/`), Player Explorer (`/players`), Team Explorer (`/teams`),
 Player Comparison (`/player-comparison`), Team Building (`/team-building`),
