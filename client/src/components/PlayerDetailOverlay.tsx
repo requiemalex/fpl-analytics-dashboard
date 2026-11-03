@@ -8,7 +8,7 @@ import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { computeRadarDataForAxes, getRadarAxisGroupsForPosition } from "../metrics/radarStats";
 import { perMatchPositionPercentile, teamMatchesPlayed } from "../metrics/profileComparisons";
 import { positionRanks } from "../metrics/comparativeColour";
-import { FIXED_FLOOR_MINUTES, fixedFloorMinutes, isFixedFloorSmallSample } from "../metrics/fixedMinutesFloor";
+import { FIXED_FLOOR_MINUTES, fixedFloorMinutes, isFixedFloorSmallSample, isUnderMinimum } from "../metrics/fixedMinutesFloor";
 import { percentileTint } from "../utils/colorScale";
 import { percentileInPool } from "../metrics/percentiles";
 import { estimatedGamesFromMinutes } from "../metrics/calculations";
@@ -546,7 +546,7 @@ export function PlayerDetailOverlay() {
     const result: Record<string, number | null> = {};
     if (!player || liveLogRows.length === 0) return result;
     const liveMinutes = liveResolvedPlayers.find((p) => p.id === player.id)?.minutes ?? null;
-    if (liveMinutes === null || liveMinutes < fixedFloorMinutes("live")) return result;
+    if (isUnderMinimum(liveMinutes, fixedFloorMinutes("live"))) return result;
     for (const [key, { total, higherIsBetter }] of Object.entries(LIVE_LOG_METRICS)) {
       const raw = perMatchPositionPercentile(partialAverage(liveLogSums[key] ?? null), player, liveResolvedPlayers, total, matchesByTeam, fixedFloorMinutes("live"));
       result[key] = raw === null ? null : higherIsBetter ? raw : 100 - raw;
@@ -565,7 +565,7 @@ export function PlayerDetailOverlay() {
     for (const [key, { total }] of Object.entries(LIVE_LOG_METRICS)) {
       pools[key] = [];
       for (const p of liveResolvedPlayers) {
-        if (p.id === player.id || p.position !== player.position || p.minutes === null || p.minutes < floor) continue;
+        if (p.id === player.id || p.position !== player.position || isUnderMinimum(p.minutes, floor)) continue;
         const matches = matchesByTeam.get(p.teamId);
         const value = total(p);
         if (matches && value !== null) pools[key].push(value / matches);
@@ -682,9 +682,9 @@ export function PlayerDetailOverlay() {
     if (!season) return undefined;
     const peers = pastSeasons.status === "ready" ? pastSeasons.peers[seasonName] : undefined;
     if (!peers && seasonName !== historicReferenceSeason) return undefined;
-    if (season.minutes < FIXED_FLOOR_MINUTES) return noPercentileHint(FIXED_FLOOR_MINUTES);
+    if (isUnderMinimum(season.minutes, FIXED_FLOOR_MINUTES)) return noPercentileHint(FIXED_FLOOR_MINUTES);
     if (!peers) return playerRankHint(lastSeasonPointsRanks.get(player.id), player.position);
-    const pool = peers.filter((p) => p.minutes >= FIXED_FLOOR_MINUTES && p.totals.totalPoints !== null).map((p) => p.totals.totalPoints!);
+    const pool = peers.filter((p) => !isUnderMinimum(p.minutes, FIXED_FLOOR_MINUTES) && p.totals.totalPoints !== null).map((p) => p.totals.totalPoints!);
     return playerRankHint(rankAmong(season.totalPoints, pool, true), player.position);
   };
   /** A rank in words for this profile's Data View, or why there's none (under the fixed floor). */
@@ -848,7 +848,7 @@ export function PlayerDetailOverlay() {
           const averagePercentiles: Record<string, number | null> = {};
           const matchPools: Record<string, number[]> = {};
           const minutes = rows.reduce((sum, r) => sum + r.minutes, 0);
-          const pool = (pastSeasons.status === "ready" ? (pastSeasons.peers[pastLogSeason!] ?? []) : []).filter((p) => p.minutes >= FIXED_FLOOR_MINUTES);
+          const pool = (pastSeasons.status === "ready" ? (pastSeasons.peers[pastLogSeason!] ?? []) : []).filter((p) => !isUnderMinimum(p.minutes, FIXED_FLOOR_MINUTES));
           for (const [key, { peerTotal }] of Object.entries(LOG_VALUES)) {
             const total = partialTotal(sums[key]);
             const average = partialAverage(sums[key]);
@@ -857,7 +857,7 @@ export function PlayerDetailOverlay() {
             const peers = pool.filter((p) => p.totals[peerTotal] !== null && p.matches > 0);
             // Each match's hover ranks it against the others' per-match averages, as the Average row is (<stat_hover>).
             matchPools[key] = peers.map((p) => p.totals[peerTotal]! / p.matches);
-            if (total === null || average === null || minutes < FIXED_FLOOR_MINUTES) continue;
+            if (total === null || average === null || isUnderMinimum(minutes, FIXED_FLOOR_MINUTES)) continue;
             const higherIsBetter = LIVE_LOG_METRICS[key]?.higherIsBetter ?? true;
             const flip = (p: number | null) => (p === null ? null : higherIsBetter ? p : 100 - p);
             // A lower-is-better total grows with minutes, so it ranks per game (as live: xGC on xGC/Game).
@@ -865,7 +865,7 @@ export function PlayerDetailOverlay() {
             totalPercentiles[key] = flip(percentileInPool(rank(total, minutes), [rank(total, minutes), ...peers.map((p) => rank(p.totals[peerTotal]!, p.minutes))]));
             averagePercentiles[key] = flip(percentileInPool(average, [average, ...peers.map((p) => p.totals[peerTotal]! / p.matches)]));
           }
-          return { rows, ...logFooter(sums), totalPercentiles, averagePercentiles, matchPools, floor: minutes < FIXED_FLOOR_MINUTES ? FIXED_FLOOR_MINUTES : null };
+          return { rows, ...logFooter(sums), totalPercentiles, averagePercentiles, matchPools, floor: isUnderMinimum(minutes, FIXED_FLOOR_MINUTES) ? FIXED_FLOOR_MINUTES : null };
         })()
       : null;
 

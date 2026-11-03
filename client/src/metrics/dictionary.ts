@@ -808,6 +808,23 @@ export const METRIC_DICTIONARY: Record<string, MetricDefinition> = {
     caveats: "A player added in Scoutline is bought at his price that day; an import's purchase prices come from its transfers and, for its starting players, season-start prices checked against FPL's own bank (a GW1 team) or today's price where it hasn't moved since the team joined (a later one). An import's budget is its bank plus its players' selling prices.",
     availabilityNote: "— when his purchase price isn't known (a later-starting team's player whose price has moved since, or a squad saved before purchase prices were kept).",
   }),
+  fplOfficialPoints: def({
+    displayName: "Exp. Pts (FPL Official)",
+    internalName: "fplOfficialPoints",
+    source: "Derived",
+    apiFields: [
+      "bootstrap-static (ep_next, chance_of_playing_next_round, status; goals_scored, assists, expected_goals, expected_assists, total_points)",
+      "element-summary history (the matches he was registered for this season)",
+      "fixtures (FDR)",
+    ],
+    suppliedByFPL: false,
+    derived: true,
+    formula:
+      "One match: (share × ep_next + (1 − share) × season × chance of playing) × fixtureMultiplier(FDR, position). Season: his total points ÷ the matches he was registered for this season (a match he sat out counts as 0), with his goals and assists moved toward his xG and xA by Model Predicted's fitted weights at FPL's points for each, never below 0. Form's share (FORM_SHARE) is 0.2 for his next match, 0.15 the one after, 0.1 for every later one. Before his first match, while his season matches haven't loaded, or with no availability known: ep_next × fixtureMultiplier alone. A gameweek's figure adds up his matches in it.",
+    units: "points",
+    caveats: "Built from FPL's own figures only (ep_next is its form × chance of playing). FPL's availability is for the next round only, so it applies to every gameweek ahead.",
+    availabilityNote: "— for a blank gameweek; the hover says when the fallback (ep_next × fixture alone) is used.",
+  }),
   modelPredictedPoints: def({
     displayName: "Exp. Pts (Model Predicted)",
     internalName: "modelPredictedPoints",

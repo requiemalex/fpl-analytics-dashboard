@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { clubLiveMatches, clubSeasonHistory, clubSeasonsForMode, computeTeamAggregates, resultsWithinPlayed, type ClubHistoryContext } from "./teamStats";
+import { clubLiveMatches, clubSeasonHistory, clubSeasonsForMode, computeTeamAggregates, computeTeamPercentiles, resultsWithinPlayed, type ClubHistoryContext, type TeamAggregate } from "./teamStats";
 import { makeTeam } from "../test/fixtures";
 import { teamHeaderLine } from "../components/TeamDetailOverlay";
 import type { ClubMatch, ClubSeason } from "../types/normalized";
@@ -227,5 +227,19 @@ describe("a skipped player in the live season (audit 2026-10-18 M4)", () => {
     const [match] = clubLiveMatches(101, ctx);
     expect(match).toMatchObject({ goalsFor: 2, fantasyPoints: null, goals: null, xG: null });
     expect(clubSeasonHistory(101, ctx.clubSeasons, true).map((s) => s.seasonName)).toEqual(["2025/26"]);
+  });
+});
+
+describe("computeTeamPercentiles and <one_rank_rule>", () => {
+  it("gives a club alone with a figure no rank (was 100), and ranks two at 25 and 75, flipped for less-is-better", () => {
+    const club = (teamId: number) => ({ teamId }) as TeamAggregate;
+    const values = new Map<number, number | null>([[1, 10], [2, null]]);
+    const one = computeTeamPercentiles([club(1), club(2)], (t) => values.get(t.teamId) ?? null, true);
+    expect(one.get(1)).toBeNull();
+    expect(one.get(2)).toBeNull();
+    values.set(2, 20);
+    const two = computeTeamPercentiles([club(1), club(2)], (t) => values.get(t.teamId) ?? null, false);
+    expect(two.get(1)).toBe(75);
+    expect(two.get(2)).toBe(25);
   });
 });

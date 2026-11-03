@@ -1,4 +1,5 @@
 import type { NormalizedFixture, NormalizedPlayer, Position } from "../types/normalized";
+import { isUnderMinimum } from "./fixedMinutesFloor";
 import { percentileInPool } from "./percentiles";
 
 /**
@@ -41,7 +42,7 @@ export function perMatchPositionPercentile(
   const pool = [average];
   for (const p of population) {
     if (p.id === player.id || p.position !== player.position) continue;
-    if (p.minutes === null || p.minutes < minMinutes) continue;
+    if (isUnderMinimum(p.minutes, minMinutes)) continue;
     const matches = matchesByTeam.get(p.teamId);
     const value = total(p);
     if (!matches || value === null) continue;

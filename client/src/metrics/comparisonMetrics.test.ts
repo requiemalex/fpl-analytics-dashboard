@@ -81,3 +81,15 @@ describe("COMPARISON_METRICS", () => {
     expect(keys).toContain("pointsPerMillion");
   });
 });
+
+describe("comparisonPercentiles and <one_rank_rule>", () => {
+  it("gives a player alone in his position's pool no rank (was 100, full green), lower-is-better too", () => {
+    const lone = makePlayer({ id: 1, position: "GKP", totalPoints: 90, minutes: 2000 });
+    const pop = [lone, makePlayer({ id: 2, position: "DEF", totalPoints: 50, minutes: 2000 }), makePlayer({ id: 3, position: "DEF", totalPoints: 60, minutes: 2000 })];
+    const derived = new Map(pop.map((p) => [p.id, getPlayerDerivedMetrics(p)]));
+    for (const metric of COMPARISON_METRICS) {
+      const got = comparisonPercentiles(metric, pop, derived, [lone], 855);
+      expect(got.get(1), metric.key).toBeNull();
+    }
+  });
+});

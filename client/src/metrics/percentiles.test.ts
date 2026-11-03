@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { computePositionPercentiles, percentileInPool } from "./percentiles";
+import { computePositionPercentiles, percentileFromCounts, percentileInPool, percentileInSortedPool } from "./percentiles";
+import { computeRadarDataForAxes } from "./radarStats";
 import { makePlayer } from "../test/fixtures";
 
 describe("computePositionPercentiles", () => {
@@ -30,10 +31,10 @@ describe("computePositionPercentiles", () => {
     expect(result.get(1)).toBeCloseTo((0 + 2 / 2) / 3 * 100, 10);
   });
 
-  it("a single eligible player in a position gets 100 (documented n<=1 special case)", () => {
+  it("a single eligible player in a position has no rank (<one_rank_rule>: a pool under 2 is null, not 100)", () => {
     const players = [makePlayer({ id: 1, position: "GKP", totalPoints: 5 })];
     const result = computePositionPercentiles(players, (p) => p.totalPoints, 0);
-    expect(result.get(1)).toBe(100);
+    expect(result.get(1)).toBeNull();
   });
 
   it("excludes players below the minimum-minutes threshold from the reference population", () => {
@@ -68,16 +69,16 @@ describe("computePositionPercentiles", () => {
       makePlayer({ id: 2, position: "MID", totalPoints: 1, minutes: 900 }),
     ];
     const result = computePositionPercentiles(players, (p) => p.totalPoints, 0);
-    // Each is the sole player in their own position -> 100, not compared cross-position.
-    expect(result.get(1)).toBe(100);
-    expect(result.get(2)).toBe(100);
+    // Each is the sole player in their own position -> no rank, not compared cross-position.
+    expect(result.get(1)).toBeNull();
+    expect(result.get(2)).toBeNull();
   });
 
   it("returns a full-population map with null for every player, including those never assigned a position bucket result", () => {
     const players = [makePlayer({ id: 1, position: "FWD", totalPoints: 5, minutes: 900 })];
     const result = computePositionPercentiles(players, (p) => p.totalPoints, 0);
     expect(result.size).toBe(1);
-    expect(result.get(1)).toBe(100);
+    expect(result.get(1)).toBeNull();
   });
 });
 
@@ -90,5 +91,61 @@ describe("percentileInPool", () => {
   it("gives no percentile with no one else to compare against", () => {
     expect(percentileInPool(5, [5])).toBeNull();
     expect(percentileInPool(5, [])).toBeNull();
+  });
+});
+
+describe("<one_rank_rule>: the one rank formula", () => {
+  it("has no rank for a pool of 0 or 1", () => {
+    expect(percentileFromCounts(0, 0, 0)).toBeNull();
+    expect(percentileFromCounts(0, 1, 1)).toBeNull();
+    expect(percentileInPool(7, [])).toBeNull();
+    expect(percentileInPool(7, [7])).toBeNull();
+    expect(percentileInSortedPool(7, [7])).toBeNull();
+    expect(percentileInPool(7, [7], false)).toBeNull();
+  });
+
+  it("ranks a pool of 2 at 25 and 75, ties at the midpoint, and flips for lower-is-better", () => {
+    expect(percentileInPool(1, [1, 2])).toBe(25);
+    expect(percentileInPool(2, [1, 2])).toBe(75);
+    expect(percentileInPool(4, [4, 4, 9])).toBeCloseTo((1 / 3) * 100, 10);
+    expect(percentileInPool(1, [1, 2], false)).toBe(75);
+    expect(percentileInPool(2, [1, 2], false)).toBe(25);
+  });
+
+  it("gives the same rank by binary search over a sorted pool as by counting", () => {
+    const pool = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5];
+    const sorted = [...pool].sort((a, b) => a - b);
+    for (const v of pool) for (const up of [true, false]) expect(percentileInSortedPool(v, sorted, up)).toBe(percentileInPool(v, pool, up));
+  });
+
+  it("the profile radar draws nothing for a player alone in his position's pool (was a full-green 100)", () => {
+    const lone = makePlayer({ id: 1, position: "GKP", totalPoints: 90, minutes: 2000 });
+    const others = [makePlayer({ id: 2, position: "DEF", totalPoints: 50, minutes: 2000 }), makePlayer({ id: 3, position: "DEF", totalPoints: 60, minutes: 2000 })];
+    const [point] = computeRadarDataForAxes([{ key: "pts", label: "Points", metricFn: (p) => p.totalPoints, higherIsBetter: false }], lone, [lone, ...others], 855);
+    expect(point.percentile).toBeNull();
+    expect(point.rawValue).toBe(90);
+  });
+});
+
+describe("computePositionPercentiles and the minimum (<no_data_is_zero>)", () => {
+  it("at a threshold of 0 keeps a player with no minutes data in the pool, as 0 minutes", () => {
+    const players = [
+      makePlayer({ id: 1, position: "MID", totalPoints: 10, minutes: null }),
+      makePlayer({ id: 2, position: "MID", totalPoints: 20, minutes: 900 }),
+    ];
+    const result = computePositionPercentiles(players, (p) => p.totalPoints, 0);
+    expect(result.get(1)).toBe(25);
+    expect(result.get(2)).toBe(75);
+  });
+
+  it("drops a player with no minutes data under any positive threshold", () => {
+    const players = [
+      makePlayer({ id: 1, position: "MID", totalPoints: 10, minutes: null }),
+      makePlayer({ id: 2, position: "MID", totalPoints: 20, minutes: 900 }),
+      makePlayer({ id: 3, position: "MID", totalPoints: 30, minutes: 900 }),
+    ];
+    const result = computePositionPercentiles(players, (p) => p.totalPoints, 1);
+    expect(result.get(1)).toBeNull();
+    expect(result.get(2)).toBe(25);
   });
 });

@@ -1,9 +1,5 @@
 import type { NormalizedPlayer, Position } from "../types/normalized";
 import type { UpcomingFixture } from "./fixtureTicker";
-import { MIN_QUALIFYING_SEASON_MINUTES, type HistoricPlayerProfile } from "./historicAnalysis";
-import { resolvePlayerStats } from "./resolvePlayerStats";
-import { computeCareerAverages } from "./careerMetrics";
-import { estimatedPointsPerGame } from "./calculations";
 import { availabilityModifier } from "./availability";
 import { SCORING_RULES } from "./pointsModel";
 import { MODEL_PARAMS } from "./pointsModelParams.generated";
@@ -142,85 +138,3 @@ export function computeExpectedPointsForSingleFixture(
   return fplOfficialForFixture(player, fixture, fixtureIndexZeroBased, seasonRate)?.total ?? null;
 }
 
-export interface ExpPointsBreakdown {
-  /** FPL's own ep_next, extended by fixture difficulty (no season rate: this breakdown isn't shown) — see computeExpectedPointsForWindow. */
-  fplPredicted: number | null;
-  /** Last completed season's points-per-game × window — a flat rate extrapolation, not fixture-adjusted (that season is over; there's nothing to adjust against). */
-  lastSeason: number | null;
-  /** Qualifying historic-average points-per-game × window, same reasoning as lastSeason. */
-  historicAverage: number | null;
-  /** Mean of whichever of the three above exist — never down-weighted by a missing one. Null only if all three are missing. */
-  overallAverage: number | null;
-  /** False whenever fewer than all three inputs were available — shown as a marker on the cell, not hidden. */
-  overallAverageComplete: boolean;
-}
-
-/**
- * Builds all four "Exp. Pts" figures for one player at once. The three
- * inputs come from genuinely different places (FPL's own forward-looking
- * prediction; two backward-looking rates re-purposed as a per-window
- * estimate), so a player can legitimately have some and not others — a
- * summer signing has no Last Completed Season figure, someone who only
- * just reached the qualifying-minutes bar has no Historic Average one.
- * The Overall Average is deliberately a mean of whatever exists, not a
- * sum divided by 3, so a missing input never drags the average toward
- * zero.
- *
- * <small_sample_fix>: `pointsPerGame` (despite the name) is points per
- * 90 *minutes played*, not points per game — an approximation this app
- * has used since early on because a directly comparable "games played"
- * figure wasn't available per historic season. For a well-sampled
- * season that's a reasonable stand-in; for a player with, say, 45
- * minutes and one lucky haul last season, it produces a wildly
- * unrepresentative rate that then gets multiplied by the GW window,
- * compounding the distortion further. `resolvePlayerStats`'s
- * "lastSeason" mode deliberately applies no minutes floor at all — by
- * design, for its own descriptive purpose elsewhere in the app (an
- * injury-hit season is real data, not noise, when the question is
- * literally "what happened last season"). That's correct there and
- * wrong here: an Exp Pts figure is a forward-looking estimate, and a
- * rate built from a handful of minutes isn't a reliable one to
- * extrapolate from. Both `lastSeason` and `historicAverage` here require
- * the season(s) behind the rate to clear `MIN_QUALIFYING_SEASON_MINUTES`
- * (the same 900-minute bar already used to decide which seasons qualify
- * for a historic average at all) before trusting the rate — below that,
- * the figure is null rather than a misleadingly precise-looking number.
- * Historic Average's qualifying seasons already individually clear this
- * bar by construction, so this rarely changes anything there; Last
- * Completed Season had no such floor at all, which is what caused the bug.
- *
- * <expected_points_frozen>: `historicAverage` here is built directly from
- * `historicProfile.qualifyingSeasons` (via a local computeCareerAverages
- * call), not from `resolvePlayerStats(player, "historicAverage", ...)`
- * the way it briefly was — that shared helper's "historicAverage" mode
- * now averages across every season in the window, unfiltered (see
- * <no_survivorship_bias> in historicAnalysis.ts), which would silently
- * have changed this model's input too. Expected Points modeling is
- * being revisited separately, so this keeps its prior qualifying-only
- * basis byte-for-byte unchanged for now.
- */
-export function computeExpPointsBreakdown(
-  player: NormalizedPlayer,
-  upcomingFixtures: UpcomingFixture[],
-  window: ExpectedPointsWindow,
-  historicProfile: HistoricPlayerProfile | undefined,
-  currentSeasonHasStarted: boolean,
-): ExpPointsBreakdown {
-  const fplPredicted = computeExpectedPointsForWindow(player, upcomingFixtures, window);
-
-  const lastSeasonPlayer = resolvePlayerStats(player, "lastSeason", historicProfile, currentSeasonHasStarted);
-  const lastSeasonQualifies = lastSeasonPlayer.minutes !== null && lastSeasonPlayer.minutes >= MIN_QUALIFYING_SEASON_MINUTES;
-  const lastSeasonRate = lastSeasonQualifies ? lastSeasonPlayer.pointsPerGame : null;
-  const lastSeason = lastSeasonRate !== null ? lastSeasonRate * window : null;
-
-  const qualifyingSeasons = historicProfile?.qualifyingSeasons ?? [];
-  const historicAvg = qualifyingSeasons.length > 0 ? computeCareerAverages(qualifyingSeasons) : null;
-  const historicAvgQualifies = historicAvg !== null && historicAvg.avgMinutesPerSeason !== null && historicAvg.avgMinutesPerSeason >= MIN_QUALIFYING_SEASON_MINUTES;
-  const historicAvgRate = historicAvgQualifies ? estimatedPointsPerGame(historicAvg.avgPointsPerSeason, historicAvg.avgMinutesPerSeason) : null;
-  const historicAverage = historicAvgRate !== null ? historicAvgRate * window : null;
-
-  const inputs = [fplPredicted, lastSeason, historicAverage].filter((v): v is number => v !== null);
-  const overallAverage = inputs.length > 0 ? inputs.reduce((a, b) => a + b, 0) / inputs.length : null;
-
-  return { fplPredicted, lastSeason, historicAverage, overallAverage, overallAverageComplete: inputs.length === 3 };
-}

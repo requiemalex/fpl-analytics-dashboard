@@ -1,6 +1,7 @@
 import type { Position } from "../types/normalized";
 import type { AnalysisMode } from "./resolvePlayerStats";
-import { fixedFloorMinutes } from "./fixedMinutesFloor";
+import { fixedFloorMinutes, isUnderMinimum } from "./fixedMinutesFloor";
+import { percentileInPool, percentileInSortedPool } from "./percentiles";
 import { averageFixtureDifficulty, type UpcomingFixture } from "./fixtureTicker";
 
 /**
@@ -21,32 +22,10 @@ import { averageFixtureDifficulty, type UpcomingFixture } from "./fixtureTicker"
  * The rank is a percentile (0–100, half of any ties counted below),
  * flipped for a lower-is-better figure so a higher rank is always better;
  * percentileTint (utils/colorScale.ts) turns it into the colour. A pool of
- * fewer than two has no rank: a comparison with nobody isn't one.
+ * fewer than two has no rank: a comparison with nobody isn't one. The
+ * formula and that rule are percentileFromCounts (metrics/percentiles.ts),
+ * the one every rank in the app goes through (<one_rank_rule>).
  */
-
-/** Ranks `value` within `sorted` (ascending): the share below it, plus half the share equal to it. */
-function percentileInSorted(sorted: number[], value: number): number {
-  let lo = 0;
-  let hi = sorted.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (sorted[mid] < value) lo = mid + 1;
-    else hi = mid;
-  }
-  const below = lo;
-  hi = sorted.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (sorted[mid] <= value) lo = mid + 1;
-    else hi = mid;
-  }
-  const equal = lo - below;
-  return ((below + equal / 2) / sorted.length) * 100;
-}
-
-function flip(percentile: number, higherIsBetter: boolean): number {
-  return higherIsBetter ? percentile : 100 - percentile;
-}
 
 /**
  * Every eligible row's rank within its group, keyed by `id`. A row that
@@ -68,16 +47,18 @@ export function rankWithinGroups<T>(
   }
   const out = new Map<number, number>();
   for (const list of byGroup.values()) {
-    if (list.length < 2) continue;
     const sorted = list.map((x) => x.v).sort((a, b) => a - b);
-    for (const x of list) out.set(x.id, flip(percentileInSorted(sorted, x.v), opts.higherIsBetter));
+    for (const x of list) {
+      const rank = percentileInSortedPool(x.v, sorted, opts.higherIsBetter);
+      if (rank !== null) out.set(x.id, rank);
+    }
   }
   return out;
 }
 
-/** Whether a player's figures for the mode are coloured and compared: he has minutes for it, at or above the fixed floor. */
+/** Whether a player's figures for the mode are coloured and compared: his minutes for it are at or above the fixed floor (no data counts as 0: isUnderMinimum). */
 export function isColourEligible(minutes: number | null, mode: AnalysisMode): boolean {
-  return minutes !== null && minutes >= fixedFloorMinutes(mode);
+  return !isUnderMinimum(minutes, fixedFloorMinutes(mode));
 }
 
 /** Players' ranks within their position for one figure (see the rule above), keyed by player id. */
@@ -106,9 +87,8 @@ export function clubRanks<T>(rows: readonly T[], opts: { id: (r: T) => number; v
  * from a shot list. Null with nobody else to compare with.
  */
 export function rankAmong(value: number | null, others: readonly number[], higherIsBetter: boolean): number | null {
-  if (value === null || !Number.isFinite(value) || others.length === 0) return null;
-  const sorted = [...others, value].sort((a, b) => a - b);
-  return flip(percentileInSorted(sorted, value), higherIsBetter);
+  if (value === null || !Number.isFinite(value)) return null;
+  return percentileInPool(value, [...others, value], higherIsBetter);
 }
 
 /**

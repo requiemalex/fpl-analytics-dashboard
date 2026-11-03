@@ -408,7 +408,7 @@ export function PlayerComparison() {
           const player = playersById.get(playerId);
           const own = allTimeSeasonsByPlayerId.get(playerId)?.find((s) => s.seasonName === seasonName);
           if (!player || !own || own.minutes === 0) return undefined;
-          if (own.minutes < FIXED_FLOOR_MINUTES) return noPercentileHint(FIXED_FLOOR_MINUTES);
+          if (isUnderMinimum(own.minutes, FIXED_FLOOR_MINUTES)) return noPercentileHint(FIXED_FLOOR_MINUTES);
           const value = seasonFigure(playerId, own);
           if (value === null) return undefined;
           const key = `${seasonName}|${player.position}`;
@@ -418,7 +418,7 @@ export function PlayerComparison() {
             for (const [id, seasons] of allTimeSeasonsByPlayerId) {
               if (playersById.get(id)?.position !== player.position) continue;
               const s = seasons.find((x) => x.seasonName === seasonName);
-              if (!s || s.minutes < FIXED_FLOOR_MINUTES) continue;
+              if (!s || isUnderMinimum(s.minutes, FIXED_FLOOR_MINUTES)) continue;
               const v = seasonFigure(id, s);
               if (v !== null) pool.push(v);
             }

@@ -1,4 +1,5 @@
 import type { NormalizedPlayer, Position } from "../types/normalized";
+import { percentileInPool } from "./percentiles";
 import type { PlayerDerivedMetrics } from "./playerMetrics";
 import { PLAYER_COLUMNS, isStaticColumn, type ColumnGroup, type PlayerColumn } from "../components/playerColumns";
 import { isUnderMinimum } from "./fixedMinutesFloor";
@@ -79,7 +80,8 @@ export const OUTPUTS_MAX_METRICS = 12;
  * gives — the pool is the whole mode-resolved population at or above
  * `minMinutes` with a value (<percentile_population>) — but only the
  * targets' positions are ranked, since this runs for a handful of players.
- * Null for a target under the floor or without a value.
+ * Null for a target under the floor, without a value, or alone in his
+ * position's pool (<one_rank_rule>).
  */
 export function comparisonPercentiles(
   metric: ComparisonMetric,
@@ -113,14 +115,7 @@ export function comparisonPercentiles(
       result.set(t.id, null);
       continue;
     }
-    let below = 0;
-    let equal = 0;
-    for (const other of pool) {
-      if (other < v) below += 1;
-      else if (other === v) equal += 1;
-    }
-    const percentile = pool.length <= 1 ? 100 : ((below + equal / 2) / pool.length) * 100;
-    result.set(t.id, metric.higherIsBetter ? percentile : 100 - percentile);
+    result.set(t.id, percentileInPool(v, pool, metric.higherIsBetter));
   }
   return result;
 }

@@ -1,4 +1,5 @@
 import type { PlayerSeasonHistory } from "../types/normalized";
+import { isUnderMinimum } from "./fixedMinutesFloor";
 import { estimatedPointsPerGame, perGame } from "./calculations";
 import { columnByKey } from "../components/playerColumns";
 
@@ -170,7 +171,7 @@ export function buildSeasonTrend(
       if (!season) row[trendAwayKey(id)] = true;
       else if (!played) row[trendUnplayedKey(id)] = true;
       // A season he didn't play is under any minimum too (<no_data_is_zero>): marked, with no figure.
-      if (season && season.minutes < minMinutes) row[trendBelowKey(id)] = season.minutes;
+      if (season && isUnderMinimum(season.minutes, minMinutes)) row[trendBelowKey(id)] = season.minutes;
     }
     return row;
   });

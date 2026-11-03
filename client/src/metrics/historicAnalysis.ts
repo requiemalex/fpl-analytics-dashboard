@@ -1,6 +1,6 @@
 import type { PlayerSeasonHistory } from "../types/normalized";
 import { computeCareerAverages, type CareerAverages } from "./careerMetrics";
-import { FIXED_FLOOR_MINUTES } from "./fixedMinutesFloor";
+import { FIXED_FLOOR_MINUTES, isUnderMinimum } from "./fixedMinutesFloor";
 import { seasonNameFromStartYear, seasonStartYear } from "../utils/season";
 
 /**
@@ -20,7 +20,9 @@ export const HISTORIC_WINDOW_SEASONS = 4;
  * purposes: (1) flagging a season as "light" in the UI (the `*` marker
  * in Points History's detail table) so a
  * dip in the average is legible rather than mysterious, and (2)
- * `expectedPoints.ts`'s forward-looking Expected Points model, which
+ * the replaced Expected Points model frozen in
+ * client/scripts/pointsModel/legacyModel.ts (the backtest's baseline;
+ * nothing on screen), which
  * needs a season's RATE to be built from enough minutes to be worth
  * extrapolating into a future prediction — a different question from
  * "did this season really happen" and deliberately left alone.
@@ -61,10 +63,10 @@ export interface HistoricPlayerProfile {
   lastCompletedSeason: PlayerSeasonHistory | null;
   /**
    * Seasons within the window that meet MIN_QUALIFYING_SEASON_MINUTES,
-   * oldest first. Not used for Historic Average — only for
-   * `expectedPoints.ts`'s forward-prediction reliability gate
-   * (computeExpPointsBreakdown), which no figure shows today (Model
-   * Predicted's bonus rate used it before the points model).
+   * oldest first. Not used for Historic Average, nor by any figure the
+   * app shows: kept only for the replaced model frozen in
+   * client/scripts/pointsModel/legacyModel.ts (the backtest's baseline),
+   * whose bonus rate was built from it.
    */
   qualifyingSeasons: PlayerSeasonHistory[];
   /**
@@ -103,7 +105,7 @@ export function buildHistoricPlayerProfile(seasons: PlayerSeasonHistory[], refer
     qualifyingSeasons = allSeasonsInWindow.filter((s) => s.minutes >= MIN_QUALIFYING_SEASON_MINUTES);
   }
 
-  const floorSeasonsInWindow = allSeasonsInWindow.filter((s) => s.minutes >= FIXED_FLOOR_MINUTES);
+  const floorSeasonsInWindow = allSeasonsInWindow.filter((s) => !isUnderMinimum(s.minutes, FIXED_FLOOR_MINUTES));
 
   return {
     lastCompletedSeason,

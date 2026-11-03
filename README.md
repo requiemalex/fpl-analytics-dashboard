@@ -1370,7 +1370,10 @@ goals expected each way (`<points_model>`).
   - the rank is a percentile (half of ties below) flipped for
     lower-is-better figures; `percentileTint` (`utils/colorScale.ts`)
     turns it into the one scale: no colour at the 50th, stronger green
-    above, stronger red below. A pool of fewer than two has no colour.
+    above, stronger red below. A pool of fewer than two has no rank and
+    no colour. Every rank in the app (the colours, the profile radar,
+    Player Comparison, the club pages) is the one formula,
+    `percentileFromCounts` (`metrics/percentiles.ts`, `<one_rank_rule>`).
   - More is better for goals, assists, wins, points and the like,
     over-performance included (Goals − xG, Assists − xA, Pts − xPts).
     **Price and ownership are coloured, less is better** (cost efficiency,
@@ -1946,7 +1949,8 @@ green or red, which mean better and worse, nor a source's violet or rose).
   leader), doesn't set the Outputs scale or tint its bar, and can't be bold.
 - Radar percentiles are within position, among everyone at or above the
   fixed floor on every card, as every colour is (`comparisonPercentiles`, the same figure as
-  `computePositionPercentiles`), flipped for lower-is-better metrics.
+  `computePositionPercentiles`), flipped for lower-is-better metrics. A
+  player alone in his position's pool has no rank, so no point on that axis.
 - An Outputs row is raw figures to scale: its bar runs from 0 to the
   highest figure among the ranked compared players, each marker at
   value ÷ leader with the figure above it; each row has its own scale.

@@ -1,4 +1,5 @@
 import type { ClubMatch, ClubSeason, NormalizedTeam } from "../types/normalized";
+import { percentileInPool } from "./percentiles";
 import type { AnalysisMode } from "./resolvePlayerStats";
 import type { RadarDataPoint } from "./radarStats";
 import { HISTORIC_WINDOW_SEASONS, nextSeasonName } from "./historicAnalysis";
@@ -250,31 +251,20 @@ export function clubSeasonHistory(clubCode: number | null, clubSeasons: ClubSeas
 }
 
 /**
- * Same rank/percentile formula as computePositionPercentiles
- * (metrics/percentiles.ts) but over the single pool of all teams — there's
- * no position bucketing at team level. Pre-flipped so a higher returned
+ * The one rank rule (percentileInPool, metrics/percentiles.ts:
+ * <one_rank_rule>) over the single pool of all teams — there's no
+ * position bucketing at team level. Pre-flipped so a higher returned
  * percentile always means "better", same convention as every other
- * percentile in this app.
+ * percentile in this app. Null for a club alone with a figure.
  */
 export function computeTeamPercentiles(allTeams: TeamAggregate[], metricFn: (t: TeamAggregate) => number | null, higherIsBetter: boolean): Map<number, number | null> {
   const eligible = allTeams.filter((t) => metricFn(t) !== null);
-  const values = eligible.map((t) => metricFn(t) as number).sort((a, b) => a - b);
-  const n = values.length;
+  const values = eligible.map((t) => metricFn(t) as number);
 
   const result = new Map<number, number | null>();
   for (const t of allTeams) result.set(t.teamId, null);
 
-  for (const t of eligible) {
-    const v = metricFn(t) as number;
-    let below = 0;
-    let equal = 0;
-    for (const other of values) {
-      if (other < v) below += 1;
-      else if (other === v) equal += 1;
-    }
-    const raw = n <= 1 ? 100 : ((below + equal / 2) / n) * 100;
-    result.set(t.teamId, higherIsBetter ? raw : 100 - raw);
-  }
+  for (const t of eligible) result.set(t.teamId, percentileInPool(metricFn(t) as number, values, higherIsBetter));
 
   return result;
 }

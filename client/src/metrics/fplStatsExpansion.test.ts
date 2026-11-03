@@ -142,6 +142,10 @@ describe("the columns", () => {
   it("the set-piece orders are icons after the name (<set_piece_duties>), not columns", () => {
     for (const key of ["penaltiesOrder", "directFreekicksOrder", "cornersOrder"]) expect(columnByKey(key), key).toBeUndefined();
   });
+  it("every Predictive column's Exp. Pts / Exp. Mins has a metric definition", () => {
+    const names = new Set(Object.values(METRIC_DICTIONARY).map((d) => d.displayName));
+    for (const label of ["Exp. Pts (FPL Official)", "Exp. Pts (Model Predicted)", "Exp. Mins"]) expect(names.has(label), label).toBe(true);
+  });
   it("every Player column has a metric definition (the User Guide's Metric reference)", () => {
     for (const c of PLAYER_COLUMNS) expect(METRIC_DICTIONARY[c.metricKey ?? c.key], c.key).toBeDefined();
   });

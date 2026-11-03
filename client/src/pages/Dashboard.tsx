@@ -5,7 +5,7 @@ import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { resolvePlayerStatsList, type AnalysisMode } from "../metrics/resolvePlayerStats";
 import { clubRanks, colourDirection, positionRanks, rankDirection } from "../metrics/comparativeColour";
 import { clubColumnHint, clubRankHint, noPercentileHint, playerColumnHint, playerRankHint, statHover } from "../components/hoverText";
-import { fixedFloorMinutes } from "../metrics/fixedMinutesFloor";
+import { fixedFloorMinutes, isUnderMinimum } from "../metrics/fixedMinutesFloor";
 import { dashboardFloorNote, isSmallSample, smallSampleNote } from "../components/MinutesFloorBadge";
 import { useHiddenSmallSamples } from "../state/useHiddenSmallSamples";
 import { filterPlayers } from "../state/useFilteredPlayers";
@@ -263,7 +263,7 @@ const MODES: AnalysisMode[] = ["live", "lastSeason", "historicAverage"];
 // applied to specifically picked players.
 export function applyDefaultViewFloor(players: NormalizedPlayer[], dataView: AnalysisMode): NormalizedPlayer[] {
   const floor = fixedFloorMinutes(dataView);
-  return players.filter((p) => p.minutes !== null && p.minutes >= floor);
+  return players.filter((p) => !isUnderMinimum(p.minutes, floor));
 }
 
 /**

@@ -1,5 +1,5 @@
 import type { Position } from "../types/normalized";
-import { fixedFloorMinutes } from "../metrics/fixedMinutesFloor";
+import { fixedFloorMinutes, isUnderMinimum } from "../metrics/fixedMinutesFloor";
 import { rankAmong } from "../metrics/comparativeColour";
 import { perGame } from "../metrics/calculations";
 import type { UsClubTotals, UsPlayerTotals, UsSeason } from "./schema";
@@ -35,7 +35,7 @@ export function floorFor(ctx: UsComparisonContext, season: string): number {
 /** Whether a player's Understat figures for the season are coloured: he has a row at or above the floor. */
 export function playerEligible(ctx: UsComparisonContext, code: number, season: string): boolean {
   const row = ctx.seasons.get(season)?.players.get(code);
-  return !!row && row.minutes >= floorFor(ctx, season);
+  return !!row && !isUnderMinimum(row.minutes, floorFor(ctx, season));
 }
 
 /** Other players in his position with a row at or above the floor that season. */
@@ -44,7 +44,7 @@ function peers(ctx: UsComparisonContext, code: number, season: string): [number,
   const file = ctx.seasons.get(season);
   if (!position || !file) return [];
   const floor = floorFor(ctx, season);
-  return [...file.players].filter(([c, row]) => c !== code && ctx.positionByCode.get(c) === position && row.minutes >= floor);
+  return [...file.players].filter(([c, row]) => c !== code && ctx.positionByCode.get(c) === position && !isUnderMinimum(row.minutes, floor));
 }
 
 /** A club's matches played that season, for a per-match figure: 38 in a completed season, its Understat count so far in the live one. */
