@@ -18,7 +18,29 @@
 }
 .data-view-picker-modes {
   display: flex;
-  gap: 6px;
+  gap: 4px;
+}
+/* Each Data View as an .icon-toolbar icon: round, the one picked filled soft green (<selected_state>). */
+.data-view-mode {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.data-view-mode:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+.data-view-mode.active {
+  color: var(--text-primary);
+  background: var(--accent-positive-dim);
 }
 .data-view-picker-season {
   padding: 0 var(--space-2) 0 var(--space-3);
@@ -1058,18 +1080,21 @@ select:focus {
 /* Games or Odds on Next 5 Fixtures' header: the pitch's two icons, small. */
 .fixtures-view-picker {
   display: inline-flex;
+  gap: 2px;
   vertical-align: middle;
   margin-left: 4px;
-  border: 1px solid var(--border);
+  padding: 2px;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  overflow: hidden;
+  background: var(--surface);
 }
 .fixtures-view-picker button {
   display: inline-flex;
   align-items: center;
-  padding: 1px 3px;
+  padding: 2px;
   border: 0;
-  background: var(--surface-raised);
+  border-radius: 999px;
+  background: transparent;
   color: var(--text-muted);
   cursor: pointer;
 }
@@ -1077,9 +1102,10 @@ select:focus {
   width: 12px;
   height: 12px;
 }
+/* <selected_state>, as everywhere. */
 .fixtures-view-picker button.on {
-  color: var(--accent-positive);
-  background: color-mix(in srgb, var(--accent-positive) 16%, var(--surface-raised));
+  color: var(--text-primary);
+  background: var(--accent-positive-dim);
 }
 .bench-strip {
   margin-top: 14px;
@@ -1951,13 +1977,15 @@ select:focus {
   background: var(--accent-positive-dim);
 }
 
-/* One-of-a-few choice. Same green selected state as .chip.active. */
+/* One-of-a-few choice, drawn as an .icon-toolbar is: round options in a
+   bordered box, the one picked filled soft green with no outline
+   (<selected_state>). */
 .segmented {
   display: flex;
-  gap: 3px;
-  padding: 3px;
-  background: var(--bg);
-  border: 1px solid var(--border);
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
 }
 /* Equal shares of the bar, but never narrower than its own label: a long
@@ -1969,9 +1997,9 @@ select:focus {
   justify-content: center;
   gap: 6px;
   min-width: max-content;
-  padding: 6px 8px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  border: none;
+  border-radius: 999px;
   background: transparent;
   color: var(--text-secondary);
   font-size: 12.5px;
@@ -1983,18 +2011,19 @@ select:focus {
   color: var(--text-primary);
   background: var(--surface-hover);
 }
+/* <selected_state>: the one look for anything picked or switched on, as .icon-toolbar .chip.active. */
 .segmented-option.active {
   color: var(--text-primary);
   background: var(--accent-positive-dim);
-  border-color: var(--accent-positive);
 }
 .segmented.icon-only {
   align-self: flex-start;
 }
 .segmented.icon-only .segmented-option {
   flex: 0 0 auto;
-  width: 36px;
-  padding: 5px 0;
+  width: 34px;
+  height: 34px;
+  padding: 0;
 }
 
 /* <gameweek_arrows>: ‹ GW10 › — the segmented bar's look, with the
@@ -2005,8 +2034,9 @@ select:focus {
 }
 .segmented.gameweek-arrows .gameweek-arrow {
   flex: 0 0 auto;
-  width: 30px;
-  padding: 5px 0;
+  width: 34px;
+  height: 34px;
+  padding: 0;
 }
 .segmented.gameweek-arrows .gameweek-arrow:disabled {
   opacity: 0.35;
@@ -2335,9 +2365,10 @@ select:focus {
   color: var(--text-secondary);
   background: var(--surface-raised);
 }
+/* <selected_state>: filled soft green, no green outline (its border takes the fill's colour). */
 .chip.active {
   color: var(--text-primary);
-  border-color: var(--accent-positive);
+  border-color: var(--accent-positive-dim);
   background: var(--accent-positive-dim);
 }
 .chip-icon {

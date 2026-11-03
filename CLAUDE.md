@@ -225,6 +225,11 @@ No lint script. Playwright isn't installed but works via
   grids use `minmax(min-content, 1fr)`). Never use `overflow-wrap:
   anywhere`, `word-break: break-all` or `hyphens: auto` (URLs aside);
   `client/src/styles/wholeWords.test.ts` fails if you do.
+- **Selected state** (owner's rule, 2026-11-03, `<selected_state>`):
+  anything picked or switched on is filled soft green
+  (`--accent-positive-dim`) with no green outline, as the Dashboard's
+  Players/Teams icons are; never a colour of a component's own.
+  `client/src/styles/selectedState.test.ts` checks it.
 - **Graceful degradation over crashes** — a bad field, unmatched player, or
   unknown value gives a warning, not a broken page.
 - **No inline explanatory captions.** Explanations go in Help only, not

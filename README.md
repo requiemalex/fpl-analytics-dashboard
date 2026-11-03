@@ -163,6 +163,17 @@ source file, `index.html` and the Electron pages, and fails on any rule
 that lets the browser split words (`overflow-wrap: anywhere`,
 `word-break: break-all`, `hyphens: auto` and their inline forms).
 
+**Selected state** (`<selected_state>`, owner's rule 2026-11-03). Anything
+picked or switched on looks the same everywhere, as the Dashboard's
+Players/Teams icons do: filled soft green (`--accent-positive-dim`), no
+green outline, round options in a bordered box (`.icon-toolbar`). The
+shared segmented switches (`SegmentedControl`: the pitch's Highlight and
+source, every view switch), the gameweek arrows, chips, the top bar's
+icons, the Data View picker and Next 5 Fixtures' Games/Odds all follow it.
+A green border is for a focused text box only.
+`styles/selectedState.test.ts` checks each selected style and fails on a
+component colouring a selection inline.
+
 **Pages:** Dashboard (`/`), Player Explorer (`/players`), Team Explorer (`/teams`),
 Player Comparison (`/player-comparison`), Team Building (`/team-building`),
 About & Legal (`/legal`), plus the player and team profile overlays and the
@@ -2093,7 +2104,14 @@ too, then puts the squad back as it was after the last deadline: the
 players, XI, armbands and purchase prices its transfer window kept at the
 gameweek's start (`TransferWindow.start`, what a Free Hit puts back),
 every transfer since undone, confirmed ones included (`made` back to 0).
-The gameweek's chip stays: it's played or cancelled in Chips. It's greyed
+The gameweek's chip stays: it's played or cancelled in Chips. An import's
+purchase prices come back with it: its `start` is kept once they've
+loaded (and filled in when they load later), and Reset takes any it lacks
+from FPL's own (`startSnapshot`), so each player counts at his selling
+price again and the bank is FPL's (fixed 2026-11-03: a snapshot taken
+before the prices loaded priced risen players at today's price, leaving
+the bank short). A player sold and bought back counts at today's price, as
+in FPL, so Reset isn't greyed out for him. It's greyed
 out, saying why, with nothing to go back to (a squad built here before
 its first deadline) or nothing changed since (`resetDraftBlocker`).
 **Best Draft** (below) doesn't ask, as it only rearranges the squad. Before any squad exists the

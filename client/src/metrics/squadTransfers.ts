@@ -1,6 +1,6 @@
 import type { ChipWindow } from "../types/normalized";
 import type { RawEntryHistory } from "../types/raw";
-import { SQUAD_RULES, snapshotOf, type ChipName, type SavedSquad, type TransferWindow, type UsedChip } from "../types/team";
+import { SQUAD_RULES, snapshotOf, type ChipName, type SavedSquad, type SquadSnapshot, type TransferWindow, type UsedChip } from "../types/team";
 
 /**
  * <squad_transfers>: a squad's transfers for the gameweek open for picks,
@@ -119,6 +119,31 @@ export function confirmTransfers(squad: SavedSquad): SavedSquad {
 }
 
 /**
+ * The squad at the gameweek's start (its window's `start`), an import's
+ * purchase prices filled in from FPL's own (`importedFrom.purchasePrices`)
+ * for each player it held then that the snapshot has none for: an import's
+ * snapshot could be taken before its prices had loaded (fixed 2026-11-03),
+ * and without them Reset Draft priced those players at today's price, not
+ * their selling price, leaving the bank short by every rise. Null with no
+ * window.
+ */
+export function startSnapshot(squad: Pick<SavedSquad, "transfers" | "importedFrom">): SquadSnapshot | null {
+  const w = squad.transfers;
+  if (!w) return null;
+  const fpl = squad.importedFrom?.purchasePrices ?? null;
+  if (!fpl) return w.start;
+  const missing = w.start.playerIds.filter((id) => w.start.purchasePrices[id] === undefined && fpl[id] !== undefined);
+  if (missing.length === 0) return w.start;
+  return { ...w.start, purchasePrices: { ...w.start.purchasePrices, ...Object.fromEntries(missing.map((id) => [id, fpl[id]])) } };
+}
+
+/** The squad with its window's `start` given an import's purchase prices (startSnapshot), kept so; the same object when nothing's missing. */
+export function withStartPrices(squad: SavedSquad): SavedSquad {
+  const start = startSnapshot(squad);
+  return start && squad.transfers && start !== squad.transfers.start ? { ...squad, transfers: { ...squad.transfers, start } } : squad;
+}
+
+/**
  * <reset_draft>: the squad put back as it was at the gameweek's start (its
  * window's `start`: the last deadline, or when its transfers began to be
  * kept), with every transfer since undone, confirmed ones included. Its
@@ -127,8 +152,8 @@ export function confirmTransfers(squad: SavedSquad): SavedSquad {
  */
 export function resetDraft(squad: SavedSquad): SavedSquad {
   const w = squad.transfers;
-  if (!w) return squad;
-  const s = w.start;
+  const s = startSnapshot(squad);
+  if (!w || !s) return squad;
   return {
     ...squad,
     playerIds: [...s.playerIds],
@@ -136,7 +161,7 @@ export function resetDraft(squad: SavedSquad): SavedSquad {
     captainId: s.captainId,
     viceCaptainId: s.viceCaptainId,
     purchasePrices: { ...s.purchasePrices },
-    transfers: { ...w, made: 0, baseIds: [...s.playerIds] },
+    transfers: { ...w, start: s, made: 0, baseIds: [...s.playerIds] },
   };
 }
 
@@ -146,10 +171,17 @@ export function resetDraftBlocker(squad: SavedSquad, event: number | null): stri
   // A squad built here before its first deadline (every transfer free) has no deadline's squad to go back to.
   if (event === null || !w || w.event !== event || (w.free === null && !squad.importedFrom))
     return "Reset Draft: nothing to go back to yet (a squad built here is first kept at its first deadline)";
-  const s = w.start;
+  const s = startSnapshot(squad)!;
   const same = (a: readonly number[], b: readonly number[]) => a.length === b.length && a.every((id) => b.includes(id));
+  // A player sold and bought back is the same player at today's price (as in FPL): a change Reset puts right.
+  const samePrices = squad.playerIds.every((id) => squad.purchasePrices[id] === s.purchasePrices[id]);
   const unchanged =
-    same(squad.playerIds, s.playerIds) && same(squad.startingXI, s.startingXI) && squad.captainId === s.captainId && squad.viceCaptainId === s.viceCaptainId && w.made === 0;
+    same(squad.playerIds, s.playerIds) &&
+    same(squad.startingXI, s.startingXI) &&
+    squad.captainId === s.captainId &&
+    squad.viceCaptainId === s.viceCaptainId &&
+    samePrices &&
+    w.made === 0;
   return unchanged ? "Reset Draft: the squad is already as it was after the last deadline" : null;
 }
 

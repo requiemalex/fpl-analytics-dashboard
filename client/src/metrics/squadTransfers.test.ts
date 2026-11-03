@@ -8,11 +8,13 @@ import {
   playChip,
   resetDraft,
   resetDraftBlocker,
+  startSnapshot,
   setFreeTransfers,
   transferStanding,
 } from "./squadTransfers";
 import { createBlankSquad, snapshotOf, type SavedSquad, type TransferWindow } from "../types/team";
 import type { ChipWindow } from "../types/normalized";
+import { squadMoney } from "./squadPrices";
 import type { RawEntryHistory } from "../types/raw";
 
 // <squad_transfers>, <squad_chips>
@@ -140,6 +142,52 @@ describe("<reset_draft> resetDraft", () => {
     // A squad built here before its first deadline: every transfer free, nothing kept yet.
     expect(resetDraftBlocker(squad([1, 2], null), 10)).toMatch(/nothing to go back to/);
     expect(resetDraftBlocker(playChip(squad([1, 2], null), 10, "3xc"), 10)).toMatch(/nothing to go back to/);
+  });
+});
+
+describe("<reset_draft> an import's purchase prices", () => {
+  // Imported with £1.0m in the bank: player 1 bought at £6.0m, now £8.0m (sells for £7.0m); 2 and 3 unchanged at £5.0m.
+  const today: Record<number, number> = { 1: 8, 2: 5, 3: 5, 4: 4.5 };
+  const bought = { 1: 6, 2: 5, 3: 5 };
+  const imported = (startPrices: Record<number, number>): SavedSquad => ({
+    ...createBlankSquad("Import"),
+    playerIds: [1, 2, 3],
+    startingXI: [1, 2],
+    captainId: 1,
+    viceCaptainId: 2,
+    purchasePrices: { ...bought },
+    // An import saved before 2026-11-03: its window's start was taken before its prices loaded.
+    transfers: { event: 10, free: 1, made: 0, baseIds: [1, 2, 3], start: { playerIds: [1, 2, 3], startingXI: [1, 2], captainId: 1, viceCaptainId: 2, purchasePrices: startPrices }, chip: null },
+    importedFrom: { teamId: 7, teamName: "T", managerName: "M", asOfEvent: 9, bank: 1, budget: null, playerIds: [1, 2, 3], purchasePrices: { ...bought } },
+  });
+  const bank = (s: SavedSquad) => {
+    const money = squadMoney(s, (id) => today[id]);
+    const spent = s.playerIds.reduce((sum, id) => sum + money.cost({ id, price: today[id] }), 0);
+    return Math.round((money.budget - spent) * 10) / 10;
+  };
+
+  it("removing a risen player and resetting gives back the bank FPL shows, not today's price for him", () => {
+    const s = imported({});
+    expect(bank(s)).toBe(1);
+    const sold = { ...s, playerIds: [2, 3, 4], startingXI: [2], captainId: 2, viceCaptainId: null, purchasePrices: { 2: 5, 3: 5, 4: 4.5 } };
+    const reset = resetDraft(sold);
+    expect(reset.purchasePrices).toEqual(bought);
+    expect(bank(reset)).toBe(1);
+  });
+
+  it("a player sold and bought back is a change Reset can undo (he'd cost today's price)", () => {
+    const s = imported({ ...bought });
+    expect(resetDraftBlocker(s, 10)).toMatch(/already as it was/);
+    const rebought = { ...s, purchasePrices: { ...bought, 1: 8 } };
+    expect(bank(rebought)).toBe(0);
+    expect(resetDraftBlocker(rebought, 10)).toBeNull();
+    expect(bank(resetDraft(rebought))).toBe(1);
+  });
+
+  it("fills only what the snapshot lacks, from FPL's own prices", () => {
+    expect(startSnapshot(imported({ 2: 5 }))!.purchasePrices).toEqual(bought);
+    const complete = imported({ ...bought });
+    expect(startSnapshot(complete)).toBe(complete.transfers!.start);
   });
 });
 

@@ -78,6 +78,8 @@ describe("imported squad sync (<imported_squad_sync>)", () => {
     expect(updates).toEqual([{ squadName: "My renamed squad", event: 9, playersIn: [16], playersOut: [15] }]);
     // <squad_transfers>: the next gameweek's, from FPL's history of the team (its first gameweek: one after it), counted from its picks.
     expect(squad.transfers).toEqual(expect.objectContaining({ event: 10, free: 1, made: 0, baseIds: GW9_IDS, chip: null }));
+    // <reset_draft>: the deadline's squad is kept with its purchase prices, so Reset Draft puts them back.
+    expect(squad.transfers!.start.purchasePrices).toEqual({ 16: 6.3 });
   });
 
   it("after a Free Hit, takes the picks from the gameweek before it: the squad the team goes back to", async () => {

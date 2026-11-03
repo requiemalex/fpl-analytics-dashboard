@@ -10,7 +10,7 @@ import { loadImportedPurchasePrices } from "../state/importedPurchasePrices";
 import { validateSquad, canAddPlayer, fitsStartingXI, openSquadSlots } from "../metrics/squadRules";
 import { ApiRequestError } from "../api/client";
 import { importFplTeam, keepPurchases, loadImportTransfers } from "../state/fplTeamImport";
-import { chipStatuses, confirmTransfers, playChip, resetDraft, resetDraftBlocker, setFreeTransfers, transferStanding } from "../metrics/squadTransfers";
+import { chipStatuses, confirmTransfers, playChip, resetDraft, resetDraftBlocker, setFreeTransfers, transferStanding, withStartPrices } from "../metrics/squadTransfers";
 import type { ChipName } from "../types/team";
 import { SquadPitch, type PitchColourRanks } from "../components/SquadPitch";
 import type { DraftPicks } from "../metrics/bestDraft";
@@ -135,11 +135,12 @@ export function TeamBuilder() {
       .then(({ playerIds, purchasePrices }) =>
         update(active.id, (s) =>
           s.importedFrom
-            ? {
+            ? // The window's `start` gets them too, so Reset Draft puts them back (<reset_draft>).
+              withStartPrices({
                 ...s,
                 importedFrom: { ...s.importedFrom, playerIds: s.importedFrom.playerIds ?? playerIds, purchasePrices },
                 purchasePrices: { ...keepPurchases(purchasePrices, (id) => s.playerIds.includes(id)), ...s.purchasePrices },
-              }
+              })
             : s,
         ),
       )
@@ -155,7 +156,7 @@ export function TeamBuilder() {
     if (!active || !imported || active.transfers !== null || upcoming === null || transferLoadsTried.current.has(active.id)) return;
     transferLoadsTried.current.add(active.id);
     loadImportTransfers(imported.teamId, active, upcoming)
-      .then((transfers) => update(active.id, (s) => (s.importedFrom && s.transfers === null ? { ...s, transfers } : s)))
+      .then((transfers) => update(active.id, (s) => (s.importedFrom && s.transfers === null ? withStartPrices({ ...s, transfers }) : s)))
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active?.id, active?.transfers, events, update]);

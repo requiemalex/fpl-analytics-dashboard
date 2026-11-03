@@ -214,8 +214,9 @@
   background: var(--surface-hover);
   color: var(--text-primary);
 }
+/* <selected_state>: filled soft green, no green outline. */
 .topbar-icon-btn.active {
-  border-color: var(--accent-positive);
+  border-color: var(--accent-positive-dim);
   background: var(--accent-positive-dim);
   color: var(--text-primary);
 }

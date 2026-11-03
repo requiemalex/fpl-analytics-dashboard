@@ -62,11 +62,10 @@ export function DataViewPicker({
           <button
             key={o.mode}
             type="button"
-            className="btn btn-icon"
+            className={`data-view-mode${mode === o.mode ? " active" : ""}`}
             aria-pressed={mode === o.mode}
             title={modeTitle(o.mode, o.label)}
             aria-label={o.label}
-            style={mode === o.mode ? { borderColor: "var(--accent-positive)", color: "var(--accent-positive)" } : undefined}
             onClick={() => onChange(o.mode)}
           >
             <AnalysisModeIcon mode={o.mode} />

@@ -65,13 +65,14 @@ export async function importFplTeam(
   const picksEvent = ownPicksEvent(history, eventId, teamData.started_event);
   const picks = picksEvent === eventId ? latestPicks.data : (await fetchEntryPicks(teamId, picksEvent)).data;
   const { squad, warnings } = normalizeEntryImport(teamData, history, picks, eventId, playersById, picksEvent);
-  const transfersEvent = teamData.current_event !== null ? teamData.current_event + 1 : (options.upcomingEvent ?? null);
-  if (transfersEvent !== null) squad.transfers = importTransferWindow(history, squad, transfersEvent);
   const prices = await loadImportedPurchasePrices(teamId, picksEvent, playersById).catch(() => null);
   if (prices && squad.importedFrom) {
     squad.importedFrom.purchasePrices = prices.purchasePrices;
     squad.purchasePrices = keepPurchases(prices.purchasePrices, (id) => squad.playerIds.includes(id));
   }
+  // After the prices: the window's `start` is what Reset Draft puts back, prices included (<reset_draft>).
+  const transfersEvent = teamData.current_event !== null ? teamData.current_event + 1 : (options.upcomingEvent ?? null);
+  if (transfersEvent !== null) squad.transfers = importTransferWindow(history, squad, transfersEvent);
   return { squad, warnings };
 }
 
