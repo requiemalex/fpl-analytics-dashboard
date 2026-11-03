@@ -1343,7 +1343,8 @@ goals expected each way (`<points_model>`).
 - **Playing Time** (`metrics/rotationIndicators.ts`) = this season's average
   minutes per match in the player's log (0-minute matches included; a
   double gameweek is two matches). ≥75% of 90 is a starter, 40–74%
-  rotation, <40% fringe.
+  rotation, <40% fringe. A season with no minutes at all has no average:
+  "—" (`<no_minutes_no_figures>`).
 - **Comparative colouring** (the owner's rule, 2026-10-19;
   `metrics/comparativeColour.ts`, `<comparative_colouring>`): one rule for
   green and red wherever a figure is shown — tables, Dashboard tiles,
@@ -1468,7 +1469,8 @@ goals expected each way (`<points_model>`).
   and counts in the Average as a match with nothing in it — the Average
   is per match listed, the same basis as the averages it's coloured
   against — unless no match he played has the figure (a stat FPL didn't
-  record that season), which is "—". A cell with no total by design (Understat's
+  record that season), which is "—". A season he didn't play a minute of
+  has no Totals or Average: every cell "—", never a summed 0. A cell with no total by design (Understat's
   Win/Draw/Loss Chance Totals, Position) is blank: "—" always means
   missing data. (A club's *season* figures — Team Explorer, the Team
   Profile's Summary — follow their own rule, `<season_figures_mostly_complete>` in "Club
@@ -1489,7 +1491,8 @@ goals expected each way (`<points_model>`).
   count is whole in every Data View, its Historic Average (a mean of
   seasons) included — 141.8 points a season shows "142" — and so are
   figures that run to dozens or hundreds: ICT, Influence, Creativity and
-  Threat, a club's FPL Pts/Game and DC/Game, every percentage but
+  Threat, a club's FPL Pts/Game, DC/Game (a player's and a club's alike,
+  its career trend included), every percentage but
   ownership, Understat's xPts and Pts − xPts, and a Match Log Average of
   FPL points (a club's), DC (a club's) and BPS. Decimals stay only where
   a figure usually sits under 10, so rounding would blur real differences

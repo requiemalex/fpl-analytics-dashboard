@@ -152,8 +152,8 @@ browser scripts reuse `scripts/audit/lib/`, and throwaway ones go in
   "Whole numbers", `<whole_numbers>`). Round to whole numbers as much as
   possible: every count in every Data View, Historic Average included, and
   any figure that runs to dozens. Decimals only where a figure usually sits
-  under 10 (xG figures, per-game rates, price, ownership, form, FDR,
-  expected points) and for a small count's Historic Average (`smallCount`,
+  under 10 (xG figures, per-game rates (DC/Game aside: whole, players and
+  clubs alike), price, ownership, form, FDR, expected points) and for a small count's Historic Average (`smallCount`,
   1 decimal, so 0.4 never reads as a real 0). Show a figure through its
   column (`columnForMode`/`teamColumnForMode`), never hard-coded decimals.
 - **Comparative colouring — one rule** (owner's decision, 2026-10-19;

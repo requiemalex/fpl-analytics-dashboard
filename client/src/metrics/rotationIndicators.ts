@@ -17,5 +17,7 @@ export function computeSeasonAverageMinutes(history: Pick<PlayerGameweekHistory,
   const matches = history.length;
   if (matches === 0) return { averageMinutes: null, matches: 0 };
   const totalMinutes = history.reduce((sum, g) => sum + g.minutes, 0);
+  // Not a minute played: no average to show, "—" (<no_minutes_no_figures>).
+  if (totalMinutes === 0) return { averageMinutes: null, matches };
   return { averageMinutes: totalMinutes / matches, matches };
 }

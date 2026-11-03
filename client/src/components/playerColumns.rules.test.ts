@@ -4,6 +4,7 @@ import { teamColumnByKey, teamColumnForMode } from "./teamColumns";
 import { PLAYER_TILE_METRICS } from "./summaryTileMetrics";
 import { getPlayerDerivedMetrics } from "../metrics/playerMetrics";
 import { makePlayer } from "../test/fixtures";
+import { trendMetricByKey } from "../metrics/careerTrends";
 
 const col = (key: string) => columnByKey(key)!;
 
@@ -100,5 +101,13 @@ describe("<whole_numbers>: whole wherever a whole number still tells players apa
     expect(teamColumnByKey("cleanSheetRate")!.format(31.58)).toBe("32%");
     expect(teamColumnByKey("pointsPerGame")!.format(48.6)).toBe("49");
     expect(teamColumnByKey("defensiveContributionsPerGame")!.format(55.4)).toBe("55");
+  });
+
+  // Audit 2026-11-03 L16 (owner's decision): a player's DC/Game is whole, like a club's — Historic Average and the career trend included.
+  it("L16 a player's DC/Game is whole in every Data View, like a club's", () => {
+    const c = columnByKey("defensiveContributionsPerGame")!;
+    expect(c.format(14.3)).toBe("14");
+    for (const mode of ["live", "lastSeason", "historicAverage"] as const) expect(columnForMode(c, mode).format(3.6), mode).toBe("4");
+    expect(trendMetricByKey("defensiveContributionPerGame")!.decimals).toBe(0);
   });
 });

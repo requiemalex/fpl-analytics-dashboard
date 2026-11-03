@@ -190,13 +190,15 @@ function logColumnHint(key: string, header: string): string | undefined {
  * with nothing in it — the Average is per match listed, the basis every
  * other player's Average it's coloured against uses — even where FPL wrote
  * nothing; unless no match he played has the figure (a stat FPL didn't
- * record that season, like xG before 2022/23): that column is "—".
+ * record that season, like xG before 2022/23): that column is "—". A
+ * season he didn't play a minute of has no Totals or Average at all: every
+ * column "—", never a summed 0 (<no_minutes_no_figures>).
  */
 function logSums(rows: MatchLogRow[]): Record<string, PartialSum | null> {
   const out: Record<string, PartialSum | null> = {};
   const played = rows.some((r) => r.minutes > 0);
   for (const [key, { value }] of Object.entries(LOG_VALUES)) {
-    if (played && !rows.some((r) => r.minutes > 0 && value(r) !== null)) {
+    if (!played || !rows.some((r) => r.minutes > 0 && value(r) !== null)) {
       out[key] = null;
       continue;
     }

@@ -227,7 +227,8 @@ export const PLAYER_COLUMNS: PlayerColumn[] = [
     group: "ADVANCED",
     metricKey: "defensiveContributionsPerGame",
     getValue: (p) => p.defensiveContributionsPerGame,
-    ...num(2),
+    // Whole, like a club's DC/Game: it runs to the teens (<whole_numbers>).
+    ...num(0),
   }),
   {
     key: "defensiveRewardPerGame",

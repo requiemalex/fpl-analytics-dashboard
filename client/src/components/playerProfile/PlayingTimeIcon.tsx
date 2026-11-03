@@ -15,7 +15,7 @@ export function PlayingTimeIcon({ averageMinutes, matches, seasonName, rank }: {
   if (averageMinutes === null) {
     return (
       <div className="playing-time-row">
-        <div className="playing-time-icon tier-none" title={`No matches ${when}`} aria-label={`No playing-time data ${when}`}>
+        <div className="playing-time-icon tier-none" title={matches === 0 ? `No matches ${when}` : `No minutes played ${when}`} aria-label={`No playing-time data ${when}`}>
           <svg width="56" height="56" viewBox="0 0 56 56">
             <circle cx="28" cy="28" r="22" fill="none" stroke="var(--border-strong)" strokeWidth="6" strokeDasharray="4 5" />
           </svg>

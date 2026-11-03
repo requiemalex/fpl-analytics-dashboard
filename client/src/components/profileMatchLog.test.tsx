@@ -264,7 +264,7 @@ describe("Player profile — Match Log", () => {
 
   // Audit 2026-11-03 M1: a season he didn't play a minute of has no Totals or
   // Average to show — "—", as on each row and in the Explorer, never 0.
-  it.fails("M1 <no_minutes_no_figures>: a season with 0 minutes in every match shows — in Totals and Average, never 0", () => {
+  it("M1 <no_minutes_no_figures>: a season with 0 minutes in every match shows — in Totals and Average, never 0", () => {
     const benched = { minutes: 0, starts: 0, totalPoints: 0, cleanSheets: 0, defensiveContribution: 0, tackles: 0, clearancesBlocksInterceptions: 0, recoveries: 0, bps: 0, xG: 0, xA: 0, xGI: 0, xGC: 0 };
     setHistory([gw(1, benched), gw(2, benched)], [makeSeason({ seasonName: "2025/26", totalPoints: 170, minutes: 3100 })]);
     setApp([makePlayer({ id: 1, code: 500, name: "Saliba", position: "DEF", teamId: 1, teamName: "Arsenal", totalPoints: 0, minutes: 0 })]);
@@ -273,6 +273,27 @@ describe("Player profile — Match Log", () => {
     const figures = [...log.querySelectorAll("tfoot td:not(.table-footer-label)")].map((td) => td.textContent);
     expect(figures.length).toBeGreaterThan(0);
     for (const f of figures) expect(f).toBe("—");
+  });
+
+  it("M1 <no_minutes_no_figures>: Playing Time's average is — for a season with 0 minutes, never 0", () => {
+    const benched = { minutes: 0, starts: 0, totalPoints: 0, cleanSheets: 0, defensiveContribution: 0, tackles: 0, clearancesBlocksInterceptions: 0, recoveries: 0, bps: 0, xG: 0, xA: 0, xGI: 0, xGC: 0 };
+    setHistory([gw(1, benched), gw(2, benched)], [makeSeason({ seasonName: "2025/26", totalPoints: 170, minutes: 3100 })]);
+    setApp([makePlayer({ id: 1, code: 500, name: "Saliba", position: "DEF", teamId: 1, teamName: "Arsenal", totalPoints: 0, minutes: 0 })]);
+    const { container } = renderPlayer();
+    const summary = container.querySelector(".playing-time-summary")!;
+    expect(summary.textContent).toContain("Matches: 2");
+    expect(summary.textContent).toContain("Average Minutes Per Match: —");
+  });
+
+  it("a player who did play keeps real 0s in Totals (only 0-minute seasons are —)", () => {
+    setHistory([gw(1, { minutes: 90, totalPoints: 1, goals: 0 }), gw(2, { minutes: 0, totalPoints: 0 })]);
+    setApp([makePlayer({ id: 1, code: 500, name: "Saliba", position: "DEF", teamId: 1, teamName: "Arsenal", totalPoints: 1, minutes: 90 })]);
+    const { container } = renderPlayer();
+    const log = matchLog(container);
+    const headers = [...log.querySelectorAll("thead th")].map((th) => th.textContent);
+    const totals = [...log.querySelector("tfoot tr")!.querySelectorAll("td")].map((td) => td.textContent);
+    expect(totals[headers.indexOf("Goals") - 2]).toBe("0");
+    expect(container.querySelector(".playing-time-summary")!.textContent).toContain("Average Minutes Per Match: 45");
   });
 });
 

@@ -1,5 +1,6 @@
 import type { PlayerSeasonHistory } from "../types/normalized";
 import { estimatedPointsPerGame, perGame } from "./calculations";
+import { columnByKey } from "../components/playerColumns";
 
 /** The same groups as every other player picker (ColumnGroup, playerColumns.tsx): playing time and season-end price sit in Advanced, not under headings of one or two (owner's call, 2026-10-29). */
 export type TrendMetricGroup = "Output" | "Underlying" | "Advanced";
@@ -45,7 +46,8 @@ export const TREND_METRICS: TrendMetric[] = [
     key: "defensiveContributionPerGame",
     label: "DC per Game",
     group: "Advanced",
-    decimals: 2,
+    // Shown as its Explorer column is (whole, <whole_numbers>), never its own decimals.
+    decimals: columnByKey("defensiveContributionsPerGame")!.decimals,
     getValue: (s) => perGame(s.defensiveContribution, s.minutes),
   },
   { key: "endCost", label: "Price (Season End)", group: "Advanced", decimals: 1, price: true, getValue: (s) => s.endCost },
