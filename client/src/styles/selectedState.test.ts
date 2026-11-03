@@ -40,6 +40,19 @@ describe("<selected_state>: one look for anything picked", () => {
     });
   }
 
+  // Audit 2026-11-03: picked things that still have a look of their own.
+  for (const [id, selector] of [
+    ["M5", ".nav-link.active"],
+    ["M6", ".notepad-tab.active"],
+    ["L2", "button.points-history-col.is-selected"],
+  ] as const) {
+    it.fails(`${id} ${selector}: filled soft green, no green edge`, () => {
+      const body = rule(selector);
+      expect(body).toMatch(/background:\s*var\(--accent-positive-dim\)/);
+      expect(body).not.toMatch(/border[a-z-]*:[^;]*var\(--accent-positive\)/);
+    });
+  }
+
   it("no component sets a selection's colour of its own inline", () => {
     const files = (dir: string): string[] =>
       readdirSync(dir).flatMap((name) => {
