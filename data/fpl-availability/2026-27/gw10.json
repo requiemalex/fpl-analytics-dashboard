@@ -2,7 +2,7 @@
   "season": "2026/27",
   "gameweek": 10,
   "deadline": "2026-11-06T18:30:00Z",
-  "recordedAt": "2026-11-04T15:27:17.842Z",
+  "recordedAt": "2026-11-04T21:54:20.826Z",
   "pool": 670,
   "players": [
     {"code":21205,"element":414,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-08-15T16:00:07.854151Z"},
@@ -198,7 +198,7 @@
     {"code":461102,"element":173,"status":"d","chanceNextRound":50,"chanceThisRound":50,"news":"Calf injury - 50% chance of playing","newsAdded":"2026-10-24T17:00:09.115906Z"},
     {"code":461199,"element":547,"status":"i","chanceNextRound":0,"chanceThisRound":0,"news":"Knee injury - Unknown return date","newsAdded":"2026-09-09T14:00:08.462705Z"},
     {"code":462387,"element":322,"status":"u","chanceNextRound":0,"chanceThisRound":0,"news":"Has joined Sheffield Wednesday on loan for the rest of the season","newsAdded":"2026-08-27T14:54:10.215357Z"},
-    {"code":462424,"element":6,"status":"d","chanceNextRound":75,"chanceThisRound":0,"news":"Back injury - 75% chance of playing","newsAdded":"2026-07-23T12:01:23.289376Z"},
+    {"code":462424,"element":6,"status":"a","chanceNextRound":100,"chanceThisRound":0,"news":"","newsAdded":"2026-07-23T12:01:23.289376Z"},
     {"code":462635,"element":340,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-08-17T21:30:07.799839Z"},
     {"code":463067,"element":125,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-08-26T16:00:07.608056Z"},
     {"code":463726,"element":593,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-09-17T14:30:09.823731Z"},
