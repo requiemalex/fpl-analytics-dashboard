@@ -2,7 +2,7 @@
   "season": "2026/27",
   "gameweek": 10,
   "deadline": "2026-11-06T18:30:00Z",
-  "recordedAt": "2026-11-03T23:25:06.639Z",
+  "recordedAt": "2026-11-04T15:27:17.842Z",
   "pool": 670,
   "players": [
     {"code":21205,"element":414,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-08-15T16:00:07.854151Z"},
@@ -288,7 +288,7 @@
     {"code":531442,"element":315,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-09-19T15:30:10.126897Z"},
     {"code":532529,"element":123,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-08-27T19:30:07.780933Z"},
     {"code":534392,"element":299,"status":"u","chanceNextRound":0,"chanceThisRound":0,"news":"Has joined Sheffield Wednesday on loan for the rest of the season","newsAdded":"2026-08-03T14:05:20.234842Z"},
-    {"code":535301,"element":131,"status":"d","chanceNextRound":75,"chanceThisRound":100,"news":"Hamstring injury - 75% chance of playing","newsAdded":"2026-11-03T22:00:07.995956Z"},
+    {"code":535301,"element":131,"status":"d","chanceNextRound":50,"chanceThisRound":100,"news":"Hamstring injury - 50% chance of playing","newsAdded":"2026-11-03T22:00:07.995956Z"},
     {"code":535818,"element":546,"status":"u","chanceNextRound":0,"chanceThisRound":0,"news":"Has joined Ajax on loan for the rest of the season","newsAdded":"2026-08-20T14:00:08.416985Z"},
     {"code":535928,"element":376,"status":"u","chanceNextRound":0,"chanceThisRound":0,"news":"Has joined Celta Vigo permanently","newsAdded":"2026-07-23T12:01:23.628373Z"},
     {"code":536694,"element":217,"status":"u","chanceNextRound":0,"chanceThisRound":0,"news":"Has joined Alverca on loan for the rest of the season","newsAdded":"2026-09-11T14:42:19.322912Z"},
