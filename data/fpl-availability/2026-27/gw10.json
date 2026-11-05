@@ -2,7 +2,7 @@
   "season": "2026/27",
   "gameweek": 10,
   "deadline": "2026-11-06T18:30:00Z",
-  "recordedAt": "2026-11-04T21:54:20.826Z",
+  "recordedAt": "2026-11-05T10:58:29.105Z",
   "pool": 670,
   "players": [
     {"code":21205,"element":414,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-08-15T16:00:07.854151Z"},
@@ -149,7 +149,7 @@
     {"code":248875,"element":400,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-08-18T17:00:08.385597Z"},
     {"code":250199,"element":487,"status":"d","chanceNextRound":75,"chanceThisRound":75,"news":"Muscular injury - 75% chance of playing","newsAdded":"2026-10-24T13:00:08.751863Z"},
     {"code":424876,"element":368,"status":"a","chanceNextRound":100,"chanceThisRound":50,"news":"","newsAdded":"2026-10-17T15:00:08.293301Z"},
-    {"code":428580,"element":104,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-09-15T09:00:07.851220Z"},
+    {"code":428580,"element":104,"status":"d","chanceNextRound":50,"chanceThisRound":100,"news":"Groin injury - 50% chance of playing","newsAdded":"2026-11-05T09:00:09.236330Z"},
     {"code":432422,"element":455,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-09-14T14:30:07.387706Z"},
     {"code":432830,"element":84,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-09-05T18:00:06.182495Z"},
     {"code":432987,"element":354,"status":"i","chanceNextRound":0,"chanceThisRound":0,"news":"Knee injury - Unknown return date","newsAdded":"2026-07-29T18:00:10.351066Z"},
