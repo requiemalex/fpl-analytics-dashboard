@@ -2,7 +2,7 @@
   "season": "2026/27",
   "gameweek": 11,
   "deadline": "2026-11-21T11:00:00Z",
-  "recordedAt": "2026-11-10T20:50:12.120Z",
+  "recordedAt": "2026-11-11T01:15:40.805Z",
   "pool": 672,
   "players": [
     {"code":21205,"element":414,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-08-15T16:00:07.854151Z"},
@@ -17,6 +17,7 @@
     {"code":88894,"element":46,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-10-16T17:30:09.276181Z"},
     {"code":91651,"element":406,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-10-19T15:30:09.126343Z"},
     {"code":93605,"element":541,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-10-10T16:30:09.200467Z"},
+    {"code":95658,"element":418,"status":"d","chanceNextRound":75,"chanceThisRound":null,"news":"Back injury - 75% chance of playing","newsAdded":"2026-11-11T01:00:09.173434Z"},
     {"code":97032,"element":356,"status":"d","chanceNextRound":75,"chanceThisRound":null,"news":"Unspecified injury - 75% chance of playing","newsAdded":"2026-11-09T18:00:09.325472Z"},
     {"code":98980,"element":28,"status":"d","chanceNextRound":75,"chanceThisRound":75,"news":"Head injury - 75% chance of playing","newsAdded":"2026-10-17T13:30:08.724000Z"},
     {"code":101188,"element":30,"status":"u","chanceNextRound":0,"chanceThisRound":0,"news":"Has joined Paris Saint-Germain permanently","newsAdded":"2026-08-10T14:03:30.089007Z"},
