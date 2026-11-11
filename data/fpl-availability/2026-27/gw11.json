@@ -2,7 +2,7 @@
   "season": "2026/27",
   "gameweek": 11,
   "deadline": "2026-11-21T11:00:00Z",
-  "recordedAt": "2026-11-11T01:15:40.805Z",
+  "recordedAt": "2026-11-11T16:12:37.476Z",
   "pool": 672,
   "players": [
     {"code":21205,"element":414,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-08-15T16:00:07.854151Z"},
@@ -148,7 +148,7 @@
     {"code":244858,"element":100,"status":"i","chanceNextRound":0,"chanceThisRound":0,"news":"Knock - Expected back 23 Nov","newsAdded":"2026-10-30T14:30:09.456391Z"},
     {"code":244860,"element":247,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-08-26T22:00:07.797766Z"},
     {"code":244954,"element":34,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-09-12T18:00:08.712707Z"},
-    {"code":247412,"element":222,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-10-23T17:00:09.672494Z"},
+    {"code":247412,"element":222,"status":"d","chanceNextRound":75,"chanceThisRound":100,"news":"Ankle injury - 75% chance of playing","newsAdded":"2026-11-11T13:00:09.556609Z"},
     {"code":248857,"element":16,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-10-28T00:00:08.492716Z"},
     {"code":248875,"element":400,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-08-18T17:00:08.385597Z"},
     {"code":250199,"element":487,"status":"i","chanceNextRound":0,"chanceThisRound":0,"news":"Muscular injury - Expected back 30 Dec","newsAdded":"2026-10-24T13:00:08.751863Z"},
