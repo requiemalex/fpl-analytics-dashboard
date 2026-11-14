@@ -2,7 +2,7 @@
   "season": "2026/27",
   "gameweek": 11,
   "deadline": "2026-11-21T11:00:00Z",
-  "recordedAt": "2026-11-12T20:50:27.160Z",
+  "recordedAt": "2026-11-14T14:10:36.596Z",
   "pool": 672,
   "players": [
     {"code":21205,"element":414,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-08-15T16:00:07.854151Z"},
@@ -350,7 +350,7 @@
     {"code":593117,"element":164,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-07-24T20:30:10.609931Z"},
     {"code":593174,"element":107,"status":"i","chanceNextRound":0,"chanceThisRound":0,"news":"Unspecified injury - Unknown return date","newsAdded":"2026-09-14T14:00:09.985723Z"},
     {"code":596047,"element":441,"status":"u","chanceNextRound":0,"chanceThisRound":0,"news":"Has joined Willem II on loan for the rest of the season","newsAdded":"2026-09-14T16:12:42.090874Z"},
-    {"code":596777,"element":415,"status":"a","chanceNextRound":100,"chanceThisRound":75,"news":"","newsAdded":"2026-09-27T21:30:07.831640Z"},
+    {"code":596777,"element":415,"status":"d","chanceNextRound":75,"chanceThisRound":75,"news":"Hamstring injury - 75% chance of playing","newsAdded":"2026-11-14T10:00:05.646862Z"},
     {"code":597320,"element":132,"status":"u","chanceNextRound":0,"chanceThisRound":0,"news":"Has joined Leicester City on loan for the rest of the season","newsAdded":"2026-08-17T13:53:19.019938Z"},
     {"code":599303,"element":466,"status":"u","chanceNextRound":0,"chanceThisRound":0,"news":"Has joined Wolves on loan for the rest of the season","newsAdded":"2026-09-04T12:37:43.515176Z"},
     {"code":606702,"element":362,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-10-06T00:30:10.323830Z"},
