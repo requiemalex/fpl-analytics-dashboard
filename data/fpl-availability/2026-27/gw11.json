@@ -2,7 +2,7 @@
   "season": "2026/27",
   "gameweek": 11,
   "deadline": "2026-11-21T11:00:00Z",
-  "recordedAt": "2026-11-15T10:57:01.338Z",
+  "recordedAt": "2026-11-15T17:44:01.810Z",
   "pool": 672,
   "players": [
     {"code":21205,"element":414,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-08-15T16:00:07.854151Z"},
@@ -76,6 +76,7 @@
     {"code":201895,"element":535,"status":"a","chanceNextRound":100,"chanceThisRound":0,"news":"","newsAdded":"2026-10-31T17:30:08.393957Z"},
     {"code":202993,"element":516,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-10-10T18:30:09.519346Z"},
     {"code":204480,"element":13,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-10-28T00:00:08.477333Z"},
+    {"code":204561,"element":558,"status":"d","chanceNextRound":75,"chanceThisRound":null,"news":"Thigh injury - 75% chance of playing","newsAdded":"2026-11-15T17:00:06.045512Z"},
     {"code":204580,"element":98,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-10-17T16:30:09.272910Z"},
     {"code":204968,"element":489,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-08-17T20:30:08.195072Z"},
     {"code":205533,"element":224,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-09-12T14:00:09.427136Z"},
