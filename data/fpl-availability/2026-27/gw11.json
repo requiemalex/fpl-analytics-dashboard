@@ -2,7 +2,7 @@
   "season": "2026/27",
   "gameweek": 11,
   "deadline": "2026-11-21T11:00:00Z",
-  "recordedAt": "2026-11-14T19:11:16.333Z",
+  "recordedAt": "2026-11-15T10:57:01.338Z",
   "pool": 672,
   "players": [
     {"code":21205,"element":414,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-08-15T16:00:07.854151Z"},
@@ -66,7 +66,7 @@
     {"code":193278,"element":280,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-08-29T16:30:08.151841Z"},
     {"code":194010,"element":89,"status":"i","chanceNextRound":0,"chanceThisRound":0,"news":"Hip injury - Unknown return date","newsAdded":"2026-10-27T16:30:09.444144Z"},
     {"code":198869,"element":10,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-09-20T19:30:08.247780Z"},
-    {"code":199796,"element":32,"status":"a","chanceNextRound":100,"chanceThisRound":0,"news":"","newsAdded":"2026-10-31T22:00:07.593621Z"},
+    {"code":199796,"element":32,"status":"d","chanceNextRound":75,"chanceThisRound":0,"news":"Concussion - 75% chance of playing","newsAdded":"2026-11-15T10:30:05.648897Z"},
     {"code":199798,"element":31,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-11-05T20:30:09.025008Z"},
     {"code":200617,"element":343,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-10-08T14:00:11.803126Z"},
     {"code":200641,"element":24,"status":"u","chanceNextRound":0,"chanceThisRound":0,"news":"has departed the club as a free agent.","newsAdded":"2026-08-29T00:33:08.556767Z"},
