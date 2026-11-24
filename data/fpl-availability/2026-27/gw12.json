@@ -2,7 +2,7 @@
   "season": "2026/27",
   "gameweek": 12,
   "deadline": "2026-11-27T18:30:00Z",
-  "recordedAt": "2026-11-24T00:53:44.609Z",
+  "recordedAt": "2026-11-24T10:57:14.950Z",
   "pool": 674,
   "players": [
     {"code":17761,"element":229,"status":"s","chanceNextRound":0,"chanceThisRound":null,"news":"Suspended until 13 Dec","newsAdded":"2026-11-23T21:00:06.268052Z"},
@@ -66,7 +66,7 @@
     {"code":184254,"element":494,"status":"u","chanceNextRound":0,"chanceThisRound":0,"news":"Has joined Juventus on loan for the rest of the season","newsAdded":"2026-08-19T13:55:33.193962Z"},
     {"code":184341,"element":430,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-08-15T16:00:07.879135Z"},
     {"code":184349,"element":269,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-10-17T16:30:09.374216Z"},
-    {"code":184667,"element":37,"status":"d","chanceNextRound":75,"chanceThisRound":null,"news":"Illness - 75% chance of playing","newsAdded":"2026-11-21T14:30:05.829063Z"},
+    {"code":184667,"element":37,"status":"a","chanceNextRound":100,"chanceThisRound":null,"news":"","newsAdded":"2026-11-21T14:30:05.829063Z"},
     {"code":193278,"element":280,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-08-29T16:30:08.151841Z"},
     {"code":194010,"element":89,"status":"i","chanceNextRound":0,"chanceThisRound":0,"news":"Hip injury - Unknown return date","newsAdded":"2026-10-27T16:30:09.444144Z"},
     {"code":198869,"element":10,"status":"a","chanceNextRound":100,"chanceThisRound":100,"news":"","newsAdded":"2026-09-20T19:30:08.247780Z"},
